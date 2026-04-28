@@ -693,6 +693,7 @@ export namespace models {
 	    enabled: boolean;
 	    repo_url: string;
 	    branch: string;
+	    configure_pages: boolean;
 	    token: string;
 	    output_dir: string;
 	    base_url: string;
@@ -710,6 +711,7 @@ export namespace models {
 	        this.enabled = source["enabled"];
 	        this.repo_url = source["repo_url"];
 	        this.branch = source["branch"];
+	        this.configure_pages = source["configure_pages"];
 	        this.token = source["token"];
 	        this.output_dir = source["output_dir"];
 	        this.base_url = source["base_url"];
@@ -920,4 +922,3 @@ export namespace time {
 	}
 
 }
-

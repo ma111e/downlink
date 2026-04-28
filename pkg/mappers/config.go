@@ -8,9 +8,10 @@ import (
 func ServerConfigToProto(config *models.ServerConfig) (*protos.ServerConfig, error) {
 	if config == nil {
 		return &protos.ServerConfig{
-			Feeds:     []*protos.FeedConfig{},
-			Providers: []*protos.ProviderConfig{},
-			Analysis:  &protos.AnalysisConfig{},
+			Feeds:         []*protos.FeedConfig{},
+			Providers:     []*protos.ProviderConfig{},
+			Analysis:      &protos.AnalysisConfig{},
+			Notifications: NotificationsConfigToProto(nil),
 		}, nil
 	}
 
@@ -39,6 +40,7 @@ func ServerConfigToProto(config *models.ServerConfig) (*protos.ServerConfig, err
 
 	// Convert analysis
 	protoServerConfig.Analysis = AnalysisConfigToProto(&config.Analysis)
+	protoServerConfig.Notifications = NotificationsConfigToProto(&config.Notifications)
 
 	// Convert DefaultSelectors
 	if config.DefaultSelectors != nil {
@@ -87,6 +89,9 @@ func ServerConfigToModel(config *protos.ServerConfig) (*models.ServerConfig, err
 	if a := AnalysisConfigToModel(config.Analysis); a != nil {
 		servConf.Analysis = *a
 	}
+	if n := NotificationsConfigToModel(config.Notifications); n != nil {
+		servConf.Notifications = *n
+	}
 
 	// Convert DefaultSelectors
 	if config.DefaultSelectors != nil {
@@ -98,4 +103,64 @@ func ServerConfigToModel(config *protos.ServerConfig) (*models.ServerConfig, err
 	}
 
 	return &servConf, nil
+}
+
+func NotificationsConfigToProto(config *models.NotificationsConfig) *protos.NotificationsConfig {
+	if config == nil {
+		return &protos.NotificationsConfig{
+			Discord:     &protos.DiscordNotificationConfig{},
+			GithubPages: &protos.GitHubPagesNotificationConfig{},
+		}
+	}
+
+	return &protos.NotificationsConfig{
+		Discord: &protos.DiscordNotificationConfig{
+			Enabled:    config.Discord.Enabled,
+			WebhookUrl: config.Discord.WebhookURL,
+		},
+		GithubPages: &protos.GitHubPagesNotificationConfig{
+			Enabled:           config.GitHubPages.Enabled,
+			RepoUrl:           config.GitHubPages.RepoURL,
+			Branch:            config.GitHubPages.Branch,
+			ConfigurePages:    config.GitHubPages.ConfigurePages,
+			Token:             config.GitHubPages.Token,
+			OutputDir:         config.GitHubPages.OutputDir,
+			BaseUrl:           config.GitHubPages.BaseURL,
+			CommitAuthor:      config.GitHubPages.CommitAuthor,
+			CommitEmail:       config.GitHubPages.CommitEmail,
+			CloneDir:          config.GitHubPages.CloneDir,
+			DiscordWebhookUrl: config.GitHubPages.DiscordWebhookURL,
+		},
+	}
+}
+
+func NotificationsConfigToModel(config *protos.NotificationsConfig) *models.NotificationsConfig {
+	if config == nil {
+		return nil
+	}
+
+	out := &models.NotificationsConfig{}
+	if config.Discord != nil {
+		out.Discord = models.DiscordNotificationConfig{
+			Enabled:    config.Discord.Enabled,
+			WebhookURL: config.Discord.WebhookUrl,
+		}
+	}
+	if config.GithubPages != nil {
+		out.GitHubPages = models.GitHubPagesNotificationConfig{
+			Enabled:           config.GithubPages.Enabled,
+			RepoURL:           config.GithubPages.RepoUrl,
+			Branch:            config.GithubPages.Branch,
+			ConfigurePages:    config.GithubPages.ConfigurePages,
+			Token:             config.GithubPages.Token,
+			OutputDir:         config.GithubPages.OutputDir,
+			BaseURL:           config.GithubPages.BaseUrl,
+			CommitAuthor:      config.GithubPages.CommitAuthor,
+			CommitEmail:       config.GithubPages.CommitEmail,
+			CloneDir:          config.GithubPages.CloneDir,
+			DiscordWebhookURL: config.GithubPages.DiscordWebhookUrl,
+		}
+	}
+
+	return out
 }

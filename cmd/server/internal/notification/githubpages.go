@@ -60,6 +60,10 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 		Password: p.cfg.Token,
 	}
 
+	if err := p.configureGitHubPagesSourceIfEnabled(); err != nil {
+		return fmt.Errorf("github pages: failed to configure GitHub Pages source: %w", err)
+	}
+
 	repo, err := p.ensureRepo(auth)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to prepare local repo: %w", err)

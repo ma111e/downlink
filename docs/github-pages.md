@@ -22,7 +22,12 @@ In the repo's **Settings → Pages**, set the source to the branch you'll push t
 
 Go to **GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens** (or classic tokens).
 
-The token needs **Contents: Read and write** on the target repository.
+For normal publishing, the token needs **Contents: Read and write** on the target repository.
+
+If you enable `configure_pages`, the token also needs permission to manage GitHub Pages settings:
+
+- Fine-grained token: **Pages: Read and write** and **Administration: Read and write** on the target repository.
+- Classic token: `repo`.
 
 > Keep the token out of version control. Use the environment variable `DOWNLINK_GH_PAGES_TOKEN` or the `token` config field (see below).
 
@@ -43,6 +48,7 @@ Add a `github_pages` block inside `notifications`:
       "enabled": true,
       "repo_url": "https://github.com/your-username/your-username.github.io.git",
       "branch": "main",
+      "configure_pages": false,
       "output_dir": "digests",
       "base_url": "https://your-username.github.io",
       "discord_webhook_url": "https://discord.com/api/webhooks/..."
@@ -57,7 +63,8 @@ Add a `github_pages` block inside `notifications`:
 |---|---|---|---|
 | `enabled` | yes | `false` | Enable or disable publishing. |
 | `repo_url` | yes | — | HTTPS clone URL of the Pages repo. |
-| `branch` | no | `main` | Branch to clone and push to. |
+| `branch` | no | `main` | Branch to clone and push to. When `configure_pages` is true, this is also configured as the GitHub Pages source branch. |
+| `configure_pages` | no | `false` | Configure the GitHub Pages source to `branch` at `/` before publishing. Requires extra token permissions. |
 | `token` | no* | — | GitHub PAT. Prefer `DOWNLINK_GH_PAGES_TOKEN` env var instead. |
 | `output_dir` | no | *(repo root)* | Subdirectory inside the repo where digest files are written. |
 | `base_url` | no | — | Public URL of the site (e.g. `https://your-username.github.io`). Used to build links in Discord notifications. |
@@ -91,6 +98,7 @@ Every config field has a corresponding flag on the `server` command. Flags overr
 --gh-pages-enabled              Enable GitHub Pages publishing
 --gh-pages-repo <url>           Repo clone URL
 --gh-pages-branch <branch>      Branch to push to
+--gh-pages-configure            Configure GitHub Pages source to the selected branch at /
 --gh-pages-token <token>        GitHub PAT (prefer env var)
 --gh-pages-output-dir <dir>     Subdirectory for digest files
 --gh-pages-base-url <url>       Public base URL of the site

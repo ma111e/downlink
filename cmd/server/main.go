@@ -174,6 +174,7 @@ func main() {
 	rootCmd.PersistentFlags().Bool("gh-pages-enabled", false, "Enable GitHub Pages publishing [overrides config]")
 	rootCmd.PersistentFlags().String("gh-pages-repo", "", "GitHub Pages repo URL, e.g. https://github.com/user/repo.git [overrides config]")
 	rootCmd.PersistentFlags().String("gh-pages-branch", "", "Branch to push to (default 'main') [overrides config]")
+	rootCmd.PersistentFlags().Bool("gh-pages-configure", false, "Configure GitHub Pages source to --gh-pages-branch at '/' before publishing [overrides config]")
 	rootCmd.PersistentFlags().String("gh-pages-token", "", "GitHub PAT with contents:write (prefer DOWNLINK_GH_PAGES_TOKEN env) [overrides config]")
 	rootCmd.PersistentFlags().String("gh-pages-output-dir", "", "Subdirectory inside the repo for digest files [overrides config]")
 	rootCmd.PersistentFlags().String("gh-pages-base-url", "", "Public base URL of the Pages site, e.g. https://user.github.io [overrides config]")
@@ -201,6 +202,10 @@ func applyGHPagesFlagOverrides(cmd *cobra.Command) {
 	}
 	if cmd.Flags().Changed("gh-pages-branch") {
 		gh.Branch, _ = cmd.Flags().GetString("gh-pages-branch")
+	}
+	if cmd.Flags().Changed("gh-pages-configure") {
+		v, _ := cmd.Flags().GetBool("gh-pages-configure")
+		gh.ConfigurePages = v
 	}
 	if cmd.Flags().Changed("gh-pages-token") {
 		gh.Token, _ = cmd.Flags().GetString("gh-pages-token")

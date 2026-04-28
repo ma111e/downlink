@@ -33,16 +33,17 @@ type DiscordNotificationConfig struct {
 
 // GitHubPagesNotificationConfig holds GitHub Pages publishing settings
 type GitHubPagesNotificationConfig struct {
-	Enabled            bool   `json:"enabled"`
-	RepoURL            string `json:"repo_url"`            // e.g. https://github.com/user/user.github.io.git
-	Branch             string `json:"branch"`              // default "main"
-	Token              string `json:"token"`               // GitHub PAT; prefer env DOWNLINK_GH_PAGES_TOKEN
-	OutputDir          string `json:"output_dir"`          // subdirectory inside repo (empty = repo root)
-	BaseURL            string `json:"base_url"`            // public URL, e.g. https://user.github.io
-	CommitAuthor       string `json:"commit_author"`       // default "downlink-bot"
-	CommitEmail        string `json:"commit_email"`        // default "downlink-bot@users.noreply.github.com"
-	CloneDir           string `json:"clone_dir"`           // local working clone; default: os.TempDir()/downlink-ghpages
-	DiscordWebhookURL  string `json:"discord_webhook_url"` // optional: notify this webhook when a page is published
+	Enabled           bool   `json:"enabled"`
+	RepoURL           string `json:"repo_url"`            // e.g. https://github.com/user/user.github.io.git
+	Branch            string `json:"branch"`              // default "main"
+	ConfigurePages    bool   `json:"configure_pages"`     // configure GitHub Pages source to this branch
+	Token             string `json:"token"`               // GitHub PAT; prefer env DOWNLINK_GH_PAGES_TOKEN
+	OutputDir         string `json:"output_dir"`          // subdirectory inside repo (empty = repo root)
+	BaseURL           string `json:"base_url"`            // public URL, e.g. https://user.github.io
+	CommitAuthor      string `json:"commit_author"`       // default "downlink-bot"
+	CommitEmail       string `json:"commit_email"`        // default "downlink-bot@users.noreply.github.com"
+	CloneDir          string `json:"clone_dir"`           // local working clone; default: os.TempDir()/downlink-ghpages
+	DiscordWebhookURL string `json:"discord_webhook_url"` // optional: notify this webhook when a page is published
 }
 
 func (sc *ServerConfig) Save(path string) error {

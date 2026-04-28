@@ -203,6 +203,7 @@ type ServerConfig struct {
 	Providers        []*ProviderConfig      `protobuf:"bytes,3,rep,name=providers,proto3" json:"providers,omitempty"`
 	Analysis         *AnalysisConfig        `protobuf:"bytes,4,opt,name=analysis,proto3" json:"analysis,omitempty"`
 	DefaultSelectors *Selectors             `protobuf:"bytes,5,opt,name=default_selectors,json=defaultSelectors,proto3" json:"default_selectors,omitempty"`
+	Notifications    *NotificationsConfig   `protobuf:"bytes,6,opt,name=notifications,proto3" json:"notifications,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -272,6 +273,244 @@ func (x *ServerConfig) GetDefaultSelectors() *Selectors {
 	return nil
 }
 
+func (x *ServerConfig) GetNotifications() *NotificationsConfig {
+	if x != nil {
+		return x.Notifications
+	}
+	return nil
+}
+
+// NotificationsConfig holds notification platform configurations.
+type NotificationsConfig struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Discord       *DiscordNotificationConfig     `protobuf:"bytes,1,opt,name=discord,proto3" json:"discord,omitempty"`
+	GithubPages   *GitHubPagesNotificationConfig `protobuf:"bytes,2,opt,name=github_pages,json=githubPages,proto3" json:"github_pages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotificationsConfig) Reset() {
+	*x = NotificationsConfig{}
+	mi := &file_config_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotificationsConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotificationsConfig) ProtoMessage() {}
+
+func (x *NotificationsConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotificationsConfig.ProtoReflect.Descriptor instead.
+func (*NotificationsConfig) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *NotificationsConfig) GetDiscord() *DiscordNotificationConfig {
+	if x != nil {
+		return x.Discord
+	}
+	return nil
+}
+
+func (x *NotificationsConfig) GetGithubPages() *GitHubPagesNotificationConfig {
+	if x != nil {
+		return x.GithubPages
+	}
+	return nil
+}
+
+// DiscordNotificationConfig holds Discord-specific notification settings.
+type DiscordNotificationConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	WebhookUrl    string                 `protobuf:"bytes,2,opt,name=webhook_url,json=webhookUrl,proto3" json:"webhook_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscordNotificationConfig) Reset() {
+	*x = DiscordNotificationConfig{}
+	mi := &file_config_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscordNotificationConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscordNotificationConfig) ProtoMessage() {}
+
+func (x *DiscordNotificationConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscordNotificationConfig.ProtoReflect.Descriptor instead.
+func (*DiscordNotificationConfig) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *DiscordNotificationConfig) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *DiscordNotificationConfig) GetWebhookUrl() string {
+	if x != nil {
+		return x.WebhookUrl
+	}
+	return ""
+}
+
+// GitHubPagesNotificationConfig holds GitHub Pages publishing settings.
+type GitHubPagesNotificationConfig struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Enabled           bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	RepoUrl           string                 `protobuf:"bytes,2,opt,name=repo_url,json=repoUrl,proto3" json:"repo_url,omitempty"`
+	Branch            string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	ConfigurePages    bool                   `protobuf:"varint,4,opt,name=configure_pages,json=configurePages,proto3" json:"configure_pages,omitempty"`
+	Token             string                 `protobuf:"bytes,5,opt,name=token,proto3" json:"token,omitempty"`
+	OutputDir         string                 `protobuf:"bytes,6,opt,name=output_dir,json=outputDir,proto3" json:"output_dir,omitempty"`
+	BaseUrl           string                 `protobuf:"bytes,7,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	CommitAuthor      string                 `protobuf:"bytes,8,opt,name=commit_author,json=commitAuthor,proto3" json:"commit_author,omitempty"`
+	CommitEmail       string                 `protobuf:"bytes,9,opt,name=commit_email,json=commitEmail,proto3" json:"commit_email,omitempty"`
+	CloneDir          string                 `protobuf:"bytes,10,opt,name=clone_dir,json=cloneDir,proto3" json:"clone_dir,omitempty"`
+	DiscordWebhookUrl string                 `protobuf:"bytes,11,opt,name=discord_webhook_url,json=discordWebhookUrl,proto3" json:"discord_webhook_url,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GitHubPagesNotificationConfig) Reset() {
+	*x = GitHubPagesNotificationConfig{}
+	mi := &file_config_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitHubPagesNotificationConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitHubPagesNotificationConfig) ProtoMessage() {}
+
+func (x *GitHubPagesNotificationConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitHubPagesNotificationConfig.ProtoReflect.Descriptor instead.
+func (*GitHubPagesNotificationConfig) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GitHubPagesNotificationConfig) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *GitHubPagesNotificationConfig) GetRepoUrl() string {
+	if x != nil {
+		return x.RepoUrl
+	}
+	return ""
+}
+
+func (x *GitHubPagesNotificationConfig) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *GitHubPagesNotificationConfig) GetConfigurePages() bool {
+	if x != nil {
+		return x.ConfigurePages
+	}
+	return false
+}
+
+func (x *GitHubPagesNotificationConfig) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *GitHubPagesNotificationConfig) GetOutputDir() string {
+	if x != nil {
+		return x.OutputDir
+	}
+	return ""
+}
+
+func (x *GitHubPagesNotificationConfig) GetBaseUrl() string {
+	if x != nil {
+		return x.BaseUrl
+	}
+	return ""
+}
+
+func (x *GitHubPagesNotificationConfig) GetCommitAuthor() string {
+	if x != nil {
+		return x.CommitAuthor
+	}
+	return ""
+}
+
+func (x *GitHubPagesNotificationConfig) GetCommitEmail() string {
+	if x != nil {
+		return x.CommitEmail
+	}
+	return ""
+}
+
+func (x *GitHubPagesNotificationConfig) GetCloneDir() string {
+	if x != nil {
+		return x.CloneDir
+	}
+	return ""
+}
+
+func (x *GitHubPagesNotificationConfig) GetDiscordWebhookUrl() string {
+	if x != nil {
+		return x.DiscordWebhookUrl
+	}
+	return ""
+}
+
 // Selectors defines CSS selectors for content extraction
 type Selectors struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -284,7 +523,7 @@ type Selectors struct {
 
 func (x *Selectors) Reset() {
 	*x = Selectors{}
-	mi := &file_config_proto_msgTypes[5]
+	mi := &file_config_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -296,7 +535,7 @@ func (x *Selectors) String() string {
 func (*Selectors) ProtoMessage() {}
 
 func (x *Selectors) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[5]
+	mi := &file_config_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -309,7 +548,7 @@ func (x *Selectors) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Selectors.ProtoReflect.Descriptor instead.
 func (*Selectors) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{5}
+	return file_config_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Selectors) GetArticle() string {
@@ -350,7 +589,7 @@ type FeedConfig struct {
 
 func (x *FeedConfig) Reset() {
 	*x = FeedConfig{}
-	mi := &file_config_proto_msgTypes[6]
+	mi := &file_config_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -362,7 +601,7 @@ func (x *FeedConfig) String() string {
 func (*FeedConfig) ProtoMessage() {}
 
 func (x *FeedConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[6]
+	mi := &file_config_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -375,7 +614,7 @@ func (x *FeedConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FeedConfig.ProtoReflect.Descriptor instead.
 func (*FeedConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{6}
+	return file_config_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *FeedConfig) GetUrl() string {
@@ -452,7 +691,7 @@ type ProviderConfig struct {
 
 func (x *ProviderConfig) Reset() {
 	*x = ProviderConfig{}
-	mi := &file_config_proto_msgTypes[7]
+	mi := &file_config_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -464,7 +703,7 @@ func (x *ProviderConfig) String() string {
 func (*ProviderConfig) ProtoMessage() {}
 
 func (x *ProviderConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[7]
+	mi := &file_config_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -477,7 +716,7 @@ func (x *ProviderConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderConfig.ProtoReflect.Descriptor instead.
 func (*ProviderConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{7}
+	return file_config_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ProviderConfig) GetName() string {
@@ -554,7 +793,7 @@ type AnalysisConfig struct {
 
 func (x *AnalysisConfig) Reset() {
 	*x = AnalysisConfig{}
-	mi := &file_config_proto_msgTypes[8]
+	mi := &file_config_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +805,7 @@ func (x *AnalysisConfig) String() string {
 func (*AnalysisConfig) ProtoMessage() {}
 
 func (x *AnalysisConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[8]
+	mi := &file_config_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +818,7 @@ func (x *AnalysisConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalysisConfig.ProtoReflect.Descriptor instead.
 func (*AnalysisConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{8}
+	return file_config_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AnalysisConfig) GetProvider() string {
@@ -607,13 +846,35 @@ const file_config_proto_rawDesc = "" +
 	"\x11SaveConfigRequest\x12.\n" +
 	"\x06config\x18\x01 \x01(\v2\x16.downlink.ServerConfigR\x06config\"`\n" +
 	"\x1bUpdateAnalysisConfigRequest\x12A\n" +
-	"\x0fanalysis_config\x18\x01 \x01(\v2\x18.downlink.AnalysisConfigR\x0eanalysisConfig\"\x83\x02\n" +
+	"\x0fanalysis_config\x18\x01 \x01(\v2\x18.downlink.AnalysisConfigR\x0eanalysisConfig\"\xc8\x02\n" +
 	"\fServerConfig\x12*\n" +
 	"\x05feeds\x18\x01 \x03(\v2\x14.downlink.FeedConfigR\x05feeds\x12\x17\n" +
 	"\adb_path\x18\x02 \x01(\tR\x06dbPath\x126\n" +
 	"\tproviders\x18\x03 \x03(\v2\x18.downlink.ProviderConfigR\tproviders\x124\n" +
 	"\banalysis\x18\x04 \x01(\v2\x18.downlink.AnalysisConfigR\banalysis\x12@\n" +
-	"\x11default_selectors\x18\x05 \x01(\v2\x13.downlink.SelectorsR\x10defaultSelectors\"[\n" +
+	"\x11default_selectors\x18\x05 \x01(\v2\x13.downlink.SelectorsR\x10defaultSelectors\x12C\n" +
+	"\rnotifications\x18\x06 \x01(\v2\x1d.downlink.NotificationsConfigR\rnotifications\"\xa0\x01\n" +
+	"\x13NotificationsConfig\x12=\n" +
+	"\adiscord\x18\x01 \x01(\v2#.downlink.DiscordNotificationConfigR\adiscord\x12J\n" +
+	"\fgithub_pages\x18\x02 \x01(\v2'.downlink.GitHubPagesNotificationConfigR\vgithubPages\"V\n" +
+	"\x19DiscordNotificationConfig\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1f\n" +
+	"\vwebhook_url\x18\x02 \x01(\tR\n" +
+	"webhookUrl\"\xfa\x02\n" +
+	"\x1dGitHubPagesNotificationConfig\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x19\n" +
+	"\brepo_url\x18\x02 \x01(\tR\arepoUrl\x12\x16\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\x12'\n" +
+	"\x0fconfigure_pages\x18\x04 \x01(\bR\x0econfigurePages\x12\x14\n" +
+	"\x05token\x18\x05 \x01(\tR\x05token\x12\x1d\n" +
+	"\n" +
+	"output_dir\x18\x06 \x01(\tR\toutputDir\x12\x19\n" +
+	"\bbase_url\x18\a \x01(\tR\abaseUrl\x12#\n" +
+	"\rcommit_author\x18\b \x01(\tR\fcommitAuthor\x12!\n" +
+	"\fcommit_email\x18\t \x01(\tR\vcommitEmail\x12\x1b\n" +
+	"\tclone_dir\x18\n" +
+	" \x01(\tR\bcloneDir\x12.\n" +
+	"\x13discord_webhook_url\x18\v \x01(\tR\x11discordWebhookUrl\"[\n" +
 	"\tSelectors\x12\x18\n" +
 	"\aarticle\x18\x01 \x01(\tR\aarticle\x12\x16\n" +
 	"\x06cutoff\x18\x02 \x01(\tR\x06cutoff\x12\x1c\n" +
@@ -670,45 +931,51 @@ func file_config_proto_rawDescGZIP() []byte {
 	return file_config_proto_rawDescData
 }
 
-var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_config_proto_goTypes = []any{
-	(*GetConfigRequest)(nil),            // 0: downlink.GetConfigRequest
-	(*GetConfigResponse)(nil),           // 1: downlink.GetConfigResponse
-	(*SaveConfigRequest)(nil),           // 2: downlink.SaveConfigRequest
-	(*UpdateAnalysisConfigRequest)(nil), // 3: downlink.UpdateAnalysisConfigRequest
-	(*ServerConfig)(nil),                // 4: downlink.ServerConfig
-	(*Selectors)(nil),                   // 5: downlink.Selectors
-	(*FeedConfig)(nil),                  // 6: downlink.FeedConfig
-	(*ProviderConfig)(nil),              // 7: downlink.ProviderConfig
-	(*AnalysisConfig)(nil),              // 8: downlink.AnalysisConfig
-	nil,                                 // 9: downlink.FeedConfig.ParamsEntry
-	nil,                                 // 10: downlink.FeedConfig.ScraperEntry
-	(*anypb.Any)(nil),                   // 11: google.protobuf.Any
-	(*emptypb.Empty)(nil),               // 12: google.protobuf.Empty
+	(*GetConfigRequest)(nil),              // 0: downlink.GetConfigRequest
+	(*GetConfigResponse)(nil),             // 1: downlink.GetConfigResponse
+	(*SaveConfigRequest)(nil),             // 2: downlink.SaveConfigRequest
+	(*UpdateAnalysisConfigRequest)(nil),   // 3: downlink.UpdateAnalysisConfigRequest
+	(*ServerConfig)(nil),                  // 4: downlink.ServerConfig
+	(*NotificationsConfig)(nil),           // 5: downlink.NotificationsConfig
+	(*DiscordNotificationConfig)(nil),     // 6: downlink.DiscordNotificationConfig
+	(*GitHubPagesNotificationConfig)(nil), // 7: downlink.GitHubPagesNotificationConfig
+	(*Selectors)(nil),                     // 8: downlink.Selectors
+	(*FeedConfig)(nil),                    // 9: downlink.FeedConfig
+	(*ProviderConfig)(nil),                // 10: downlink.ProviderConfig
+	(*AnalysisConfig)(nil),                // 11: downlink.AnalysisConfig
+	nil,                                   // 12: downlink.FeedConfig.ParamsEntry
+	nil,                                   // 13: downlink.FeedConfig.ScraperEntry
+	(*anypb.Any)(nil),                     // 14: google.protobuf.Any
+	(*emptypb.Empty)(nil),                 // 15: google.protobuf.Empty
 }
 var file_config_proto_depIdxs = []int32{
 	4,  // 0: downlink.GetConfigResponse.config:type_name -> downlink.ServerConfig
 	4,  // 1: downlink.SaveConfigRequest.config:type_name -> downlink.ServerConfig
-	8,  // 2: downlink.UpdateAnalysisConfigRequest.analysis_config:type_name -> downlink.AnalysisConfig
-	6,  // 3: downlink.ServerConfig.feeds:type_name -> downlink.FeedConfig
-	7,  // 4: downlink.ServerConfig.providers:type_name -> downlink.ProviderConfig
-	8,  // 5: downlink.ServerConfig.analysis:type_name -> downlink.AnalysisConfig
-	5,  // 6: downlink.ServerConfig.default_selectors:type_name -> downlink.Selectors
-	9,  // 7: downlink.FeedConfig.params:type_name -> downlink.FeedConfig.ParamsEntry
-	10, // 8: downlink.FeedConfig.scraper:type_name -> downlink.FeedConfig.ScraperEntry
-	5,  // 9: downlink.FeedConfig.selectors:type_name -> downlink.Selectors
-	11, // 10: downlink.FeedConfig.ScraperEntry.value:type_name -> google.protobuf.Any
-	0,  // 11: downlink.ServerConfigService.GetConfig:input_type -> downlink.GetConfigRequest
-	2,  // 12: downlink.ServerConfigService.SaveConfig:input_type -> downlink.SaveConfigRequest
-	3,  // 13: downlink.ServerConfigService.UpdateAnalysisConfig:input_type -> downlink.UpdateAnalysisConfigRequest
-	1,  // 14: downlink.ServerConfigService.GetConfig:output_type -> downlink.GetConfigResponse
-	12, // 15: downlink.ServerConfigService.SaveConfig:output_type -> google.protobuf.Empty
-	12, // 16: downlink.ServerConfigService.UpdateAnalysisConfig:output_type -> google.protobuf.Empty
-	14, // [14:17] is the sub-list for method output_type
-	11, // [11:14] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	11, // 2: downlink.UpdateAnalysisConfigRequest.analysis_config:type_name -> downlink.AnalysisConfig
+	9,  // 3: downlink.ServerConfig.feeds:type_name -> downlink.FeedConfig
+	10, // 4: downlink.ServerConfig.providers:type_name -> downlink.ProviderConfig
+	11, // 5: downlink.ServerConfig.analysis:type_name -> downlink.AnalysisConfig
+	8,  // 6: downlink.ServerConfig.default_selectors:type_name -> downlink.Selectors
+	5,  // 7: downlink.ServerConfig.notifications:type_name -> downlink.NotificationsConfig
+	6,  // 8: downlink.NotificationsConfig.discord:type_name -> downlink.DiscordNotificationConfig
+	7,  // 9: downlink.NotificationsConfig.github_pages:type_name -> downlink.GitHubPagesNotificationConfig
+	12, // 10: downlink.FeedConfig.params:type_name -> downlink.FeedConfig.ParamsEntry
+	13, // 11: downlink.FeedConfig.scraper:type_name -> downlink.FeedConfig.ScraperEntry
+	8,  // 12: downlink.FeedConfig.selectors:type_name -> downlink.Selectors
+	14, // 13: downlink.FeedConfig.ScraperEntry.value:type_name -> google.protobuf.Any
+	0,  // 14: downlink.ServerConfigService.GetConfig:input_type -> downlink.GetConfigRequest
+	2,  // 15: downlink.ServerConfigService.SaveConfig:input_type -> downlink.SaveConfigRequest
+	3,  // 16: downlink.ServerConfigService.UpdateAnalysisConfig:input_type -> downlink.UpdateAnalysisConfigRequest
+	1,  // 17: downlink.ServerConfigService.GetConfig:output_type -> downlink.GetConfigResponse
+	15, // 18: downlink.ServerConfigService.SaveConfig:output_type -> google.protobuf.Empty
+	15, // 19: downlink.ServerConfigService.UpdateAnalysisConfig:output_type -> google.protobuf.Empty
+	17, // [17:20] is the sub-list for method output_type
+	14, // [14:17] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_config_proto_init() }
@@ -716,14 +983,14 @@ func file_config_proto_init() {
 	if File_config_proto != nil {
 		return
 	}
-	file_config_proto_msgTypes[7].OneofWrappers = []any{}
+	file_config_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_config_proto_rawDesc), len(file_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
