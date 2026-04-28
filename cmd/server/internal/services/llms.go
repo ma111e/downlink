@@ -396,21 +396,23 @@ type progressCallback func(taskName, status string, taskIndex, totalTasks int, t
 // runAnalysisPipeline executes the sequential task pipeline and returns the assembled result.
 // The optional onProgress callback is invoked for each task start/complete.
 func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.AnalyzeArticleWithProviderModelRequest, onProgress progressCallback) (*protos.AnalyzeArticleWithProviderModelResponse, error) {
-	// Check context deadline and extend if needed for analysis
+	// Ensure the pipeline has at least 60 minutes total (tasks run sequentially;
+	// each individual Stream call gets its own 10-minute sub-deadline below).
+	const pipelineTimeout = 60 * time.Minute
 	deadline, ok := ctx.Deadline()
 	if ok {
 		remaining := time.Until(deadline)
 		log.Infof("Context deadline: %v (remaining: %v)", deadline, remaining)
-		if remaining < 20*time.Minute {
-			log.Warnf("Context deadline too short (%v), extending to 20 minutes", remaining)
+		if remaining < pipelineTimeout {
+			log.Warnf("Context deadline too short (%v), extending to %v", remaining, pipelineTimeout)
 			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(context.Background(), 20*time.Minute)
+			ctx, cancel = context.WithTimeout(context.Background(), pipelineTimeout)
 			defer cancel()
 		}
 	} else {
-		log.Warnf("No context deadline set, adding 20 minute timeout")
+		log.Warnf("No context deadline set, adding %v timeout", pipelineTimeout)
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), 20*time.Minute)
+		ctx, cancel = context.WithTimeout(context.Background(), pipelineTimeout)
 		defer cancel()
 	}
 
@@ -494,13 +496,15 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 			return nil
 		}
 
+		taskCtx, taskCancel := context.WithTimeout(ctx, 10*time.Minute)
 		response, err := s.gw.Stream(
-			ctx,
+			taskCtx,
 			resolved.Provider,
 			conversationHistory,
 			onChunk,
 			llmgateway.WithLabel(fmt.Sprintf("analyze:task=%s", task.name)),
 		)
+		taskCancel()
 		if err != nil {
 			if onProgress != nil {
 				onProgress(task.name, "error", taskIdx, totalTasks, "", err)
@@ -602,20 +606,21 @@ func (s *LLMsServer) AnalyzeArticleWithProgress(ctx context.Context, req *protos
 }
 
 func (s *LLMsServer) AnalyzeArticleOneShot(ctx context.Context, req *protos.AnalyzeArticleWithProviderModelRequest, onTask func(taskName, status string, taskIndex, totalTasks int, err error)) (*protos.AnalyzeArticleWithProviderModelResponse, error) {
+	const oneShotTimeout = 60 * time.Minute
 	deadline, ok := ctx.Deadline()
 	if ok {
 		remaining := time.Until(deadline)
 		log.Infof("Context deadline: %v (remaining: %v)", deadline, remaining)
-		if remaining < 20*time.Minute {
-			log.Warnf("Context deadline too short (%v), extending to 20 minutes", remaining)
+		if remaining < oneShotTimeout {
+			log.Warnf("Context deadline too short (%v), extending to %v", remaining, oneShotTimeout)
 			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(context.Background(), 20*time.Minute)
+			ctx, cancel = context.WithTimeout(context.Background(), oneShotTimeout)
 			defer cancel()
 		}
 	} else {
-		log.Warnf("No context deadline set, adding 20 minute timeout")
+		log.Warnf("No context deadline set, adding %v timeout", oneShotTimeout)
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), 20*time.Minute)
+		ctx, cancel = context.WithTimeout(context.Background(), oneShotTimeout)
 		defer cancel()
 	}
 

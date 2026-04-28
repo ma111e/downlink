@@ -503,7 +503,7 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 				}
 			}
 
-			stepCtx, cancel := context.WithTimeout(gctx, 20*time.Minute)
+			stepCtx, cancel := context.WithTimeout(gctx, 60*time.Minute)
 			analysisReq := &protos.AnalyzeArticleWithProviderModelRequest{
 				ArticleId:      article.Id,
 				SkipCategorize: true,
