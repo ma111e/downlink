@@ -575,7 +575,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
     {{if gt (len .Siblings) 1}}
     <select id="digest-switcher" class="nav-switcher" aria-label="Switch provider/model">
       {{range .Siblings}}
-      <option value="{{.Filename}}"{{if .IsCurrent}} selected{{end}}>{{.ProviderType}} / {{.ModelName}}</option>
+      <option value="{{.Filename}}"{{if .IsCurrent}} selected{{end}}>{{.ProviderType}} / {{.ModelName}} · {{.DisplayDate}}</option>
       {{end}}
     </select>
     {{end}}
@@ -639,7 +639,8 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                       {{if $od.Analysis.Justification}}<span><strong>Why</strong> <span class="justification">{{$od.Analysis.Justification}}</span></span>{{end}}
                     </div>{{end}}
                     <div class="tabs">
-                      {{if $od.HasAnalysis}}<button class="tab-btn active" onclick="switchTab(this,'brief-{{$other.Id}}')">Brief</button>
+                      {{if $od.HasAnalysis}}{{if $od.Analysis.Tldr}}<button class="tab-btn active" onclick="switchTab(this,'tldr-{{$other.Id}}')">TL;DR</button>
+                      <button class="tab-btn" onclick="switchTab(this,'brief-{{$other.Id}}')">Brief</button>{{else}}<button class="tab-btn active" onclick="switchTab(this,'brief-{{$other.Id}}')">Brief</button>{{end}}
                       <button class="tab-btn" onclick="switchTab(this,'standard-{{$other.Id}}')">Standard</button>
                       <button class="tab-btn" onclick="switchTab(this,'comprehensive-{{$other.Id}}')">Full</button>
                       {{if $od.Analysis.KeyPoints}}<button class="tab-btn" onclick="switchTab(this,'keypoints-{{$other.Id}}')">Key Points</button>{{end}}
@@ -648,7 +649,8 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                       {{end}}
                     </div>
                     {{if $od.HasAnalysis}}
-                    <div id="brief-{{$other.Id}}" class="tab-panel active"><div class="prose">{{$od.Analysis.BriefOverview}}</div></div>
+                    {{if $od.Analysis.Tldr}}<div id="tldr-{{$other.Id}}" class="tab-panel active"><div class="prose">{{$od.Analysis.Tldr}}</div></div>{{end}}
+                    <div id="brief-{{$other.Id}}" class="tab-panel{{if not $od.Analysis.Tldr}} active{{end}}"><div class="prose">{{$od.Analysis.BriefOverview}}</div></div>
                     <div id="standard-{{$other.Id}}" class="tab-panel"><div class="prose">{{$od.Analysis.StandardSynthesis}}</div></div>
                     <div id="comprehensive-{{$other.Id}}" class="tab-panel"><div class="prose">{{$od.Analysis.ComprehensiveSynthesis}}</div></div>
                     {{if $od.Analysis.KeyPoints}}<div id="keypoints-{{$other.Id}}" class="tab-panel"><ul class="kp-list">{{range $od.Analysis.KeyPoints}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
@@ -674,7 +676,8 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               {{if $row.CanonDetail.Analysis.Justification}}<span><strong>Why</strong> <span class="justification">{{$row.CanonDetail.Analysis.Justification}}</span></span>{{end}}
             </div>{{end}}
             <div class="tabs">
-              {{if $row.CanonDetail.HasAnalysis}}<button class="tab-btn active" onclick="switchTab(this,'brief-{{$row.Canonical.Id}}')">Brief</button>
+              {{if $row.CanonDetail.HasAnalysis}}{{if $row.CanonDetail.Analysis.Tldr}}<button class="tab-btn active" onclick="switchTab(this,'tldr-{{$row.Canonical.Id}}')">TL;DR</button>
+              <button class="tab-btn" onclick="switchTab(this,'brief-{{$row.Canonical.Id}}')">Brief</button>{{else}}<button class="tab-btn active" onclick="switchTab(this,'brief-{{$row.Canonical.Id}}')">Brief</button>{{end}}
               <button class="tab-btn" onclick="switchTab(this,'standard-{{$row.Canonical.Id}}')">Standard</button>
               <button class="tab-btn" onclick="switchTab(this,'comprehensive-{{$row.Canonical.Id}}')">Full</button>
               {{if $row.CanonDetail.Analysis.KeyPoints}}<button class="tab-btn" onclick="switchTab(this,'keypoints-{{$row.Canonical.Id}}')">Key Points</button>{{end}}
@@ -683,7 +686,8 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               {{end}}
             </div>
             {{if $row.CanonDetail.HasAnalysis}}
-            <div id="brief-{{$row.Canonical.Id}}" class="tab-panel active"><div class="prose">{{$row.CanonDetail.Analysis.BriefOverview}}</div></div>
+            {{if $row.CanonDetail.Analysis.Tldr}}<div id="tldr-{{$row.Canonical.Id}}" class="tab-panel active"><div class="prose">{{$row.CanonDetail.Analysis.Tldr}}</div></div>{{end}}
+            <div id="brief-{{$row.Canonical.Id}}" class="tab-panel{{if not $row.CanonDetail.Analysis.Tldr}} active{{end}}"><div class="prose">{{$row.CanonDetail.Analysis.BriefOverview}}</div></div>
             <div id="standard-{{$row.Canonical.Id}}" class="tab-panel"><div class="prose">{{$row.CanonDetail.Analysis.StandardSynthesis}}</div></div>
             <div id="comprehensive-{{$row.Canonical.Id}}" class="tab-panel"><div class="prose">{{$row.CanonDetail.Analysis.ComprehensiveSynthesis}}</div></div>
             {{if $row.CanonDetail.Analysis.KeyPoints}}<div id="keypoints-{{$row.Canonical.Id}}" class="tab-panel"><ul class="kp-list">{{range $row.CanonDetail.Analysis.KeyPoints}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
@@ -721,7 +725,8 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               {{if $row.Detail.Analysis.Justification}}<span><strong>Why</strong> <span class="justification">{{$row.Detail.Analysis.Justification}}</span></span>{{end}}
             </div>{{end}}
             <div class="tabs">
-              {{if $row.Detail.HasAnalysis}}<button class="tab-btn active" onclick="switchTab(this,'brief-{{$row.Entry.Id}}')">Brief</button>
+              {{if $row.Detail.HasAnalysis}}{{if $row.Detail.Analysis.Tldr}}<button class="tab-btn active" onclick="switchTab(this,'tldr-{{$row.Entry.Id}}')">TL;DR</button>
+              <button class="tab-btn" onclick="switchTab(this,'brief-{{$row.Entry.Id}}')">Brief</button>{{else}}<button class="tab-btn active" onclick="switchTab(this,'brief-{{$row.Entry.Id}}')">Brief</button>{{end}}
               <button class="tab-btn" onclick="switchTab(this,'standard-{{$row.Entry.Id}}')">Standard</button>
               <button class="tab-btn" onclick="switchTab(this,'comprehensive-{{$row.Entry.Id}}')">Full</button>
               {{if $row.Detail.Analysis.KeyPoints}}<button class="tab-btn" onclick="switchTab(this,'keypoints-{{$row.Entry.Id}}')">Key Points</button>{{end}}
@@ -730,7 +735,8 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               {{end}}
             </div>
             {{if $row.Detail.HasAnalysis}}
-            <div id="brief-{{$row.Entry.Id}}" class="tab-panel active"><div class="prose">{{$row.Detail.Analysis.BriefOverview}}</div></div>
+            {{if $row.Detail.Analysis.Tldr}}<div id="tldr-{{$row.Entry.Id}}" class="tab-panel active"><div class="prose">{{$row.Detail.Analysis.Tldr}}</div></div>{{end}}
+            <div id="brief-{{$row.Entry.Id}}" class="tab-panel{{if not $row.Detail.Analysis.Tldr}} active{{end}}"><div class="prose">{{$row.Detail.Analysis.BriefOverview}}</div></div>
             <div id="standard-{{$row.Entry.Id}}" class="tab-panel"><div class="prose">{{$row.Detail.Analysis.StandardSynthesis}}</div></div>
             <div id="comprehensive-{{$row.Entry.Id}}" class="tab-panel"><div class="prose">{{$row.Detail.Analysis.ComprehensiveSynthesis}}</div></div>
             {{if $row.Detail.Analysis.KeyPoints}}<div id="keypoints-{{$row.Entry.Id}}" class="tab-panel"><ul class="kp-list">{{range $row.Detail.Analysis.KeyPoints}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
