@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -20,6 +21,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/subosito/gotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -50,7 +53,34 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:   "server",
 		Short: "Start the DOWNLINK server",
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Load .env file into OS env (keys not already set in environment).
+			// Silently ignore missing file.
+			if err := gotenv.Load(".env"); err != nil && !os.IsNotExist(err) {
+				log.WithError(err).Warn("Failed to load .env file")
+			}
+
+			// Wire all flags to DOWNLINK_* env vars via viper.
+			viper.SetEnvPrefix("DOWNLINK")
+			viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+			viper.AutomaticEnv()
+			if err := viper.BindPFlags(cmd.Flags()); err != nil {
+				return fmt.Errorf("failed to bind flags: %w", err)
+			}
+
+			// Re-populate VarP-bound variables from viper (picks up env var / .env / default).
+			host = viper.GetString("host")
+			port = viper.GetInt("port")
+			tls = viper.GetBool("tls")
+			certFile = viper.GetString("cert-file")
+			keyFile = viper.GetString("key-file")
+			refresh = viper.GetBool("refresh")
+			autoStartLightpanda = viper.GetBool("auto-start-lightpanda")
+			autoStartSolimen = viper.GetBool("auto-start-solimen")
+			solimenAddr = viper.GetString("solimen-addr")
+			logLevel = viper.GetString("log-level")
+			maxConcurrentLLMRequests = viper.GetInt("max-concurrent-llm-requests")
+
 			if lvl, err := log.ParseLevel(logLevel); err == nil {
 				log.SetLevel(lvl)
 			} else {
@@ -74,6 +104,7 @@ func main() {
 			// Initialize worker pool for analyzes
 			// workerpool.InitPool()
 			// log.WithField("max_workers", config.Config.Analysis.WorkerPool.MaxWorkers).Info("Analysis worker pool initialized")
+			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Info("Starting feed aggregator")
@@ -189,44 +220,66 @@ func main() {
 	}
 }
 
-// applyGHPagesFlagOverrides copies explicitly-set CLI flag values into the loaded config.
-// Only flags that the user actually provided override the config file values.
+// applyGHPagesFlagOverrides copies CLI flag / env var values into the loaded config.
+// CLI flags take highest priority; env vars (including .env) override config file values.
 func applyGHPagesFlagOverrides(cmd *cobra.Command) {
 	gh := &config.Config.Notifications.GitHubPages
 	if cmd.Flags().Changed("gh-pages-enabled") {
 		v, _ := cmd.Flags().GetBool("gh-pages-enabled")
 		gh.Enabled = v
+	} else if viper.IsSet("gh-pages-enabled") {
+		gh.Enabled = viper.GetBool("gh-pages-enabled")
 	}
 	if cmd.Flags().Changed("gh-pages-repo") {
 		gh.RepoURL, _ = cmd.Flags().GetString("gh-pages-repo")
+	} else if viper.IsSet("gh-pages-repo") {
+		gh.RepoURL = viper.GetString("gh-pages-repo")
 	}
 	if cmd.Flags().Changed("gh-pages-branch") {
 		gh.Branch, _ = cmd.Flags().GetString("gh-pages-branch")
+	} else if viper.IsSet("gh-pages-branch") {
+		gh.Branch = viper.GetString("gh-pages-branch")
 	}
 	if cmd.Flags().Changed("gh-pages-configure") {
 		v, _ := cmd.Flags().GetBool("gh-pages-configure")
 		gh.ConfigurePages = v
+	} else if viper.IsSet("gh-pages-configure") {
+		gh.ConfigurePages = viper.GetBool("gh-pages-configure")
 	}
 	if cmd.Flags().Changed("gh-pages-token") {
 		gh.Token, _ = cmd.Flags().GetString("gh-pages-token")
+	} else if viper.IsSet("gh-pages-token") {
+		gh.Token = viper.GetString("gh-pages-token")
 	}
 	if cmd.Flags().Changed("gh-pages-output-dir") {
 		gh.OutputDir, _ = cmd.Flags().GetString("gh-pages-output-dir")
+	} else if viper.IsSet("gh-pages-output-dir") {
+		gh.OutputDir = viper.GetString("gh-pages-output-dir")
 	}
 	if cmd.Flags().Changed("gh-pages-base-url") {
 		gh.BaseURL, _ = cmd.Flags().GetString("gh-pages-base-url")
+	} else if viper.IsSet("gh-pages-base-url") {
+		gh.BaseURL = viper.GetString("gh-pages-base-url")
 	}
 	if cmd.Flags().Changed("gh-pages-commit-author") {
 		gh.CommitAuthor, _ = cmd.Flags().GetString("gh-pages-commit-author")
+	} else if viper.IsSet("gh-pages-commit-author") {
+		gh.CommitAuthor = viper.GetString("gh-pages-commit-author")
 	}
 	if cmd.Flags().Changed("gh-pages-commit-email") {
 		gh.CommitEmail, _ = cmd.Flags().GetString("gh-pages-commit-email")
+	} else if viper.IsSet("gh-pages-commit-email") {
+		gh.CommitEmail = viper.GetString("gh-pages-commit-email")
 	}
 	if cmd.Flags().Changed("gh-pages-clone-dir") {
 		gh.CloneDir, _ = cmd.Flags().GetString("gh-pages-clone-dir")
+	} else if viper.IsSet("gh-pages-clone-dir") {
+		gh.CloneDir = viper.GetString("gh-pages-clone-dir")
 	}
 	if cmd.Flags().Changed("gh-pages-discord-webhook") {
 		gh.DiscordWebhookURL, _ = cmd.Flags().GetString("gh-pages-discord-webhook")
+	} else if viper.IsSet("gh-pages-discord-webhook") {
+		gh.DiscordWebhookURL = viper.GetString("gh-pages-discord-webhook")
 	}
 }
 

@@ -22,6 +22,7 @@ require (
 	github.com/solworktech/md2pdf/v2 v2.2.18
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
+	github.com/subosito/gotenv v1.6.0
 	github.com/tebeka/selenium v0.9.9
 	github.com/wailsapp/wails/v2 v2.10.2
 	golang.org/x/sync v0.16.0
@@ -137,7 +138,6 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/src-d/gcfg v1.4.0 // indirect
-	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/temoto/robotstxt v1.1.1 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
