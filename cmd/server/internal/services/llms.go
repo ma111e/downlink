@@ -306,6 +306,8 @@ brief_overview: 5–10 sentences. A concise recap of the most important points, 
 standard_synthesis: 10–20 sentences. A complete recap that omits no critical detail.
 comprehensive_synthesis: Unlimited length. A thorough, structured analysis using markdown and bullet points where helpful.
 
+For readability, add paragraph breaks where natural, roughly every 2-3 sentences.
+
 Return ONLY the JSON object below.`,
 			schema: `{"summaries": {"brief_overview": "<text>", "standard_synthesis": "<text>", "comprehensive_synthesis": "<text>"}}`,
 		})
