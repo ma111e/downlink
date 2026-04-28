@@ -26,6 +26,7 @@ func (s *ArticleServer) ListArticles(_ context.Context, filter *protos.ArticleFi
 		"unread_only":     filter.UnreadOnly,
 		"category_name":   filter.CategoryName,
 		"bookmarked_only": filter.BookmarkedOnly,
+		"feed_id":         filter.FeedId,
 		"offset":          filter.Offset,
 		"limit":           filter.Limit,
 		"query":           filter.Query,

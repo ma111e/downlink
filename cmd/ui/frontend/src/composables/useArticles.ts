@@ -306,14 +306,13 @@ export function useArticles() {
     state.currentKey = signature;
     state.currentFilter = normalized;
 
-    let cache = state.caches[signature];
-    if (!cache) {
-      cache = createCacheEntry(signature, normalized);
-      state.caches[signature] = cache;
+    if (!state.caches[signature]) {
+      state.caches[signature] = createCacheEntry(signature, normalized);
     } else {
-      cache.filter = normalized;
-      cache.limit = clampLimit(Number(normalized.limit || cache.limit));
+      state.caches[signature].filter = normalized;
+      state.caches[signature].limit = clampLimit(Number(normalized.limit || state.caches[signature].limit));
     }
+    const cache = state.caches[signature];
 
     if (cache.items.length > 0) {
       return cache.items;

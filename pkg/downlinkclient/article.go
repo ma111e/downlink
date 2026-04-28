@@ -16,6 +16,7 @@ func (pc *DownlinkClient) ListArticles(filter models.ArticleFilter) ([]models.Ar
 		"unread_only":      filter.UnreadOnly,
 		"category_name":    filter.CategoryName,
 		"bookmarked_only":  filter.BookmarkedOnly,
+		"feed_id":          filter.FeedId,
 		"start_date":       filter.StartDate,
 		"end_date":         filter.EndDate,
 		"exclude_digested": filter.ExcludeDigested,
