@@ -1246,7 +1246,6 @@ func RenderDigestHTMLWithSiblings(digest models.Digest, theme string, siblings [
 
 	funcMap := template.FuncMap{
 		"add":                func(a, b int) int { return a + b },
-		"not":                func(v bool) bool { return !v },
 		"slugify":            func(s string) string { return strings.ReplaceAll(s, " ", "-") },
 		"dupColor":           dupGroupColor,
 		"sourceColor":        sourceColor,
