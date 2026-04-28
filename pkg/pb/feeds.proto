@@ -1,0 +1,125 @@
+syntax = "proto3";
+package downlink;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/any.proto";
+
+import "articles.proto";
+import "config.proto";
+
+option go_package = "protos/";
+
+
+// FeedsService provides methods for working with feeds
+service FeedsService {
+  // ListFeeds returns all registered feeds
+  rpc ListFeeds(ListFeedsRequest) returns (ListFeedsResponse) {}
+
+  // RegisterFeed adds a new feed to be monitored
+  rpc RegisterFeed(RegisterFeedRequest) returns (google.protobuf.Empty) {}
+
+  // RefreshAllFeeds triggers a refresh of all registered feeds, streaming per-feed results
+  rpc RefreshAllFeeds(RefreshAllFeedsRequest) returns (stream RefreshAllFeedsEvent) {}
+
+  // RefreshFeed refreshes a specific feed with optional time window filtering
+  rpc RefreshFeed(RefreshFeedRequest) returns (RefreshFeedResponse) {}
+
+  // DeleteFeed removes a feed from both the models and the database
+  rpc DeleteFeed(DeleteFeedRequest) returns (google.protobuf.Empty) {}
+}
+
+// ListFeedsRequest is the request for the ListFeeds method
+message ListFeedsRequest {}
+
+// ListFeedsResponse is the response for the ListFeeds method
+message ListFeedsResponse {
+  repeated Feed feeds = 1;
+}
+
+// RegisterFeedRequest is the request for the RegisterFeed method
+message RegisterFeedRequest {
+  FeedConfig feed_config = 1;
+}
+
+// RefreshAllFeedsRequest is the request for the RefreshAllFeeds method
+message RefreshAllFeedsRequest {}
+
+// RefreshFeedResponse carries per-feed stats returned after a refresh
+message RefreshFeedResponse {
+  string feed_id = 1;
+  string feed_title = 2;
+  int32 total_fetched = 3;
+  int32 stored = 4;
+  int32 skipped = 5;
+  repeated string errors = 6;
+}
+
+enum RefreshEventType {
+  STARTED   = 0; // feed has been queued and is now in progress
+  COMPLETED = 1; // feed finished (result fields are populated)
+}
+
+// RefreshAllFeedsEvent is streamed once per feed on start and on completion
+message RefreshAllFeedsEvent {
+  RefreshFeedResponse result    = 1;
+  int32               completed = 2; // feeds completed so far (COMPLETED events only)
+  int32               total     = 3; // total feeds being refreshed
+  RefreshEventType    event_type = 4;
+}
+
+// RefreshFeedRequest is the request for the RefreshFeed method
+message RefreshFeedRequest {
+  string feed_id = 1;
+  google.protobuf.Timestamp from = 2; // Optional: start of time window
+  google.protobuf.Timestamp to = 3;   // Optional: end of time window
+  bool overwrite = 4;                 // Optional: overwrite existing articles
+  bool restore = 5;                   // Optional: overwrite only articles with no content
+}
+
+// DeleteFeedRequest is the request for the DeleteFeed method
+message DeleteFeedRequest {
+  string feed_id = 1;
+}
+
+// FeedGroup represents a group of feeds
+message FeedGroup {
+  string id = 1;
+  string name = 2;
+  string icon = 3;
+  int32 sort_order = 4;
+  repeated Feed feeds = 5;
+}
+
+
+// Feed represents a feed with its metadata
+message Feed {
+  string id = 1;
+  string url = 2;
+  string type = 3;
+  string title = 4;
+  google.protobuf.Timestamp last_fetch = 5;
+  map<string, google.protobuf.Any> scraper = 6;
+  bool enabled = 7;
+  string group_id = 8;
+  repeated Article articles = 9;
+}
+
+// FeedItem represents a generic feed item returned by a scraper
+message FeedItem {
+  string id = 1;
+  string title = 2;
+  string content = 3;
+  string link = 4;
+  google.protobuf.Timestamp published_at = 5;
+  repeated string tags = 6;
+  string category = 7;
+  string hero_image = 8;
+}
+
+// FeedResult represents the result of fetching a feed
+message FeedResult {
+  Feed feed = 1;
+  repeated FeedItem items = 2;
+  string error = 3;
+}

@@ -1,0 +1,146 @@
+syntax = "proto3";
+package downlink;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+import "articles.proto";
+import "analysis.proto";
+
+option go_package = "protos/";
+
+
+// DigestService provides methods for working with digests
+service DigestService {
+  // ListDigests retrieves all digests
+  rpc ListDigests(ListDigestsRequest) returns (ListDigestsResponse) {}
+
+  // GetDigest returns a single digest by Id
+  rpc GetDigest(GetDigestRequest) returns (GetDigestResponse) {}
+
+  // GetDigestArticles returns articles for a digest
+  rpc GetDigestArticles(GetDigestArticlesRequest) returns (GetDigestArticlesResponse) {}
+
+  // GenerateDigest generates a new digest, streaming progress events back to the caller
+  rpc GenerateDigest(GenerateDigestRequest) returns (stream DigestProgressEvent) {}
+}
+
+// GetDigestRequest represents a request to retrieve a digest by Id
+message GetDigestRequest {
+  string id = 1;
+}
+
+// GetDigestResponse represents the response with a digest
+message GetDigestResponse {
+  Digest digest = 1;
+}
+
+// GetDigestArticlesRequest represents a request to retrieve articles for a digest
+message GetDigestArticlesRequest {
+  string digest_id = 1;
+}
+
+// GetDigestArticlesResponse represents the response with articles for a digest
+message GetDigestArticlesResponse {
+  repeated Article articles = 1;
+}
+
+// DeleteDigestRequest represents a request to delete a digest by Id
+message DeleteDigestRequest {
+  string id = 1;
+}
+
+// DeleteAllDigestsRequest represents a request to delete all digests
+message DeleteAllDigestsRequest {}
+
+// GenerateDigestRequest represents a request to generate a new digest
+message GenerateDigestRequest {
+  google.protobuf.Timestamp start_time = 1;
+  google.protobuf.Timestamp end_time = 2;
+  bool skip_analysis = 3;
+  bool skip_duplicates = 4;
+  bool exclude_digested = 5;
+  bool skip_summary = 6;
+  string theme = 7;
+  bool one_shot_analysis = 8;
+}
+
+// GenerateDigestResponse represents the response with the generated digest
+message GenerateDigestResponse {
+  Digest digest = 1;
+}
+
+// DigestProgressEvent is a streaming progress update during digest generation.
+// stage values: "fetch" | "analyze" | "analyze_task" | "dedupe" | "summarize" | "store" | "notify" | "done" | "error"
+message DigestProgressEvent {
+  string stage = 1;
+  string message = 2;
+  uint32 current = 3;
+  uint32 total = 4;
+  string error = 5;
+  Digest digest = 6;
+
+  // Substep fields (populated when stage="analyze_task")
+  string task_name = 7;     // e.g. "categorize", "key_points", "insights", "summaries", "importance"
+  string task_status = 8;   // "started" | "completed" | "error"
+  uint32 task_index = 9;    // 1-based
+  uint32 task_total = 10;   // total tasks in the analysis pipeline
+
+  // Article identity (populated when stage="analyze" or "analyze_task")
+  // so clients can distinguish concurrent per-article progress streams.
+  string article_id = 11;
+  string article_title = 12;
+}
+
+// ListDigestsRequest represents a request to retrieve all digests
+message ListDigestsRequest {
+  uint32 limit = 1;
+}
+
+// ListDigestsResponse represents the response with all digests
+message ListDigestsResponse {
+  repeated Digest digests = 1;
+}
+
+// DigestProviderResult represents a provider's result for a digest
+message DigestProviderResult {
+  string id = 1;
+  string digest_id = 2;
+  string provider_type = 3;
+  string model_name = 4;
+  string brief_overview = 5;
+  string standard_synthesis = 6;
+  string comprehensive_synthesis = 7;
+  double processing_time = 8;
+  string error = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional Digest digest = 11;
+}
+
+// DigestAnalysis links an ArticleAnalysis to a Digest with duplicate metadata
+message DigestAnalysis {
+  string digest_id = 1;
+  string analysis_id = 2;
+  string article_id = 3;
+  string duplicate_group = 4;
+  bool is_most_comprehensive = 5;
+  optional ArticleAnalysis analysis = 6;
+}
+
+// Digest represents a generated digest of articles
+message Digest {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  int32 article_count = 3;
+  google.protobuf.Duration time_window = 4;
+  repeated DigestProviderResult provider_results = 5;
+  repeated Article articles = 6;
+  string digest_summary = 7;
+  repeated DigestAnalysis digest_analyses = 8;
+}
+
+// DigestArticle represents an article included in a digest
+message DigestArticle {
+  string digest_id = 1;
+  string article_id = 2;
+}

@@ -1,0 +1,84 @@
+syntax = "proto3";
+package downlink;
+
+option go_package = "protos/";
+
+import "google/protobuf/empty.proto";
+import "llms.proto";
+
+// QueueJob represents a single job in the analysis queue
+message QueueJob {
+  string id = 1;
+  string article_id = 2;
+  string article_title = 3;
+  string provider_type = 4;
+  string model_name = 5;
+  string provider_name = 6;
+}
+
+// EnqueueArticlesRequest adds articles to the analysis queue
+message EnqueueArticlesRequest {
+  repeated string article_ids = 1;
+  string provider_type = 2;
+  string model_name = 3;
+  bool fast_mode = 4; // If true, only extract key points
+  string provider_name = 5; // Named profile from config.providers; takes precedence over provider_type/model_name
+}
+
+// EnqueueArticlesResponse returns how many articles were enqueued
+message EnqueueArticlesResponse {
+  int32 enqueued_count = 1;
+}
+
+// DequeueArticleRequest removes an article from the queue
+message DequeueArticleRequest {
+  string article_id = 1;
+}
+
+// GetQueueStatusRequest is empty
+message GetQueueStatusRequest {}
+
+// GetQueueStatusResponse returns the current state of the queue
+message GetQueueStatusResponse {
+  repeated QueueJob queue = 1;
+  string current_id = 2;
+  string current_title = 3;
+  bool is_processing = 4;
+}
+
+// QueueProgressEvent is streamed to clients for live queue and analysis updates
+message QueueProgressEvent {
+  // "queue_update" or "analysis_progress"
+  string event_type = 1;
+
+  // Populated when event_type = "queue_update"
+  GetQueueStatusResponse queue_status = 2;
+
+  // Populated when event_type = "analysis_progress"
+  string article_id = 3;
+  AnalysisProgressEvent analysis_progress = 4;
+}
+
+// QueueService manages the server-side analysis queue
+service QueueService {
+  // EnqueueArticles adds articles to the queue and auto-starts processing if idle
+  rpc EnqueueArticles(EnqueueArticlesRequest) returns (EnqueueArticlesResponse) {}
+
+  // DequeueArticle removes an article from the queue
+  rpc DequeueArticle(DequeueArticleRequest) returns (google.protobuf.Empty) {}
+
+  // ClearQueue removes all articles from the queue (does not stop active processing)
+  rpc ClearQueue(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+
+  // GetQueueStatus returns a snapshot of the current queue state
+  rpc GetQueueStatus(GetQueueStatusRequest) returns (GetQueueStatusResponse) {}
+
+  // StartQueue resumes processing of queued articles
+  rpc StartQueue(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+
+  // StopQueue pauses queue processing after the current article finishes
+  rpc StopQueue(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+
+  // StreamQueueProgress streams live queue state changes and analysis progress events
+  rpc StreamQueueProgress(google.protobuf.Empty) returns (stream QueueProgressEvent) {}
+}
