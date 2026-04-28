@@ -14,11 +14,15 @@ func (s *GormStore) StoreFeed(feed models.Feed) error {
 		return fmt.Errorf("failed to store feed: %w", result.Error)
 	}
 
+	enabled := false
+	if feed.Enabled != nil {
+		enabled = *feed.Enabled
+	}
 	log.WithFields(log.Fields{
 		"id":      feed.Id,
 		"url":     feed.URL,
 		"title":   feed.Title,
-		"enabled": feed.Enabled,
+		"enabled": enabled,
 	}).Info("Feed stored successfully")
 
 	return nil
