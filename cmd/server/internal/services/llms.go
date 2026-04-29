@@ -5,6 +5,7 @@ import (
 	"downlink/cmd/server/internal/config"
 	"downlink/cmd/server/internal/store"
 	"downlink/pkg/llmgateway"
+	"downlink/pkg/llmprovider"
 	"downlink/pkg/llmutil"
 	"downlink/pkg/mappers"
 	"downlink/pkg/models"
@@ -13,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"math/rand/v2"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -31,7 +33,12 @@ import (
 type LLMsServer struct {
 	protos.UnimplementedLLMsServiceServer
 
-	gw *llmgateway.Gateway
+	gw llmGateway
+}
+
+type llmGateway interface {
+	Generate(ctx context.Context, p llmprovider.Provider, prompt string, opts ...llmgateway.CallOption) (string, error)
+	Stream(ctx context.Context, p llmprovider.ChatModelProvider, messages []*schema.Message, onChunk func(chunk *schema.Message) error, opts ...llmgateway.CallOption) (string, error)
 }
 
 // NewLLMsServer creates a new LLMs server instance. The gateway is the single
@@ -395,26 +402,175 @@ func (s *LLMsServer) PreviewAnalysisPrompt(_ context.Context, req *protos.Previe
 // progressCallback is called after each analysis task starts and completes.
 type progressCallback func(taskName, status string, taskIndex, totalTasks int, taskResultJSON string, err error)
 
+type analysisTaskAttemptResult struct {
+	response       string
+	taskResult     map[string]any
+	taskResultJSON string
+}
+
+var retryBackoff = func(attempt int) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+	delay := 250 * time.Millisecond
+	for i := 1; i < attempt; i++ {
+		delay *= 2
+		if delay >= 3*time.Second {
+			delay = 3 * time.Second
+			break
+		}
+	}
+	jitter := time.Duration(rand.Int64N(int64(150 * time.Millisecond)))
+	return delay + jitter
+}
+
+func sleepBeforeRetry(ctx context.Context, delay time.Duration) error {
+	if delay <= 0 {
+		return ctx.Err()
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return ctx.Err()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func parseAnalysisTaskResult(taskName string, response string) (map[string]any, string, error) {
+	if response == "" {
+		return nil, "", fmt.Errorf("model returned empty response for task %s", taskName)
+	}
+
+	cleaned := llmutil.CleanLLMResponse(response)
+	var taskResult map[string]any
+	if err := json.Unmarshal([]byte(cleaned), &taskResult); err != nil {
+		if err2 := json.Unmarshal([]byte(llmutil.ExtractJSON(cleaned)), &taskResult); err2 != nil {
+			return nil, "", fmt.Errorf("failed to parse response as JSON for task %s: %w", taskName, err)
+		}
+	}
+
+	taskResultJSON, _ := json.Marshal(taskResult)
+	return taskResult, string(taskResultJSON), nil
+}
+
+func (s *LLMsServer) runAnalysisTaskAttempt(
+	ctx context.Context,
+	resolved *ResolvedLLM,
+	task analysisTask,
+	messages []*schema.Message,
+	onChunk func(chunk *schema.Message) error,
+) (analysisTaskAttemptResult, error) {
+	taskCtx, taskCancel := context.WithTimeout(ctx, resolved.Timeout)
+	defer taskCancel()
+
+	response, err := s.gw.Stream(
+		taskCtx,
+		resolved.Provider,
+		messages,
+		onChunk,
+		llmgateway.WithLabel(fmt.Sprintf("analyze:task=%s", task.name)),
+	)
+	if err != nil {
+		return analysisTaskAttemptResult{}, fmt.Errorf("model error during task %s (%s): %w", task.name, resolved.ProviderType, err)
+	}
+
+	taskResult, taskResultJSON, err := parseAnalysisTaskResult(task.name, response)
+	if err != nil {
+		return analysisTaskAttemptResult{}, fmt.Errorf("%w (%s)", err, resolved.ProviderType)
+	}
+
+	return analysisTaskAttemptResult{
+		response:       response,
+		taskResult:     taskResult,
+		taskResultJSON: taskResultJSON,
+	}, nil
+}
+
+func (s *LLMsServer) runAnalysisTaskWithRetry(
+	ctx context.Context,
+	actx *articleContext,
+	resolved *ResolvedLLM,
+	task analysisTask,
+	taskIdx int,
+	totalTasks int,
+	conversationHistory []*schema.Message,
+	userMessage string,
+	onChunk func(chunk *schema.Message) error,
+) (analysisTaskAttemptResult, error) {
+	attempts := resolved.MaxRetries
+	if attempts < 1 {
+		attempts = 1
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return analysisTaskAttemptResult{}, err
+		}
+
+		attemptMessages := make([]*schema.Message, 0, len(conversationHistory)+1)
+		attemptMessages = append(attemptMessages, conversationHistory...)
+		attemptMessages = append(attemptMessages, &schema.Message{
+			Role:    schema.User,
+			Content: userMessage,
+		})
+
+		result, err := s.runAnalysisTaskAttempt(ctx, resolved, task, attemptMessages, onChunk)
+		if err == nil {
+			if attempt > 1 {
+				log.WithFields(log.Fields{
+					"article_id": actx.articleId,
+					"task":       task.name,
+					"attempt":    attempt,
+					"max":        attempts,
+				}).Info("Analysis task retry succeeded")
+			}
+			return result, nil
+		}
+
+		lastErr = err
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return analysisTaskAttemptResult{}, ctxErr
+		}
+		if attempt == attempts {
+			break
+		}
+
+		log.WithError(err).WithFields(log.Fields{
+			"article_id":   actx.articleId,
+			"task":         task.name,
+			"task_index":   taskIdx,
+			"task_total":   totalTasks,
+			"attempt":      attempt,
+			"max_attempts": attempts,
+		}).Warn("Analysis task attempt failed; retrying")
+
+		if err := sleepBeforeRetry(ctx, retryBackoff(attempt)); err != nil {
+			return analysisTaskAttemptResult{}, err
+		}
+	}
+
+	return analysisTaskAttemptResult{}, lastErr
+}
+
 // runAnalysisPipeline executes the sequential task pipeline and returns the assembled result.
 // The optional onProgress callback is invoked for each task start/complete.
 func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.AnalyzeArticleWithProviderModelRequest, onProgress progressCallback) (*protos.AnalyzeArticleWithProviderModelResponse, error) {
 	// Ensure the pipeline has at least 60 minutes total (tasks run sequentially;
-	// each individual Stream call gets its own 10-minute sub-deadline below).
+	// each individual Stream call gets its own provider-configured sub-deadline below).
 	const pipelineTimeout = 60 * time.Minute
-	deadline, ok := ctx.Deadline()
-	if ok {
+	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
 		log.Infof("Context deadline: %v (remaining: %v)", deadline, remaining)
 		if remaining < pipelineTimeout {
-			log.Warnf("Context deadline too short (%v), extending to %v", remaining, pipelineTimeout)
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(context.Background(), pipelineTimeout)
-			defer cancel()
+			log.Warnf("Context deadline shorter than preferred pipeline timeout (%v < %v); preserving caller cancellation", remaining, pipelineTimeout)
 		}
 	} else {
 		log.Warnf("No context deadline set, adding %v timeout", pipelineTimeout)
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), pipelineTimeout)
+		ctx, cancel = context.WithTimeout(ctx, pipelineTimeout)
 		defer cancel()
 	}
 
@@ -478,12 +634,6 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 			onProgress(task.name, "started", taskIdx, totalTasks, userMessage, nil)
 		}
 
-		// Append the new user message to conversation history
-		conversationHistory = append(conversationHistory, &schema.Message{
-			Role:    schema.User,
-			Content: userMessage,
-		})
-
 		// Route every Stream call through the gateway so --max-concurrent-llm-requests applies.
 		if deadline, ok := ctx.Deadline(); ok {
 			log.WithField("task", task.name).Debugf("Before Stream: context deadline in %v", time.Until(deadline))
@@ -498,34 +648,32 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 			return nil
 		}
 
-		taskCtx, taskCancel := context.WithTimeout(ctx, 10*time.Minute)
-		response, err := s.gw.Stream(
-			taskCtx,
-			resolved.Provider,
+		attemptResult, err := s.runAnalysisTaskWithRetry(
+			ctx,
+			actx,
+			resolved,
+			task,
+			taskIdx,
+			totalTasks,
 			conversationHistory,
+			userMessage,
 			onChunk,
-			llmgateway.WithLabel(fmt.Sprintf("analyze:task=%s", task.name)),
 		)
-		taskCancel()
 		if err != nil {
 			if onProgress != nil {
 				onProgress(task.name, "error", taskIdx, totalTasks, "", err)
 			}
-			return nil, fmt.Errorf("model error during task %s (%s): %w", task.name, resolved.ProviderType, err)
+			return nil, err
 		}
 
+		response := attemptResult.response
 		log.WithField("task", task.name).WithField("provider", resolved.ProviderType).Debugf("Full response:\n%s", response)
 
-		if response == "" {
-			taskErr := fmt.Errorf("model returned empty response for task %s (%s)", task.name, resolved.ProviderType)
-			log.WithField("task", task.name).Error(taskErr.Error())
-			if onProgress != nil {
-				onProgress(task.name, "error", taskIdx, totalTasks, "", taskErr)
-			}
-			return nil, taskErr
-		}
-
-		// Append assistant response to conversation history
+		// Only successful attempts advance the shared conversation history.
+		conversationHistory = append(conversationHistory, &schema.Message{
+			Role:    schema.User,
+			Content: userMessage,
+		})
 		conversationHistory = append(conversationHistory, &schema.Message{
 			Role:    schema.Assistant,
 			Content: response,
@@ -548,28 +696,11 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 			allThinking = append(allThinking, fmt.Sprintf("[%s] %s", task.name, strings.TrimSpace(thinkingText)))
 		}
 
-		// Parse this task's JSON output and merge into assembled result
-		cleaned := llmutil.CleanLLMResponse(response)
-
-		var taskResult map[string]any
-		if err := json.Unmarshal([]byte(cleaned), &taskResult); err != nil {
-			// Fall back to trimming to the outermost {...} span.
-			if err2 := json.Unmarshal([]byte(llmutil.ExtractJSON(cleaned)), &taskResult); err2 != nil {
-				parseErr := fmt.Errorf("failed to parse response as JSON for task %s: %w", task.name, err)
-				log.WithField("task", task.name).Error(parseErr.Error())
-				if onProgress != nil {
-					onProgress(task.name, "error", taskIdx, totalTasks, "", parseErr)
-				}
-				return nil, parseErr
-			}
-		}
-
-		maps.Copy(assembled, taskResult)
+		maps.Copy(assembled, attemptResult.taskResult)
 
 		// Send completed progress with the parsed JSON result
-		taskResultJSON, _ := json.Marshal(taskResult)
 		if onProgress != nil {
-			onProgress(task.name, "completed", taskIdx, totalTasks, string(taskResultJSON), nil)
+			onProgress(task.name, "completed", taskIdx, totalTasks, attemptResult.taskResultJSON, nil)
 		}
 
 		succeededTasks++
@@ -609,20 +740,16 @@ func (s *LLMsServer) AnalyzeArticleWithProgress(ctx context.Context, req *protos
 
 func (s *LLMsServer) AnalyzeArticleOneShot(ctx context.Context, req *protos.AnalyzeArticleWithProviderModelRequest, onTask func(taskName, status string, taskIndex, totalTasks int, err error)) (*protos.AnalyzeArticleWithProviderModelResponse, error) {
 	const oneShotTimeout = 60 * time.Minute
-	deadline, ok := ctx.Deadline()
-	if ok {
+	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
 		log.Infof("Context deadline: %v (remaining: %v)", deadline, remaining)
 		if remaining < oneShotTimeout {
-			log.Warnf("Context deadline too short (%v), extending to %v", remaining, oneShotTimeout)
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(context.Background(), oneShotTimeout)
-			defer cancel()
+			log.Warnf("Context deadline shorter than preferred one-shot timeout (%v < %v); preserving caller cancellation", remaining, oneShotTimeout)
 		}
 	} else {
 		log.Warnf("No context deadline set, adding %v timeout", oneShotTimeout)
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), oneShotTimeout)
+		ctx, cancel = context.WithTimeout(ctx, oneShotTimeout)
 		defer cancel()
 	}
 
@@ -647,32 +774,78 @@ func (s *LLMsServer) AnalyzeArticleOneShot(ctx context.Context, req *protos.Anal
 		onTask("one_shot_analysis", "started", 1, 1, nil)
 	}
 
-	response, err := s.gw.Generate(
-		ctx,
-		resolved.Provider,
-		prompt,
-		llmgateway.WithLabel("analyze:one_shot_analysis"),
-	)
-	if err != nil {
-		if onTask != nil {
-			onTask("one_shot_analysis", "error", 1, 1, err)
-		}
-		return nil, fmt.Errorf("model error during one-shot analysis (%s): %w", resolved.ProviderType, err)
+	attempts := resolved.MaxRetries
+	if attempts < 1 {
+		attempts = 1
 	}
 
-	res, err := s.buildAndStoreAnalysis(req, response)
-	if err != nil {
-		if onTask != nil {
-			onTask("one_shot_analysis", "error", 1, 1, err)
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			if onTask != nil {
+				onTask("one_shot_analysis", "error", 1, 1, err)
+			}
+			return nil, err
 		}
-		return nil, err
+
+		attemptCtx, attemptCancel := context.WithTimeout(ctx, resolved.Timeout)
+		response, err := s.gw.Generate(
+			attemptCtx,
+			resolved.Provider,
+			prompt,
+			llmgateway.WithLabel("analyze:one_shot_analysis"),
+		)
+		attemptCancel()
+		if err != nil {
+			lastErr = fmt.Errorf("model error during one-shot analysis (%s): %w", resolved.ProviderType, err)
+		} else {
+			res, buildErr := s.buildAndStoreAnalysis(req, response)
+			if buildErr == nil {
+				if attempt > 1 {
+					log.WithFields(log.Fields{
+						"article_id": req.ArticleId,
+						"task":       "one_shot_analysis",
+						"attempt":    attempt,
+						"max":        attempts,
+					}).Info("One-shot analysis retry succeeded")
+				}
+				if onTask != nil {
+					onTask("one_shot_analysis", "completed", 1, 1, nil)
+				}
+				return res, nil
+			}
+			lastErr = buildErr
+		}
+
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			if onTask != nil {
+				onTask("one_shot_analysis", "error", 1, 1, ctxErr)
+			}
+			return nil, ctxErr
+		}
+		if attempt == attempts {
+			break
+		}
+
+		log.WithError(lastErr).WithFields(log.Fields{
+			"article_id":   req.ArticleId,
+			"task":         "one_shot_analysis",
+			"attempt":      attempt,
+			"max_attempts": attempts,
+		}).Warn("One-shot analysis attempt failed; retrying")
+
+		if err := sleepBeforeRetry(ctx, retryBackoff(attempt)); err != nil {
+			if onTask != nil {
+				onTask("one_shot_analysis", "error", 1, 1, err)
+			}
+			return nil, err
+		}
 	}
 
 	if onTask != nil {
-		onTask("one_shot_analysis", "completed", 1, 1, nil)
+		onTask("one_shot_analysis", "error", 1, 1, lastErr)
 	}
-
-	return res, nil
+	return nil, lastErr
 }
 
 // StreamAnalyzeArticle is the streaming version that sends progress events per task.

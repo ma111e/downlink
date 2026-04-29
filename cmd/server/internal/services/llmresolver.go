@@ -42,6 +42,7 @@ type ResolvedLLM struct {
 	ProviderType string
 	ModelName    string
 	Timeout      time.Duration
+	MaxRetries   int
 }
 
 // ResolveLLM performs provider lookup, "auto" model resolution, default
@@ -79,6 +80,9 @@ func ResolveLLM(req LLMRequest) (*ResolvedLLM, error) {
 	if req.MaxRetries != nil {
 		maxRetries = *req.MaxRetries
 	}
+	if maxRetries < 1 {
+		maxRetries = 1
+	}
 
 	timeout := defaultTimeout
 	if providerConfig.TimeoutMinutes != nil {
@@ -110,6 +114,7 @@ func ResolveLLM(req LLMRequest) (*ResolvedLLM, error) {
 		ProviderType: providerConfig.ProviderType,
 		ModelName:    providerConfig.ModelName,
 		Timeout:      timeout,
+		MaxRetries:   maxRetries,
 	}, nil
 }
 
