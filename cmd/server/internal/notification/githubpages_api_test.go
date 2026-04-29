@@ -100,7 +100,7 @@ func TestConfigureGitHubPagesSourceCreatesMissingSite(t *testing.T) {
 		Branch:         "pages",
 		Token:          "token",
 		ConfigurePages: true,
-	}, nil)
+	})
 
 	if err := publisher.configureGitHubPagesSourceIfEnabled(); err != nil {
 		t.Fatalf("configureGitHubPagesSourceIfEnabled() error = %v", err)
@@ -152,7 +152,7 @@ func TestConfigureGitHubPagesSourceCreatesMissingBranchFromDefault(t *testing.T)
 		Branch:         "pages",
 		Token:          "token",
 		ConfigurePages: true,
-	}, nil)
+	})
 
 	if err := publisher.configureGitHubPagesSourceIfEnabled(); err != nil {
 		t.Fatalf("configureGitHubPagesSourceIfEnabled() error = %v", err)
@@ -195,7 +195,7 @@ func TestConfigureGitHubPagesSourceSeedsEmptyRepo(t *testing.T) {
 		Branch:         "pages",
 		Token:          "token",
 		ConfigurePages: true,
-	}, nil)
+	})
 
 	if err := publisher.configureGitHubPagesSourceIfEnabled(); err != nil {
 		t.Fatalf("configureGitHubPagesSourceIfEnabled() error = %v", err)
@@ -240,7 +240,7 @@ func TestConfigureGitHubPagesSourceUpdatesMismatchedSite(t *testing.T) {
 		Branch:         "gh-pages",
 		Token:          "token",
 		ConfigurePages: true,
-	}, nil)
+	})
 
 	if err := publisher.configureGitHubPagesSourceIfEnabled(); err != nil {
 		t.Fatalf("configureGitHubPagesSourceIfEnabled() error = %v", err)
@@ -280,7 +280,7 @@ func TestConfigureGitHubPagesSourceNoopsForMatchingSite(t *testing.T) {
 		Branch:         "pages",
 		Token:          "token",
 		ConfigurePages: true,
-	}, nil)
+	})
 
 	if err := publisher.configureGitHubPagesSourceIfEnabled(); err != nil {
 		t.Fatalf("configureGitHubPagesSourceIfEnabled() error = %v", err)
@@ -301,7 +301,7 @@ func TestConfigureGitHubPagesSourceAPIErrorOnlyWhenEnabled(t *testing.T) {
 		RepoURL: "https://github.com/owner/repo.git",
 		Branch:  "pages",
 		Token:   "token",
-	}, nil)
+	})
 	if err := disabledPublisher.configureGitHubPagesSourceIfEnabled(); err != nil {
 		t.Fatalf("disabled configure returned error = %v", err)
 	}
@@ -311,7 +311,7 @@ func TestConfigureGitHubPagesSourceAPIErrorOnlyWhenEnabled(t *testing.T) {
 		Branch:         "pages",
 		Token:          "token",
 		ConfigurePages: true,
-	}, nil)
+	})
 	if err := enabledPublisher.configureGitHubPagesSourceIfEnabled(); err == nil {
 		t.Fatalf("enabled configure expected error")
 	}

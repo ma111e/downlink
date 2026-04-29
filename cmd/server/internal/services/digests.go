@@ -362,7 +362,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 				if ghCfg.Token == "" {
 					log.Warn("GitHub Pages enabled but no token configured (set token in config or DOWNLINK_GH_PAGES_TOKEN env); skipping")
 				} else {
-					publisher := notification.NewGitHubPagesPublisher(ghCfg, store.Db)
+					publisher := notification.NewGitHubPagesPublisher(ghCfg)
 					if err := publisher.SendDigest(fullDigest); err != nil {
 						log.WithError(err).Warn("Failed to publish digest to GitHub Pages")
 					}
