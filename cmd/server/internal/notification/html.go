@@ -572,13 +572,8 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
     <span class="nav-date">{{.StartedAt}}</span>
   </div>
   <div class="nav-right">
-    {{if gt (len .Siblings) 1}}
-    <select id="digest-switcher" class="nav-switcher" aria-label="Switch provider/model">
-      {{range .Siblings}}
-      <option value="{{.Filename}}"{{if .IsCurrent}} selected{{end}}>{{.ProviderType}} / {{.ModelName}} · {{.DisplayDate}}</option>
-      {{end}}
-    </select>
-    {{end}}
+    <select id="digest-switcher" class="nav-switcher" aria-label="Switch provider/model"
+            data-digest-id="{{.DigestId}}" data-article-set-hash="{{.ArticleSetHash}}" hidden></select>
     <span class="nav-window">{{.TimeWindow}} window</span>
     <div class="nav-count">
       <span class="nav-count-dot">■</span>
@@ -889,7 +884,9 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// provider/model switcher: navigate to selected sibling digest
+// provider/model switcher: pulls sibling list from manifest.json at runtime,
+// filtering by matching articleSetHash. Stays hidden when there are <2 siblings
+// or the manifest is unreachable.
 (function() {
   var sel = document.getElementById('digest-switcher');
   if (!sel) return;
@@ -897,6 +894,26 @@ document.addEventListener('keydown', function(e) {
     var v = e.target.value;
     if (v) window.location.assign(v);
   });
+  var hash = sel.dataset.articleSetHash;
+  var currentId = sel.dataset.digestId;
+  if (!hash) return;
+  fetch('manifest.json', { cache: 'no-cache' }).then(function(r) {
+    if (!r.ok) throw new Error('manifest fetch ' + r.status);
+    return r.json();
+  }).then(function(m) {
+    var entries = (m && m.digests ? m.digests : []).filter(function(e) {
+      return e.articleSetHash && e.articleSetHash === hash;
+    });
+    if (entries.length < 2) return;
+    entries.forEach(function(e) {
+      var opt = document.createElement('option');
+      opt.value = e.filename;
+      opt.textContent = e.providerType + ' / ' + e.modelName + ' · ' + e.displayDate;
+      if (e.id === currentId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.hidden = false;
+  }).catch(function(){ /* leave hidden */ });
 })();
 </script>
 </body>
@@ -1089,17 +1106,6 @@ type OverviewSection struct {
 	Body  template.HTML // rendered markdown body
 }
 
-// DigestSibling identifies another digest built from the exact same set of
-// articles. Rendered into the sticky nav as a switcher so readers can compare
-// outputs from different providers/models without leaving the page.
-type DigestSibling struct {
-	Filename     string // basename of the sibling's HTML file (same directory)
-	ProviderType string
-	ModelName    string
-	DisplayDate  string
-	IsCurrent    bool
-}
-
 // digestTemplateData is the root data passed to the HTML template
 type digestTemplateData struct {
 	StartedAt        string
@@ -1111,20 +1117,18 @@ type digestTemplateData struct {
 	OverviewSections []OverviewSection
 	TOCGroups        []TOCGroup
 	ArticleEntries   []ArticleEntry
-	Siblings         []DigestSibling
+	DigestId         string
+	ArticleSetHash   string
 }
 
 // RenderDigestHTML generates a self-contained HTML file for the given digest.
 // The digest must have Articles, DigestAnalyses (with Analysis preloaded), and ProviderResults populated.
 // theme selects the visual style; an empty string or "dark" uses the default dark theme.
+//
+// The provider/model switcher in the rendered page is populated client-side
+// from manifest.json — the page itself only embeds the digest id and a hash
+// of its article set used to filter siblings.
 func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
-	return RenderDigestHTMLWithSiblings(digest, theme, nil)
-}
-
-// RenderDigestHTMLWithSiblings is the same as RenderDigestHTML but also embeds
-// a provider/model switcher in the sticky nav linking to siblings — other
-// digests built from the exact same article set.
-func RenderDigestHTMLWithSiblings(digest models.Digest, theme string, siblings []DigestSibling) ([]byte, error) {
 	// Build a lookup: articleId → DigestAnalysis (for duplicate metadata and analysis)
 	daByArticle := make(map[string]models.DigestAnalysis, len(digest.DigestAnalyses))
 	for _, da := range digest.DigestAnalyses {
@@ -1241,7 +1245,8 @@ func RenderDigestHTMLWithSiblings(digest models.Digest, theme string, siblings [
 		TOCGroups:        tocGroups,
 		ArticleEntries:   articleEntries,
 		ThemeOverride:    themeOverride,
-		Siblings:         siblings,
+		DigestId:         digest.Id,
+		ArticleSetHash:   ArticleSetHash(digest),
 	}
 
 	funcMap := template.FuncMap{
@@ -1524,12 +1529,6 @@ func articleTitle(t string) string {
 	return t
 }
 
-// DigestIndexEntry describes a single digest entry for the index page.
-type DigestIndexEntry struct {
-	Filename    string // relative filename, e.g. "downlink-digest-2026-04-24_1200.html"
-	DisplayDate string // human-readable, e.g. "2026-04-24 12:00 UTC"
-}
-
 const digestIndexTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1548,25 +1547,57 @@ ul { list-style: none; display: flex; flex-direction: column; gap: .5rem; }
 li a { color: var(--text); text-decoration: none; padding: .6rem 1rem; display: block;
        background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
 li a:hover { border-color: var(--accent); color: var(--accent); }
+li .meta { color: var(--muted); font-size: .85em; margin-left: .5rem; }
+#empty { color: var(--muted); }
 </style>
 </head>
 <body>
 <h1>📰 Downlink Digests</h1>
-<ul>
-{{range .}}<li><a href="{{.Filename}}">{{.DisplayDate}}</a></li>
-{{end}}
-</ul>
+<ul id="digest-list"><li id="empty">Loading…</li></ul>
+<script>
+(function() {
+  var list = document.getElementById('digest-list');
+  fetch('manifest.json', { cache: 'no-cache' }).then(function(r) {
+    if (!r.ok) throw new Error('manifest fetch ' + r.status);
+    return r.json();
+  }).then(function(m) {
+    var entries = (m && m.digests) ? m.digests : [];
+    list.innerHTML = '';
+    if (!entries.length) {
+      list.innerHTML = '<li id="empty">No digests yet.</li>';
+      return;
+    }
+    entries.forEach(function(e) {
+      var li = document.createElement('li');
+      var a = document.createElement('a');
+      a.href = e.filename;
+      a.textContent = e.displayDate;
+      var meta = document.createElement('span');
+      meta.className = 'meta';
+      var label = [e.providerType, e.modelName].filter(Boolean).join(' / ');
+      if (label) meta.textContent = ' — ' + label;
+      a.appendChild(meta);
+      li.appendChild(a);
+      list.appendChild(li);
+    });
+  }).catch(function(err) {
+    list.innerHTML = '<li id="empty">Failed to load digest list.</li>';
+  });
+})();
+</script>
 </body>
 </html>`
 
-// RenderDigestIndex generates an index HTML page listing all digest entries, newest first.
-func RenderDigestIndex(entries []DigestIndexEntry) ([]byte, error) {
+// RenderDigestIndex generates the index HTML shell. The digest list is
+// populated client-side by fetching manifest.json, so the rendered bytes are
+// constant for a given template.
+func RenderDigestIndex() ([]byte, error) {
 	tmpl, err := template.New("index").Parse(digestIndexTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse index template: %w", err)
 	}
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, entries); err != nil {
+	if err := tmpl.Execute(&buf, nil); err != nil {
 		return nil, fmt.Errorf("failed to render digest index: %w", err)
 	}
 	return buf.Bytes(), nil
