@@ -2,6 +2,7 @@ package main
 
 import (
 	"downlink/pkg/downlinkclient"
+	"downlink/pkg/envoverride"
 	"fmt"
 	"os"
 
@@ -17,13 +18,17 @@ var (
 	address    string
 	port       int
 	jsonOutput bool
+	envVars    []string
 )
 
 func main() {
+	cobra.EnableTraverseRunHooks = true
+
 	rootCmd := &cobra.Command{
 		Use:   "downlink-cli",
 		Short: "DOWNLINK CLI",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return envoverride.Apply(envVars)
 		},
 	}
 
@@ -31,6 +36,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&address, "address", "localhost", "gRPC server address")
 	rootCmd.PersistentFlags().IntVar(&port, "port", 50051, "gRPC server port")
 	rootCmd.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+	rootCmd.PersistentFlags().StringArrayVar(&envVars, "env", nil, "Set an environment variable override (KEY=VALUE); may be repeated")
 
 	// Add all command groups
 	rootCmd.AddCommand(createArticleCommands())
