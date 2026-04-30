@@ -4,9 +4,10 @@ Downlink can automatically publish each digest as a self-contained HTML page to 
 
 1. Clones (or pulls) your Pages repo locally.
 2. Writes the digest HTML file (e.g. `digests/downlink-digest-2026-04-24_1200.html`).
-3. Regenerates `index.html` listing all digests, newest first.
-4. Commits and pushes both files.
-5. Optionally sends a Discord message with the link to the new page.
+3. Regenerates `digests/index.html` and `digests/manifest.json` listing all digests, newest first.
+4. Writes a root `index.html` that points visitors to the digest index.
+5. Commits and pushes the changed files.
+6. Optionally sends a Discord message with the link to the new page.
 
 ---
 
@@ -66,7 +67,7 @@ Add a `github_pages` block inside `notifications`:
 | `branch` | no | `main` | Branch to clone and push to. When `configure_pages` is true, this is also configured as the GitHub Pages source branch. |
 | `configure_pages` | no | `false` | Configure the GitHub Pages source to `branch` at `/` before publishing. Requires extra token permissions. |
 | `token` | no* | — | GitHub PAT. Prefer `DOWNLINK_GH_PAGES_TOKEN` env var instead. |
-| `output_dir` | no | *(repo root)* | Subdirectory inside the repo where digest files are written. |
+| `output_dir` | no | `digests` | Safe relative subdirectory inside the repo where digest files are written. Absolute paths, `.`, `..`, and parent traversal are rejected. |
 | `base_url` | no | — | Public URL of the site (e.g. `https://your-username.github.io`). Used to build links in Discord notifications. |
 | `commit_author` | no | `downlink-bot` | Git commit author name. |
 | `commit_email` | no | `downlink-bot@users.noreply.github.com` | Git commit author email. |
@@ -126,9 +127,13 @@ export DOWNLINK_GH_PAGES_TOKEN=github_pat_...
 On each digest generation:
 
 - **`<output_dir>/downlink-digest-YYYY-MM-DD_HHMM.html`** — self-contained dark-themed HTML page for that digest (same file sent to Discord).
+- **`<output_dir>/manifest.json`** — machine-readable list of published digests, newest first.
 - **`<output_dir>/index.html`** — regenerated index listing every digest in the output directory, newest first, with links.
+- **`index.html`** — root redirect/link page pointing visitors to `<output_dir>/index.html`.
 
-If `output_dir` is empty, both files land at the repo root.
+If `output_dir` is empty, Downlink uses `digests`. Publishing directly to the repo root is not supported.
+
+The browser-facing pages use `manifest.json` directly: the digest index builds its list from the manifest, and each digest page uses the manifest to populate the provider/model switcher for matching article sets.
 
 ---
 

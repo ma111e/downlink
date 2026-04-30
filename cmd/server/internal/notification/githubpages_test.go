@@ -1,6 +1,7 @@
 package notification
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -75,16 +76,26 @@ func TestGitHubPagesPublisherWritesDefaultDigestFolderLayout(t *testing.T) {
 	if relPath != filepath.Join("digests", "downlink-digest-2026-04-24_1200.html") {
 		t.Fatalf("relPath = %q", relPath)
 	}
+	if err := publisher.writeAndStageManifest(wt, digest, outputDir); err != nil {
+		t.Fatalf("writeAndStageManifest() error = %v", err)
+	}
 	if err := publisher.ensureIndex(wt, outputDir); err != nil {
 		t.Fatalf("ensureIndex() error = %v", err)
 	}
 
 	assertFileExists(t, cloneDir, "digests", "downlink-digest-2026-04-24_1200.html")
+	assertManifestContains(t, cloneDir, "digests", "manifest.json", "digest-one", "downlink-digest-2026-04-24_1200.html")
 	assertFileExists(t, cloneDir, "digests", "index.html")
 	rootIndex := assertFileExists(t, cloneDir, "index.html")
 	if !strings.Contains(string(rootIndex), "digests/index.html") {
 		t.Fatalf("root index does not point at digests/index.html:\n%s", string(rootIndex))
 	}
+	assertStaged(t, wt,
+		filepath.Join("digests", "downlink-digest-2026-04-24_1200.html"),
+		filepath.Join("digests", "manifest.json"),
+		filepath.Join("digests", "index.html"),
+		"index.html",
+	)
 }
 
 func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
@@ -115,16 +126,26 @@ func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
 	if relPath != filepath.Join("archive", "digests", "downlink-digest-2026-04-25_0930.html") {
 		t.Fatalf("relPath = %q", relPath)
 	}
+	if err := publisher.writeAndStageManifest(wt, digest, outputDir); err != nil {
+		t.Fatalf("writeAndStageManifest() error = %v", err)
+	}
 	if err := publisher.ensureIndex(wt, outputDir); err != nil {
 		t.Fatalf("ensureIndex() error = %v", err)
 	}
 
 	assertFileExists(t, cloneDir, "archive", "digests", "downlink-digest-2026-04-25_0930.html")
+	assertManifestContains(t, cloneDir, "archive", "digests", "manifest.json", "digest-two", "downlink-digest-2026-04-25_0930.html")
 	assertFileExists(t, cloneDir, "archive", "digests", "index.html")
 	rootIndex := assertFileExists(t, cloneDir, "index.html")
 	if !strings.Contains(string(rootIndex), "archive/digests/index.html") {
 		t.Fatalf("root index does not point at archive/digests/index.html:\n%s", string(rootIndex))
 	}
+	assertStaged(t, wt,
+		filepath.Join("archive", "digests", "downlink-digest-2026-04-25_0930.html"),
+		filepath.Join("archive", "digests", "manifest.json"),
+		filepath.Join("archive", "digests", "index.html"),
+		"index.html",
+	)
 }
 
 func sampleDigest(id string, createdAt time.Time) models.Digest {
@@ -153,4 +174,43 @@ func assertFileExists(t *testing.T, parts ...string) []byte {
 		t.Fatalf("expected file %s: %v", path, err)
 	}
 	return data
+}
+
+func assertManifestContains(t *testing.T, parts ...string) {
+	t.Helper()
+	if len(parts) < 3 {
+		t.Fatalf("assertManifestContains requires path parts plus id and filename")
+	}
+	id := parts[len(parts)-2]
+	filename := parts[len(parts)-1]
+	pathParts := parts[:len(parts)-2]
+	data := assertFileExists(t, pathParts...)
+	var manifest Manifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("manifest json: %v", err)
+	}
+	for _, entry := range manifest.Digests {
+		if entry.Id == id && entry.Filename == filename {
+			return
+		}
+	}
+	t.Fatalf("manifest does not contain id=%q filename=%q: %+v", id, filename, manifest.Digests)
+}
+
+func assertStaged(t *testing.T, wt *gogit.Worktree, paths ...string) {
+	t.Helper()
+	status, err := wt.Status()
+	if err != nil {
+		t.Fatalf("Status() error = %v", err)
+	}
+	for _, path := range paths {
+		slashPath := filepath.ToSlash(path)
+		fileStatus, ok := status[slashPath]
+		if !ok {
+			t.Fatalf("%s not present in git status:\n%s", slashPath, status.String())
+		}
+		if fileStatus.Staging != gogit.Added {
+			t.Fatalf("%s staging status = %q, want %q; full status:\n%s", slashPath, fileStatus.Staging, gogit.Added, status.String())
+		}
+	}
 }

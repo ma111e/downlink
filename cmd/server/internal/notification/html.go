@@ -1553,11 +1553,12 @@ li .meta { color: var(--muted); font-size: .85em; margin-left: .5rem; }
 </head>
 <body>
 <h1>📰 Downlink Digests</h1>
-<ul id="digest-list"><li id="empty">Loading…</li></ul>
+<ul id="digest-list" data-manifest-url="manifest.json"><li id="empty">Loading…</li></ul>
 <script>
 (function() {
   var list = document.getElementById('digest-list');
-  fetch('manifest.json', { cache: 'no-cache' }).then(function(r) {
+  var manifestURL = list.getAttribute('data-manifest-url') || 'manifest.json';
+  fetch(manifestURL, { cache: 'no-cache' }).then(function(r) {
     if (!r.ok) throw new Error('manifest fetch ' + r.status);
     return r.json();
   }).then(function(m) {

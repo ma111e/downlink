@@ -49,6 +49,11 @@ func NewGitHubPagesPublisher(cfg models.GitHubPagesNotificationConfig) *GitHubPa
 func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 	log.WithField("digestId", digest.Id).Info("Publishing digest to GitHub Pages")
 
+	outputDir, err := resolveGitHubPagesOutputDir(p.cfg.OutputDir)
+	if err != nil {
+		return fmt.Errorf("github pages: invalid output dir: %w", err)
+	}
+
 	auth := &githttp.BasicAuth{
 		Username: "x-access-token",
 		Password: p.cfg.Token,
@@ -68,30 +73,15 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 		return fmt.Errorf("github pages: failed to get worktree: %w", err)
 	}
 
-	digestRelPath, err := p.renderAndStage(wt, digest)
+	digestRelPath, err := p.renderAndStage(wt, digest, outputDir)
 	if err != nil {
 		return err
 	}
 
-	manifestRelPath := ManifestFilename
-	if p.cfg.OutputDir != "" {
-		manifestRelPath = filepath.Join(p.cfg.OutputDir, ManifestFilename)
+	if err := p.writeAndStageManifest(wt, digest, outputDir); err != nil {
+		return err
 	}
-	manifestAbsPath := filepath.Join(p.cfg.CloneDir, manifestRelPath)
-
-	manifest, err := LoadManifest(manifestAbsPath)
-	if err != nil {
-		return fmt.Errorf("github pages: load manifest: %w", err)
-	}
-	manifest.Upsert(ManifestEntryFromDigest(digest))
-	if err := manifest.Write(manifestAbsPath); err != nil {
-		return fmt.Errorf("github pages: write manifest: %w", err)
-	}
-	if _, err := wt.Add(manifestRelPath); err != nil {
-		return fmt.Errorf("github pages: failed to stage manifest: %w", err)
-	}
-
-	if err := p.ensureIndex(wt); err != nil {
+	if err := p.ensureIndex(wt, outputDir); err != nil {
 		return err
 	}
 
@@ -201,14 +191,10 @@ func (p *GitHubPagesPublisher) ensureRepo(auth *githttp.BasicAuth) (*gogit.Repos
 	return repo, nil
 }
 
-// ensureIndex writes index.html only when missing or when its rendered bytes
-// differ from disk content. The index is a static shell that pulls its list
-// from manifest.json at runtime, so it rarely changes.
-func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree) error {
-	indexRelPath := "index.html"
-	if p.cfg.OutputDir != "" {
-		indexRelPath = filepath.Join(p.cfg.OutputDir, "index.html")
-	}
+// ensureIndex writes the digest index under outputDir and a root index.html
+// that points visitors to that digest index.
+func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir string) error {
+	indexRelPath := filepath.Join(outputDir, "index.html")
 	indexAbsPath := filepath.Join(p.cfg.CloneDir, indexRelPath)
 
 	indexBytes, err := RenderDigestIndex()
@@ -217,18 +203,30 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree) error {
 	}
 
 	existing, readErr := os.ReadFile(indexAbsPath)
-	if readErr == nil && bytes.Equal(existing, indexBytes) {
-		return nil
+	if readErr != nil || !bytes.Equal(existing, indexBytes) {
+		if err := os.MkdirAll(filepath.Dir(indexAbsPath), 0755); err != nil {
+			return fmt.Errorf("github pages: failed to create index dir: %w", err)
+		}
+		if err := os.WriteFile(indexAbsPath, indexBytes, 0644); err != nil {
+			return fmt.Errorf("github pages: failed to write index HTML: %w", err)
+		}
+		if _, err := wt.Add(indexRelPath); err != nil {
+			return fmt.Errorf("github pages: failed to stage index file: %w", err)
+		}
 	}
 
-	if err := os.MkdirAll(filepath.Dir(indexAbsPath), 0755); err != nil {
-		return fmt.Errorf("github pages: failed to create index dir: %w", err)
+	rootIndexRelPath := "index.html"
+	rootIndexAbsPath := filepath.Join(p.cfg.CloneDir, rootIndexRelPath)
+	rootIndexBytes := renderGitHubPagesRootIndex(filepath.ToSlash(indexRelPath))
+	existingRoot, readRootErr := os.ReadFile(rootIndexAbsPath)
+	if readRootErr == nil && bytes.Equal(existingRoot, rootIndexBytes) {
+		return nil
 	}
-	if err := os.WriteFile(indexAbsPath, indexBytes, 0644); err != nil {
-		return fmt.Errorf("github pages: failed to write index HTML: %w", err)
+	if err := os.WriteFile(rootIndexAbsPath, rootIndexBytes, 0644); err != nil {
+		return fmt.Errorf("github pages: failed to write root index HTML: %w", err)
 	}
-	if _, err := wt.Add(indexRelPath); err != nil {
-		return fmt.Errorf("github pages: failed to stage index file: %w", err)
+	if _, err := wt.Add(rootIndexRelPath); err != nil {
+		return fmt.Errorf("github pages: failed to stage root index file: %w", err)
 	}
 	return nil
 }
@@ -237,26 +235,76 @@ func isNonFastForward(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "non-fast-forward")
 }
 
+func (p *GitHubPagesPublisher) writeAndStageManifest(wt *gogit.Worktree, digest models.Digest, outputDir string) error {
+	manifestRelPath := filepath.Join(outputDir, ManifestFilename)
+	manifestAbsPath := filepath.Join(p.cfg.CloneDir, manifestRelPath)
+
+	manifest, err := LoadManifest(manifestAbsPath)
+	if err != nil {
+		return fmt.Errorf("github pages: load manifest: %w", err)
+	}
+	manifest.Upsert(ManifestEntryFromDigest(digest))
+	if err := manifest.Write(manifestAbsPath); err != nil {
+		return fmt.Errorf("github pages: write manifest: %w", err)
+	}
+	if _, err := wt.Add(manifestRelPath); err != nil {
+		return fmt.Errorf("github pages: failed to stage manifest: %w", err)
+	}
+	return nil
+}
+
+func resolveGitHubPagesOutputDir(input string) (string, error) {
+	trimmed := strings.TrimSpace(input)
+	if trimmed == "" {
+		return "digests", nil
+	}
+	if filepath.IsAbs(trimmed) {
+		return "", fmt.Errorf("must be a relative path")
+	}
+	for _, part := range strings.FieldsFunc(trimmed, func(r rune) bool {
+		return r == '/' || r == '\\'
+	}) {
+		if part == ".." {
+			return "", fmt.Errorf("must not contain parent traversal")
+		}
+	}
+	cleaned := filepath.Clean(trimmed)
+	if cleaned == "." || cleaned == ".." || filepath.IsAbs(cleaned) {
+		return "", fmt.Errorf("must be a safe relative subdirectory")
+	}
+	return cleaned, nil
+}
+
+func renderGitHubPagesRootIndex(indexPath string) []byte {
+	return []byte(fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="0; url=%s">
+<title>Downlink Digests</title>
+</head>
+<body>
+<p><a href="%s">View Downlink digests</a></p>
+</body>
+</html>`, indexPath, indexPath))
+}
+
 // renderAndStage renders a digest, writes it to the publisher's output dir,
 // and stages it in the worktree. It returns the staged file's repo-relative
 // path.
-func (p *GitHubPagesPublisher) renderAndStage(wt *gogit.Worktree, digest models.Digest) (string, error) {
+func (p *GitHubPagesPublisher) renderAndStage(wt *gogit.Worktree, digest models.Digest, outputDir string) (string, error) {
 	htmlBytes, err := RenderDigestHTML(digest, "dark")
 	if err != nil {
 		return "", fmt.Errorf("github pages: failed to render digest HTML: %w", err)
 	}
 
 	digestFilename := DigestHTMLFilename(digest)
-	digestRelPath := digestFilename
-	if p.cfg.OutputDir != "" {
-		digestRelPath = filepath.Join(p.cfg.OutputDir, digestFilename)
-	}
+	digestRelPath := filepath.Join(outputDir, digestFilename)
 	digestAbsPath := filepath.Join(p.cfg.CloneDir, digestRelPath)
 
-	if p.cfg.OutputDir != "" {
-		if err := os.MkdirAll(filepath.Dir(digestAbsPath), 0755); err != nil {
-			return "", fmt.Errorf("github pages: failed to create output dir: %w", err)
-		}
+	if err := os.MkdirAll(filepath.Dir(digestAbsPath), 0755); err != nil {
+		return "", fmt.Errorf("github pages: failed to create output dir: %w", err)
 	}
 
 	if err := os.WriteFile(digestAbsPath, htmlBytes, 0644); err != nil {
