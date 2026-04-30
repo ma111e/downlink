@@ -8,17 +8,15 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"github.com/PuerkitoBio/goquery"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
+
+const discordExecutiveOverviewMaxRunes = 1200
 
 // DiscordNotifier implements the Notifier interface for Discord webhooks
 type DiscordNotifier struct {
@@ -100,17 +98,14 @@ func (d *DiscordNotifier) SendDigest(digest models.Digest) error {
 }
 
 func (d *DiscordNotifier) buildEmbeds(digest models.Digest) []DiscordEmbed {
-	var embeds []DiscordEmbed
-
-	// Main digest embed
-	description := digest.DigestSummary
+	description := executiveOverviewBrief(digest.DigestSummary)
 	if description == "" {
 		description = fmt.Sprintf("Digest covering the last %s.", formatDuration(digest.TimeWindow))
 	}
 
 	mainEmbed := DiscordEmbed{
 		Title:       "📰 DOWNLINK Digest",
-		Description: truncateString(description, 4096),
+		Description: truncateString(description, discordExecutiveOverviewMaxRunes),
 		Color:       0x5865F2, // Discord blurple
 		Timestamp:   digest.CreatedAt.Format(time.RFC3339),
 		Footer: &DiscordEmbedFooter{
@@ -118,9 +113,13 @@ func (d *DiscordNotifier) buildEmbeds(digest models.Digest) []DiscordEmbed {
 		},
 	}
 
+	articleCount := 0
+	if digest.ArticleCount != nil {
+		articleCount = *digest.ArticleCount
+	}
 	mainEmbed.Fields = append(mainEmbed.Fields, DiscordEmbedField{
 		Name:   "📄 Articles",
-		Value:  fmt.Sprintf("%d", *digest.ArticleCount),
+		Value:  fmt.Sprintf("%d", articleCount),
 		Inline: true,
 	})
 
@@ -130,146 +129,47 @@ func (d *DiscordNotifier) buildEmbeds(digest models.Digest) []DiscordEmbed {
 		Inline: true,
 	})
 
-	embeds = append(embeds, mainEmbed)
-
-	// One embed per article — title (linked) and first paragraph
-	for _, article := range digest.Articles {
-		articleEmbed := d.buildArticleEmbed(article)
-		embeds = append(embeds, articleEmbed)
-	}
-
-	// One embed per provider — show only StandardSynthesis as the main content
-	for _, result := range digest.ProviderResults {
-		providerEmbed := d.buildProviderEmbed(result)
-		embeds = append(embeds, providerEmbed)
-	}
-
-	return embeds
+	return []DiscordEmbed{mainEmbed}
 }
 
-func (d *DiscordNotifier) buildArticleEmbed(article models.Article) DiscordEmbed {
-	title := article.Title
-	if title == "" {
-		title = "Untitled"
+func executiveOverviewBrief(summary string) string {
+	summary = strings.TrimSpace(summary)
+	if summary == "" {
+		return ""
 	}
 
-	// Make the title a clickable hyperlink using Discord's masked link syntax
-	// Bold the title for better readability: **[Title](url)**
-	embedTitle := fmt.Sprintf("**[%s](%s)**", title, article.Link)
-
-	embed := DiscordEmbed{
-		Description: embedTitle,
-		Color:       0x36393F, // Discord dark
+	lines := strings.Split(summary, "\n")
+	type section struct {
+		title string
+		lines []string
 	}
 
-	paragraph := firstParagraph(article.Content)
-	if paragraph != "" {
-		embed.Description = fmt.Sprintf("%s\n\n%s", embedTitle, truncateString(paragraph, 3800))
+	sections := []section{{}}
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "## ") {
+			heading := strings.TrimSpace(strings.TrimPrefix(trimmed, "## "))
+			sections = append(sections, section{title: heading})
+			continue
+		}
+		sections[len(sections)-1].lines = append(sections[len(sections)-1].lines, line)
 	}
 
-	if source := articleSource(article.Link); source != "" {
-		embed.Description = fmt.Sprintf("%s\n\n*%s*", embed.Description, source)
-	}
-
-	// Add hero image if available
-	if article.HeroImage != "" {
-		embed.Image = &DiscordEmbedImage{
-			URL: article.HeroImage,
+	for _, section := range sections {
+		if strings.EqualFold(section.title, "Executive Overview") {
+			brief := strings.TrimSpace(strings.Join(section.lines, "\n"))
+			if brief != "" {
+				return truncateString(brief, discordExecutiveOverviewMaxRunes)
+			}
 		}
 	}
-
-	return embed
-}
-
-// articleSource returns the hostname of the article URL to use as a source label.
-func articleSource(rawURL string) string {
-	if rawURL == "" {
-		return ""
-	}
-	u, err := url.Parse(rawURL)
-	if err != nil || u.Host == "" {
-		return ""
-	}
-	host := strings.TrimPrefix(u.Host, "www.")
-	return host
-}
-
-// firstParagraph extracts the plain text of the first non-empty <p> from HTML content.
-// Falls back to the first 300 characters of stripped text if no <p> is found.
-func firstParagraph(htmlContent string) string {
-	if htmlContent == "" {
-		return ""
-	}
-
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
-	if err != nil {
-		return ""
-	}
-
-	var paragraph string
-	doc.Find("p").EachWithBreak(func(_ int, s *goquery.Selection) bool {
-		text := strings.TrimSpace(s.Text())
-		if text != "" {
-			paragraph = text
-			return false // stop after first non-empty paragraph
+	for _, section := range sections {
+		brief := strings.TrimSpace(strings.Join(section.lines, "\n"))
+		if brief != "" {
+			return truncateString(brief, discordExecutiveOverviewMaxRunes)
 		}
-		return true
-	})
-
-	if paragraph != "" {
-		return paragraph
 	}
-
-	// Fallback: strip all tags and return the first 300 chars
-	plain := strings.TrimSpace(doc.Text())
-	return truncateString(plain, 300)
-}
-
-func (d *DiscordNotifier) buildProviderEmbed(result models.DigestProviderResult) DiscordEmbed {
-	providerLabel := cases.Title(language.English).String(result.ProviderType)
-	embed := DiscordEmbed{
-		Title: fmt.Sprintf("%s — %s", providerLabel, result.ModelName),
-		Color: d.getProviderColor(result.ProviderType),
-	}
-
-	// Surface error and stop — nothing else is meaningful if the provider failed
-	if result.Error != "" {
-		embed.Fields = append(embed.Fields, DiscordEmbedField{
-			Name:  "❌ Error",
-			Value: truncateString(result.Error, 1024),
-		})
-		return embed
-	}
-
-	// Use StandardSynthesis as the primary content — it's the right balance for Discord.
-	// BriefOverview is too thin; ComprehensiveSynthesis exceeds Discord's embed limits.
-	// Fall back to BriefOverview if StandardSynthesis is absent.
-	synthesis := result.StandardSynthesis
-	if synthesis == "" {
-		synthesis = result.BriefOverview
-	}
-
-	if synthesis != "" {
-		// Discord embed description supports up to 4096 chars, use that instead of a field
-		// so the text isn't artificially boxed into a 1024-char field.
-		embed.Description = truncateString(synthesis, 4096)
-	}
-
-	return embed
-}
-
-func (d *DiscordNotifier) getProviderColor(providerType string) int {
-	colors := map[string]int{
-		"openai":    0x10A37F, // OpenAI green
-		"anthropic": 0xD97757, // Anthropic orange
-		"ollama":    0x000000, // Black
-		"mistral":   0xFF7000, // Mistral orange
-	}
-
-	if color, ok := colors[providerType]; ok {
-		return color
-	}
-	return 0x5865F2 // Default Discord blurple
+	return ""
 }
 
 // SendHTMLFile uploads a digest HTML file to the Discord webhook as an attachment.

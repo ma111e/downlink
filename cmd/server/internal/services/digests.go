@@ -138,16 +138,16 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 
 	log.Info("Generating digest from recent articles")
 
-	startTime := req.StartTime.AsTime()
-	var endTime *time.Time
+	windowStart := req.StartTime.AsTime()
+	windowEnd := time.Now()
 	if req.EndTime != nil {
-		t := req.EndTime.AsTime()
-		endTime = &t
+		windowEnd = req.EndTime.AsTime()
 	}
+	windowDuration := windowEnd.Sub(windowStart)
 
 	// Fetch articles
 	sendProgress(stream, "fetch", "fetching articles...", 0, 0)
-	articles, err := s.getRecentArticles(startTime, endTime, req.ExcludeDigested)
+	articles, err := s.getRecentArticles(windowStart, &windowEnd, req.ExcludeDigested)
 	if err != nil {
 		_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: fmt.Sprintf("failed to get recent articles: %v", err)})
 		return fmt.Errorf("failed to get recent articles: %w", err)
@@ -263,7 +263,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		log.Info("Skipping digest summary generation (skip_summary requested)")
 	} else {
 		sendProgress(stream, "summarize", "generating digest summary...", 0, 0)
-		digestSummary, summaryProviderType, summaryModelName, err = s.generateDigestSummary(ctx, analyses, articleMap)
+		digestSummary, summaryProviderType, summaryModelName, err = s.generateDigestSummary(ctx, analyses, articleMap, windowStart, windowEnd)
 		if err != nil {
 			log.WithError(err).Warn("Failed to generate digest summary, continuing without it")
 		} else {
@@ -279,7 +279,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		Id:                  generateDigestId(now),
 		CreatedAt:           now,
 		ArticleCount:        &articleLen,
-		TimeWindow:          now.Sub(startTime),
+		TimeWindow:          windowDuration,
 		RawGroupingResponse: rawResponse,
 		DigestSummary:       digestSummary,
 	}
@@ -791,46 +791,8 @@ If no duplicates are found, return: {"duplicate_groups": []}`, articleSummaries.
 
 // generateDigestSummary creates a presentation/summary of the digest from articles and their key points.
 // Returns (summary, providerType, modelName, error).
-func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article) (string, string, string, error) {
-	// Build article summaries with key points only
-	var articlesList strings.Builder
-	for i, analysis := range analyses {
-		article, ok := articleMap[analysis.ArticleId]
-		if !ok {
-			log.WithField("articleId", analysis.ArticleId).Warn("Article not found in batch map, skipping for summary")
-			continue
-		}
-
-		articlesList.WriteString(fmt.Sprintf("%d. **%s**\n", i+1, article.Title))
-		articlesList.WriteString(fmt.Sprintf("   Source: %s\n", article.Link))
-		if len(analysis.KeyPoints) > 0 {
-			articlesList.WriteString("   Key Points:\n")
-			for _, kp := range analysis.KeyPoints {
-				articlesList.WriteString(fmt.Sprintf("   - %s\n", kp))
-			}
-		}
-		articlesList.WriteString("\n")
-	}
-
-	prompt := fmt.Sprintf(`You are a senior cyber threat intelligence analyst authoring a weekly digest for a technical security audience (threat hunters, detection engineers, SOC analysts, and incident responders).
-
-Below is a list of articles with their key points. Your task is to create a comprehensive, well-structured summary that presents this digest to readers.
-
-The summary should:
-1. Provide an executive overview of the main themes and trends
-2. Highlight the most critical threats or incidents
-3. Group related topics together
-4. Be written in a professional, clear, and engaging style
-5. Be suitable for both technical and executive audiences
-
-<articles>
-%s
-</articles>
-
-Write a comprehensive digest summary (approximately 300-500 words) that presents these articles in a cohesive narrative. Focus on the key takeaways.
-
-Important: Your response must be purely factual and descriptive. Do NOT include sections on strategic recommendations, action items, mitigation advice, or "what you should do." This digest is for intelligence reporting only — present threats, incidents, and trends as reported, without prescribing any response.
-`, articlesList.String())
+func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time) (string, string, string, error) {
+	prompt := buildDigestSummaryPrompt(analyses, articleMap, windowStart, windowEnd)
 
 	summaryTemp := 0.5
 	resolved, err := ResolveLLM(LLMRequest{Temperature: &summaryTemp})
@@ -855,6 +817,54 @@ Important: Your response must be purely factual and descriptive. Do NOT include 
 	log.WithField("summaryLen", len(summary)).Info("Digest summary generated")
 
 	return strings.TrimSpace(summary), resolved.ProviderType, resolved.ModelName, nil
+}
+
+func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time) string {
+	var articlesList strings.Builder
+	for i, analysis := range analyses {
+		article, ok := articleMap[analysis.ArticleId]
+		if !ok {
+			log.WithField("articleId", analysis.ArticleId).Warn("Article not found in batch map, skipping for summary")
+			continue
+		}
+
+		articlesList.WriteString(fmt.Sprintf("%d. **%s**\n", i+1, article.Title))
+		articlesList.WriteString(fmt.Sprintf("   Source: %s\n", article.Link))
+		if len(analysis.KeyPoints) > 0 {
+			articlesList.WriteString("   Key Points:\n")
+			for _, kp := range analysis.KeyPoints {
+				articlesList.WriteString(fmt.Sprintf("   - %s\n", kp))
+			}
+		}
+		articlesList.WriteString("\n")
+	}
+
+	windowDuration := windowEnd.Sub(windowStart)
+
+	return fmt.Sprintf(`You are a senior cyber threat intelligence analyst authoring a weekly digest for a technical security audience (threat hunters, detection engineers, SOC analysts, and incident responders).
+
+Below is a list of articles with their key points. These articles were selected for the digest coverage window shown below. Use this window to frame the digest, but do not imply the reported events occurred exactly within the window unless the article details say so.
+
+The summary should:
+1. Provide an executive overview of the main themes and trends
+2. Highlight the most critical threats or incidents
+3. Group related topics together
+4. Be written in a professional, clear, and engaging style
+5. Be suitable for both technical and executive audiences
+
+Digest coverage window:
+- Start: %s
+- End: %s
+- Duration: %s
+
+<articles>
+%s
+</articles>
+
+Write a comprehensive digest summary (approximately 300-500 words) that presents these articles in a cohesive narrative. Focus on the key takeaways.
+
+Important: Your response must be purely factual and descriptive. Do NOT include sections on strategic recommendations, action items, mitigation advice, or "what you should do." This digest is for intelligence reporting only — present threats, incidents, and trends as reported, without prescribing any response.
+`, windowStart.UTC().Format(time.RFC3339), windowEnd.UTC().Format(time.RFC3339), windowDuration.String(), articlesList.String())
 }
 
 // buildDigestAnalyses creates DigestAnalysis entries from analyses and grouping results

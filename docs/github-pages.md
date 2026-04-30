@@ -5,7 +5,7 @@ Downlink can automatically publish each digest as a self-contained HTML page to 
 1. Clones (or pulls) your Pages repo locally.
 2. Writes the digest HTML file (e.g. `digests/downlink-digest-2026-04-24_1200.html`).
 3. Regenerates `digests/index.html` and `digests/manifest.json` listing all digests, newest first.
-4. Writes a root `index.html` that points visitors to the digest index.
+4. Writes a root `index.html` that renders the digest archive and reads files from the configured output directory.
 5. Commits and pushes the changed files.
 6. Optionally sends a Discord message with the link to the new page.
 
@@ -129,7 +129,7 @@ On each digest generation:
 - **`<output_dir>/downlink-digest-YYYY-MM-DD_HHMM.html`** — self-contained dark-themed HTML page for that digest (same file sent to Discord).
 - **`<output_dir>/manifest.json`** — machine-readable archive data for the digest index, newest first. Each digest entry includes `filename`, `started_at`, `time_window`, `article_count`, `must_count`, `should_count`, `may_count`, `opt_count`, `provider`, `model`, `headlines`, and `summary`.
 - **`<output_dir>/index.html`** — regenerated archive UI with latest-digest hero, search, filters, sort controls, log/grid/timeline layouts, keyboard navigation, and pinned digests in browser local storage.
-- **`index.html`** — root redirect/link page pointing visitors to `<output_dir>/index.html`.
+- **`index.html`** — root archive UI that loads `<output_dir>/manifest.json` and links digest pages under `<output_dir>`.
 
 If `output_dir` is empty, Downlink uses `digests`. Publishing directly to the repo root is not supported.
 

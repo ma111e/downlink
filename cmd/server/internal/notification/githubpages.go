@@ -85,7 +85,7 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 		return err
 	}
 
-	commitMsg := fmt.Sprintf("Publish digest %s (%s)", digest.Id[:8], digest.CreatedAt.UTC().Format("2006-01-02"))
+	commitMsg := fmt.Sprintf("Publish digest %s (%s)", digest.Id, digest.CreatedAt.UTC().Format("2006-01-02"))
 	_, err = wt.Commit(commitMsg, &gogit.CommitOptions{
 		Author: &object.Signature{
 			Name:  p.cfg.CommitAuthor,
@@ -192,7 +192,8 @@ func (p *GitHubPagesPublisher) ensureRepo(auth *githttp.BasicAuth) (*gogit.Repos
 }
 
 // ensureIndex writes the digest index under outputDir and a root index.html
-// that points visitors to that digest index.
+// that renders the same archive while loading manifest and digest files from
+// outputDir.
 func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir string) error {
 	indexRelPath := filepath.Join(outputDir, "index.html")
 	indexAbsPath := filepath.Join(p.cfg.CloneDir, indexRelPath)
@@ -217,7 +218,13 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir string)
 
 	rootIndexRelPath := "index.html"
 	rootIndexAbsPath := filepath.Join(p.cfg.CloneDir, rootIndexRelPath)
-	rootIndexBytes := renderGitHubPagesRootIndex(filepath.ToSlash(indexRelPath))
+	rootIndexBytes, err := renderDigestIndexWithPaths(
+		filepath.ToSlash(filepath.Join(outputDir, ManifestFilename)),
+		filepath.ToSlash(outputDir),
+	)
+	if err != nil {
+		return fmt.Errorf("github pages: failed to build root index: %w", err)
+	}
 	existingRoot, readRootErr := os.ReadFile(rootIndexAbsPath)
 	if readRootErr == nil && bytes.Equal(existingRoot, rootIndexBytes) {
 		return nil
@@ -400,21 +407,6 @@ func resolveGitHubPagesOutputDir(input string) (string, error) {
 		return "", fmt.Errorf("must be a safe relative subdirectory")
 	}
 	return cleaned, nil
-}
-
-func renderGitHubPagesRootIndex(indexPath string) []byte {
-	return []byte(fmt.Sprintf(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="0; url=%s">
-<title>Downlink Digests</title>
-</head>
-<body>
-<p><a href="%s">View Downlink digests</a></p>
-</body>
-</html>`, indexPath, indexPath))
 }
 
 // renderAndStageSwipe renders the swipe triage view, writes it alongside the

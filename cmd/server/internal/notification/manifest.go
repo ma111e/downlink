@@ -18,18 +18,19 @@ const ManifestFilename = "manifest.json"
 
 // ManifestEntry describes a single published digest in the manifest.
 type ManifestEntry struct {
-	Filename     string   `json:"filename"`
-	StartedAt    string   `json:"started_at"`
-	TimeWindow   string   `json:"time_window"`
-	ArticleCount int      `json:"article_count"`
-	MustCount    int      `json:"must_count"`
-	ShouldCount  int      `json:"should_count"`
-	MayCount     int      `json:"may_count"`
-	OptCount     int      `json:"opt_count"`
-	Provider     string   `json:"provider"`
-	Model        string   `json:"model"`
-	Headlines    []string `json:"headlines"`
-	Summary      string   `json:"summary"`
+	Filename           string   `json:"filename"`
+	StartedAt          string   `json:"started_at"`
+	TimeWindow         string   `json:"time_window"`
+	ArticleCount       int      `json:"article_count"`
+	MustCount          int      `json:"must_count"`
+	ShouldCount        int      `json:"should_count"`
+	MayCount           int      `json:"may_count"`
+	OptCount           int      `json:"opt_count"`
+	Provider           string   `json:"provider"`
+	Model              string   `json:"model"`
+	Headlines          []string `json:"headlines"`
+	HeadlinePriorities []string `json:"headline_priorities,omitempty"`
+	Summary            string   `json:"summary"`
 }
 
 // Manifest is the JSON document checked into the Pages branch listing every
@@ -119,19 +120,21 @@ func (m Manifest) Write(path string) error {
 func ManifestEntryFromDigest(d models.Digest) ManifestEntry {
 	provider, model := digestProviderLabel(d)
 	must, should, may, opt := digestPriorityCounts(d)
+	headlines, headlinePriorities := digestHeadlinePreview(d, 0)
 	return ManifestEntry{
-		Filename:     DigestHTMLFilename(d),
-		StartedAt:    d.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
-		TimeWindow:   formatDuration(d.TimeWindow),
-		ArticleCount: len(d.Articles),
-		MustCount:    must,
-		ShouldCount:  should,
-		MayCount:     may,
-		OptCount:     opt,
-		Provider:     provider,
-		Model:        model,
-		Headlines:    digestHeadlines(d, 3),
-		Summary:      digestSummaryText(d.DigestSummary, 220),
+		Filename:           DigestHTMLFilename(d),
+		StartedAt:          d.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
+		TimeWindow:         formatDuration(d.TimeWindow),
+		ArticleCount:       len(d.Articles),
+		MustCount:          must,
+		ShouldCount:        should,
+		MayCount:           may,
+		OptCount:           opt,
+		Provider:           provider,
+		Model:              model,
+		Headlines:          headlines,
+		HeadlinePriorities: headlinePriorities,
+		Summary:            digestSummaryText(d.DigestSummary, 220),
 	}
 }
 
@@ -182,9 +185,11 @@ func priorityKeyForScore(score int) string {
 }
 
 func digestHeadlines(d models.Digest, limit int) []string {
-	if limit <= 0 {
-		return nil
-	}
+	headlines, _ := digestHeadlinePreview(d, limit)
+	return headlines
+}
+
+func digestHeadlinePreview(d models.Digest, limit int) ([]string, []string) {
 	scoreByArticle := make(map[string]int, len(d.DigestAnalyses))
 	for _, da := range d.DigestAnalyses {
 		if da.Analysis != nil {
@@ -200,18 +205,24 @@ func digestHeadlines(d models.Digest, limit int) []string {
 		}
 		return articles[i].PublishedAt.After(articles[j].PublishedAt)
 	})
-	headlines := make([]string, 0, min(limit, len(articles)))
+	capacity := len(articles)
+	if limit > 0 && limit < capacity {
+		capacity = limit
+	}
+	headlines := make([]string, 0, capacity)
+	priorities := make([]string, 0, capacity)
 	for _, art := range articles {
 		title := strings.TrimSpace(articleTitle(art.Title))
 		if title == "" {
 			continue
 		}
 		headlines = append(headlines, title)
-		if len(headlines) == limit {
+		priorities = append(priorities, priorityKeyForScore(scoreByArticle[art.Id]))
+		if limit > 0 && len(headlines) == limit {
 			break
 		}
 	}
-	return headlines
+	return headlines, priorities
 }
 
 var (
@@ -247,6 +258,7 @@ func digestSummaryText(markdown string, maxLen int) string {
 	if len(parts) == 0 {
 		parts = headingFallback
 	}
+	parts = stripSummaryLeadHeader(parts)
 	text := strings.TrimSpace(whitespaceRE.ReplaceAllString(strings.Join(parts, " "), " "))
 	if maxLen <= 0 || len([]rune(text)) <= maxLen {
 		return text
@@ -260,6 +272,29 @@ func digestSummaryText(markdown string, maxLen int) string {
 		cut = maxLen
 	}
 	return strings.TrimSpace(string(runes[:cut])) + "..."
+}
+
+func stripSummaryLeadHeader(parts []string) []string {
+	if len(parts) < 2 {
+		return parts
+	}
+	first := strings.TrimSpace(parts[0])
+	if first == "" {
+		return parts[1:]
+	}
+	words := strings.Fields(first)
+	if len(words) > 12 {
+		return parts
+	}
+	lower := strings.ToLower(first)
+	if strings.Contains(lower, "overview") ||
+		strings.Contains(lower, "executive") ||
+		strings.Contains(lower, "summary") ||
+		strings.Contains(lower, "digest") ||
+		strings.Contains(lower, "brief") {
+		return parts[1:]
+	}
+	return parts
 }
 
 // sortDigestsNewestFirst sorts entries by filename desc — ISO timestamp prefix

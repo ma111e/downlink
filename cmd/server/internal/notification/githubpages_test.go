@@ -87,8 +87,10 @@ func TestGitHubPagesPublisherWritesDefaultDigestFolderLayout(t *testing.T) {
 	assertManifestContains(t, cloneDir, "digests", "manifest.json", "downlink-digest-2026-04-24_1200.html")
 	assertFileExists(t, cloneDir, "digests", "index.html")
 	rootIndex := assertFileExists(t, cloneDir, "index.html")
-	if !strings.Contains(string(rootIndex), "digests/index.html") {
-		t.Fatalf("root index does not point at digests/index.html:\n%s", string(rootIndex))
+	if !strings.Contains(string(rootIndex), `data-manifest-url="digests/manifest.json"`) ||
+		!strings.Contains(string(rootIndex), `data-digest-base-url="digests"`) ||
+		!strings.Contains(string(rootIndex), "DOWNLINK") {
+		t.Fatalf("root index is not the archive shell for digests:\n%s", string(rootIndex))
 	}
 	assertStaged(t, wt,
 		filepath.Join("digests", "downlink-digest-2026-04-24_1200.html"),
@@ -137,8 +139,10 @@ func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
 	assertManifestContains(t, cloneDir, "archive", "digests", "manifest.json", "downlink-digest-2026-04-25_0930.html")
 	assertFileExists(t, cloneDir, "archive", "digests", "index.html")
 	rootIndex := assertFileExists(t, cloneDir, "index.html")
-	if !strings.Contains(string(rootIndex), "archive/digests/index.html") {
-		t.Fatalf("root index does not point at archive/digests/index.html:\n%s", string(rootIndex))
+	if !strings.Contains(string(rootIndex), `data-manifest-url="archive/digests/manifest.json"`) ||
+		!strings.Contains(string(rootIndex), `data-digest-base-url="archive/digests"`) ||
+		!strings.Contains(string(rootIndex), "DOWNLINK") {
+		t.Fatalf("root index is not the archive shell for archive/digests:\n%s", string(rootIndex))
 	}
 	assertStaged(t, wt,
 		filepath.Join("archive", "digests", "downlink-digest-2026-04-25_0930.html"),
@@ -167,10 +171,17 @@ func sampleDigest(id string, createdAt time.Time) models.Digest {
 			{
 				ArticleId: "article-b",
 				Analysis: &models.ArticleAnalysis{
-					ArticleId:       "article-b",
-					ProviderType:    "openai",
-					ModelName:       "gpt-test",
-					ImportanceScore: 95,
+					ArticleId:              "article-b",
+					ProviderType:           "openai",
+					ModelName:              "gpt-test",
+					ImportanceScore:        95,
+					Tldr:                   "Article B tldr.",
+					BriefOverview:          "Article B brief overview.",
+					StandardSynthesis:      "Article B standard synthesis.",
+					ComprehensiveSynthesis: "Article B comprehensive synthesis.",
+					KeyPoints:              []string{"Article B key point"},
+					Insights:               []string{"Article B insight"},
+					ReferencedReports:      []models.ReferencedReport{{Title: "Article B report", URL: "https://example.com/report", Publisher: "Example Labs", Context: "Supporting source."}},
 				},
 			},
 			{
