@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
+	"github.com/subosito/gotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -28,7 +29,13 @@ func main() {
 		Use:   "downlink-cli",
 		Short: "DOWNLINK CLI",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return envoverride.Apply(envVars)
+			if err := envoverride.Apply(envVars); err != nil {
+				return err
+			}
+			if err := gotenv.Load(".env"); err != nil && !os.IsNotExist(err) {
+				log.WithError(err).Warn("Failed to load .env file")
+			}
+			return nil
 		},
 	}
 
@@ -45,6 +52,7 @@ func main() {
 	rootCmd.AddCommand(createLLMCommands())
 	rootCmd.AddCommand(createDigestCommands())
 	rootCmd.AddCommand(createConfigCommands())
+	rootCmd.AddCommand(createGHPagesCommands())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

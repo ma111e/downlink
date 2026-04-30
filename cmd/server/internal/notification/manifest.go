@@ -1,14 +1,11 @@
 package notification
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -16,34 +13,35 @@ import (
 	"downlink/pkg/models"
 )
 
-// ManifestVersion is the current schema version written to manifest.json.
-const ManifestVersion = 1
-
 // ManifestFilename is the basename of the manifest checked into the Pages branch.
 const ManifestFilename = "manifest.json"
 
 // ManifestEntry describes a single published digest in the manifest.
 type ManifestEntry struct {
-	Id             string `json:"id"`
-	Filename       string `json:"filename"`
-	DisplayDate    string `json:"displayDate"`
-	ProviderType   string `json:"providerType"`
-	ModelName      string `json:"modelName"`
-	ArticleSetHash string `json:"articleSetHash"`
+	Filename     string   `json:"filename"`
+	StartedAt    string   `json:"started_at"`
+	TimeWindow   string   `json:"time_window"`
+	ArticleCount int      `json:"article_count"`
+	MustCount    int      `json:"must_count"`
+	ShouldCount  int      `json:"should_count"`
+	MayCount     int      `json:"may_count"`
+	OptCount     int      `json:"opt_count"`
+	Provider     string   `json:"provider"`
+	Model        string   `json:"model"`
+	Headlines    []string `json:"headlines"`
+	Summary      string   `json:"summary"`
 }
 
 // Manifest is the JSON document checked into the Pages branch listing every
-// published digest. The browser-side switcher and index both read it directly.
+// published digest. The digest index reads it directly in the browser.
 type Manifest struct {
-	Version   int             `json:"version"`
-	UpdatedAt time.Time       `json:"updatedAt"`
-	Digests   []ManifestEntry `json:"digests"`
+	GeneratedAt string          `json:"generated_at"`
+	SourceRepo  string          `json:"source_repo"`
+	Digests     []ManifestEntry `json:"digests"`
 }
 
-// LoadManifest reads the manifest at path. When the file is missing, it falls
-// back to a directory backfill: scans the parent directory for existing digest
-// HTML files and synthesizes minimal entries (no providerType/modelName/hash).
-// This keeps existing repos browseable on the first publish after the upgrade.
+// LoadManifest reads the manifest at path. When the file is missing, it returns
+// an empty manifest in the current schema.
 func LoadManifest(path string) (Manifest, error) {
 	data, err := os.ReadFile(path)
 	if err == nil {
@@ -51,54 +49,26 @@ func LoadManifest(path string) (Manifest, error) {
 		if jsonErr := json.Unmarshal(data, &m); jsonErr != nil {
 			return Manifest{}, fmt.Errorf("parse manifest: %w", jsonErr)
 		}
-		if m.Version == 0 {
-			m.Version = ManifestVersion
+		if m.SourceRepo == "" && m.GeneratedAt == "" {
+			return Manifest{SourceRepo: "downlink"}, nil
+		}
+		if m.SourceRepo == "" {
+			m.SourceRepo = "downlink"
 		}
 		return m, nil
 	}
-	if !errors.Is(err, fs.ErrNotExist) {
+	if !os.IsNotExist(err) {
 		return Manifest{}, fmt.Errorf("read manifest: %w", err)
 	}
 
-	return backfillManifest(filepath.Dir(path))
+	return Manifest{SourceRepo: "downlink"}, nil
 }
 
-// backfillManifest scans dir for downlink-digest-*.html files and produces a
-// manifest with a best-effort entry per file. Returns an empty manifest when
-// the directory itself is missing.
-func backfillManifest(dir string) (Manifest, error) {
-	m := Manifest{Version: ManifestVersion}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return m, nil
-		}
-		return Manifest{}, fmt.Errorf("scan output dir for backfill: %w", err)
-	}
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() || name == "index.html" || !strings.HasSuffix(name, ".html") {
-			continue
-		}
-		if !strings.HasPrefix(name, "downlink-digest-") {
-			continue
-		}
-		m.Digests = append(m.Digests, ManifestEntry{
-			Filename:    name,
-			DisplayDate: filenameToDisplayDate(name),
-		})
-	}
-	sortDigestsNewestFirst(m.Digests)
-	return m, nil
-}
-
-// Upsert inserts entry or replaces an existing entry with the same Id, then
-// re-sorts newest-first by Filename. Empty Ids never collide so backfilled
-// rows (Id == "") are preserved when a real entry with the same filename is
-// added — the real one wins by filename match.
+// Upsert inserts entry or replaces an existing entry with the same filename,
+// then re-sorts newest-first by filename timestamp.
 func (m *Manifest) Upsert(entry ManifestEntry) {
 	for i, existing := range m.Digests {
-		if (entry.Id != "" && existing.Id == entry.Id) || existing.Filename == entry.Filename {
+		if existing.Filename == entry.Filename {
 			m.Digests[i] = entry
 			sortDigestsNewestFirst(m.Digests)
 			return
@@ -110,10 +80,10 @@ func (m *Manifest) Upsert(entry ManifestEntry) {
 
 // Write atomically serializes the manifest to path.
 func (m Manifest) Write(path string) error {
-	if m.Version == 0 {
-		m.Version = ManifestVersion
+	if m.SourceRepo == "" {
+		m.SourceRepo = "downlink"
 	}
-	m.UpdatedAt = time.Now().UTC()
+	m.GeneratedAt = time.Now().UTC().Format("2006-01-02 15:04 UTC")
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal manifest: %w", err)
@@ -144,33 +114,24 @@ func (m Manifest) Write(path string) error {
 	return nil
 }
 
-// ArticleSetHash returns a stable sha256 (hex) over the digest's article ids.
-// Two digests built from exactly the same article set produce the same hash.
-func ArticleSetHash(d models.Digest) string {
-	ids := make([]string, len(d.Articles))
-	for i, a := range d.Articles {
-		ids[i] = a.Id
-	}
-	sort.Strings(ids)
-	h := sha256.New()
-	for _, id := range ids {
-		h.Write([]byte(id))
-		h.Write([]byte{0})
-	}
-	return hex.EncodeToString(h.Sum(nil))
-}
-
 // ManifestEntryFromDigest builds a ManifestEntry for the given digest using
-// the same filename and provider/model labelling logic the publisher uses.
+// the archive-index manifest schema.
 func ManifestEntryFromDigest(d models.Digest) ManifestEntry {
-	providerType, modelName := digestProviderLabel(d)
+	provider, model := digestProviderLabel(d)
+	must, should, may, opt := digestPriorityCounts(d)
 	return ManifestEntry{
-		Id:             d.Id,
-		Filename:       DigestHTMLFilename(d),
-		DisplayDate:    d.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
-		ProviderType:   providerType,
-		ModelName:      modelName,
-		ArticleSetHash: ArticleSetHash(d),
+		Filename:     DigestHTMLFilename(d),
+		StartedAt:    d.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
+		TimeWindow:   formatDuration(d.TimeWindow),
+		ArticleCount: len(d.Articles),
+		MustCount:    must,
+		ShouldCount:  should,
+		MayCount:     may,
+		OptCount:     opt,
+		Provider:     provider,
+		Model:        model,
+		Headlines:    digestHeadlines(d, 3),
+		Summary:      digestSummaryText(d.DigestSummary, 220),
 	}
 }
 
@@ -185,20 +146,120 @@ func digestProviderLabel(d models.Digest) (providerType, modelName string) {
 	return "unknown", "unknown"
 }
 
-// filenameToDisplayDate extracts a human-readable date from a digest filename.
-// e.g. "downlink-digest-2026-04-24_1200.html" → "2026-04-24 12:00 UTC"
-func filenameToDisplayDate(filename string) string {
-	name := strings.TrimSuffix(filename, ".html")
-	const prefix = "downlink-digest-"
-	if !strings.HasPrefix(name, prefix) {
-		return filename
+func digestPriorityCounts(d models.Digest) (must, should, may, opt int) {
+	scoreByArticle := make(map[string]int, len(d.DigestAnalyses))
+	for _, da := range d.DigestAnalyses {
+		if da.Analysis != nil {
+			scoreByArticle[da.ArticleId] = da.Analysis.ImportanceScore
+		}
 	}
-	datePart := strings.TrimPrefix(name, prefix)
-	t, err := time.Parse("2006-01-02_1504", datePart)
-	if err != nil {
-		return filename
+	for _, art := range d.Articles {
+		switch priorityKeyForScore(scoreByArticle[art.Id]) {
+		case "must":
+			must++
+		case "should":
+			should++
+		case "may":
+			may++
+		default:
+			opt++
+		}
 	}
-	return t.UTC().Format("2006-01-02 15:04 UTC")
+	return must, should, may, opt
+}
+
+func priorityKeyForScore(score int) string {
+	switch {
+	case score >= 90:
+		return "must"
+	case score >= 75:
+		return "should"
+	case score >= 60:
+		return "may"
+	default:
+		return "opt"
+	}
+}
+
+func digestHeadlines(d models.Digest, limit int) []string {
+	if limit <= 0 {
+		return nil
+	}
+	scoreByArticle := make(map[string]int, len(d.DigestAnalyses))
+	for _, da := range d.DigestAnalyses {
+		if da.Analysis != nil {
+			scoreByArticle[da.ArticleId] = da.Analysis.ImportanceScore
+		}
+	}
+	articles := append([]models.Article(nil), d.Articles...)
+	sort.SliceStable(articles, func(i, j int) bool {
+		si := scoreByArticle[articles[i].Id]
+		sj := scoreByArticle[articles[j].Id]
+		if si != sj {
+			return si > sj
+		}
+		return articles[i].PublishedAt.After(articles[j].PublishedAt)
+	})
+	headlines := make([]string, 0, min(limit, len(articles)))
+	for _, art := range articles {
+		title := strings.TrimSpace(articleTitle(art.Title))
+		if title == "" {
+			continue
+		}
+		headlines = append(headlines, title)
+		if len(headlines) == limit {
+			break
+		}
+	}
+	return headlines
+}
+
+var (
+	markdownLinkRE       = regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
+	markdownListMarkerRE = regexp.MustCompile(`^([-*+]|\d+[.)])\s+`)
+	markdownStyleRE      = regexp.MustCompile("[*_`]+")
+	whitespaceRE         = regexp.MustCompile(`\s+`)
+)
+
+func digestSummaryText(markdown string, maxLen int) string {
+	var parts []string
+	var headingFallback []string
+	for _, line := range strings.Split(markdown, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "#") {
+			heading := strings.TrimSpace(strings.TrimLeft(line, "#"))
+			if heading != "" {
+				headingFallback = append(headingFallback, heading)
+			}
+			continue
+		}
+		line = markdownListMarkerRE.ReplaceAllString(line, "")
+		line = markdownLinkRE.ReplaceAllString(line, "$1")
+		line = markdownStyleRE.ReplaceAllString(line, "")
+		line = strings.TrimSpace(line)
+		if line != "" {
+			parts = append(parts, line)
+		}
+	}
+	if len(parts) == 0 {
+		parts = headingFallback
+	}
+	text := strings.TrimSpace(whitespaceRE.ReplaceAllString(strings.Join(parts, " "), " "))
+	if maxLen <= 0 || len([]rune(text)) <= maxLen {
+		return text
+	}
+	runes := []rune(text)
+	cut := maxLen
+	for cut > maxLen-30 && cut > 0 && runes[cut-1] != ' ' {
+		cut--
+	}
+	if cut == 0 {
+		cut = maxLen
+	}
+	return strings.TrimSpace(string(runes[:cut])) + "..."
 }
 
 // sortDigestsNewestFirst sorts entries by filename desc — ISO timestamp prefix

@@ -296,6 +296,8 @@ type GenerateDigestRequest struct {
 	SkipSummary     bool                   `protobuf:"varint,6,opt,name=skip_summary,json=skipSummary,proto3" json:"skip_summary,omitempty"`
 	Theme           string                 `protobuf:"bytes,7,opt,name=theme,proto3" json:"theme,omitempty"`
 	OneShotAnalysis bool                   `protobuf:"varint,8,opt,name=one_shot_analysis,json=oneShotAnalysis,proto3" json:"one_shot_analysis,omitempty"`
+	Test            bool                   `protobuf:"varint,9,opt,name=test,proto3" json:"test,omitempty"`
+	TestDigestId    string                 `protobuf:"bytes,10,opt,name=test_digest_id,json=testDigestId,proto3" json:"test_digest_id,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -384,6 +386,20 @@ func (x *GenerateDigestRequest) GetOneShotAnalysis() bool {
 		return x.OneShotAnalysis
 	}
 	return false
+}
+
+func (x *GenerateDigestRequest) GetTest() bool {
+	if x != nil {
+		return x.Test
+	}
+	return false
+}
+
+func (x *GenerateDigestRequest) GetTestDigestId() string {
+	if x != nil {
+		return x.TestDigestId
+	}
+	return ""
 }
 
 // GenerateDigestResponse represents the response with the generated digest
@@ -1037,7 +1053,7 @@ const file_digests_proto_rawDesc = "" +
 	"\barticles\x18\x01 \x03(\v2\x11.downlink.ArticleR\barticles\"%\n" +
 	"\x13DeleteDigestRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x19\n" +
-	"\x17DeleteAllDigestsRequest\"\xe7\x02\n" +
+	"\x17DeleteAllDigestsRequest\"\xa1\x03\n" +
 	"\x15GenerateDigestRequest\x129\n" +
 	"\n" +
 	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
@@ -1047,7 +1063,10 @@ const file_digests_proto_rawDesc = "" +
 	"\x10exclude_digested\x18\x05 \x01(\bR\x0fexcludeDigested\x12!\n" +
 	"\fskip_summary\x18\x06 \x01(\bR\vskipSummary\x12\x14\n" +
 	"\x05theme\x18\a \x01(\tR\x05theme\x12*\n" +
-	"\x11one_shot_analysis\x18\b \x01(\bR\x0foneShotAnalysis\"B\n" +
+	"\x11one_shot_analysis\x18\b \x01(\bR\x0foneShotAnalysis\x12\x12\n" +
+	"\x04test\x18\t \x01(\bR\x04test\x12$\n" +
+	"\x0etest_digest_id\x18\n" +
+	" \x01(\tR\ftestDigestId\"B\n" +
 	"\x16GenerateDigestResponse\x12(\n" +
 	"\x06digest\x18\x01 \x01(\v2\x10.downlink.DigestR\x06digest\"\xf5\x02\n" +
 	"\x13DigestProgressEvent\x12\x14\n" +

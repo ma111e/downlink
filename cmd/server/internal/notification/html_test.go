@@ -15,21 +15,31 @@ func TestRenderDigestIndexUsesManifest(t *testing.T) {
 
 	for _, want := range []string{
 		`data-manifest-url="manifest.json"`,
-		"var manifestURL = list.getAttribute('data-manifest-url') || 'manifest.json';",
+		"var manifestURL = els.archive.getAttribute('data-manifest-url') || 'manifest.json';",
 		"fetch(manifestURL",
-		"m.digests",
-		"a.href = e.filename",
-		"e.displayDate",
-		"e.providerType",
-		"e.modelName",
+		"state.manifest.digests",
+		"latest.started_at",
+		"latest.summary",
+		"latest.headlines",
+		"d.must_count",
+		"localStorage.getItem(PIN_KEY)",
+		"data-layout=\"log\"",
+		"data-layout=\"grid\"",
+		"data-layout=\"timeline\"",
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderDigestIndex() missing %q:\n%s", want, html)
 		}
 	}
+
+	for _, old := range []string{"displayDate", "providerType", "modelName", "articleSetHash"} {
+		if strings.Contains(html, old) {
+			t.Fatalf("RenderDigestIndex() still contains old manifest field %q", old)
+		}
+	}
 }
 
-func TestRenderDigestHTMLUsesManifestForSwitcher(t *testing.T) {
+func TestRenderDigestHTMLDoesNotIncludeManifestSwitcher(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 	htmlBytes, err := RenderDigestHTML(digest, "dark")
 	if err != nil {
@@ -37,17 +47,15 @@ func TestRenderDigestHTMLUsesManifestForSwitcher(t *testing.T) {
 	}
 	html := string(htmlBytes)
 
-	for _, want := range []string{
+	for _, old := range []string{
 		`id="digest-switcher"`,
-		`data-digest-id="digest-one"`,
-		`data-article-set-hash="` + ArticleSetHash(digest) + `"`,
+		`data-digest-id=`,
+		`data-article-set-hash=`,
 		"fetch('manifest.json'",
-		"e.articleSetHash === hash",
-		"opt.value = e.filename",
-		"sel.hidden = false",
+		"articleSetHash",
 	} {
-		if !strings.Contains(html, want) {
-			t.Fatalf("RenderDigestHTML() missing %q", want)
+		if strings.Contains(html, old) {
+			t.Fatalf("RenderDigestHTML() still contains switcher fragment %q", old)
 		}
 	}
 }

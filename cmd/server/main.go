@@ -4,6 +4,7 @@ import (
 	"downlink/cmd/server/internal/config"
 	"downlink/cmd/server/internal/feedserver"
 	"downlink/cmd/server/internal/manager"
+	"downlink/cmd/server/internal/notification"
 	"downlink/cmd/server/internal/scrapers"
 	"downlink/cmd/server/internal/store"
 	"downlink/pkg/envoverride"
@@ -99,6 +100,16 @@ func main() {
 			}
 
 			applyGHPagesFlagOverrides(cmd)
+
+			initGHPages, _ := cmd.Flags().GetBool("init-gh-pages")
+			reinitGHPages, _ := cmd.Flags().GetBool("reinit-gh-pages")
+			if initGHPages || reinitGHPages {
+				if err := runGitHubPagesInit(cmd, reinitGHPages); err != nil {
+					fmt.Fprintf(os.Stderr, "error: %v\n", err)
+					os.Exit(1)
+				}
+				os.Exit(0)
+			}
 
 			err = store.Init()
 			if err != nil {
@@ -221,10 +232,43 @@ func main() {
 	rootCmd.PersistentFlags().String("gh-pages-clone-dir", "", "Local working clone directory [overrides config]")
 	rootCmd.PersistentFlags().String("gh-pages-discord-webhook", "", "Discord webhook URL to notify when a page is published [overrides config]")
 
+	rootCmd.PersistentFlags().Bool("init-gh-pages", false, "Initialize the GitHub Pages repository and exit — idempotent, existing files are not overwritten (use --reinit-gh-pages to wipe first)")
+	rootCmd.PersistentFlags().Bool("reinit-gh-pages", false, "Erase and reinitialize the GitHub Pages repository from scratch (destructive — prompts for confirmation)")
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+// runGitHubPagesInit runs --init-gh-pages or --reinit-gh-pages and exits.
+// It is called from PersistentPreRunE after config and flag overrides are applied
+// but before database initialisation.
+func runGitHubPagesInit(_ *cobra.Command, reinit bool) error {
+	ghCfg := config.Config.Notifications.GitHubPages
+	if ghCfg.Token == "" {
+		ghCfg.Token = os.Getenv("DOWNLINK_GH_PAGES_TOKEN")
+	}
+	if ghCfg.RepoURL == "" {
+		return fmt.Errorf("--gh-pages-repo is required")
+	}
+	if ghCfg.Token == "" {
+		return fmt.Errorf("GitHub Pages token required (--gh-pages-token or DOWNLINK_GH_PAGES_TOKEN)")
+	}
+
+	if reinit {
+		fmt.Fprintln(os.Stderr, "WARNING: --reinit-gh-pages will DELETE ALL content from the remote")
+		fmt.Fprintf(os.Stderr, "branch %q and start fresh. Type \"yes\" to confirm: ", ghCfg.Branch)
+		var answer string
+		fmt.Fscan(os.Stdin, &answer)
+		if strings.TrimSpace(strings.ToLower(answer)) != "yes" {
+			fmt.Fprintln(os.Stderr, "Aborted.")
+			os.Exit(1)
+		}
+	}
+
+	publisher := notification.NewGitHubPagesPublisher(ghCfg)
+	return publisher.InitPages(reinit)
 }
 
 // applyGHPagesFlagOverrides copies CLI flag / env var values into the loaded config.

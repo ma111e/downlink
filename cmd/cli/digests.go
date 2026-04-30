@@ -129,8 +129,8 @@ func createDigestCommands() *cobra.Command {
 	}
 
 	// Generate digest command
-	var digestFrom, digestTo, digestBetween, digestTheme string
-	var digestDryRun, digestRefreshFeeds bool
+	var digestFrom, digestTo, digestBetween, digestTheme, digestTestID string
+	var digestDryRun, digestRefreshFeeds, digestTest bool
 	generateCmd := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate a new digest",
@@ -144,6 +144,66 @@ Examples:
   downlink-cli digest generate --from -7d --to -1d  # Between 7 days and 1 day ago`,
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
+
+			if digestTest {
+				if !digestthemes.Valid(digestTheme) {
+					fmt.Printf("Unknown theme %q. Run 'digest --list-themes' to see available themes.\n", digestTheme)
+					return
+				}
+
+				prog := newBatchProgress()
+				prog.addHiddenRow("notify", "sending test digest")
+				prog.startSpinner()
+
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				sigCh := make(chan os.Signal, 2)
+				signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+				go func() {
+					select {
+					case <-ctx.Done():
+						return
+					case <-sigCh:
+						prog.updateRow("cancel", "cancelling — waiting for server confirmation...")
+						cancel()
+						select {
+						case <-sigCh:
+							os.Exit(130)
+						case <-ctx.Done():
+						}
+					}
+				}()
+				defer signal.Stop(sigCh)
+
+				handler := newDigestProgressHandler(prog)
+				digest, err := client.GenerateDigestWithOptions(ctx, downlinkclient.GenerateDigestOptions{
+					StartTime:    time.Now(),
+					EndTime:      time.Now(),
+					Theme:        digestTheme,
+					Test:         true,
+					TestDigestID: digestTestID,
+					OnEvent:      handler,
+				})
+
+				prog.stop()
+
+				if err != nil {
+					if ctx.Err() != nil {
+						fmt.Println("\nDigest notification test cancelled (confirmed by server).")
+						return
+					}
+					fmt.Printf("Failed to send test digest: %v\n", err)
+					return
+				}
+
+				fmt.Printf("\nTest digest sent: %s\n", digest.Id)
+				articleCount := 0
+				if digest.ArticleCount != nil {
+					articleCount = *digest.ArticleCount
+				}
+				fmt.Printf("Contains %d articles\n", articleCount)
+				return
+			}
 
 			defaultFrom := time.Now().Add(-24 * time.Hour)
 			fromTime, toTime, err := parseTimeWindow(digestFrom, digestTo, digestBetween, &defaultFrom)
@@ -319,6 +379,8 @@ Examples:
 	generateCmd.Flags().Bool("one-shot", false, "Analyze missing articles with one full LLM prompt instead of the multi-step chain")
 	generateCmd.Flags().Bool("exclude-digested", false, "Exclude articles already included in a previous digest")
 	generateCmd.Flags().StringVar(&digestTheme, "theme", "dark", "HTML theme for the digest (see: digest --list-themes)")
+	generateCmd.Flags().BoolVar(&digestTest, "test", false, "Send a stored test digest to configured notification channels without generating a new digest")
+	generateCmd.Flags().StringVar(&digestTestID, "test-digest-id", "", "Digest ID to use with --test (default: server-selected rich test digest)")
 
 	// Get digest articles command
 	articlesCmd := &cobra.Command{
@@ -483,6 +545,7 @@ func newDigestProgressHandler(prog *batchProgress) func(*protos.DigestProgressEv
 			prog.completeRow("dedupe", false, ev.Error)
 			prog.completeRow("summarize", false, ev.Error)
 			prog.completeRow("store", false, ev.Error)
+			prog.completeRow("notify", false, ev.Error)
 		}
 	}
 }

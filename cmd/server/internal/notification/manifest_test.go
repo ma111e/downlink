@@ -6,17 +6,27 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"downlink/pkg/models"
 )
 
 func TestLoadManifestReadsExistingFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, ManifestFilename)
 	want := Manifest{
-		Version: ManifestVersion,
+		GeneratedAt: "2026-04-24 12:01 UTC",
+		SourceRepo:  "downlink",
 		Digests: []ManifestEntry{
-			{Id: "digest-one", Filename: "downlink-digest-2026-04-24_1200.html"},
+			{
+				Filename:     "downlink-digest-2026-04-24_1200.html",
+				StartedAt:    "2026-04-24 12:00 UTC",
+				TimeWindow:   "24h",
+				ArticleCount: 2,
+				MustCount:    1,
+				ShouldCount:  1,
+				Provider:     "openai",
+				Model:        "gpt-test",
+				Headlines:    []string{"Article A"},
+				Summary:      "A short digest.",
+			},
 		},
 	}
 	data, err := json.Marshal(want)
@@ -31,12 +41,12 @@ func TestLoadManifestReadsExistingFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadManifest() error = %v", err)
 	}
-	if got.Version != ManifestVersion || len(got.Digests) != 1 || got.Digests[0].Id != "digest-one" {
+	if got.SourceRepo != "downlink" || got.GeneratedAt != "2026-04-24 12:01 UTC" || len(got.Digests) != 1 || got.Digests[0].Provider != "openai" {
 		t.Fatalf("LoadManifest() = %+v", got)
 	}
 }
 
-func TestLoadManifestBackfillsDigestFiles(t *testing.T) {
+func TestLoadManifestMissingReturnsEmptyCurrentManifest(t *testing.T) {
 	dir := t.TempDir()
 	files := []string{
 		"downlink-digest-2026-04-24_1200.html",
@@ -54,67 +64,62 @@ func TestLoadManifestBackfillsDigestFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadManifest() error = %v", err)
 	}
-	if len(got.Digests) != 2 {
-		t.Fatalf("backfilled digests = %+v, want 2", got.Digests)
-	}
-	if got.Digests[0].Filename != "downlink-digest-2026-04-25_0900.html" {
-		t.Fatalf("first digest = %+v, want newest first", got.Digests[0])
-	}
-	if got.Digests[0].DisplayDate != "2026-04-25 09:00 UTC" {
-		t.Fatalf("display date = %q", got.Digests[0].DisplayDate)
+	if got.SourceRepo != "downlink" || len(got.Digests) != 0 {
+		t.Fatalf("LoadManifest() = %+v, want empty current manifest without backfill", got)
 	}
 }
 
-func TestManifestUpsertReplacesByIDAndFilename(t *testing.T) {
-	m := Manifest{Version: ManifestVersion}
-	m.Upsert(ManifestEntry{
-		Id:          "digest-one",
-		Filename:    "downlink-digest-2026-04-24_1200.html",
-		DisplayDate: "old",
-	})
-	m.Upsert(ManifestEntry{
-		Id:          "digest-one",
-		Filename:    "downlink-digest-2026-04-24_1200.html",
-		DisplayDate: "new",
-	})
-	if len(m.Digests) != 1 || m.Digests[0].DisplayDate != "new" {
-		t.Fatalf("upsert by id produced %+v", m.Digests)
+func TestLoadManifestDoesNotCarryOldSchemaEntries(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ManifestFilename)
+	oldSchema := map[string]any{
+		"version":   1,
+		"updatedAt": "2026-04-24T12:00:00Z",
+		"digests": []map[string]any{
+			{
+				"filename":    "downlink-digest-2026-04-24_1200.html",
+				"displayDate": "2026-04-24 12:00 UTC",
+			},
+		},
+	}
+	data, err := json.Marshal(oldSchema)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
 	}
 
+	got, err := LoadManifest(path)
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	if got.SourceRepo != "downlink" || len(got.Digests) != 0 {
+		t.Fatalf("LoadManifest() = %+v, want old schema discarded", got)
+	}
+}
+
+func TestManifestUpsertReplacesByFilename(t *testing.T) {
+	m := Manifest{SourceRepo: "downlink"}
 	m.Upsert(ManifestEntry{
-		Id:          "digest-two",
-		Filename:    "downlink-digest-2026-04-24_1200.html",
-		DisplayDate: "filename replacement",
+		Filename:  "downlink-digest-2026-04-24_1200.html",
+		StartedAt: "old",
 	})
-	if len(m.Digests) != 1 || m.Digests[0].Id != "digest-two" {
+	m.Upsert(ManifestEntry{
+		Filename:  "downlink-digest-2026-04-24_1200.html",
+		StartedAt: "new",
+	})
+	if len(m.Digests) != 1 || m.Digests[0].StartedAt != "new" {
 		t.Fatalf("upsert by filename produced %+v", m.Digests)
 	}
 }
 
 func TestManifestSortsNewestFirst(t *testing.T) {
-	m := Manifest{Version: ManifestVersion}
-	m.Upsert(ManifestEntry{Id: "old", Filename: "downlink-digest-2026-04-24_1200.html"})
-	m.Upsert(ManifestEntry{Id: "new", Filename: "downlink-digest-2026-04-25_1200.html"})
-	if got := m.Digests[0].Id; got != "new" {
+	m := Manifest{SourceRepo: "downlink"}
+	m.Upsert(ManifestEntry{Filename: "downlink-digest-2026-04-24_1200.html", StartedAt: "old"})
+	m.Upsert(ManifestEntry{Filename: "downlink-digest-2026-04-25_1200.html", StartedAt: "new"})
+	if got := m.Digests[0].StartedAt; got != "new" {
 		t.Fatalf("first digest = %q, want new", got)
-	}
-}
-
-func TestArticleSetHashIsStable(t *testing.T) {
-	a := models.Digest{
-		Articles: []models.Article{{Id: "b"}, {Id: "a"}},
-	}
-	b := models.Digest{
-		Articles: []models.Article{{Id: "a"}, {Id: "b"}},
-	}
-	if ArticleSetHash(a) != ArticleSetHash(b) {
-		t.Fatalf("hash should be independent of article order")
-	}
-	c := models.Digest{
-		Articles: []models.Article{{Id: "a"}, {Id: "c"}},
-	}
-	if ArticleSetHash(a) == ArticleSetHash(c) {
-		t.Fatalf("hash should change when article set changes")
 	}
 }
 
@@ -123,12 +128,40 @@ func TestManifestEntryFromDigest(t *testing.T) {
 	digest := sampleDigest("digest-one", createdAt)
 
 	got := ManifestEntryFromDigest(digest)
-	if got.Id != "digest-one" ||
-		got.Filename != "downlink-digest-2026-04-24_1200.html" ||
-		got.DisplayDate != "2026-04-24 12:00 UTC" ||
-		got.ProviderType != "openai" ||
-		got.ModelName != "gpt-test" ||
-		got.ArticleSetHash == "" {
+	if got.Filename != "downlink-digest-2026-04-24_1200.html" ||
+		got.StartedAt != "2026-04-24 12:00 UTC" ||
+		got.TimeWindow != "1 day" ||
+		got.ArticleCount != 2 ||
+		got.MustCount != 1 ||
+		got.ShouldCount != 1 ||
+		got.MayCount != 0 ||
+		got.OptCount != 0 ||
+		got.Provider != "openai" ||
+		got.Model != "gpt-test" ||
+		got.Summary != "A short digest." {
 		t.Fatalf("ManifestEntryFromDigest() = %+v", got)
+	}
+	if len(got.Headlines) != 2 || got.Headlines[0] != "Article B" || got.Headlines[1] != "Article A" {
+		t.Fatalf("headlines = %+v", got.Headlines)
+	}
+}
+
+func TestManifestWriteSetsGeneratedAtAndSourceRepo(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ManifestFilename)
+	m := Manifest{Digests: []ManifestEntry{{Filename: "downlink-digest-2026-04-24_1200.html"}}}
+	if err := m.Write(path); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	var got Manifest
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if got.SourceRepo != "downlink" || got.GeneratedAt == "" {
+		t.Fatalf("written manifest = %+v", got)
 	}
 }

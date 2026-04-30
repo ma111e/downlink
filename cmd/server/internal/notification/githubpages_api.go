@@ -2,7 +2,6 @@ package notification
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -63,10 +62,11 @@ func (p *GitHubPagesPublisher) configureGitHubPagesSource() error {
 }
 
 // ensureRemoteBranchExists makes sure the configured branch exists on the
-// remote. If it is missing, it is created — either branched off the repo's
-// default branch when there is one, or as the repo's first commit when the
-// repo is empty. This is a prerequisite for configuring GitHub Pages: the
-// Pages create endpoint returns 422 if the source branch doesn't yet exist.
+// remote. If it is missing, it is seeded with a single orphan commit via the
+// GitHub Git API. Creating an orphan commit (rather than branching from the
+// default branch) guarantees the Pages branch contains no source code. This is
+// a prerequisite for configuring GitHub Pages: the Pages create endpoint
+// returns 422 if the source branch doesn't yet exist.
 func (p *GitHubPagesPublisher) ensureRemoteBranchExists(owner, repo string) error {
 	branchURL := fmt.Sprintf("%s/repos/%s/%s/branches/%s",
 		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo, url.PathEscape(p.cfg.Branch))
@@ -87,62 +87,60 @@ func (p *GitHubPagesPublisher) ensureRemoteBranchExists(owner, repo string) erro
 		"owner":  owner,
 		"repo":   repo,
 		"branch": p.cfg.Branch,
-	}).Info("Branch missing on remote; creating it for GitHub Pages")
+	}).Info("Branch missing on remote; seeding orphan branch for GitHub Pages")
 
-	// Try to base the new branch off the repo's default branch.
-	defaultBranch, defaultSHA, err := p.lookupDefaultBranchHead(owner, repo)
-	if err != nil {
-		return err
-	}
-	if defaultSHA != "" {
-		return p.createBranchRef(owner, repo, p.cfg.Branch, defaultSHA, defaultBranch)
-	}
-
-	// Repo is empty (no default branch HEAD). Seed it by creating an initial
-	// file directly on the target branch via the Contents API.
 	return p.seedEmptyRepo(owner, repo, p.cfg.Branch)
 }
 
-type githubRepoInfo struct {
-	DefaultBranch string `json:"default_branch"`
-}
-
-type githubBranchInfo struct {
-	Commit struct {
-		SHA string `json:"sha"`
-	} `json:"commit"`
-}
-
-func (p *GitHubPagesPublisher) lookupDefaultBranchHead(owner, repo string) (string, string, error) {
-	repoURL := fmt.Sprintf("%s/repos/%s/%s",
-		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo)
-	var info githubRepoInfo
-	status, body, err := p.doGitHubPagesRequest(http.MethodGet, repoURL, nil, &info)
-	if err != nil {
-		return "", "", err
-	}
-	if status != http.StatusOK {
-		return "", "", fmt.Errorf("get repo returned %d: %s", status, body)
-	}
-	if info.DefaultBranch == "" {
-		return "", "", nil
-	}
-
+// deleteRemoteBranchIfExists removes the configured branch from the remote if
+// it exists. Used by --reinit-gh-pages to wipe the branch before recreating it.
+func (p *GitHubPagesPublisher) deleteRemoteBranchIfExists(owner, repo string) error {
 	branchURL := fmt.Sprintf("%s/repos/%s/%s/branches/%s",
-		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo, url.PathEscape(info.DefaultBranch))
-	var branch githubBranchInfo
-	status, body, err = p.doGitHubPagesRequest(http.MethodGet, branchURL, nil, &branch)
+		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo, url.PathEscape(p.cfg.Branch))
+	status, _, err := p.doGitHubPagesRequest(http.MethodGet, branchURL, nil, nil)
 	if err != nil {
-		return "", "", err
+		return err
 	}
 	if status == http.StatusNotFound {
-		// Default branch advertised but no commits yet — treat as empty.
-		return info.DefaultBranch, "", nil
+		return nil
 	}
-	if status != http.StatusOK {
-		return "", "", fmt.Errorf("get default branch returned %d: %s", status, body)
+
+	refURL := fmt.Sprintf("%s/repos/%s/%s/git/refs/heads/%s",
+		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo, url.PathEscape(p.cfg.Branch))
+	status, body, err := p.doGitHubPagesRequest(http.MethodDelete, refURL, nil, nil)
+	if err != nil {
+		return err
 	}
-	return info.DefaultBranch, branch.Commit.SHA, nil
+	if status != http.StatusNoContent {
+		return fmt.Errorf("delete branch returned %d: %s", status, body)
+	}
+	log.WithFields(log.Fields{
+		"owner":  owner,
+		"repo":   repo,
+		"branch": p.cfg.Branch,
+	}).Info("Deleted remote branch for reinitialisation")
+	return nil
+}
+
+type githubCreateTreeRequest struct {
+	Tree []githubTreeEntry `json:"tree"`
+}
+
+type githubTreeEntry struct {
+	Path    string `json:"path"`
+	Mode    string `json:"mode"`
+	Type    string `json:"type"`
+	Content string `json:"content"`
+}
+
+type githubSHAResponse struct {
+	SHA string `json:"sha"`
+}
+
+type githubCreateCommitRequest struct {
+	Message string   `json:"message"`
+	Tree    string   `json:"tree"`
+	Parents []string `json:"parents"`
 }
 
 type githubCreateRefRequest struct {
@@ -150,48 +148,54 @@ type githubCreateRefRequest struct {
 	SHA string `json:"sha"`
 }
 
-func (p *GitHubPagesPublisher) createBranchRef(owner, repo, branch, sha, baseBranch string) error {
-	apiURL := fmt.Sprintf("%s/repos/%s/%s/git/refs",
-		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo)
-	payload := githubCreateRefRequest{
-		Ref: "refs/heads/" + branch,
-		SHA: sha,
-	}
-	status, body, err := p.doGitHubPagesRequest(http.MethodPost, apiURL, payload, nil)
-	if err != nil {
-		return err
-	}
-	if status != http.StatusCreated && status != http.StatusOK {
-		return fmt.Errorf("create ref returned %d: %s", status, body)
-	}
-	log.WithFields(log.Fields{
-		"branch":     branch,
-		"baseBranch": baseBranch,
-		"baseSHA":    sha,
-	}).Info("Created remote branch from default branch")
-	return nil
-}
-
-type githubPutContentsRequest struct {
-	Message string `json:"message"`
-	Content string `json:"content"`
-	Branch  string `json:"branch"`
-}
-
 func (p *GitHubPagesPublisher) seedEmptyRepo(owner, repo, branch string) error {
-	apiURL := fmt.Sprintf("%s/repos/%s/%s/contents/.gitkeep",
+	treeURL := fmt.Sprintf("%s/repos/%s/%s/git/trees",
 		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo)
-	payload := githubPutContentsRequest{
-		Message: "Initialize " + branch + " for GitHub Pages",
-		Content: base64.StdEncoding.EncodeToString([]byte("")),
-		Branch:  branch,
+	treePayload := githubCreateTreeRequest{
+		Tree: []githubTreeEntry{{
+			Path:    ".gitkeep",
+			Mode:    "100644",
+			Type:    "blob",
+			Content: "",
+		}},
 	}
-	status, body, err := p.doGitHubPagesRequest(http.MethodPut, apiURL, payload, nil)
+	var tree githubSHAResponse
+	status, body, err := p.doGitHubPagesRequest(http.MethodPost, treeURL, treePayload, &tree)
 	if err != nil {
 		return err
 	}
-	if status != http.StatusCreated && status != http.StatusOK {
-		return fmt.Errorf("seed empty repo returned %d: %s", status, body)
+	if status != http.StatusCreated || tree.SHA == "" {
+		return fmt.Errorf("create seed tree returned %d: %s", status, body)
+	}
+
+	commitURL := fmt.Sprintf("%s/repos/%s/%s/git/commits",
+		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo)
+	commitPayload := githubCreateCommitRequest{
+		Message: "Initialize " + branch + " for GitHub Pages",
+		Tree:    tree.SHA,
+		Parents: []string{},
+	}
+	var commit githubSHAResponse
+	status, body, err = p.doGitHubPagesRequest(http.MethodPost, commitURL, commitPayload, &commit)
+	if err != nil {
+		return err
+	}
+	if status != http.StatusCreated || commit.SHA == "" {
+		return fmt.Errorf("create seed commit returned %d: %s", status, body)
+	}
+
+	refURL := fmt.Sprintf("%s/repos/%s/%s/git/refs",
+		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo)
+	refPayload := githubCreateRefRequest{
+		Ref: "refs/heads/" + branch,
+		SHA: commit.SHA,
+	}
+	status, body, err = p.doGitHubPagesRequest(http.MethodPost, refURL, refPayload, nil)
+	if err != nil {
+		return err
+	}
+	if status != http.StatusCreated {
+		return fmt.Errorf("create seed ref returned %d: %s", status, body)
 	}
 	log.WithField("branch", branch).Info("Seeded empty repo with initial commit on branch")
 	return nil

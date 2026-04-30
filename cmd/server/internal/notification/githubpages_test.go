@@ -84,7 +84,7 @@ func TestGitHubPagesPublisherWritesDefaultDigestFolderLayout(t *testing.T) {
 	}
 
 	assertFileExists(t, cloneDir, "digests", "downlink-digest-2026-04-24_1200.html")
-	assertManifestContains(t, cloneDir, "digests", "manifest.json", "digest-one", "downlink-digest-2026-04-24_1200.html")
+	assertManifestContains(t, cloneDir, "digests", "manifest.json", "downlink-digest-2026-04-24_1200.html")
 	assertFileExists(t, cloneDir, "digests", "index.html")
 	rootIndex := assertFileExists(t, cloneDir, "index.html")
 	if !strings.Contains(string(rootIndex), "digests/index.html") {
@@ -134,7 +134,7 @@ func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
 	}
 
 	assertFileExists(t, cloneDir, "archive", "digests", "downlink-digest-2026-04-25_0930.html")
-	assertManifestContains(t, cloneDir, "archive", "digests", "manifest.json", "digest-two", "downlink-digest-2026-04-25_0930.html")
+	assertManifestContains(t, cloneDir, "archive", "digests", "manifest.json", "downlink-digest-2026-04-25_0930.html")
 	assertFileExists(t, cloneDir, "archive", "digests", "index.html")
 	rootIndex := assertFileExists(t, cloneDir, "index.html")
 	if !strings.Contains(string(rootIndex), "archive/digests/index.html") {
@@ -163,6 +163,26 @@ func sampleDigest(id string, createdAt time.Time) models.Digest {
 			{Id: "article-b", Title: "Article B", Link: "https://example.com/b", PublishedAt: createdAt},
 			{Id: "article-a", Title: "Article A", Link: "https://example.com/a", PublishedAt: createdAt},
 		},
+		DigestAnalyses: []models.DigestAnalysis{
+			{
+				ArticleId: "article-b",
+				Analysis: &models.ArticleAnalysis{
+					ArticleId:       "article-b",
+					ProviderType:    "openai",
+					ModelName:       "gpt-test",
+					ImportanceScore: 95,
+				},
+			},
+			{
+				ArticleId: "article-a",
+				Analysis: &models.ArticleAnalysis{
+					ArticleId:       "article-a",
+					ProviderType:    "openai",
+					ModelName:       "gpt-test",
+					ImportanceScore: 80,
+				},
+			},
+		},
 	}
 }
 
@@ -178,23 +198,22 @@ func assertFileExists(t *testing.T, parts ...string) []byte {
 
 func assertManifestContains(t *testing.T, parts ...string) {
 	t.Helper()
-	if len(parts) < 3 {
-		t.Fatalf("assertManifestContains requires path parts plus id and filename")
+	if len(parts) < 2 {
+		t.Fatalf("assertManifestContains requires path parts plus filename")
 	}
-	id := parts[len(parts)-2]
 	filename := parts[len(parts)-1]
-	pathParts := parts[:len(parts)-2]
+	pathParts := parts[:len(parts)-1]
 	data := assertFileExists(t, pathParts...)
 	var manifest Manifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		t.Fatalf("manifest json: %v", err)
 	}
 	for _, entry := range manifest.Digests {
-		if entry.Id == id && entry.Filename == filename {
+		if entry.Filename == filename && entry.Provider == "openai" && entry.Model == "gpt-test" {
 			return
 		}
 	}
-	t.Fatalf("manifest does not contain id=%q filename=%q: %+v", id, filename, manifest.Digests)
+	t.Fatalf("manifest does not contain filename=%q with new schema fields: %+v", filename, manifest.Digests)
 }
 
 func assertStaged(t *testing.T, wt *gogit.Worktree, paths ...string) {

@@ -54,6 +54,8 @@ type GenerateDigestOptions struct {
 	SkipSummary     bool
 	Theme           string
 	OneShotAnalysis bool
+	Test            bool
+	TestDigestID    string
 	OnEvent         func(*protos.DigestProgressEvent)
 }
 
@@ -83,6 +85,8 @@ func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options
 		SkipSummary:     options.SkipSummary,
 		Theme:           options.Theme,
 		OneShotAnalysis: options.OneShotAnalysis,
+		Test:            options.Test,
+		TestDigestId:    options.TestDigestID,
 	})
 	if err != nil {
 		return models.Digest{}, err

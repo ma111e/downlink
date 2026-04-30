@@ -572,8 +572,6 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
     <span class="nav-date">{{.StartedAt}}</span>
   </div>
   <div class="nav-right">
-    <select id="digest-switcher" class="nav-switcher" aria-label="Switch provider/model"
-            data-digest-id="{{.DigestId}}" data-article-set-hash="{{.ArticleSetHash}}" hidden></select>
     <span class="nav-window">{{.TimeWindow}} window</span>
     <div class="nav-count">
       <span class="nav-count-dot">■</span>
@@ -884,37 +882,6 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// provider/model switcher: pulls sibling list from manifest.json at runtime,
-// filtering by matching articleSetHash. Stays hidden when there are <2 siblings
-// or the manifest is unreachable.
-(function() {
-  var sel = document.getElementById('digest-switcher');
-  if (!sel) return;
-  sel.addEventListener('change', function(e) {
-    var v = e.target.value;
-    if (v) window.location.assign(v);
-  });
-  var hash = sel.dataset.articleSetHash;
-  var currentId = sel.dataset.digestId;
-  if (!hash) return;
-  fetch('manifest.json', { cache: 'no-cache' }).then(function(r) {
-    if (!r.ok) throw new Error('manifest fetch ' + r.status);
-    return r.json();
-  }).then(function(m) {
-    var entries = (m && m.digests ? m.digests : []).filter(function(e) {
-      return e.articleSetHash && e.articleSetHash === hash;
-    });
-    if (entries.length < 2) return;
-    entries.forEach(function(e) {
-      var opt = document.createElement('option');
-      opt.value = e.filename;
-      opt.textContent = e.providerType + ' / ' + e.modelName + ' · ' + e.displayDate;
-      if (e.id === currentId) opt.selected = true;
-      sel.appendChild(opt);
-    });
-    sel.hidden = false;
-  }).catch(function(){ /* leave hidden */ });
-})();
 </script>
 </body>
 </html>
@@ -1117,8 +1084,6 @@ type digestTemplateData struct {
 	OverviewSections []OverviewSection
 	TOCGroups        []TOCGroup
 	ArticleEntries   []ArticleEntry
-	DigestId         string
-	ArticleSetHash   string
 }
 
 // RenderDigestHTML generates a self-contained HTML file for the given digest.
@@ -1245,8 +1210,6 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		TOCGroups:        tocGroups,
 		ArticleEntries:   articleEntries,
 		ThemeOverride:    themeOverride,
-		DigestId:         digest.Id,
-		ArticleSetHash:   ArticleSetHash(digest),
 	}
 
 	funcMap := template.FuncMap{
@@ -1530,60 +1493,977 @@ func articleTitle(t string) string {
 }
 
 const digestIndexTemplate = `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Downlink Digests</title>
+<title>DOWNLINK // archive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #111214; --surface: #18191d; --border: #25272c;
-  --text: #e2e4e9; --muted: #7c8091; --accent: #5865F2;
+  --bg: #0a0d10;
+  --bg-2: #0e1216;
+  --panel: #11161b;
+  --panel-2: #161c22;
+  --line: #1e262e;
+  --line-2: #2a343d;
+  --ink: #d8e2ea;
+  --ink-dim: #8a98a5;
+  --ink-faint: #5a6772;
+  --accent: #6ad1c4;
+  --accent-2: #f0c674;
+  --must: #f06b6b;
+  --should: #f0c674;
+  --may: #6ad1c4;
+  --opt: #8a98a5;
+  --grid-dot: rgba(255,255,255,.045);
+  --halo: rgba(106,209,196,.18);
 }
-body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; padding: 2rem; }
-h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: var(--accent); }
-ul { list-style: none; display: flex; flex-direction: column; gap: .5rem; }
-li a { color: var(--text); text-decoration: none; padding: .6rem 1rem; display: block;
-       background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
-li a:hover { border-color: var(--accent); color: var(--accent); }
-li .meta { color: var(--muted); font-size: .85em; margin-left: .5rem; }
-#empty { color: var(--muted); }
+html[data-theme="contrast"] {
+  --bg: #000;
+  --bg-2: #050505;
+  --panel: #0a0a0a;
+  --panel-2: #111;
+  --line: #2a2a2a;
+  --line-2: #3a3a3a;
+  --ink: #fff;
+  --ink-dim: #c7c7c7;
+  --ink-faint: #888;
+  --accent: #00ffd1;
+  --accent-2: #ffd24a;
+  --must: #ff5050;
+  --should: #ffd24a;
+  --may: #00ffd1;
+  --opt: #aaa;
+  --grid-dot: rgba(255,255,255,.08);
+  --halo: rgba(0,255,209,.25);
+}
+html[data-theme="mono"] {
+  --bg: #0c0c0c;
+  --bg-2: #101010;
+  --panel: #131313;
+  --panel-2: #181818;
+  --line: #242424;
+  --line-2: #333;
+  --ink: #e6e6e6;
+  --ink-dim: #9a9a9a;
+  --ink-faint: #5e5e5e;
+  --accent: #e6e6e6;
+  --accent-2: #bdbdbd;
+  --must: #f0f0f0;
+  --should: #c8c8c8;
+  --may: #9a9a9a;
+  --opt: #6a6a6a;
+  --grid-dot: rgba(255,255,255,.04);
+  --halo: rgba(255,255,255,.08);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  background-image: radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 0);
+  background-attachment: fixed;
+  background-size: 18px 18px;
+  color: var(--ink);
+  font: 14px/1.5 "IBM Plex Sans", system-ui, sans-serif;
+}
+::selection { background: var(--accent); color: #001210; }
+a { color: inherit; text-decoration: none; }
+button, input, select { font: inherit; color: inherit; }
+button { appearance: none; border: 0; background: none; cursor: pointer; }
+.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+#app { max-width: 1280px; margin: 0 auto; padding: 28px 28px 96px; }
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 22px;
+  padding-bottom: 14px;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; letter-spacing: .08em; }
+.brand .pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 var(--halo);
+  animation: pulse 2.4s infinite;
+}
+.brand .word {
+  font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+.brand .slash { color: var(--ink-faint); }
+.brand .sub {
+  color: var(--ink-dim);
+  font: 11px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.topbar .spacer { flex: 1; }
+.meta {
+  color: var(--ink-dim);
+  font: 11px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .06em;
+}
+.meta b { color: var(--ink); font-weight: 500; }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 var(--halo); }
+  70% { box-shadow: 0 0 0 10px rgba(0,0,0,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+}
+.hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  margin-bottom: 28px;
+  padding: 22px 24px 24px;
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at top right, var(--halo), transparent 55%);
+  pointer-events: none;
+}
+.corner { position: absolute; width: 12px; height: 12px; border-color: var(--accent); }
+.corner.tl { top: -1px; left: -1px; border-top: 1px solid; border-left: 1px solid; }
+.corner.tr { top: -1px; right: -1px; border-top: 1px solid; border-right: 1px solid; }
+.corner.bl { bottom: -1px; left: -1px; border-bottom: 1px solid; border-left: 1px solid; }
+.corner.br { bottom: -1px; right: -1px; border-bottom: 1px solid; border-right: 1px solid; }
+.hero-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+  font: 11px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .16em;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+.hero-head .rule { flex: 1; height: 1px; background: var(--line-2); }
+.hero-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 24px;
+}
+.hero h1 {
+  color: var(--ink);
+  font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+  font-size: clamp(22px, 2.4vw, 32px);
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0 0 8px;
+}
+.summary { color: var(--ink-dim); max-width: 75ch; margin: 0 0 18px; }
+.cta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.btn {
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  color: var(--ink);
+  font: 11px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .1em;
+  padding: 8px 14px;
+  text-transform: uppercase;
+  transition: all .15s ease;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #001210; }
+.btn.primary:hover { background: transparent; color: var(--accent); }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  border-top: 1px dashed var(--line-2);
+  margin-top: 6px;
+  padding-top: 14px;
+}
+.stat .k {
+  color: var(--ink-faint);
+  font: 10px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .14em;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.stat .v { color: var(--ink); font: 500 20px "IBM Plex Mono", ui-monospace, monospace; }
+.stat .v small { color: var(--ink-faint); font-size: 11px; margin-left: 4px; }
+.top-headlines {
+  border-left: 1px solid var(--line-2);
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 18px;
+}
+.top-headlines li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  border-bottom: 1px dashed var(--line);
+  color: var(--ink);
+  font-size: 13px;
+  padding: 6px 0;
+}
+.top-headlines li:last-child { border-bottom: 0; }
+.top-headlines .num {
+  min-width: 22px;
+  color: var(--ink-faint);
+  font: 11px "IBM Plex Mono", ui-monospace, monospace;
+  padding-top: 2px;
+}
+.filterbar {
+  display: grid;
+  grid-template-columns: 1.6fr repeat(4, minmax(0,1fr)) auto;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  margin-bottom: 4px;
+  padding: 8px;
+}
+.field {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  padding: 0 10px;
+}
+.field:focus-within { border-color: var(--accent); }
+.field .lbl {
+  color: var(--ink-faint);
+  font: 10px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .12em;
+  margin-right: 8px;
+  text-transform: uppercase;
+}
+.field input, .field select {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 13px;
+}
+.field .kbd {
+  border: 1px solid var(--line-2);
+  color: var(--ink-faint);
+  font: 10px "IBM Plex Mono", ui-monospace, monospace;
+  margin-left: 6px;
+  padding: 1px 4px;
+}
+.seg { display: inline-flex; height: 34px; border: 1px solid var(--line); background: var(--bg-2); }
+.seg button {
+  border-right: 1px solid var(--line);
+  color: var(--ink-dim);
+  font: 10px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .12em;
+  padding: 0 12px;
+  text-transform: uppercase;
+}
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--accent); color: #001210; }
+.seg button:hover:not(.on) { color: var(--ink); }
+.resultline {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  color: var(--ink-faint);
+  font: 11px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .06em;
+  padding: 10px 4px 14px;
+}
+.resultline b { color: var(--ink); font-weight: 500; }
+.resultline .dot { width: 4px; height: 4px; background: var(--ink-faint); border-radius: 50%; display: inline-block; }
+.log { border: 1px solid var(--line); background: var(--panel); }
+.log-head, .log-row {
+  display: grid;
+  grid-template-columns: 28px 170px 62px 1fr 120px 90px auto;
+  align-items: center;
+  gap: 14px;
+}
+.log-head {
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--ink-faint);
+  font: 10px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .14em;
+  padding: 10px 14px;
+  text-transform: uppercase;
+}
+.sortable { cursor: pointer; user-select: none; }
+.sortable:hover, .sortable.active { color: var(--accent); }
+.log-row {
+  position: relative;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  padding: 12px 14px;
+  transition: background .12s ease;
+}
+.log-row:last-child { border-bottom: 0; }
+.log-row:hover, .log-row.active { background: var(--panel-2); }
+.log-row.active::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--accent);
+}
+.pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid transparent;
+  color: var(--ink-faint);
+}
+.pin:hover { border-color: var(--line-2); color: var(--accent-2); }
+.pin.on { color: var(--accent-2); }
+.ts { color: var(--ink-dim); font: 12px "IBM Plex Mono", ui-monospace, monospace; }
+.ts .date { color: var(--ink); }
+.ts .time { color: var(--ink-faint); margin-left: 6px; }
+.win {
+  width: max-content;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  font: 11px "IBM Plex Mono", ui-monospace, monospace;
+  padding: 2px 6px;
+  text-align: center;
+}
+.head {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pri-bar { display: flex; gap: 1px; width: 120px; height: 6px; background: var(--line); }
+.pri-bar span { display: block; height: 100%; }
+.pri-bar .must { background: var(--must); }
+.pri-bar .should { background: var(--should); }
+.pri-bar .may { background: var(--may); }
+.pri-bar .opt { background: var(--opt); }
+.cnt { color: var(--ink); font: 12px "IBM Plex Mono", ui-monospace, monospace; text-align: right; }
+.cnt small { color: var(--ink-faint); margin-left: 4px; }
+.arr { color: var(--ink-faint); font: 14px "IBM Plex Mono", ui-monospace, monospace; transition: transform .12s ease, color .12s ease; }
+.log-row:hover .arr { color: var(--accent); transform: translateX(2px); }
+.preview {
+  grid-column: 1 / -1;
+  border-top: 1px dashed var(--line);
+  color: var(--ink-dim);
+  font-size: 12.5px;
+  margin-top: 10px;
+  padding: 6px 0 4px 212px;
+}
+.preview ul { list-style: none; margin: 0; padding: 0; }
+.preview li { display: grid; grid-template-columns: 14px 1fr; gap: 10px; color: var(--ink); padding: 4px 0; }
+.preview .pri { align-self: center; width: 10px; height: 10px; border: 1px solid var(--line-2); }
+.preview .pri.must { background: var(--must); border-color: var(--must); }
+.preview .pri.should { background: var(--should); border-color: var(--should); }
+.preview .pri.may { background: var(--may); border-color: var(--may); }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 16px 16px 14px;
+}
+.card:hover, .card.active { border-color: var(--accent); }
+.card .corner { width: 8px; height: 8px; opacity: 0; transition: opacity .12s ease; }
+.card:hover .corner, .card.active .corner { opacity: 1; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.ts2 { color: var(--ink); font: 11px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .04em; }
+.ts2 small { color: var(--ink-faint); margin-left: 4px; }
+.badge {
+  border: 1px solid var(--line-2);
+  color: var(--ink-dim);
+  font: 10px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .1em;
+  padding: 2px 6px;
+  text-transform: uppercase;
+}
+.card-actions { display: flex; align-items: center; gap: 4px; }
+.summary2 { flex: 1; color: var(--ink-dim); font-size: 13px; margin: 0 0 12px; }
+.card .pri-bar { width: 100%; }
+.card-foot {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px dashed var(--line);
+  color: var(--ink-faint);
+  font: 11px "IBM Plex Mono", ui-monospace, monospace;
+  margin-top: 12px;
+  padding-top: 10px;
+}
+.card-foot .cnts { display: flex; gap: 10px; }
+.swatch { display: inline-block; width: 8px; height: 8px; margin-right: 4px; vertical-align: middle; }
+.timeline { position: relative; padding-left: 140px; }
+.tl-day { position: relative; margin-bottom: 6px; }
+.day-label {
+  position: absolute;
+  left: -140px;
+  top: 14px;
+  width: 120px;
+  color: var(--ink-faint);
+  font: 11px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .06em;
+  text-align: right;
+}
+.day-label .d { display: block; color: var(--ink); font-size: 18px; font-weight: 500; line-height: 1; margin-bottom: 4px; }
+.tl-rail { border-left: 1px solid var(--line-2); padding: 0 0 8px 22px; }
+.tl-row {
+  position: relative;
+  display: block;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  margin-bottom: 8px;
+  padding: 12px 14px;
+}
+.tl-row:hover, .tl-row.active { border-color: var(--accent); }
+.tl-row::before {
+  content: "";
+  position: absolute;
+  left: -27px;
+  top: 18px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--bg);
+}
+.tl-meta { display: flex; align-items: center; gap: 12px; color: var(--ink-faint); font: 11px "IBM Plex Mono", ui-monospace, monospace; margin-bottom: 6px; }
+.tl-meta .t { color: var(--ink); }
+.tl-head { color: var(--ink); font-size: 14px; margin-bottom: 8px; }
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font: 11px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .06em;
+  margin-top: 36px;
+  padding-top: 16px;
+}
+.empty {
+  border: 1px dashed var(--line);
+  background: var(--panel);
+  color: var(--ink-faint);
+  font: 12px "IBM Plex Mono", ui-monospace, monospace;
+  padding: 60px 20px;
+  text-align: center;
+}
+.khelp {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 5;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink-faint);
+  font: 10px "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .08em;
+  padding: 6px 10px;
+}
+.khelp kbd { border: 1px solid var(--line-2); color: var(--ink); margin: 0 2px; padding: 0 4px; }
+@media (max-width: 900px) {
+  .filterbar { grid-template-columns: 1fr 1fr; }
+  .log-head { display: none; }
+  .log-row { grid-template-columns: 28px 1fr auto; gap: 10px; }
+  .log-row .win, .log-row .pri-bar, .log-row .cnt { display: none; }
+  .log-row .head, .preview { grid-column: 2 / -1; }
+  .preview { padding-left: 0; }
+}
+@media (max-width: 760px) {
+  #app { padding: 20px 16px 80px; }
+  .topbar { align-items: flex-start; flex-direction: column; }
+  .hero-grid, .stats { grid-template-columns: 1fr; }
+  .top-headlines { border-left: 0; padding-left: 0; }
+  .timeline { padding-left: 0; }
+  .day-label { position: static; width: auto; text-align: left; margin: 14px 0 8px; }
+  .tl-rail { margin-left: 5px; }
+  .khelp { display: none; }
+}
 </style>
 </head>
 <body>
-<h1>📰 Downlink Digests</h1>
-<ul id="digest-list" data-manifest-url="manifest.json"><li id="empty">Loading…</li></ul>
+<main id="app">
+  <div class="topbar">
+    <div class="brand">
+      <span class="pulse"></span>
+      <span class="word">DOWNLINK</span>
+      <span class="slash">//</span>
+      <span class="sub">archive · index</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="meta" id="top-meta">establishing link...</div>
+  </div>
+
+  <section class="hero" id="hero">
+    <span class="corner tl"></span><span class="corner tr"></span>
+    <span class="corner bl"></span><span class="corner br"></span>
+    <div class="empty">Loading manifest.json...</div>
+  </section>
+
+  <section class="filterbar" aria-label="Digest filters">
+    <label class="field">
+      <span class="lbl">SRCH</span>
+      <input id="search" type="search" placeholder="search headlines, summaries, filenames..." autocomplete="off">
+      <span class="kbd">/</span>
+    </label>
+    <label class="field">
+      <span class="lbl">MO</span>
+      <select id="month"><option value="all">all</option></select>
+    </label>
+    <label class="field">
+      <span class="lbl">PRV</span>
+      <select id="provider"><option value="all">all</option></select>
+    </label>
+    <label class="field">
+      <span class="lbl">SORT</span>
+      <select id="sort">
+        <option value="newest">newest</option>
+        <option value="oldest">oldest</option>
+        <option value="most">most articles</option>
+        <option value="must">most MUSTs</option>
+      </select>
+    </label>
+    <label class="field">
+      <span class="lbl">THM</span>
+      <select id="theme">
+        <option value="dark">dark</option>
+        <option value="contrast">contrast</option>
+        <option value="mono">mono</option>
+      </select>
+    </label>
+    <button class="btn mono" id="pin-filter" style="height:34px" type="button">pinned</button>
+    <div class="seg" role="tablist" aria-label="Layout">
+      <button type="button" data-layout="log" class="on">log</button>
+      <button type="button" data-layout="grid">grid</button>
+      <button type="button" data-layout="timeline">timeline</button>
+    </div>
+  </section>
+
+  <div class="resultline" id="resultline"></div>
+  <section id="archive" data-manifest-url="manifest.json"></section>
+
+  <footer class="foot">
+    <span>DOWNLINK · automated news digest archive</span>
+    <span id="footer-total">0 articles across 0 transmissions</span>
+    <span id="footer-generated">generated —</span>
+  </footer>
+</main>
+<div class="khelp"><kbd>j</kbd><kbd>k</kbd> navigate · <kbd>enter</kbd> open · <kbd>p</kbd> pin · <kbd>g</kbd> view · <kbd>/</kbd> search</div>
 <script>
 (function() {
-  var list = document.getElementById('digest-list');
-  var manifestURL = list.getAttribute('data-manifest-url') || 'manifest.json';
+  var PIN_KEY = 'downlink.pinned.v2';
+  var THEME_KEY = 'downlink.archive.theme';
+  var LAYOUT_KEY = 'downlink.archive.layout';
+  var state = {
+    manifest: null,
+    rows: [],
+    filtered: [],
+    active: 0,
+    layout: localStorage.getItem(LAYOUT_KEY) || 'log',
+    theme: localStorage.getItem(THEME_KEY) || 'dark',
+    pinned: loadPins(),
+    pinFilter: false
+  };
+
+  var els = {
+    archive: document.getElementById('archive'),
+    hero: document.getElementById('hero'),
+    topMeta: document.getElementById('top-meta'),
+    resultline: document.getElementById('resultline'),
+    footerTotal: document.getElementById('footer-total'),
+    footerGenerated: document.getElementById('footer-generated'),
+    search: document.getElementById('search'),
+    month: document.getElementById('month'),
+    provider: document.getElementById('provider'),
+    sort: document.getElementById('sort'),
+    theme: document.getElementById('theme'),
+    pinFilter: document.getElementById('pin-filter')
+  };
+
+  document.documentElement.dataset.theme = state.theme;
+  els.theme.value = state.theme;
+  setLayout(state.layout);
+
+  var manifestURL = els.archive.getAttribute('data-manifest-url') || 'manifest.json';
   fetch(manifestURL, { cache: 'no-cache' }).then(function(r) {
     if (!r.ok) throw new Error('manifest fetch ' + r.status);
     return r.json();
   }).then(function(m) {
-    var entries = (m && m.digests) ? m.digests : [];
-    list.innerHTML = '';
-    if (!entries.length) {
-      list.innerHTML = '<li id="empty">No digests yet.</li>';
+    state.manifest = m || {};
+    state.rows = (state.manifest.digests || []).slice().sort(function(a, b) {
+      return String(b.filename).localeCompare(String(a.filename));
+    });
+    populateFilters();
+    applyFilters();
+  }).catch(function(err) {
+    els.hero.innerHTML = '<div class="empty">manifest.json failed to load · ' + escapeHTML(String(err)) + '</div>';
+    els.archive.innerHTML = '<div class="empty">Make sure manifest.json sits next to index.html.</div>';
+  });
+
+  els.search.addEventListener('input', applyFilters);
+  els.month.addEventListener('change', applyFilters);
+  els.provider.addEventListener('change', applyFilters);
+  els.sort.addEventListener('change', applyFilters);
+  els.theme.addEventListener('change', function() {
+    state.theme = els.theme.value;
+    document.documentElement.dataset.theme = state.theme;
+    localStorage.setItem(THEME_KEY, state.theme);
+    renderResultline();
+  });
+  els.pinFilter.addEventListener('click', function() {
+    state.pinFilter = !state.pinFilter;
+    els.pinFilter.classList.toggle('primary', state.pinFilter);
+    applyFilters();
+  });
+  document.querySelectorAll('[data-layout]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      setLayout(btn.dataset.layout);
+      renderArchive();
+    });
+  });
+  document.addEventListener('keydown', function(e) {
+    var target = e.target;
+    var editing = target && ['INPUT', 'SELECT', 'TEXTAREA'].indexOf(target.tagName) >= 0;
+    if (editing) {
+      if (e.key === 'Escape') target.blur();
       return;
     }
-    entries.forEach(function(e) {
-      var li = document.createElement('li');
-      var a = document.createElement('a');
-      a.href = e.filename;
-      a.textContent = e.displayDate;
-      var meta = document.createElement('span');
-      meta.className = 'meta';
-      var label = [e.providerType, e.modelName].filter(Boolean).join(' / ');
-      if (label) meta.textContent = ' — ' + label;
-      a.appendChild(meta);
-      li.appendChild(a);
-      list.appendChild(li);
-    });
-  }).catch(function(err) {
-    list.innerHTML = '<li id="empty">Failed to load digest list.</li>';
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.key === '/') {
+      e.preventDefault();
+      els.search.focus();
+      return;
+    }
+    if (e.key === 'j' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActive(Math.min(state.filtered.length - 1, state.active + 1));
+    } else if (e.key === 'k' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActive(Math.max(0, state.active - 1));
+    } else if (e.key === 'Enter') {
+      var row = state.filtered[state.active];
+      if (row) window.location.href = row.filename;
+    } else if (e.key === 'p') {
+      var pinRow = state.filtered[state.active];
+      if (pinRow) togglePin(pinRow.filename);
+    } else if (e.key === 'g') {
+      var next = state.layout === 'log' ? 'grid' : state.layout === 'grid' ? 'timeline' : 'log';
+      setLayout(next);
+      renderArchive();
+    }
   });
+
+  function populateFilters() {
+    var months = unique(state.rows.map(function(d) {
+      var dt = parseTs(d.started_at);
+      return dt ? dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) : '';
+    }).filter(Boolean));
+    var providers = unique(state.rows.map(function(d) { return d.provider; }).filter(Boolean));
+    fillSelect(els.month, months);
+    fillSelect(els.provider, providers);
+  }
+
+  function applyFilters() {
+    var q = els.search.value.trim().toLowerCase();
+    var month = els.month.value;
+    var provider = els.provider.value;
+    var rows = state.rows.slice();
+    if (q) {
+      rows = rows.filter(function(d) {
+        return (d.filename || '').toLowerCase().indexOf(q) >= 0 ||
+          (d.summary || '').toLowerCase().indexOf(q) >= 0 ||
+          (d.headlines || []).some(function(h) { return String(h).toLowerCase().indexOf(q) >= 0; });
+      });
+    }
+    if (month !== 'all') {
+      rows = rows.filter(function(d) {
+        var dt = parseTs(d.started_at);
+        return dt && dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) === month;
+      });
+    }
+    if (provider !== 'all') {
+      rows = rows.filter(function(d) { return d.provider === provider; });
+    }
+    if (state.pinFilter) {
+      rows = rows.filter(function(d) { return state.pinned.has(d.filename); });
+    }
+    if (els.sort.value === 'oldest') rows.reverse();
+    if (els.sort.value === 'most') rows.sort(function(a, b) { return (b.article_count || 0) - (a.article_count || 0); });
+    if (els.sort.value === 'must') rows.sort(function(a, b) { return (b.must_count || 0) - (a.must_count || 0); });
+    state.filtered = rows;
+    if (state.active >= rows.length) state.active = 0;
+    renderAll();
+  }
+
+  function renderAll() {
+    renderTop();
+    renderResultline();
+    renderArchive();
+  }
+
+  function renderTop() {
+    var latest = state.rows[0];
+    var totalArticles = state.rows.reduce(function(sum, d) { return sum + (d.article_count || 0); }, 0);
+    els.topMeta.innerHTML = '<b>' + state.rows.length + '</b> transmissions · last sync <b>' + escapeHTML(relDate(parseTs(latest && latest.started_at))) + '</b>';
+    els.footerTotal.textContent = totalArticles.toLocaleString() + ' articles across ' + state.rows.length + ' transmissions';
+    els.footerGenerated.textContent = 'generated ' + (state.manifest.generated_at || '—');
+    if (!latest) {
+      els.hero.innerHTML = '<span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span><div class="empty">No digests yet.</div>';
+      return;
+    }
+    var dt = parseTs(latest.started_at);
+    els.hero.innerHTML =
+      '<span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>' +
+      '<div class="hero-head"><span>LATEST TRANSMISSION</span><span>// ' + escapeHTML(fmtDate(dt) + ' ' + fmtTime(dt) + ' UTC') + '</span><span class="rule"></span><span>' + escapeHTML(relDate(dt)) + '</span></div>' +
+      '<div class="hero-grid"><div>' +
+      '<h1>' + escapeHTML(topHeadline(latest)) + '</h1>' +
+      '<p class="summary">' + escapeHTML(latest.summary || '') + '</p>' +
+      '<div class="cta-row"><a class="btn primary mono" href="' + escapeAttr(latest.filename) + '">Open digest -></a><button class="btn mono" type="button" id="browse-btn">Browse archive</button></div>' +
+      '<div class="stats">' +
+      statHTML('Articles', latest.article_count || 0) +
+      statHTML('Window', escapeHTML(latest.time_window || '—')) +
+      statHTML('Must / Should', (latest.must_count || 0) + '<small>/</small>' + (latest.should_count || 0)) +
+      statHTML('Model', escapeHTML(latest.model || 'unknown')) +
+      '</div></div>' +
+      '<ul class="top-headlines">' + (latest.headlines || []).slice(0, 3).map(function(h, i) {
+        return '<li><span class="num">' + pad2(i + 1) + '</span><span>' + escapeHTML(h) + '</span></li>';
+      }).join('') +
+      '<li><span class="num">Σ</span><span style="color:var(--ink-dim);font-size:12px">archive: <b style="color:var(--ink)">' + state.rows.length + '</b> digests · <b style="color:var(--ink)">' + totalArticles.toLocaleString() + '</b> articles tracked</span></li>' +
+      '</ul></div>';
+    document.getElementById('browse-btn').addEventListener('click', function() {
+      els.archive.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  function renderResultline() {
+    els.resultline.innerHTML =
+      '<span><b>' + state.filtered.length + '</b> of ' + state.rows.length + '</span>' +
+      '<span class="dot"></span><span>view: <b>' + escapeHTML(state.layout) + '</b></span>' +
+      '<span class="dot"></span><span>theme: <b>' + escapeHTML(state.theme) + '</b></span>' +
+      '<span style="flex:1"></span><span>j/k navigate · enter open · p pin · g cycle view · / search</span>';
+  }
+
+  function renderArchive() {
+    if (!state.filtered.length) {
+      els.archive.innerHTML = '<div class="empty">no transmissions match your filter · clear search to reset</div>';
+      return;
+    }
+    if (state.layout === 'grid') renderGrid();
+    else if (state.layout === 'timeline') renderTimeline();
+    else renderLog();
+  }
+
+  function renderLog() {
+    els.archive.innerHTML = '<div class="log">' +
+      '<div class="log-head"><div></div><div class="sortable" data-sort-toggle="date">timestamp</div><div>win</div><div>top headline</div><div>priority mix</div><div class="sortable" data-sort-toggle="most" style="text-align:right">articles</div><div></div></div>' +
+      state.filtered.map(logRowHTML).join('') + '</div>';
+    wireRows();
+    els.archive.querySelector('[data-sort-toggle="date"]').addEventListener('click', function() {
+      els.sort.value = els.sort.value === 'newest' ? 'oldest' : 'newest';
+      applyFilters();
+    });
+    els.archive.querySelector('[data-sort-toggle="most"]').addEventListener('click', function() {
+      els.sort.value = 'most';
+      applyFilters();
+    });
+  }
+
+  function renderGrid() {
+    els.archive.innerHTML = '<div class="grid">' + state.filtered.map(cardHTML).join('') + '</div>';
+    wireRows();
+  }
+
+  function renderTimeline() {
+    var groups = {};
+    state.filtered.forEach(function(d, i) {
+      var dt = parseTs(d.started_at);
+      var key = dt ? dt.toISOString().slice(0, 10) : 'unknown';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push({ row: d, index: i });
+    });
+    els.archive.innerHTML = '<div class="timeline">' + Object.keys(groups).map(function(day) {
+      var items = groups[day];
+      var dt = parseTs(items[0].row.started_at);
+      return '<div class="tl-day"><div class="day-label"><span class="d">' + escapeHTML(dt ? pad2(dt.getUTCDate()) : '--') + '</span><span class="m">' + escapeHTML(dt ? monthName(dt) + ' ' + dt.getUTCFullYear() : 'UNKNOWN') + '</span></div><div class="tl-rail">' +
+        items.map(timelineRowHTML).join('') + '</div></div>';
+    }).join('') + '</div>';
+    wireRows();
+  }
+
+  function logRowHTML(d, i) {
+    var dt = parseTs(d.started_at);
+    return '<a class="log-row' + (state.active === i ? ' active' : '') + '" href="' + escapeAttr(d.filename) + '" data-index="' + i + '">' +
+      pinButtonHTML(d.filename) +
+      '<div class="ts"><span class="date">' + escapeHTML(fmtDate(dt)) + '</span><span class="time">' + escapeHTML(fmtTime(dt)) + '</span></div>' +
+      '<div class="win">' + escapeHTML(d.time_window || '—') + '</div>' +
+      '<div class="head">' + escapeHTML(topHeadline(d)) + '</div>' +
+      priorityBarHTML(d) +
+      '<div class="cnt">' + (d.article_count || 0) + '<small>art</small></div><div class="arr">-></div>' +
+      (state.active === i ? previewHTML(d) : '') + '</a>';
+  }
+
+  function cardHTML(d, i) {
+    var dt = parseTs(d.started_at);
+    return '<a class="card' + (state.active === i ? ' active' : '') + '" href="' + escapeAttr(d.filename) + '" data-index="' + i + '">' +
+      '<span class="corner tl"></span><span class="corner br"></span>' +
+      '<div class="card-head"><div class="ts2">' + escapeHTML(fmtDate(dt)) + '<small>' + escapeHTML(fmtTime(dt) + ' · ' + (d.time_window || '—')) + '</small></div><div class="card-actions"><span class="badge">' + escapeHTML(d.provider || 'unknown') + '</span>' + pinButtonHTML(d.filename) + '</div></div>' +
+      '<div class="head" style="white-space:normal;margin-bottom:8px;font-size:14px;line-height:1.35">' + escapeHTML(topHeadline(d)) + '</div>' +
+      '<p class="summary2">' + escapeHTML(d.summary || '') + '</p>' + priorityBarHTML(d) +
+      '<div class="card-foot"><div class="cnts"><span><span class="swatch" style="background:var(--must)"></span>' + (d.must_count || 0) + '</span><span><span class="swatch" style="background:var(--should)"></span>' + (d.should_count || 0) + '</span><span><span class="swatch" style="background:var(--may)"></span>' + (d.may_count || 0) + '</span></div><div>' + (d.article_count || 0) + ' art</div></div></a>';
+  }
+
+  function timelineRowHTML(item) {
+    var d = item.row;
+    var dt = parseTs(d.started_at);
+    return '<a class="tl-row' + (state.active === item.index ? ' active' : '') + '" href="' + escapeAttr(d.filename) + '" data-index="' + item.index + '">' +
+      '<div class="tl-meta"><span class="t">' + escapeHTML(fmtTime(dt)) + ' UTC</span><span>·</span><span>' + escapeHTML(d.time_window || '—') + ' window</span><span>·</span><span>' + (d.article_count || 0) + ' articles</span><span style="flex:1"></span>' + pinButtonHTML(d.filename) + '</div>' +
+      '<div class="tl-head">' + escapeHTML(topHeadline(d)) + '</div>' + priorityBarHTML(d) + '</a>';
+  }
+
+  function wireRows() {
+    els.archive.querySelectorAll('[data-index]').forEach(function(el) {
+      el.addEventListener('mouseenter', function() { setActive(Number(el.dataset.index), false); });
+      el.addEventListener('focus', function() { setActive(Number(el.dataset.index), false); });
+    });
+    els.archive.querySelectorAll('[data-pin]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        togglePin(btn.dataset.pin);
+      });
+    });
+  }
+
+  function setActive(index, scroll) {
+    if (index < 0 || index >= state.filtered.length) return;
+    state.active = index;
+    renderArchive();
+    if (scroll !== false) {
+      var el = els.archive.querySelector('[data-index="' + index + '"]');
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function setLayout(layout) {
+    state.layout = layout;
+    localStorage.setItem(LAYOUT_KEY, layout);
+    document.querySelectorAll('[data-layout]').forEach(function(btn) {
+      btn.classList.toggle('on', btn.dataset.layout === layout);
+    });
+    renderResultline();
+  }
+
+  function togglePin(filename) {
+    if (state.pinned.has(filename)) state.pinned.delete(filename);
+    else state.pinned.add(filename);
+    savePins(state.pinned);
+    applyFilters();
+  }
+
+  function pinButtonHTML(filename) {
+    var on = state.pinned.has(filename);
+    return '<button class="pin' + (on ? ' on' : '') + '" data-pin="' + escapeAttr(filename) + '" type="button" aria-label="' + (on ? 'Unpin digest' : 'Pin digest') + '">' + starSVG(on) + '</button>';
+  }
+
+  function priorityBarHTML(d) {
+    var must = d.must_count || 0;
+    var should = d.should_count || 0;
+    var may = d.may_count || 0;
+    var opt = d.opt_count || 0;
+    var total = must + should + may + opt || 1;
+    return '<div class="pri-bar" title="MUST ' + must + ' · SHOULD ' + should + ' · MAY ' + may + ' · OPT ' + opt + '">' +
+      '<span class="must" style="width:' + (must / total * 100) + '%"></span>' +
+      '<span class="should" style="width:' + (should / total * 100) + '%"></span>' +
+      '<span class="may" style="width:' + (may / total * 100) + '%"></span>' +
+      '<span class="opt" style="width:' + (opt / total * 100) + '%"></span></div>';
+  }
+
+  function previewHTML(d) {
+    return '<div class="preview"><ul>' + (d.headlines || []).slice(0, 3).map(function(h, i) {
+      var cls = i === 0 ? 'must' : i === 1 ? 'should' : 'may';
+      return '<li><span class="pri ' + cls + '"></span><span>' + escapeHTML(h) + '</span></li>';
+    }).join('') + '</ul></div>';
+  }
+
+  function statHTML(label, value) {
+    return '<div class="stat"><div class="k">' + escapeHTML(label) + '</div><div class="v">' + value + '</div></div>';
+  }
+
+  function loadPins() {
+    try { return new Set(JSON.parse(localStorage.getItem(PIN_KEY) || '[]')); }
+    catch (e) { return new Set(); }
+  }
+  function savePins(pins) {
+    try { localStorage.setItem(PIN_KEY, JSON.stringify(Array.from(pins))); } catch (e) {}
+  }
+  function fillSelect(select, values) {
+    select.innerHTML = '<option value="all">all</option>' + values.map(function(v) {
+      return '<option value="' + escapeAttr(v) + '">' + escapeHTML(v) + '</option>';
+    }).join('');
+  }
+  function unique(values) {
+    return Array.from(new Set(values));
+  }
+  function topHeadline(d) {
+    return (d.headlines && d.headlines[0]) || d.filename || 'Untitled digest';
+  }
+  function parseTs(s) {
+    if (!s) return null;
+    var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    if (!m) return null;
+    return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5])));
+  }
+  function fmtDate(d) {
+    return d ? d.toUTCString().slice(5, 16).trim() : '';
+  }
+  function fmtTime(d) {
+    return d ? d.toUTCString().slice(17, 22) : '';
+  }
+  function relDate(d) {
+    if (!d) return '—';
+    var hours = Math.round((Date.now() - d.getTime()) / 36e5);
+    if (hours < 1) return 'just now';
+    if (hours < 24) return hours + 'h ago';
+    var days = Math.round(hours / 24);
+    if (days < 30) return days + 'd ago';
+    return Math.round(days / 30) + 'mo ago';
+  }
+  function monthName(d) {
+    return d.toUTCString().slice(8, 11).toUpperCase();
+  }
+  function pad2(n) {
+    return String(n).padStart(2, '0');
+  }
+  function starSVG(filled) {
+    return '<svg width="14" height="14" viewBox="0 0 24 24" fill="' + (filled ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"></path></svg>';
+  }
+  function escapeHTML(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch];
+    });
+  }
+  function escapeAttr(value) {
+    return escapeHTML(value);
+  }
 })();
 </script>
 </body>

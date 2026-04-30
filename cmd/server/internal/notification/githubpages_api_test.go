@@ -64,6 +64,10 @@ func TestParseGitHubRepoURL(t *testing.T) {
 	}
 }
 
+// branchExistsResponse is a minimal JSON body returned by the GitHub branches
+// API; only needed in test mock servers.
+type branchExistsResponse struct{}
+
 func TestConfigureGitHubPagesSourceCreatesMissingSite(t *testing.T) {
 	var postBody githubPagesSourceRequest
 	requests := []string{}
@@ -75,7 +79,7 @@ func TestConfigureGitHubPagesSourceCreatesMissingSite(t *testing.T) {
 				t.Fatalf("unexpected method on branches: %s", r.Method)
 			}
 			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(githubBranchInfo{})
+			_ = json.NewEncoder(w).Encode(branchExistsResponse{})
 		case "/repos/owner/repo/pages":
 			switch r.Method {
 			case http.MethodGet:
@@ -114,23 +118,46 @@ func TestConfigureGitHubPagesSourceCreatesMissingSite(t *testing.T) {
 	}
 }
 
-func TestConfigureGitHubPagesSourceCreatesMissingBranchFromDefault(t *testing.T) {
-	var createRefBody githubCreateRefRequest
+// TestConfigureGitHubPagesSourceSeedsOrphanBranch verifies that a missing Pages
+// branch is always seeded via the Git API as an orphan commit, regardless of
+// whether the repository already has a default branch with commits. This avoids
+// forking main's source code into the Pages branch.
+func TestConfigureGitHubPagesSourceSeedsOrphanBranch(t *testing.T) {
 	requests := []string{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests = append(requests, r.Method+" "+r.URL.Path)
 		switch r.URL.Path {
 		case "/repos/owner/repo/branches/pages":
 			w.WriteHeader(http.StatusNotFound)
-		case "/repos/owner/repo":
-			_ = json.NewEncoder(w).Encode(githubRepoInfo{DefaultBranch: "main"})
-		case "/repos/owner/repo/branches/main":
-			_ = json.NewEncoder(w).Encode(githubBranchInfo{Commit: struct {
-				SHA string `json:"sha"`
-			}{SHA: "deadbeef"}})
+		case "/repos/owner/repo/git/trees":
+			if r.Method != http.MethodPost {
+				t.Fatalf("unexpected method on trees: %s", r.Method)
+			}
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(githubSHAResponse{SHA: "tree-sha"})
+		case "/repos/owner/repo/git/commits":
+			if r.Method != http.MethodPost {
+				t.Fatalf("unexpected method on commits: %s", r.Method)
+			}
+			var body githubCreateCommitRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode commit body: %v", err)
+			}
+			if body.Tree != "tree-sha" || len(body.Parents) != 0 {
+				t.Fatalf("commit body = %+v, want orphan commit using tree-sha", body)
+			}
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(githubSHAResponse{SHA: "commit-sha"})
 		case "/repos/owner/repo/git/refs":
-			if err := json.NewDecoder(r.Body).Decode(&createRefBody); err != nil {
-				t.Fatalf("decode create ref body: %v", err)
+			if r.Method != http.MethodPost {
+				t.Fatalf("unexpected method on refs: %s", r.Method)
+			}
+			var body githubCreateRefRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode ref body: %v", err)
+			}
+			if body.Ref != "refs/heads/pages" || body.SHA != "commit-sha" {
+				t.Fatalf("ref body = %+v, want refs/heads/pages at commit-sha", body)
 			}
 			w.WriteHeader(http.StatusCreated)
 		case "/repos/owner/repo/pages":
@@ -141,7 +168,7 @@ func TestConfigureGitHubPagesSourceCreatesMissingBranchFromDefault(t *testing.T)
 				w.WriteHeader(http.StatusCreated)
 			}
 		default:
-			t.Fatalf("unexpected path %s", r.URL.Path)
+			t.Fatalf("unexpected path %s %s (repo/branches/main and git/refs must not be called)", r.Method, r.URL.Path)
 		}
 	}))
 	defer server.Close()
@@ -157,51 +184,9 @@ func TestConfigureGitHubPagesSourceCreatesMissingBranchFromDefault(t *testing.T)
 	if err := publisher.configureGitHubPagesSourceIfEnabled(); err != nil {
 		t.Fatalf("configureGitHubPagesSourceIfEnabled() error = %v", err)
 	}
-	if createRefBody.Ref != "refs/heads/pages" || createRefBody.SHA != "deadbeef" {
-		t.Fatalf("create ref payload = %+v", createRefBody)
-	}
-}
-
-func TestConfigureGitHubPagesSourceSeedsEmptyRepo(t *testing.T) {
-	seeded := false
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/repos/owner/repo/branches/pages":
-			w.WriteHeader(http.StatusNotFound)
-		case "/repos/owner/repo":
-			_ = json.NewEncoder(w).Encode(githubRepoInfo{DefaultBranch: ""})
-		case "/repos/owner/repo/contents/.gitkeep":
-			if r.Method != http.MethodPut {
-				t.Fatalf("unexpected method on contents: %s", r.Method)
-			}
-			seeded = true
-			w.WriteHeader(http.StatusCreated)
-		case "/repos/owner/repo/pages":
-			switch r.Method {
-			case http.MethodGet:
-				w.WriteHeader(http.StatusNotFound)
-			case http.MethodPost:
-				w.WriteHeader(http.StatusCreated)
-			}
-		default:
-			t.Fatalf("unexpected path %s", r.URL.Path)
-		}
-	}))
-	defer server.Close()
-	withGitHubPagesAPIBaseURL(t, server.URL)
-
-	publisher := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{
-		RepoURL:        "https://github.com/owner/repo.git",
-		Branch:         "pages",
-		Token:          "token",
-		ConfigurePages: true,
-	})
-
-	if err := publisher.configureGitHubPagesSourceIfEnabled(); err != nil {
-		t.Fatalf("configureGitHubPagesSourceIfEnabled() error = %v", err)
-	}
-	if !seeded {
-		t.Fatalf("expected empty-repo seed PUT to /contents/.gitkeep")
+	want := "GET /repos/owner/repo/branches/pages,POST /repos/owner/repo/git/trees,POST /repos/owner/repo/git/commits,POST /repos/owner/repo/git/refs,GET /repos/owner/repo/pages,POST /repos/owner/repo/pages"
+	if got := strings.Join(requests, ","); got != want {
+		t.Fatalf("requests = %s, want %s", got, want)
 	}
 }
 
@@ -211,7 +196,7 @@ func TestConfigureGitHubPagesSourceUpdatesMismatchedSite(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/repos/owner/repo/branches/gh-pages":
-			_ = json.NewEncoder(w).Encode(githubBranchInfo{})
+			_ = json.NewEncoder(w).Encode(branchExistsResponse{})
 			return
 		case "/repos/owner/repo/pages":
 			requests = append(requests, r.Method)
@@ -258,7 +243,7 @@ func TestConfigureGitHubPagesSourceNoopsForMatchingSite(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/repos/owner/repo/branches/pages":
-			_ = json.NewEncoder(w).Encode(githubBranchInfo{})
+			_ = json.NewEncoder(w).Encode(branchExistsResponse{})
 			return
 		case "/repos/owner/repo/pages":
 			requests = append(requests, r.Method)
@@ -288,6 +273,63 @@ func TestConfigureGitHubPagesSourceNoopsForMatchingSite(t *testing.T) {
 	if got, want := strings.Join(requests, ","), "GET"; got != want {
 		t.Fatalf("requests = %s, want %s", got, want)
 	}
+}
+
+func TestDeleteRemoteBranchIfExists(t *testing.T) {
+	t.Run("deletes existing branch", func(t *testing.T) {
+		deleted := false
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/repos/owner/repo/branches/gh-pages":
+				w.WriteHeader(http.StatusOK)
+				_ = json.NewEncoder(w).Encode(branchExistsResponse{})
+			case "/repos/owner/repo/git/refs/heads/gh-pages":
+				if r.Method != http.MethodDelete {
+					t.Fatalf("expected DELETE, got %s", r.Method)
+				}
+				deleted = true
+				w.WriteHeader(http.StatusNoContent)
+			default:
+				t.Fatalf("unexpected path %s", r.URL.Path)
+			}
+		}))
+		defer server.Close()
+		withGitHubPagesAPIBaseURL(t, server.URL)
+
+		publisher := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{
+			RepoURL: "https://github.com/owner/repo.git",
+			Branch:  "gh-pages",
+			Token:   "token",
+		})
+		if err := publisher.deleteRemoteBranchIfExists("owner", "repo"); err != nil {
+			t.Fatalf("deleteRemoteBranchIfExists() error = %v", err)
+		}
+		if !deleted {
+			t.Fatalf("expected DELETE request to refs endpoint")
+		}
+	})
+
+	t.Run("no-ops when branch missing", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/repos/owner/repo/branches/gh-pages":
+				w.WriteHeader(http.StatusNotFound)
+			default:
+				t.Fatalf("unexpected path %s", r.URL.Path)
+			}
+		}))
+		defer server.Close()
+		withGitHubPagesAPIBaseURL(t, server.URL)
+
+		publisher := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{
+			RepoURL: "https://github.com/owner/repo.git",
+			Branch:  "gh-pages",
+			Token:   "token",
+		})
+		if err := publisher.deleteRemoteBranchIfExists("owner", "repo"); err != nil {
+			t.Fatalf("deleteRemoteBranchIfExists() error = %v, want nil", err)
+		}
+	})
 }
 
 func TestConfigureGitHubPagesSourceAPIErrorOnlyWhenEnabled(t *testing.T) {

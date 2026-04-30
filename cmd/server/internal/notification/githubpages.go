@@ -59,10 +59,6 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 		Password: p.cfg.Token,
 	}
 
-	if err := p.configureGitHubPagesSourceIfEnabled(); err != nil {
-		return fmt.Errorf("github pages: failed to configure GitHub Pages source: %w", err)
-	}
-
 	repo, err := p.ensureRepo(auth)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to prepare local repo: %w", err)
@@ -255,6 +251,133 @@ func (p *GitHubPagesPublisher) writeAndStageManifest(wt *gogit.Worktree, digest 
 		return fmt.Errorf("github pages: failed to stage manifest: %w", err)
 	}
 	return nil
+}
+
+// InitPages sets up (or re-initialises) the GitHub Pages repository.
+//
+// It creates the remote branch as a clean orphan if it is absent, optionally
+// configures the GitHub Pages source via the API (when configure_pages is
+// true), clones the branch locally, and seeds the initial static files
+// (manifest.json and index pages). Files that already exist are not
+// overwritten — the operation is idempotent.
+//
+// When reinit is true the remote branch and the local clone directory are
+// deleted before re-creating them from scratch.
+func (p *GitHubPagesPublisher) InitPages(reinit bool) error {
+	outputDir, err := resolveGitHubPagesOutputDir(p.cfg.OutputDir)
+	if err != nil {
+		return fmt.Errorf("github pages: invalid output dir: %w", err)
+	}
+
+	auth := &githttp.BasicAuth{
+		Username: "x-access-token",
+		Password: p.cfg.Token,
+	}
+
+	owner, repoName, err := parseGitHubRepoURL(p.cfg.RepoURL)
+	if err != nil {
+		return err
+	}
+
+	if reinit {
+		log.WithFields(log.Fields{"owner": owner, "repo": repoName, "branch": p.cfg.Branch}).
+			Info("Deleting remote branch for reinitialisation")
+		if err := p.deleteRemoteBranchIfExists(owner, repoName); err != nil {
+			return fmt.Errorf("github pages: delete branch: %w", err)
+		}
+		if err := os.RemoveAll(p.cfg.CloneDir); err != nil {
+			return fmt.Errorf("github pages: remove clone dir: %w", err)
+		}
+	}
+
+	if err := p.ensureRemoteBranchExists(owner, repoName); err != nil {
+		return fmt.Errorf("github pages: ensure branch %q exists: %w", p.cfg.Branch, err)
+	}
+
+	gitRepo, err := p.ensureRepo(auth)
+	if err != nil {
+		return fmt.Errorf("github pages: prepare local repo: %w", err)
+	}
+
+	wt, err := gitRepo.Worktree()
+	if err != nil {
+		return fmt.Errorf("github pages: get worktree: %w", err)
+	}
+
+	manifestRelPath := filepath.Join(outputDir, ManifestFilename)
+	manifestAbsPath := filepath.Join(p.cfg.CloneDir, manifestRelPath)
+	if reinit || !fileExists(manifestAbsPath) {
+		m, err := LoadManifest(manifestAbsPath)
+		if err != nil {
+			return fmt.Errorf("github pages: init manifest: %w", err)
+		}
+		if err := m.Write(manifestAbsPath); err != nil {
+			return fmt.Errorf("github pages: write manifest: %w", err)
+		}
+		if _, err := wt.Add(manifestRelPath); err != nil {
+			return fmt.Errorf("github pages: stage manifest: %w", err)
+		}
+	}
+
+	if err := p.ensureIndex(wt, outputDir); err != nil {
+		return err
+	}
+
+	status, err := wt.Status()
+	if err != nil {
+		return fmt.Errorf("github pages: get status: %w", err)
+	}
+	hasStaged := false
+	for _, s := range status {
+		if s.Staging != gogit.Unmodified {
+			hasStaged = true
+			break
+		}
+	}
+	if !hasStaged {
+		log.Info("GitHub Pages: nothing to commit — repository already initialised")
+		if p.cfg.ConfigurePages {
+			if err := p.configureGitHubPagesSource(); err != nil {
+				return fmt.Errorf("github pages: configure source: %w", err)
+			}
+		}
+		return nil
+	}
+
+	commitMsg := "Initialize GitHub Pages structure"
+	if reinit {
+		commitMsg = "Reinitialize GitHub Pages structure"
+	}
+	if _, err := wt.Commit(commitMsg, &gogit.CommitOptions{
+		Author: &object.Signature{
+			Name:  p.cfg.CommitAuthor,
+			Email: p.cfg.CommitEmail,
+			When:  time.Now(),
+		},
+	}); err != nil {
+		return fmt.Errorf("github pages: commit: %w", err)
+	}
+
+	if err := gitRepo.Push(&gogit.PushOptions{
+		RemoteName: "origin",
+		Auth:       auth,
+	}); err != nil {
+		return fmt.Errorf("github pages: push: %w", err)
+	}
+
+	if p.cfg.ConfigurePages {
+		if err := p.configureGitHubPagesSource(); err != nil {
+			return fmt.Errorf("github pages: configure source: %w", err)
+		}
+	}
+
+	log.WithField("branch", p.cfg.Branch).Info("GitHub Pages initialised successfully")
+	return nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func resolveGitHubPagesOutputDir(input string) (string, error) {

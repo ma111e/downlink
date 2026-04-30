@@ -12,6 +12,7 @@ import (
 	"downlink/pkg/models"
 	"downlink/pkg/protos"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -30,6 +31,8 @@ type DigestServer struct {
 	gw   *llmgateway.Gateway
 	llms *LLMsServer
 }
+
+const preferredNotificationTestDigestID = "digest-498edee4"
 
 // NewDigestServer creates a new Digest server instance. The gateway is the
 // single chokepoint for LLM calls (dedupe, summary, article analysis during
@@ -124,12 +127,17 @@ func cancelled(stream *safeStream) bool {
 
 // GenerateDigest generates a new digest, streaming progress events throughout the process
 func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStream protos.DigestService_GenerateDigestServer) error {
-	log.Info("Generating digest from recent articles")
-
 	// Parallel analysis workers race on stream.Send; serialize through safeStream.
 	stream := &safeStream{stream: rawStream}
 
 	ctx := rawStream.Context()
+	if req.GetTest() {
+		log.Info("Sending stored digest to notification channels for test")
+		return s.sendNotificationTestDigest(req, stream)
+	}
+
+	log.Info("Generating digest from recent articles")
+
 	startTime := req.StartTime.AsTime()
 	var endTime *time.Time
 	if req.EndTime != nil {
@@ -326,49 +334,12 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		"duplicateGroups": len(groupingResult.DuplicateGroups),
 	}).Info("Digest generated successfully")
 
-	// Send notifications if configured.
-	// Reload digest from DB once to populate ProviderResults (stored in a separate table).
-	discordEnabled := config.Config.Notifications.Discord.Enabled && config.Config.Notifications.Discord.WebhookURL != ""
-	ghPagesEnabled := config.Config.Notifications.GitHubPages.Enabled && config.Config.Notifications.GitHubPages.RepoURL != ""
-	if discordEnabled || ghPagesEnabled {
-		fullDigest, err := store.Db.GetDigest(digest.Id)
-		if err != nil {
-			log.WithError(err).Warn("Failed to reload digest for notifications, skipping all")
-		} else {
-			if discordEnabled {
-				sendProgress(stream, "notify", "sending Discord notification...", 0, 0)
-				notifier := notification.NewDiscordNotifier(config.Config.Notifications.Discord.WebhookURL)
-				if err := notifier.SendDigest(fullDigest); err != nil {
-					log.WithError(err).Warn("Failed to send Discord notification")
-				}
-
-				htmlBytes, err := notification.RenderDigestHTML(fullDigest, req.GetTheme())
-				if err != nil {
-					log.WithError(err).Warn("Failed to render digest HTML")
-				} else {
-					filename := notification.DigestHTMLFilename(fullDigest)
-					if err := notifier.SendHTMLFile(filename, htmlBytes); err != nil {
-						log.WithError(err).Warn("Failed to send digest HTML to Discord")
-					}
-				}
-			}
-
-			if ghPagesEnabled {
-				sendProgress(stream, "notify", "publishing digest to GitHub Pages...", 0, 0)
-				ghCfg := config.Config.Notifications.GitHubPages
-				if ghCfg.Token == "" {
-					ghCfg.Token = os.Getenv("DOWNLINK_GH_PAGES_TOKEN")
-				}
-				if ghCfg.Token == "" {
-					log.Warn("GitHub Pages enabled but no token configured (set token in config or DOWNLINK_GH_PAGES_TOKEN env); skipping")
-				} else {
-					publisher := notification.NewGitHubPagesPublisher(ghCfg)
-					if err := publisher.SendDigest(fullDigest); err != nil {
-						log.WithError(err).Warn("Failed to publish digest to GitHub Pages")
-					}
-				}
-			}
-		}
+	// Send notifications if configured. Reload digest once so Articles,
+	// ProviderResults, and DigestAnalyses are populated for renderers.
+	if fullDigest, err := store.Db.GetDigest(digest.Id); err != nil {
+		log.WithError(err).Warn("Failed to reload digest for notifications, skipping all")
+	} else if _, err := sendConfiguredDigestNotifications(stream, fullDigest, req.GetTheme(), false); err != nil {
+		log.WithError(err).Warn("Failed to send one or more digest notifications")
 	}
 
 	// Final event: send the completed digest
@@ -381,6 +352,153 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	}
 
 	return nil
+}
+
+func (s *DigestServer) sendNotificationTestDigest(req *protos.GenerateDigestRequest, stream *safeStream) error {
+	sendProgress(stream, "notify", "loading test digest...", 0, 0)
+
+	digestID, err := s.resolveNotificationTestDigestID(req.GetTestDigestId())
+	if err != nil {
+		_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: err.Error()})
+		return err
+	}
+
+	digest, err := store.Db.GetDigest(digestID)
+	if err != nil {
+		err = fmt.Errorf("failed to load test digest %q: %w", digestID, err)
+		_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: err.Error()})
+		return err
+	}
+
+	attempts, err := sendConfiguredDigestNotifications(stream, digest, req.GetTheme(), true)
+	if err != nil {
+		_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: err.Error()})
+		return err
+	}
+	if attempts == 0 {
+		err := errors.New("no notification channels are configured")
+		_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: err.Error()})
+		return err
+	}
+
+	if err := stream.Send(&protos.DigestProgressEvent{
+		Stage:   "done",
+		Message: fmt.Sprintf("sent test digest %s to %d notification channel(s)", digest.Id, attempts),
+		Digest:  mappers.DigestToProto(&digest),
+	}); err != nil {
+		return fmt.Errorf("failed to send final test digest event: %w", err)
+	}
+	return nil
+}
+
+func (s *DigestServer) resolveNotificationTestDigestID(requestedID string) (string, error) {
+	if requestedID != "" {
+		return requestedID, nil
+	}
+
+	if _, err := store.Db.GetDigest(preferredNotificationTestDigestID); err == nil {
+		return preferredNotificationTestDigestID, nil
+	}
+
+	digests, err := store.Db.ListDigests(0)
+	if err != nil {
+		return "", fmt.Errorf("failed to list digests for notification test selection: %w", err)
+	}
+	if len(digests) == 0 {
+		return "", errors.New("no digests are available for notification testing")
+	}
+
+	best := digests[0]
+	bestScore := notificationTestDigestScore(best)
+	for _, candidate := range digests[1:] {
+		score := notificationTestDigestScore(candidate)
+		if score > bestScore {
+			best = candidate
+			bestScore = score
+		}
+	}
+
+	return best.Id, nil
+}
+
+func notificationTestDigestScore(digest models.Digest) int {
+	score := 0
+	if digest.ArticleCount != nil {
+		score += *digest.ArticleCount
+	}
+	if digest.DigestSummary != "" {
+		score += 200
+	}
+	score += len(digest.ProviderResults) * 100
+
+	duplicateGroups := map[string]struct{}{}
+	for _, analysis := range digest.DigestAnalyses {
+		if analysis.DuplicateGroup == "" {
+			continue
+		}
+		duplicateGroups[analysis.DuplicateGroup] = struct{}{}
+		score += 20
+		if analysis.IsMostComprehensive {
+			score += 10
+		}
+	}
+	score += len(duplicateGroups) * 200
+
+	return score
+}
+
+func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest, theme string, failOnError bool) (int, error) {
+	var errs []error
+	attempts := 0
+
+	discordEnabled := config.Config.Notifications.Discord.Enabled && config.Config.Notifications.Discord.WebhookURL != ""
+	if discordEnabled {
+		attempts++
+		sendProgress(stream, "notify", "sending Discord notification...", 0, 0)
+		notifier := notification.NewDiscordNotifier(config.Config.Notifications.Discord.WebhookURL)
+		if err := notifier.SendDigest(digest); err != nil {
+			log.WithError(err).Warn("Failed to send Discord notification")
+			errs = append(errs, fmt.Errorf("discord digest: %w", err))
+		}
+
+		htmlBytes, err := notification.RenderDigestHTML(digest, theme)
+		if err != nil {
+			log.WithError(err).Warn("Failed to render digest HTML")
+			errs = append(errs, fmt.Errorf("discord html render: %w", err))
+		} else {
+			filename := notification.DigestHTMLFilename(digest)
+			if err := notifier.SendHTMLFile(filename, htmlBytes); err != nil {
+				log.WithError(err).Warn("Failed to send digest HTML to Discord")
+				errs = append(errs, fmt.Errorf("discord html upload: %w", err))
+			}
+		}
+	}
+
+	ghPagesEnabled := config.Config.Notifications.GitHubPages.Enabled && config.Config.Notifications.GitHubPages.RepoURL != ""
+	if ghPagesEnabled {
+		attempts++
+		sendProgress(stream, "notify", "publishing digest to GitHub Pages...", 0, 0)
+		ghCfg := config.Config.Notifications.GitHubPages
+		if ghCfg.Token == "" {
+			ghCfg.Token = os.Getenv("DOWNLINK_GH_PAGES_TOKEN")
+		}
+		if ghCfg.Token == "" {
+			err := errors.New("GitHub Pages enabled but no token configured (set token in config or DOWNLINK_GH_PAGES_TOKEN env)")
+			log.Warn(err)
+			errs = append(errs, err)
+		} else {
+			publisher := notification.NewGitHubPagesPublisher(ghCfg)
+			if err := publisher.SendDigest(digest); err != nil {
+				log.WithError(err).Warn("Failed to publish digest to GitHub Pages")
+				errs = append(errs, fmt.Errorf("github pages: %w", err))
+			}
+		}
+	}
+
+	if failOnError && len(errs) > 0 {
+		return attempts, errors.Join(errs...)
+	}
+	return attempts, nil
 }
 
 // getRecentArticles retrieves articles published within the given time range.
