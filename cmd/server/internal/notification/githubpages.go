@@ -78,6 +78,10 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 		return err
 	}
 
+	if err := p.renderAndStageSwipe(wt, digest, outputDir); err != nil {
+		return err
+	}
+
 	if err := p.writeAndStageManifest(wt, digest, outputDir); err != nil {
 		return err
 	}
@@ -288,6 +292,29 @@ func renderGitHubPagesRootIndex(indexPath string) []byte {
 <p><a href="%s">View Downlink digests</a></p>
 </body>
 </html>`, indexPath, indexPath))
+}
+
+// renderAndStageSwipe renders the swipe triage view, writes it alongside the
+// digest HTML, and stages it in the worktree.
+func (p *GitHubPagesPublisher) renderAndStageSwipe(wt *gogit.Worktree, digest models.Digest, outputDir string) error {
+	digestFilename := DigestHTMLFilename(digest)
+	swipeBytes, err := RenderSwipeHTML(digest, digestFilename)
+	if err != nil {
+		return fmt.Errorf("github pages: failed to render swipe HTML: %w", err)
+	}
+
+	swipeFilename := SwipeHTMLFilename(digest)
+	swipeRelPath := filepath.Join(outputDir, swipeFilename)
+	swipeAbsPath := filepath.Join(p.cfg.CloneDir, swipeRelPath)
+
+	if err := os.WriteFile(swipeAbsPath, swipeBytes, 0644); err != nil {
+		return fmt.Errorf("github pages: failed to write swipe HTML: %w", err)
+	}
+
+	if _, err := wt.Add(swipeRelPath); err != nil {
+		return fmt.Errorf("github pages: failed to stage swipe file: %w", err)
+	}
+	return nil
 }
 
 // renderAndStage renders a digest, writes it to the publisher's output dir,
