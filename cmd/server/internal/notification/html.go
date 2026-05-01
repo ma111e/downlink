@@ -208,6 +208,7 @@ type digestTemplateData struct {
 	ModelName        string
 	TimeWindow       string
 	SwipeFilename    string
+	DigestTitle      string
 	ThemeOverride    template.CSS
 	DigestSummary    template.HTML // kept for backwards compat; OverviewSections is used for rendering
 	OverviewSections []OverviewSection
@@ -335,6 +336,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		ModelName:        digestModelName,
 		TimeWindow:       formatDuration(digest.TimeWindow),
 		SwipeFilename:    SwipeHTMLFilename(digest),
+		DigestTitle:      digest.Title,
 		DigestSummary:    markdownToHTML(digest.DigestSummary),
 		OverviewSections: parseOverviewSections(digest.DigestSummary),
 		TOCGroups:        tocGroups,
