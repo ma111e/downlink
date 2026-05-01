@@ -841,7 +841,7 @@ func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[
 
 	windowDuration := windowEnd.Sub(windowStart)
 
-	return fmt.Sprintf(`You are a senior cyber threat intelligence analyst authoring a weekly digest for a technical security audience (threat hunters, detection engineers, SOC analysts, and incident responders).
+	return fmt.Sprintf(`You are a senior cyber threat intelligence analyst authoring a news digest for a technical security audience (threat hunters, detection engineers, SOC analysts, and incident responders).
 
 Below is a list of articles with their key points. These articles were selected for the digest coverage window shown below. Use this window to frame the digest, but do not imply the reported events occurred exactly within the window unless the article details say so.
 
@@ -863,7 +863,7 @@ Digest coverage window:
 
 Write a comprehensive digest summary (approximately 300-500 words) that presents these articles in a cohesive narrative. Focus on the key takeaways.
 
-Important: Your response must be purely factual and descriptive. Do NOT include sections on strategic recommendations, action items, mitigation advice, or "what you should do." This digest is for intelligence reporting only — present threats, incidents, and trends as reported, without prescribing any response.
+Important: Your response must be purely factual and descriptive. Do NOT include sections on strategic recommendations, action items, mitigation advice, or "what you should do." This digest is for intelligence reporting only: present threats, incidents, and trends as reported, without prescribing any response.
 `, windowStart.UTC().Format(time.RFC3339), windowEnd.UTC().Format(time.RFC3339), windowDuration.String(), articlesList.String())
 }
 
