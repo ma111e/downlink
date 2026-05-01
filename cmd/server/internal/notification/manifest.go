@@ -28,6 +28,7 @@ type ManifestEntry struct {
 	OptCount           int      `json:"opt_count"`
 	Provider           string   `json:"provider"`
 	Model              string   `json:"model"`
+	Title              string   `json:"title,omitempty"`
 	Headlines          []string `json:"headlines"`
 	HeadlinePriorities []string `json:"headline_priorities,omitempty"`
 	Summary            string   `json:"summary"`
@@ -132,6 +133,7 @@ func ManifestEntryFromDigest(d models.Digest) ManifestEntry {
 		OptCount:           opt,
 		Provider:           provider,
 		Model:              model,
+		Title:              d.Title,
 		Headlines:          headlines,
 		HeadlinePriorities: headlinePriorities,
 		Summary:            digestSummaryText(d.DigestSummary, 220),

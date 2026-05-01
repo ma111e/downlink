@@ -257,13 +257,13 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	}
 
 	// Step 3: Generate digest summary presentation
-	var digestSummary string
+	var digestTitle, digestSummary string
 	var summaryProviderType, summaryModelName string
 	if req.SkipSummary {
 		log.Info("Skipping digest summary generation (skip_summary requested)")
 	} else {
 		sendProgress(stream, "summarize", "generating digest summary...", 0, 0)
-		digestSummary, summaryProviderType, summaryModelName, err = s.generateDigestSummary(ctx, analyses, articleMap, windowStart, windowEnd)
+		digestTitle, digestSummary, summaryProviderType, summaryModelName, err = s.generateDigestSummary(ctx, analyses, articleMap, windowStart, windowEnd)
 		if err != nil {
 			log.WithError(err).Warn("Failed to generate digest summary, continuing without it")
 		} else {
@@ -281,6 +281,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		ArticleCount:        &articleLen,
 		TimeWindow:          windowDuration,
 		RawGroupingResponse: rawResponse,
+		Title:               digestTitle,
 		DigestSummary:       digestSummary,
 	}
 
@@ -789,15 +790,20 @@ If no duplicates are found, return: {"duplicate_groups": []}`, articleSummaries.
 	return &result, rawResponse, nil
 }
 
+type digestSummaryResponse struct {
+	Title   string `json:"title"`
+	Summary string `json:"summary"`
+}
+
 // generateDigestSummary creates a presentation/summary of the digest from articles and their key points.
-// Returns (summary, providerType, modelName, error).
-func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time) (string, string, string, error) {
+// Returns (title, summary, providerType, modelName, error).
+func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time) (string, string, string, string, error) {
 	prompt := buildDigestSummaryPrompt(analyses, articleMap, windowStart, windowEnd)
 
 	summaryTemp := 0.5
 	resolved, err := ResolveLLM(LLMRequest{Temperature: &summaryTemp})
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to resolve LLM provider: %w", err)
+		return "", "", "", "", fmt.Errorf("failed to resolve LLM provider: %w", err)
 	}
 
 	log.WithFields(log.Fields{
@@ -809,14 +815,27 @@ func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []mod
 	stepCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
-	summary, err := s.gw.Generate(stepCtx, resolved.Provider, prompt, llmgateway.WithLabel("digest:summary"))
+	rawResponse, err := s.gw.Generate(stepCtx, resolved.Provider, prompt, llmgateway.WithLabel("digest:summary"))
 	if err != nil {
-		return "", "", "", fmt.Errorf("LLM call for digest summary failed: %w", err)
+		return "", "", "", "", fmt.Errorf("LLM call for digest summary failed: %w", err)
 	}
 
-	log.WithField("summaryLen", len(summary)).Info("Digest summary generated")
+	cleaned := llmutil.CleanLLMResponse(rawResponse)
+	var parsed digestSummaryResponse
+	if err := json.Unmarshal([]byte(cleaned), &parsed); err != nil {
+		potentialJSON := llmutil.ExtractJSON(cleaned)
+		if err := json.Unmarshal([]byte(potentialJSON), &parsed); err != nil {
+			log.WithError(err).Warn("Failed to parse digest summary JSON, storing raw response as summary")
+			return "", strings.TrimSpace(rawResponse), resolved.ProviderType, resolved.ModelName, nil
+		}
+	}
 
-	return strings.TrimSpace(summary), resolved.ProviderType, resolved.ModelName, nil
+	log.WithFields(log.Fields{
+		"titleLen":   len(parsed.Title),
+		"summaryLen": len(parsed.Summary),
+	}).Info("Digest summary generated")
+
+	return strings.TrimSpace(parsed.Title), strings.TrimSpace(parsed.Summary), resolved.ProviderType, resolved.ModelName, nil
 }
 
 func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time) string {
@@ -845,7 +864,7 @@ func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[
 
 Below is a list of articles with their key points. These articles were selected for the digest coverage window shown below. Use this window to frame the digest, but do not imply the reported events occurred exactly within the window unless the article details say so.
 
-The summary should:
+The digest should:
 1. Provide an executive overview of the main themes and trends
 2. Highlight the most critical threats or incidents
 3. Group related topics together
@@ -861,9 +880,13 @@ Digest coverage window:
 %s
 </articles>
 
-Write a comprehensive digest summary (approximately 300-500 words) that presents these articles in a cohesive narrative. Focus on the key takeaways.
+Respond with a JSON object in this exact format (no markdown fences, no extra text):
+{
+  "title": "<concise title of 5-20 words that captures the dominant theme of this digest>",
+  "summary": "<comprehensive digest summary of approximately 300-500 words that presents these articles in a cohesive narrative, focused on key takeaways>"
+}
 
-Important: Your response must be purely factual and descriptive. Do NOT include sections on strategic recommendations, action items, mitigation advice, or "what you should do." This digest is for intelligence reporting only: present threats, incidents, and trends as reported, without prescribing any response.
+The summary must be purely factual and descriptive. Do NOT include sections on strategic recommendations, action items, mitigation advice, or "what you should do." This digest is for intelligence reporting only: present threats, incidents, and trends as reported, without prescribing any response.
 `, windowStart.UTC().Format(time.RFC3339), windowEnd.UTC().Format(time.RFC3339), windowDuration.String(), articlesList.String())
 }
 
