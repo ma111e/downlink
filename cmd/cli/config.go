@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 )
 
@@ -38,8 +37,7 @@ func createConfigCommands() *cobra.Command {
 				}
 				fmt.Println(string(out))
 			} else {
-				fmt.Println("Server Configuration:")
-				spew.Dump(config)
+				printServerConfig(config)
 			}
 		},
 	}

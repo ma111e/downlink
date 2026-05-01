@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 )
 
@@ -69,11 +68,7 @@ func createArticleCommands() *cobra.Command {
 				}
 				fmt.Println(string(out))
 			} else {
-				fmt.Printf("Found %d articles:\n", len(articles))
-				fmt.Println("----------------------------------------------------")
-				for _, article := range articles {
-					spew.Dump(article)
-				}
+				printArticleTable(articles)
 			}
 		},
 	}
@@ -110,8 +105,7 @@ func createArticleCommands() *cobra.Command {
 				}
 				fmt.Println(string(out))
 			} else {
-				fmt.Println("Article Details:")
-				spew.Dump(article)
+				printArticleDetail(article)
 			}
 		},
 	}

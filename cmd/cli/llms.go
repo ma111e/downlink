@@ -10,7 +10,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 )
 
@@ -56,19 +55,7 @@ func createLLMCommands() *cobra.Command {
 					}
 					fmt.Println(string(out))
 				} else {
-					fmt.Printf("%-20s %-12s %-36s %s\n", "NAME", "TYPE", "MODEL", "ENABLED")
-					fmt.Printf("%-20s %-12s %-36s %s\n", strings.Repeat("-", 20), strings.Repeat("-", 12), strings.Repeat("-", 36), strings.Repeat("-", 7))
-					for _, provider := range providers {
-						enabled := "no"
-						if provider.Enabled {
-							enabled = "yes"
-						}
-						name := provider.Name
-						if name == "" {
-							name = "(unnamed)"
-						}
-						fmt.Printf("%-20s %-12s %-36s %s\n", name, provider.ProviderType, provider.ModelName, enabled)
-					}
+					printProviderTable(providers)
 				}
 
 			case "models":
@@ -92,11 +79,7 @@ func createLLMCommands() *cobra.Command {
 					}
 					fmt.Println(string(out))
 				} else {
-					fmt.Println("Available Models:")
-
-					for _, model := range availableModels.Models {
-						spew.Dump(model)
-					}
+					printModelInfoTable(availableModels.Models)
 				}
 
 			default:

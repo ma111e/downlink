@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 )
 
@@ -71,10 +70,7 @@ func createDigestCommands() *cobra.Command {
 				}
 				fmt.Println(string(out))
 			} else {
-				fmt.Printf("Found %d digests:\n", len(digests))
-				for _, digest := range digests {
-					spew.Dump(digest)
-				}
+				printDigestTable(digests)
 			}
 		},
 	}
@@ -106,24 +102,12 @@ func createDigestCommands() *cobra.Command {
 				}
 				fmt.Println(string(out))
 			} else {
-				fmt.Println("Digest Details:")
-				spew.Dump(digest)
-
-				// Get articles for this digest
 				articles, err := client.GetDigestArticles(digestId)
 				if err != nil {
 					fmt.Printf("Failed to get digest articles: %v\n", err)
 					return
 				}
-
-				if len(articles) > 0 {
-					fmt.Println("\nArticles in this digest:")
-					for i, article := range articles {
-						fmt.Printf("%d. %s\n", i+1, article.Title)
-					}
-				} else {
-					fmt.Println("\nNo articles in this digest.")
-				}
+				printDigestDetail(digest, articles)
 			}
 		},
 	}
@@ -260,16 +244,9 @@ Examples:
 				if len(articles) == 0 {
 					fmt.Println("No articles found in this time window.")
 				} else {
-					for i, article := range articles {
-						title := article.Title
-						published := ""
-						if !article.PublishedAt.IsZero() {
-							published = article.PublishedAt.Format("2006-01-02")
-						}
-						fmt.Printf("%d. %-12s %-10s %s\n", i+1, article.Id[34:], published, title)
-					}
+					printArticleTable(articles)
 					if len(articles) >= 100 {
-						fmt.Println("\nNote: Showing first 100 article")
+						fmt.Println("\nNote: Showing first 100 articles")
 					}
 				}
 				fmt.Println("\n(no digest generated)")
@@ -411,11 +388,8 @@ Examples:
 				}
 				fmt.Println(string(out))
 			} else {
-				fmt.Printf("Found %d articles in digest %s:\n", len(articles), digestId)
-
-				for _, article := range articles {
-					spew.Dump(article)
-				}
+				fmt.Printf("Articles in digest %s:\n\n", digestId)
+				printArticleTable(articles)
 			}
 		},
 	}

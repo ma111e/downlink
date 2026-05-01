@@ -86,7 +86,5 @@ func findFeedByIDOrNormalizedName(client *downlinkclient.DownlinkClient, input s
 
 func printAvailableFeeds(feeds []models.Feed) {
 	fmt.Println("\nAvailable feeds:")
-	for _, feed := range feeds {
-		fmt.Printf("  - %s (ID: %s, normalized: %s)\n", feed.Title, feed.Id, utils.NormalizeFeedName(feed.Title))
-	}
+	printFeedTable(feeds)
 }

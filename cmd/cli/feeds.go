@@ -10,7 +10,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 )
 
@@ -246,10 +245,7 @@ func createFeedCommands() *cobra.Command {
 				}
 				fmt.Println(string(out))
 			} else {
-				fmt.Printf("Found %d feeds:\n", len(feeds))
-				for _, feed := range feeds {
-					spew.Dump(feed)
-				}
+				printFeedTable(feeds)
 			}
 		},
 	}

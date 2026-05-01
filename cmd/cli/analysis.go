@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 )
 
@@ -50,8 +49,7 @@ func createAnalysisCommands() *cobra.Command {
 				}
 				fmt.Println(string(out))
 			} else {
-				fmt.Println("Analysis Configuration:")
-				spew.Dump(config)
+				printAnalysisConfig(config)
 			}
 		},
 	}
@@ -251,7 +249,7 @@ Batch Analysis by Feed/Time:
 					if profile != "" {
 						fmt.Printf("\n=== profile: %s ===\n", profile)
 					}
-					var analysis interface{}
+					var analysis models.ArticleAnalysis
 					var err error
 					if profile != "" {
 						analysis, err = client.StreamAnalyzeArticleWithProfile(articleId, profile, runKeyPointsOnly, onEvent)
@@ -276,8 +274,7 @@ Batch Analysis by Feed/Time:
 						}
 						fmt.Println(string(out))
 					} else {
-						fmt.Println("Analysis Results:")
-						spew.Dump(analysis)
+						printAnalysisDetail(analysis)
 					}
 					return true
 				}
@@ -380,18 +377,7 @@ Batch Analysis by Feed/Time:
 
 			// Dry-run mode: just list the articles
 			if runDryRun {
-				fmt.Printf("Found %d articles:\n\n", len(allArticles))
-				for _, a := range allArticles {
-					title := a.Title
-					if len(title) > 60 {
-						title = title[:57] + "..."
-					}
-					published := ""
-					if !a.PublishedAt.IsZero() {
-						published = a.PublishedAt.Format("2006-01-02")
-					}
-					fmt.Printf("  %-12s %-10s %s\n", a.Id[:12], published, title)
-				}
+				printArticleTable(allArticles)
 				return
 			}
 
@@ -483,11 +469,8 @@ Batch Analysis by Feed/Time:
 				}
 				fmt.Println(string(out))
 			} else {
-				fmt.Printf("Found %d analyses for article %s:\n", len(analyses), articleId)
-				for i, analysis := range analyses {
-					fmt.Printf("\nAnalysis #%d:\n", i+1)
-					spew.Dump(analysis)
-				}
+				fmt.Printf("Analyses for article %s:\n\n", articleId)
+				printAnalysisList(analyses)
 			}
 		},
 	}
@@ -517,8 +500,7 @@ Batch Analysis by Feed/Time:
 				}
 				fmt.Println(string(out))
 			} else {
-				fmt.Printf("Analysis results for ID %s:\n", analysisId)
-				spew.Dump(analysis)
+				printAnalysisDetail(analysis)
 			}
 		},
 	}
@@ -548,35 +530,7 @@ Batch Analysis by Feed/Time:
 				}
 				fmt.Println(string(out))
 			} else {
-				fmt.Printf("Queue Status:\n")
-				fmt.Printf("  Processing: %v\n", status.IsProcessing)
-				if status.IsProcessing && status.CurrentTitle != "" {
-					fmt.Printf("  Current Article: %s\n", status.CurrentTitle)
-				}
-				fmt.Printf("  Queued Articles: %d\n\n", len(status.Queue))
-
-				if len(status.Queue) > 0 {
-					fmt.Println("Queued Jobs:")
-					for i, job := range status.Queue {
-						title := job.ArticleTitle
-						if len(title) > 60 {
-							title = title[:57] + "..."
-						}
-						if job.ProviderName != "" {
-							fmt.Printf("  %d. %s\n     Profile: %s\n", i+1, title, job.ProviderName)
-						} else {
-							provider := job.ProviderType
-							if provider == "" {
-								provider = "(default)"
-							}
-							model := job.ModelName
-							if model == "" {
-								model = "(default)"
-							}
-							fmt.Printf("  %d. %s\n     Provider: %s, Model: %s\n", i+1, title, provider, model)
-						}
-					}
-				}
+				printQueueStatus(status)
 			}
 		},
 	}
