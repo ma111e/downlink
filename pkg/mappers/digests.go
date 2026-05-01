@@ -37,7 +37,8 @@ func DigestToProto(digest *models.Digest) *protos.Digest {
 		protoDigest.Articles = AllArticlesToProto(digest.Articles)
 	}
 
-	// Convert digest summary
+	// Convert title and digest summary
+	protoDigest.Title = digest.Title
 	protoDigest.DigestSummary = digest.DigestSummary
 
 	// Convert digest analyses
@@ -91,7 +92,8 @@ func DigestToModel(digest *protos.Digest) *models.Digest {
 		modelDigest.Articles = AllArticlesToModels(digest.Articles)
 	}
 
-	// Convert digest summary
+	// Convert title and digest summary
+	modelDigest.Title = digest.Title
 	modelDigest.DigestSummary = digest.DigestSummary
 
 	// Convert digest analyses

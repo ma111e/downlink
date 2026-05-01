@@ -895,6 +895,7 @@ type Digest struct {
 	Articles        []*Article              `protobuf:"bytes,6,rep,name=articles,proto3" json:"articles,omitempty"`
 	DigestSummary   string                  `protobuf:"bytes,7,opt,name=digest_summary,json=digestSummary,proto3" json:"digest_summary,omitempty"`
 	DigestAnalyses  []*DigestAnalysis       `protobuf:"bytes,8,rep,name=digest_analyses,json=digestAnalyses,proto3" json:"digest_analyses,omitempty"`
+	Title           string                  `protobuf:"bytes,9,opt,name=title,proto3" json:"title,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -983,6 +984,13 @@ func (x *Digest) GetDigestAnalyses() []*DigestAnalysis {
 		return x.DigestAnalyses
 	}
 	return nil
+}
+
+func (x *Digest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
 }
 
 // DigestArticle represents an article included in a digest
@@ -1116,7 +1124,7 @@ const file_digests_proto_rawDesc = "" +
 	"\x0fduplicate_group\x18\x04 \x01(\tR\x0eduplicateGroup\x122\n" +
 	"\x15is_most_comprehensive\x18\x05 \x01(\bR\x13isMostComprehensive\x12:\n" +
 	"\banalysis\x18\x06 \x01(\v2\x19.downlink.ArticleAnalysisH\x00R\banalysis\x88\x01\x01B\v\n" +
-	"\t_analysis\"\x98\x03\n" +
+	"\t_analysis\"\xae\x03\n" +
 	"\x06Digest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1127,7 +1135,8 @@ const file_digests_proto_rawDesc = "" +
 	"\x10provider_results\x18\x05 \x03(\v2\x1e.downlink.DigestProviderResultR\x0fproviderResults\x12-\n" +
 	"\barticles\x18\x06 \x03(\v2\x11.downlink.ArticleR\barticles\x12%\n" +
 	"\x0edigest_summary\x18\a \x01(\tR\rdigestSummary\x12A\n" +
-	"\x0fdigest_analyses\x18\b \x03(\v2\x18.downlink.DigestAnalysisR\x0edigestAnalyses\"K\n" +
+	"\x0fdigest_analyses\x18\b \x03(\v2\x18.downlink.DigestAnalysisR\x0edigestAnalyses\x12\x14\n" +
+	"\x05title\x18\t \x01(\tR\x05title\"K\n" +
 	"\rDigestArticle\x12\x1b\n" +
 	"\tdigest_id\x18\x01 \x01(\tR\bdigestId\x12\x1d\n" +
 	"\n" +

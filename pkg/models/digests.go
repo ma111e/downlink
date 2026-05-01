@@ -33,6 +33,7 @@ type WorkerPoolConfig struct {
 type Digest struct {
 	Id                  string                 `gorm:"primaryKey" json:"id"`
 	CreatedAt           time.Time              `gorm:"index" json:"created_at"`
+	Title               string                 `gorm:"type:text" json:"title,omitempty"`
 	ArticleCount        *int                   `gorm:"default:0" json:"article_count"`
 	TimeWindow          time.Duration          `json:"time_window"`
 	RawGroupingResponse string                 `gorm:"type:text" json:"raw_grouping_response,omitempty"`
