@@ -2,7 +2,6 @@ package main
 
 import (
 	"downlink/pkg/downlinkclient"
-	"downlink/pkg/envoverride"
 	"fmt"
 	"os"
 
@@ -19,7 +18,6 @@ var (
 	address    string
 	port       int
 	jsonOutput bool
-	envVars    []string
 )
 
 func main() {
@@ -29,9 +27,6 @@ func main() {
 		Use:   "downlink-cli",
 		Short: "DOWNLINK CLI",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := envoverride.Apply(envVars); err != nil {
-				return err
-			}
 			if err := gotenv.Load(".env"); err != nil && !os.IsNotExist(err) {
 				log.WithError(err).Warn("Failed to load .env file")
 			}
@@ -43,7 +38,6 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&address, "address", "localhost", "gRPC server address")
 	rootCmd.PersistentFlags().IntVar(&port, "port", 50051, "gRPC server port")
 	rootCmd.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
-	rootCmd.PersistentFlags().StringArrayVar(&envVars, "env", nil, "Set an environment variable override (KEY=VALUE); may be repeated")
 
 	// Add all command groups
 	rootCmd.AddCommand(createArticleCommands())

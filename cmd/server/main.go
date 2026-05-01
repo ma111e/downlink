@@ -7,7 +7,6 @@ import (
 	"downlink/cmd/server/internal/notification"
 	"downlink/cmd/server/internal/scrapers"
 	"downlink/cmd/server/internal/store"
-	"downlink/pkg/envoverride"
 	"downlink/pkg/llmgateway"
 	"downlink/pkg/protos"
 	"errors"
@@ -51,16 +50,11 @@ func main() {
 	var solimenAddr string
 	var logLevel string
 	var maxConcurrentLLMRequests int
-	var envVars []string
 
 	rootCmd := &cobra.Command{
 		Use:   "server",
 		Short: "Start the DOWNLINK server",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := envoverride.Apply(envVars); err != nil {
-				return err
-			}
-
 			// Load .env file into OS env (keys not already set in environment).
 			// Silently ignore missing file.
 			if err := gotenv.Load(".env"); err != nil && !os.IsNotExist(err) {
@@ -217,7 +211,6 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&solimenAddr, "solimen-addr", "http://localhost:5011", "Solimen service address for full_browser scraping (e.g. http://localhost:5011)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (trace, debug, info, warn, error)")
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentLLMRequests, "max-concurrent-llm-requests", 1, "Maximum number of concurrent LLM analysis requests (default: 1)")
-	rootCmd.PersistentFlags().StringArrayVar(&envVars, "env", nil, "Set an environment variable override (KEY=VALUE); may be repeated")
 	//rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./excuses-client.yml)")
 
 	rootCmd.PersistentFlags().Bool("gh-pages-enabled", false, "Enable GitHub Pages publishing [overrides config]")
