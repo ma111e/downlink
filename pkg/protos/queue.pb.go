@@ -109,14 +109,15 @@ func (x *QueueJob) GetProviderName() string {
 
 // EnqueueArticlesRequest adds articles to the analysis queue
 type EnqueueArticlesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ArticleIds    []string               `protobuf:"bytes,1,rep,name=article_ids,json=articleIds,proto3" json:"article_ids,omitempty"`
-	ProviderType  string                 `protobuf:"bytes,2,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
-	ModelName     string                 `protobuf:"bytes,3,opt,name=model_name,json=modelName,proto3" json:"model_name,omitempty"`
-	FastMode      bool                   `protobuf:"varint,4,opt,name=fast_mode,json=fastMode,proto3" json:"fast_mode,omitempty"`            // If true, only extract key points
-	ProviderName  string                 `protobuf:"bytes,5,opt,name=provider_name,json=providerName,proto3" json:"provider_name,omitempty"` // Named profile from config.providers; takes precedence over provider_type/model_name
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ArticleIds     []string               `protobuf:"bytes,1,rep,name=article_ids,json=articleIds,proto3" json:"article_ids,omitempty"`
+	ProviderType   string                 `protobuf:"bytes,2,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
+	ModelName      string                 `protobuf:"bytes,3,opt,name=model_name,json=modelName,proto3" json:"model_name,omitempty"`
+	FastMode       bool                   `protobuf:"varint,4,opt,name=fast_mode,json=fastMode,proto3" json:"fast_mode,omitempty"`                   // If true, only extract key points
+	ProviderName   string                 `protobuf:"bytes,5,opt,name=provider_name,json=providerName,proto3" json:"provider_name,omitempty"`        // Named profile from config.providers; takes precedence over provider_type/model_name
+	SkipReferences bool                   `protobuf:"varint,6,opt,name=skip_references,json=skipReferences,proto3" json:"skip_references,omitempty"` // If true, skip the referenced_reports task
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *EnqueueArticlesRequest) Reset() {
@@ -182,6 +183,13 @@ func (x *EnqueueArticlesRequest) GetProviderName() string {
 		return x.ProviderName
 	}
 	return ""
+}
+
+func (x *EnqueueArticlesRequest) GetSkipReferences() bool {
+	if x != nil {
+		return x.SkipReferences
+	}
+	return false
 }
 
 // EnqueueArticlesResponse returns how many articles were enqueued
@@ -466,7 +474,7 @@ const file_queue_proto_rawDesc = "" +
 	"\rprovider_type\x18\x04 \x01(\tR\fproviderType\x12\x1d\n" +
 	"\n" +
 	"model_name\x18\x05 \x01(\tR\tmodelName\x12#\n" +
-	"\rprovider_name\x18\x06 \x01(\tR\fproviderName\"\xbf\x01\n" +
+	"\rprovider_name\x18\x06 \x01(\tR\fproviderName\"\xe8\x01\n" +
 	"\x16EnqueueArticlesRequest\x12\x1f\n" +
 	"\varticle_ids\x18\x01 \x03(\tR\n" +
 	"articleIds\x12#\n" +
@@ -474,7 +482,8 @@ const file_queue_proto_rawDesc = "" +
 	"\n" +
 	"model_name\x18\x03 \x01(\tR\tmodelName\x12\x1b\n" +
 	"\tfast_mode\x18\x04 \x01(\bR\bfastMode\x12#\n" +
-	"\rprovider_name\x18\x05 \x01(\tR\fproviderName\"@\n" +
+	"\rprovider_name\x18\x05 \x01(\tR\fproviderName\x12'\n" +
+	"\x0fskip_references\x18\x06 \x01(\bR\x0eskipReferences\"@\n" +
 	"\x17EnqueueArticlesResponse\x12%\n" +
 	"\x0eenqueued_count\x18\x01 \x01(\x05R\renqueuedCount\"6\n" +
 	"\x15DequeueArticleRequest\x12\x1d\n" +
