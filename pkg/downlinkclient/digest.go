@@ -56,6 +56,7 @@ type GenerateDigestOptions struct {
 	OneShotAnalysis bool
 	Test            bool
 	TestDigestID    string
+	GHPagesEnabled  *bool // When non-nil, overrides the server's GitHub Pages enabled config for this run
 	OnEvent         func(*protos.DigestProgressEvent)
 }
 
@@ -87,6 +88,7 @@ func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options
 		OneShotAnalysis: options.OneShotAnalysis,
 		Test:            options.Test,
 		TestDigestId:    options.TestDigestID,
+		GhPagesEnabled:  options.GHPagesEnabled,
 	})
 	if err != nil {
 		return models.Digest{}, err

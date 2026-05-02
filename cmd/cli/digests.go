@@ -114,7 +114,7 @@ func createDigestCommands() *cobra.Command {
 
 	// Generate digest command
 	var digestFrom, digestTo, digestBetween, digestTheme, digestTestID string
-	var digestDryRun, digestRefreshFeeds, digestTest bool
+	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages bool
 	generateCmd := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate a new digest",
@@ -127,6 +127,11 @@ Examples:
   downlink-cli digest generate --from 2025-01-01    # From specific date
   downlink-cli digest generate --from -7d --to -1d  # Between 7 days and 1 day ago`,
 		Run: func(cmd *cobra.Command, args []string) {
+			if digestGHPages && digestNoGHPages {
+				fmt.Println("Error: --gh-pages and --no-gh-pages are mutually exclusive")
+				os.Exit(1)
+			}
+
 			client := getNewDownlinkClient()
 
 			if digestTest {
@@ -309,6 +314,15 @@ Examples:
 			}()
 			defer signal.Stop(sigCh)
 
+			var ghPagesEnabled *bool
+			if digestNoGHPages {
+				v := false
+				ghPagesEnabled = &v
+			} else if digestGHPages {
+				v := true
+				ghPagesEnabled = &v
+			}
+
 			handler := newDigestProgressHandler(prog)
 			digest, err := client.GenerateDigestWithOptions(ctx, downlinkclient.GenerateDigestOptions{
 				StartTime:       *fromTime,
@@ -319,6 +333,7 @@ Examples:
 				SkipSummary:     skipSummary,
 				Theme:           digestTheme,
 				OneShotAnalysis: oneShotAnalysis,
+				GHPagesEnabled:  ghPagesEnabled,
 				OnEvent:         handler,
 			})
 
@@ -358,6 +373,8 @@ Examples:
 	generateCmd.Flags().StringVar(&digestTheme, "theme", "dark", "HTML theme for the digest (see: digest --list-themes)")
 	generateCmd.Flags().BoolVar(&digestTest, "test", false, "Send a stored test digest to configured notification channels without generating a new digest")
 	generateCmd.Flags().StringVar(&digestTestID, "test-digest-id", "", "Digest ID to use with --test (default: server-selected rich test digest)")
+	generateCmd.Flags().BoolVar(&digestNoGHPages, "no-gh-pages", false, "Disable GitHub Pages publishing for this run (overrides server config)")
+	generateCmd.Flags().BoolVar(&digestGHPages, "gh-pages", false, "Enable GitHub Pages publishing for this run (overrides server config)")
 
 	// Get digest articles command
 	articlesCmd := &cobra.Command{

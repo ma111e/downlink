@@ -339,7 +339,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	// ProviderResults, and DigestAnalyses are populated for renderers.
 	if fullDigest, err := store.Db.GetDigest(digest.Id); err != nil {
 		log.WithError(err).Warn("Failed to reload digest for notifications, skipping all")
-	} else if _, err := sendConfiguredDigestNotifications(stream, fullDigest, req.GetTheme(), false); err != nil {
+	} else if _, err := sendConfiguredDigestNotifications(stream, fullDigest, req.GetTheme(), false, req.GhPagesEnabled); err != nil {
 		log.WithError(err).Warn("Failed to send one or more digest notifications")
 	}
 
@@ -371,7 +371,7 @@ func (s *DigestServer) sendNotificationTestDigest(req *protos.GenerateDigestRequ
 		return err
 	}
 
-	attempts, err := sendConfiguredDigestNotifications(stream, digest, req.GetTheme(), true)
+	attempts, err := sendConfiguredDigestNotifications(stream, digest, req.GetTheme(), true, req.GhPagesEnabled)
 	if err != nil {
 		_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: err.Error()})
 		return err
@@ -448,7 +448,7 @@ func notificationTestDigestScore(digest models.Digest) int {
 	return score
 }
 
-func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest, theme string, failOnError bool) (int, error) {
+func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest, theme string, failOnError bool, ghPagesOverride *bool) (int, error) {
 	var errs []error
 	attempts := 0
 
@@ -475,7 +475,11 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 		}
 	}
 
-	ghPagesEnabled := config.Config.Notifications.GitHubPages.Enabled && config.Config.Notifications.GitHubPages.RepoURL != ""
+	ghPagesConfigEnabled := config.Config.Notifications.GitHubPages.Enabled
+	if ghPagesOverride != nil {
+		ghPagesConfigEnabled = *ghPagesOverride
+	}
+	ghPagesEnabled := ghPagesConfigEnabled && config.Config.Notifications.GitHubPages.RepoURL != ""
 	if ghPagesEnabled {
 		attempts++
 		sendProgress(stream, "notify", "publishing digest to GitHub Pages...", 0, 0)
@@ -882,7 +886,7 @@ Digest coverage window:
 
 Respond with a JSON object in this exact format (no markdown fences, no extra text):
 {
-  "title": "<concise title of 5-20 words that captures the dominant theme of this digest>",
+  "title": "<concise title of 5-20 words that captures the dominant theme of this digest. Be factual and specific so a reader immediately knows what's inside: name the actual CVEs, products, threat actors, campaigns, or incidents driving the digest. Avoid vague, abstract framing like 'AI-Accelerated Vulnerability Discovery and Advanced Espionage Campaigns Define Current Threat Landscape' when the underlying articles cover concrete, nameable items>",
   "summary": "<comprehensive digest summary of approximately 300-500 words that presents these articles in a cohesive narrative, focused on key takeaways>"
 }
 
