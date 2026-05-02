@@ -298,6 +298,7 @@ type GenerateDigestRequest struct {
 	OneShotAnalysis bool                   `protobuf:"varint,8,opt,name=one_shot_analysis,json=oneShotAnalysis,proto3" json:"one_shot_analysis,omitempty"`
 	Test            bool                   `protobuf:"varint,9,opt,name=test,proto3" json:"test,omitempty"`
 	TestDigestId    string                 `protobuf:"bytes,10,opt,name=test_digest_id,json=testDigestId,proto3" json:"test_digest_id,omitempty"`
+	GhPagesEnabled  *bool                  `protobuf:"varint,11,opt,name=gh_pages_enabled,json=ghPagesEnabled,proto3,oneof" json:"gh_pages_enabled,omitempty"` // When set, overrides the server's GitHub Pages enabled config for this run
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -400,6 +401,13 @@ func (x *GenerateDigestRequest) GetTestDigestId() string {
 		return x.TestDigestId
 	}
 	return ""
+}
+
+func (x *GenerateDigestRequest) GetGhPagesEnabled() bool {
+	if x != nil && x.GhPagesEnabled != nil {
+		return *x.GhPagesEnabled
+	}
+	return false
 }
 
 // GenerateDigestResponse represents the response with the generated digest
@@ -1061,7 +1069,7 @@ const file_digests_proto_rawDesc = "" +
 	"\barticles\x18\x01 \x03(\v2\x11.downlink.ArticleR\barticles\"%\n" +
 	"\x13DeleteDigestRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x19\n" +
-	"\x17DeleteAllDigestsRequest\"\xa1\x03\n" +
+	"\x17DeleteAllDigestsRequest\"\xe5\x03\n" +
 	"\x15GenerateDigestRequest\x129\n" +
 	"\n" +
 	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
@@ -1074,7 +1082,9 @@ const file_digests_proto_rawDesc = "" +
 	"\x11one_shot_analysis\x18\b \x01(\bR\x0foneShotAnalysis\x12\x12\n" +
 	"\x04test\x18\t \x01(\bR\x04test\x12$\n" +
 	"\x0etest_digest_id\x18\n" +
-	" \x01(\tR\ftestDigestId\"B\n" +
+	" \x01(\tR\ftestDigestId\x12-\n" +
+	"\x10gh_pages_enabled\x18\v \x01(\bH\x00R\x0eghPagesEnabled\x88\x01\x01B\x13\n" +
+	"\x11_gh_pages_enabled\"B\n" +
 	"\x16GenerateDigestResponse\x12(\n" +
 	"\x06digest\x18\x01 \x01(\v2\x10.downlink.DigestR\x06digest\"\xf5\x02\n" +
 	"\x13DigestProgressEvent\x12\x14\n" +
@@ -1219,6 +1229,7 @@ func file_digests_proto_init() {
 	}
 	file_articles_proto_init()
 	file_analysis_proto_init()
+	file_digests_proto_msgTypes[6].OneofWrappers = []any{}
 	file_digests_proto_msgTypes[11].OneofWrappers = []any{}
 	file_digests_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
