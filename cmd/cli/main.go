@@ -47,6 +47,7 @@ func main() {
 	rootCmd.AddCommand(createDigestCommands())
 	rootCmd.AddCommand(createConfigCommands())
 	rootCmd.AddCommand(createGHPagesCommands())
+	rootCmd.AddCommand(createAuthCommands())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

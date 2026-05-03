@@ -1,13 +1,16 @@
 package main
 
 import (
+	"downlink/cmd/server/internal/auth"
 	"downlink/cmd/server/internal/config"
 	"downlink/cmd/server/internal/feedserver"
 	"downlink/cmd/server/internal/manager"
 	"downlink/cmd/server/internal/notification"
 	"downlink/cmd/server/internal/scrapers"
 	"downlink/cmd/server/internal/store"
+	"downlink/pkg/codexauth"
 	"downlink/pkg/llmgateway"
+	"downlink/pkg/models"
 	"downlink/pkg/protos"
 	"errors"
 	"fmt"
@@ -371,6 +374,12 @@ func startServer(host string, port int, tls bool, certFile, keyFile string, maxC
 	// This is the only place --max-concurrent-llm-requests is actually enforced.
 	gw := llmgateway.New(maxConcurrentLLMRequests)
 
+	// Codex OAuth manager — wires the credential pool to config.json persistence.
+	config.CodexManager = codexauth.NewManager(
+		func() *models.ServerConfig { return config.Config },
+		config.SaveConfig,
+	)
+
 	llmsServer := services.NewLLMsServer(gw)
 	digestServer := services.NewDigestServer(gw, llmsServer)
 
@@ -382,6 +391,7 @@ func startServer(host string, port int, tls bool, certFile, keyFile string, maxC
 	protos.RegisterLLMsServiceServer(grpcServer, llmsServer)
 	protos.RegisterQueueServiceServer(grpcServer, services.NewQueueServer(llmsServer, maxConcurrentLLMRequests))
 	protos.RegisterServerConfigServiceServer(grpcServer, services.NewServerConfigServer())
+	protos.RegisterAuthServiceServer(grpcServer, auth.NewService(config.CodexManager))
 
 	log.WithFields(log.Fields{
 		"host": host,

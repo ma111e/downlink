@@ -1,0 +1,89 @@
+syntax = "proto3";
+package downlink;
+
+option go_package = "protos/";
+
+// AuthService manages Codex/ChatGPT OAuth credentials.
+service AuthService {
+  // StartCodexLogin begins a device-code login flow for openai-codex.
+  rpc StartCodexLogin(StartCodexLoginRequest) returns (StartCodexLoginResponse) {}
+
+  // PollCodexLogin polls the status of an in-progress login session.
+  rpc PollCodexLogin(PollCodexLoginRequest) returns (PollCodexLoginResponse) {}
+
+  // ListCodexCredentials lists all registered credentials for a provider.
+  rpc ListCodexCredentials(ListCodexCredentialsRequest) returns (ListCodexCredentialsResponse) {}
+
+  // RemoveCodexCredential removes a credential by ID.
+  rpc RemoveCodexCredential(RemoveCodexCredentialRequest) returns (RemoveCodexCredentialResponse) {}
+
+  // SetCodexCredentialPriority updates the priority of a credential.
+  rpc SetCodexCredentialPriority(SetCodexCredentialPriorityRequest) returns (SetCodexCredentialPriorityResponse) {}
+}
+
+message StartCodexLoginRequest {
+  // provider_name is the name of the openai-codex provider config entry.
+  // If it doesn't exist in config.json, it will be created.
+  string provider_name = 1;
+  // model_name is only used when auto-creating the provider entry.
+  string model_name = 2;
+}
+
+message StartCodexLoginResponse {
+  string session_id       = 1;
+  string user_code        = 2;
+  string verification_url = 3;
+  int32  expires_in       = 4;
+  int32  poll_interval    = 5;
+}
+
+message PollCodexLoginRequest {
+  string session_id = 1;
+}
+
+message PollCodexLoginResponse {
+  string session_id    = 1;
+  // status is one of: "pending", "approved", "expired", "error"
+  string status        = 2;
+  string error_message = 3;
+  // credential_id is set when status == "approved"
+  string credential_id = 4;
+  string label         = 5;
+}
+
+message ListCodexCredentialsRequest {
+  string provider_name = 1;
+}
+
+message CodexCredentialInfo {
+  string id                = 1;
+  string label             = 2;
+  int32  priority          = 3;
+  string last_status       = 4;
+  string last_error_reason = 5;
+  string auth_mode         = 6;
+  string source            = 7;
+}
+
+message ListCodexCredentialsResponse {
+  repeated CodexCredentialInfo credentials = 1;
+}
+
+message RemoveCodexCredentialRequest {
+  string provider_name   = 1;
+  string credential_id   = 2;
+}
+
+message RemoveCodexCredentialResponse {
+  bool removed = 1;
+}
+
+message SetCodexCredentialPriorityRequest {
+  string provider_name   = 1;
+  string credential_id   = 2;
+  int32  priority        = 3;
+}
+
+message SetCodexCredentialPriorityResponse {
+  bool updated = 1;
+}
