@@ -138,6 +138,35 @@ the branch will be lost. Prompts for confirmation before proceeding.`,
 		},
 	}
 
-	cmd.AddCommand(initCmd, reinitCmd)
+	digestCmd := &cobra.Command{
+		Use:   "digest",
+		Short: "Publish a digest to the GitHub Pages archive",
+	}
+
+	addCmd := &cobra.Command{
+		Use:   "add <digest-id>",
+		Short: "Fetch a digest from the server and publish it to the GitHub Pages archive",
+		Long: `Fetch the digest from the running downlink server, render it to HTML,
+add it to the archive manifest, and push the result to GitHub Pages.
+
+This command requires a running downlink server (--address / --port).`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := buildConfig()
+			if err != nil {
+				return err
+			}
+			client := getNewDownlinkClient()
+			digest, err := client.GetDigest(args[0])
+			if err != nil {
+				return fmt.Errorf("fetch digest: %w", err)
+			}
+			publisher := notification.NewGitHubPagesPublisher(cfg)
+			return publisher.SendDigest(digest)
+		},
+	}
+
+	digestCmd.AddCommand(addCmd)
+	cmd.AddCommand(initCmd, reinitCmd, digestCmd)
 	return cmd
 }
