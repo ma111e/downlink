@@ -97,6 +97,7 @@ func ResolveLLM(req LLMRequest) (*ResolvedLLM, error) {
 	// 4. Build the provider.
 	provider, err := llmprovider.New(llmprovider.Config{
 		ProviderType: providerConfig.ProviderType,
+		ProviderName: providerConfig.Name,
 		ModelName:    providerConfig.ModelName,
 		BaseURL:      providerConfig.BaseURL,
 		APIKey:       providerConfig.APIKey,
@@ -104,6 +105,7 @@ func ResolveLLM(req LLMRequest) (*ResolvedLLM, error) {
 		MaxTokens:    maxTokens,
 		MaxRetries:   maxRetries,
 		Timeout:      timeout,
+		CodexManager: config.CodexManager,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize LLM client for %s: %w", providerConfig.ProviderType, err)

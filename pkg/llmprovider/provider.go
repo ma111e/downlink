@@ -5,6 +5,7 @@ package llmprovider
 
 import (
 	"context"
+	"downlink/pkg/codexauth"
 	"fmt"
 	"net/http"
 	"strings"
@@ -36,6 +37,7 @@ type ChatModelProvider interface {
 // Config groups every knob the callers need to set.
 type Config struct {
 	ProviderType string
+	ProviderName string // name of the provider config entry; used by openai-codex to find its pool
 	ModelName    string
 	BaseURL      string  // required for llamacpp / ollama; ignored for cloud providers
 	APIKey       string  // optional for local providers
@@ -43,6 +45,7 @@ type Config struct {
 	MaxTokens    int     // 0 means the backend default
 	MaxRetries   int
 	Timeout      time.Duration
+	CodexManager *codexauth.Manager // required for openai-codex provider type
 }
 
 // New builds the appropriate Provider for cfg.ProviderType.
@@ -61,9 +64,22 @@ func New(cfg Config) (ChatModelProvider, error) {
 		return newEinoOllama(cfg)
 	case "mistral":
 		return newEinoOpenAICompat(cfg, "https://api.mistral.ai/v1")
+	case "openai-codex":
+		return newCodexFromConfig(cfg)
 	default:
 		return newEinoOpenAI(cfg)
 	}
+}
+
+func newCodexFromConfig(cfg Config) (*codexProvider, error) {
+	if cfg.CodexManager == nil {
+		return nil, fmt.Errorf("openai-codex provider requires CodexManager")
+	}
+	if cfg.ProviderName == "" {
+		return nil, fmt.Errorf("openai-codex provider requires ProviderName")
+	}
+	pool := cfg.CodexManager.EnsurePool(cfg.ProviderName)
+	return newCodexProviderFromPool(cfg.ModelName, cfg.BaseURL, pool, cfg.Timeout), nil
 }
 
 // ---------------------------------------------------------------------------
