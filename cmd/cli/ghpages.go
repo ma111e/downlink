@@ -167,13 +167,12 @@ This command requires a running downlink server (--address / --port).`,
 	}
 
 	removeCmd := &cobra.Command{
-		Use:   "remove <filename>",
+		Use:   "remove <title>",
 		Short: "Remove a digest from the GitHub Pages archive and republish",
-		Long: `Remove the digest and swipe HTML files for the given filename from the
-archive, update the manifest, and push the result to GitHub Pages.
+		Long: `Look up the digest by title in the archive manifest, remove its digest
+and swipe HTML files, update the manifest, and push the result to GitHub Pages.
 
-The filename is the digest HTML filename as listed in the archive manifest,
-e.g. downlink-digest-2026-01-01_1200.html.`,
+The title is matched case-insensitively against manifest entries.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := buildConfig()

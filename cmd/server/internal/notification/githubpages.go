@@ -143,11 +143,11 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 	return nil
 }
 
-// RemoveDigest removes the digest and swipe HTML files for digestFilename from
-// the archive, drops the entry from manifest.json, commits the deletion, and
-// pushes to GitHub Pages.
-func (p *GitHubPagesPublisher) RemoveDigest(digestFilename string) error {
-	log.WithField("filename", digestFilename).Info("Removing digest from GitHub Pages")
+// RemoveDigest removes the digest identified by title from the archive.
+// It resolves the title to a filename via the manifest, deletes both the
+// digest and swipe HTML files, updates manifest.json, commits, and pushes.
+func (p *GitHubPagesPublisher) RemoveDigest(title string) error {
+	log.WithField("title", title).Info("Removing digest from GitHub Pages")
 
 	outputDir, err := resolveGitHubPagesOutputDir(p.cfg.OutputDir)
 	if err != nil {
@@ -169,7 +169,20 @@ func (p *GitHubPagesPublisher) RemoveDigest(digestFilename string) error {
 		return fmt.Errorf("github pages: failed to get worktree: %w", err)
 	}
 
-	// Remove digest HTML if present.
+	// Resolve title → filename via the manifest.
+	manifestRelPath := filepath.Join(outputDir, ManifestFilename)
+	manifestAbsPath := filepath.Join(p.cfg.CloneDir, manifestRelPath)
+	manifest, err := LoadManifest(manifestAbsPath)
+	if err != nil {
+		return fmt.Errorf("github pages: load manifest: %w", err)
+	}
+	entry, ok := manifest.FindByTitle(title)
+	if !ok {
+		return fmt.Errorf("github pages: no digest with title %q found in manifest", title)
+	}
+	digestFilename := entry.Filename
+
+	// Remove digest HTML.
 	digestRelPath := filepath.Join(outputDir, digestFilename)
 	if fileExists(filepath.Join(p.cfg.CloneDir, digestRelPath)) {
 		if _, err := wt.Remove(digestRelPath); err != nil {
@@ -177,7 +190,7 @@ func (p *GitHubPagesPublisher) RemoveDigest(digestFilename string) error {
 		}
 	}
 
-	// Remove swipe HTML if present (same timestamp, different prefix).
+	// Remove swipe HTML (same timestamp, different prefix).
 	swipeFilename := strings.Replace(digestFilename, "downlink-digest-", "downlink-swipe-", 1)
 	swipeRelPath := filepath.Join(outputDir, swipeFilename)
 	if fileExists(filepath.Join(p.cfg.CloneDir, swipeRelPath)) {
@@ -187,12 +200,6 @@ func (p *GitHubPagesPublisher) RemoveDigest(digestFilename string) error {
 	}
 
 	// Drop the entry from the manifest and re-stage it.
-	manifestRelPath := filepath.Join(outputDir, ManifestFilename)
-	manifestAbsPath := filepath.Join(p.cfg.CloneDir, manifestRelPath)
-	manifest, err := LoadManifest(manifestAbsPath)
-	if err != nil {
-		return fmt.Errorf("github pages: load manifest: %w", err)
-	}
 	manifest.Remove(digestFilename)
 	if err := manifest.Write(manifestAbsPath); err != nil {
 		return fmt.Errorf("github pages: write manifest: %w", err)
@@ -201,7 +208,7 @@ func (p *GitHubPagesPublisher) RemoveDigest(digestFilename string) error {
 		return fmt.Errorf("github pages: failed to stage manifest: %w", err)
 	}
 
-	commitMsg := fmt.Sprintf("Remove digest %s", digestFilename)
+	commitMsg := fmt.Sprintf("Remove digest %q", title)
 	if _, err = wt.Commit(commitMsg, &gogit.CommitOptions{
 		Author: &object.Signature{
 			Name:  p.cfg.CommitAuthor,
@@ -236,7 +243,7 @@ func (p *GitHubPagesPublisher) RemoveDigest(digestFilename string) error {
 		}
 	}
 
-	log.WithField("filename", digestFilename).Info("Digest removed from GitHub Pages")
+	log.WithField("title", title).Info("Digest removed from GitHub Pages")
 	return nil
 }
 

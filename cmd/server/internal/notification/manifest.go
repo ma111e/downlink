@@ -80,6 +80,18 @@ func (m *Manifest) Upsert(entry ManifestEntry) {
 	sortDigestsNewestFirst(m.Digests)
 }
 
+// FindByTitle returns the first entry whose Title matches title
+// (case-insensitive). The second return value is false when no match is found.
+func (m *Manifest) FindByTitle(title string) (ManifestEntry, bool) {
+	lower := strings.ToLower(title)
+	for _, e := range m.Digests {
+		if strings.ToLower(e.Title) == lower {
+			return e, true
+		}
+	}
+	return ManifestEntry{}, false
+}
+
 // Remove removes the entry with the given filename from the manifest.
 // Returns true if an entry was found and removed.
 func (m *Manifest) Remove(filename string) bool {
