@@ -80,6 +80,18 @@ func (m *Manifest) Upsert(entry ManifestEntry) {
 	sortDigestsNewestFirst(m.Digests)
 }
 
+// Remove removes the entry with the given filename from the manifest.
+// Returns true if an entry was found and removed.
+func (m *Manifest) Remove(filename string) bool {
+	for i, e := range m.Digests {
+		if e.Filename == filename {
+			m.Digests = append(m.Digests[:i], m.Digests[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 // Write atomically serializes the manifest to path.
 func (m Manifest) Write(path string) error {
 	if m.SourceRepo == "" {

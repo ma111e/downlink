@@ -143,6 +143,103 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 	return nil
 }
 
+// RemoveDigest removes the digest and swipe HTML files for digestFilename from
+// the archive, drops the entry from manifest.json, commits the deletion, and
+// pushes to GitHub Pages.
+func (p *GitHubPagesPublisher) RemoveDigest(digestFilename string) error {
+	log.WithField("filename", digestFilename).Info("Removing digest from GitHub Pages")
+
+	outputDir, err := resolveGitHubPagesOutputDir(p.cfg.OutputDir)
+	if err != nil {
+		return fmt.Errorf("github pages: invalid output dir: %w", err)
+	}
+
+	auth := &githttp.BasicAuth{
+		Username: "x-access-token",
+		Password: p.cfg.Token,
+	}
+
+	repo, err := p.ensureRepo(auth)
+	if err != nil {
+		return fmt.Errorf("github pages: failed to prepare local repo: %w", err)
+	}
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("github pages: failed to get worktree: %w", err)
+	}
+
+	// Remove digest HTML if present.
+	digestRelPath := filepath.Join(outputDir, digestFilename)
+	if fileExists(filepath.Join(p.cfg.CloneDir, digestRelPath)) {
+		if _, err := wt.Remove(digestRelPath); err != nil {
+			return fmt.Errorf("github pages: failed to stage digest removal: %w", err)
+		}
+	}
+
+	// Remove swipe HTML if present (same timestamp, different prefix).
+	swipeFilename := strings.Replace(digestFilename, "downlink-digest-", "downlink-swipe-", 1)
+	swipeRelPath := filepath.Join(outputDir, swipeFilename)
+	if fileExists(filepath.Join(p.cfg.CloneDir, swipeRelPath)) {
+		if _, err := wt.Remove(swipeRelPath); err != nil {
+			return fmt.Errorf("github pages: failed to stage swipe removal: %w", err)
+		}
+	}
+
+	// Drop the entry from the manifest and re-stage it.
+	manifestRelPath := filepath.Join(outputDir, ManifestFilename)
+	manifestAbsPath := filepath.Join(p.cfg.CloneDir, manifestRelPath)
+	manifest, err := LoadManifest(manifestAbsPath)
+	if err != nil {
+		return fmt.Errorf("github pages: load manifest: %w", err)
+	}
+	manifest.Remove(digestFilename)
+	if err := manifest.Write(manifestAbsPath); err != nil {
+		return fmt.Errorf("github pages: write manifest: %w", err)
+	}
+	if _, err := wt.Add(manifestRelPath); err != nil {
+		return fmt.Errorf("github pages: failed to stage manifest: %w", err)
+	}
+
+	commitMsg := fmt.Sprintf("Remove digest %s", digestFilename)
+	if _, err = wt.Commit(commitMsg, &gogit.CommitOptions{
+		Author: &object.Signature{
+			Name:  p.cfg.CommitAuthor,
+			Email: p.cfg.CommitEmail,
+			When:  time.Now(),
+		},
+	}); err != nil {
+		return fmt.Errorf("github pages: failed to commit: %w", err)
+	}
+
+	pushOpts := &gogit.PushOptions{
+		RemoteName: "origin",
+		Auth:       auth,
+	}
+	if err := repo.Push(pushOpts); err != nil {
+		if isNonFastForward(err) {
+			log.Warn("GitHub Pages push rejected (non-fast-forward); pulling and retrying")
+			pullErr := wt.Pull(&gogit.PullOptions{
+				RemoteName:    "origin",
+				ReferenceName: plumbing.NewBranchReferenceName(p.cfg.Branch),
+				Auth:          auth,
+				Force:         true,
+			})
+			if pullErr != nil && pullErr != gogit.NoErrAlreadyUpToDate {
+				return fmt.Errorf("github pages: rebase pull failed: %w", pullErr)
+			}
+			if retryErr := repo.Push(pushOpts); retryErr != nil {
+				return fmt.Errorf("github pages: push retry failed: %w", retryErr)
+			}
+		} else {
+			return fmt.Errorf("github pages: push failed: %w", err)
+		}
+	}
+
+	log.WithField("filename", digestFilename).Info("Digest removed from GitHub Pages")
+	return nil
+}
+
 // ensureRepo clones the remote repo if the local clone dir is absent, or pulls
 // the latest changes if it already exists.
 func (p *GitHubPagesPublisher) ensureRepo(auth *githttp.BasicAuth) (*gogit.Repository, error) {

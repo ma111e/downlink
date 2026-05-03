@@ -140,7 +140,7 @@ the branch will be lost. Prompts for confirmation before proceeding.`,
 
 	digestCmd := &cobra.Command{
 		Use:   "digest",
-		Short: "Publish a digest to the GitHub Pages archive",
+		Short: "Add or remove a digest from the GitHub Pages archive",
 	}
 
 	addCmd := &cobra.Command{
@@ -166,7 +166,26 @@ This command requires a running downlink server (--address / --port).`,
 		},
 	}
 
-	digestCmd.AddCommand(addCmd)
+	removeCmd := &cobra.Command{
+		Use:   "remove <filename>",
+		Short: "Remove a digest from the GitHub Pages archive and republish",
+		Long: `Remove the digest and swipe HTML files for the given filename from the
+archive, update the manifest, and push the result to GitHub Pages.
+
+The filename is the digest HTML filename as listed in the archive manifest,
+e.g. downlink-digest-2026-01-01_1200.html.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := buildConfig()
+			if err != nil {
+				return err
+			}
+			publisher := notification.NewGitHubPagesPublisher(cfg)
+			return publisher.RemoveDigest(args[0])
+		},
+	}
+
+	digestCmd.AddCommand(addCmd, removeCmd)
 	cmd.AddCommand(initCmd, reinitCmd, digestCmd)
 	return cmd
 }
