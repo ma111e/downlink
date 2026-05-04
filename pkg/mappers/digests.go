@@ -3,6 +3,7 @@ package mappers
 import (
 	"downlink/pkg/models"
 	"downlink/pkg/protos"
+	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -144,6 +145,48 @@ func AllDigestsToModels(digests []*protos.Digest) []models.Digest {
 	return modelDigests
 }
 
+func codexCredentialToProto(c models.CodexCredential) *protos.CodexCredentialProto {
+	p := &protos.CodexCredentialProto{
+		Id:              c.Id,
+		Label:           c.Label,
+		Priority:        int32(c.Priority),
+		AccessToken:     c.AccessToken,
+		RefreshToken:    c.RefreshToken,
+		LastRefresh:     c.LastRefresh.UTC().Format(time.RFC3339),
+		AuthMode:        c.AuthMode,
+		Source:          c.Source,
+		LastStatus:      c.LastStatus,
+		LastErrorReason: c.LastErrorReason,
+	}
+	if c.LastErrorResetAt != nil {
+		p.LastErrorResetAt = c.LastErrorResetAt.UTC().Format(time.RFC3339)
+	}
+	return p
+}
+
+func codexCredentialToModel(p *protos.CodexCredentialProto) models.CodexCredential {
+	c := models.CodexCredential{
+		Id:              p.Id,
+		Label:           p.Label,
+		Priority:        int(p.Priority),
+		AccessToken:     p.AccessToken,
+		RefreshToken:    p.RefreshToken,
+		AuthMode:        p.AuthMode,
+		Source:          p.Source,
+		LastStatus:      p.LastStatus,
+		LastErrorReason: p.LastErrorReason,
+	}
+	if t, err := time.Parse(time.RFC3339, p.LastRefresh); err == nil {
+		c.LastRefresh = t
+	}
+	if p.LastErrorResetAt != "" {
+		if t, err := time.Parse(time.RFC3339, p.LastErrorResetAt); err == nil {
+			c.LastErrorResetAt = &t
+		}
+	}
+	return c
+}
+
 func ProviderConfigToProto(config *models.ProviderConfig) *protos.ProviderConfig {
 	if config == nil {
 		return nil
@@ -172,6 +215,10 @@ func ProviderConfigToProto(config *models.ProviderConfig) *protos.ProviderConfig
 	if config.TimeoutMinutes != nil {
 		timeout := int32(*config.TimeoutMinutes)
 		protoConfig.TimeoutMinutes = &timeout
+	}
+
+	for _, cred := range config.Credentials {
+		protoConfig.Credentials = append(protoConfig.Credentials, codexCredentialToProto(cred))
 	}
 
 	return protoConfig
@@ -212,6 +259,7 @@ func ProviderConfigToModel(config *protos.ProviderConfig) *models.ProviderConfig
 		Enabled:      config.Enabled,
 		BaseURL:      config.BaseUrl,
 		APIKey:       config.ApiKey,
+		Credentials:  make([]models.CodexCredential, 0, len(config.Credentials)),
 	}
 
 	// Handle pointer fields that might be nil
@@ -228,6 +276,10 @@ func ProviderConfigToModel(config *protos.ProviderConfig) *models.ProviderConfig
 	if config.TimeoutMinutes != nil {
 		timeout := int(*config.TimeoutMinutes)
 		modelConfig.TimeoutMinutes = &timeout
+	}
+
+	for _, cred := range config.Credentials {
+		modelConfig.Credentials = append(modelConfig.Credentials, codexCredentialToModel(cred))
 	}
 
 	return modelConfig

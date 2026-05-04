@@ -673,25 +673,152 @@ func (x *FeedConfig) GetType() string {
 	return ""
 }
 
+// CodexCredentialProto carries one ChatGPT/Codex OAuth credential for round-tripping
+// through the gRPC config API without data loss.
+type CodexCredentialProto struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Label            string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Priority         int32                  `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
+	AccessToken      string                 `protobuf:"bytes,4,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	RefreshToken     string                 `protobuf:"bytes,5,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	LastRefresh      string                 `protobuf:"bytes,6,opt,name=last_refresh,json=lastRefresh,proto3" json:"last_refresh,omitempty"` // RFC3339 UTC
+	AuthMode         string                 `protobuf:"bytes,7,opt,name=auth_mode,json=authMode,proto3" json:"auth_mode,omitempty"`
+	Source           string                 `protobuf:"bytes,8,opt,name=source,proto3" json:"source,omitempty"`
+	LastStatus       string                 `protobuf:"bytes,9,opt,name=last_status,json=lastStatus,proto3" json:"last_status,omitempty"`
+	LastErrorReason  string                 `protobuf:"bytes,10,opt,name=last_error_reason,json=lastErrorReason,proto3" json:"last_error_reason,omitempty"`
+	LastErrorResetAt string                 `protobuf:"bytes,11,opt,name=last_error_reset_at,json=lastErrorResetAt,proto3" json:"last_error_reset_at,omitempty"` // RFC3339 UTC, empty when unset
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CodexCredentialProto) Reset() {
+	*x = CodexCredentialProto{}
+	mi := &file_config_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CodexCredentialProto) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CodexCredentialProto) ProtoMessage() {}
+
+func (x *CodexCredentialProto) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CodexCredentialProto.ProtoReflect.Descriptor instead.
+func (*CodexCredentialProto) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CodexCredentialProto) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CodexCredentialProto) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *CodexCredentialProto) GetPriority() int32 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
+func (x *CodexCredentialProto) GetAccessToken() string {
+	if x != nil {
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *CodexCredentialProto) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+func (x *CodexCredentialProto) GetLastRefresh() string {
+	if x != nil {
+		return x.LastRefresh
+	}
+	return ""
+}
+
+func (x *CodexCredentialProto) GetAuthMode() string {
+	if x != nil {
+		return x.AuthMode
+	}
+	return ""
+}
+
+func (x *CodexCredentialProto) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *CodexCredentialProto) GetLastStatus() string {
+	if x != nil {
+		return x.LastStatus
+	}
+	return ""
+}
+
+func (x *CodexCredentialProto) GetLastErrorReason() string {
+	if x != nil {
+		return x.LastErrorReason
+	}
+	return ""
+}
+
+func (x *CodexCredentialProto) GetLastErrorResetAt() string {
+	if x != nil {
+		return x.LastErrorResetAt
+	}
+	return ""
+}
+
 // ProviderConfig represents configuration for a specific LLM provider used for digest generation
 type ProviderConfig struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Name           string                 `protobuf:"bytes,9,opt,name=name,proto3" json:"name,omitempty"`
-	ProviderType   string                 `protobuf:"bytes,1,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
-	ModelName      string                 `protobuf:"bytes,2,opt,name=model_name,json=modelName,proto3" json:"model_name,omitempty"`
-	Enabled        bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	BaseUrl        string                 `protobuf:"bytes,4,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
-	Temperature    *float32               `protobuf:"fixed32,5,opt,name=temperature,proto3,oneof" json:"temperature,omitempty"`
-	MaxRetries     *int32                 `protobuf:"varint,6,opt,name=max_retries,json=maxRetries,proto3,oneof" json:"max_retries,omitempty"`
-	TimeoutMinutes *int32                 `protobuf:"varint,7,opt,name=timeout_minutes,json=timeoutMinutes,proto3,oneof" json:"timeout_minutes,omitempty"`
-	ApiKey         string                 `protobuf:"bytes,8,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
+	state          protoimpl.MessageState  `protogen:"open.v1"`
+	Name           string                  `protobuf:"bytes,9,opt,name=name,proto3" json:"name,omitempty"`
+	ProviderType   string                  `protobuf:"bytes,1,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
+	ModelName      string                  `protobuf:"bytes,2,opt,name=model_name,json=modelName,proto3" json:"model_name,omitempty"`
+	Enabled        bool                    `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	BaseUrl        string                  `protobuf:"bytes,4,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	Temperature    *float32                `protobuf:"fixed32,5,opt,name=temperature,proto3,oneof" json:"temperature,omitempty"`
+	MaxRetries     *int32                  `protobuf:"varint,6,opt,name=max_retries,json=maxRetries,proto3,oneof" json:"max_retries,omitempty"`
+	TimeoutMinutes *int32                  `protobuf:"varint,7,opt,name=timeout_minutes,json=timeoutMinutes,proto3,oneof" json:"timeout_minutes,omitempty"`
+	ApiKey         string                  `protobuf:"bytes,8,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
+	Credentials    []*CodexCredentialProto `protobuf:"bytes,10,rep,name=credentials,proto3" json:"credentials,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ProviderConfig) Reset() {
 	*x = ProviderConfig{}
-	mi := &file_config_proto_msgTypes[10]
+	mi := &file_config_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -703,7 +830,7 @@ func (x *ProviderConfig) String() string {
 func (*ProviderConfig) ProtoMessage() {}
 
 func (x *ProviderConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[10]
+	mi := &file_config_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -716,7 +843,7 @@ func (x *ProviderConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderConfig.ProtoReflect.Descriptor instead.
 func (*ProviderConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{10}
+	return file_config_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ProviderConfig) GetName() string {
@@ -782,6 +909,13 @@ func (x *ProviderConfig) GetApiKey() string {
 	return ""
 }
 
+func (x *ProviderConfig) GetCredentials() []*CodexCredentialProto {
+	if x != nil {
+		return x.Credentials
+	}
+	return nil
+}
+
 // AnalysisConfig represents the configuration for the analysis process
 type AnalysisConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -793,7 +927,7 @@ type AnalysisConfig struct {
 
 func (x *AnalysisConfig) Reset() {
 	*x = AnalysisConfig{}
-	mi := &file_config_proto_msgTypes[11]
+	mi := &file_config_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -805,7 +939,7 @@ func (x *AnalysisConfig) String() string {
 func (*AnalysisConfig) ProtoMessage() {}
 
 func (x *AnalysisConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[11]
+	mi := &file_config_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -818,7 +952,7 @@ func (x *AnalysisConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalysisConfig.ProtoReflect.Descriptor instead.
 func (*AnalysisConfig) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{11}
+	return file_config_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AnalysisConfig) GetProvider() string {
@@ -894,7 +1028,21 @@ const file_config_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aP\n" +
 	"\fScraperEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value:\x028\x01\"\xe5\x02\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value:\x028\x01\"\xf4\x02\n" +
+	"\x14CodexCredentialProto\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n" +
+	"\bpriority\x18\x03 \x01(\x05R\bpriority\x12!\n" +
+	"\faccess_token\x18\x04 \x01(\tR\vaccessToken\x12#\n" +
+	"\rrefresh_token\x18\x05 \x01(\tR\frefreshToken\x12!\n" +
+	"\flast_refresh\x18\x06 \x01(\tR\vlastRefresh\x12\x1b\n" +
+	"\tauth_mode\x18\a \x01(\tR\bauthMode\x12\x16\n" +
+	"\x06source\x18\b \x01(\tR\x06source\x12\x1f\n" +
+	"\vlast_status\x18\t \x01(\tR\n" +
+	"lastStatus\x12*\n" +
+	"\x11last_error_reason\x18\n" +
+	" \x01(\tR\x0flastErrorReason\x12-\n" +
+	"\x13last_error_reset_at\x18\v \x01(\tR\x10lastErrorResetAt\"\xa7\x03\n" +
 	"\x0eProviderConfig\x12\x12\n" +
 	"\x04name\x18\t \x01(\tR\x04name\x12#\n" +
 	"\rprovider_type\x18\x01 \x01(\tR\fproviderType\x12\x1d\n" +
@@ -906,7 +1054,9 @@ const file_config_proto_rawDesc = "" +
 	"\vmax_retries\x18\x06 \x01(\x05H\x01R\n" +
 	"maxRetries\x88\x01\x01\x12,\n" +
 	"\x0ftimeout_minutes\x18\a \x01(\x05H\x02R\x0etimeoutMinutes\x88\x01\x01\x12\x17\n" +
-	"\aapi_key\x18\b \x01(\tR\x06apiKeyB\x0e\n" +
+	"\aapi_key\x18\b \x01(\tR\x06apiKey\x12@\n" +
+	"\vcredentials\x18\n" +
+	" \x03(\v2\x1e.downlink.CodexCredentialProtoR\vcredentialsB\x0e\n" +
 	"\f_temperatureB\x0e\n" +
 	"\f_max_retriesB\x12\n" +
 	"\x10_timeout_minutes\"F\n" +
@@ -931,7 +1081,7 @@ func file_config_proto_rawDescGZIP() []byte {
 	return file_config_proto_rawDescData
 }
 
-var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_config_proto_goTypes = []any{
 	(*GetConfigRequest)(nil),              // 0: downlink.GetConfigRequest
 	(*GetConfigResponse)(nil),             // 1: downlink.GetConfigResponse
@@ -943,39 +1093,41 @@ var file_config_proto_goTypes = []any{
 	(*GitHubPagesNotificationConfig)(nil), // 7: downlink.GitHubPagesNotificationConfig
 	(*Selectors)(nil),                     // 8: downlink.Selectors
 	(*FeedConfig)(nil),                    // 9: downlink.FeedConfig
-	(*ProviderConfig)(nil),                // 10: downlink.ProviderConfig
-	(*AnalysisConfig)(nil),                // 11: downlink.AnalysisConfig
-	nil,                                   // 12: downlink.FeedConfig.ParamsEntry
-	nil,                                   // 13: downlink.FeedConfig.ScraperEntry
-	(*anypb.Any)(nil),                     // 14: google.protobuf.Any
-	(*emptypb.Empty)(nil),                 // 15: google.protobuf.Empty
+	(*CodexCredentialProto)(nil),          // 10: downlink.CodexCredentialProto
+	(*ProviderConfig)(nil),                // 11: downlink.ProviderConfig
+	(*AnalysisConfig)(nil),                // 12: downlink.AnalysisConfig
+	nil,                                   // 13: downlink.FeedConfig.ParamsEntry
+	nil,                                   // 14: downlink.FeedConfig.ScraperEntry
+	(*anypb.Any)(nil),                     // 15: google.protobuf.Any
+	(*emptypb.Empty)(nil),                 // 16: google.protobuf.Empty
 }
 var file_config_proto_depIdxs = []int32{
 	4,  // 0: downlink.GetConfigResponse.config:type_name -> downlink.ServerConfig
 	4,  // 1: downlink.SaveConfigRequest.config:type_name -> downlink.ServerConfig
-	11, // 2: downlink.UpdateAnalysisConfigRequest.analysis_config:type_name -> downlink.AnalysisConfig
+	12, // 2: downlink.UpdateAnalysisConfigRequest.analysis_config:type_name -> downlink.AnalysisConfig
 	9,  // 3: downlink.ServerConfig.feeds:type_name -> downlink.FeedConfig
-	10, // 4: downlink.ServerConfig.providers:type_name -> downlink.ProviderConfig
-	11, // 5: downlink.ServerConfig.analysis:type_name -> downlink.AnalysisConfig
+	11, // 4: downlink.ServerConfig.providers:type_name -> downlink.ProviderConfig
+	12, // 5: downlink.ServerConfig.analysis:type_name -> downlink.AnalysisConfig
 	8,  // 6: downlink.ServerConfig.default_selectors:type_name -> downlink.Selectors
 	5,  // 7: downlink.ServerConfig.notifications:type_name -> downlink.NotificationsConfig
 	6,  // 8: downlink.NotificationsConfig.discord:type_name -> downlink.DiscordNotificationConfig
 	7,  // 9: downlink.NotificationsConfig.github_pages:type_name -> downlink.GitHubPagesNotificationConfig
-	12, // 10: downlink.FeedConfig.params:type_name -> downlink.FeedConfig.ParamsEntry
-	13, // 11: downlink.FeedConfig.scraper:type_name -> downlink.FeedConfig.ScraperEntry
+	13, // 10: downlink.FeedConfig.params:type_name -> downlink.FeedConfig.ParamsEntry
+	14, // 11: downlink.FeedConfig.scraper:type_name -> downlink.FeedConfig.ScraperEntry
 	8,  // 12: downlink.FeedConfig.selectors:type_name -> downlink.Selectors
-	14, // 13: downlink.FeedConfig.ScraperEntry.value:type_name -> google.protobuf.Any
-	0,  // 14: downlink.ServerConfigService.GetConfig:input_type -> downlink.GetConfigRequest
-	2,  // 15: downlink.ServerConfigService.SaveConfig:input_type -> downlink.SaveConfigRequest
-	3,  // 16: downlink.ServerConfigService.UpdateAnalysisConfig:input_type -> downlink.UpdateAnalysisConfigRequest
-	1,  // 17: downlink.ServerConfigService.GetConfig:output_type -> downlink.GetConfigResponse
-	15, // 18: downlink.ServerConfigService.SaveConfig:output_type -> google.protobuf.Empty
-	15, // 19: downlink.ServerConfigService.UpdateAnalysisConfig:output_type -> google.protobuf.Empty
-	17, // [17:20] is the sub-list for method output_type
-	14, // [14:17] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	10, // 13: downlink.ProviderConfig.credentials:type_name -> downlink.CodexCredentialProto
+	15, // 14: downlink.FeedConfig.ScraperEntry.value:type_name -> google.protobuf.Any
+	0,  // 15: downlink.ServerConfigService.GetConfig:input_type -> downlink.GetConfigRequest
+	2,  // 16: downlink.ServerConfigService.SaveConfig:input_type -> downlink.SaveConfigRequest
+	3,  // 17: downlink.ServerConfigService.UpdateAnalysisConfig:input_type -> downlink.UpdateAnalysisConfigRequest
+	1,  // 18: downlink.ServerConfigService.GetConfig:output_type -> downlink.GetConfigResponse
+	16, // 19: downlink.ServerConfigService.SaveConfig:output_type -> google.protobuf.Empty
+	16, // 20: downlink.ServerConfigService.UpdateAnalysisConfig:output_type -> google.protobuf.Empty
+	18, // [18:21] is the sub-list for method output_type
+	15, // [15:18] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_config_proto_init() }
@@ -983,14 +1135,14 @@ func file_config_proto_init() {
 	if File_config_proto != nil {
 		return
 	}
-	file_config_proto_msgTypes[10].OneofWrappers = []any{}
+	file_config_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_config_proto_rawDesc), len(file_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
