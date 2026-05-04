@@ -2,12 +2,14 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
 	"downlink/cmd/server/internal/config"
 	"downlink/pkg/codexauth"
 	"downlink/pkg/models"
 	"downlink/pkg/protos"
+	"encoding/hex"
+	"errors"
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -56,7 +58,7 @@ func (s *Service) reapSessions() {
 				if sess.status == "pending" {
 					sess.status = "expired"
 				}
-				// Keep for a few minutes so the CLI can collect the status.
+				// Keep for a few minutes so the CLI can collect the final status.
 				if time.Now().After(sess.expiresAt.Add(5 * time.Minute)) {
 					delete(s.sessions, id)
 				}
@@ -77,7 +79,10 @@ func (s *Service) StartCodexLogin(ctx context.Context, req *protos.StartCodexLog
 		return nil, fmt.Errorf("codex: device code request failed: %w", err)
 	}
 
-	sessionID := randomID()
+	sessionID, err := randomID()
+	if err != nil {
+		return nil, fmt.Errorf("codex: failed to generate session ID: %w", err)
+	}
 	sess := &loginSession{
 		deviceCode:   dc,
 		providerName: providerName,
@@ -108,8 +113,9 @@ func (s *Service) runLoginWorker(sessionID string, sess *loginSession) {
 	if err != nil {
 		s.mu.Lock()
 		if sess.status == "pending" {
-			sess.status = "expired"
-			if err != codexauth.ErrLoginTimeout {
+			if errors.Is(err, codexauth.ErrLoginTimeout) {
+				sess.status = "expired"
+			} else {
 				sess.status = "error"
 				sess.errorMsg = err.Error()
 			}
@@ -129,7 +135,15 @@ func (s *Service) runLoginWorker(sessionID string, sess *loginSession) {
 
 	fallback := fmt.Sprintf("openai-codex-oauth-%s", sessionID[:4])
 	label := codexauth.LabelFromJWT(pair.AccessToken, fallback)
-	credID := randomID()
+
+	credID, err := randomID()
+	if err != nil {
+		s.mu.Lock()
+		sess.status = "error"
+		sess.errorMsg = "failed to generate credential ID"
+		s.mu.Unlock()
+		return
+	}
 
 	cred := models.CodexCredential{
 		Id:           credID,
@@ -143,7 +157,10 @@ func (s *Service) runLoginWorker(sessionID string, sess *loginSession) {
 		LastStatus:   codexauth.StatusOK,
 	}
 
-	// Ensure the provider config entry exists.
+	// Ensure the provider config entry exists and persist it atomically.
+	// Fix #3: hold config.Mu while reading and modifying config.Config.
+	// Fix #5: persist the new provider entry before adding the credential.
+	config.Mu.Lock()
 	cfg := config.Config
 	found := false
 	for i := range cfg.Providers {
@@ -163,7 +180,18 @@ func (s *Service) runLoginWorker(sessionID string, sess *loginSession) {
 			ModelName:    modelName,
 			Enabled:      true,
 		})
+		// Persist the new provider entry before AddCredential touches its pool.
+		if saveErr := config.SaveConfig(cfg); saveErr != nil {
+			config.Mu.Unlock()
+			log.WithError(saveErr).Error("codex: failed to persist new provider entry")
+			s.mu.Lock()
+			sess.status = "error"
+			sess.errorMsg = "failed to save provider config: " + saveErr.Error()
+			s.mu.Unlock()
+			return
+		}
 	}
+	config.Mu.Unlock()
 
 	pool := s.manager.EnsurePool(sess.providerName)
 	if err := pool.AddCredential(cred); err != nil {
@@ -252,11 +280,11 @@ func (s *Service) SetCodexCredentialPriority(_ context.Context, req *protos.SetC
 	return &protos.SetCodexCredentialPriorityResponse{Updated: true}, nil
 }
 
-func randomID() string {
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+// randomID generates a cryptographically random 8-byte hex string (16 chars).
+func randomID() (string, error) {
 	b := make([]byte, 8)
-	for i := range b {
-		b[i] = chars[rand.Intn(len(chars))]
+	if _, err := rand.Read(b); err != nil {
+		return "", err
 	}
-	return string(b)
+	return hex.EncodeToString(b), nil
 }
