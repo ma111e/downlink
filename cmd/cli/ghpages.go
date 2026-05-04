@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"downlink/cmd/server/notification"
 	"downlink/pkg/models"
 	"fmt"
@@ -167,24 +168,64 @@ This command requires a running downlink server (--address / --port).`,
 	}
 
 	removeCmd := &cobra.Command{
-		Use:   "remove <title>",
+		Use:   "remove [title]",
 		Short: "Remove a digest from the GitHub Pages archive and republish",
 		Long: `Look up the digest by title in the archive manifest, remove its digest
 and swipe HTML files, update the manifest, and push the result to GitHub Pages.
 
-The title is matched case-insensitively against manifest entries.`,
-		Args: cobra.ExactArgs(1),
+The title is matched case-insensitively against manifest entries.
+When no title is given, an interactive list is shown to pick from.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := buildConfig()
 			if err != nil {
 				return err
 			}
 			publisher := notification.NewGitHubPagesPublisher(cfg)
-			return publisher.RemoveDigest(args[0])
+
+			title := ""
+			if len(args) == 1 {
+				title = args[0]
+			} else {
+				titles, err := publisher.ManifestTitles()
+				if err != nil {
+					return err
+				}
+				if len(titles) == 0 {
+					return fmt.Errorf("no digests found in the manifest")
+				}
+				title, err = selectFromList(titles)
+				if err != nil {
+					return err
+				}
+			}
+
+			return publisher.RemoveDigest(title)
 		},
 	}
 
 	digestCmd.AddCommand(addCmd, removeCmd)
 	cmd.AddCommand(initCmd, reinitCmd, digestCmd)
 	return cmd
+}
+
+// selectFromList prints a numbered list of items to stderr and reads the
+// user's choice from stdin. Returns the selected item.
+func selectFromList(items []string) (string, error) {
+	fmt.Fprintln(os.Stderr, "Select a digest to remove:")
+	for i, item := range items {
+		fmt.Fprintf(os.Stderr, "  %d) %s\n", i+1, item)
+	}
+	fmt.Fprintf(os.Stderr, "Enter number (1-%d): ", len(items))
+
+	scanner := bufio.NewScanner(os.Stdin)
+	if !scanner.Scan() {
+		return "", fmt.Errorf("no input provided")
+	}
+	raw := strings.TrimSpace(scanner.Text())
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 || n > len(items) {
+		return "", fmt.Errorf("invalid selection %q: enter a number between 1 and %d", raw, len(items))
+	}
+	return items[n-1], nil
 }

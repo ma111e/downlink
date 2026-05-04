@@ -247,6 +247,37 @@ func (p *GitHubPagesPublisher) RemoveDigest(title string) error {
 	return nil
 }
 
+// ManifestTitles clones (or updates) the repo and returns the list of digest
+// titles from the manifest, newest-first. Returns an empty slice when the
+// manifest has no entries.
+func (p *GitHubPagesPublisher) ManifestTitles() ([]string, error) {
+	outputDir, err := resolveGitHubPagesOutputDir(p.cfg.OutputDir)
+	if err != nil {
+		return nil, fmt.Errorf("github pages: invalid output dir: %w", err)
+	}
+
+	auth := &githttp.BasicAuth{
+		Username: "x-access-token",
+		Password: p.cfg.Token,
+	}
+
+	if _, err := p.ensureRepo(auth); err != nil {
+		return nil, fmt.Errorf("github pages: failed to prepare local repo: %w", err)
+	}
+
+	manifestAbsPath := filepath.Join(p.cfg.CloneDir, outputDir, ManifestFilename)
+	manifest, err := LoadManifest(manifestAbsPath)
+	if err != nil {
+		return nil, fmt.Errorf("github pages: load manifest: %w", err)
+	}
+
+	titles := make([]string, 0, len(manifest.Digests))
+	for _, e := range manifest.Digests {
+		titles = append(titles, e.Title)
+	}
+	return titles, nil
+}
+
 // ensureRepo clones the remote repo if the local clone dir is absent, or pulls
 // the latest changes if it already exists.
 func (p *GitHubPagesPublisher) ensureRepo(auth *githttp.BasicAuth) (*gogit.Repository, error) {
