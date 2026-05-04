@@ -104,9 +104,12 @@ func (p *Pool) UpdateCredentials(creds []models.CodexCredential) {
 // Acquire picks the best available credential, refreshing its access token if
 // needed, and returns a Lease. Returns ErrNoCredentials when all credentials
 // are either rate-limited or auth-failed.
+//
+// The mutex is released before any network I/O (token refresh) to avoid
+// blocking all concurrent callers. After the refresh we re-acquire and
+// re-verify before committing — a double-check latch.
 func (p *Pool) Acquire(ctx context.Context) (*Lease, error) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 
 	for i := range p.creds {
 		c := &p.creds[i]
@@ -118,36 +121,78 @@ func (p *Pool) Acquire(ctx context.Context) (*Lease, error) {
 			if c.LastErrorResetAt != nil && time.Now().Before(*c.LastErrorResetAt) {
 				continue
 			}
-			// Reset-at has passed — clear rate-limit and try again.
 			c.LastStatus = StatusOK
 		}
 
-		// Refresh if expiring soon.
-		if ExpiresWithin(c.AccessToken, refreshSkew) {
-			pair, err := RefreshTokens(ctx, c.RefreshToken)
-			if err != nil {
-				c.LastStatus = StatusAuthFailed
-				now := time.Now()
-				c.LastStatusAt = &now
-				c.LastErrorReason = err.Error()
-				_ = p.persist(p.creds)
-				continue
+		if !ExpiresWithin(c.AccessToken, refreshSkew) {
+			// Token is healthy — return immediately under lock.
+			lease := &Lease{
+				CredID:      c.Id,
+				AccessToken: c.AccessToken,
+				Headers:     CodexHeaders(c.AccessToken),
+				pool:        p,
 			}
+			p.mu.Unlock()
+			return lease, nil
+		}
+
+		// Token is expiring. Snapshot what we need, drop the lock, refresh.
+		credID := c.Id
+		oldRefreshToken := c.RefreshToken
+		p.mu.Unlock()
+
+		pair, refreshErr := RefreshTokens(ctx, oldRefreshToken)
+
+		// Re-acquire and locate the credential by ID (slice may have shifted).
+		p.mu.Lock()
+		idx := p.indexByID(credID)
+		if idx < 0 {
+			// Credential was removed while we were refreshing; try next.
+			continue
+		}
+		c = &p.creds[idx]
+
+		if refreshErr != nil {
+			c.LastStatus = StatusAuthFailed
+			now := time.Now()
+			c.LastStatusAt = &now
+			c.LastErrorReason = refreshErr.Error()
+			_ = p.persist(p.creds)
+			continue
+		}
+
+		// Double-check: another goroutine may have already refreshed.
+		if c.RefreshToken != oldRefreshToken {
+			// Token was already rotated by someone else; use what's there now.
+		} else {
 			c.AccessToken = pair.AccessToken
 			c.RefreshToken = pair.RefreshToken
 			c.LastRefresh = time.Now()
 			_ = p.persist(p.creds)
 		}
 
-		return &Lease{
+		lease := &Lease{
 			CredID:      c.Id,
 			AccessToken: c.AccessToken,
 			Headers:     CodexHeaders(c.AccessToken),
 			pool:        p,
-		}, nil
+		}
+		p.mu.Unlock()
+		return lease, nil
 	}
 
+	p.mu.Unlock()
 	return nil, fmt.Errorf("%w: all %d credentials are unhealthy", ErrNoCredentials, len(p.creds))
+}
+
+// indexByID returns the slice index of the credential with the given ID, or -1.
+func (p *Pool) indexByID(id string) int {
+	for i := range p.creds {
+		if p.creds[i].Id == id {
+			return i
+		}
+	}
+	return -1
 }
 
 // AddCredential appends a new credential and persists.
