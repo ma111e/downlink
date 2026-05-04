@@ -9,19 +9,12 @@ import (
 	"testing"
 )
 
-// patchIssuer temporarily points the package at a test server.
-// Restore by calling the returned function.
+// withTestIssuer temporarily points the package at a test server via env var.
 func withTestIssuer(t *testing.T, mux *http.ServeMux) (server *httptest.Server, restore func()) {
 	t.Helper()
 	srv := httptest.NewServer(mux)
-	origIssuer := issuer
-	// We use a package-level variable trick: override via a test helper var.
-	// Since issuer is a const, we test via the exported RefreshTokens helper
-	// which accepts a custom HTTP client injected via httpClient.
-	return srv, func() {
-		_ = origIssuer
-		srv.Close()
-	}
+	t.Setenv("DOWNLINK_CODEX_ISSUER", srv.URL)
+	return srv, srv.Close
 }
 
 func TestParseRefreshError_InvalidGrant(t *testing.T) {

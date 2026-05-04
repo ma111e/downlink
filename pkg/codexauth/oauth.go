@@ -27,9 +27,9 @@ type TokenPair struct {
 
 // RequestDeviceCode starts the device-code flow and returns the code to show the user.
 func RequestDeviceCode(ctx context.Context) (*DeviceCodeResponse, error) {
-	body, _ := json.Marshal(map[string]string{"client_id": clientID})
+	body, _ := json.Marshal(map[string]string{"client_id": resolvedClientID()})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		issuer+"/api/accounts/deviceauth/usercode", bytes.NewReader(body))
+		resolvedIssuer()+"/api/accounts/deviceauth/usercode", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func PollForAuthorization(ctx context.Context, dc *DeviceCodeResponse) (authCode
 			"user_code":      dc.UserCode,
 		})
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-			issuer+"/api/accounts/deviceauth/token", bytes.NewReader(body))
+			resolvedIssuer()+"/api/accounts/deviceauth/token", bytes.NewReader(body))
 		if err != nil {
 			return "", "", err
 		}
@@ -115,11 +115,11 @@ func ExchangeCode(ctx context.Context, authCode, codeVerifier string) (*TokenPai
 		"grant_type":    {"authorization_code"},
 		"code":          {authCode},
 		"redirect_uri":  {redirectURI},
-		"client_id":     {clientID},
+		"client_id":     {resolvedClientID()},
 		"code_verifier": {codeVerifier},
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		issuer+"/oauth/token", strings.NewReader(form.Encode()))
+		resolvedIssuer()+"/oauth/token", strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -154,10 +154,10 @@ func RefreshTokens(ctx context.Context, refreshToken string) (*TokenPair, error)
 	form := url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {refreshToken},
-		"client_id":     {clientID},
+		"client_id":     {resolvedClientID()},
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		issuer+"/oauth/token", strings.NewReader(form.Encode()))
+		resolvedIssuer()+"/oauth/token", strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
 	}
