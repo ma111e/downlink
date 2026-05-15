@@ -309,11 +309,9 @@ Return ONLY the JSON object below.`,
 			name: "summaries",
 			instruction: `You are a cybersecurity analyst. Write three summaries of the article using ONLY information present in the article — do not infer or add external context.
 
-brief_overview: 5–10 sentences. A concise recap of the most important points, written in plain prose.
-standard_synthesis: 10–20 sentences. A complete recap that omits no critical detail.
-comprehensive_synthesis: Unlimited length. A thorough, structured analysis using markdown and bullet points where helpful.
-
-For readability, add paragraph breaks where natural, roughly every 2-3 sentences.
+brief_overview: 2–3 markdown paragraphs (blank line between each), 3–4 sentences per paragraph. Cover the core event, its significance, and any key technical detail or impact.
+standard_synthesis: 4–6 markdown paragraphs (blank line between each), 3–5 sentences per paragraph. Cover the full picture: context, technical details, affected parties, known or suspected actors, and any disclosed impact or response.
+comprehensive_synthesis: Unlimited length. A thorough, structured analysis using markdown headings, paragraphs, and bullet points where helpful.
 
 Return ONLY the JSON object below.`,
 			schema: `{"summaries": {"brief_overview": "<text>", "standard_synthesis": "<text>", "comprehensive_synthesis": "<text>"}}`,
