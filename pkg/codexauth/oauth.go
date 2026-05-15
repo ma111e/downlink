@@ -112,20 +112,20 @@ func PollForAuthorization(ctx context.Context, dc *DeviceCodeResponse) (authCode
 			return "", "", err
 		}
 
+		rawPoll, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
 		if resp.StatusCode == http.StatusOK {
 			var result struct {
 				AuthorizationCode string `json:"authorization_code"`
 				CodeVerifier      string `json:"code_verifier"`
 			}
-			err = json.NewDecoder(resp.Body).Decode(&result)
-			resp.Body.Close()
-			if err != nil {
+			if err := json.Unmarshal(rawPoll, &result); err != nil {
 				return "", "", err
 			}
 			return result.AuthorizationCode, result.CodeVerifier, nil
 		}
 
-		resp.Body.Close()
 		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusNotFound {
 			continue // user hasn't finished login yet
 		}

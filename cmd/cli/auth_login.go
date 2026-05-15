@@ -11,7 +11,6 @@ import (
 
 func createAuthLoginCommand() *cobra.Command {
 	var providerName string
-	var modelName string
 
 	cmd := &cobra.Command{
 		Use:   "login [provider-type]",
@@ -58,16 +57,8 @@ func createAuthLoginCommand() *cobra.Command {
 				}
 			}
 
-			// Step 3: Model name — flag or interactive selection/input
-			if !cmd.Flags().Changed("model-name") {
-				modelName = resolveModelInteractive(client, providerType, "")
-				if modelName == "" {
-					return nil // user cancelled
-				}
-			}
-
 			// OAuth device-code flow
-			resp, err := client.StartCodexLogin(providerName, modelName)
+			resp, err := client.StartCodexLogin(providerName, "")
 			if err != nil {
 				return fmt.Errorf("failed to start login: %w", err)
 			}
@@ -110,8 +101,6 @@ func createAuthLoginCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&providerName, "provider-name", "",
 		"Name of the provider config entry to create or reuse")
-	cmd.Flags().StringVar(&modelName, "model-name", "",
-		"Model name to associate with the provider entry")
 
 	return cmd
 }
