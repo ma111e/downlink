@@ -76,7 +76,7 @@ func createDigestCommands() *cobra.Command {
 	}
 
 	// Add flags for list command
-	listCmd.Flags().IntVar(&digestLimit, "limit", 10, "Maximum number of digests to return")
+	listCmd.Flags().IntVar(&digestLimit, "limit", 0, "Maximum number of digests to return (0 = all)")
 
 	// Get digest command
 	getCmd := &cobra.Command{
