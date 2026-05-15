@@ -326,22 +326,21 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	}
 	digest.DigestAnalyses = digestAnalyses
 
-	// Store digest-article associations; only include articles that were
-	// successfully analyzed to prevent unscored entries in the rendered digest.
-	analyzedArticleIds := make([]string, len(digestAnalyses))
-	for i, da := range digestAnalyses {
-		analyzedArticleIds[i] = da.ArticleId
+	// Store digest-article associations for all fetched articles; articles
+	// without analysis will be rendered with an error message in the digest.
+	articleIds := make([]string, len(articles))
+	for i, article := range articles {
+		articleIds[i] = article.Id
 	}
-	if err = store.Db.StoreDigestArticlesBatch(digest.Id, analyzedArticleIds); err != nil {
+	if err = store.Db.StoreDigestArticlesBatch(digest.Id, articleIds); err != nil {
 		log.WithError(err).WithField("digestId", digest.Id).Warn("Failed to batch store digest-article associations")
 	}
-	analyzedLen := len(analyzedArticleIds)
-	digest.ArticleCount = &analyzedLen
+	digest.ArticleCount = &articleLen
 
 	log.WithFields(log.Fields{
 		"id":              digest.Id,
-		"articleCount":    analyzedLen,
-		"skipped":         articleLen - analyzedLen,
+		"articleCount":    articleLen,
+		"skipped":         articleLen - len(digestAnalyses),
 		"analysisCount":   len(digestAnalyses),
 		"duplicateGroups": len(groupingResult.DuplicateGroups),
 	}).Info("Digest generated successfully")
@@ -357,7 +356,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	// Final event: send the completed digest
 	if err := stream.Send(&protos.DigestProgressEvent{
 		Stage:   "done",
-		Message: fmt.Sprintf("digest %s generated with %d articles", digest.Id, analyzedLen),
+		Message: fmt.Sprintf("digest %s generated with %d articles", digest.Id, articleLen),
 		Digest:  mappers.DigestToProto(&digest),
 	}); err != nil {
 		return fmt.Errorf("failed to send final digest event: %w", err)
