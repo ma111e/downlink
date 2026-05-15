@@ -244,7 +244,53 @@ When no title is given, an interactive list is shown to pick from.`,
 		},
 	}
 
-	digestCmd.AddCommand(addCmd, removeCmd)
+	var republishTheme string
+	var republishDryRun bool
+
+	republishAllCmd := &cobra.Command{
+		Use:   "republish-all",
+		Short: "Re-render all archived digests with the current templates",
+		Long: `Fetch every digest from the running downlink server, re-render each page
+with the current templates, rebuild the manifest from scratch, and push
+the result as a single commit to GitHub Pages.
+
+Use --dry-run to render and stage locally without committing or pushing.
+
+This command requires a running downlink server (--address / --port).`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := buildConfig()
+			if err != nil {
+				return err
+			}
+			client := getNewDownlinkClient()
+
+			summaries, err := client.ListDigests(0)
+			if err != nil {
+				return fmt.Errorf("list digests: %w", err)
+			}
+			if len(summaries) == 0 {
+				fmt.Fprintln(os.Stderr, "No digests found on the server.")
+				return nil
+			}
+
+			fmt.Fprintf(os.Stderr, "Fetching %d digests...\n", len(summaries))
+			digests := make([]models.Digest, 0, len(summaries))
+			for _, s := range summaries {
+				d, err := client.GetDigest(s.Id)
+				if err != nil {
+					return fmt.Errorf("fetch digest %s: %w", s.Id, err)
+				}
+				digests = append(digests, d)
+			}
+
+			publisher := notification.NewGitHubPagesPublisher(cfg)
+			return publisher.RepublishAll(digests, republishTheme, republishDryRun)
+		},
+	}
+	republishAllCmd.Flags().StringVar(&republishTheme, "theme", "dark", "Theme to use when re-rendering digest pages")
+	republishAllCmd.Flags().BoolVar(&republishDryRun, "dry-run", false, "Render and stage locally without committing or pushing")
+
+	digestCmd.AddCommand(addCmd, removeCmd, republishAllCmd)
 	cmd.AddCommand(initCmd, reinitCmd, digestCmd)
 	return cmd
 }

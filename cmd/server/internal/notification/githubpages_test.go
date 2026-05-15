@@ -69,7 +69,7 @@ func TestGitHubPagesPublisherWritesDefaultDigestFolderLayout(t *testing.T) {
 	}
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 
-	relPath, err := publisher.renderAndStage(wt, digest, outputDir)
+	relPath, err := publisher.renderAndStage(wt, digest, outputDir, "dark")
 	if err != nil {
 		t.Fatalf("renderAndStage() error = %v", err)
 	}
@@ -121,7 +121,7 @@ func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
 	}
 	digest := sampleDigest("digest-two", time.Date(2026, 4, 25, 9, 30, 0, 0, time.UTC))
 
-	relPath, err := publisher.renderAndStage(wt, digest, outputDir)
+	relPath, err := publisher.renderAndStage(wt, digest, outputDir, "dark")
 	if err != nil {
 		t.Fatalf("renderAndStage() error = %v", err)
 	}

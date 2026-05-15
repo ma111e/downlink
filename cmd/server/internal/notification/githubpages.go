@@ -69,7 +69,7 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 		return fmt.Errorf("github pages: failed to get worktree: %w", err)
 	}
 
-	digestRelPath, err := p.renderAndStage(wt, digest, outputDir)
+	digestRelPath, err := p.renderAndStage(wt, digest, outputDir, "dark")
 	if err != nil {
 		return err
 	}
@@ -544,6 +544,116 @@ func resolveGitHubPagesOutputDir(input string) (string, error) {
 	return cleaned, nil
 }
 
+// RepublishAll re-renders every digest with the current templates and pushes
+// the result as a single commit. The manifest is rebuilt from scratch so stale
+// entries are removed. Pass dryRun=true to render and stage locally without
+// committing or pushing.
+func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme string, dryRun bool) error {
+	if len(digests) == 0 {
+		log.Info("RepublishAll: no digests to republish")
+		return nil
+	}
+
+	log.WithField("count", len(digests)).Info("Republishing all digests to GitHub Pages")
+
+	outputDir, err := resolveGitHubPagesOutputDir(p.cfg.OutputDir)
+	if err != nil {
+		return fmt.Errorf("github pages: invalid output dir: %w", err)
+	}
+
+	auth := &githttp.BasicAuth{
+		Username: "x-access-token",
+		Password: p.cfg.Token,
+	}
+
+	repo, err := p.ensureRepo(auth)
+	if err != nil {
+		return fmt.Errorf("github pages: failed to prepare local repo: %w", err)
+	}
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("github pages: failed to get worktree: %w", err)
+	}
+
+	// Load existing manifest to preserve SourceRepo, then rebuild Digests cleanly.
+	manifestRelPath := filepath.Join(outputDir, ManifestFilename)
+	manifestAbsPath := filepath.Join(p.cfg.CloneDir, manifestRelPath)
+	manifest, err := LoadManifest(manifestAbsPath)
+	if err != nil {
+		return fmt.Errorf("github pages: load manifest: %w", err)
+	}
+	manifest.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
+	manifest.Digests = nil
+
+	for i, digest := range digests {
+		log.WithFields(log.Fields{"digestId": digest.Id, "index": i + 1, "total": len(digests)}).
+			Info("Rendering digest")
+
+		if _, err := p.renderAndStage(wt, digest, outputDir, theme); err != nil {
+			return err
+		}
+		if err := p.renderAndStageSwipe(wt, digest, outputDir); err != nil {
+			return err
+		}
+		manifest.Upsert(ManifestEntryFromDigest(digest))
+	}
+
+	if err := manifest.Write(manifestAbsPath); err != nil {
+		return fmt.Errorf("github pages: write manifest: %w", err)
+	}
+	if _, err := wt.Add(manifestRelPath); err != nil {
+		return fmt.Errorf("github pages: failed to stage manifest: %w", err)
+	}
+
+	if err := p.ensureIndex(wt, outputDir); err != nil {
+		return err
+	}
+
+	if dryRun {
+		log.WithField("count", len(digests)).Info("Dry run complete — skipping commit and push")
+		return nil
+	}
+
+	commitMsg := fmt.Sprintf("Republish all %d digests (template migration)", len(digests))
+	if _, err = wt.Commit(commitMsg, &gogit.CommitOptions{
+		Author: &object.Signature{
+			Name:  p.cfg.CommitAuthor,
+			Email: p.cfg.CommitEmail,
+			When:  time.Now(),
+		},
+	}); err != nil {
+		return fmt.Errorf("github pages: failed to commit: %w", err)
+	}
+
+	pushOpts := &gogit.PushOptions{
+		RemoteName: "origin",
+		Auth:       auth,
+	}
+	if err := repo.Push(pushOpts); err != nil {
+		if isNonFastForward(err) {
+			log.Warn("GitHub Pages push rejected (non-fast-forward); pulling and retrying")
+			pullErr := wt.Pull(&gogit.PullOptions{
+				RemoteName:    "origin",
+				ReferenceName: plumbing.NewBranchReferenceName(p.cfg.Branch),
+				Auth:          auth,
+				Force:         true,
+			})
+			if pullErr != nil && pullErr != gogit.NoErrAlreadyUpToDate {
+				return fmt.Errorf("github pages: rebase pull failed: %w", pullErr)
+			}
+			if retryErr := repo.Push(pushOpts); retryErr != nil {
+				return fmt.Errorf("github pages: push retry failed: %w", retryErr)
+			}
+		} else {
+			return fmt.Errorf("github pages: push failed: %w", err)
+		}
+	}
+
+	log.WithField("count", len(digests)).Info("All digests republished to GitHub Pages")
+	return nil
+}
+
 // renderAndStageSwipe renders the swipe triage view, writes it alongside the
 // digest HTML, and stages it in the worktree.
 func (p *GitHubPagesPublisher) renderAndStageSwipe(wt *gogit.Worktree, digest models.Digest, outputDir string) error {
@@ -570,8 +680,8 @@ func (p *GitHubPagesPublisher) renderAndStageSwipe(wt *gogit.Worktree, digest mo
 // renderAndStage renders a digest, writes it to the publisher's output dir,
 // and stages it in the worktree. It returns the staged file's repo-relative
 // path.
-func (p *GitHubPagesPublisher) renderAndStage(wt *gogit.Worktree, digest models.Digest, outputDir string) (string, error) {
-	htmlBytes, err := RenderDigestHTML(digest, "dark")
+func (p *GitHubPagesPublisher) renderAndStage(wt *gogit.Worktree, digest models.Digest, outputDir string, theme string) (string, error) {
+	htmlBytes, err := RenderDigestHTML(digest, theme)
 	if err != nil {
 		return "", fmt.Errorf("github pages: failed to render digest HTML: %w", err)
 	}
