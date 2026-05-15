@@ -143,7 +143,9 @@ func ExchangeCode(ctx context.Context, authCode, codeVerifier string) (*TokenPai
 		"client_id":     {resolvedClientID()},
 		"code_verifier": {codeVerifier},
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+	tctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(tctx, http.MethodPost,
 		resolvedIssuer()+"/oauth/token", strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
@@ -152,7 +154,7 @@ func ExchangeCode(ctx context.Context, authCode, codeVerifier string) (*TokenPai
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("token exchange request failed: %w", err)
 	}
 	defer resp.Body.Close()
 

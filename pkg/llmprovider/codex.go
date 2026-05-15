@@ -1,6 +1,7 @@
 package llmprovider
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"downlink/pkg/codexauth"
@@ -109,9 +110,11 @@ func (p *codexProvider) generateMessages(ctx context.Context, msgs []*schema.Mes
 
 // responsesRequest is the body sent to the Codex Responses API.
 type responsesRequest struct {
-	Model string           `json:"model"`
-	Input []responsesInput `json:"input"`
-	Store bool             `json:"store"` // always false per guide
+	Model        string           `json:"model"`
+	Instructions string           `json:"instructions"`
+	Input        []responsesInput `json:"input"`
+	Stream       bool             `json:"stream"`
+	Store        bool             `json:"store"`
 }
 
 type responsesInput struct {
@@ -119,25 +122,34 @@ type responsesInput struct {
 	Content string `json:"content"`
 }
 
-// responsesResponse is the shape of a successful Codex Responses API reply.
-type responsesResponse struct {
-	Output []struct {
-		Content []struct {
-			Text string `json:"text"`
-		} `json:"content"`
-	} `json:"output"`
+// responsesStreamEvent is one SSE data payload from the Codex Responses API.
+// We only care about output_text.delta events.
+type responsesStreamEvent struct {
+	Type  string `json:"type"`
+	Delta string `json:"delta"`
 }
 
 func (p *codexProvider) callAPI(ctx context.Context, lease *codexauth.Lease, msgs []*schema.Message) (*schema.Message, error) {
-	inputs := make([]responsesInput, len(msgs))
-	for i, m := range msgs {
+	var instructions string
+	var userMsgs []*schema.Message
+	for _, m := range msgs {
+		if m.Role == schema.System {
+			instructions = m.Content
+		} else {
+			userMsgs = append(userMsgs, m)
+		}
+	}
+	inputs := make([]responsesInput, len(userMsgs))
+	for i, m := range userMsgs {
 		inputs[i] = responsesInput{Role: string(m.Role), Content: m.Content}
 	}
 
 	body, err := json.Marshal(responsesRequest{
-		Model: p.modelName,
-		Input: inputs,
-		Store: false,
+		Model:        p.modelName,
+		Instructions: instructions,
+		Input:        inputs,
+		Stream:       true,
+		Store:        false,
 	})
 	if err != nil {
 		return nil, err
@@ -152,6 +164,7 @@ func (p *codexProvider) callAPI(ctx context.Context, lease *codexauth.Lease, msg
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Authorization", "Bearer "+lease.AccessToken)
 	for k, vs := range lease.Headers {
 		for _, v := range vs {
@@ -165,30 +178,42 @@ func (p *codexProvider) callAPI(ctx context.Context, lease *codexauth.Lease, msg
 	}
 	defer resp.Body.Close()
 
-	rawBody, _ := io.ReadAll(resp.Body)
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		// fall through
-	case http.StatusUnauthorized, http.StatusForbidden:
-		return nil, &codexAPIError{statusCode: resp.StatusCode, body: string(rawBody)}
-	case http.StatusTooManyRequests:
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		raw, _ := io.ReadAll(resp.Body)
+		return nil, &codexAPIError{statusCode: resp.StatusCode, body: string(raw)}
+	}
+	if resp.StatusCode == http.StatusTooManyRequests {
 		ra := parseRetryAfter(resp.Header.Get("Retry-After"))
-		return nil, &codexRateLimitError{resetAt: ra, body: string(rawBody)}
-	default:
-		return nil, fmt.Errorf("codex API error: HTTP %d: %s", resp.StatusCode, string(rawBody))
+		raw, _ := io.ReadAll(resp.Body)
+		return nil, &codexRateLimitError{resetAt: ra, body: string(raw)}
+	}
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("codex API error: HTTP %d: %s", resp.StatusCode, string(raw))
 	}
 
-	var result responsesResponse
-	if err := json.Unmarshal(rawBody, &result); err != nil {
-		return nil, fmt.Errorf("codex: failed to parse response: %w", err)
-	}
-
+	// Parse SSE stream; accumulate output_text.delta events.
 	var text strings.Builder
-	for _, out := range result.Output {
-		for _, c := range out.Content {
-			text.WriteString(c.Text)
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "data: ") {
+			continue
 		}
+		payload := strings.TrimPrefix(line, "data: ")
+		if payload == "[DONE]" {
+			break
+		}
+		var ev responsesStreamEvent
+		if err := json.Unmarshal([]byte(payload), &ev); err != nil {
+			continue
+		}
+		if ev.Type == "response.output_text.delta" {
+			text.WriteString(ev.Delta)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("codex: stream read error: %w", err)
 	}
 
 	return &schema.Message{Role: schema.Assistant, Content: text.String()}, nil

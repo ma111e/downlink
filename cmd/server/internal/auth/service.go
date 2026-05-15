@@ -126,6 +126,7 @@ func (s *Service) runLoginWorker(sessionID string, sess *loginSession) {
 
 	pair, err := codexauth.ExchangeCode(ctx, authCode, codeVerifier)
 	if err != nil {
+		log.WithError(err).Error("codex: token exchange failed")
 		s.mu.Lock()
 		sess.status = "error"
 		sess.errorMsg = err.Error()

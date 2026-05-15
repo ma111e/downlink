@@ -7,13 +7,12 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 )
 
 var (
 	// Analysis flags
-	persona      string
-	providerName string
 	providerType string
 	modelName    string
 	profileNames []string
@@ -63,34 +62,72 @@ func createAnalysisCommands() *cobra.Command {
 	updateConfigCmd := &cobra.Command{
 		Use:   "set",
 		Short: "Update analysis configuration",
-		Long:  `Set the configuration for article analysis.`,
-		Run: func(cmd *cobra.Command, args []string) {
+		Long:  `Interactively set the configuration for article analysis.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
 			client := getNewDownlinkClient()
 
-			if providerName == "" {
-				fmt.Println("Error: Provider name is required")
-				return
+			current, err := client.GetAnalysisConfig()
+			if err != nil {
+				return fmt.Errorf("fetch current config: %w", err)
+			}
+
+			providers, err := client.GetLLMProviders()
+			if err != nil {
+				return fmt.Errorf("fetch providers: %w", err)
+			}
+			if len(providers) == 0 {
+				return fmt.Errorf("no providers configured — add one with 'model add' first")
+			}
+
+			options := make([]huh.Option[string], len(providers))
+			for i, p := range providers {
+				label := p.Name
+				if p.ProviderType != "" {
+					label = fmt.Sprintf("%s (%s)", p.Name, p.ProviderType)
+				}
+				if !p.Enabled {
+					label += " [disabled]"
+				}
+				options[i] = huh.NewOption(label, p.Name)
+			}
+
+			provider := current.Provider
+			persona := current.Persona
+			writingStyle := current.WritingStyle
+
+			if err := huh.NewForm(
+				huh.NewGroup(
+					huh.NewSelect[string]().
+						Title("Provider").
+						Description("Configured provider to use for analysis").
+						Options(options...).
+						Value(&provider),
+					huh.NewText().
+						Title("Persona").
+						Description("Additional prompt prefix to customize the AI instructions").
+						Value(&persona),
+					huh.NewText().
+						Title("Writing style").
+						Description("Writing style guide injected into the digest summary prompt").
+						Value(&writingStyle),
+				),
+			).Run(); err != nil {
+				return err
 			}
 
 			config := models.AnalysisConfig{
-				Provider: providerName,
-				Persona:  persona,
+				Provider:     provider,
+				Persona:      strings.TrimSpace(persona),
+				WritingStyle: strings.TrimSpace(writingStyle),
 			}
-
-			err := client.UpdateAnalysisConfig(config)
-			if err != nil {
-				fmt.Printf("Failed to update analysis config: %v\n", err)
-				return
+			if err := client.UpdateAnalysisConfig(config); err != nil {
+				return fmt.Errorf("update config: %w", err)
 			}
 
 			fmt.Println("Analysis configuration updated successfully")
+			return nil
 		},
 	}
-
-	// Add flags for update config command
-	updateConfigCmd.Flags().StringVarP(&persona, "persona", "P", "", "Persona to use for analysis")
-	updateConfigCmd.Flags().StringVarP(&providerName, "provider-name", "n", "", "Name of the configured provider to use (required)")
-	updateConfigCmd.MarkFlagRequired("provider-name")
 
 	configCmd.AddCommand(getConfigCmd, updateConfigCmd)
 

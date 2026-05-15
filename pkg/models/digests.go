@@ -36,9 +36,10 @@ type ProviderConfig struct {
 
 // AnalysisConfig represents the configuration for the analysis features
 type AnalysisConfig struct {
-	Provider   string            `json:"provider,omitempty"`      // Name of the configured provider to use for analysis
-	Persona    string            `json:"persona,omitempty"`       // Additional prompt prefix to customize the AI instructions
-	WorkerPool *WorkerPoolConfig `json:"worker_pool,omitempty"`   // Configuration for the analysis worker pool
+	Provider     string            `json:"provider,omitempty"`       // Name of the configured provider to use for analysis
+	Persona      string            `json:"persona,omitempty"`        // Additional prompt prefix to customize the AI instructions
+	WritingStyle string            `json:"writing_style,omitempty"`  // Writing style guide injected into digest summary prompt
+	WorkerPool   *WorkerPoolConfig `json:"worker_pool,omitempty"`    // Configuration for the analysis worker pool
 }
 
 // WorkerPoolConfig contains the configuration for the worker pool
