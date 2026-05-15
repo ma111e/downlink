@@ -415,7 +415,8 @@ function SwipeCard({ article, isTop, depth, onSwipe, onFlipChange }) {
   const [dragging, setDragging] = React.useState(false);
   const [flying, setFlying]     = React.useState(null);
   const [flipped, setFlipped]   = React.useState(false);
-  const startRef = React.useRef({ x: 0, y: 0 });
+  const startRef = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef   = React.useRef(null); // null | 'h' | 'v'
 
   React.useEffect(() => {
     if (isTop) {
@@ -426,28 +427,55 @@ function SwipeCard({ article, isTop, depth, onSwipe, onFlipChange }) {
   }, [isTop, flipped]);
 
   const onPointerDown = (e) => {
-    if (!isTop || flipped || flying) return;
-    setDragging(true);
-    startRef.current = { x: e.clientX, y: e.clientY };
-    e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
+    if (!isTop || flying) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    dirRef.current = null;
   };
+
   const onPointerMove = (e) => {
-    if (!dragging) return;
-    setDx(e.clientX - startRef.current.x);
-    setDy(e.clientY - startRef.current.y);
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      const t = startRef.current.target;
+      t && t.setPointerCapture && t.setPointerCapture(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return; // read mode: only left swipe
+    setDx(rawDx);
+    if (!flipped) setDy(rawDy);
   };
+
   const onPointerUp = () => {
-    if (!dragging) return;
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
     setDragging(false);
     const threshold = 110;
-    if (dx > threshold) {
-      setFlying("right");
-      setTimeout(() => { setFlipped(true); setDx(0); setDy(0); setFlying(null); }, 280);
-    } else if (dx < -threshold) {
-      setFlying("left");
-      setTimeout(() => onSwipe("left"), 380);
+    if (flipped) {
+      if (dx < -threshold) {
+        setFlying("left");
+        setTimeout(() => onSwipe("left"), 380);
+      } else {
+        setDx(0);
+      }
     } else {
-      setDx(0); setDy(0);
+      if (dx > threshold) {
+        setFlying("right");
+        setTimeout(() => { setFlipped(true); setDx(0); setDy(0); setFlying(null); }, 280);
+      } else if (dx < -threshold) {
+        setFlying("left");
+        setTimeout(() => onSwipe("left"), 380);
+      } else {
+        setDx(0); setDy(0);
+      }
     }
   };
 
@@ -458,7 +486,7 @@ function SwipeCard({ article, isTop, depth, onSwipe, onFlipChange }) {
   else if (depth > 0)          { transform = "translateY(" + (depth * 8) + "px) scale(" + (1 - depth * 0.04) + ")"; }
   else                         { transform = "translate(0, 0) rotate(0)"; }
 
-  const skipOpacity = !flipped && dx < 0 ? Math.min(1, -dx / 100) : 0;
+  const skipOpacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
   const readOpacity = !flipped && dx > 0 ? Math.min(1, dx / 100) : 0;
   const cardClass   = "swipe-card " + (dragging ? "dragging" : flying ? "fly-out" : "snap-back");
 
@@ -467,12 +495,8 @@ function SwipeCard({ article, isTop, depth, onSwipe, onFlipChange }) {
       style={{ transform, opacity, zIndex: 100 - depth, cursor: isTop && !flipped ? "grab" : "default", pointerEvents: isTop ? "auto" : "none" }}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
       {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
-      {!flipped && (
-        <>
-          <div className="stamp skip" style={{ opacity: skipOpacity }}>SKIP</div>
-          <div className="stamp read" style={{ opacity: readOpacity }}>READ</div>
-        </>
-      )}
+      <div className="stamp skip" style={{ opacity: skipOpacity, color: flipped ? "var(--accept)" : "var(--discard)", borderColor: flipped ? "var(--accept)" : "var(--discard)" }}>{flipped ? "DONE" : "SKIP"}</div>
+      {!flipped && <div className="stamp read" style={{ opacity: readOpacity }}>READ</div>}
     </div>
   );
 }
