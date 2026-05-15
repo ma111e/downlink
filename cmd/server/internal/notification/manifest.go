@@ -28,6 +28,7 @@ type ManifestEntry struct {
 	OptCount           int      `json:"opt_count"`
 	Provider           string   `json:"provider"`
 	Model              string   `json:"model"`
+	Models             []string `json:"models,omitempty"` // all unique model names across summary + article analysis
 	Title              string   `json:"title,omitempty"`
 	Headlines          []string `json:"headlines"`
 	HeadlinePriorities []string `json:"headline_priorities,omitempty"`
@@ -157,6 +158,7 @@ func ManifestEntryFromDigest(d models.Digest) ManifestEntry {
 		OptCount:           opt,
 		Provider:           provider,
 		Model:              model,
+		Models:             digestAllModelNames(d),
 		Title:              d.Title,
 		Headlines:          headlines,
 		HeadlinePriorities: headlinePriorities,
@@ -173,6 +175,29 @@ func digestProviderLabel(d models.Digest) (providerType, modelName string) {
 		}
 	}
 	return "unknown", "unknown"
+}
+
+// digestAllModelNames returns the deduplicated list of every model name involved
+// in a digest: the summary provider first, then any article-analysis models that
+// differ. Used by both the manifest entry and the HTML digest nav bar.
+func digestAllModelNames(d models.Digest) []string {
+	seen := make(map[string]bool)
+	var names []string
+	add := func(name string) {
+		if name != "" && !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	for _, r := range d.ProviderResults {
+		add(r.ModelName)
+	}
+	for _, da := range d.DigestAnalyses {
+		if da.Analysis != nil {
+			add(da.Analysis.ModelName)
+		}
+	}
+	return names
 }
 
 func digestPriorityCounts(d models.Digest) (must, should, may, opt int) {

@@ -232,7 +232,8 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 
 	var tocEntries []TOCEntry
 	var articleEntries []ArticleEntry
-	var digestModelName string
+
+	digestModelName := strings.Join(digestAllModelNames(digest), " · ")
 
 	for _, art := range digest.Articles {
 		da := daByArticle[art.Id]
@@ -257,9 +258,6 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 
 		var rendered *RenderedAnalysis
 		if analysis != nil {
-			if digestModelName == "" {
-				digestModelName = analysis.ModelName
-			}
 			rendered = &RenderedAnalysis{
 				ProviderType:           analysis.ProviderType,
 				ModelName:              analysis.ModelName,
