@@ -27,9 +27,15 @@ func createAnalysisCommands() *cobra.Command {
 		Long:  `View and run LLM-based analysis of articles.`,
 	}
 
-	// Get analysis config command
-	getConfigCmd := &cobra.Command{
+	// Config subgroup: analysis config get / analysis config set
+	configCmd := &cobra.Command{
 		Use:   "config",
+		Short: "Manage analysis configuration",
+		Long:  `View or update the configuration for article analysis.`,
+	}
+
+	getConfigCmd := &cobra.Command{
+		Use:   "get",
 		Short: "Get analysis configuration",
 		Long:  `View the current configuration for article analysis.`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -54,7 +60,6 @@ func createAnalysisCommands() *cobra.Command {
 		},
 	}
 
-	// Update analysis config command
 	updateConfigCmd := &cobra.Command{
 		Use:   "set",
 		Short: "Update analysis configuration",
@@ -86,6 +91,8 @@ func createAnalysisCommands() *cobra.Command {
 	updateConfigCmd.Flags().StringVarP(&persona, "persona", "P", "", "Persona to use for analysis")
 	updateConfigCmd.Flags().StringVarP(&providerName, "provider-name", "n", "", "Name of the configured provider to use (required)")
 	updateConfigCmd.MarkFlagRequired("provider-name")
+
+	configCmd.AddCommand(getConfigCmd, updateConfigCmd)
 
 	// Analyze article(s) command — smart handling of single vs batch
 	var runFrom, runTo, runBetween string
@@ -588,6 +595,6 @@ Batch Analysis by Feed/Time:
 
 	queueCmd.AddCommand(queueStatusCmd, queueStartCmd, queueStopCmd, queueClearCmd)
 
-	cmd.AddCommand(getConfigCmd, updateConfigCmd, analyzeCmd, getAllCmd, getByIdCmd, queueCmd)
+	cmd.AddCommand(configCmd, analyzeCmd, getAllCmd, getByIdCmd, queueCmd)
 	return cmd
 }

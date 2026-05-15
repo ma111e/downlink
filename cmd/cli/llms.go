@@ -24,78 +24,77 @@ func createModelCommands() *cobra.Command {
 		Long:  `Add, remove, and configure LLM provider entries.`,
 	}
 
-	// Combined list command that replaces both providers and models commands
 	listCmd := &cobra.Command{
-		Use:     "list [resource]",
-		Aliases: []string{"ls"},
-		Short:   "List LLM resources",
-		Long:    `List LLM resources (providers or models).`,
-		Args:    cobra.ExactArgs(1),
+		Use:   "list",
+		Short: "List LLM resources",
+		Long:  `List configured providers or available models.`,
+	}
+
+	listProvidersCmd := &cobra.Command{
+		Use:     "providers",
+		Aliases: []string{"profiles"},
+		Short:   "List configured LLM providers",
+		Long:    `Display all configured LLM provider entries. "profiles" is accepted as an alias.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
-			resource := strings.ToLower(args[0])
+			providers, err := client.GetLLMProviders()
+			if err != nil {
+				fmt.Printf("Error getting LLM providers: %v\n", err)
+				return
+			}
+			if len(providers) == 0 {
+				fmt.Println("No LLM providers configured.")
+				return
+			}
 
-			switch resource {
-			case "providers", "profiles":
-				providers, err := client.GetLLMProviders()
+			if jsonOutput {
+				out, err := json.MarshalIndent(providers, "", "  ")
 				if err != nil {
-					fmt.Printf("Error getting LLM providers: %v\n", err)
+					fmt.Printf("Error marshalling to JSON: %v\n", err)
 					return
 				}
-				if len(providers) == 0 {
-					log.WithFields(log.Fields{
-						"resource": resource,
-					}).Info("No LLM providers configured.")
-					return
-				}
-
-				if jsonOutput {
-					out, err := json.MarshalIndent(providers, "", "  ")
-					if err != nil {
-						fmt.Printf("Error marshalling to JSON: %v\n", err)
-						return
-					}
-					fmt.Println(string(out))
-				} else {
-					printProviderTable(providers)
-				}
-
-			case "models":
-				availableModels, err := client.GetAvailableModels()
-				if err != nil {
-					fmt.Printf("Error getting available models: %v\n", err)
-					return
-				}
-				if availableModels == nil {
-					log.WithFields(log.Fields{
-						"resource": resource,
-					}).Info("No available models returned")
-					return
-				}
-
-				if jsonOutput {
-					out, err := json.MarshalIndent(availableModels, "", "  ")
-					if err != nil {
-						fmt.Printf("Error marshalling to JSON: %v\n", err)
-						return
-					}
-					fmt.Println(string(out))
-				} else {
-					printModelInfoTable(availableModels.Models)
-				}
-
-			default:
-				log.WithFields(log.Fields{
-					"resource": resource,
-				}).Info("Unknown resource type")
-				fmt.Println("Supported resources: providers (or profiles), models")
+				fmt.Println(string(out))
+			} else {
+				printProviderTable(providers)
 			}
 		},
 	}
 
+	listModelsCmd := &cobra.Command{
+		Use:   "models",
+		Short: "List available LLM models",
+		Long:  `Display models available from all configured providers.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			client := getNewDownlinkClient()
+
+			availableModels, err := client.GetAvailableModels()
+			if err != nil {
+				fmt.Printf("Error getting available models: %v\n", err)
+				return
+			}
+			if availableModels == nil || len(availableModels.Models) == 0 {
+				fmt.Println("No available models returned.")
+				return
+			}
+
+			if jsonOutput {
+				out, err := json.MarshalIndent(availableModels, "", "  ")
+				if err != nil {
+					fmt.Printf("Error marshalling to JSON: %v\n", err)
+					return
+				}
+				fmt.Println(string(out))
+			} else {
+				printModelInfoTable(availableModels.Models)
+			}
+		},
+	}
+
+	listCmd.AddCommand(listProvidersCmd, listModelsCmd)
+
 	// Save LLM providers command
-	var providerType, modelName, apiKey string
+	var providerType, modelName, apiKey, baseURLFlag string
 	var temperature float64
 	var enabled bool
 	var updateAllProviders bool
@@ -107,6 +106,12 @@ func createModelCommands() *cobra.Command {
 		Long:  `Update LLM provider configurations`,
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
+
+			// No targeting flags: run interactive flow
+			if !cmd.Flags().Changed("provider") && !cmd.Flags().Changed("all") && !cmd.Flags().Changed("file") {
+				runUpdateProviderInteractive(client)
+				return
+			}
 
 			// Get existing providers
 			providers, err := client.GetLLMProviders()
@@ -184,6 +189,11 @@ func createModelCommands() *cobra.Command {
 							providers[i].Temperature = &temperature
 						}
 
+						// Update base URL if provided
+						if baseURLFlag != "" {
+							providers[i].BaseURL = baseURLFlag
+						}
+
 						break
 					}
 				}
@@ -195,6 +205,7 @@ func createModelCommands() *cobra.Command {
 						ModelName:    modelName,
 						Enabled:      enabled,
 						Temperature:  &temperature,
+						BaseURL:      baseURLFlag,
 					}
 					providers = append(providers, newProvider)
 				}
@@ -267,6 +278,7 @@ func createModelCommands() *cobra.Command {
 	saveProvidersCmd.Flags().StringVarP(&providerType, "provider", "p", "", "Provider type (openai, anthropic, ollama, mistral)")
 	saveProvidersCmd.Flags().StringVarP(&modelName, "model", "m", "", "Model name to use")
 	saveProvidersCmd.Flags().StringVarP(&apiKey, "api-key", "k", "", "API key for the provider")
+	saveProvidersCmd.Flags().StringVarP(&baseURLFlag, "url", "u", "", "Base URL for the provider endpoint")
 	saveProvidersCmd.Flags().Float64VarP(&temperature, "temperature", "t", 0, "Temperature setting (0.0-1.0)")
 	saveProvidersCmd.Flags().BoolVarP(&enabled, "enabled", "e", true, "Enable or disable the provider")
 	saveProvidersCmd.Flags().BoolVarP(&updateAllProviders, "all", "a", false, "Update all providers with the same settings")
@@ -357,6 +369,16 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 			fmt.Println("Cancelled.")
 			return
 		}
+		if err := huh.NewInput().
+			Title("Base URL").
+			Description("Leave empty to use the provider's default endpoint").
+			Placeholder("e.g. https://api.openai.com/v1").
+			Value(&baseURL).
+			Run(); err != nil {
+			fmt.Println("Cancelled.")
+			return
+		}
+		baseURL = strings.TrimSpace(baseURL)
 	case "ollama":
 		baseURL = "http://localhost:11434"
 		if err := huh.NewInput().
@@ -538,6 +560,102 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 		}).
 		Run()
 	return strings.TrimSpace(customModel)
+}
+
+func runUpdateProviderInteractive(client *downlinkclient.DownlinkClient) {
+	providers, err := client.GetLLMProviders()
+	if err != nil {
+		fmt.Printf("Error fetching providers: %v\n", err)
+		return
+	}
+	if len(providers) == 0 {
+		fmt.Println("No providers configured.")
+		return
+	}
+
+	// Select provider
+	options := make([]huh.Option[int], len(providers))
+	for i, p := range providers {
+		status := "disabled"
+		if p.Enabled {
+			status = "enabled"
+		}
+		options[i] = huh.NewOption(fmt.Sprintf("%s  (%s / %s / %s)", p.Name, p.ProviderType, p.ModelName, status), i)
+	}
+
+	var selectedIdx int
+	if err := huh.NewSelect[int]().
+		Title("Select provider to update").
+		Options(options...).
+		Value(&selectedIdx).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	p := providers[selectedIdx]
+
+	// Model
+	modelName := p.ModelName
+	if err := huh.NewInput().
+		Title("Model name").
+		Value(&modelName).
+		Validate(func(s string) error {
+			if strings.TrimSpace(s) == "" {
+				return fmt.Errorf("model name is required")
+			}
+			return nil
+		}).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	// API key (leave blank to keep current)
+	apiKey := ""
+	if err := huh.NewInput().
+		Title("API key").
+		Description("Leave empty to keep the current key").
+		EchoMode(huh.EchoModePassword).
+		Value(&apiKey).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	// Base URL
+	baseURL := p.BaseURL
+	if err := huh.NewInput().
+		Title("Base URL").
+		Description("Leave empty to keep the current value (blank = provider default)").
+		Value(&baseURL).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	// Enabled
+	enabled := p.Enabled
+	if err := huh.NewConfirm().
+		Title("Enable this provider?").
+		Value(&enabled).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	providers[selectedIdx].ModelName = strings.TrimSpace(modelName)
+	providers[selectedIdx].BaseURL = strings.TrimSpace(baseURL)
+	providers[selectedIdx].Enabled = enabled
+	if k := strings.TrimSpace(apiKey); k != "" {
+		providers[selectedIdx].APIKey = k
+	}
+
+	if err := client.SaveLLMProviders(providers); err != nil {
+		fmt.Printf("Error saving providers: %v\n", err)
+		return
+	}
+	fmt.Printf("✓ Provider %q updated.\n", p.Name)
 }
 
 func runRemoveProvider(cmd *cobra.Command, args []string) {

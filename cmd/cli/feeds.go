@@ -333,7 +333,7 @@ Examples:
   downlink-cli feeds refresh tech-news --from -7d     # Articles from last 7 days
   downlink-cli feeds refresh "My Feed" --from 2025-01-01  # Articles from Jan 1, 2025
   downlink-cli feeds refresh feed-123 --from -1d --to now # Articles from last 24 hours`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			fromTime, toTime, err := parseTimeWindow(fromStr, toStr, betweenStr, nil)
 			if err != nil {
