@@ -729,7 +729,7 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
 
   function populateFilters() {
     var months = unique(state.rows.map(function(d) {
-      var dt = parseTs(d.started_at);
+      var dt = parseTs(d.period_start || d.started_at);
       return dt ? dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) : '';
     }).filter(Boolean));
     var models = unique(state.rows.flatMap(function(d) {
@@ -753,7 +753,7 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
     }
     if (month !== 'all') {
       rows = rows.filter(function(d) {
-        var dt = parseTs(d.started_at);
+        var dt = parseTs(d.period_start || d.started_at);
         return dt && dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) === month;
       });
     }
@@ -790,7 +790,7 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
       els.hero.innerHTML = '<span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span><div class="empty">No digests yet.</div>';
       return;
     }
-    var dt = parseTs(latest.started_at);
+    var dt = parseTs(latest.period_start || latest.started_at);
     els.hero.innerHTML =
       '<span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>' +
       '<div class="hero-head"><span>LATEST TRANSMISSION</span><span>// ' + escapeHTML(fmtDate(dt) + ' ' + fmtTime(dt) + ' UTC') + '</span><span class="rule"></span><span>' + escapeHTML(relDate(dt)) + '</span></div>' +
@@ -852,14 +852,14 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
   function renderTimeline() {
     var groups = {};
     state.filtered.forEach(function(d, i) {
-      var dt = parseTs(d.started_at);
+      var dt = parseTs(d.period_start || d.started_at);
       var key = dt ? dt.toISOString().slice(0, 10) : 'unknown';
       if (!groups[key]) groups[key] = [];
       groups[key].push({ row: d, index: i });
     });
     els.archive.innerHTML = '<div class="timeline">' + Object.keys(groups).map(function(day) {
       var items = groups[day];
-      var dt = parseTs(items[0].row.started_at);
+      var dt = parseTs(items[0].row.period_start || items[0].row.started_at);
       return '<div class="tl-day"><div class="day-label"><span class="d">' + escapeHTML(dt ? pad2(dt.getUTCDate()) : '--') + '</span><span class="m">' + escapeHTML(dt ? monthName(dt) + ' ' + dt.getUTCFullYear() : 'UNKNOWN') + '</span></div><div class="tl-rail">' +
         items.map(timelineRowHTML).join('') + '</div></div>';
     }).join('') + '</div>';
@@ -867,7 +867,7 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
   }
 
   function logRowHTML(d, i) {
-    var dt = parseTs(d.started_at);
+    var dt = parseTs(d.period_start || d.started_at);
     var expanded = state.expanded === i;
     return '<div class="log-row' + (state.active === i ? ' active' : '') + (expanded ? ' expanded' : '') + '" role="button" tabindex="0" aria-expanded="' + (expanded ? 'true' : 'false') + '" data-index="' + i + '">' +
       pinButtonHTML(d.filename) +
@@ -880,7 +880,7 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
   }
 
   function cardHTML(d, i) {
-    var dt = parseTs(d.started_at);
+    var dt = parseTs(d.period_start || d.started_at);
     return '<a class="card' + (state.active === i ? ' active' : '') + '" href="' + escapeAttr(digestURL(d.filename)) + '" data-index="' + i + '">' +
       '<span class="corner tl"></span><span class="corner br"></span>' +
       '<div class="card-head"><div class="ts2">' + escapeHTML(fmtDate(dt)) + '<small>' + escapeHTML(fmtTime(dt) + ' · ' + (d.time_window || '—')) + '</small></div><div class="card-actions"><span class="badge">' + escapeHTML(d.provider || 'unknown') + '</span>' + pinButtonHTML(d.filename) + '</div></div>' +
@@ -891,7 +891,7 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
 
   function timelineRowHTML(item) {
     var d = item.row;
-    var dt = parseTs(d.started_at);
+    var dt = parseTs(d.period_start || d.started_at);
     return '<a class="tl-row' + (state.active === item.index ? ' active' : '') + '" href="' + escapeAttr(digestURL(d.filename)) + '" data-index="' + item.index + '">' +
       '<div class="tl-meta"><span class="t">' + escapeHTML(fmtTime(dt)) + ' UTC</span><span>·</span><span>' + escapeHTML(d.time_window || '—') + ' window</span><span>·</span><span>' + (d.article_count || 0) + ' articles</span><span style="flex:1"></span>' + pinButtonHTML(d.filename) + '</div>' +
       '<div class="tl-head">' + escapeHTML(topHeadline(d)) + '</div>' + priorityBarHTML(d) + '</a>';
