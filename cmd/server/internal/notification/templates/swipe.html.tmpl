@@ -57,15 +57,14 @@
     box-shadow: 0 18px 50px rgba(0,0,0,0.5);
     will-change: transform; user-select: none; -webkit-user-select: none;
   }
-  .swipe-card.dragging { transition: none; cursor: grabbing; }
-  .swipe-card.snap-back { transition: transform 0.32s cubic-bezier(.2,.9,.2,1); }
-  .swipe-card.fly-out  { transition: transform 0.4s cubic-bezier(.4,.0,.6,1), opacity 0.4s; }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
 
   .stamp {
     position: absolute; top: 28px;
     font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
     padding: 8px 16px; border: 3px solid; border-radius: 6px;
-    pointer-events: none; text-transform: uppercase; opacity: 0; transition: opacity 0.1s;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
   }
   .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--discard); border-color: var(--discard); }
   .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--accept);  border-color: var(--accept); }
@@ -409,15 +408,60 @@ function CardBack({ article, onBack }) {
   );
 }
 
-function SwipeCard({ article, isTop, depth, onSwipe, onFlipChange }) {
-  const [dx, setDx]             = React.useState(0);
-  const [dy, setDy]             = React.useState(0);
-  const [dragging, setDragging] = React.useState(false);
-  const [flying, setFlying]     = React.useState(null);
-  const [flipped, setFlipped]   = React.useState(false);
-  const startRef = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
-  const dirRef   = React.useRef(null); // null | 'h' | 'v'
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
 
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
   React.useEffect(() => {
     if (isTop) {
       if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
@@ -426,9 +470,34 @@ function SwipeCard({ article, isTop, depth, onSwipe, onFlipChange }) {
     return () => { if (isTop) window.__downlinkFlipTop = null; };
   }, [isTop, flipped]);
 
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
   const onPointerDown = (e) => {
-    if (!isTop || flying) return;
+    if (!isTop) return;
     startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
     dirRef.current = null;
   };
 
@@ -441,15 +510,21 @@ function SwipeCard({ article, isTop, depth, onSwipe, onFlipChange }) {
       if (Math.hypot(rawDx, rawDy) < 8) return;
       dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
       if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
-      const t = startRef.current.target;
-      t && t.setPointerCapture && t.setPointerCapture(startRef.current.pointerId);
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
       setDragging(true);
     }
 
     if (dirRef.current !== 'h') return;
-    if (flipped && rawDx > 0) return; // read mode: only left swipe
-    setDx(rawDx);
-    if (!flipped) setDy(rawDy);
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
   };
 
   const onPointerUp = () => {
@@ -457,54 +532,84 @@ function SwipeCard({ article, isTop, depth, onSwipe, onFlipChange }) {
     dirRef.current = null;
     startRef.current.pointerId = null;
     if (!wasH) return;
+
     setDragging(false);
-    const threshold = 110;
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
     if (flipped) {
-      if (dx < -threshold) {
-        setFlying("left");
-        setTimeout(() => onSwipe("left"), 380);
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
       } else {
-        setDx(0);
+        snapBack();
       }
     } else {
-      if (dx > threshold) {
-        setFlying("right");
-        setTimeout(() => { setFlipped(true); setDx(0); setDy(0); setFlying(null); }, 280);
-      } else if (dx < -threshold) {
-        setFlying("left");
-        setTimeout(() => onSwipe("left"), 380);
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Fly right then flip to detail view
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.28s cubic-bezier(.4,0,.6,1)";
+          el.style.transform = `translate(60%, ${dy}px) rotate(12deg) scale(0.95)`;
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.getBoundingClientRect();
+            el2.style.transition = "";
+          }
+        }, 280);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
       } else {
-        setDx(0); setDy(0);
+        snapBack();
       }
     }
   };
 
-  let transform; let opacity = 1;
-  if (flying === "left")       { transform = "translate(-140%, " + (dy * 1.5) + "px) rotate(-22deg)"; opacity = 0; }
-  else if (flying === "right") { transform = "translate(60%, " + dy + "px) rotate(12deg) scale(0.95)"; }
-  else if (dragging)           { transform = "translate(" + dx + "px, " + (dy * 0.4) + "px) rotate(" + (dx * 0.05) + "deg)"; }
-  else if (depth > 0)          { transform = "translateY(" + (depth * 8) + "px) scale(" + (1 - depth * 0.04) + ")"; }
-  else                         { transform = "translate(0, 0) rotate(0)"; }
-
-  const skipOpacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
-  const readOpacity = !flipped && dx > 0 ? Math.min(1, dx / 100) : 0;
-  const cardClass   = "swipe-card " + (dragging ? "dragging" : flying ? "fly-out" : "snap-back");
-
   return (
-    <div className={cardClass}
-      style={{ transform, opacity, zIndex: 100 - depth, cursor: isTop && !flipped ? "grab" : "default", pointerEvents: isTop ? "auto" : "none" }}
-      onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
       {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
-      <div className="stamp skip" style={{ opacity: skipOpacity, color: flipped ? "var(--accept)" : "var(--discard)", borderColor: flipped ? "var(--accept)" : "var(--discard)" }}>{flipped ? "DONE" : "SKIP"}</div>
-      {!flipped && <div className="stamp read" style={{ opacity: readOpacity }}>READ</div>}
+      <div ref={skipRef} className="stamp skip" style={{
+        opacity: 0,
+        color: flipped ? "var(--accept)" : "var(--discard)",
+        borderColor: flipped ? "var(--accept)" : "var(--discard)"
+      }}>{flipped ? "DONE" : "SKIP"}</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
     </div>
   );
 }
 
 function App() {
-  const [index, setIndex]       = React.useState(0);
-  const [tick, setTick]         = React.useState(0);
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
   const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
   const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
   const total     = ARTICLES.length;
   const remaining = total - index;
@@ -523,17 +628,26 @@ function App() {
       .catch(() => {});
   }, []);
 
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
   React.useEffect(() => {
     const onKey = (e) => {
       if (finished) return;
-      if (e.key === "ArrowLeft")  { setIndex(i => i + 1); setTick(t => t + 1); }
+      if (e.key === "ArrowLeft")  advance();
       if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [finished]);
-
-  const advance = () => { setIndex(i => i + 1); setTick(t => t + 1); setTopFlipped(false); };
+  }, [finished, advance]);
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -546,7 +660,7 @@ function App() {
             <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
               All {total} articles in the {TIME_WINDOW} window have been triaged.
             </p>
-            <button onClick={() => { setIndex(0); setTick(0); }}
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
               style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
               &#8635; REVIEW AGAIN
             </button>
@@ -578,15 +692,22 @@ function App() {
           </div>
 
           <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
             {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
               const realDepth = arr.length - 1 - revI;
               return (
                 <SwipeCard
-                  key={article.n + "-" + tick + "-" + realDepth}
+                  key={article.n + "-" + generation}
                   article={article}
                   isTop={realDepth === 0}
                   depth={realDepth}
-                  onSwipe={(dir) => { if (dir === "left") advance(); }}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
                   onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
                 />
               );
