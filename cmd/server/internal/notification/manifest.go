@@ -20,6 +20,7 @@ const ManifestFilename = "manifest.json"
 type ManifestEntry struct {
 	Filename           string   `json:"filename"`
 	StartedAt          string   `json:"started_at"`
+	PeriodStart        string   `json:"period_start,omitempty"`
 	TimeWindow         string   `json:"time_window"`
 	ArticleCount       int      `json:"article_count"`
 	MustCount          int      `json:"must_count"`
@@ -150,6 +151,7 @@ func ManifestEntryFromDigest(d models.Digest) ManifestEntry {
 	return ManifestEntry{
 		Filename:           DigestHTMLFilename(d),
 		StartedAt:          d.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
+		PeriodStart:        d.CreatedAt.UTC().Add(-d.TimeWindow).Format("2006-01-02 15:04 UTC"),
 		TimeWindow:         formatDuration(d.TimeWindow),
 		ArticleCount:       len(d.Articles),
 		MustCount:          must,
