@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+  }
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; overflow-x: hidden; }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklch, var(--cyan) 60%, transparent); }
+    70%  { box-shadow: 0 0 0 5px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); animation: pulse-ring 2s ease-out infinite; }
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; height: 620px; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--discard); border-color: var(--discard); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--accept);  border-color: var(--accept); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .kp-list li { display: flex; gap: 0.6rem; font-size: 13px; line-height: 1.6; color: var(--text2); }
+  .kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); }
+  .report-title a { color: var(--text); text-decoration: none; }
+  .report-title a:hover { color: var(--cyan); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<script>
+window.__DL_ARTICLES = [{"n":6,"title":"CISA says ‘Copy Fail’ flaw now exploited to root Linux systems","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/cisa-says-copy-fail-flaw-now-exploited-to-root-linux-systems/","time":"11:28","priority":"MUST READ","score":98,"group":null,"groupColor":null,"tldr":"CISA has classified the actively exploited Copy Fail Linux kernel vulnerability as a critical threat and mandated immediate patching for federal systems, while urging all organizations to apply available updates to prevent unauthorized root access.","briefOverview":"\u003cp\u003eCISA has issued a warning regarding the active exploitation of the \u0026ldquo;Copy Fail\u0026rdquo; Linux security vulnerability, also known as CVE-2026-31431.\u003c/p\u003e\n\n\u003cp\u003eThe flaw resides in the Linux kernel\u0026rsquo;s algif_aead cryptographic interface and allows unprivileged local users to escalate privileges to root access.\u003c/p\u003e\n\n\u003cp\u003eResearchers at Theori disclosed the issue and released a reliable Python-based exploit that successfully grants root shells across multiple major distributions.\u003c/p\u003e\n\n\u003cp\u003eThe vulnerability affects essentially every mainstream Linux distribution that shipped with a kernel version released between 2017 and the recent patch.\u003c/p\u003e\n\n\u003cp\u003eIn response, CISA added the flaw to its Known Exploited Vulnerabilities Catalog and mandated federal agencies to apply patches within two weeks.\u003c/p\u003e\n\n\u003cp\u003eSecurity teams are strongly urged to prioritize these updates or discontinue use of vulnerable systems if mitigations are unavailable.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eCISA has formally warned that threat actors are actively exploiting the \u0026ldquo;Copy Fail\u0026rdquo; Linux vulnerability in the wild.\u003c/p\u003e\n\n\u003cp\u003eThis security flaw, tracked as CVE-2026-31431, was discovered in the Linux kernel\u0026rsquo;s algif_aead cryptographic algorithm interface.\u003c/p\u003e\n\n\u003cp\u003eIt enables unprivileged local users to gain root privileges by writing four controlled bytes to the page cache of any readable file.\u003c/p\u003e\n\n\u003cp\u003eTheori researchers disclosed the vulnerability and shared a proof-of-concept exploit they describe as one hundred percent reliable.\u003c/p\u003e\n\n\u003cp\u003eTheir testing demonstrated successful root access on Ubuntu 24.04 LTS, Amazon Linux 2023, RHEL 10.1, and SUSE 16.\u003c/p\u003e\n\n\u003cp\u003eThe researchers noted that the same script works unmodified against any Linux distribution shipped since 2017 with a vulnerable kernel version.\u003c/p\u003e\n\n\u003cp\u003eWhile major distributions have begun pushing kernel updates to address the issue, industry analysts noted that official updates were not yet available at the time of the initial advisory.\u003c/p\u003e\n\n\u003cp\u003eCISA subsequently added the flaw to its Known Exploited Vulnerabilities Catalog on Friday.\u003c/p\u003e\n\n\u003cp\u003eThe agency ordered Federal Civilian Executive Branch agencies to patch their Linux endpoints and servers within two weeks, by May 15.\u003c/p\u003e\n\n\u003cp\u003eThis directive aligns with the requirements of Binding Operational Directive 22-01.\u003c/p\u003e\n\n\u003cp\u003eCISA emphasized that this vulnerability type poses significant risks to the federal enterprise and is a frequent attack vector.\u003c/p\u003e\n\n\u003cp\u003eThe agency advised organizations to apply mitigations per vendor instructions or discontinue product use if patches are unavailable.\u003c/p\u003e\n\n\u003cp\u003eCISA also urged all security teams to prioritize securing their networks against this specific CVE.\u003c/p\u003e\n\n\u003cp\u003eThe article also mentions a separate high-severity root privilege escalation flaw dubbed Pack2TheRoot that was patched earlier in the month.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"vulnerability-overview\"\u003eVulnerability Overview\u003c/h3\u003e\n\n\u003cp\u003eThe article details the active exploitation of the \u0026ldquo;Copy Fail\u0026rdquo; Linux security flaw, officially tracked as CVE-2026-31431.\u003c/p\u003e\n\n\u003cp\u003eThis vulnerability resides within the Linux kernel\u0026rsquo;s algif_aead cryptographic algorithm interface.\u003c/p\u003e\n\n\u003cp\u003eIt allows unprivileged local users to escalate privileges to root access through a precise memory manipulation technique.\u003c/p\u003e\n\n\u003cp\u003eSpecifically, attackers can gain control by writing four controlled bytes to the page cache of any readable file on the system.\u003c/p\u003e\n\n\u003ch3 id=\"research-disclosure-and-exploit-capabilities\"\u003eResearch Disclosure and Exploit Capabilities\u003c/h3\u003e\n\n\u003cp\u003eTheori researchers publicly disclosed the flaw and released a proof-of-concept exploit.\u003c/p\u003e\n\n\u003cp\u003eThey characterized their Python-based script as one hundred percent reliable in granting root access.\u003c/p\u003e\n\n\u003cp\u003eInitial testing successfully obtained root shells across four distinct distributions:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eUbuntu 24.04 LTS\u003c/li\u003e\n\u003cli\u003eAmazon Linux 2023\u003c/li\u003e\n\u003cli\u003eRHEL 10.1\u003c/li\u003e\n\u003cli\u003eSUSE 16\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe researchers emphasized that the exploit binary works unmodified across all tested environments.\u003c/p\u003e\n\n\u003cp\u003eThey further stated that any Linux distribution shipped since 2017 with a vulnerable kernel version falls within the attack scope.\u003c/p\u003e\n\n\u003ch3 id=\"regulatory-response-and-mitigation-directives\"\u003eRegulatory Response and Mitigation Directives\u003c/h3\u003e\n\n\u003cp\u003eCISA formally added the Copy Fail vulnerability to its Known Exploited Vulnerabilities Catalog.\u003c/p\u003e\n\n\u003cp\u003eThe agency issued a directive ordering Federal Civilian Executive Branch agencies to patch their Linux endpoints and servers within two weeks.\u003c/p\u003e\n\n\u003cp\u003eThe compliance deadline is set for May 15, as mandated by Binding Operational Directive 22-01.\u003c/p\u003e\n\n\u003cp\u003eCISA highlighted that this type of vulnerability represents a frequent attack vector and poses significant risks to the federal enterprise.\u003c/p\u003e\n\n\u003cp\u003eThe agency instructed agencies to apply mitigations according to vendor guidelines or discontinue use of the product if mitigations cannot be applied.\u003c/p\u003e\n\n\u003cp\u003eCISA also extended this urgent recommendation to all security teams outside the federal government.\u003c/p\u003e\n\n\u003ch3 id=\"industry-context-and-related-developments\"\u003eIndustry Context and Related Developments\u003c/h3\u003e\n\n\u003cp\u003eAt the time of the initial advisory, security analysts noted that official vendor updates were not yet publicly available.\u003c/p\u003e\n\n\u003cp\u003eHowever, major Linux distributions have subsequently begun pushing fixes through kernel updates.\u003c/p\u003e\n\n\u003cp\u003eThe article also references a separate high-severity privilege escalation vulnerability dubbed Pack2TheRoot.\u003c/p\u003e\n\n\u003cp\u003eTracked as CVE-2026-41651, this flaw persisted in the PackageKit daemon for over a decade and was patched earlier in the month.\u003c/p\u003e\n\n\u003cp\u003eThe article concludes by listing related cybersecurity alerts and upcoming industry events focused on autonomous validation and rapid exploit mitigation.\u003c/p\u003e\n","keyPoints":["CISA has added the actively exploited Copy Fail Linux kernel vulnerability to its Known Exploited Vulnerabilities Catalog and mandated federal agencies to patch their systems within two weeks.","The vulnerability, tracked as CVE-2026-31431, resides in the kernel's algif_aead cryptographic interface and allows unprivileged local users to escalate to root privileges.","Researchers disclosed the flaw and released a Python-based exploit that reliably grants root access across major Linux distributions shipped since 2017.","While major distributions have released kernel updates to address the issue, CISA has urged all security teams to prioritize applying these patches immediately."],"insights":["The researchers demonstrated that a single unmodified Python exploit script successfully grants root access across four different Linux distributions, indicating that attackers can leverage one tool against virtually all mainstream systems running kernels from 2017 onward.","CISA mandated federal agencies to patch within two weeks under BOD 22-01, reflecting the vulnerability's rapid transition from public disclosure to active exploitation.","The flaw resides in the kernel's algif_aead cryptographic interface, allowing privilege escalation through a simple mechanism of writing four controlled bytes to the page cache of any readable file.","CISA explicitly advised organizations to discontinue use of vulnerable products if mitigations cannot be applied, providing a clear fallback contingency for systems that cannot be immediately patched."],"referencedReports":[{"title":"Theori Copy Fail Vulnerability Disclosure","url":"https://copy.fail/","publisher":"Theori Researchers","context":"The article cites this link as the official disclosure page where Theori researchers published their technical analysis and proof-of-concept exploit for the Copy Fail flaw."},{"title":"CISA Known Exploited Vulnerabilities Catalog Alert","url":"https://www.cisa.gov/news-events/alerts/2026/05/01/cisa-adds-one-known-exploited-vulnerability-catalog","publisher":"CISA","context":"The article references this link as the official CISA advisory alert announcing the vulnerability's inclusion in the KEV Catalog and the subsequent patching mandate."}],"body":"\u003cp\u003eCISA has issued a warning regarding the active exploitation of the \u0026ldquo;Copy Fail\u0026rdquo; Linux security vulnerability, also known as CVE-2026-31431.\u003c/p\u003e\n\n\u003cp\u003eThe flaw resides in the Linux kernel\u0026rsquo;s algif_aead cryptographic interface and allows unprivileged local users to escalate privileges to root access.\u003c/p\u003e\n\n\u003cp\u003eResearchers at Theori disclosed the issue and released a reliable Python-based exploit that successfully grants root shells across multiple major distributions.\u003c/p\u003e\n\n\u003cp\u003eThe vulnerability affects essentially every mainstream Linux distribution that shipped with a kernel version released between 2017 and the recent patch.\u003c/p\u003e\n\n\u003cp\u003eIn response, CISA added the flaw to its Known Exploited Vulnerabilities Catalog and mandated federal agencies to apply patches within two weeks.\u003c/p\u003e\n\n\u003cp\u003eSecurity teams are strongly urged to prioritize these updates or discontinue use of vulnerable systems if mitigations are unavailable.\u003c/p\u003e\n"},{"n":5,"title":"Progress warns of critical MOVEit Automation auth bypass flaw","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/moveit-automation-customers-warned-to-patch-critical-auth-bypass-flaw/","time":"12:18","priority":"MUST READ","score":95,"group":null,"groupColor":null,"tldr":"Progress Software urges immediate upgrading of MOVEit Automation to a patched version to mitigate a critical remote authentication bypass vulnerability and a high-severity privilege escalation flaw affecting over 1,400 publicly exposed instances, including several US government systems.","briefOverview":"\u003cp\u003eProgress Software has issued an urgent advisory regarding a critical authentication bypass vulnerability in its MOVEit Automation managed file transfer application.\u003c/p\u003e\n\n\u003cp\u003eTracked as CVE-2026-4670, this flaw affects versions prior to 2025.1.5, 2025.0.9, and 2024.1.8.\u003c/p\u003e\n\n\u003cp\u003eRemote attackers can exploit the vulnerability without authentication or user interaction in low-complexity attacks.\u003c/p\u003e\n\n\u003cp\u003eThe company strongly recommends upgrading to the latest patched release to fully remediate the issue.\u003c/p\u003e\n\n\u003cp\u003eThis upgrade process requires a full installer and will temporarily cause a system outage.\u003c/p\u003e\n\n\u003cp\u003eAlongside the authentication flaw, Progress also patched a high-severity privilege escalation vulnerability stemming from improper input validation.\u003c/p\u003e\n\n\u003cp\u003eOver 1,400 MOVEit instances are currently exposed online, including several linked to U.S. government agencies.\u003c/p\u003e\n\n\u003cp\u003eWhile not yet confirmed as exploited in the wild, MOVEit software has a history of being targeted by ransomware groups like Clop.\u003c/p\u003e\n\n\u003cp\u003eOrganizations should prioritize immediate patching to prevent potential data theft and system compromise.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eProgress Software has warned its customer base to urgently patch a critical authentication bypass vulnerability within its MOVEit Automation enterprise-grade managed file transfer application.\u003c/p\u003e\n\n\u003cp\u003eThe flaw, identified as CVE-2026-4670, impacts all MOVEit Automation versions released before 2025.1.5, 2025.0.9, and 2024.1.8.\u003c/p\u003e\n\n\u003cp\u003eThreat actors can leverage this vulnerability remotely without needing any prior privileges on the targeted systems.\u003c/p\u003e\n\n\u003cp\u003eThe attack vector is classified as low-complexity and does not require any interaction from a legitimate user.\u003c/p\u003e\n\n\u003cp\u003eProgress explicitly states that upgrading to the latest patched release is the only effective method to resolve this security issue.\u003c/p\u003e\n\n\u003cp\u003eAdministrators must note that applying the full installer will inevitably cause a temporary outage to the system during the upgrade process.\u003c/p\u003e\n\n\u003cp\u003eIn addition to the authentication bypass, Progress simultaneously released updates to address a high-severity privilege escalation flaw labeled CVE-2026-5174.\u003c/p\u003e\n\n\u003cp\u003eThis secondary vulnerability arises from an improper input validation weakness within the same software suite.\u003c/p\u003e\n\n\u003cp\u003eIndependent cybersecurity research indicates that more than 1,400 MOVEit Automation instances are currently exposed to the internet.\u003c/p\u003e\n\n\u003cp\u003eFurthermore, over a dozen of these publicly accessible systems are directly associated with U.S. local and state government agencies.\u003c/p\u003e\n\n\u003cp\u003eThere is currently no public data detailing how many of these exposed instances have already been secured against the new CVEs.\u003c/p\u003e\n\n\u003cp\u003eAlthough Progress has not yet confirmed active exploitation of these specific flaws, the MOVEit platform has historically been a prime target for ransomware operators.\u003c/p\u003e\n\n\u003cp\u003eNotably, the Clop ransomware gang previously exploited a zero-day in the MOVEit Transfer platform during a massive 2023 campaign.\u003c/p\u003e\n\n\u003cp\u003eThat earlier attack compromised over 2,100 organizations and exposed the data of more than 62 million individuals.\u003c/p\u003e\n\n\u003cp\u003eManaged file transfer software remains highly attractive to threat actors due to its central role in enterprise data workflows.\u003c/p\u003e\n\n\u003cp\u003eProgress Software reports that its MOVEit solutions currently serve more than 3,000 enterprise organizations and over 100,000 users globally.\u003c/p\u003e\n\n\u003cp\u003eSecurity teams are advised to immediately prioritize these patches to mitigate potential unauthorized access and privilege escalation risks.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003eProgress Software has issued a critical security advisory regarding a severe authentication bypass flaw in its MOVEit Automation managed file transfer application.\u003c/p\u003e\n\n\u003cp\u003eThe vulnerability is officially tracked as CVE-2026-4670 and affects all software versions released prior to 2025.1.5, 2025.0.9, and 2024.1.8.\u003c/p\u003e\n\n\u003cp\u003eRemote threat actors can exploit this flaw without possessing any authentication credentials or system privileges.\u003c/p\u003e\n\n\u003cp\u003eThe attack characteristics are classified as low-complexity and require no interaction from end users to succeed.\u003c/p\u003e\n\n\u003cp\u003eIn addition to the authentication bypass, Progress released a simultaneous patch for a high-severity privilege escalation vulnerability designated as CVE-2026-5174.\u003c/p\u003e\n\n\u003cp\u003eThis secondary flaw stems directly from an improper input validation weakness within the same codebase.\u003c/p\u003e\n\n\u003cp\u003eKey technical details include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eCVE-2026-4670: Critical authentication bypass requiring no user interaction or privileges.\u003c/li\u003e\n\u003cli\u003eCVE-2026-5174: High-severity privilege escalation caused by improper input validation.\u003c/li\u003e\n\u003cli\u003eAffected versions: All releases prior to 2025.1.5, 2025.0.9, and 2024.1.8.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe vendor explicitly states that upgrading to the latest patched release is the only viable method to remediate the authentication bypass issue.\u003c/p\u003e\n\n\u003cp\u003eOrganizations must utilize the full installer package to ensure complete security patching.\u003c/p\u003e\n\n\u003cp\u003eIT administrators should plan for an unavoidable system outage, as the upgrade process will temporarily halt all MOVEit Automation services.\u003c/p\u003e\n\n\u003cp\u003eProgress has not provided alternative mitigation strategies or temporary workarounds for environments that cannot immediately undergo the upgrade.\u003c/p\u003e\n\n\u003cp\u003eIndependent research utilizing Shodan search data reveals that over 1,400 MOVEit Automation instances are currently exposed online.\u003c/p\u003e\n\n\u003cp\u003eA significant portion of these publicly accessible systems are directly linked to U.S. local and state government agencies.\u003c/p\u003e\n\n\u003cp\u003eThere is currently no available intelligence regarding the exact number of these exposed instances that have already been patched against CVE-2026-4670.\u003c/p\u003e\n\n\u003cp\u003eWhile Progress has not flagged these specific vulnerabilities as actively exploited in the wild, the MOVEit platform has a documented history of being targeted by sophisticated threat actors.\u003c/p\u003e\n\n\u003cp\u003eThe Clop ransomware syndicate previously leveraged a zero-day vulnerability in the MOVEit Transfer platform during a massive 2023 data theft campaign.\u003c/p\u003e\n\n\u003cp\u003eThat historical breach impacted more than 2,100 organizations and compromised the personal data of over 62 million individuals.\u003c/p\u003e\n\n\u003cp\u003eManaged file transfer software remains a highly attractive target for ransomware operators due to its centralized role in enterprise data workflows.\u003c/p\u003e\n\n\u003cp\u003eProgress Software reports that its MOVEit managed file transfer solutions are currently deployed across more than 3,000 enterprise organizations worldwide.\u003c/p\u003e\n\n\u003cp\u003eThe platform supports over 100,000 individual users who rely on it for automated data workflow orchestration.\u003c/p\u003e\n\n\u003cp\u003eGiven the critical nature of the authentication bypass and the widespread exposure of government and enterprise instances, immediate patching is strongly recommended.\u003c/p\u003e\n\n\u003cp\u003eSecurity teams should prioritize the full installer upgrade to close both the authentication and privilege escalation vulnerabilities before they can be leveraged in targeted attacks.\u003c/p\u003e\n","keyPoints":["Progress Software has issued an advisory urging customers to patch a critical authentication bypass vulnerability (CVE-2026-4670) and a high-severity privilege escalation flaw (CVE-2026-5174) in MOVEit Automation.","The vulnerabilities impact MOVEit Automation versions prior to 2025.1.5, 2025.0.9, and 2024.1.8, requiring an upgrade to the latest release that causes a system outage during installation.","Research indicates that over 1,400 MOVEit Automation instances are currently exposed online, with more than a dozen of these systems linked to U.S. local and state government agencies.","Although Progress has not yet confirmed exploitation of these specific flaws, the MOVEit platform has been a frequent target for ransomware groups, including the 2023 Clop attacks that compromised over 2,100 organizations."],"insights":["The remediation process requires a full installer upgrade that forces a system outage, meaning organizations must schedule downtime to apply the patch.","Shodan data indicates that over 1,400 MOVEit Automation instances are currently exposed online, with more than a dozen of these systems linked to U.S. local and state government agencies.","The critical authentication bypass vulnerability allows remote threat actors to exploit the flaw without privileges or user interaction, creating a low-complexity attack vector."],"referencedReports":[{"title":"MOVEit Automation Critical Security Alert Bulletin April 2026","url":"https://community.progress.com/s/article/MOVEit-Automation-Critical-Security-Alert-Bulletin-April-2026-CVE-2026-4670-CVE-2026-5174","publisher":"Progress Software","context":"The article cites this official advisory where Progress recommends upgrading to the latest patched release to remediate critical vulnerabilities."},{"title":"Unpacking the MOVEit Breach Statistics and Analysis","url":"http://www.emsisoft.com/en/blog/44123/unpacking-the-moveit-breach-statistics-and-analysis/","publisher":"Emsisoft","context":"The article references this analysis to provide estimates on the scale of the 2023 Clop ransomware attacks that compromised MOVEit Transfer."}],"body":"\u003cp\u003eProgress Software has issued an urgent advisory regarding a critical authentication bypass vulnerability in its MOVEit Automation managed file transfer application.\u003c/p\u003e\n\n\u003cp\u003eTracked as CVE-2026-4670, this flaw affects versions prior to 2025.1.5, 2025.0.9, and 2024.1.8.\u003c/p\u003e\n\n\u003cp\u003eRemote attackers can exploit the vulnerability without authentication or user interaction in low-complexity attacks.\u003c/p\u003e\n\n\u003cp\u003eThe company strongly recommends upgrading to the latest patched release to fully remediate the issue.\u003c/p\u003e\n\n\u003cp\u003eThis upgrade process requires a full installer and will temporarily cause a system outage.\u003c/p\u003e\n\n\u003cp\u003eAlongside the authentication flaw, Progress also patched a high-severity privilege escalation vulnerability stemming from improper input validation.\u003c/p\u003e\n\n\u003cp\u003eOver 1,400 MOVEit instances are currently exposed online, including several linked to U.S. government agencies.\u003c/p\u003e\n\n\u003cp\u003eWhile not yet confirmed as exploited in the wild, MOVEit software has a history of being targeted by ransomware groups like Clop.\u003c/p\u003e\n\n\u003cp\u003eOrganizations should prioritize immediate patching to prevent potential data theft and system compromise.\u003c/p\u003e\n"},{"n":2,"title":"Microsoft confirms April Windows updates cause backup failures","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/microsoft/microsoft-confirms-backup-failures-caused-by-vulnerable-driver-block/","time":"10:40","priority":"SHOULD READ","score":88,"group":null,"groupColor":null,"tldr":"Microsoft's April 2026 security update blocks the vulnerable psmounterex.sys driver to prevent privilege escalation attacks, but this inadvertently breaks third-party backup applications that rely on it for mounting and restoring images. Administrators should update their backup software to newer versions rather than uninstalling the Windows patch to maintain system security.","briefOverview":"\u003cp\u003eMicrosoft has confirmed that its April 2026 security updates are causing widespread failures in third-party backup applications. The issue stems from a security hardening change that added the psmounterex.sys driver to the Vulnerable Driver Blocklist. This driver was blocked to mitigate CVE-2023-43896, a high-severity buffer overflow vulnerability that could allow attackers to escalate privileges or execute arbitrary code.\u003c/p\u003e\n\n\u003cp\u003eConsequently, backup software relying on this driver now experiences Volume Shadow Copy Service timeouts when attempting to mount or restore disk images. Affected products include Macrium Reflect, Acronis Cyber Protect Cloud, UrBackup Server, and NinjaOne Backup across Windows 10, Windows 11, and Windows Server environments. Microsoft explicitly advises against uninstalling the patch and recommends updating to newer versions of the affected backup applications.\u003c/p\u003e\n\n\u003cp\u003eAdministrators can verify the block by checking for Event ID 3077 in the Code Integrity Operational log. While full image backups may still succeed, mounting and restore operations will consistently fail until the software is updated.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eMicrosoft has officially confirmed that the April 2026 security updates are triggering failures in third-party backup applications. The root cause is a security hardening modification that placed the psmounterex.sys kernel driver onto the Microsoft Vulnerable Driver Blocklist. This action was taken to defend against CVE-2023-43896, a critical buffer overflow flaw that enables privilege escalation and arbitrary code execution.\u003c/p\u003e\n\n\u003cp\u003eAs a direct result, backup solutions utilizing this driver encounter Volume Shadow Copy Service timeouts during snapshot creation. The affected software ecosystem includes Macrium Reflect, Acronis Cyber Protect Cloud, UrBackup Server, and NinjaOne Backup. These failures span across Windows 10, Windows 11, and Windows Server operating systems.\u003c/p\u003e\n\n\u003cp\u003eWhen the driver is blocked by Windows Code Integrity enforcement, users will notice that backup applications cannot mount image files as virtual drives. Attempting to browse or restore from these images will trigger errors or prolonged timeouts. Users may also see specific error messages stating that the VSS service timed out during snapshot creation.\u003c/p\u003e\n\n\u003cp\u003eAdditionally, the Event Viewer will record Event ID 3077 in the Code Integrity Operational log, indicating the driver was blocked in enforcement mode. Despite these mount failures, the creation of full image backups typically remains unaffected. Microsoft strongly advises IT administrators not to uninstall or pause the April update.\u003c/p\u003e\n\n\u003cp\u003eInstead, organizations should deploy the latest versions of their backup applications, which incorporate updated drivers with the necessary protections. To confirm the block, administrators should navigate to the CodeIntegrity Operational log and search for Event ID 3077 paired with Policy ID {D2BDA982-CCF6-4344-AC5B-0B44427B6816}. This issue follows other recent April update complications, including BitLocker recovery prompts on Windows Server 2025 and out-of-band fixes for update installation failures and restart loops.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"overview-of-the-issue\"\u003eOverview of the Issue\u003c/h3\u003e\n\n\u003cp\u003eMicrosoft has officially confirmed that its April 2026 security updates are causing widespread failures in third-party backup applications. The core problem involves a compatibility conflict between the updated operating system and legacy kernel drivers used by backup vendors. This conflict specifically disrupts the mounting and restoration of backup images across multiple Windows platforms.\u003c/p\u003e\n\n\u003ch3 id=\"root-cause-and-security-context\"\u003eRoot Cause and Security Context\u003c/h3\u003e\n\n\u003cp\u003eThe disruption originates from a security hardening change introduced in the April patch. Microsoft added the psmounterex.sys driver to its Vulnerable Driver Blocklist to mitigate a high-severity buffer overflow vulnerability. This flaw is tracked as CVE-2023-43896 and allows attackers to escalate privileges or execute arbitrary code on compromised systems. By blocking this driver, Microsoft aims to prevent exploitation targeting the driver\u0026rsquo;s inherent security weaknesses.\u003c/p\u003e\n\n\u003ch3 id=\"affected-systems-and-software\"\u003eAffected Systems and Software\u003c/h3\u003e\n\n\u003cp\u003eThe compatibility issue impacts a wide range of backup solutions that depend on the psmounterex.sys driver for snapshot and image management. Notable affected products include Macrium Reflect, Acronis Cyber Protect Cloud, UrBackup Server, and NinjaOne Backup. These failures are not limited to a single operating system, as they occur across Windows 10, Windows 11, and Windows Server environments. The issue specifically targets applications that utilize the Volume Shadow Copy Service for creating and managing disk images.\u003c/p\u003e\n\n\u003ch3 id=\"symptoms-and-detection\"\u003eSymptoms and Detection\u003c/h3\u003e\n\n\u003cp\u003eWhen the vulnerable driver is blocked by Windows Code Integrity enforcement, users will experience distinct operational failures. Administrators can identify the issue through the following indicators:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eBackup applications will be unable to mount backup image files as virtual drives.\u003c/li\u003e\n\u003cli\u003eAny attempt to browse or restore data from these images will result in errors or prolonged timeouts.\u003c/li\u003e\n\u003cli\u003eUsers may encounter specific error messages indicating that the Microsoft VSS service timed out during snapshot creation.\u003c/li\u003e\n\u003cli\u003eThe system will also log VSS_E_BAD_STATE errors in the event logs.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eTo verify the block, IT administrators can inspect the Event Viewer. They should navigate to Applications and Services Logs, then Microsoft, Windows, CodeIntegrity, and finally the Operational log. The presence of Event ID 3077 with Policy ID {D2BDA982-CCF6-4344-AC5B-0B44427B6816} confirms that the psmounterex driver was blocked in enforcement mode. Despite these mount failures, the creation of full image backups typically remains unaffected and will still succeed.\u003c/p\u003e\n\n\u003ch3 id=\"microsoft-s-official-guidance\"\u003eMicrosoft\u0026rsquo;s Official Guidance\u003c/h3\u003e\n\n\u003cp\u003eMicrosoft has issued clear directives for administrators managing impacted systems. The company explicitly advises against uninstalling or pausing the April 2026 security update. Removing the patch would leave systems exposed to the CVE-2023-43896 vulnerability. Instead, Microsoft recommends that customers update their backup applications to the latest versions. These newer software releases utilize updated drivers that include the required security protections against the blocklist. Organizations should validate their current driver configurations against the Microsoft Vulnerable Driver Blocklist to ensure ongoing protection.\u003c/p\u003e\n\n\u003ch3 id=\"related-april-2026-update-issues\"\u003eRelated April 2026 Update Issues\u003c/h3\u003e\n\n\u003cp\u003eThe backup driver block is part of a broader set of complications introduced by the April 2026 updates. Earlier in the month, Microsoft warned that some Windows Server 2025 devices might boot into BitLocker recovery mode after installing the KB5082063 update. Additionally, Microsoft released out-of-band updates to address update installation failures and restart loops affecting certain domain controllers. These concurrent issues highlight the complexity of deploying major security patches across enterprise environments.\u003c/p\u003e\n","keyPoints":["Microsoft's April 2026 security update added the psmounterex.sys driver to the Vulnerable Driver Blocklist to mitigate CVE-2023-43896.","This security hardening change causes third-party backup applications relying on the driver to fail when mounting or restoring disk images.","Affected systems will display VSS timeout errors and Event ID 3077 in the Code Integrity Operational log.","Microsoft recommends that users update their backup software to newer versions with updated drivers instead of uninstalling the Windows patch."],"insights":["Full image backups remain functional even when mount operations fail, allowing administrators to preserve data integrity while troubleshooting restore issues.","The definitive detection signature for the blocked driver is Event ID 3077 in the Code Integrity Operational log associated with Policy ID {D2BDA982-CCF6-4344-AC5B-0B44427B6816}.","Microsoft explicitly advises against uninstalling the update, requiring users to update their backup software to newer versions with compatible drivers to remain protected against CVE-2023-43896."],"referencedReports":[],"body":"\u003cp\u003eMicrosoft has confirmed that its April 2026 security updates are causing widespread failures in third-party backup applications. The issue stems from a security hardening change that added the psmounterex.sys driver to the Vulnerable Driver Blocklist. This driver was blocked to mitigate CVE-2023-43896, a high-severity buffer overflow vulnerability that could allow attackers to escalate privileges or execute arbitrary code.\u003c/p\u003e\n\n\u003cp\u003eConsequently, backup software relying on this driver now experiences Volume Shadow Copy Service timeouts when attempting to mount or restore disk images. Affected products include Macrium Reflect, Acronis Cyber Protect Cloud, UrBackup Server, and NinjaOne Backup across Windows 10, Windows 11, and Windows Server environments. Microsoft explicitly advises against uninstalling the patch and recommends updating to newer versions of the affected backup applications.\u003c/p\u003e\n\n\u003cp\u003eAdministrators can verify the block by checking for Event ID 3077 in the Code Integrity Operational log. While full image backups may still succeed, mounting and restore operations will consistently fail until the software is updated.\u003c/p\u003e\n"},{"n":9,"title":"2026: The Year of AI-Assisted Attacks","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/2026-year-of-ai-assisted-attacks.html","time":"11:58","priority":"SHOULD READ","score":88,"group":null,"groupColor":null,"tldr":"AI has democratized and accelerated cyberattacks to the point where traditional patching and signature detection are no longer viable defenses. Security teams must abandon reactive strategies and structurally eliminate entire categories of vulnerability to protect their environments.","briefOverview":"\u003cp\u003eThe article documents a significant shift in the cyber threat landscape in 2025, where AI-assisted tools have dramatically lowered the barrier to entry for conducting sophisticated cyberattacks. Non-technical individuals, including teenagers with no coding background, successfully executed large-scale breaches by leveraging platforms like ChatGPT and Claude Code. This democratization of offensive capabilities coincided with a massive surge in malicious software, as malicious public repository packages grew from 55,000 in 2022 to over 454,000 in 2025. Traditional defensive measures are struggling to keep pace, with the average time to exploit a vulnerability dropping to just 44 days and nearly 29% of critical flaws being actively exploited within 24 hours of disclosure. Furthermore, AI-generated malware is increasingly bypassing static analysis and signature scanners by mimicking legitimate software structures. Because the exploit window is shrinking faster than patching cycles can adapt, the article argues that reactive vulnerability management is no longer sufficient. Instead, organizations must structurally eliminate entire categories of vulnerability by rebuilding open-source dependencies from verified, attributable source code to render these attacks impossible.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eIn December 2025, a 17-year-old in Osaka was arrested for extracting data from over 7 million internet cafe users, a breach motivated solely by a desire to purchase Pokémon cards. Unlike historical cybercriminals, this individual lacked technical expertise, highlighting a broader trend where AI coding assistants have removed the need for specialized programming skills. Throughout 2025, LLM-backed agent systems evolved from error-prone helpers into end-to-end development powerhouses, directly correlating with a doubling of cybercrime frequency and severity. In February, three teenagers used ChatGPT to launch approximately 220,000 fraudulent mobile contracts against Rakuten Mobile, while a single actor in July utilized Claude Code to orchestrate an extortion campaign against 17 organizations in just one month. By December, another individual successfully breached multiple Mexican government agencies, stealing over 195 million taxpayer records using the same AI tools. Quantitative metrics reflect this acceleration, with malicious packages in public repositories surging from 55,000 in 2022 to 454,600 in 2025. Cloud intrusions increased by 35%, and AI-generated phishing campaigns began outperforming human red teams. The time required to develop an exploit for a newly disclosed vulnerability plummeted from over 700 days in 2020 to just 44 days in 2025. In fact, 28.3% of CVEs are now exploited within 24 hours of their public disclosure. Defensive capabilities are simultaneously lagging, as the average time to remediate a critical CVE stretches to 74 days, and 45% of vulnerabilities in large enterprises remain permanently unpatched. The September 2025 Shai-Hulud attack compromised over 500 npm packages and resulted in $8.5 million stolen from Trust Wallet, demonstrating the scale of supply chain risks. AI-crafted malware is now routinely embedding documentation, unit tests, and telemetry-like code to evade static analysis and signature-based detection. With AI coding benchmarks like SWE-bench jumping from 33% resolution in mid-2024 to nearly 81% by late 2025, the gap between offensive and defensive capabilities is widening. The article concludes that organizations can no longer rely on traditional patching cycles or reactive detection. Instead, security teams must structurally eliminate entire vulnerability categories by sourcing dependencies from verified, attributable repositories.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"executive-summary-of-ai-driven-cybersecurity-shifts-in-2025-2026\"\u003eExecutive Summary of AI-Driven Cybersecurity Shifts in 2025-2026\u003c/h2\u003e\n\n\u003cp\u003eThe cybersecurity landscape has undergone a fundamental transformation, driven by the rapid maturation of AI-assisted coding tools. This shift has democratized offensive capabilities, accelerated attack timelines, and overwhelmed traditional defensive mechanisms.\u003c/p\u003e\n\n\u003ch3 id=\"the-democratization-of-cyber-offense\"\u003eThe Democratization of Cyber Offense\u003c/h3\u003e\n\n\u003cp\u003eTraditional barriers to conducting sophisticated cyberattacks have effectively vanished. In December 2025, a 17-year-old in Osaka was arrested for extracting personal data from over 7 million users of Japan\u0026rsquo;s largest internet cafe chain, motivated simply by a desire to buy Pokémon cards. This individual lacked any technical background, mirroring other 2025 incidents where non-experts achieved significant impact. Three teenagers aged 14 to 16 utilized ChatGPT to launch approximately 220,000 fraudulent mobile contracts against Rakuten Mobile. A single actor in July leveraged Claude Code to execute a month-long extortion campaign targeting 17 organizations. By December, another individual used a combination of Claude Code and ChatGPT to breach more than 10 Mexican government agencies, exfiltrating over 195 million taxpayer records. These cases demonstrate that single actors and non-technical individuals can now execute attacks that previously required organized, highly skilled teams.\u003c/p\u003e\n\n\u003ch3 id=\"acceleration-of-malicious-activity-and-exploit-velocity\"\u003eAcceleration of Malicious Activity and Exploit Velocity\u003c/h3\u003e\n\n\u003cp\u003eThe proliferation of AI tools has directly correlated with a dramatic increase in the volume and speed of cyber threats. Malicious packages discovered in public repositories surged from 55,000 in 2022 to 454,600 in 2025, with notable spikes following major AI releases. Cloud intrusions increased by 35% throughout the year, and AI-generated phishing began outperforming human red teams in benchmark tests. More critically, the time-to-exploit metric has collapsed from over 700 days in 2020 to just 44 days in 2025. According to Mandiant’s M-Trends 2026 report, this window has effectively gone negative, with 28.3% of CVEs actively exploited within 24 hours of disclosure. AI coding benchmarks reflect this capability leap, with top models resolving 33% of real GitHub issues in August 2024 and climbing to nearly 81% by December 2025.\u003c/p\u003e\n\n\u003ch3 id=\"the-collapse-of-traditional-defensive-postures\"\u003eThe Collapse of Traditional Defensive Postures\u003c/h3\u003e\n\n\u003cp\u003eDefensive strategies are struggling to match the accelerated pace of offensive operations. The average time to remediate a high- or critical-severity CVE now stands at 74 days, and 45% of vulnerabilities in large enterprises never receive a patch. Supply chain integrity has been severely compromised, exemplified by the September 2025 Shai-Hulud attack that poisoned over 500 npm packages, affected 487 organizations, and resulted in $8.5 million stolen from Trust Wallet. Detection mechanisms are failing against AI-generated malware that mimics legitimate software by including authentic documentation, unit tests, and structured telemetry modules. Static analysis and signature scanners consistently miss these artifacts because they appear indistinguishable from legitimate code. As noted by industry experts, the complexity and scale of vulnerability management have outgrown the operational capabilities of most security teams.\u003c/p\u003e\n\n\u003ch3 id=\"strategic-recommendations-for-structural-defense\"\u003eStrategic Recommendations for Structural Defense\u003c/h3\u003e\n\n\u003cp\u003eThe shrinking exploit window and rising sophistication of AI-assisted attacks render reactive patching and signature-based detection obsolete. Organizations must abandon the strategy of trying to outrun attackers and instead focus on structurally eliminating entire categories of vulnerability. The article advocates for rebuilding open-source dependencies from verified, attributable source code to prevent CI/CD takeovers, dependency confusion, and package distribution attacks. Testing demonstrates that this approach blocked 99.7% of 8,783 malicious npm packages and approximately 98% of malicious Python packages. By ensuring production systems, artifact managers, and developer workstations only consume verified libraries, organizations can neutralize the threat of rapidly evolving AI-crafted malware and supply chain compromises.\u003c/p\u003e\n","keyPoints":["AI-assisted attacks have lowered the barrier to entry, allowing non-technical individuals and single actors to conduct sophisticated cybercrimes that previously required organized teams.","Malicious packages in public repositories surged from 55,000 in 2022 to 454,600 in 2025, while cloud intrusions increased by 35%.","The time to exploit a vulnerability has dropped from over 700 days in 2020 to 44 days in 2025, with 28.3% of CVEs exploited within 24 hours of disclosure.","Traditional detection methods are failing against AI-generated malware, and the average time to remediate a critical CVE is 74 days, leaving 45% of vulnerabilities in large companies unpatched."],"insights":["AI-crafted malware now mimics legitimate telemetry modules complete with documentation and unit tests, causing static analysis and signature scanners to miss malicious code entirely.","Exploit development has outpaced patching to the point where 28.3% of vulnerabilities are actively exploited within 24 hours of disclosure, rendering traditional reactive patching cycles obsolete.","The attacker demographic has fundamentally shifted from technical experts to non-technical individuals, with teenagers successfully executing large-scale breaches using only off-the-shelf LLMs.","Reactive vulnerability management is no longer viable at scale since 45% of critical vulnerabilities in large enterprises remain permanently unpatched, making structural elimination of attack categories the only sustainable defense."],"referencedReports":[{"title":"State of the Software Supply Chain 2026","url":"https://www.sonatype.com/state-of-the-software-supply-chain/2026/open-source-malware","publisher":"Sonatype","context":"Cited as the source for data showing malicious public repository packages grew from 55,000 in 2022 to 454,600 in 2025."},{"title":"Global Threat Report","url":"https://www.crowdstrike.com/global-threat-report/","publisher":"CrowdStrike","context":"Referenced to support the statistic that cloud intrusions increased by 35% throughout 2025."},{"title":"M-Trends 2026","url":"https://cloud.google.com/blog/topics/threat-intelligence/m-trends-2026/","publisher":"Mandiant","context":"Explicitly named as the report that found time-to-exploit has gone negative, with 28.3% of CVEs exploited within 24 hours of disclosure."},{"title":"N-Day Vulnerability Trends","url":"https://flashpoint.io/blog/n-day-vulnerability-trends/","publisher":"Flashpoint","context":"Linked as the source documenting the drop in time-to-exploit from over 700 days in 2020 to 44 days in 2025."},{"title":"Widespread Supply Chain Compromise Impacting npm Ecosystem","url":"https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem","publisher":"CISA","context":"Cited as the official advisory detailing how 487 organizations had secrets compromised during the Shai-Hulud attack."},{"title":"Mitigating Malware in the Python/NPM Ecosystem","url":"https://www.chainguard.dev/unchained/mitigating-malware-in-the-python-npm-ecosystem","publisher":"Chainguard","context":"Referenced as the technical analysis demonstrating that Chainguard Libraries blocked 99.7% of tested malicious npm packages."}],"body":"\u003cp\u003eThe article documents a significant shift in the cyber threat landscape in 2025, where AI-assisted tools have dramatically lowered the barrier to entry for conducting sophisticated cyberattacks. Non-technical individuals, including teenagers with no coding background, successfully executed large-scale breaches by leveraging platforms like ChatGPT and Claude Code. This democratization of offensive capabilities coincided with a massive surge in malicious software, as malicious public repository packages grew from 55,000 in 2022 to over 454,000 in 2025. Traditional defensive measures are struggling to keep pace, with the average time to exploit a vulnerability dropping to just 44 days and nearly 29% of critical flaws being actively exploited within 24 hours of disclosure. Furthermore, AI-generated malware is increasingly bypassing static analysis and signature scanners by mimicking legitimate software structures. Because the exploit window is shrinking faster than patching cycles can adapt, the article argues that reactive vulnerability management is no longer sufficient. Instead, organizations must structurally eliminate entire categories of vulnerability by rebuilding open-source dependencies from verified, attributable source code to render these attacks impossible.\u003c/p\u003e\n"},{"n":1,"title":"“Legitimate” phishing: how attackers weaponize Amazon SES to bypass email security","source":"securelist.com","sourceColor":"#2dd4bf","link":"https://securelist.com/amazon-ses-phishing-and-bec-attacks/119623/","time":"10:00","priority":"SHOULD READ","score":85,"group":null,"groupColor":null,"tldr":"Attackers are hijacking leaked AWS credentials to send highly convincing phishing and business email compromise messages through Amazon SES that bypass standard email authentication and security checks. Organizations must secure their AWS IAM keys and users should verify unexpected requests through separate channels, as legitimate cloud infrastructure can no longer guarantee email safety.","briefOverview":"\u003cp\u003eAttackers are increasingly leveraging Amazon Simple Email Service (SES) to distribute highly convincing phishing and business email compromise campaigns. By hijacking leaked AWS IAM access keys, threat actors bypass traditional email security filters and authentication protocols like SPF, DKIM, and DMARC. These malicious messages originate from trusted cloud infrastructure, ensuring they avoid IP blocklists and appear technically legitimate to security systems. The article details recent campaigns using fake electronic signature notifications and fabricated financial email threads to steal credentials or trick finance departments into wiring funds. Because blocking Amazon SES IPs would cause widespread false positives for legitimate services, mitigation relies heavily on securing AWS credentials and user vigilance. Organizations are advised to implement least privilege access, transition to IAM roles, enable multi-factor authentication, and regularly rotate keys. Users should verify unexpected documents through separate channels and carefully inspect email links rather than relying on sender reputation.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eAttackers are shifting from isolated phishing incidents to a steady trend by weaponizing Amazon Simple Email Service (SES). This cloud-based platform is designed for reliable transactional and marketing email delivery but has become a preferred channel for threat actors. Instead of building suspicious domains, scammers hijack leaked AWS IAM access keys often exposed in public repositories, configuration files, or S3 buckets.\u003c/p\u003e\n\n\u003cp\u003eAutomated tools like TruffleHog help phishers locate and verify these credentials before launching large-scale campaigns. Emails sent through SES pass all standard authentication protocols, including SPF, DKIM, and DMARC, while displaying \u003ccode\u003e.amazonses.com\u003c/code\u003e in their headers. This technical legitimacy ensures the messages bypass reputation-based blocklists, as blocking the service would disrupt legitimate business workflows.\u003c/p\u003e\n\n\u003cp\u003eAttackers further enhance credibility by using custom HTML templates and redirect links that appear to originate from \u003ccode\u003eamazonaws.com\u003c/code\u003e. One prominent campaign involves fake notifications from electronic signature services like Docusign. Victims are directed to sign-in forms hosted on Amazon infrastructure that harvest their credentials upon submission.\u003c/p\u003e\n\n\u003cp\u003eAnother sophisticated variation targets business email compromise (BEC) through fabricated email threads. These messages mimic internal conversations between employees and vendors regarding outstanding invoices. The attachments contain only forged financial documents and payment details, completely avoiding malicious URLs or QR codes.\u003c/p\u003e\n\n\u003cp\u003eThis approach is designed to lower user guard and trick finance teams into transferring funds. To combat this trend, the article emphasizes securing AWS environments as the primary defense. Recommendations include implementing least privilege access, transitioning from static keys to IAM roles, enabling multi-factor authentication, and configuring IP-based restrictions.\u003c/p\u003e\n\n\u003cp\u003eOrganizations should also automate key rotation, conduct regular security audits, and utilize AWS Key Management Service. Finally, users are advised to verify unexpected requests through independent channels and rely on robust email security solutions rather than trusting sender fields alone.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eIntroduction to Amazon SES Weaponization\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eAttackers are increasingly leveraging Amazon Simple Email Service (SES) to distribute highly effective phishing and business email compromise (BEC) campaigns. Rather than constructing suspicious domains and mail infrastructure from scratch, threat actors exploit legitimate cloud platforms that both users and security systems inherently trust. This shift represents a steady trend in email-based threats, moving beyond isolated incidents to systematic abuse.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eTechnical Advantages of SES Abuse\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eAmazon SES is a cloud-based platform optimized for transactional and marketing messages within the AWS ecosystem. Its use in phishing campaigns offers several distinct technical advantages:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eAuthentication Bypass:\u003c/strong\u003e Emails sent via SES successfully pass SPF, DKIM, and DMARC protocols, satisfying standard provider checks.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eHeader Legitimacy:\u003c/strong\u003e Messages consistently display \u003ccode\u003e.amazonses.com\u003c/code\u003e in their Message-ID headers, reinforcing their technical authenticity.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eIP Reputation Protection:\u003c/strong\u003e Attackers avoid IP blocklists because major email providers cannot block Amazon SES without causing massive false positives and disrupting legitimate business workflows.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eTemplate and Redirect Flexibility:\u003c/strong\u003e The service supports custom HTML templates for highly convincing email designs. Additionally, attackers mask malicious URLs behind redirects, making links appear to originate from \u003ccode\u003eamazonaws.com\u003c/code\u003e to build user confidence.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003e\u003cstrong\u003eCompromise Vectors and Credential Theft\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eThe primary method for gaining access to Amazon SES involves hijacking leaked AWS IAM access keys. Developers frequently expose these credentials in publicly accessible locations, including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003ePublic GitHub repositories\u003c/li\u003e\n\u003cli\u003eENV files and Docker images\u003c/li\u003e\n\u003cli\u003eConfiguration backups and publicly accessible S3 buckets\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThreat actors utilize automated scanning tools, such as the open-source utility TruffleHog, to hunt for these secrets. Once located, attackers verify the keys\u0026rsquo; permissions and email sending limits before deploying them to blast thousands of phishing messages.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eCampaign Examples and Tactics\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eThe article highlights two distinct campaign themes observed in early 2026:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eFake Electronic Signature Notifications:\u003c/strong\u003e Attackers distribute emails mimicking Docusign alerts. Victims are prompted to click a link to review and sign a document. The link redirects to a sign-in form hosted on \u003ccode\u003eamazonaws.com\u003c/code\u003e, which harvests credentials upon submission.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSophisticated Business Email Compromise (BEC):\u003c/strong\u003e Fraudulent emails simulate internal email threads between employees and service providers regarding outstanding invoices. These messages are sent from impersonated employee accounts to finance departments, requesting urgent payment. The attachments contain only forged financial documents and payment details, deliberately omitting malicious URLs or QR codes to avoid triggering security alerts. The fabricated thread format is designed to lower user guard and facilitate fraudulent fund transfers.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003e\u003cstrong\u003eMitigation Strategies and Recommendations\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eAddressing Amazon SES phishing requires a dual approach focusing on infrastructure hardening and user vigilance. The article outlines specific organizational guidelines:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eIAM Security:\u003c/strong\u003e Implement the principle of least privilege for access keys and transition to IAM roles, which provide specific permissions without static credentials.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eAccess Controls:\u003c/strong\u003e Enable multi-factor authentication and configure IP-based access restrictions to limit unauthorized usage.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eProactive Monitoring:\u003c/strong\u003e Automate key rotation, conduct regular security audits, and utilize AWS Key Management Service for centralized cryptographic key management.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eUser Awareness:\u003c/strong\u003e Employees should never assume email safety based solely on the From field or domain reputation. Unexpected documents should be verified through a separate communication channel, and all links must be carefully inspected before interaction.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eTechnical Defenses:\u003c/strong\u003e Deploy robust email security solutions to provide an additional protective layer for both corporate and personal correspondence.\u003c/li\u003e\n\u003c/ul\u003e\n","keyPoints":["Attackers bypass email security filters by sending phishing messages through Amazon SES, which passes standard authentication protocols and originates from trusted IP addresses.","These campaigns typically begin when hackers discover and exploit leaked AWS IAM access keys hosted on public repositories or configuration files.","Malicious actors use the service to distribute fake electronic signature notifications and sophisticated business email compromise threads containing forged financial documents.","To mitigate these threats, organizations should implement least privilege access, transition to IAM roles, enable multi-factor authentication, and regularly rotate credentials."],"insights":["Blocking malicious Amazon SES IP addresses is ineffective for major email providers because it would cause massive false positives and disrupt legitimate business workflows.","Phishing emails sent via SES pass all standard email authentication protocols including SPF, DKIM, and DMARC, making them technically indistinguishable from legitimate mail.","BEC campaigns via SES use fabricated email threads and legitimate-looking PDF attachments without malicious URLs or QR codes to bypass traditional security triggers.","Relying on the From field or domain reputation is insufficient; verifying unexpected requests through a separate communication channel is a necessary precaution against SES-based impersonation."],"referencedReports":[{"title":"Spam and Phishing Report 2025","url":"https://securelist.com/spam-and-phishing-report-2025/118785/#methods-of-distributing-email-threats","publisher":"Securelist","context":"Cited in the introduction to support claims about attackers relying on legitimate sources and documented methods for distributing email threats."}],"body":"\u003cp\u003eAttackers are increasingly leveraging Amazon Simple Email Service (SES) to distribute highly convincing phishing and business email compromise campaigns. By hijacking leaked AWS IAM access keys, threat actors bypass traditional email security filters and authentication protocols like SPF, DKIM, and DMARC. These malicious messages originate from trusted cloud infrastructure, ensuring they avoid IP blocklists and appear technically legitimate to security systems. The article details recent campaigns using fake electronic signature notifications and fabricated financial email threads to steal credentials or trick finance departments into wiring funds. Because blocking Amazon SES IPs would cause widespread false positives for legitimate services, mitigation relies heavily on securing AWS credentials and user vigilance. Organizations are advised to implement least privilege access, transition to IAM roles, enable multi-factor authentication, and regularly rotate keys. Users should verify unexpected documents through separate channels and carefully inspect email links rather than relying on sender reputation.\u003c/p\u003e\n"},{"n":8,"title":"Silver Fox Deploys ABCDoor Malware via Tax-Themed Phishing in India and Russia","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/silver-fox-deploys-abcdoor-malware-via.html","time":"11:57","priority":"SHOULD READ","score":85,"group":null,"groupColor":null,"tldr":"The China-based Silver Fox group is deploying the ABCDoor backdoor and ValleyRAT malware through tax-themed phishing campaigns targeting organizations in India and Russia. The attackers use a modified Rust-based loader to bypass detection and establish persistence using a technique called Phantom Persistence.","briefOverview":"\u003cp\u003eThe China-based cybercrime group Silver Fox is executing a coordinated phishing campaign targeting organizations in India and Russia. Attackers are using tax-themed email lures to trick recipients into downloading malicious archives. These archives contain a modified Rust-based shellcode loader that bypasses antivirus detection and performs country-specific geofencing checks. Once executed, the loader deploys the ValleyRAT backdoor along with a new Python-based backdoor called ABCDoor. The malware establishes persistence through a novel technique called Phantom Persistence, which intercepts system shutdown signals to force a fake reboot. The campaign has impacted multiple sectors, including industrial, consulting, retail, and transportation. Over 1,600 phishing emails were flagged between early January and early February. Security researchers from Kaspersky and S2W have documented the group\u0026rsquo;s evolving dual-track operational model.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eThe China-based Silver Fox group has launched a new cyber campaign targeting organizations in Russia and India through tax-themed phishing emails. These emails mimic official correspondence from the Income Tax Department of India and prompt victims to download archives containing a supposed list of tax violations.\u003c/p\u003e\n\n\u003cp\u003eInside the archives, attackers embed a modified Rust-based shellcode loader sourced from a public repository. This loader implements country-based geofencing and environment checks to detect virtual machines and sandboxes. Upon execution, the loader unpacks an encrypted payload that downloads the ValleyRAT backdoor.\u003c/p\u003e\n\n\u003cp\u003eValleyRAT then deploys a custom Python-based backdoor codenamed ABCDoor. The ABCDoor module handles command-and-control communications, remote system control, data exfiltration, and file system operations. Attackers also utilize a novel technique called Phantom Persistence to ensure malware execution after system reboots.\u003c/p\u003e\n\n\u003cp\u003eThis method intercepts system shutdown signals, halts the normal shutdown sequence, and triggers a fake reboot under the guise of an update. The campaign has impacted organizations across the industrial, consulting, retail, and transportation sectors. More than 1,600 phishing emails were flagged between early January and early February.\u003c/p\u003e\n\n\u003cp\u003eSecurity researchers note that Silver Fox has shifted to a dual-track operational model since 2024. The group now simultaneously conducts profitable opportunistic activities and targeted espionage campaigns. Initial attacks focused on China before expanding to Taiwan, Japan, India, Russia, Indonesia, South Africa, and Cambodia.\u003c/p\u003e\n\n\u003cp\u003eThe majority of loader samples rely on tax-themed lures tailored to seasonal issues and target characteristics. Kaspersky and S2W have provided detailed technical analyses of the attack chain and threat actor evolution.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"campaign-overview-and-targeting\"\u003eCampaign Overview and Targeting\u003c/h2\u003e\n\n\u003cp\u003eThe China-based cybercrime group Silver Fox is executing a coordinated phishing campaign targeting organizations in India and Russia. The activity began in December 2025 and continued into early 2026, with over 1,600 phishing emails flagged between January and February. Attackers are using tax-themed lures that mimic official correspondence from the Income Tax Department of India. These emails prompt recipients to download archives containing a fabricated list of tax violations. The campaign has impacted multiple sectors, including industrial, consulting, retail, and transportation.\u003c/p\u003e\n\n\u003ch2 id=\"malware-delivery-and-loader-mechanics\"\u003eMalware Delivery and Loader Mechanics\u003c/h2\u003e\n\n\u003cp\u003eThe attack chain begins with a phishing email containing a PDF file with two clickable links. These links direct users to a ZIP or RAR archive hosted on abc.haijing88[.]com. Inside the archive, an executable mimics a PDF file but is actually a modified version of the open-source RustSL shellcode loader. Silver Fox has customized this loader to implement country-based geofencing and environment checks. The bespoke version specifically targets India, Indonesia, South Africa, Russia, and Cambodia. Once executed, the loader unpacks an encrypted malicious payload while bypassing antivirus detection.\u003c/p\u003e\n\n\u003ch2 id=\"backdoor-deployment-and-capabilities\"\u003eBackdoor Deployment and Capabilities\u003c/h2\u003e\n\n\u003cp\u003eThe decrypted payload downloads the ValleyRAT backdoor, also known as Winos 4.0. The core component, login-module.dll_bin, manages command-and-control communications and module execution. Following a secondary geofencing check, the loader deploys a previously undocumented Python-based backdoor codenamed ABCDoor. ABCDoor contacts external servers via HTTPS to process incoming commands. Its capabilities include establishing persistence, handling backdoor updates, collecting screenshots, enabling remote mouse and keyboard control, performing file system operations, managing system processes, and exfiltrating clipboard contents.\u003c/p\u003e\n\n\u003ch2 id=\"persistence-and-operational-evolution\"\u003ePersistence and Operational Evolution\u003c/h2\u003e\n\n\u003cp\u003eAttackers employ a novel technique called Phantom Persistence to ensure long-term access. This method intercepts system shutdown signals, halts the normal shutdown sequence, and triggers a reboot under the guise of an update. Consequently, the loader forces the system to execute the malware upon OS startup. Security researchers from S2W and Kaspersky have documented Silver Fox\u0026rsquo;s shift to a dual-track operational model since 2024. The group now simultaneously conducts profitable opportunistic activities and targeted espionage campaigns. Initial operations focused on China before expanding to Taiwan, Japan, India, Russia, Indonesia, South Africa, and Cambodia. The threat actor primarily utilizes highly customized spear phishing techniques tailored to seasonal issues and target work characteristics.\u003c/p\u003e\n","keyPoints":["The China-based Silver Fox group is conducting phishing campaigns targeting organizations in India and Russia using tax-themed lures to distribute the ABCDoor backdoor and ValleyRAT malware.","Attackers deliver malicious archives containing a modified Rust-based loader that performs geofencing checks and employs a novel Phantom Persistence technique to survive system reboots.","The ABCDoor backdoor facilitates command-and-control communications, remote system control, data exfiltration, and file system operations after being deployed as a custom module by ValleyRAT.","The campaign has impacted multiple sectors including industrial, consulting, retail, and transportation, with over 1,600 phishing emails flagged between early January and early February."],"insights":["Attackers weaponize publicly available GitHub repositories by modifying the RustSL shellcode loader to implement custom geofencing and sandbox detection.","The malware employs a novel Phantom Persistence technique that intercepts system shutdown signals to halt normal shutdown and triggers a fake reboot, ensuring execution upon OS startup.","Payload execution is strictly restricted to specific countries through geofencing checks, with phishing lures dynamically tailored to seasonal issues and target organizational characteristics.","Malicious archives contain executables disguised as PDF files, and the campaign relies on tax-themed lures to mimic official government correspondence from India and Russia."],"referencedReports":[{"title":"Silver Fox Tax Notification Campaign","url":"https://securelist.com/silver-fox-tax-notification-campaign/119575/","publisher":"Kaspersky (Securelist)","context":"The article cites this Kaspersky publication to explain the nearly identical structure of the phishing emails and the use of a modified Rust-based loader."},{"title":"S2W Threat Actor Analysis","url":"https://s2w.inc/en/resource/detail/1050","publisher":"S2W","context":"The article cites this S2W publication to describe the group's dual-track operational model and expansion into Taiwan and Japan."}],"body":"\u003cp\u003eThe China-based cybercrime group Silver Fox is executing a coordinated phishing campaign targeting organizations in India and Russia. Attackers are using tax-themed email lures to trick recipients into downloading malicious archives. These archives contain a modified Rust-based shellcode loader that bypasses antivirus detection and performs country-specific geofencing checks. Once executed, the loader deploys the ValleyRAT backdoor along with a new Python-based backdoor called ABCDoor. The malware establishes persistence through a novel technique called Phantom Persistence, which intercepts system shutdown signals to force a fake reboot. The campaign has impacted multiple sectors, including industrial, consulting, retail, and transportation. Over 1,600 phishing emails were flagged between early January and early February. Security researchers from Kaspersky and S2W have documented the group\u0026rsquo;s evolving dual-track operational model.\u003c/p\u003e\n"},{"n":4,"title":"They don’t hack, they borrow: How fraudsters target credit unions","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/they-dont-hack-they-borrow-how-fraudsters-target-credit-unions/","time":"13:42","priority":"SHOULD READ","score":82,"group":null,"groupColor":null,"tldr":"Cybercriminals are increasingly targeting small and mid-sized credit unions with organized loan fraud schemes that exploit stolen identities and verification workflows rather than technical vulnerabilities. This process-driven approach allows attackers to bypass traditional security controls and quickly monetize funds by mimicking legitimate applicants.","briefOverview":"\u003cp\u003eThreat actors across underground forums are deploying structured loan fraud methods that target the operational workflows of financial institutions. Rather than exploiting software vulnerabilities, these attackers navigate legitimate onboarding and lending processes using stolen identities. Smaller financial institutions, particularly small to mid-sized credit unions, are heavily targeted due to perceived gaps in verification systems and limited fraud prevention resources. The attack methodology begins with identity acquisition, where criminals obtain sufficient personal data to impersonate a legitimate borrower. They then assess the victim’s credit profile to determine loan eligibility before gathering additional details to prepare for knowledge-based authentication checks. By anticipating verification questions using publicly available data and leaked datasets, attackers treat identity checks as predictable steps rather than barriers. Once the application is submitted, the fraudster relies on the institution’s standard approval channels to release funds. After approval, the operation shifts to a critical cash-out phase where funds are rapidly transferred through intermediary accounts. This monetization strategy deliberately mirrors normal financial behavior, using compressed timeframes to complete the cash-out before detection systems can intervene. Industry reporting indicates that auto lending fraud exposure is projected to reach $9.2 billion in 2025, with smaller lenders facing mounting pressure from these organized schemes.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eThreat actors across underground forums are deploying structured loan fraud methods that target the operational workflows of financial institutions.\u003c/p\u003e\n\n\u003cp\u003eRather than exploiting software vulnerabilities, these attackers navigate legitimate onboarding and lending processes using stolen identities.\u003c/p\u003e\n\n\u003cp\u003eSmaller financial institutions, particularly small to mid-sized credit unions, are heavily targeted due to perceived gaps in verification systems and limited fraud prevention resources.\u003c/p\u003e\n\n\u003cp\u003eThe attack methodology begins with identity acquisition, where criminals obtain sufficient personal data to impersonate a legitimate borrower.\u003c/p\u003e\n\n\u003cp\u003eThey then assess the victim’s credit profile to determine loan eligibility before gathering additional details to prepare for knowledge-based authentication checks.\u003c/p\u003e\n\n\u003cp\u003eBy anticipating verification questions using publicly available data and leaked datasets, attackers treat identity checks as predictable steps rather than barriers.\u003c/p\u003e\n\n\u003cp\u003eOnce the application is submitted, the fraudster relies on the institution’s standard approval channels to release funds.\u003c/p\u003e\n\n\u003cp\u003eAfter approval, the operation shifts to a critical cash-out phase where funds are rapidly transferred through intermediary accounts.\u003c/p\u003e\n\n\u003cp\u003eThis monetization strategy deliberately mirrors normal financial behavior, using compressed timeframes to complete the cash-out before detection systems can intervene.\u003c/p\u003e\n\n\u003cp\u003eIndustry reporting indicates that auto lending fraud exposure is projected to reach $9.2 billion in 2025, with smaller lenders facing mounting pressure from these organized schemes.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"overview-of-the-threat\"\u003eOverview of the Threat\u003c/h2\u003e\n\n\u003cp\u003eThreat actors across underground forums and chat groups are increasingly crafting structured fraud methods aimed at exploiting weaknesses in financial institution work processes.\u003c/p\u003e\n\n\u003cp\u003eRather than relying on isolated or opportunistic scams, these discussions reflect an organized, process-driven approach that combines stolen identity data, social engineering, and knowledge of financial workflows.\u003c/p\u003e\n\n\u003cp\u003eThis methodology does not exploit software vulnerabilities but instead focuses on navigating legitimate onboarding and lending workflows as if the applicant were genuine.\u003c/p\u003e\n\n\u003ch2 id=\"the-fraud-workflow\"\u003eThe Fraud Workflow\u003c/h2\u003e\n\n\u003cp\u003eThe structured approach breaks down into a consistent eight-step process:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eFirst, attackers acquire stolen personal data, including full identity details and background information sufficient for impersonation.\u003c/li\u003e\n\u003cli\u003eThey then review the victim’s financial profile to determine loan eligibility and approval likelihood.\u003c/li\u003e\n\u003cli\u003eNext, they gather additional details to anticipate and correctly answer identity verification questions.\u003c/li\u003e\n\u003cli\u003eAttackers select small to mid-sized credit unions based on perceived weaker verification processes and lower fraud detection maturity.\u003c/li\u003e\n\u003cli\u003eA loan application is then submitted using the stolen identity, ensuring data consistency across all fields.\u003c/li\u003e\n\u003cli\u003eThe application successfully passes knowledge-based authentication and standard checks.\u003c/li\u003e\n\u003cli\u003eFinally, the institution approves the loan and releases funds through standard channels.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"target-selection-and-verification-exploitation\"\u003eTarget Selection and Verification Exploitation\u003c/h2\u003e\n\n\u003cp\u003eSmall and mid-sized credit unions are specifically targeted because they are perceived as more reliant on traditional identity verification methods.\u003c/p\u003e\n\n\u003cp\u003eThese institutions are viewed as less equipped with advanced behavioral fraud detection and more likely to prioritize customer accessibility over strict controls.\u003c/p\u003e\n\n\u003cp\u003eA central component of the success of this method is bypassing knowledge-based authentication.\u003c/p\u003e\n\n\u003cp\u003eThese systems rely on questions derived from past addresses, loan history, and employment associations.\u003c/p\u003e\n\n\u003cp\u003eAttackers reconstruct this information using publicly available data, social media profiles, and previously leaked datasets.\u003c/p\u003e\n\n\u003cp\u003eThis allows them to anticipate verification checks in advance, turning a supposed security barrier into a predictable step.\u003c/p\u003e\n\n\u003ch2 id=\"cash-out-and-monetization\"\u003eCash-Out and Monetization\u003c/h2\u003e\n\n\u003cp\u003eOnce the loan is approved, the operation shifts to its most critical phase: turning access into money.\u003c/p\u003e\n\n\u003cp\u003eThe focus moves to speed and separation, as attackers quickly transfer funds away from the originating account.\u003c/p\u003e\n\n\u003cp\u003eThey often route money through intermediary accounts to create distance from the source and reduce traceability.\u003c/p\u003e\n\n\u003cp\u003eThis stage overlaps with broader fraud ecosystems, where access to additional accounts enables funds to be routed, split, or repositioned.\u003c/p\u003e\n\n\u003cp\u003eWhat makes this phase particularly effective is that each step mirrors normal financial behavior.\u003c/p\u003e\n\n\u003cp\u003eTransfers, withdrawals, and account activity are not inherently suspicious on their own.\u003c/p\u003e\n\n\u003cp\u003eInstead, the risk lies in how these actions are chained together within a compressed timeframe.\u003c/p\u003e\n\n\u003cp\u003eThis allows attackers to complete the cash-out before detection systems or manual reviews can intervene.\u003c/p\u003e\n\n\u003ch2 id=\"at-risk-groups-and-industry-context\"\u003eAt-Risk Groups and Industry Context\u003c/h2\u003e\n\n\u003cp\u003eThe method provides indirect insight into which individuals and institutions are most frequently targeted for identity theft.\u003c/p\u003e\n\n\u003cp\u003eIndividuals with established credit histories are highly valuable to attackers because they increase the likelihood of loan approval.\u003c/p\u003e\n\n\u003cp\u003eDigitally exposed individuals are also targeted, as their significant online presence may inadvertently expose personal details that assist in passing verification checks.\u003c/p\u003e\n\n\u003cp\u003eCustomers of smaller financial institutions face increased exposure if their institutions rely on less advanced fraud detection systems.\u003c/p\u003e\n\n\u003cp\u003eRecent industry reporting supports this targeting trend, projecting that auto lending fraud exposure will reach $9.2 billion in 2025.\u003c/p\u003e\n\n\u003cp\u003eSmaller and regional lenders are facing increasing pressure from these organized fraud schemes.\u003c/p\u003e\n\n\u003ch2 id=\"conclusion\"\u003eConclusion\u003c/h2\u003e\n\n\u003cp\u003eThis loan fraud method illustrates how financial fraud is evolving toward process exploitation rather than direct system targeting.\u003c/p\u003e\n\n\u003cp\u003eAttackers leverage identity, predictability, and institutional trust to achieve their goals.\u003c/p\u003e\n\n\u003cp\u003eAs these approaches become more structured and accessible, the line between legitimate activity and fraud continues to blur.\u003c/p\u003e\n\n\u003cp\u003eThis evolution makes detection more complex and requires a more adaptive defensive approach from financial institutions.\u003c/p\u003e\n","keyPoints":["Threat actors are using organized, process-driven loan fraud methods that exploit weaknesses in financial institution workflows rather than exploiting software vulnerabilities.","Small to mid-sized credit unions are specifically targeted because attackers perceive them as having weaker verification processes and lower fraud detection maturity.","Attackers successfully bypass identity verification checks by reconstructing knowledge-based authentication answers from publicly available data and previously leaked datasets.","Once a fraudulent loan is approved, criminals quickly move funds through intermediary accounts to reduce traceability and complete monetization before detection systems can intervene.","Individuals with established credit histories and significant online digital footprints are frequently targeted to provide the necessary data for impersonation and verification bypass."],"insights":["Attackers bypass knowledge-based authentication by pre-emptively aggregating leaked datasets and public social media data to reconstruct verification answers before submitting applications.","Fraud detection systems struggle to intercept cash-outs because criminals deliberately structure fund transfers to mirror normal financial behavior, relying on compressed timelines rather than triggering transactional alerts.","The attack exploits procedural design flaws in lending workflows rather than technical vulnerabilities, rendering traditional security controls ineffective against applicants who navigate onboarding processes legitimately.","Underground forums now host highly structured, replicable fraud methodologies, indicating that loan fraud has evolved from opportunistic scams into an organized, process-driven industrial operation."],"referencedReports":[{"title":"2025 Auto Lending Fraud Trends Report","url":"https://pointpredictive.com/press-releases/2025-auto-lending-fraud-trends-report-9-2-billion-industry-risk/","publisher":"Point Predictive","context":"The article cites this industry report to support the observation that smaller and regional lenders face increasing pressure from organized fraud schemes, projecting $9.2 billion in fraud exposure for 2025."}],"body":"\u003cp\u003eThreat actors across underground forums are deploying structured loan fraud methods that target the operational workflows of financial institutions. Rather than exploiting software vulnerabilities, these attackers navigate legitimate onboarding and lending processes using stolen identities. Smaller financial institutions, particularly small to mid-sized credit unions, are heavily targeted due to perceived gaps in verification systems and limited fraud prevention resources. The attack methodology begins with identity acquisition, where criminals obtain sufficient personal data to impersonate a legitimate borrower. They then assess the victim’s credit profile to determine loan eligibility before gathering additional details to prepare for knowledge-based authentication checks. By anticipating verification questions using publicly available data and leaked datasets, attackers treat identity checks as predictable steps rather than barriers. Once the application is submitted, the fraudster relies on the institution’s standard approval channels to release funds. After approval, the operation shifts to a critical cash-out phase where funds are rapidly transferred through intermediary accounts. This monetization strategy deliberately mirrors normal financial behavior, using compressed timeframes to complete the cash-out before detection systems can intervene. Industry reporting indicates that auto lending fraud exposure is projected to reach $9.2 billion in 2025, with smaller lenders facing mounting pressure from these organized schemes.\u003c/p\u003e\n"},{"n":3,"title":"Webinar: Why MSPs must rethink security and backup strategies","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/webinar-why-msps-must-rethink-security-and-backup-strategies/","time":"12:16","priority":"MAY READ","score":65,"group":null,"groupColor":null,"tldr":"MSPs must integrate SaaS backups and business continuity strategies alongside traditional security to ensure rapid recovery and cyber resilience against evolving AI-driven phishing and ransomware attacks.","briefOverview":"\u003cp\u003eCyberattacks are evolving at a pace that outpaces most managed service providers, with phishing now established as the primary entry point for compromises. The integration of artificial intelligence into attack campaigns has created highly personalized phishing efforts that traditional defenses struggle to detect and block. The most critical challenge for organizations often emerges after the initial breach, resulting in severe data loss, extended downtime, and complex recovery requirements. A live webinar on May 14, 2026, will explore these evolving threats and why MSPs must fundamentally rethink both security and recovery strategies. While prevention remains important, many MSPs incorrectly treat security and backup as separate functions, leaving gaps that attackers exploit after initial access. The session will examine how threats progress from AI-driven phishing to ransomware and data-loss events. It will also highlight how threat actors use trusted infrastructure and SaaS platforms to bypass existing controls. Attendees will learn why SaaS backups and a business continuity and disaster recovery plan are essential for cyber resilience. The webinar will demonstrate how leading MSPs combine prevention, detection, and rapid recovery to protect clients and maintain uptime. Joining the session will help strengthen both security posture and recovery capabilities to ensure outcomes remain under control even when attacks succeed.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eCyberattacks are evolving faster than most managed service providers can adapt, with phishing now acting as the primary entry point for compromises. Attackers are increasingly leveraging artificial intelligence to generate highly personalized phishing campaigns that traditional defenses struggle to detect.\u003c/p\u003e\n\n\u003cp\u003eThe most significant challenge often arises after the initial breach, leaving organizations to manage data loss, downtime, and recovery. On May 14, 2026, experts from BleepingComputer and Kaseya will host a live webinar to explore these evolving threats.\u003c/p\u003e\n\n\u003cp\u003eThe session will examine how modern attacks unfold and why MSPs must fundamentally rethink both security and recovery strategies. While preventing attacks remains critical, the reality is that not every threat can be stopped in time.\u003c/p\u003e\n\n\u003cp\u003eMany MSPs still treat security and backup as separate functions, creating operational gaps that attackers exploit after gaining initial access. This webinar will trace how threats progress from AI-driven phishing and business email compromise to ransomware and data-loss events.\u003c/p\u003e\n\n\u003cp\u003eIt will also highlight how threat actors increasingly leverage trusted infrastructure and SaaS platforms to bypass traditional defenses. The session will emphasize why SaaS backups and a comprehensive business continuity and disaster recovery strategy are essential components of cyber resilience.\u003c/p\u003e\n\n\u003cp\u003eThese measures ensure organizations can recover quickly and minimize operational impact when incidents occur. Attendees will learn why AI-driven phishing and brand impersonation are outpacing traditional email security controls.\u003c/p\u003e\n\n\u003cp\u003eThe discussion will cover how attackers exploit trusted infrastructure and SaaS environments to circumvent existing defenses. It will also pinpoint where most MSP security strategies fail once an initial compromise is achieved.\u003c/p\u003e\n\n\u003cp\u003eFinally, the webinar will demonstrate how leading MSPs combine prevention, detection, and rapid recovery to protect clients and maintain uptime. Joining the session will help strengthen both security posture and recovery capabilities to ensure outcomes remain under control even when attacks succeed.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"executive-summary\"\u003eExecutive Summary\u003c/h3\u003e\n\n\u003cp\u003eCyberattacks are evolving at a pace that outpaces most managed service providers, with phishing now established as the primary entry point for compromises. The integration of artificial intelligence into attack campaigns has created highly personalized phishing efforts that traditional defenses struggle to detect and block. The most critical challenge for organizations often emerges after the initial breach, resulting in severe data loss, extended downtime, and complex recovery requirements.\u003c/p\u003e\n\n\u003ch3 id=\"webinar-overview\"\u003eWebinar Overview\u003c/h3\u003e\n\n\u003cp\u003eOn Thursday, May 14, 2026, at 2:00 PM Eastern Daylight Time, experts from BleepingComputer and Kaseya will host a live webinar to address these evolving threats. The session is designed to explore how modern attacks unfold and why MSPs must fundamentally rethink both their security and recovery strategies. The event will provide actionable insights into strengthening both defensive postures and recovery capabilities.\u003c/p\u003e\n\n\u003ch3 id=\"the-security-and-recovery-gap\"\u003eThe Security and Recovery Gap\u003c/h3\u003e\n\n\u003cp\u003eWhile preventing attacks remains a critical objective, the reality is that not every threat can be stopped in time. Many MSPs still treat security and backup as separate operational functions, creating structural gaps that attackers exploit after initial access. This session will examine how threats progress from AI-driven phishing and business email compromise to ransomware deployment and data-loss events. It will also highlight how threat actors increasingly leverage trusted infrastructure and SaaS platforms to bypass traditional perimeter defenses.\u003c/p\u003e\n\n\u003ch3 id=\"key-learning-objectives\"\u003eKey Learning Objectives\u003c/h3\u003e\n\n\u003cp\u003eDuring the session, attendees will gain a deeper understanding of several critical areas:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eWhy AI-driven phishing and brand impersonation are currently outpacing traditional email security controls.\u003c/li\u003e\n\u003cli\u003eHow attackers leverage trusted infrastructure and SaaS platforms to circumvent existing defenses.\u003c/li\u003e\n\u003cli\u003eWhere most MSP security strategies fail once an initial compromise is achieved.\u003c/li\u003e\n\u003cli\u003eWhy SaaS backups and a comprehensive business continuity and disaster recovery plan are critical layers of cyber resilience.\u003c/li\u003e\n\u003cli\u003eHow leading MSPs combine prevention, detection, and rapid recovery to protect clients and maintain operational uptime.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"strategic-takeaways\"\u003eStrategic Takeaways\u003c/h3\u003e\n\n\u003cp\u003eThe webinar emphasizes that SaaS backups and a robust business continuity and disaster recovery strategy are essential components of modern cyber resilience. These measures ensure organizations can recover quickly and minimize operational impact when incidents occur. Joining the session will help strengthen both security posture and recovery capabilities. This integrated approach helps ensure that even if an attack succeeds, the outcome remains under the MSP\u0026rsquo;s control.\u003c/p\u003e\n","keyPoints":["AI-driven phishing campaigns are increasingly bypassing traditional email security defenses.","Treating security and backup as separate functions creates critical gaps that attackers exploit after initial access.","Attackers are leveraging trusted infrastructure and SaaS platforms to bypass security controls and cause data loss.","Implementing SaaS backups and a business continuity and disaster recovery strategy is essential for maintaining cyber resilience.","MSPs must combine prevention, detection, and rapid recovery capabilities to protect clients and minimize downtime."],"insights":["Attackers are increasingly leveraging SaaS platforms and trusted infrastructure to bypass traditional perimeter defenses, requiring MSPs to secure application layers rather than just network boundaries.","Treating security and backup as siloed functions creates critical recovery gaps; MSPs must integrate SaaS backups directly into their BCDR strategy to ensure rapid post-breach continuity.","AI-driven phishing and brand impersonation are now outpacing traditional email security, making rapid recovery capabilities more critical than purely preventive detection measures."],"referencedReports":[],"body":"\u003cp\u003eCyberattacks are evolving at a pace that outpaces most managed service providers, with phishing now established as the primary entry point for compromises. The integration of artificial intelligence into attack campaigns has created highly personalized phishing efforts that traditional defenses struggle to detect and block. The most critical challenge for organizations often emerges after the initial breach, resulting in severe data loss, extended downtime, and complex recovery requirements. A live webinar on May 14, 2026, will explore these evolving threats and why MSPs must fundamentally rethink both security and recovery strategies. While prevention remains important, many MSPs incorrectly treat security and backup as separate functions, leaving gaps that attackers exploit after initial access. The session will examine how threats progress from AI-driven phishing to ransomware and data-loss events. It will also highlight how threat actors use trusted infrastructure and SaaS platforms to bypass existing controls. Attendees will learn why SaaS backups and a business continuity and disaster recovery plan are essential for cyber resilience. The webinar will demonstrate how leading MSPs combine prevention, detection, and rapid recovery to protect clients and maintain uptime. Joining the session will help strengthen both security posture and recovery capabilities to ensure outcomes remain under control even when attacks succeed.\u003c/p\u003e\n"},{"n":7,"title":"4th May – Threat Intelligence Report","source":"research.checkpoint.com","sourceColor":"#38bdf8","link":"https://research.checkpoint.com/2026/4th-may-threat-intelligence-report/","time":"13:49","priority":"MAY READ","score":0,"group":null,"groupColor":null,"tldr":"","briefOverview":"","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":[],"insights":[],"referencedReports":[],"body":""}];
+window.__DL_DIGEST   = "downlink-digest-2026-05-04_1435.html";
+window.__DL_WINDOW   = "4 hours";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function GroupBadge({ group, groupColor }) {
+  if (!group || !groupColor) return null;
+  const c = groupColor;
+  return (
+    <span style={{
+      display: "inline-block", flexShrink: 0,
+      width: 20, height: 20,
+      border: "1px solid color-mix(in oklch, " + c + " 45%, transparent)",
+      background: "color-mix(in oklch, " + c + " 12%, transparent)",
+      borderRadius: 2
+    }} />
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+function pointList(items) {
+  return (
+    <ul className="kp-list">
+      {(items || []).map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            <a href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => <div className="prose">{article.tldr}</div> });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Full", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  if (article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => pointList(article.keyPoints) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => pointList(article.insights) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  const initialTab = tabs[0] ? tabs[0].id : "source";
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  return (
+    <>
+      <div className="tabs">
+        {tabs.map(tab => (
+          <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <nav style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--cyan)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="live-dot" />
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em" }}>LIVE</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      </div>
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+        border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+      }}>
+        {Math.min(index + 1, total)} / {total}
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+              {article.source}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 22, lineHeight: 1.3, color: "var(--text)", letterSpacing: "-0.005em" }}>
+          {article.title}
+        </h2>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text2)", fontSize: 14, lineHeight: 1.65, fontWeight: 400 }}>{article.tldr}</p>
+        {article.keyPoints && article.keyPoints.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+            <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+              {article.keyPoints.map((kp, i) => (
+                <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: priorityC, marginTop: 3, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.35, color: "var(--text)", marginBottom: 12 }}>
+          {article.title}
+        </h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor }}>{article.source}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Fly right then flip to detail view
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.28s cubic-bezier(.4,0,.6,1)";
+          el.style.transform = `translate(60%, ${dy}px) rotate(12deg) scale(0.95)`;
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.getBoundingClientRect();
+            el2.style.transition = "";
+          }
+        }, 280);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{
+        opacity: 0,
+        color: flipped ? "var(--accept)" : "var(--discard)",
+        borderColor: flipped ? "var(--accept)" : "var(--discard)"
+      }}>{flipped ? "DONE" : "SKIP"}</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "80px 24px 0" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: "32px 24px 48px" }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 32 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 32, textAlign: "center" }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<div id="root"></div>
+</body>
+</html>

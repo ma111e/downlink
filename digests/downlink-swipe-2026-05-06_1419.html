@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+  }
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; overflow-x: hidden; }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklch, var(--cyan) 60%, transparent); }
+    70%  { box-shadow: 0 0 0 5px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); animation: pulse-ring 2s ease-out infinite; }
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; height: 620px; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--discard); border-color: var(--discard); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--accept);  border-color: var(--accept); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .kp-list li { display: flex; gap: 0.6rem; font-size: 13px; line-height: 1.6; color: var(--text2); }
+  .kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); }
+  .report-title a { color: var(--text); text-decoration: none; }
+  .report-title a:hover { color: var(--cyan); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<script>
+window.__DL_ARTICLES = [{"n":3,"title":"Insights into the clustering and reuse of phone numbers in scam emails","source":"blog.talosintelligence.com","sourceColor":"#60a5fa","link":"https://blog.talosintelligence.com/insights-into-the-clustering-and-reuse-of-phone-numbers-in-scam-emails/","time":"10:00","priority":"SHOULD READ","score":88,"group":null,"groupColor":null,"tldr":"Tracking and clustering phone numbers in scam emails reveals the hidden infrastructure of organized call centers, offering a more effective defense strategy than relying on ephemeral email addresses.","briefOverview":"\u003cp\u003eCisco Talos has begun tracking phone numbers within scam emails as a critical indicator of compromise to combat telephone-oriented attack delivery tactics. The analysis reveals that VoIP infrastructure is heavily favored by threat actors due to its cost-effectiveness, API-driven automation, and difficulty of tracing. Attackers strategically manage their phone number lifespans by implementing cool-down periods and rotating through sequential blocks to evade reputation-based security filters. Rather than relying on ephemeral email addresses, researchers can map organized criminal call centers by clustering reused phone numbers across seemingly unrelated campaigns. This approach exposes how threat actors recycle the same numbers across diverse subject lines, multiple impersonated brands, and various attachment formats to maximize their reach. Security teams are advised to implement real-time reputation monitoring and collaborate with telecommunications providers to disrupt these persistent social engineering operations.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eCisco Talos has expanded its threat intelligence capabilities to include phone numbers as a vital indicator of compromise within scam emails. The report highlights that telephone-oriented attack delivery remains a prevalent tactic, with VoIP lines dominating the landscape due to their ease of acquisition and API-driven provisioning. Most VoIP numbers follow the E.164 international numbering plan, and the ecosystem is divided into wholesalers selling bulk lines and retailers offering end-user solutions. Threat actors heavily exploit CPaaS platforms, particularly Sinch, because their programmable APIs facilitate rapid, high-volume number provisioning. While VoIP is primary, scammers also utilize cellular numbers for local legitimacy and landlines to mimic established regional businesses. Analysis of campaigns impersonating brands like PayPal, Geek Squad, McAfee, and Norton LifeLock identified 1,652 unique phone numbers, with 57 reused across consecutive days. The median lifespan of these numbers is approximately 14 days, and attackers frequently implement strategic cool-down periods to bypass detection. Reuse patterns show that numbers are recycled across different business contexts, varying subject lines, and multiple impersonated brands to sustain multi-stage social engineering. Additionally, attackers distribute the same phone numbers across diverse attachment formats, including PDFs, JPEGs, and HEIC files to bypass file-based detection. In large-scale operations, threat actors purchase sequential DID blocks to ensure operational continuity, instantly rotating to the next available number when one is flagged. Ultimately, clustering phone numbers provides a more effective defense strategy than tracking ephemeral email addresses, allowing researchers to expose the underlying infrastructure of organized scam call centers. Security providers and telecom entities are urged to establish centralized reputation databases and share threat intelligence to mitigate these evolving threats.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eIntroduction and Attack Delivery Tactics\u003c/strong\u003e\nCisco Talos has started collecting phone numbers from emails as an additional indicator of compromise. Telephone-oriented attack delivery (TOAD) continues to be a prevalent tactic that shifts communication from email to real-time conversations. This approach manipulates victims into disclosing sensitive information or installing malicious software.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eVoIP Structure and Ecosystem\u003c/strong\u003e\nMost VoIP numbers adhere to the E.164 international public telecommunication numbering plan. This format consists of an international prefix, country code, area code, and subscriber number. The VoIP ecosystem operates through wholesalers who sell bulk lines to smaller providers and retailers who sell directly to end users. Threat actors heavily exploit CPaaS platforms, particularly Sinch, because their programmable APIs facilitate rapid automation. In contrast, UCaaS platforms are designed for legitimate enterprise collaboration and are less attractive for scam campaigns.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eDistribution of Phone Line Types\u003c/strong\u003e\nVoIP lines dominate the scam landscape due to their cost-effectiveness and ease of deployment. Six of the ten largest campaigns detected between February and March 2026 relied exclusively on VoIP infrastructure. Threat actors also utilize wireless cellular numbers, though they are harder to provision at scale due to physical SIM requirements. Landline numbers are frequently employed to project a sense of local presence and establish business legitimacy.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003ePhone Number Reuse and Lifespan\u003c/strong\u003e\nAnalysis of campaigns impersonating PayPal, Geek Squad, McAfee, and Norton LifeLock revealed 1,652 unique phone numbers. Approximately 3.4 percent of these numbers were reused across multiple consecutive days, with a maximum reuse period of four days. The median lifespan of these numbers is approximately 14 days, though many remain active for only two to six days. Attackers implement strategic cool-down periods to pause usage and evade detection before reintroducing numbers into campaigns. Infrastructure longevity often correlates with the impersonated brand, with PayPal-themed campaigns utilizing more persistent numbers than Norton LifeLock.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eCross-Lure Reuse Patterns\u003c/strong\u003e\nThreat actors maximize their reach by recycling the same phone numbers across diverse and seemingly unrelated lures. A single number frequently appears across multiple subject lines that feature different business contexts and psychological triggers. The same phone number is also embedded in document-based lures impersonating different brands to redirect victims to a shared call center. Additionally, attackers distribute numbers across various attachment formats, including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003ePDFs for subscription renewals and financial verification\u003c/li\u003e\n\u003cli\u003eJPEGs for order confirmations and shipping issues\u003c/li\u003e\n\u003cli\u003eHEIC files to bypass traditional detection while maintaining image quality\nThe use of HEIC attachments demonstrates an effort to bypass traditional file-based detection while maintaining high image quality.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003e\u003cstrong\u003eBlock-Level Clustering and Operational Continuity\u003c/strong\u003e\nAttackers utilize sequential phone number grouping to bypass security filters and maintain high-volume operations. They purchase Direct Inward Dialing blocks to obtain large ranges of sequential numbers. If a specific number is flagged as spam, attackers simply rotate to the next available number in the block. Sequential blocks are frequently reused across multiple brand lures within the same campaign window. This clustering technique ensures operational continuity and minimizes the impact of individual numbers being blocked.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eConclusion and Defensive Recommendations\u003c/strong\u003e\nTracking scam campaigns requires a strategic shift away from ephemeral email addresses toward phone number analysis. Clustering lures based on shared phone numbers allows security researchers to map connections between disparate campaigns. This methodology effectively exposes the hidden infrastructure of organized criminal call centers. Service providers and security teams should implement real-time reputation monitoring across communication channels. Establishing centralized databases that track high-risk phone numbers enables rapid cross-campaign correlation. Collaboration between telecommunications companies and VoIP providers is essential for sharing threat intelligence and disrupting social engineering operations.\u003c/p\u003e\n","keyPoints":["VoIP phone numbers are the primary medium for scam campaigns due to their cost-effectiveness, ease of API-driven provisioning, and difficulty of tracing.","Attackers maintain operational continuity by rotating through sequential blocks of phone numbers and utilizing strategic cool-down periods, with a median lifespan of approximately 14 days.","Threat actors maximize their reach by recycling the same phone numbers across diverse, seemingly unrelated lures that vary in subject lines, attachment formats, and impersonated brands.","Security researchers can expose the hidden infrastructure of organized scam call centers by clustering phone numbers to connect disparate campaigns rather than focusing solely on ephemeral email addresses."],"insights":["Attackers evade reputation-based security filters by implementing strategic cool-down periods, deliberately pausing phone number usage for several days before reintroducing them into active campaigns.","Sequential DID blocks enable instant operational continuity, as attackers simply rotate to the next available number in a purchased range whenever a specific line is flagged or blocked by carriers.","CPaaS platforms are heavily targeted for automated provisioning compared to UCaaS providers, with Sinch identified as the most frequently abused VoIP provider due to its programmable API design.","HEIC image attachments are strategically deployed in scam emails to bypass traditional file-based detection engines while mimicking legitimate mobile photo formats and maintaining high visual quality."],"referencedReports":[],"body":"\u003cp\u003eCisco Talos has begun tracking phone numbers within scam emails as a critical indicator of compromise to combat telephone-oriented attack delivery tactics. The analysis reveals that VoIP infrastructure is heavily favored by threat actors due to its cost-effectiveness, API-driven automation, and difficulty of tracing. Attackers strategically manage their phone number lifespans by implementing cool-down periods and rotating through sequential blocks to evade reputation-based security filters. Rather than relying on ephemeral email addresses, researchers can map organized criminal call centers by clustering reused phone numbers across seemingly unrelated campaigns. This approach exposes how threat actors recycle the same numbers across diverse subject lines, multiple impersonated brands, and various attachment formats to maximize their reach. Security teams are advised to implement real-time reputation monitoring and collaborate with telecommunications providers to disrupt these persistent social engineering operations.\u003c/p\u003e\n"},{"n":5,"title":"MuddyWater hackers use Chaos ransomware as a decoy in attacks","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/muddywater-hackers-use-chaos-ransomware-as-a-decoy-in-attacks/","time":"13:02","priority":"SHOULD READ","score":88,"group":null,"groupColor":null,"tldr":"Iranian state-sponsored hackers known as MuddyWater are using the Chaos ransomware attack as a decoy to conceal their actual cyber-espionage operations and complicate attribution.","briefOverview":"\u003cp\u003eIranian state-sponsored hackers known as MuddyWater recently disguised a cyber-espionage campaign behind a Chaos ransomware attack. The threat group leveraged Microsoft Teams social engineering to initiate chats, harvest credentials, and manipulate multi-factor authentication settings. After compromising accounts, they established persistence through remote desktop protocols, DWAgent, and AnyDesk. A custom backdoor disguised as a Microsoft WebView2 application was deployed to maintain access and execute commands. Rapid7 researchers attribute the incident to MuddyWater based on infrastructure overlap and specific code-signing certificates. The ransomware component was likely used to conceal the espionage objectives and complicate attribution. This strategy highlights a convergence between state-sponsored intrusion activity and criminal tradecraft. Ultimately, the primary goal of the operation was intelligence gathering rather than financial extortion.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eMuddyWater, an Iranian state-sponsored cyber-espionage group aligned with the Ministry of Intelligence and Security, recently conducted an attack that featured a Chaos ransomware decoy. Rapid7 researchers have expressed moderate confidence in attributing the incident to the threat actor, also known as Static Kitten, Mango Sandstorm, and Seedworm. This attribution relies on infrastructure overlap, a specific code-signing certificate used for Stagecomp and Darkcomp malware, and distinct operational tradecraft. The intrusion began through Microsoft Teams social engineering, where attackers initiated chats with employees to establish screen-sharing sessions. They harvested credentials either through phishing pages mimicking Microsoft Quick Assist or by tricking victims into typing passwords into local text files. Following account compromise, the attackers authenticated to internal systems, including a domain controller, and established persistence using RDP, DWAgent, and AnyDesk. They then deployed a malware loader named ms_upd.exe to drop a custom backdoor called Game.exe. This backdoor was disguised as a Microsoft WebView2 application and included anti-analysis and anti-VM checks. It supported twelve distinct commands, including PowerShell and CMD execution, file manipulation, and persistent shell access. The Chaos ransomware operation, which emerged in 2025, is known for big-game hunting and double-extortion tactics targeting US organizations. Researchers believe the ransomware facade was strategically chosen to conceal the actual cyber-espionage mission and obscure attribution. MuddyWater previously utilized Qilin ransomware in a late 2025 campaign against an Israeli organization. The group likely pivoted to Chaos branding after their earlier activities were linked to MOIS operatives. The attack progression demonstrates how state-sponsored actors are adopting criminal tradecraft to mask their long-term network intrusion campaigns. Rapid7 notes that the convergence of these techniques suggests financial gain was not the primary objective. This incident underscores the evolving tactics used by Iranian threat actors to blend espionage with criminal-style ransomware deployments.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"incident-overview-and-attribution\"\u003eIncident Overview and Attribution\u003c/h3\u003e\n\n\u003cp\u003eIranian state-sponsored hackers operating under the MuddyWater alias recently executed a cyber-espionage campaign that prominently featured a Chaos ransomware decoy. Rapid7 researchers have established moderate confidence in attributing the incident to MuddyWater, a threat group also identified by the names Static Kitten, Mango Sandstorm, and Seedworm. This attribution is grounded in three primary factors:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eInfrastructure overlap with known MuddyWater campaigns\u003c/li\u003e\n\u003cli\u003eThe use of a specific code-signing certificate for Stagecomp and Darkcomp malware\u003c/li\u003e\n\u003cli\u003eConsistent operational tradecraft and deployment patterns\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eMuddyWater is widely recognized for conducting long-term network intrusion campaigns that align with Iran’s Ministry of Intelligence and Security. The researchers emphasize that the ransomware component was strategically deployed to conceal the actual cyber-espionage mission and complicate forensic attribution.\u003c/p\u003e\n\n\u003ch3 id=\"attack-progression-and-technical-execution\"\u003eAttack Progression and Technical Execution\u003c/h3\u003e\n\n\u003cp\u003eThe intrusion commenced through Microsoft Teams social engineering, where attackers initiated direct chats with employees to establish screen-sharing sessions. During these sessions, the threat actors harvested credentials and manipulated multi-factor authentication settings to maintain access. Credential theft was executed either through phishing pages disguised as Microsoft Quick Assist or by deceiving victims into entering passwords into local text files. Once accounts were compromised, the attackers authenticated to internal systems, including a domain controller, and established persistence using RDP, DWAgent, and AnyDesk.\u003c/p\u003e\n\n\u003cp\u003eFollowing initial access, the group deployed a malware loader named ms_upd.exe to drop a custom backdoor designated as Game.exe. This backdoor was intentionally disguised as a Microsoft WebView2 application to evade detection. The malware incorporated both anti-analysis and anti-VM checks to hinder reverse engineering efforts. It supported twelve distinct commands, including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003ePowerShell and CMD command execution\u003c/li\u003e\n\u003cli\u003eFile upload and deletion\u003c/li\u003e\n\u003cli\u003ePersistent shell access\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"decoy-strategy-and-historical-context\"\u003eDecoy Strategy and Historical Context\u003c/h3\u003e\n\n\u003cp\u003eThe Chaos ransomware component served as a deliberate facade to mask the espionage objectives and obscure attribution. Chaos is a ransomware-as-a-service operation that emerged in 2025 and is known for big-game hunting, double-extortion tactics, and social engineering campaigns primarily targeting US organizations. Researchers suggest the group pivoted to Chaos branding following the attribution of a late 2025 campaign against an Israeli organization, which utilized Qilin ransomware.\u003c/p\u003e\n\n\u003cp\u003eThis consistent use of ransomware as a cover highlights a deliberate shift in operational security to obscure state-sponsored objectives. The attack progression demonstrates a clear convergence between state-sponsored intrusion activity and criminal tradecraft. Rapid7 notes that the primary objective of this campaign was cyber-espionage rather than financial extortion. This incident underscores the evolving tactics employed by Iranian threat actors to maintain long-term access while masking their true intelligence-gathering goals.\u003c/p\u003e\n","keyPoints":["Iranian state-sponsored hackers known as MuddyWater used the Chaos ransomware attack as a decoy to conceal their actual cyber-espionage operations and complicate attribution.","The attack progression started with Microsoft Teams social engineering to harvest credentials, followed by the establishment of persistence through RDP, DWAgent, and AnyDesk.","Rapid7 attributes the incident to MuddyWater based on infrastructure overlap, a specific code-signing certificate used for malware, and various operational tradecraft.","The threat actors deployed a custom backdoor disguised as a Microsoft WebView2 application that features anti-analysis checks and supports commands such as PowerShell execution and file deletion."],"insights":["The attackers manipulated multi-factor authentication (MFA) settings and used Microsoft Teams social engineering to gain initial access and establish persistence.","The threat group pivoted from using Qilin ransomware to Chaos ransomware as a decoy, likely to avoid attribution after their previous campaign was linked to MOIS operatives.","A custom backdoor was deployed disguised as a Microsoft WebView2 application, featuring anti-analysis checks and supporting 12 commands including PowerShell execution.","Rapid7 identified the primary goal as cyber-espionage rather than financial gain, highlighting how state-sponsored groups are adopting criminal tradecraft to mask their activities."],"referencedReports":[{"title":"Muddying Tracks: State-Sponsored Shadow Behind Chaos Ransomware","url":"https://www.rapid7.com/blog/post/tr-muddying-tracks-state-sponsored-shadow-behind-chaos-ransomware/","publisher":"Rapid7","context":"The article cites Rapid7 researchers' analysis to attribute the incident to MuddyWater and explain how the ransomware component was used to conceal cyber-espionage operations."},{"title":"New Chaos Ransomware","url":"https://blog.talosintelligence.com/new-chaos-ransomware/","publisher":"Talos Intelligence","context":"The article references this technical analysis to provide background on the Chaos ransomware-as-a-service operation, noting its emergence in 2025 and its targeting of US organizations."}],"body":"\u003cp\u003eIranian state-sponsored hackers known as MuddyWater recently disguised a cyber-espionage campaign behind a Chaos ransomware attack. The threat group leveraged Microsoft Teams social engineering to initiate chats, harvest credentials, and manipulate multi-factor authentication settings. After compromising accounts, they established persistence through remote desktop protocols, DWAgent, and AnyDesk. A custom backdoor disguised as a Microsoft WebView2 application was deployed to maintain access and execute commands. Rapid7 researchers attribute the incident to MuddyWater based on infrastructure overlap and specific code-signing certificates. The ransomware component was likely used to conceal the espionage objectives and complicate attribution. This strategy highlights a convergence between state-sponsored intrusion activity and criminal tradecraft. Ultimately, the primary goal of the operation was intelligence gathering rather than financial extortion.\u003c/p\u003e\n"},{"n":1,"title":"Hackers compromise Daemon Tools in global supply-chain attack, researchers say","source":"therecord.media","sourceColor":"#a78bfa","link":"https://therecord.media/hackers-compromise-daemon-tools-global-supply-chain-attack","time":"12:45","priority":"SHOULD READ","score":85,"group":null,"groupColor":null,"tldr":"Hackers compromised Daemon Tools installers in a global supply-chain attack, distributing malicious versions to thousands of users that install backdoors for data collection and targeted espionage.","briefOverview":"\u003cp\u003eHackers have compromised the official installers of Daemon Tools, a widely used disk imaging software, distributing malicious versions through the program\u0026rsquo;s official website. According to Kaspersky researchers, this supply chain attack has impacted users across more than 100 countries. The campaign began around April 8 and remains active, with thousands of attempted infections recorded since then. Most affected systems received only a basic information collector designed to gather system data. However, researchers noted that the operation appears highly targeted, as attackers likely used the initial data collection to profile infected machines. Based on these profiles, a second, more advanced payload was selectively deployed to a small number of targets. These advanced targets include organizations in government, science, manufacturing, and retail sectors across Russia, Belarus, and Thailand. The compromised installers specifically affected Daemon Tools versions 12.5.0.2421 through 12.5.0.2434, embedding backdoors into core components that run automatically at startup. One known target of the advanced malware was an educational institution in Russia, which received a complex implant called Quic RAT. The Latvian developer Disc Soft is currently investigating the breach, while Kaspersky noted the presence of Chinese-language elements in the malicious code.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eHackers have successfully compromised the installers of Daemon Tools, a popular disk imaging program, by tampering with the software and distributing it through its official website. Kaspersky researchers reported that this supply chain attack has reached users in over 100 countries, including Russia, Brazil, Turkey, Spain, Germany, and China. The malicious versions were first observed in early April, with the broader campaign officially beginning around April 8. Since then, thousands of attempted infections have been recorded, and the operation remains active. The attack follows a distinct two-stage methodology designed to maximize impact while minimizing exposure. Most victims initially received a lightweight information collector meant to gather basic system data. Researchers believe the attackers used this initial phase to profile the infected systems before making further moves. Based on these profiles, a second, more advanced payload was deployed to only a handful of specific targets. These advanced targets span government, science, manufacturing, and retail sectors in Russia, Belarus, and Thailand. The compromised installers impacted Daemon Tools versions 12.5.0.2421 through 12.5.0.2434. The malicious code embedded backdoors directly into core software components, ensuring they execute automatically upon system startup. Among the advanced payloads, researchers identified a lightweight backdoor that delivered a more complex implant known as Quic RAT. This specific implant was deployed against just one known target, an unidentified educational institution in Russia. Disc Soft, the Latvian developer behind Daemon Tools, has acknowledged the findings and is actively investigating the breach. Kaspersky observed Chinese-language elements within the malicious code, suggesting the attackers are Chinese-speaking. However, researchers explicitly stopped short of attributing the campaign to a specific threat group.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"executive-summary\"\u003eExecutive Summary\u003c/h3\u003e\n\n\u003cp\u003eHackers have executed a targeted supply chain attack against Daemon Tools, compromising official installers and distributing them through the software\u0026rsquo;s official website. Kaspersky researchers documented the campaign\u0026rsquo;s global reach and sophisticated two-stage deployment methodology. The breach impacts thousands of machines across more than 100 countries and remains active as of the report.\u003c/p\u003e\n\n\u003ch3 id=\"attack-scope-and-timeline\"\u003eAttack Scope and Timeline\u003c/h3\u003e\n\n\u003cp\u003eThe malicious installers were first observed in early April, with the broader campaign launching around April 8. Thousands of attempted infections have been recorded since that date, and the operation continues to be active. The attack has affected users in over 100 countries, with confirmed presence in Russia, Brazil, Turkey, Spain, Germany, and China. Disc Soft, the Latvian developer responsible for Daemon Tools, is aware of the compromise and is currently conducting an investigation.\u003c/p\u003e\n\n\u003ch3 id=\"technical-details-and-malware-delivery\"\u003eTechnical Details and Malware Delivery\u003c/h3\u003e\n\n\u003cp\u003eThe compromised installers specifically affected Daemon Tools versions 12.5.0.2421 through 12.5.0.2434. Attackers embedded backdoors directly into core software components, configuring them to execute automatically at system startup. The campaign utilized a deliberate two-stage payload delivery strategy to profile targets before deploying advanced malware.\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eStage One:\u003c/strong\u003e Most victims received a basic information collector designed to gather system data. Researchers determined that attackers used this initial data collection phase to profile infected systems.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eStage Two:\u003c/strong\u003e Based on the collected profiles, a second, more advanced payload was selectively deployed to a small number of high-value targets. These targets include organizations operating in government, science, manufacturing, and retail sectors across Russia, Belarus, and Thailand.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"advanced-threats-and-attribution-clues\"\u003eAdvanced Threats and Attribution Clues\u003c/h3\u003e\n\n\u003cp\u003eAmong the advanced payloads, researchers identified a lightweight backdoor capable of delivering a more complex implant known as Quic RAT. This specific malware was deployed against only one known target, an unidentified educational institution in Russia. Kaspersky noted that the malicious code contained Chinese-language elements, indicating that the attackers are likely Chinese-speaking. However, researchers explicitly stopped short of attributing the campaign to a specific threat group or nation-state actor.\u003c/p\u003e\n","keyPoints":["Hackers compromised Daemon Tools installers and distributed them through the official website, affecting users in more than 100 countries.","The malicious versions embedded backdoors into core software components that automatically execute at system startup.","Researchers determined the attack was targeted, using initial data collection to profile systems before deploying advanced malware to specific organizations in government, science, manufacturing, and retail sectors.","The campaign began around April 8 and remains active, with the developer Disc Soft currently investigating the breach."],"insights":["The attackers employed a two-stage deployment strategy, using initial lightweight data collection to profile systems before selectively pushing advanced malware like Quic RAT only to high-value targets.","Compromised installers embed backdoors directly into core components that execute automatically at startup, requiring defenders to verify file hashes and monitor persistence mechanisms rather than relying solely on process-level detection.","The breach specifically affected Daemon Tools versions 12.5.0.2421 through 12.5.0.2434, providing a precise version range for immediate patching and inventory validation.","Malicious code contained Chinese-language elements, indicating the attackers' likely language background while underscoring the difficulty of attributing supply chain compromises without definitive group signatures."],"referencedReports":[{"title":"Daemon Tools backdoor","url":"https://securelist.com/tr/daemon-tools-backdoor/119654/","publisher":"Kaspersky","context":"The article references Kaspersky researchers' findings regarding the compromise of Daemon Tools installers and their distribution via the official website."}],"body":"\u003cp\u003eHackers have compromised the official installers of Daemon Tools, a widely used disk imaging software, distributing malicious versions through the program\u0026rsquo;s official website. According to Kaspersky researchers, this supply chain attack has impacted users across more than 100 countries. The campaign began around April 8 and remains active, with thousands of attempted infections recorded since then. Most affected systems received only a basic information collector designed to gather system data. However, researchers noted that the operation appears highly targeted, as attackers likely used the initial data collection to profile infected machines. Based on these profiles, a second, more advanced payload was selectively deployed to a small number of targets. These advanced targets include organizations in government, science, manufacturing, and retail sectors across Russia, Belarus, and Thailand. The compromised installers specifically affected Daemon Tools versions 12.5.0.2421 through 12.5.0.2434, embedding backdoors into core components that run automatically at startup. One known target of the advanced malware was an educational institution in Russia, which received a complex implant called Quic RAT. The Latvian developer Disc Soft is currently investigating the breach, while Kaspersky noted the presence of Chinese-language elements in the malicious code.\u003c/p\u003e\n"},{"n":2,"title":"OceanLotus suspected of using PyPI to deliver ZiChatBot malware","source":"securelist.com","sourceColor":"#2dd4bf","link":"https://securelist.com/oceanlotus-suspected-pypi-zichatbot-campaign/119603/","time":"13:00","priority":"SHOULD READ","score":85,"group":null,"groupColor":null,"tldr":"OceanLotus executed a PyPI supply chain attack using fake Python packages to deliver ZiChatBot malware, which leverages Zulip's public chat APIs for command and control instead of traditional servers. The malicious packages were quickly removed after detection, and no infections have been observed.","briefOverview":"\u003cp\u003eOceanLotus executed a PyPI supply chain attack in July 2025 by uploading malicious wheel packages disguised as legitimate Python libraries. These packages, including \u003ccode\u003euuid32-utils\u003c/code\u003e, \u003ccode\u003ecolorinal\u003c/code\u003e, and \u003ccode\u003etermncolor\u003c/code\u003e, were designed to deliver a previously unknown malware family named ZiChatBot. The dropper extracts platform-specific files, such as \u003ccode\u003eterminate.dll\u003c/code\u003e for Windows or \u003ccode\u003eterminate.so\u003c/code\u003e for Linux, and loads them directly into the host Python process.\u003c/p\u003e\n\n\u003cp\u003eOnce executed, the malware establishes persistence through registry entries or crontab jobs and drops its final payload into system directories. Instead of using traditional command and control servers, ZiChatBot leverages the public REST APIs of the Zulip team chat application to receive shellcode commands. The threat actor concealed the malicious code by making a benign-looking package depend on the hidden malicious one.\u003c/p\u003e\n\n\u003cp\u003eKaspersky\u0026rsquo;s threat attribution engine linked the dropper to OceanLotus based on a 64% similarity to a previously analyzed sample. The malicious packages were swiftly removed from PyPI after the findings were shared with the security community, and no infections have been observed to date.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eOceanLotus, an active APT group primarily targeting the Asia-Pacific region, expanded its attack methodology by launching a PyPI supply chain campaign in July 2025. The threat actor uploaded three malicious wheel packages to the Python Package Index, impersonating popular libraries named \u003ccode\u003euuid32-utils\u003c/code\u003e, \u003ccode\u003ecolorinal\u003c/code\u003e, and \u003ccode\u003etermncolor\u003c/code\u003e. These packages were distributed for both Windows and Linux environments, offering x86 and x64 builds.\u003c/p\u003e\n\n\u003cp\u003eThe infection chain relies on a dependency concealment technique where the \u003ccode\u003etermncolor\u003c/code\u003e package imports the malicious \u003ccode\u003ecolorinal\u003c/code\u003e library to hide its payload. When a victim installs the package, the Python initialization script executes and loads a dropper file, \u003ccode\u003eterminate.dll\u003c/code\u003e or \u003ccode\u003eterminate.so\u003c/code\u003e, into the host process. The dropper decrypts embedded strings using AES encryption and decompresses the final payload with LZMA.\u003c/p\u003e\n\n\u003cp\u003eOn Windows, the malware drops \u003ccode\u003evcpktsvr.exe\u003c/code\u003e and \u003ccode\u003elibcef.dll\u003c/code\u003e into the \u003ccode\u003e%LOCALAPPDATA%\\vcpacket\u003c/code\u003e directory, while the Linux variant places an ELF executable in \u003ccode\u003e/tmp/obsHub/\u003c/code\u003e. Persistence is maintained through a Windows registry run key or a Linux crontab job. After deployment, the dropper executes XOR-decrypted shellcode to locate and delete its own files, effectively cleaning up the initial infection artifacts.\u003c/p\u003e\n\n\u003cp\u003eThe resulting ZiChatBot malware does not communicate with dedicated command and control servers. Instead, it utilizes the public REST APIs of the Zulip chat application, authenticating with a token that decodes to a bot account at helper.zulipchat.com. The malware sends system information to a specific channel, retrieves shellcode commands from another channel, executes the code, and replies with a heart emoji to confirm success.\u003c/p\u003e\n\n\u003cp\u003eKaspersky\u0026rsquo;s KTAE system attributed the campaign to OceanLotus, noting a 64% similarity to another dropper analyzed in a prior threat intelligence report. Following the public disclosure of the attack, the malicious packages were removed from PyPI and the associated Zulip organization was deactivated. To date, telemetry data indicates that no infections have occurred.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eCampaign Overview\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eOceanLotus, a threat group known for targeting victims in the Asia-Pacific region with expanding operations in the Middle East, executed a carefully planned PyPI supply chain attack beginning in July 2025. This campaign represents a strategic shift from traditional phishing methods to software dependency manipulation. The attack leverages the Python Package Index to distribute malicious wheel packages that masquerade as legitimate development tools.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eMalicious Package Distribution\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eThe threat actor created three PyPI projects to distribute the malware across Windows and Linux platforms. The uploaded wheel packages impersonate widely used libraries. These packages include \u003ccode\u003euuid32-utils\u003c/code\u003e, \u003ccode\u003ecolorinal\u003c/code\u003e, and \u003ccode\u003etermncolor\u003c/code\u003e. Each package was uploaded by anonymized authors using temporary email addresses. They include distributions for x86, x64, and x86_64 architectures.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eInfection Chain and Concealment\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eThe attacker employed a sophisticated dependency concealment strategy to hide the malicious payload. The \u003ccode\u003etermncolor\u003c/code\u003e package appears benign but imports the malicious \u003ccode\u003ecolorinal\u003c/code\u003e library as a hidden dependency. When a user installs the package, the Python initialization script executes and triggers the loading of a dropper file. On Windows, the code loads \u003ccode\u003eterminate.dll\u003c/code\u003e into the host Python process. The Linux variant loads \u003ccode\u003eterminate.so\u003c/code\u003e instead. The dropper is activated by passing a UTF-8 string parameter to an exported function. This function immediately begins the deployment sequence.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003ePayload Deployment and Persistence\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eThe dropper performs several actions to establish the final payload and ensure persistence. It decrypts sensitive strings using AES in CBC mode. It also decompresses the embedded data with LZMA. The Windows variant drops \u003ccode\u003evcpktsvr.exe\u003c/code\u003e and \u003ccode\u003elibcef.dll\u003c/code\u003e into a newly created \u003ccode\u003e%LOCALAPPDATA%\\vcpacket\u003c/code\u003e folder. The Linux version places a single ELF executable in \u003ccode\u003e/tmp/obsHub/\u003c/code\u003e. Persistence mechanisms are configured through a Windows registry run key pointing to the dropped executable. Alternatively, the Linux variant uses a crontab job to execute the ELF file. After deployment, the dropper executes XOR-decrypted shellcode. This shellcode searches for and deletes the original dropper file. The process effectively erases the initial infection artifacts.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eCommand and Control Infrastructure\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eZiChatBot, the final payload, operates without traditional command and control servers. Instead, it utilizes the public REST APIs of the Zulip team chat application for all communication. The malware authenticates using a Base64-encoded token that decodes to \u003ccode\u003eMorian-bot@helper.zulipchat.com\u003c/code\u003e. It maintains two distinct channel-topic pairs for its operations. One pair transmits current system information to the server. The other pair retrieves shellcode commands. Once the shellcode is received, a new thread executes it. The malware sends a heart emoji back to the original message to signal successful execution.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eAttribution and Response\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eKaspersky\u0026rsquo;s Threat Attribution Engine linked the dropper to OceanLotus based on a 64% similarity score to another dropper analyzed in a previous threat intelligence report. Both samples share nearly identical algorithms and logic for decrypting and decompressing embedded payloads. Following the public sharing of technical details, the malicious packages were swiftly removed from PyPI. The attacker\u0026rsquo;s registered Zulip organization was officially deactivated. Security researchers recommend adding \u003ccode\u003ehelper.zulipchat.com\u003c/code\u003e to network denylists to block potential connection attempts. Current telemetry and public reports indicate that no infections have been observed since the campaign\u0026rsquo;s discovery.\u003c/p\u003e\n","keyPoints":["OceanLotus uploaded malicious Python wheel packages to PyPI in July 2025 to distribute the previously unknown ZiChatBot malware.","The fake packages disguised themselves as legitimate libraries to deliver a dropper that targets both Windows and Linux platforms.","ZiChatBot utilizes the public REST APIs of the Zulip team chat application for command and control instead of traditional dedicated servers.","Threat attribution analysis linked the malware's dropper to OceanLotus based on a 64% similarity to another known dropper from the group.","The malicious packages were swiftly removed from PyPI after detection, and no infections have been observed to date."],"insights":["The malware uses Zulip's public REST APIs for command and control, embedding a Base64-encoded authentication token that decodes to Morian-bot@helper.zulipchat.com, providing a direct network indicator for detection.","The termncolor package appears benign but imports the malicious colorinal library as a dependency, demonstrating a concealment technique that bypasses initial static analysis.","The dropper executes XOR-decrypted shellcode to locate and delete its own terminate.dll file from memory, employing a self-cleaning method that complicates forensic recovery.","Even after the attacker's Zulip organization was deactivated, infected systems will continue attempting connections to helper.zulipchat.com, making this domain a critical network denylist target."],"referencedReports":[{"title":"APT32 Turns GitHub Into a Weapon Against Security Teams","url":"https://gbhackers.com/apt32-turns-github-into-a-weapon-against-security-teams/","publisher":"gbhackers.com","context":"The article cites this public report as evidence that the group launched a phishing campaign using GitHub in the first half of 2025."}],"body":"\u003cp\u003eOceanLotus executed a PyPI supply chain attack in July 2025 by uploading malicious wheel packages disguised as legitimate Python libraries. These packages, including \u003ccode\u003euuid32-utils\u003c/code\u003e, \u003ccode\u003ecolorinal\u003c/code\u003e, and \u003ccode\u003etermncolor\u003c/code\u003e, were designed to deliver a previously unknown malware family named ZiChatBot. The dropper extracts platform-specific files, such as \u003ccode\u003eterminate.dll\u003c/code\u003e for Windows or \u003ccode\u003eterminate.so\u003c/code\u003e for Linux, and loads them directly into the host Python process.\u003c/p\u003e\n\n\u003cp\u003eOnce executed, the malware establishes persistence through registry entries or crontab jobs and drops its final payload into system directories. Instead of using traditional command and control servers, ZiChatBot leverages the public REST APIs of the Zulip team chat application to receive shellcode commands. The threat actor concealed the malicious code by making a benign-looking package depend on the hidden malicious one.\u003c/p\u003e\n\n\u003cp\u003eKaspersky\u0026rsquo;s threat attribution engine linked the dropper to OceanLotus based on a 64% similarity to a previously analyzed sample. The malicious packages were swiftly removed from PyPI after the findings were shared with the security community, and no infections have been observed to date.\u003c/p\u003e\n"},{"n":6,"title":"Your AI Agents Are Already Inside the Perimeter. Do You Know What They're Doing?","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/your-ai-agents-are-already-inside.html","time":"10:57","priority":"SHOULD READ","score":85,"group":null,"groupColor":null,"tldr":"Traditional identity management tools cannot see or govern AI agents and unmanaged credentials operating inside applications, creating a critical security blind spot. Orchid Security addresses this by inspecting identity activity directly at the application source to provide real-time visibility, compliance tracking, and automated guardrails for AI-driven identity risks.","briefOverview":"\u003cp\u003eAI agents are being deployed across enterprises faster than governance policies can keep pace, according to recent Gartner analysis. Traditional identity and access management systems were built for human users logging in and out, leaving them blind to the continuous, machine-speed activity of AI agents.\u003c/p\u003e\n\n\u003cp\u003eThis structural gap has created what security teams call \u0026ldquo;identity dark matter,\u0026rdquo; with roughly half of all enterprise identity activity now operating outside centralized visibility. Orchid Security addresses this challenge through its \u0026ldquo;Ask Orchid\u0026rdquo; platform, which performs identity observability directly inside applications using binary analysis and dynamic instrumentation.\u003c/p\u003e\n\n\u003cp\u003eThe tool allows security leaders to automatically discover running AI agents, assess real-time NIST compliance, and inventory static credentials that require immediate rotation. By inspecting authentication and authorization logic at the source, Orchid provides continuous visibility and automated remediation without relying on traditional API integrations. This approach shifts compliance and governance from reactive audits to proactive, on-demand assessments.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eGartner recently confirmed that enterprise adoption of AI agents is outpacing the maturity of governance policy controls. Traditional identity and access management platforms were designed for human users who log in and out of systems, making them ill-equipped to handle AI agents that run continuously, span multiple applications, and opportunistically acquire permissions.\u003c/p\u003e\n\n\u003cp\u003eThis mismatch has resulted in a structural visibility gap, with approximately half of enterprise identity activity falling outside centralized IAM oversight. Security teams refer to this unmanaged layer as \u0026ldquo;identity dark matter,\u0026rdquo; which expands at a pace that matches or exceeds AI adoption itself. Conventional IAM tools typically stop monitoring at the login event, leaving all post-authentication activity inside applications completely invisible.\u003c/p\u003e\n\n\u003cp\u003eOrchid Security was built to close this gap by operating inside applications at the binary and configuration layer. Its platform, \u0026ldquo;Ask Orchid,\u0026rdquo; applies identity observability at the source without requiring APIs, source code changes, or lengthy integrations. When security leaders ask what AI agents are running in their environment, the platform automatically discovers them, identifies their purpose, and recommends appropriate oversight measures.\u003c/p\u003e\n\n\u003cp\u003eIt also provides a clear view of areas where AI agents are confirmed not to be in use, giving a complete operational picture. For compliance needs, Ask Orchid can evaluate real-time alignment with NIST identity requirements by comparing actual application-level controls against the NIST CSF 1.1 and 2.0 frameworks. This replaces the need for periodic third-party audits with on-demand vulnerability assessments and prioritized remediation roadmaps.\u003c/p\u003e\n\n\u003cp\u003eThe platform also addresses persistent credential risks by inventorying static credentials across cloud, on-premise, and local accounts. It identifies why these credentials need rotation and risk-tiers them based on exposure urgency, delivering previously invisible credential intelligence within minutes. Orchid Security operates on five core principles for secure AI-agent adoption: human-to-agent attribution, comprehensive activity auditing, dynamic context-aware guardrails, least privilege through just-in-time elevation, and automated remediation for risky behavior.\u003c/p\u003e\n\n\u003cp\u003eRecognized as a Representative Vendor in Gartner\u0026rsquo;s inaugural Market Guide for Guardian Agents, the platform delivers full-spectrum identity authority from observability to orchestration. This enables enterprise leaders to manage AI adoption proactively rather than reacting to breaches or compliance failures after they occur.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"executive-summary\"\u003eExecutive Summary\u003c/h3\u003e\n\n\u003cp\u003eAI agents are being deployed across enterprises at a velocity that exceeds current governance capabilities. Traditional identity and access management systems were engineered for human users, leaving security teams blind to the continuous, machine-speed operations of autonomous AI workloads. This structural disconnect has created a pervasive visibility gap known as \u0026ldquo;identity dark matter,\u0026rdquo; where roughly half of all enterprise identity activity operates outside centralized IAM controls. Orchid Security addresses this challenge through application-level binary analysis and dynamic instrumentation, providing real-time observability and automated governance for both human and non-human identities.\u003c/p\u003e\n\n\u003ch3 id=\"the-structural-identity-gap\"\u003eThe Structural Identity Gap\u003c/h3\u003e\n\n\u003cp\u003eConventional IAM platforms were designed around the concept of human users logging in and out of systems. AI agents operate fundamentally differently by running continuously, spanning multiple applications, and opportunistically acquiring permissions. Because most identity tooling stops monitoring at the login event, it cannot observe what happens inside applications after authentication occurs. This limitation means that service accounts, locally authenticated users, and AI agents with broad permissions remain invisible to standard security stacks. The resulting \u0026ldquo;identity dark matter\u0026rdquo; expands at a pace that matches or exceeds the rate of AI adoption itself.\u003c/p\u003e\n\n\u003ch3 id=\"orchid-security-s-source-level-observability\"\u003eOrchid Security\u0026rsquo;s Source-Level Observability\u003c/h3\u003e\n\n\u003cp\u003eOrchid Security was architected to inspect native authentication and authorization logic directly within applications. Through binary analysis and dynamic instrumentation, the platform examines identity activity at the source without requiring APIs, source code modifications, or lengthy integration processes. This approach captures the half of enterprise identity activity that falls outside conventional IAM visibility, including every AI agent operating across the digital estate. The platform\u0026rsquo;s AI-driven interface, \u0026ldquo;Ask Orchid,\u0026rdquo; translates this raw observability into actionable intelligence for security and compliance leaders.\u003c/p\u003e\n\n\u003ch3 id=\"key-operational-capabilities\"\u003eKey Operational Capabilities\u003c/h3\u003e\n\n\u003cp\u003eSecurity teams can leverage the platform to answer critical governance questions in real time:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eAI Agent Discovery:\u003c/strong\u003e The system automatically identifies running AI agents, maps their likely purposes and risk profiles, and highlights areas where agents are confirmed inactive. It provides recommended oversight actions to transition from reactive monitoring to proactive governance.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eNIST Compliance Assessment:\u003c/strong\u003e Instead of relying on periodic external audits, the platform continuously compares application-level identity controls against NIST CSF 1.1 and 2.0 requirements. It delivers application-specific gap analysis and a prioritized remediation roadmap, enabling security leaders to address vulnerabilities before auditors do.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eStatic Credential Management:\u003c/strong\u003e The tool inventories static credentials across cloud, on-premise, and local environments. It explains why each credential requires rotation and risk-tiers them based on exposure urgency, delivering previously invisible credential intelligence within minutes.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"governance-principles-and-zero-trust-architecture\"\u003eGovernance Principles and Zero-Trust Architecture\u003c/h3\u003e\n\n\u003cp\u003eOrchid Security structures its AI-agent governance around five foundational principles designed to enforce zero-trust policies:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eHuman-to-Agent Attribution:\u003c/strong\u003e Every machine-driven action is linked to a responsible human owner to ensure clear accountability.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eComprehensive Activity Audit:\u003c/strong\u003e A complete chain of custody is recorded, tracking the sequence from Agent to Tool/API, Action, and Target for compliance reporting and incident response.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eDynamic, Context-Aware Guardrails:\u003c/strong\u003e Access decisions are evaluated continuously based on real-time context, resource sensitivity, and human entitlements, replacing broad standing privileges with purpose-bound authorization.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eLeast Privilege:\u003c/strong\u003e Just-in-time elevation replaces persistent administrative access across AI agents and machine identities.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eAutomated Remediation:\u003c/strong\u003e Risky behaviors trigger immediate automated responses, including credential rotation and session termination, without manual intervention.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"market-position-and-strategic-impact\"\u003eMarket Position and Strategic Impact\u003c/h3\u003e\n\n\u003cp\u003eGartner recognized Orchid Security as a Representative Vendor in its inaugural Market Guide for Guardian Agents, noting its role in managing AI agent identities with zero-trust policies. The platform delivers what the company describes as \u0026ldquo;full-spectrum identity authority,\u0026rdquo; bridging the gap between identity observability and orchestration. By providing on-demand compliance validation, automated credential rotation, and continuous AI agent oversight, Orchid enables enterprise leaders to govern autonomous identity activity proactively. This shifts the security posture from waiting for breaches to make gaps visible to maintaining continuous, application-level control over the expanding identity estate.\u003c/p\u003e\n","keyPoints":["Traditional identity and access management systems are designed for human users and cannot effectively monitor the continuous, machine-speed activity of AI agents.","Approximately half of enterprise identity activity currently operates outside the visibility of centralized IAM platforms, creating an unmanaged layer of identity risk.","Orchid Security provides identity observability by inspecting authentication and authorization logic directly inside applications through binary analysis and dynamic instrumentation.","The platform enables security teams to automatically discover running AI agents, assess real-time NIST compliance, and inventory static credentials that require immediate rotation."],"insights":["Conventional identity tooling only observes activity up to the login event, leaving all post-authentication actions inside applications completely invisible to standard security platforms.","Compliance assessments can shift from periodic third-party audits to continuous binary-level verification, allowing security teams to identify and remediate NIST control gaps on demand.","AI agents opportunistically acquire broad permissions across applications, making unmanaged static credentials and forgotten service accounts the highest-value targets for attackers exploiting identity dark matter."],"referencedReports":[{"title":"Gartner Market Guide for Guardian Agents","url":"https://eu1.hubs.ly/H0v09NY0","publisher":"Gartner","context":"The article cites this inaugural research guide to confirm that enterprise AI agent adoption is accelerating faster than governance policy controls, and offers complimentary access to the full report."}],"body":"\u003cp\u003eAI agents are being deployed across enterprises faster than governance policies can keep pace, according to recent Gartner analysis. Traditional identity and access management systems were built for human users logging in and out, leaving them blind to the continuous, machine-speed activity of AI agents.\u003c/p\u003e\n\n\u003cp\u003eThis structural gap has created what security teams call \u0026ldquo;identity dark matter,\u0026rdquo; with roughly half of all enterprise identity activity now operating outside centralized visibility. Orchid Security addresses this challenge through its \u0026ldquo;Ask Orchid\u0026rdquo; platform, which performs identity observability directly inside applications using binary analysis and dynamic instrumentation.\u003c/p\u003e\n\n\u003cp\u003eThe tool allows security leaders to automatically discover running AI agents, assess real-time NIST compliance, and inventory static credentials that require immediate rotation. By inspecting authentication and authorization logic at the source, Orchid provides continuous visibility and automated remediation without relying on traditional API integrations. This approach shifts compliance and governance from reactive audits to proactive, on-demand assessments.\u003c/p\u003e\n"},{"n":4,"title":"Webinar: Why network incidents escalate and how to fix response gaps","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/webinar-why-network-incidents-escalate-and-how-to-fix-response-gaps/","time":"12:56","priority":"MAY READ","score":68,"group":null,"groupColor":null,"tldr":"Network incidents escalate primarily due to manual response breakdowns rather than alert volume, making automated, AI-driven workflows essential for rapid enrichment, routing, and containment.","briefOverview":"\u003cp\u003eNetwork incidents typically escalate not because of insufficient alerts, but due to breakdowns in the response process itself. When security teams rely on manual triage and coordination under pressure, response efforts slow down significantly. Unenriched, unprioritized, and improperly routed alerts can quickly turn isolated issues into widespread service disruptions. To address this, BleepingComputer is hosting a webinar on June 2, 2026, featuring Edgar Ortiz from Tines. The session will explore how intelligent workflows combining automation and AI can close critical response gaps. Attendees will learn how to automatically enrich alerts with network, identity, and threat context. The discussion will also cover techniques for prioritizing and routing incidents without manual intervention. Ultimately, the webinar aims to show how organizations can transition from fragmented response processes to coordinated, automated containment strategies. This approach significantly reduces response times and minimizes the risk of incident escalation.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eMost network incidents do not escalate because of a shortage of alerts, but rather because of fundamental breakdowns in the incident response workflow. Security, monitoring, and infrastructure tools generate a constant stream of notifications, yet many teams still depend on manual triage and coordination during high-pressure situations. When alerts are not properly enriched, prioritized, and routed, response efforts stall and isolated problems rapidly escalate into broader service disruptions. To tackle these challenges, BleepingComputer will host a live webinar on Tuesday, June 2, 2026, at 12:00 PM ET. The session, titled \u0026ldquo;From alert to containment: Fixing the gaps in network incident response,\u0026rdquo; will feature Edgar Ortiz, Solutions Engineering Leader at Tines. The webinar will examine why incident response fails in real-world environments and demonstrate how intelligent workflows can bridge those gaps. Tines is presented as an intelligence workflow platform designed to help security and IT teams orchestrate responses and automate key actions across multiple systems. By automatically enriching alerts with relevant network, identity, and threat context, teams can make faster and more informed decisions. The session will cover how incidents evolve from initial detection to actual service impact. It will also identify specific breakdown points during triage, enrichment, and routing that delay containment. Attendees will learn techniques to prioritize and route incidents without relying on manual intervention. Finally, the webinar will outline how to shift from fragmented response processes to coordinated, cross-system containment. The overarching goal is to streamline incident handling and reduce the likelihood of escalation.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eIncident Escalation Drivers\u003c/strong\u003e\nNetwork incidents rarely escalate due to a lack of alerts. Instead, they escalate when the response process breaks down. Security, monitoring, and infrastructure tools continuously generate alert streams. However, many teams still rely on manual triage and coordination under pressure. When alerts are not properly enriched, prioritized, and routed, response efforts stall. This delay allows isolated issues to quickly escalate into broader service disruptions.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eWebinar Details and Speaker\u003c/strong\u003e\nBleepingComputer will host a live webinar titled \u0026ldquo;From alert to containment: Fixing the gaps in network incident response.\u0026rdquo; The event is scheduled for Tuesday, June 02, 2026, at 12:00 PM ET. The session will feature Edgar Ortiz, who serves as Solutions Engineering Leader at Tines. The webinar aims to explore why incident response fails in real-world environments. It will also demonstrate how organizations can close those gaps using intelligent workflows that combine automation and artificial intelligence.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eThe Tines Platform and Workflow Solution\u003c/strong\u003e\nTines is introduced as an intelligence workflow platform. It helps security and IT teams orchestrate incident response across multiple systems. The platform automates key actions and enriches alerts with relevant context. This automation enables faster and more informed decision-making during critical incidents. By moving away from fragmented processes, teams can achieve coordinated containment.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eKey Webinar Topics\u003c/strong\u003e\nThe session will cover several critical areas of incident management. Attendees will learn how network incidents evolve from an initial alert to actual service impact. The discussion will identify where triage, enrichment, and routing break down in real-world workflows. Participants will discover how to automatically enrich alerts with network, identity, and threat context. The webinar will also share techniques to prioritize and route incidents without manual intervention. Finally, it will explain how to transition from fragmented response to coordinated containment across systems.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eStrategic Outcome\u003c/strong\u003e\nThe overarching goal of the webinar is to eliminate response bottlenecks. By implementing consistent, automated workflows, organizations can improve how incidents are handled after detection. This approach directly reduces response times and minimizes the risk of escalation. Attendees are encouraged to register to secure their spot and learn how to streamline their incident response operations.\u003c/p\u003e\n","keyPoints":["Network incidents escalate primarily because response processes break down rather than due to a lack of alerts.","Reliance on manual triage and coordination under pressure slows containment and allows isolated issues to become broader service disruptions.","Tines provides an intelligence workflow platform that automates alert enrichment, prioritization, and cross-system actions to accelerate incident response.","The upcoming webinar will cover how to eliminate triage bottlenecks and transition from fragmented response to coordinated incident containment."],"insights":["Automating alert enrichment with network, identity, and threat context removes the manual data-gathering step that typically delays incident prioritization.","Response failures consistently occur during triage, enrichment, and routing phases, making these the critical leverage points for preventing escalation.","Transitioning from fragmented, siloed response processes to fully coordinated workflows is the direct mechanism highlighted to reduce response times and contain incidents faster."],"referencedReports":[],"body":"\u003cp\u003eNetwork incidents typically escalate not because of insufficient alerts, but due to breakdowns in the response process itself. When security teams rely on manual triage and coordination under pressure, response efforts slow down significantly. Unenriched, unprioritized, and improperly routed alerts can quickly turn isolated issues into widespread service disruptions. To address this, BleepingComputer is hosting a webinar on June 2, 2026, featuring Edgar Ortiz from Tines. The session will explore how intelligent workflows combining automation and AI can close critical response gaps. Attendees will learn how to automatically enrich alerts with network, identity, and threat context. The discussion will also cover techniques for prioritizing and routing incidents without manual intervention. Ultimately, the webinar aims to show how organizations can transition from fragmented response processes to coordinated, automated containment strategies. This approach significantly reduces response times and minimizes the risk of incident escalation.\u003c/p\u003e\n"},{"n":7,"title":"The Hacker News Launches 'Cybersecurity Stars Awards 2026' — Submissions Now Open","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/the-hacker-news-launches-cybersecurity.html","time":"12:03","priority":"MAY READ","score":35,"group":null,"groupColor":null,"tldr":"The Hacker News is launching the Cybersecurity Stars Awards 2026 to recognize excellence and impact across the cybersecurity industry, with nominations open until May 15, 2026.","briefOverview":"\u003cp\u003eThe Hacker News is launching the Cybersecurity Stars Awards 2026 to recognize excellence and impactful work that often goes unnoticed in the cybersecurity industry. Submissions are now open through the official awards portal for companies, products, and professionals. The program aims to highlight leaders and teams making meaningful contributions across innovation, execution, and real-world impact. Recognition is designed to provide visibility among a global audience of CISOs, security practitioners, and enterprise technology buyers. Each nomination undergoes a structured and impartial review process to ensure fairness. Applicants can choose from four main categories covering products, industry solutions, companies, and professionals. The submission process requires creating an account, purchasing nomination credits, and completing a detailed form. All entries must be submitted before the May 15, 2026 deadline, with winners announced on May 26, 2026. The initiative leverages The Hacker News\u0026rsquo; reputation for independent reporting to provide credible recognition that drives industry trust and adoption.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eFor nearly two decades, The Hacker News has primarily focused on reporting cyber threats and security incidents. This year, the publication shifts its focus to highlight the unseen excellence behind those headlines. It is launching the Cybersecurity Stars Awards 2026, a global recognition program for the cybersecurity industry. The awards aim to acknowledge leaders, teams, and security products that maintain safety and innovate under pressure. Submissions are now open via the official awards portal. The program emphasizes that recognition should extend beyond symbolism to provide tangible visibility. The target audience includes CISOs, senior security leaders, technical practitioners, and enterprise buyers who evaluate and deploy security technologies. Every submission will be evaluated through a structured and impartial review process to maintain integrity. Participants can apply across four distinct categories. The Cybersecurity Product or Service category covers cloud, endpoint, identity, threat detection, application, and data protection solutions. The Industry Solution category recognizes specialized tools built for sectors like finance, healthcare, government, and critical infrastructure. The Company category honors organizations demonstrating strong leadership, growth, and consistent execution. The Professional or Team category celebrates individuals and groups driving measurable impact and resilience. To apply, nominees must create an account on the portal, purchase nomination credits, select relevant categories, and complete a detailed nomination form. All entries must be submitted before the May 15, 2026 deadline. Winners will be announced on May 26, 2026. The initiative underscores that trusted recognition directly influences vendor credibility, adoption, and long-term industry value. For support, applicants can contact the awards team at the designated email address.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003eThe Hacker News is introducing the Cybersecurity Stars Awards 2026, a new global initiative designed to recognize excellence and impactful contributions across the cybersecurity sector. After nearly twenty years of focusing on threat reporting and security incidents, the publication is shifting its editorial lens to highlight the unseen work that keeps systems safe. This program aims to acknowledge the leaders, teams, and security products that operate quietly behind the headlines.\u003c/p\u003e\n\n\u003cp\u003eThe awards are structured to provide meaningful visibility to a highly targeted audience. The program reaches a global community comprising CISOs, senior security leaders, technical practitioners, and enterprise technology buyers. Recognition through this platform is intended to go beyond symbolic acknowledgment by offering direct exposure to the decision-makers who evaluate, select, and deploy security technologies. Each nomination will undergo a structured and impartial review process to ensure fairness and maintain industry integrity.\u003c/p\u003e\n\n\u003cp\u003eNomineates can apply across four primary categories tailored to different types of contributors. The available tracks include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eCybersecurity Product or Service:\u003c/strong\u003e Covers cloud, endpoint, identity, threat detection, application, and data protection solutions.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eCybersecurity Industry Solution:\u003c/strong\u003e Recognizes specialized platforms built for specific verticals like finance, healthcare, government, and critical infrastructure.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eCybersecurity Company:\u003c/strong\u003e Honors organizations demonstrating sustained leadership, measurable growth, and consistent operational execution.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eCybersecurity Professional or Team:\u003c/strong\u003e Celebrates individuals and groups driving innovation, resilience, and tangible impact.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe application process is designed to be straightforward, allowing nominees to focus on documenting their achievements. Participants must first visit the official awards portal and create an account. Following account creation, nominees are required to purchase nomination credits before proceeding. They can then select the most relevant categories and complete a detailed nomination form outlining their work, impact, and innovations. All submissions must be finalized before the deadline of May 15, 2026. The winners will be publicly announced on May 26, 2026.\u003c/p\u003e\n\n\u003cp\u003eThe initiative emphasizes that credible recognition is essential for building trust within the cybersecurity ecosystem. For vendors, this trust directly translates into enhanced credibility, increased technology adoption, and long-term market value. The Hacker News intends to extend its established reputation for independent and reliable reporting into this awards program. For any inquiries or technical support during the submission process, applicants are directed to contact the awards team at awards@thehackernews.com.\u003c/p\u003e\n","keyPoints":["The Hacker News is launching the Cybersecurity Stars Awards 2026 to recognize excellence and impact across the cybersecurity industry.","Nominations are open through the official awards portal and must be submitted by May 15, 2026.","The program features four main categories for recognition: Cybersecurity Product/Service, Industry Solution, Company, and Professional/Team.","Each submission undergoes a structured and impartial review process to ensure fairness and integrity.","Winners will be announced on May 26, 2026, with recognition aimed at providing visibility among CISOs, security leaders, and enterprise buyers."],"insights":["The nomination process requires purchasing credits, indicating a monetized submission model that shifts recognition from a purely editorial feature to a paid participation framework.","The awards explicitly position recognition as a strategic tool for influencing CISOs and enterprise buyers, making participation directly relevant to vendor adoption and procurement cycles.","Applicants can request new categories if their solution does not fit existing ones, allowing organizations to strategically enter emerging or niche security domains without being restricted by predefined boundaries."],"referencedReports":[],"body":"\u003cp\u003eThe Hacker News is launching the Cybersecurity Stars Awards 2026 to recognize excellence and impactful work that often goes unnoticed in the cybersecurity industry. Submissions are now open through the official awards portal for companies, products, and professionals. The program aims to highlight leaders and teams making meaningful contributions across innovation, execution, and real-world impact. Recognition is designed to provide visibility among a global audience of CISOs, security practitioners, and enterprise technology buyers. Each nomination undergoes a structured and impartial review process to ensure fairness. Applicants can choose from four main categories covering products, industry solutions, companies, and professionals. The submission process requires creating an account, purchasing nomination credits, and completing a detailed form. All entries must be submitted before the May 15, 2026 deadline, with winners announced on May 26, 2026. The initiative leverages The Hacker News\u0026rsquo; reputation for independent reporting to provide credible recognition that drives industry trust and adoption.\u003c/p\u003e\n"}];
+window.__DL_DIGEST   = "downlink-digest-2026-05-06_1419.html";
+window.__DL_WINDOW   = "4 hours";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function GroupBadge({ group, groupColor }) {
+  if (!group || !groupColor) return null;
+  const c = groupColor;
+  return (
+    <span style={{
+      display: "inline-block", flexShrink: 0,
+      width: 20, height: 20,
+      border: "1px solid color-mix(in oklch, " + c + " 45%, transparent)",
+      background: "color-mix(in oklch, " + c + " 12%, transparent)",
+      borderRadius: 2
+    }} />
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+function pointList(items) {
+  return (
+    <ul className="kp-list">
+      {(items || []).map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            <a href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => <div className="prose">{article.tldr}</div> });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Full", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  if (article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => pointList(article.keyPoints) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => pointList(article.insights) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  const initialTab = tabs[0] ? tabs[0].id : "source";
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  return (
+    <>
+      <div className="tabs">
+        {tabs.map(tab => (
+          <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <nav style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--cyan)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="live-dot" />
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em" }}>LIVE</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      </div>
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+        border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+      }}>
+        {Math.min(index + 1, total)} / {total}
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+              {article.source}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 22, lineHeight: 1.3, color: "var(--text)", letterSpacing: "-0.005em" }}>
+          {article.title}
+        </h2>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text2)", fontSize: 14, lineHeight: 1.65, fontWeight: 400 }}>{article.tldr}</p>
+        {article.keyPoints && article.keyPoints.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+            <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+              {article.keyPoints.map((kp, i) => (
+                <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: priorityC, marginTop: 3, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.35, color: "var(--text)", marginBottom: 12 }}>
+          {article.title}
+        </h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor }}>{article.source}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Fly right then flip to detail view
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.28s cubic-bezier(.4,0,.6,1)";
+          el.style.transform = `translate(60%, ${dy}px) rotate(12deg) scale(0.95)`;
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.getBoundingClientRect();
+            el2.style.transition = "";
+          }
+        }, 280);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{
+        opacity: 0,
+        color: flipped ? "var(--accept)" : "var(--discard)",
+        borderColor: flipped ? "var(--accept)" : "var(--discard)"
+      }}>{flipped ? "DONE" : "SKIP"}</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "80px 24px 0" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: "32px 24px 48px" }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 32 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 32, textAlign: "center" }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<div id="root"></div>
+</body>
+</html>

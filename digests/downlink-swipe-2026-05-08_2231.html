@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+  }
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; overflow-x: hidden; }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklch, var(--cyan) 60%, transparent); }
+    70%  { box-shadow: 0 0 0 5px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); animation: pulse-ring 2s ease-out infinite; }
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; height: 620px; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--discard); border-color: var(--discard); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--accept);  border-color: var(--accept); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .kp-list li { display: flex; gap: 0.6rem; font-size: 13px; line-height: 1.6; color: var(--text2); }
+  .kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); }
+  .report-title a { color: var(--text); text-decoration: none; }
+  .report-title a:hover { color: var(--cyan); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<script>
+window.__DL_ARTICLES = [{"n":3,"title":"Kingdom Market administrator given 16-year sentence","source":"therecord.media","sourceColor":"#a78bfa","link":"https://therecord.media/kingdom-market-administrator-gets-16-year-sentence","time":"19:16","priority":"SHOULD READ","score":88,"group":null,"groupColor":null,"tldr":"Alan Bill, a key administrator of the Kingdom Market dark web platform, received a 16-year prison sentence after pleading guilty to conspiracy to distribute controlled substances and facilitating sales of fentanyl-laced drugs, stolen data, and counterfeit currency.","briefOverview":"\u003cp\u003eAlan Bill, a 33-year-old Slovakian national, was sentenced to over 16 years in prison for his role as a key administrator of the Kingdom Market dark web platform. He pleaded guilty in January to conspiracy to distribute controlled substances after admitting to managing the site from March 2021 through December 2023. Law enforcement arrested him at Newark Airport on December 15, 2023, just as German agencies seized the platform\u0026rsquo;s servers and shut it down.\u003c/p\u003e\n\n\u003cp\u003eThe marketplace facilitated the sale of fentanyl-laced drugs, stolen financial data, counterfeit currency, and fake identification documents. Bill provided web administration services, mediated transactions, and earned cryptocurrency payments while maintaining the platform\u0026rsquo;s public presence. International cooperation between agencies in the United States, Germany, Switzerland, Moldova, and Ukraine enabled the successful takedown.\u003c/p\u003e\n\n\u003cp\u003eFederal investigators confirmed that the seized servers documented thousands of illegal transactions, including heroin and oxycodone sales. Despite Bill\u0026rsquo;s attempts to downplay his involvement, a federal judge determined the evidence clearly established him as a central leader of the criminal operation.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eAlan Bill, a 33-year-old Slovakian national, received a 16-year prison sentence after pleading guilty to conspiracy to distribute controlled substances. He admitted to operating the Kingdom Market dark web platform between March 2021 and December 2023. Bill was arrested at Newark Airport on December 15, 2023, coinciding with a coordinated server seizure by German law enforcement that permanently shut down the marketplace.\u003c/p\u003e\n\n\u003cp\u003eThe platform served as a major hub for cybercriminals, offering illegal drugs, stolen financial records, counterfeit currency, fake IDs, and malware. Bill\u0026rsquo;s responsibilities included providing web administration, creating social media forum pages, mediating transactions, and receiving cryptocurrency compensation. German investigators analyzed the seized servers and uncovered over 1,500 heroin sales and 600 oxycodone sales.\u003c/p\u003e\n\n\u003cp\u003eAll seized drugs were cut with fentanyl, and federal agents successfully purchased various narcotics and a fake U.S. passport directly from the site. During the arrest, police recovered electronic devices that corroborated Bill\u0026rsquo;s active role in the operation. U.S. Attorney Thomas Albus emphasized that Bill facilitated the sale of stolen identities, counterfeit money, and dangerous fentanyl-laced drugs.\u003c/p\u003e\n\n\u003cp\u003eGerman police discovered thousands of customer accounts and hundreds of seller accounts during the takedown. The marketplace processed payments in Bitcoin, Litecoin, Monero, and Zcash while taking a 3% commission on all illegal sales. The operation involved close collaboration among law enforcement agencies from the United States, Germany, Switzerland, Moldova, and Ukraine. During sentencing, Bill attempted to minimize his involvement, but Judge Cristian Stevens rejected this claim based on the overwhelming evidence. Stevens noted that the defendant\u0026rsquo;s actions caused immeasurable misery to the community.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eCase Overview and Sentencing\u003c/strong\u003e\nAlan Bill, a 33-year-old Slovakian national, was sentenced to more than 16 years in prison this week. He pleaded guilty in January to a charge of conspiracy to distribute controlled substances. The sentencing followed his admission to serving as a leading administrator of the Kingdom Market dark web platform.\u003c/p\u003e\n\n\u003cp\u003eThe marketplace operated from March 2021 until its shutdown in December 2023. Bill was apprehended at Newark Airport on December 15, 2023. His arrest coincided with a coordinated server seizure by German law enforcement that permanently dismantled the platform.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003ePlatform Operations and Criminal Activities\u003c/strong\u003e\nKingdom Market functioned as a prominent criminal hub facilitating multiple illicit activities. The platform distributed illegal drugs, stolen financial information, counterfeit currency, fake identification documents, and malware. Bill provided essential web administration services to maintain the site\u0026rsquo;s functionality.\u003c/p\u003e\n\n\u003cp\u003eHe also created forum pages on external social media platforms and posted content on behalf of the marketplace. Additionally, Bill mediated transactions between buyers and sellers. He received cryptocurrency payments for his administrative and mediation work.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eLaw Enforcement Findings and Evidence\u003c/strong\u003e\nGerman investigators analyzed the seized servers and documented extensive criminal activity. The data revealed over 1,500 sales of heroin and 600 sales of oxycodone. Court documents confirmed that all seized drugs were cut with fentanyl.\u003c/p\u003e\n\n\u003cp\u003eFederal investigators successfully purchased various narcotics and a fake U.S. passport directly from the site. During the arrest, police recovered electronic devices that directly linked Bill to the operation. Key evidence included:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eThousands of customer accounts and hundreds of seller accounts.\u003c/li\u003e\n\u003cli\u003eAcceptance of Bitcoin, Litecoin, Monero, and Zcash for payments.\u003c/li\u003e\n\u003cli\u003eA 3% commission processed on all sales of illegal goods.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eU.S. Attorney Thomas Albus stated that Bill helped run a darknet market selling stolen identities, counterfeit currency, and dangerous prescription drugs. German police verified the account volumes during the takedown. The marketplace\u0026rsquo;s financial model relied heavily on cryptocurrency transactions.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eInternational Cooperation and Judicial Remarks\u003c/strong\u003e\nThe takedown was executed through close collaboration among international law enforcement agencies. U.S. authorities worked alongside counterparts from Germany, Switzerland, Moldova, and Ukraine. During the sentencing hearing, Bill attempted to downplay his operational role.\u003c/p\u003e\n\n\u003cp\u003eU.S. District Judge Cristian Stevens rejected this claim, stating that the evidence clearly demonstrated Bill was a key leader of the marketplace. Stevens remarked that it is difficult to imagine the immense misery caused by the defendant\u0026rsquo;s actions. The court documents and seized server data ultimately established the full scope of the platform\u0026rsquo;s criminal impact.\u003c/p\u003e\n","keyPoints":["Alan Bill, a Slovakian national, received a 16-year prison sentence after pleading guilty to conspiracy to distribute controlled substances for operating the Kingdom Market dark web platform.","German law enforcement seized the platform's servers and shut down the marketplace, which facilitated sales of fentanyl-laced drugs, stolen financial data, and counterfeit currency.","Bill provided web administration services, mediated transactions, and received cryptocurrency payments while actively maintaining the site from March 2021 to December 2023.","The international takedown operation involved coordinated efforts between law enforcement agencies in the United States, Germany, Switzerland, Moldova, and Ukraine."],"insights":["The marketplace's acceptance of privacy-focused cryptocurrencies like Monero and Zcash alongside Bitcoin and Litecoin indicates a deliberate operational security strategy to obscure transaction trails, a pattern that should be monitored across other dark web platforms.","Cross-border coordination successfully linked a physical Newark Airport arrest to German server seizures, demonstrating a replicable investigative model for dismantling distributed dark web infrastructure through combined physical and digital forensics.","Bill’s administrative role of mediating transactions and managing platform infrastructure carried the same legal liability as a primary operator, highlighting that technical support positions in dark web markets face severe criminal prosecution.","The platform’s simultaneous distribution of fentanyl-laced drugs, counterfeit currency, and fake U.S. passports illustrates a converged cyber-physical threat model that necessitates integrated multi-agency task forces beyond traditional cyber units."],"referencedReports":[],"body":"\u003cp\u003eAlan Bill, a 33-year-old Slovakian national, was sentenced to over 16 years in prison for his role as a key administrator of the Kingdom Market dark web platform. He pleaded guilty in January to conspiracy to distribute controlled substances after admitting to managing the site from March 2021 through December 2023. Law enforcement arrested him at Newark Airport on December 15, 2023, just as German agencies seized the platform\u0026rsquo;s servers and shut it down.\u003c/p\u003e\n\n\u003cp\u003eThe marketplace facilitated the sale of fentanyl-laced drugs, stolen financial data, counterfeit currency, and fake identification documents. Bill provided web administration services, mediated transactions, and earned cryptocurrency payments while maintaining the platform\u0026rsquo;s public presence. International cooperation between agencies in the United States, Germany, Switzerland, Moldova, and Ukraine enabled the successful takedown.\u003c/p\u003e\n\n\u003cp\u003eFederal investigators confirmed that the seized servers documented thousands of illegal transactions, including heroin and oxycodone sales. Despite Bill\u0026rsquo;s attempts to downplay his involvement, a federal judge determined the evidence clearly established him as a central leader of the criminal operation.\u003c/p\u003e\n"},{"n":1,"title":"GM to pay over $12 million in California privacy settlement involving driver data","source":"therecord.media","sourceColor":"#a78bfa","link":"https://therecord.media/gm-to-pay-12-million-california-privacy-settlement","time":"19:35","priority":"SHOULD READ","score":85,"group":null,"groupColor":null,"tldr":"General Motors will pay a record $12.75 million California privacy fine and must halt selling driver data to brokers for five years after illegally collecting and selling millions of users' location and driving behavior information without consent.","briefOverview":"\u003cp\u003eGeneral Motors has agreed to pay a record $12.75 million fine to settle California allegations that it violated consumer privacy laws. The state accused the automaker of collecting and selling millions of users\u0026rsquo; driving data without consent. Under the new settlement, GM must halt all sales of driving data to consumer reporting agencies for five years. The company is also required to delete OnStar telemetry after 180 days unless consumers provide explicit affirmative consent. Additionally, GM must establish a formal privacy program to assess risks related to its connected vehicle services.\u003c/p\u003e\n\n\u003cp\u003eCalifornia officials emphasized that the company misled customers by falsely stating it did not sell location or driving data. The investigation revealed that GM profited approximately $20 million nationwide by selling this information to data brokers. This settlement marks the largest penalty ever issued under the California Consumer Privacy Act.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eGeneral Motors has agreed to pay $12.75 million as part of a landmark settlement with California over privacy violations involving connected vehicle data. California officials announced that the automaker violated the state\u0026rsquo;s Consumer Privacy Act by collecting and selling millions of consumers\u0026rsquo; driving information without their consent. The settlement represents the largest fine ever issued under the CCPA since its inception more than five years ago.\u003c/p\u003e\n\n\u003cp\u003eTo comply with state law, GM must pause all sales of driving data to consumer reporting agencies and data brokers for five years. The company is also required to delete driving data collected by its OnStar service after 180 days unless consumers provide affirmative consent. GM must additionally instruct two major brokers, Verisk and LexisNexis Risk Solutions, to delete the data it previously sold to them.\u003c/p\u003e\n\n\u003cp\u003eFurthermore, the automaker must establish a comprehensive privacy program to analyze, fix, and document risks associated with its OnStar data collection practices. These assessments must be formally reported to California prosecutors and the California Privacy Protection Agency. The deal requires final court approval before it becomes binding.\u003c/p\u003e\n\n\u003cp\u003eCalifornia Attorney General Rob Bonta stated that GM sold precise location and driving data without consumer knowledge, despite internal promises to the contrary. An investigation launched in 2023 found that GM sold hundreds of thousands of users\u0026rsquo; geolocations, driving behavior, names, and contact information between 2020 and 2024. The company earned approximately $20 million nationwide from these data sales to brokers who intended to sell driver ratings to insurance companies.\u003c/p\u003e\n\n\u003cp\u003eWhile California law prohibits insurers from using driving data to set premiums, consumers in other states faced significantly higher insurance rates due to the scheme. Investigators determined that GM actively misled customers by falsely stating it did not sell driving or location data. The automaker also retained personal information well beyond the period necessary to operate OnStar services, directly violating CCPA data minimization requirements.\u003c/p\u003e\n\n\u003cp\u003eA GM spokesperson confirmed the company discontinued the specific product in question in 2024 and has since strengthened its privacy practices.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"settlement-overview-and-financial-penalty\"\u003eSettlement Overview and Financial Penalty\u003c/h3\u003e\n\n\u003cp\u003eGeneral Motors has agreed to pay $12.75 million to resolve California state charges regarding privacy violations. This amount represents the largest fine ever issued under the California Consumer Privacy Act (CCPA) in its five-year history. The settlement requires final court approval before becoming legally binding.\u003c/p\u003e\n\n\u003ch3 id=\"mandatory-compliance-and-data-handling-requirements\"\u003eMandatory Compliance and Data Handling Requirements\u003c/h3\u003e\n\n\u003cp\u003eThe agreement imposes strict operational changes on GM regarding its OnStar connected vehicle service:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eGM must halt all sales of driving data to consumer reporting agencies and data brokers for five years.\u003c/li\u003e\n\u003cli\u003eDriving data must be automatically deleted after 180 days unless consumers provide affirmative consent.\u003c/li\u003e\n\u003cli\u003eGM is required to instruct two specific data brokers, Verisk and LexisNexis Risk Solutions, to delete the data previously sold to them.\u003c/li\u003e\n\u003cli\u003eThe company must establish a formal privacy program to analyze, remediate, and document risks related to OnStar data collection.\u003c/li\u003e\n\u003cli\u003eAll privacy assessments must be formally reported to California prosecutors and the California Privacy Protection Agency.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"investigation-findings-and-data-monetization\"\u003eInvestigation Findings and Data Monetization\u003c/h3\u003e\n\n\u003cp\u003eCalifornia authorities initiated an investigation into GM in 2023, following broader industry reports about automakers selling driver data to third parties. The probe uncovered that between 2020 and 2024, GM sold hundreds of thousands of consumers\u0026rsquo; geolocations, driving behavior, names, and contact information to Verisk and LexisNexis. The company generated approximately $20 million nationwide from these data sales. Brokers purchased the data to develop driver rating products intended for sale to insurance providers. While California law explicitly bars insurers from using driving data to calculate premiums, consumers in other states experienced skyrocketing insurance rates as a direct result of the data sales.\u003c/p\u003e\n\n\u003ch3 id=\"deceptive-practices-and-regulatory-violations\"\u003eDeceptive Practices and Regulatory Violations\u003c/h3\u003e\n\n\u003cp\u003eInvestigators determined that GM systematically misled consumers about its data practices. The automaker falsely stated that it did not sell driving or location data and claimed any disclosure for insurance purposes would require express consumer direction. This directly contradicted GM\u0026rsquo;s own internal privacy compliance program, which mandated that consumers be informed about how personal information would be used and which third parties would receive it. Furthermore, GM retained Californians\u0026rsquo; personal information well beyond the timeframe necessary to operate OnStar services. California privacy law strictly requires companies to limit data collection purposes and minimize retention periods, which GM failed to do.\u003c/p\u003e\n\n\u003ch3 id=\"official-statements-and-corporate-response\"\u003eOfficial Statements and Corporate Response\u003c/h3\u003e\n\n\u003cp\u003eCalifornia Attorney General Rob Bonta emphasized that GM sold precise and personal location data that could identify everyday habits and movements without consumer knowledge or consent. He noted that companies cannot simply retain data for future unspecified uses. In response, a GM spokesperson stated that the company discontinued the specific product addressed by the settlement in 2024 and has strengthened its overall privacy practices. The automaker maintained that vehicle connectivity remains essential for modern safety and reaffirmed its commitment to transparency regarding customer data choices and controls.\u003c/p\u003e\n","keyPoints":["General Motors agreed to pay a record $12.75 million California fine for collecting and selling millions of consumers' driving data without consent.","The settlement mandates that GM stop selling driving data to brokers for five years and delete collected information after 180 days without affirmative consumer consent.","California investigators determined that GM sold hundreds of thousands of users' geolocations, driving behavior, and contact details to Verisk and LexisNexis between 2020 and 2024.","GM misled customers by falsely stating it did not sell driving data and retained personal information far longer than necessary to operate its OnStar service."],"insights":["The settlement enforces a strict 180-day data retention limit for OnStar telemetry unless affirmative consumer consent is obtained, establishing a critical operational benchmark for telematics data lifecycle management.","GM bypassed its own internal privacy compliance program, which explicitly mandated consumer disclosure, to systematically sell location and driving behavior data to third-party brokers.","The settlement requires GM to contractually enforce data deletion from downstream brokers like Verisk and LexisNexis, highlighting the critical need for explicit data flow controls and third-party audit rights in vendor risk management.","While California law blocks insurers from using driving data for premium calculations, GM generated approximately $20 million nationwide by exploiting states without similar restrictions, demonstrating how regulatory arbitrage can incentivize non-compliant data monetization."],"referencedReports":[],"body":"\u003cp\u003eGeneral Motors has agreed to pay a record $12.75 million fine to settle California allegations that it violated consumer privacy laws. The state accused the automaker of collecting and selling millions of users\u0026rsquo; driving data without consent. Under the new settlement, GM must halt all sales of driving data to consumer reporting agencies for five years. The company is also required to delete OnStar telemetry after 180 days unless consumers provide explicit affirmative consent. Additionally, GM must establish a formal privacy program to assess risks related to its connected vehicle services.\u003c/p\u003e\n\n\u003cp\u003eCalifornia officials emphasized that the company misled customers by falsely stating it did not sell location or driving data. The investigation revealed that GM profited approximately $20 million nationwide by selling this information to data brokers. This settlement marks the largest penalty ever issued under the California Consumer Privacy Act.\u003c/p\u003e\n"},{"n":4,"title":"TCLBANKER Banking Trojan Targets Financial Platforms via WhatsApp and Outlook Worms","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/tclbanker-banking-trojan-targets.html","time":"18:12","priority":"SHOULD READ","score":85,"group":null,"groupColor":null,"tldr":"TCLBANKER is a sophisticated Brazilian banking trojan that targets financial institutions by spreading through hijacked WhatsApp sessions and Outlook email bots, utilizing advanced anti-analysis techniques and real-time social engineering to harvest credentials and execute remote commands.","briefOverview":"\u003cp\u003eThreat hunters have identified TCLBANKER, a Brazilian banking trojan capable of targeting 59 financial and cryptocurrency platforms. The malware is delivered via a malicious MSI installer distributed inside a ZIP file, which abuses a signed Logitech executable through DLL side-loading. Its loader features a robust watchdog subsystem that evades analysis tools, disables system telemetry, and requires a Brazilian Portuguese environment to successfully decrypt its payload. Once active, the trojan establishes persistence through scheduled tasks and monitors browser URLs to detect visits to targeted financial institutions. Upon detection, it connects to a remote server via WebSocket to execute a wide range of commands, including keylogging, screen streaming, and deploying hidden credential-harvesting overlays. The malware also propagates through a dual-pronged worm mechanism that hijacks authenticated WhatsApp sessions and abuses Microsoft Outlook to send phishing emails to contacts. This campaign demonstrates how advanced evasion and social engineering techniques are now being packaged into accessible crimeware. Traditional email gateways and reputation-based defenses struggle to detect this distribution model due to its reliance on hijacked legitimate communication channels.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eThreat hunters have flagged TCLBANKER, a Brazilian banking trojan tracked by Elastic Security Labs as REF3076. The malware is assessed as a major update of the Maverick family and is attributed to the Water Saci threat cluster. It targets 59 banking, fintech, and cryptocurrency platforms through a delivery chain that bundles a malicious MSI installer inside a ZIP file.\u003c/p\u003e\n\n\u003cp\u003eThe installer abuses a legitimate signed Logitech program to execute a malicious DLL via side-loading. This loader contains a watchdog subsystem that monitors for analysis tools, sandboxes, debuggers, and antivirus software. It also disables Event Tracing for Windows telemetry and replaces the ntdll.dll library to strip usermode hooks.\u003c/p\u003e\n\n\u003cp\u003eThe malware generates an environment hash based on anti-debugging checks, disk information, and system language to decrypt its payload only on Brazilian Portuguese systems. Once decrypted, the trojan establishes persistence through scheduled tasks and beacons to an external server via HTTP POST. It incorporates a self-update mechanism and a URL monitor that tracks activity across major browsers.\u003c/p\u003e\n\n\u003cp\u003eWhen a targeted financial institution URL is detected, the malware initiates a WebSocket connection to a remote command server. Operators can then execute commands including shell execution, screenshot capture, screen streaming, and keylogging. The trojan utilizes a Windows Presentation Foundation framework to render full-screen overlays that harvest credentials while evading screen capture tools.\u003c/p\u003e\n\n\u003cp\u003eThese overlays mimic legitimate banking prompts and fake Windows Updates. Propagation is handled by a dual-component worm that spreads via WhatsApp Web and Microsoft Outlook. The WhatsApp module hijacks authenticated browser sessions to send messages, while the Outlook component abuses the victim\u0026rsquo;s application to send phishing emails from their own address.\u003c/p\u003e\n\n\u003cp\u003eThis distribution strategy effectively bypasses traditional spam filters and leverages the trust of compromised accounts.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"overview-and-attribution\"\u003eOverview and Attribution\u003c/h3\u003e\n\n\u003cp\u003eThreat hunters have identified TCLBANKER, a previously undocumented Brazilian banking trojan tracked by Elastic Security Labs under the moniker REF3076. The malware family is evaluated as a significant evolution of the Maverick trojan and is attributed to the Water Saci threat cluster identified by Trend Micro. It is specifically designed to compromise 59 distinct banking, fintech, and cryptocurrency platforms.\u003c/p\u003e\n\n\u003ch3 id=\"delivery-and-evasion-mechanisms\"\u003eDelivery and Evasion Mechanisms\u003c/h3\u003e\n\n\u003cp\u003eThe infection chain begins with a malicious MSI installer packaged inside a ZIP file. This installer abuses a legitimate signed Logitech executable known as Logi AI Prompt Builder to deploy a malicious DLL through side-loading techniques. The deployed \u003ccode\u003escreen_retriever_plugin.dll\u003c/code\u003e functions as a loader equipped with a comprehensive watchdog subsystem. This subsystem continuously scans for analysis tools, sandboxes, debuggers, disassemblers, instrumentation tools, and antivirus software.\u003c/p\u003e\n\n\u003cp\u003eThe loader enforces strict execution conditions, only running if invoked by the legitimate Logitech process or a testing executable named \u003ccode\u003etclloader.exe\u003c/code\u003e. It actively neutralizes endpoint security measures by replacing the ntdll.dll library to remove usermode hooks and disabling Event Tracing for Windows telemetry. To prevent premature execution in analysis environments, the malware generates an environment hash derived from anti-debugging checks, anti-virtualization checks, disk information, and system language verification. This hash is used to decrypt the embedded payload, and the presence of a debugger or incorrect language settings will cause decryption to fail and halt execution.\u003c/p\u003e\n\n\u003ch3 id=\"persistence-beaconing-and-capabilities\"\u003ePersistence, Beaconing, and Capabilities\u003c/h3\u003e\n\n\u003cp\u003eOnce the environment checks pass, the main banking trojan component verifies the system locale and establishes persistence through a scheduled task. It then beacons to an external server using an HTTP POST request containing basic system telemetry. The malware features a self-update mechanism and a URL monitor that extracts the current address from the foreground browser. This monitor targets popular browsers including Google Chrome, Mozilla Firefox, Microsoft Edge, Brave, Opera, and Vivaldi.\u003c/p\u003e\n\n\u003cp\u003eWhen the extracted URL matches a hard-coded list of financial institutions, the trojan establishes a WebSocket connection to a remote command server. This connection enables a command dispatch loop that allows operators to perform extensive malicious activities. These capabilities include running shell commands, capturing screenshots, initiating screen streaming, manipulating the clipboard, launching a keylogger, and remotely controlling mouse and keyboard inputs. The trojan can also manage files and processes, enumerate running tasks, list visible windows, and serve fake credential-stealing overlays.\u003c/p\u003e\n\n\u003ch3 id=\"social-engineering-and-credential-harvesting\"\u003eSocial Engineering and Credential Harvesting\u003c/h3\u003e\n\n\u003cp\u003eData theft is primarily conducted through a Windows Presentation Foundation-based full-screen overlay framework. This framework orchestrates real-time social engineering by displaying credential harvesting prompts, vishing wait screens, bogus progress bars, and fake Windows Update notifications. A critical feature of these overlays is their ability to hide from screen capture tools, preventing automated analysis of the deception. The trojan maintains a continuous command loop over the WebSocket connection to dynamically adjust these social engineering tactics based on the victim\u0026rsquo;s interactions.\u003c/p\u003e\n\n\u003ch3 id=\"worm-propagation-and-distribution\"\u003eWorm Propagation and Distribution\u003c/h3\u003e\n\n\u003cp\u003eThe loader simultaneously activates a worming module designed to propagate the trojan at scale through spam and phishing campaigns. This module employs a two-pronged distribution approach leveraging WhatsApp Web and Microsoft Outlook. The WhatsApp component hijacks authenticated browser sessions and utilizes the open-source WPPConnect project to automate message delivery. It retrieves messaging templates from the command server and filters its targets to exclude groups, broadcasts, and non-Brazilian phone numbers.\u003c/p\u003e\n\n\u003cp\u003eThe Outlook component operates as an email spambot that abuses the victim\u0026rsquo;s installed Microsoft Outlook application. By sending phishing emails directly from the victim\u0026rsquo;s own email address, the malware bypasses traditional spam filters and leverages the inherent trust of the compromised account. This distribution strategy effectively renders traditional email gateways and reputation-based defenses ineffective.\u003c/p\u003e\n\n\u003ch3 id=\"strategic-implications\"\u003eStrategic Implications\u003c/h3\u003e\n\n\u003cp\u003eElastic Security Labs concludes that TCLBANKER reflects a broader maturation within the Brazilian banking trojan ecosystem. Techniques that were once exclusive to highly sophisticated threat actors are now being packaged into accessible commodity crimeware. The campaign\u0026rsquo;s distribution model inherits the trust and deliverability of legitimate communications by hijacking existing WhatsApp sessions and Outlook accounts. This approach ensures that the malware spreads efficiently while evading conventional security controls.\u003c/p\u003e\n","keyPoints":["TCLBANKER is a Brazilian banking trojan that targets 59 financial, fintech, and cryptocurrency platforms using a malicious MSI installer distributed inside a ZIP file.","The malware utilizes a loader with a comprehensive watchdog subsystem that evades analysis tools, disables telemetry, and requires a Brazilian Portuguese system language to decrypt its payload.","The trojan monitors browser URLs to identify targeted financial institutions and uses a WebSocket connection to execute remote commands and deploy fake credential-harvesting overlays.","Propagation is handled by a worm component that hijacks authenticated WhatsApp Web sessions and abuses Microsoft Outlook to send phishing emails to the victim's contacts."],"insights":["TCLBANKER actively disables Event Tracing for Windows (ETW) telemetry and replaces the ntdll.dll library to strip usermode hooks installed by endpoint security software.","The malware employs a WPF-based overlay framework specifically designed to hide fake credential-harvesting prompts from screen capture tools, preventing automated analysis of the social engineering tactics.","The WhatsApp worm component filters its propagation to exclude groups, broadcasts, and non-Brazilian numbers, ensuring the attack remains focused on individual Brazilian contacts.","The campaign illustrates a trend where advanced techniques such as environment-gated payload decryption and real-time social engineering orchestration are transitioning from sophisticated threat actors to commodity crimeware."],"referencedReports":[{"title":"TCLBANKER Brazilian Banking Trojan","url":"https://www.elastic.co/security-labs/tclbanker-brazilian-banking-trojan","publisher":"Elastic Security Labs","context":"The article cites security researchers from Elastic Security Labs who provided the technical analysis and findings regarding the malware's infection chain and evasion techniques."}],"body":"\u003cp\u003eThreat hunters have identified TCLBANKER, a Brazilian banking trojan capable of targeting 59 financial and cryptocurrency platforms. The malware is delivered via a malicious MSI installer distributed inside a ZIP file, which abuses a signed Logitech executable through DLL side-loading. Its loader features a robust watchdog subsystem that evades analysis tools, disables system telemetry, and requires a Brazilian Portuguese environment to successfully decrypt its payload. Once active, the trojan establishes persistence through scheduled tasks and monitors browser URLs to detect visits to targeted financial institutions. Upon detection, it connects to a remote server via WebSocket to execute a wide range of commands, including keylogging, screen streaming, and deploying hidden credential-harvesting overlays. The malware also propagates through a dual-pronged worm mechanism that hijacks authenticated WhatsApp sessions and abuses Microsoft Outlook to send phishing emails to contacts. This campaign demonstrates how advanced evasion and social engineering techniques are now being packaged into accessible crimeware. Traditional email gateways and reputation-based defenses struggle to detect this distribution model due to its reliance on hijacked legitimate communication channels.\u003c/p\u003e\n"},{"n":2,"title":"Virginia man found guilty of deleting 96 government databases","source":"therecord.media","sourceColor":"#a78bfa","link":"https://therecord.media/virginia-man-found-guilty-deleting-96-gov-databases","time":"18:14","priority":"MAY READ","score":72,"group":null,"groupColor":null,"tldr":"Sohaib Akhter was convicted of deleting 96 government databases and stealing credentials to destroy evidence after being fired for prior felonies.","briefOverview":"\u003cp\u003eSohaib Akhter, a 34-year-old Virginia man, was convicted on federal charges Thursday for deleting 96 government databases. He was also found guilty of stealing an individual’s password to access an email account without permission. The jury convicted him of conspiracy to commit computer fraud, password trafficking, and possession of a firearm by a prohibited person. Akhter initially provided his twin brother Muneem, who worked at the same data hosting company, with the password of an Equal Employment Opportunity Commission complainant. After their employer discovered Akhter’s prior felony convictions and fired them, the brothers attempted to destroy evidence by write-protecting and deleting databases. Akhter is scheduled for sentencing on September 9 and faces up to 21 years in prison. He previously served two years in prison after pleading guilty to federal computer fraud charges in 2015.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eSohaib Akhter, 34, was convicted on federal charges Thursday after a jury found him guilty of deleting 96 government databases. The conviction also included charges for stealing an individual’s password and accessing an email account without permission. According to the Department of Justice, Akhter was convicted of conspiracy to commit computer fraud, password trafficking, and possession of a firearm by a prohibited person. His criminal activity began when he provided his twin brother, Muneem, with the password of an individual who filed a discrimination complaint with the Equal Employment Opportunity Commission. Both brothers worked at the same unnamed company that hosts data for government agencies. After their employer discovered Akhter had prior felony convictions, they were both fired. Following their termination, the brothers allegedly sought to harm their former employer and its U.S. government customers. They accessed computers without authorization, write-protected databases, deleted databases, and destroyed evidence of their unlawful activities. The employer, based in Washington, D.C., provides software services to more than 45 federal agencies, including the EEOC. Akhter’s sentencing is set for September 9, and he faces a maximum sentence of 21 years in prison. In 2015, he previously pled guilty to federal charges including conspiracy to commit wire fraud and unauthorized access to protected computers. He served two years in prison for those earlier offenses.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eCase Overview\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eSohaib Akhter, a 34-year-old resident of Virginia, was convicted on federal charges Thursday. A jury found him guilty of deleting 96 government databases and stealing an individual’s password to access an email account without permission. The Department of Justice confirmed the convictions for conspiracy to commit computer fraud, password trafficking, and possession of a firearm by a prohibited person.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eModus Operandi and Initial Access\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eThe criminal scheme originated when Akhter provided his twin brother, Muneem, with the password of an individual who filed a discrimination complaint with the Equal Employment Opportunity Commission. Both brothers were employed at the same unnamed company responsible for hosting government agencies’ data. Following the unauthorized access to the complainant’s email account, their employer discovered Akhter’s prior felony convictions and terminated both employees.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eDestruction of Evidence and Impact\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eAfter their employment ended, the brothers allegedly attempted to harm their former employer and its U.S. government customers. Their actions included accessing computers without authorization, write-protecting databases, deleting databases, and destroying evidence of their unlawful activities. The employer, based in Washington, D.C., provides software services to more than 45 federal agencies, including the EEOC.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eLegal Consequences and Prior History\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eAkhter’s sentencing date is scheduled for September 9, and he faces up to 21 years in prison. This conviction follows a previous legal incident in 2015, when he pled guilty to federal charges including conspiracy to commit wire fraud and conspiracy to access a protected computer without authorization. He served two years in prison for those earlier offenses.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eStructural Breakdown\u003c/strong\u003e\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eDefendant:\u003c/strong\u003e Sohaib Akhter, 34\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eCo-conspirator:\u003c/strong\u003e Twin brother Muneem Akhter\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eCharges:\u003c/strong\u003e Conspiracy to commit computer fraud, password trafficking, possession of a firearm by a prohibited person\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eActions:\u003c/strong\u003e Unauthorized email access, database write-protection, deletion of 96 government databases, evidence destruction\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eTarget Environment:\u003c/strong\u003e Unnamed Washington, D.C.-based software vendor serving 45+ federal agencies\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003ePrior Record:\u003c/strong\u003e 2015 federal convictions for wire fraud conspiracy and unauthorized computer access; served 2 years\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eCurrent Status:\u003c/strong\u003e Convicted; sentencing set for September 9; faces up to 21 years imprisonment\u003c/li\u003e\n\u003c/ul\u003e\n","keyPoints":["Sohaib Akhter was convicted of conspiracy to commit computer fraud, password trafficking, and possession of a firearm by a prohibited person.","Akhter and his twin brother accessed an individual's email account without permission and deleted 96 government databases hosted by their employer.","The brothers were fired after their employer discovered Akhter had previous felony convictions.","Akhter faces up to 21 years in prison and is scheduled for sentencing on September 9."],"insights":["The attackers deliberately write-protected databases before deletion to destroy evidence, indicating a planned effort to evade forensic detection.","Initial access was achieved through a single compromised credential belonging to an external EEOC complainant, demonstrating how third-party user accounts can serve as attack vectors.","The breach originated from a vendor serving over 45 federal agencies, showing how a single employee compromise can rapidly impact multiple government systems.","The defendant retained employment despite a prior felony conviction for computer fraud, highlighting potential gaps in background verification and access management protocols."],"referencedReports":[],"body":"\u003cp\u003eSohaib Akhter, a 34-year-old Virginia man, was convicted on federal charges Thursday for deleting 96 government databases. He was also found guilty of stealing an individual’s password to access an email account without permission. The jury convicted him of conspiracy to commit computer fraud, password trafficking, and possession of a firearm by a prohibited person. Akhter initially provided his twin brother Muneem, who worked at the same data hosting company, with the password of an Equal Employment Opportunity Commission complainant. After their employer discovered Akhter’s prior felony convictions and fired them, the brothers attempted to destroy evidence by write-protecting and deleting databases. Akhter is scheduled for sentencing on September 9 and faces up to 21 years in prison. He previously served two years in prison after pleading guilty to federal computer fraud charges in 2015.\u003c/p\u003e\n"}];
+window.__DL_DIGEST   = "downlink-digest-2026-05-08_2231.html";
+window.__DL_WINDOW   = "4 hours";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function GroupBadge({ group, groupColor }) {
+  if (!group || !groupColor) return null;
+  const c = groupColor;
+  return (
+    <span style={{
+      display: "inline-block", flexShrink: 0,
+      width: 20, height: 20,
+      border: "1px solid color-mix(in oklch, " + c + " 45%, transparent)",
+      background: "color-mix(in oklch, " + c + " 12%, transparent)",
+      borderRadius: 2
+    }} />
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+function pointList(items) {
+  return (
+    <ul className="kp-list">
+      {(items || []).map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            <a href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => <div className="prose">{article.tldr}</div> });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Full", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  if (article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => pointList(article.keyPoints) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => pointList(article.insights) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  const initialTab = tabs[0] ? tabs[0].id : "source";
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  return (
+    <>
+      <div className="tabs">
+        {tabs.map(tab => (
+          <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <nav style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--cyan)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="live-dot" />
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em" }}>LIVE</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      </div>
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+        border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+      }}>
+        {Math.min(index + 1, total)} / {total}
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+              {article.source}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 22, lineHeight: 1.3, color: "var(--text)", letterSpacing: "-0.005em" }}>
+          {article.title}
+        </h2>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text2)", fontSize: 14, lineHeight: 1.65, fontWeight: 400 }}>{article.tldr}</p>
+        {article.keyPoints && article.keyPoints.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+            <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+              {article.keyPoints.map((kp, i) => (
+                <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: priorityC, marginTop: 3, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.35, color: "var(--text)", marginBottom: 12 }}>
+          {article.title}
+        </h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor }}>{article.source}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Fly right then flip to detail view
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.28s cubic-bezier(.4,0,.6,1)";
+          el.style.transform = `translate(60%, ${dy}px) rotate(12deg) scale(0.95)`;
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.getBoundingClientRect();
+            el2.style.transition = "";
+          }
+        }, 280);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{
+        opacity: 0,
+        color: flipped ? "var(--accept)" : "var(--discard)",
+        borderColor: flipped ? "var(--accept)" : "var(--discard)"
+      }}>{flipped ? "DONE" : "SKIP"}</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "80px 24px 0" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: "32px 24px 48px" }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 32 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 32, textAlign: "center" }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<div id="root"></div>
+</body>
+</html>

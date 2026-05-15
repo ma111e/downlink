@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Active Exploitation of PAN-OS CVE-2026-0300 RCE and CloudZ RAT Hijacking Microsoft Phone Link for OTP Theft — DOWNLINK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #0b0b0e;
+  --surface: #111116;
+  --surface2:#15151c;
+  --border:  #1c1c25;
+  --border2: #252530;
+  --text:    #dddde8;
+  --text2:   #a8a8be;
+  --text3:   #4a4a60;
+  --cyan:    oklch(74% 0.14 196);
+  --must:    oklch(66% 0.15 38);
+  --should:  oklch(73% 0.16 60);
+  --may:     oklch(65% 0.13 250);
+  --mono:    'IBM Plex Mono', 'SF Mono', 'Fira Code', Consolas, monospace;
+  --sans:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius:  4px;
+}
+
+
+html {
+  background: var(--bg);
+  background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  scroll-behavior: smooth;
+}
+body { min-height: 100vh; max-width: 900px; margin: 0 auto; }
+::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+ 
+@keyframes target-pulse {
+  0%,100% { border-color: var(--cyan); }
+  50%      { border-color: var(--border); }
+}
+
+ 
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text3);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-label::before { content: "//"; opacity: 0.5; font-size: 11px; }
+
+ 
+#nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: color-mix(in oklch, var(--bg) 90%, transparent);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  text-decoration: none;
+}
+.nav-logo:hover { text-decoration: none; }
+.nav-logo-down { font-family: var(--mono); font-weight: 600; font-size: 16px; letter-spacing: 0.14em; color: var(--text); }
+.nav-logo-link { font-family: var(--mono); font-weight: 600; font-size: 16px; letter-spacing: 0.14em; color: var(--cyan); }
+.nav-logo-ver {
+  margin-left: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--cyan);
+  letter-spacing: 0.1em;
+  border: 1px solid color-mix(in oklch, var(--cyan) 30%, transparent);
+  background: color-mix(in oklch, var(--cyan) 7%, transparent);
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+.nav-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-date  { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; }
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.nav-window { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; }
+.nav-swipe {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--cyan);
+  border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
+  background: color-mix(in oklch, var(--cyan) 8%, transparent);
+  padding: 3px 10px;
+  border-radius: 2px;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.nav-swipe:hover { border-color: var(--cyan); color: var(--text); text-decoration: none; }
+.nav-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  letter-spacing: 0.08em;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  padding: 3px 10px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.nav-count-dot { color: var(--should); }
+
+ 
+.nav-switcher {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  white-space: nowrap;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text3) 50%),
+                    linear-gradient(135deg, var(--text3) 50%, transparent 50%);
+  background-position: calc(100% - 10px) 50%, calc(100% - 6px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  padding-right: 22px;
+}
+.nav-switcher:hover { border-color: var(--cyan); color: var(--text); }
+.nav-switcher:focus { outline: 1px solid var(--cyan); outline-offset: 1px; }
+
+ 
+.priority-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-must   { color: var(--must);   border: 1px solid color-mix(in oklch, var(--must)   45%, transparent); background: color-mix(in oklch, var(--must)   12%, transparent); }
+.badge-should { color: var(--should); border: 1px solid color-mix(in oklch, var(--should) 45%, transparent); background: color-mix(in oklch, var(--should) 12%, transparent); }
+.badge-may    { color: var(--may);    border: 1px solid color-mix(in oklch, var(--may)    45%, transparent); background: color-mix(in oklch, var(--may)    12%, transparent); }
+.badge-opt    { color: var(--text3);  border: 1px solid var(--border2); background: transparent; }
+
+ 
+.group-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+ 
+.score-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 60px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.score-track {
+  width: 32px; height: 3px;
+  background: var(--border2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.score-fill { height: 100%; border-radius: 2px; }
+.score-fill-high   { background: var(--must); }
+.score-fill-mid    { background: var(--should); }
+.score-fill-low    { background: var(--text3); }
+.score-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  min-width: 20px;
+  text-align: right;
+}
+.score-num-high { color: var(--must); }
+.score-num-mid  { color: var(--should); }
+.score-num-low  { color: var(--text3); }
+
+ 
+#toc {
+  padding: 20px 40px 48px;
+}
+.toc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.toc-header {
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.toc-body { padding: 8px 20px 16px; }
+.toc-group { margin-bottom: 4px; }
+.toc-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.toc-group-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  padding: 2px 7px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.toc-group-count { font-family: var(--mono); font-size: 9px; color: var(--text3); }
+.toc-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  min-width: 20px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.toc-num-must   { color: var(--must); }
+.toc-num-should { color: var(--should); }
+.toc-num-may    { color: var(--may); }
+.toc-num-opt    { color: var(--text3); }
+.toc-title-link { color: var(--text); font-size: 13px; flex: 1; line-height: 1.5; cursor: pointer; }
+.toc-title-link:hover { color: var(--text2); text-decoration: none; }
+.toc-child-indent { color: var(--text3); font-size: 10px; margin-top: 2px; flex-shrink: 0; }
+.toc-child-title  { color: var(--text2); font-size: 12px; flex: 1; line-height: 1.5; }
+.toc-child-title:hover { color: var(--text); text-decoration: none; }
+
+ 
+.toc-row-wrap {
+  position: relative;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+  transition: background 0.12s;
+}
+.toc-row-wrap:last-child { border-bottom: none; }
+.toc-row-wrap::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.toc-row-wrap:hover { background: var(--surface2); }
+.toc-row-wrap:hover::before { opacity: 1; }
+.toc-row-wrap.must-row::before   { background: var(--must); }
+.toc-row-wrap.should-row::before { background: var(--should); }
+.toc-row-wrap.may-row::before    { background: var(--may); }
+.toc-row-inner {
+  display: flex;
+  gap: 12px;
+  padding: 9px 8px 9px 12px;
+  align-items: flex-start;
+  cursor: pointer;
+  user-select: none;
+}
+.toc-row-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.toc-row-chevron {
+  color: var(--text3);
+  font-size: 13px;
+  text-align: center;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 8px;
+  align-self: center;
+}
+.toc-row-body { display: none; border-top: 1px solid var(--border); }
+.toc-row-body.open { display: block; }
+
+ 
+#overview {
+  padding: 28px 40px 0;
+}
+.overview-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.overview-toggle {
+  all: unset;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 24px;
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+.overview-chevron {
+  color: var(--text3);
+  font-size: 14px;
+  transition: transform 0.2s;
+}
+.overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.overview-cell {
+  padding: 20px 24px;
+}
+.overview-cell-full { grid-column: 1 / -1; }
+.overview-cell-border-r { border-right: 1px solid var(--border); }
+.overview-cell-border-b { border-bottom: 1px solid var(--border); }
+.overview-cell-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.overview-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  padding: 1px 5px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.overview-tag-exec {
+  color: var(--cyan);
+  border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
+  background: color-mix(in oklch, var(--cyan) 8%, transparent);
+}
+.overview-tag-num {
+  color: var(--text3);
+  border: 1px solid var(--border2);
+  background: transparent;
+}
+.overview-title { font-family: var(--sans); font-weight: 600; font-size: 13px; color: var(--text); letter-spacing: 0.01em; }
+.overview-body  { color: var(--text2); font-size: 13px; line-height: 1.75; font-weight: 400; }
+.overview-body p { margin-bottom: 0.6rem; }
+.overview-body p:last-child { margin-bottom: 0; }
+.overview-body ul, .overview-body ol { padding-left: 1.4rem; margin: 0.5rem 0; }
+.overview-body li { margin-bottom: 0.25rem; }
+.overview-body strong { color: var(--text); }
+.overview-body a { color: var(--cyan); }
+
+ 
+.filter-bar { display: flex; gap: 2px; }
+.filter-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 400;
+  color: var(--text3);
+  padding: 4px 10px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.filter-btn.active-all    { color: var(--text2);  background: color-mix(in oklch, var(--text2)  10%, transparent); border-color: color-mix(in oklch, var(--text2)  35%, transparent); font-weight: 600; }
+.filter-btn.active-must   { color: var(--must);   background: color-mix(in oklch, var(--must)   10%, transparent); border-color: color-mix(in oklch, var(--must)   35%, transparent); font-weight: 600; }
+.filter-btn.active-should { color: var(--should); background: color-mix(in oklch, var(--should) 10%, transparent); border-color: color-mix(in oklch, var(--should) 35%, transparent); font-weight: 600; }
+.filter-btn.active-may    { color: var(--may);    background: color-mix(in oklch, var(--may)    10%, transparent); border-color: color-mix(in oklch, var(--may)    35%, transparent); font-weight: 600; }
+.filter-count { opacity: 0.6; }
+.source-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.source-name { font-family: var(--mono); font-size: 10px; }
+.meta-sep    { color: var(--text3); font-family: var(--mono); font-size: 10px; }
+.meta-time   { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+
+ 
+.article-body { display: none; border-top: 1px solid var(--border); }
+.article-body.open { display: block; }
+
+.analysis-strip {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 1.1rem;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text2);
+}
+.analysis-strip strong { color: var(--text); font-weight: 500; }
+.justification p { display: inline; margin: 0; }
+
+.tabs {
+  display: flex;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.tab-btn {
+  padding: 0.55rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text3);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+  margin-bottom: -1px;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.tab-panel { display: none; padding: 1.25rem 1.4rem; }
+.tab-panel.active { display: block; }
+
+ 
+.prose { line-height: 1.8; color: var(--text2); font-size: 13.5px; }
+.prose p { margin-bottom: 0.75rem; }
+.prose p:last-child { margin-bottom: 0; }
+.prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1.1rem 0 0.4rem; font-size: 0.9rem; letter-spacing: 0.02em; }
+.prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+.prose li { margin-bottom: 0.3rem; }
+.prose strong { color: var(--text); font-weight: 600; }
+.prose em { color: var(--text3); font-style: italic; }
+.prose code { background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 0.1rem 0.35rem; font-family: var(--mono); font-size: 12px; color: var(--text); }
+.prose blockquote { border-left: 2px solid color-mix(in oklch, var(--cyan) 30%, transparent); padding-left: 1rem; color: var(--text3); margin: 0.75rem 0; }
+.prose a { color: var(--cyan); }
+
+.kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+.kp-list li { display: flex; gap: 0.6rem; font-size: 13.5px; line-height: 1.6; color: var(--text2); }
+.kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+
+.report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+.report-item {
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.85rem;
+}
+.report-title { font-size: 13.5px; font-weight: 600; line-height: 1.45; color: var(--text); }
+.report-title a { color: var(--text); }
+.report-title a:hover { color: var(--cyan); }
+.report-meta { margin-top: 0.25rem; font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+.report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+
+ 
+.toc-cluster { border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
+.toc-cluster:last-child { border-bottom: none; }
+.toc-cluster summary {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 7px 0; cursor: pointer; list-style: none; user-select: none;
+}
+.toc-cluster summary::-webkit-details-marker { display: none; }
+.toc-cluster summary:hover .toc-title-link { color: var(--text2); }
+.toc-cluster-chevron { color: var(--text3); font-size: 10px; margin-top: 3px; flex-shrink: 0; width: 1rem; transition: transform .15s; }
+details[open] .toc-cluster-chevron { transform: rotate(90deg); }
+.toc-cluster-members { list-style: none; padding-left: 32px; }
+.toc-cluster-member {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 4px 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+}
+.toc-cluster-member:last-child { border-bottom: none; }
+
+ 
+#footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.footer-left, .footer-right {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.06em;
+}
+
+ 
+#back-top {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  color: var(--text3);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  transition: color .15s, border-color .15s;
+}
+#back-top:hover { color: var(--cyan); border-color: var(--cyan); text-decoration: none; }
+
+ 
+@media (max-width: 700px) {
+  #nav { padding: 10px 16px; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+  .nav-center { display: none; }
+  .nav-window { display: none; }
+  .nav-right { display: contents; }
+  .nav-swipe { order: 1; margin-left: auto; }
+  .nav-count { order: 2; width: 100%; white-space: normal; flex-wrap: wrap; }
+  #toc, #overview { padding-left: 16px; padding-right: 16px; }
+  #footer { padding: 12px 16px; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .overview-grid { grid-template-columns: 1fr; }
+  .overview-cell-border-r { border-right: none; border-top: 1px solid var(--border); }
+  .overview-cell-full { grid-column: auto; }
+  #back-top { bottom: 1rem; right: 0.75rem; }
+  #digest-title { padding: 12px 16px; }
+  .digest-title-text { font-size: 18px; }
+}
+#digest-title {
+  padding: 16px 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.digest-title-text {
+  font-family: var(--sans);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.3;
+  display: block;
+}
+</style>
+</head>
+<body>
+
+
+<nav id="nav">
+  <a class="nav-logo" href="index.html">
+    <span class="nav-logo-down">DOWN</span><span class="nav-logo-link">LINK</span>
+  </a>
+  <div class="nav-center">
+    <span class="nav-date">2026-05-06 06:20 UTC</span>
+  </div>
+  <div class="nav-right">
+    <span class="nav-window">4 hours window</span>
+    <a class="nav-swipe" href="downlink-swipe-2026-05-06_1020.html">Triage</a>
+    <div class="nav-count">
+      <span class="nav-count-dot">■</span>
+      <span>5 articles</span>
+      <span style="color:var(--text3)">·</span><span>Qwen3.6-35B-A3B</span>
+    </div>
+  </div>
+</nav>
+
+
+
+<div id="digest-title">
+  <span class="digest-title-text">Active Exploitation of PAN-OS CVE-2026-0300 RCE and CloudZ RAT Hijacking Microsoft Phone Link for OTP Theft</span>
+</div>
+
+
+
+<section id="toc">
+  <div class="toc-card">
+    <div class="toc-header" style="display:flex;align-items:center;justify-content:space-between">
+      <span class="section-label">READING LIST</span>
+      <div class="filter-bar">
+        <button class="filter-btn active-all" data-filter="all" onclick="setFilter(this)">ALL <span class="filter-count">5</span></button>
+        <button class="filter-btn" data-filter="must" onclick="setFilter(this)">MUST <span class="filter-count must-count"></span></button>
+        <button class="filter-btn" data-filter="should" onclick="setFilter(this)">SHOULD <span class="filter-count should-count"></span></button>
+        <button class="filter-btn" data-filter="may" onclick="setFilter(this)">MAY <span class="filter-count may-count"></span></button>
+      </div>
+    </div>
+    <div class="toc-body">
+      <div class="toc-group">
+        <div class="toc-group-head">
+          <span class="toc-group-label priority-badge badge-must">Must Read</span>
+          <span class="toc-group-count">2 items</span>
+        </div>
+        <div class="toc-row-wrap must-row" data-priority="must">
+          <details class="toc-cluster" style="border:none">
+            <summary class="toc-row-inner" onclick="handleClusterClick(event,this)">
+              <span class="toc-cluster-chevron">▶</span>
+              <span class="toc-num toc-num-must">01</span>
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
+                  <span class="toc-title-link">Palo Alto Networks warns of firewall RCE zero-day exploited in attacks</span>
+                  <span class="group-badge" style="color:#ca9a04;border:1px solid #ca9a0440;background:#ca9a041a"></span>
+                </div>
+                <div class="toc-row-meta">
+                  <span class="source-dot" style="background:#38bdf8"></span>
+                  <span class="source-name" style="color:#38bdf8">bleepingcomputer.com</span>
+                  <span class="meta-sep">·</span>
+                  <span class="meta-time">2026-05-06 09:18</span>
+                </div>
+              </div>
+              <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:95%"></div></div><span class="score-num score-num-high">95</span></div>
+              <span class="toc-row-chevron" id="chevron-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78">⌄</span>
+            </summary>
+            <ul class="toc-cluster-members">
+              <li class="toc-cluster-member">
+                <span class="toc-child-indent">└</span>
+                <div style="flex:1;min-width:0">
+                  <div class="toc-child-title" onclick="toggleTocMember(this,'member-body-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96')" style="cursor:pointer">Palo Alto PAN-OS Flaw Under Active Exploitation Enables Remote Code Execution</div>
+                  <div class="toc-row-meta">
+                    <span class="source-dot" style="background:#fb923c"></span>
+                    <span class="source-name" style="color:#fb923c">thehackernews.com</span>
+                    <span class="meta-sep">·</span>
+                    <span class="meta-time">2026-05-06 06:14</span>
+                  </div>
+                  <div class="article-body" id="member-body-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96">
+                    
+                    <div class="analysis-strip">
+                      <span><strong>Provider</strong> openai / Qwen3.6-35B-A3B</span>
+                      <span><strong>Score</strong> 95/100</span>
+                      <span><strong>Why</strong> <span class="justification"><p>The vulnerability is actively exploited in the wild and enables unauthenticated root access to widely deployed enterprise firewalls, making it a critical, time-sensitive threat. Security professionals must immediately verify their PAN-OS builds and restrict or disable the portal until official patches are released.</p>
+</span></span>
+                    </div>
+                    <div class="tabs">
+                      <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96')">TL;DR</button>
+                      <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96')">Brief</button>
+                      <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96')">Standard</button>
+                      <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96')">Full</button>
+                      <button class="tab-btn" onclick="switchTab(this,'keypoints-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96')">Key Points</button>
+                      <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96')">Insights</button>
+                      
+                      
+                    </div>
+                    
+                    <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96" class="tab-panel active"><div class="prose">An actively exploited buffer overflow in Palo Alto PAN-OS enables unauthenticated remote code execution with root privileges on firewalls with publicly accessible User-ID Authentication Portals. Organizations must restrict portal access to internal networks or disable the feature until patches arrive on May 13, 2026.</div></div>
+                    <div id="brief-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96" class="tab-panel"><div class="prose"><p>Palo Alto Networks has issued an advisory regarding CVE-2026-0300, a critical buffer overflow vulnerability in the PAN-OS User-ID Authentication Portal.</p>
+
+<p>This flaw allows unauthenticated attackers to execute arbitrary code with root privileges on PA-Series and VM-Series firewalls.</p>
+
+<p>The vulnerability is currently being exploited in the wild, specifically targeting configurations where the portal is publicly accessible from the internet.</p>
+
+<p>Palo Alto Networks rates the severity at a CVSS score of 9.3 for exposed portals and 8.7 for those restricted to internal networks.</p>
+
+<p>The company plans to release official patches starting May 13, 2026.</p>
+
+<p>Until then, administrators are strongly advised to restrict portal access to trusted internal zones or disable the feature entirely if it is not required.</p>
+</div></div>
+                    <div id="standard-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96" class="tab-panel"><div class="prose"><p>Palo Alto Networks has released a security advisory warning about an actively exploited buffer overflow vulnerability tracked as CVE-2026-0300.</p>
+
+<p>This flaw resides within the User-ID Authentication Portal, also known as the Captive Portal service, of the company&rsquo;s PAN-OS software.</p>
+
+<p>Security researchers describe it as an unauthenticated remote code execution issue that grants attackers root privileges on affected PA-Series and VM-Series firewalls.</p>
+
+<p>The vulnerability is currently under limited exploitation, with threat actors specifically targeting instances where the portal has been left publicly accessible.</p>
+
+<p>Palo Alto Networks assigns a CVSS score of 9.3 to deployments where the portal is accessible from the internet or untrusted networks.</p>
+
+<p>The severity drops to 8.7 when access is restricted to trusted internal IP addresses only.</p>
+
+<p>The flaw affects multiple PAN-OS branches, including versions below 12.1.4-h5 and 12.1.7 in the 12.1 branch.</p>
+
+<p>It also impacts the 11.2 branch with versions below 11.2.4-h17, 11.2.7-h13, 11.2.10-h6, and 11.2.12.</p>
+
+<p>Additional affected versions exist in the 11.1 and 10.2 branches, with specific build numbers listed in the advisory.</p>
+
+<p>Palo Alto Networks has not yet released a patch, with fixes scheduled to begin on May 13, 2026.</p>
+
+<p>The company emphasizes that the vulnerability only applies to firewalls explicitly configured to use the User-ID Authentication Portal.</p>
+
+<p>Organizations following standard security best practices by restricting sensitive portals to internal networks face a greatly reduced risk.</p>
+
+<p>In the absence of an immediate patch, the vendor recommends restricting portal access to trusted zones or disabling the feature completely if it is unnecessary.</p>
+</div></div>
+                    <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96" class="tab-panel"><div class="prose"><h3 id="vulnerability-overview">Vulnerability Overview</h3>
+
+<p>Palo Alto Networks has issued a formal advisory regarding CVE-2026-0300, a critical buffer overflow vulnerability located in the User-ID Authentication Portal service of PAN-OS software.</p>
+
+<p>This component is also referred to as the Captive Portal.</p>
+
+<p>The flaw enables unauthenticated attackers to send specially crafted packets that trigger arbitrary code execution with root privileges.</p>
+
+<p>This capability directly impacts both PA-Series and VM-Series firewalls.</p>
+
+<h3 id="exploitation-status-severity-ratings">Exploitation Status &amp; Severity Ratings</h3>
+
+<p>The vulnerability is currently experiencing limited exploitation in the wild.</p>
+
+<p>Attackers are specifically targeting firewall instances where the User-ID Authentication Portal has been configured for public access.</p>
+
+<p>Palo Alto Networks has assigned a CVSS score of 9.3 to environments where the portal is accessible from the internet or any untrusted network.</p>
+
+<p>The severity rating decreases to 8.7 when the portal is properly restricted to trusted internal IP addresses only.</p>
+
+<h3 id="affected-software-versions">Affected Software Versions</h3>
+
+<p>The advisory details multiple PAN-OS branches and their respective vulnerable build numbers.</p>
+
+<p>Administrators must check their current builds against the following list:</p>
+
+<ul>
+<li><strong>PAN-OS 12.1:</strong> Versions below 12.1.4-h5 and below 12.1.7</li>
+<li><strong>PAN-OS 11.2:</strong> Versions below 11.2.4-h17, below 11.2.7-h13, below 11.2.10-h6, and below 11.2.12</li>
+<li><strong>PAN-OS 11.1:</strong> Versions below 11.1.4-h33, below 11.1.6-h32, below 11.1.7-h6, below 11.1.10-h25, below 11.1.13-h5, and below 11.1.15</li>
+<li><strong>PAN-OS 10.2:</strong> Versions below 10.2.7-h34, below 10.2.10-h36, below 10.2.13-h21, below 10.2.16-h7, and below 10.2.18-h6</li>
+</ul>
+
+<h3 id="mitigation-guidance-patch-timeline">Mitigation Guidance &amp; Patch Timeline</h3>
+
+<p>Palo Alto Networks has not yet released a software patch for this issue.</p>
+
+<p>The company has announced that official fixes will begin rolling out on May 13, 2026.</p>
+
+<p>Until the patch is available, the vendor strongly recommends immediate administrative action.</p>
+
+<p>Customers who follow standard security best practices by restricting sensitive portals to trusted internal networks are at a greatly reduced risk.</p>
+
+<p>For environments where the portal remains exposed, the company advises restricting User-ID Authentication Portal access to only trusted zones.</p>
+
+<p>Alternatively, administrators should disable the feature entirely if it is not required for their network operations.</p>
+</div></div>
+                    <div id="keypoints-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96" class="tab-panel"><ul class="kp-list"><li>CVE-2026-0300 is a critical buffer overflow vulnerability in the PAN-OS User-ID Authentication Portal that allows unauthenticated attackers to execute arbitrary code with root privileges.</li><li>The vulnerability is actively exploited in the wild but only affects firewalls where the portal is configured to be publicly accessible from the internet or untrusted networks.</li><li>Palo Alto Networks will release patches for affected PAN-OS versions starting May 13, 2026, while advising customers to restrict portal access to trusted internal networks or disable the feature entirely.</li><li>The issue carries a CVSS score of 9.3 for publicly accessible portals and 8.7 for those restricted to internal IP addresses.</li></ul></div>
+                    <div id="insights-d529ee07a31d4053c3d3914adab6a72a:2235388e23a45c96" class="tab-panel"><ul class="kp-list"><li>The vulnerability only impacts firewalls explicitly configured to use the User-ID Authentication Portal, meaning deployments with this feature disabled are inherently immune regardless of their PAN-OS version.</li><li>With patches delayed until May 13, 2026, completely disabling the captive portal is a more reliable immediate mitigation than relying on network segmentation, which can fail if firewall rules are misconfigured.</li><li>Active exploitation is narrowly focused on publicly exposed portals, indicating that threat actors are specifically targeting misconfigured captive portals rather than conducting broad PAN-OS scans.</li></ul></div>
+                    
+                    <div style="padding:0.5rem 1.4rem"><a href="https://thehackernews.com/2026/05/palo-alto-pan-os-flaw-under-active.html" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
+                    
+                  </div>
+                </div>
+                <span style="font-family:var(--mono);font-size:10px;color:var(--text3);flex-shrink:0">95</span>
+              </li>
+            </ul>
+          </details>
+          <div class="toc-row-body" id="canon-body-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78">
+            <div class="analysis-strip">
+              <span><strong>Provider</strong> openai / Qwen3.6-35B-A3B</span>
+              <span><strong>Score</strong> 95/100</span>
+              <span><strong>Why</strong> <span class="justification"><p>This article reports a critical, actively exploited zero-day vulnerability in PAN-OS firewalls that enables unauthenticated root access, directly impacting enterprise and financial sector networks. Given the immediate mitigation steps required and the widespread exposure of thousands of internet-facing devices, it demands urgent attention from security professionals.</p>
+</span></span>
+            </div>
+            <div class="tabs">
+              <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78')">TL;DR</button>
+              <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78')">Brief</button>
+              <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78')">Standard</button>
+              <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78')">Full</button>
+              <button class="tab-btn" onclick="switchTab(this,'keypoints-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78')">Key Points</button>
+              <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78')">Insights</button>
+              <button class="tab-btn" onclick="switchTab(this,'reports-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78')">Reports</button>
+              
+            </div>
+            
+            <div id="tldr-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78" class="tab-panel active"><div class="prose">Palo Alto Networks warns that the unpatched CVE-2026-0300 zero-day in the PAN-OS User-ID Authentication Portal is actively exploited, enabling unauthenticated root access to exposed firewalls. Administrators should immediately restrict the portal to trusted networks or disable the service until a patch is released.</div></div>
+            <div id="brief-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78" class="tab-panel"><div class="prose"><p>Palo Alto Networks has issued an urgent warning regarding CVE-2026-0300, a critical unpatched zero-day vulnerability in the PAN-OS User-ID Authentication Portal. This buffer overflow flaw allows unauthenticated attackers to execute arbitrary code with root privileges on exposed PA-Series and VM-Series firewalls. Active exploitation is currently limited to portals accessible from untrusted IP addresses or the public internet. To mitigate the risk, the vendor strongly advises restricting the authentication portal to trusted internal networks or disabling the feature entirely until a patch is released. Security teams can verify their configuration by checking the Authentication Portal Settings under the User Identification menu. Independent threat intelligence from Shadowserver indicates that over 5,800 VM-series firewalls are currently internet-facing, with significant concentrations in Asia and North America. This incident follows a recent pattern of rapid zero-day exploitation targeting Palo Alto Networks infrastructure throughout late 2024 and early 2025. The company serves over 70,000 global customers, including the vast majority of Fortune 10 enterprises and major U.S. financial institutions.</p>
+</div></div>
+            <div id="standard-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78" class="tab-panel"><div class="prose"><p>Palo Alto Networks has publicly warned customers about an actively exploited zero-day vulnerability tracked as CVE-2026-0300. The critical-severity flaw resides within the PAN-OS User-ID Authentication Portal, also known as the Captive Portal. This vulnerability stems from a buffer overflow weakness that permits unauthenticated attackers to execute arbitrary code with root privileges. Internet-exposed PA-Series and VM-Series firewalls are directly vulnerable to exploitation through specially crafted network packets. Palo Alto Networks notes that current exploitation efforts are specifically targeting portals exposed to untrusted IP addresses or the public internet. The vendor emphasizes that organizations adhering to standard security best practices face a significantly reduced risk. Customers are strongly advised to restrict the User-ID Authentication Portal to trusted zones or disable the service entirely until an official patch is released. Administrators can quickly assess their exposure by navigating to the Authentication Portal Settings page under the User Identification menu. Shadowserver currently tracks over 5,800 internet-facing PAN-OS VM-series firewalls. The majority of these exposed devices are located in Asia, with 2,466 instances, and North America, with 1,998 instances. Palo Alto Networks has classified this vulnerability at the highest possible severity level and continues to develop a remediation patch. This latest incident aligns with a broader trend of rapid zero-day exploitation targeting PAN-OS firewalls. In November 2024, researchers identified thousands of compromised firewalls leveraging a chain of two recently patched zero-days. A month later, attackers exploited a separate denial-of-service flaw to force PA-Series, VM-Series, and CN-Series firewalls into continuous reboots. By February, threat actors shifted their focus to abusing three additional PAN-OS flaws to compromise internet-facing management interfaces. Palo Alto Networks reports that its security products protect more than 70,000 customers worldwide. This extensive customer base includes 90% of Fortune 10 companies and the majority of the largest U.S. banks.</p>
+</div></div>
+            <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78" class="tab-panel"><div class="prose"><h3 id="vulnerability-overview">Vulnerability Overview</h3>
+
+<p>Palo Alto Networks has issued a critical security advisory regarding CVE-2026-0300, an unpatched zero-day vulnerability actively exploited in the wild. The flaw affects the PAN-OS User-ID Authentication Portal, a security feature designed to authenticate users whose identities cannot be automatically mapped by the firewall. This component is commonly referred to as the Captive Portal.</p>
+
+<p>The vulnerability is classified as a critical-severity buffer overflow weakness. It enables unauthenticated attackers to execute arbitrary code with root privileges on both PA-Series and VM-Series firewalls. Exploitation occurs through specially crafted network packets sent to internet-exposed endpoints.</p>
+
+<h3 id="current-exploitation-and-risk-assessment">Current Exploitation and Risk Assessment</h3>
+
+<p>Palo Alto Networks confirms that limited exploitation is currently observed, specifically targeting portals exposed to untrusted IP addresses or the public internet. The vendor has assigned the highest possible severity rating to this vulnerability. Organizations that strictly follow standard security best practices, such as restricting sensitive portals to trusted internal networks, are at a greatly reduced risk.</p>
+
+<p>However, any firewall with the authentication portal exposed to untrusted zones faces immediate threat. Palo Alto Networks strongly recommends that administrators secure the User-ID Authentication Portal by restricting access to trusted zones only. If network segmentation is not feasible, the vendor advises disabling the portal entirely until a patch is available.</p>
+
+<h3 id="administrative-mitigation-steps">Administrative Mitigation Steps</h3>
+
+<p>Security teams can quickly verify their firewall configuration by accessing the User-ID Authentication Portal Settings. This configuration page is located under the Device menu, followed by User Identification, and then Authentication Portal Settings. Administrators should navigate to the Enable Authentication Portal option to confirm whether the vulnerable service is active.</p>
+
+<p>Once identified, the service must be either restricted to trusted internal networks or disabled. Palo Alto Networks continues to work on addressing the zero-day and will release an official patch when ready.</p>
+
+<h3 id="threat-intelligence-and-exposure-data">Threat Intelligence and Exposure Data</h3>
+
+<p>Independent threat monitoring from Shadowserver reveals that over 5,800 PAN-OS VM-series firewalls are currently exposed online. Geographic distribution shows a heavy concentration in Asia, accounting for 2,466 exposed instances. North America follows with 1,998 exposed firewalls.</p>
+
+<p>These figures highlight the significant attack surface currently visible to threat actors. The widespread exposure underscores the urgency of the vendor&rsquo;s mitigation recommendations.</p>
+
+<h3 id="historical-context-and-attack-trends">Historical Context and Attack Trends</h3>
+
+<p>PAN-OS firewalls have frequently been targeted by threat actors exploiting zero-day security vulnerabilities. In November 2024, Shadowserver revealed that thousands of firewalls had been compromised using a chain of two recently patched PAN-OS zero-days. Palo Alto Networks stated that these attacks impacted only a very small number of customers.</p>
+
+<p>A month later, hackers exploited a separate denial-of-service flaw to force PA-Series, VM-Series, and CN-Series firewalls into continuous reboots, effectively disabling firewall protections. By February, attackers shifted tactics and began abusing three other PAN-OS flaws to compromise firewalls with internet-facing management interfaces. This pattern demonstrates a rapid succession of critical vulnerabilities being weaponized against Palo Alto Networks infrastructure.</p>
+
+<h3 id="customer-base-and-industry-impact">Customer Base and Industry Impact</h3>
+
+<p>Palo Alto Networks reports that its products and services are utilized by more than 70,000 customers worldwide. This extensive customer base includes 90% of Fortune 10 companies. The vendor also serves the majority of the largest U.S. banks.</p>
+
+<p>Given the critical role these firewalls play in enterprise security, the active exploitation of CVE-2026-0300 carries significant industry-wide implications. Immediate remediation is essential to prevent unauthorized root access and potential network compromise.</p>
+</div></div>
+            <div id="keypoints-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78" class="tab-panel"><ul class="kp-list"><li>Palo Alto Networks warns that CVE-2026-0300, a critical buffer overflow flaw in the unpatched PAN-OS User-ID Authentication Portal, is actively exploited to achieve unauthenticated root code execution.</li><li>Shadowserver is currently tracking over 5,800 exposed PAN-OS VM-series firewalls, with the majority located in Asia and North America.</li><li>The vendor strongly recommends restricting the User-ID Authentication Portal to trusted zones or disabling the feature until a patch becomes available.</li><li>Palo Alto Networks reports that its security products are utilized by over 70,000 customers globally, encompassing 90% of Fortune 10 companies.</li></ul></div>
+            <div id="insights-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78" class="tab-panel"><ul class="kp-list"><li>Palo Alto Networks advises administrators to restrict the User-ID Authentication Portal to trusted zones or disable the service entirely to prevent unauthenticated root access until a patch is available.</li><li>Shadowserver data reveals that over 5,800 VM-series firewalls are currently internet-facing, with the majority located in Asia and North America.</li><li>The article documents a recent pattern of rapid zero-day exploitation against PAN-OS, including a chained zero-day attack in November 2024 and a DoS flaw in December 2024.</li></ul></div>
+            <div id="reports-9b0668029ed36930305fba71c3bfe542:1e244ac9c1542b78" class="tab-panel"><ul class="report-list"><li class="report-item">
+              <div class="report-title"><a href="https://security.paloaltonetworks.com/CVE-2026-0300" target="_blank" rel="noopener">CVE-2026-0300 Advisory</a></div>
+              <div class="report-meta">Palo Alto Networks</div>
+              <div class="report-context">The article cites this document as the official advisory detailing the zero-day vulnerability and the company&#39;s recommendations for mitigating exposure.</div>
+            </li></ul></div>
+            <div style="padding:0.5rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/palo-alto-networks-warns-of-actively-exploited-firewall-zero-day/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
+            
+          </div>
+        </div><div class="toc-row-wrap must-row" data-priority="must">
+          <div class="toc-row-inner" onclick="toggleTocRow(this)">
+            <span class="toc-num toc-num-must">02</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
+                <span class="toc-title-link">Windows Phone Link Exploited by CloudZ RAT to Steal Credentials and OTPs</span>
+              </div>
+              <div class="toc-row-meta">
+                <span class="source-dot" style="background:#fb923c"></span>
+                <span class="source-name" style="color:#fb923c">thehackernews.com</span>
+                <span class="meta-sep">·</span>
+                <span class="meta-time">2026-05-06 08:34</span>
+              </div>
+            </div>
+            <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:95%"></div></div><span class="score-num score-num-high">95</span></div>
+            <span class="toc-row-chevron">⌄</span>
+          </div>
+          <div class="toc-row-body">
+            <div class="analysis-strip">
+              <span><strong>Provider</strong> openai / Qwen3.6-35B-A3B</span>
+              <span><strong>Score</strong> 95/100</span>
+              <span><strong>Why</strong> <span class="justification"><p>This article is highly important because it reveals a novel method for bypassing two-factor authentication by hijacking the Microsoft Phone Link application to intercept OTPs without compromising the mobile device. The detailed analysis of the CloudZ RAT and Pheno plugin provides actionable indicators of compromise and command-and-control behaviors essential for detection engineering.</p>
+</span></span>
+            </div>
+            <div class="tabs">
+              <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3')">TL;DR</button>
+              <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3')">Brief</button>
+              <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3')">Standard</button>
+              <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3')">Full</button>
+              <button class="tab-btn" onclick="switchTab(this,'keypoints-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3')">Key Points</button>
+              <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3')">Insights</button>
+              <button class="tab-btn" onclick="switchTab(this,'reports-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3')">Reports</button>
+              
+            </div>
+            
+            <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3" class="tab-panel active"><div class="prose">Attackers are weaponizing the legitimate Microsoft Phone Link application with the CloudZ RAT and a custom Pheno plugin to steal credentials and one-time passwords without compromising the victim&#39;s mobile device. This technique bypasses traditional mobile security controls by intercepting synced data directly from the PC.</div></div>
+            <div id="brief-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3" class="tab-panel"><div class="prose"><p>Cybersecurity researchers from Cisco Talos have disclosed a novel attack leveraging the CloudZ remote access tool alongside a custom Pheno plugin. The threat actors aim to steal user credentials and one-time passwords by hijacking the Microsoft Phone Link application. This technique exploits the legitimate PC-to-phone bridge to intercept sensitive mobile data without requiring malware on the victim&rsquo;s smartphone.</p>
+
+<p>The attack effectively bypasses traditional two-factor authentication controls by capturing OTPs directly from the synced computer environment. The intrusion has been active since at least January 2026, though the responsible threat group remains unknown. Initial access involves a fake ConnectWise ScreenConnect executable that drops a .NET loader.</p>
+
+<p>This loader establishes persistence through a scheduled task and deploys the CloudZ trojan after performing environment checks. The trojan communicates with a command-and-control server using encrypted sockets and Base64-encoded instructions.</p>
+</div></div>
+            <div id="standard-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3" class="tab-panel"><div class="prose"><p>Cisco Talos researchers Alex Karkins and Chetan Raghuprasad revealed a sophisticated intrusion utilizing the CloudZ RAT and an undocumented Pheno plugin. The primary objective of this attack is to exfiltrate credentials and one-time passwords from targeted environments. What distinguishes this campaign is its exploitation of the Microsoft Phone Link application, a feature native to Windows 10 and Windows 11.</p>
+
+<p>This application allows users to pair their computers with Android or iPhone devices over Wi-Fi and Bluetooth to sync calls, messages, and notifications. Attackers abuse this synchronization mechanism to monitor active Phone Link processes and access the underlying SQLite database. By doing so, they can intercept SMS messages and OTPs directly from the PC, completely bypassing the need to compromise the mobile device itself.</p>
+
+<p>This method effectively neutralizes two-factor authentication protections that rely on mobile device security. The malicious activity has been observed continuously since at least January 2026, with attribution to an unknown threat actor remaining unavailable. The initial compromise chain begins with an unspecified access vector that deploys a spoofed ConnectWise ScreenConnect executable.</p>
+
+<p>This dropper downloads and executes a .NET loader while simultaneously using an embedded PowerShell script to create a scheduled task for persistence. The intermediate loader conducts hardware and environment checks to evade detection before proceeding to deploy the modular CloudZ trojan. Once active, the trojan decrypts its embedded configuration and establishes an encrypted socket connection to its command-and-control server.</p>
+
+<p>It then awaits Base64-encoded commands to execute various malicious functions. Supported commands include system reconnaissance, shell execution, browser data exfiltration, and screen recording. The Pheno plugin specifically targets Phone Link reconnaissance, writing collected data to a staging folder before CloudZ transmits it to the C2 server.</p>
+
+<p>Plugin files are typically saved to the staging directory located at C:\ProgramData\Microsoft\whealth\ before being uploaded to the command-and-control infrastructure.</p>
+</div></div>
+            <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3" class="tab-panel"><div class="prose"><h3 id="attack-overview-and-objectives">Attack Overview and Objectives</h3>
+
+<p>Cisco Talos researchers Alex Karkins and Chetan Raghuprasad have documented a novel intrusion campaign leveraging the CloudZ remote access tool (RAT) and a custom Pheno plugin. The attackers utilize this combination to hijack the Microsoft Phone Link application, enabling them to steal credentials and one-time passwords (OTPs). This technique represents a significant shift in threat actor behavior by exploiting legitimate cross-device syncing features to create unintended attack pathways.</p>
+
+<p>The campaign effectively bypasses two-factor authentication mechanisms by intercepting OTPs directly from the computer environment. Notably, this method obviates the need to compromise the victim&rsquo;s mobile device entirely. The malicious activity has been active since at least January 2026, with attribution to an unknown threat actor remaining unavailable.</p>
+
+<h3 id="initial-access-and-persistence-mechanisms">Initial Access and Persistence Mechanisms</h3>
+
+<p>The intrusion chain begins with an unspecified initial access method that results in the deployment of a fake ConnectWise ScreenConnect executable. This malicious dropper is responsible for downloading and executing a .NET loader on the compromised system. To ensure persistence, the dropper also utilizes an embedded PowerShell script to configure a scheduled task that automatically runs the malicious .NET loader.</p>
+
+<p>The intermediate loader performs hardware and environment checks designed to evade detection before proceeding to deploy the CloudZ trojan. Once executed, the .NET-compiled CloudZ trojan decrypts an embedded configuration file and establishes an encrypted socket connection to its command-and-control server. The trojan operates by awaiting Base64-encoded instructions that dictate its subsequent actions.</p>
+
+<h3 id="cloudz-rat-capabilities-and-command-structure">CloudZ RAT Capabilities and Command Structure</h3>
+
+<p>The supported command set includes a variety of operational functions for system control and data exfiltration. Key commands documented in the analysis include:</p>
+
+<ul>
+<li><code>pong</code> and <code>PING!</code> for heartbeat responses and requests</li>
+<li><code>CLOSE</code> to terminate the trojan process</li>
+<li><code>INFO</code> to collect system metadata</li>
+<li><code>RunShell</code> to execute arbitrary shell commands</li>
+<li><code>BrowserSearch</code> to exfiltrate web browser data</li>
+<li><code>rec</code> to record the screen</li>
+<li><code>Msg</code> and <code>Error</code> for communication and error reporting with the C2 server</li>
+<li><code>Recovery</code> to enable reconnection capabilities</li>
+<li><code>DW</code> and <code>FM</code> for download, file write, and file management operations</li>
+<li><code>plugin</code>, <code>savePlugin</code>, <code>sendPlugin</code>, and <code>RemovePlugins</code> for modular plugin management</li>
+</ul>
+
+<h3 id="pheno-plugin-and-data-exfiltration">Pheno Plugin and Data Exfiltration</h3>
+
+<p>The Pheno plugin serves as a specialized reconnaissance module focused on the Microsoft Phone Link application. It actively monitors Phone Link processes and extracts synchronized phone data from the application&rsquo;s SQLite database. The plugin writes this reconnaissance data to an output file in a designated staging folder.</p>
+
+<p>CloudZ subsequently reads the data from this staging folder and transmits it to the command-and-control server. The staging directory utilized for plugin deployment and data staging is located at <code>C:\ProgramData\Microsoft\whealth\</code>. This architecture allows attackers to harvest sensitive mobile communications, including SMS messages and OTPs, without installing malware on the actual smartphone.</p>
+
+<h3 id="strategic-implications">Strategic Implications</h3>
+
+<p>The findings highlight how legitimate operating system features can be weaponized to facilitate credential theft and authentication bypasses. By targeting the PC-to-phone bridge, threat actors can intercept sensitive mobile data while completely avoiding the need to compromise the mobile device itself. This approach demonstrates a clear evolution in how cross-device syncing features expose unintended attack pathways for credential theft.</p>
+</div></div>
+            <div id="keypoints-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3" class="tab-panel"><ul class="kp-list"><li>Attackers are leveraging the CloudZ remote access tool and a custom Pheno plugin to hijack the Microsoft Phone Link application and steal credentials and one-time passwords.</li><li>This method intercepts sensitive mobile data directly from the computer, bypassing the need to compromise the victim&#39;s mobile device.</li><li>The initial infection chain uses a fake ConnectWise ScreenConnect executable to drop a .NET loader that establishes persistence and deploys the CloudZ trojan.</li><li>The Pheno plugin monitors Phone Link activity, extracts synchronized data from its SQLite database, and transmits the information to the command-and-control server.</li><li>The CloudZ trojan receives Base64-encoded commands from its command-and-control server to execute shell commands, exfiltrate browser data, and manage additional plugins.</li></ul></div>
+            <div id="insights-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3" class="tab-panel"><ul class="kp-list"><li>The attack bypasses two-factor authentication by intercepting One-Time Passwords (OTPs) via the PC-to-phone bridge, allowing credential theft without compromising the mobile device itself.</li><li>The CloudZ trojan utilizes a specific staging directory at C:\ProgramData\Microsoft\whealth\ to save and load plugins, providing a distinct artifact for detection.</li><li>The initial infection chain employs a fake ConnectWise ScreenConnect executable to drop a .NET loader, masquerading as a legitimate remote administration tool.</li></ul></div>
+            <div id="reports-d529ee07a31d4053c3d3914adab6a72a:33bc4f78a86e12b3" class="tab-panel"><ul class="report-list"><li class="report-item">
+              <div class="report-title"><a href="https://blog.talosintelligence.com/cloudz-pheno-infostealer/" target="_blank" rel="noopener">CloudZ Pheno Infostealer</a></div>
+              <div class="report-meta">Cisco Talos</div>
+              <div class="report-context">The article cites Cisco Talos researchers Alex Karkins and Chetan Raghuprasad and links to their technical analysis of the CloudZ RAT and Pheno plugin.</div>
+            </li></ul></div>
+            <div style="padding:1.25rem 1.4rem"><a href="https://thehackernews.com/2026/05/windows-phone-link-exploited-by-cloudz.html" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
+            
+          </div>
+        </div>
+      </div><div class="toc-group">
+        <div class="toc-group-head">
+          <span class="toc-group-label priority-badge badge-should">Should Read</span>
+          <span class="toc-group-count">2 items</span>
+        </div>
+        <div class="toc-row-wrap should-row" data-priority="should">
+          <div class="toc-row-inner" onclick="toggleTocRow(this)">
+            <span class="toc-num toc-num-should">01</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
+                <span class="toc-title-link">Google&#39;s Android Apps Get Public Verification to Stop Supply Chain Attacks</span>
+              </div>
+              <div class="toc-row-meta">
+                <span class="source-dot" style="background:#fb923c"></span>
+                <span class="source-name" style="color:#fb923c">thehackernews.com</span>
+                <span class="meta-sep">·</span>
+                <span class="meta-time">2026-05-06 09:13</span>
+              </div>
+            </div>
+            <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:85%"></div></div><span class="score-num score-num-mid">85</span></div>
+            <span class="toc-row-chevron">⌄</span>
+          </div>
+          <div class="toc-row-body">
+            <div class="analysis-strip">
+              <span><strong>Provider</strong> openai / Qwen3.6-35B-A3B</span>
+              <span><strong>Score</strong> 85/100</span>
+              <span><strong>Why</strong> <span class="justification"><p>Google&rsquo;s expansion of Binary Transparency addresses a critical gap in mobile supply chain defense by verifying software intent rather than just origin. This proactive measure provides actionable cryptographic verification tools for detecting compromised or unauthorized Android updates. Security professionals managing Android ecosystems should read this to understand the new integrity standards and available auditing mechanisms.</p>
+</span></span>
+            </div>
+            <div class="tabs">
+              <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860')">TL;DR</button>
+              <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860')">Brief</button>
+              <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860')">Standard</button>
+              <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860')">Full</button>
+              <button class="tab-btn" onclick="switchTab(this,'keypoints-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860')">Key Points</button>
+              <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860')">Insights</button>
+              
+              
+            </div>
+            
+            <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860" class="tab-panel active"><div class="prose">Google is expanding Binary Transparency for Android to create a public cryptographic ledger that verifies the authenticity of all production apps and system modules, effectively preventing supply chain attacks by ensuring only authorized software runs on devices.</div></div>
+            <div id="brief-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860" class="tab-panel"><div class="prose"><p>Google has announced an expansion of Binary Transparency for Android to protect the ecosystem from supply chain attacks. This initiative introduces a public cryptographic ledger that verifies all production applications and system modules match Google&rsquo;s intended releases. The move addresses a growing threat where attackers compromise developer accounts and poison update channels while maintaining valid digital signatures.</p>
+
+<p>Google emphasizes that traditional signatures only prove origin, whereas this new ledger serves as a certificate of intent. The transparency framework covers Google Play Services, standalone applications, and dynamically updatable Mainline modules. All production software released after May 1, 2026, will include cryptographic entries to confirm authenticity.</p>
+
+<p>Google is also releasing open verification tools that allow users and researchers to independently audit the transparency state of supported software. This infrastructure fundamentally shifts the power dynamic of software updates by providing a transparent source of truth. Any unauthorized or modified binary will be immediately detectable against the public ledger.</p>
+</div></div>
+            <div id="standard-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860" class="tab-panel"><div class="prose"><p>Google is expanding Binary Transparency across the Android ecosystem to safeguard against binary supply chain attacks. The initiative builds upon the Pixel Binary Transparency framework introduced in 2021, which already secures official factory images through a public cryptographic log. This new public ledger ensures that every Google application on a device matches exactly what the company intended to build and distribute.</p>
+
+<p>The strategy directly counters recent attacks where threat actors compromise developer accounts to poison software update channels. These malicious updates often retain valid digital signatures, making traditional verification methods insufficient. Google explicitly states that digital signatures act merely as a certificate of origin, while binary transparency provides a certificate of intent.</p>
+
+<p>The expanded framework now covers production Google applications, Google Play Services, and Mainline modules that can be dynamically updated outside standard release cycles. To enforce this, all production Android applications released after May 1, 2026, will feature corresponding cryptographic entries confirming their authenticity. Google describes this ledger as a transparent source of truth that allows anyone to verify authorized production versions.</p>
+
+<p>If software does not appear on the ledger, it was not released by Google as a production version. Any attempt to deploy unauthorized one-off versions will be immediately detectable. The company is also making verification tooling available through GitHub for users and security researchers to audit the transparency state.</p>
+
+<p>This development arrives amid a surge in supply chain attacks targeting popular software and developer accounts. Google notes that this transparency layer fundamentally changes the power dynamic of software updates. It serves as a critical pillar for user privacy and security by acting as a powerful deterrent against unauthorized binary releases.</p>
+</div></div>
+            <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860" class="tab-panel"><div class="prose"><h3 id="article-summary-and-technical-analysis">Article Summary and Technical Analysis</h3>
+
+<p>Google has announced a significant expansion of Binary Transparency for Android designed to protect the operating system ecosystem from supply chain attacks. This initiative establishes a public cryptographic ledger that verifies all production Google applications and system modules match the company&rsquo;s exact build intent. The move represents a fundamental shift in how Android software integrity is validated and monitored.</p>
+
+<h3 id="threat-landscape-and-motivation">Threat Landscape and Motivation</h3>
+
+<p>The expansion directly addresses the rising threat of binary supply chain attacks that compromise software update channels. Recent incidents have shown threat actors successfully poisoning update mechanisms while keeping digital signatures intact. A prominent example involves the compromise of Windows installers for DAEMON Tools software, which delivered a lightweight backdoor acting as a conduit for the QUIC RAT implant. These malicious installers were distributed from the legitimate website and signed with valid developer certificates.</p>
+
+<p>Google emphasizes that relying solely on binary signatures is now insufficient because a signature cannot guarantee that a specific binary was the intended release. Digital signatures merely serve as a certificate of origin, whereas binary transparency functions as a certificate of intent. This distinction highlights the limitations of traditional cryptographic validation in modern supply chain environments.</p>
+
+<h3 id="technical-framework-and-implementation">Technical Framework and Implementation</h3>
+
+<p>This new public ledger mirrors the open framework of Certificate Transparency, which requires all issued SSL/TLS certificates to be recorded in append-only, cryptographically verifiable logs. The Android initiative builds upon the foundation of Pixel Binary Transparency, introduced in October 2021 to secure official factory images. By maintaining a public, cryptographic log that records metadata about verified software, Google creates a transparent source of truth.</p>
+
+<p>Any software not listed on the ledger is confirmed as unauthorized. This architecture ensures that every attempt to deploy a one-off or modified version will be detectable by the system. The cryptographic verification process operates independently of the application&rsquo;s original signing authority.</p>
+
+<h3 id="scope-and-release-timeline">Scope and Release Timeline</h3>
+
+<p>The transparency initiative covers a broad range of Android components beyond standard applications. The following components are explicitly included in the framework:</p>
+
+<ul>
+<li>Production Google applications</li>
+<li>Google Play Services</li>
+<li>Mainline modules that are part of the core operating system</li>
+</ul>
+
+<p>These Mainline modules can be dynamically updated outside of the normal release cycle, making them a critical target for attackers. To enforce this security model, all production Android applications released after May 1, 2026, will feature a corresponding cryptographic entry in the ledger. This entry will confirm the authenticity of the software against Google&rsquo;s official build records.</p>
+
+<h3 id="verification-tools-and-independent-auditing">Verification Tools and Independent Auditing</h3>
+
+<p>Google is actively supporting this transparency model by making verification tooling publicly available. The company has published the necessary tools on GitHub, allowing users and security researchers to leverage them for auditing. These tools enable independent verification of the transparency state for all supported software types.</p>
+
+<p>This open approach empowers the broader security community to monitor the integrity of the Android ecosystem. It transforms transparency from a theoretical concept into a practical, actionable security control. Researchers can now systematically validate that deployed binaries match Google&rsquo;s published cryptographic logs.</p>
+
+<h3 id="strategic-security-impact">Strategic Security Impact</h3>
+
+<p>The implementation of Binary Transparency fundamentally alters the power dynamic surrounding software updates. By providing a verifiable record of intent, Google establishes a powerful deterrent against unauthorized binary releases. The company describes this measure as a critical pillar for user privacy and security.</p>
+
+<p>It adds a robust layer of protection that goes beyond traditional cryptographic validation. This proactive stance aims to preemptively detect and neutralize supply chain compromises before they can affect end users. The ledger serves as an immutable reference point that neutralizes the impact of compromised developer accounts.</p>
+</div></div>
+            <div id="keypoints-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860" class="tab-panel"><ul class="kp-list"><li>Google is expanding Binary Transparency for Android by establishing a public cryptographic ledger to verify that all production applications and system modules match Google&#39;s intended releases.</li><li>This measure directly counters binary supply chain attacks that compromise software update channels while maintaining valid digital signatures.</li><li>All Google production Android applications released after May 1, 2026, will feature cryptographic entries in the ledger to confirm their authenticity and detect unauthorized modifications.</li><li>Google is releasing verification tooling that enables users and researchers to independently audit the transparency state of supported software types.</li></ul></div>
+            <div id="insights-d529ee07a31d4053c3d3914adab6a72a:645081e76f351860" class="tab-panel"><ul class="kp-list"><li>Digital signatures are insufficient for supply chain defense because attackers can compromise developer accounts and poison update channels while maintaining valid cryptographic signatures.</li><li>Binary Transparency functions as a &#39;certificate of intent&#39; rather than just a &#39;certificate of origin,&#39; allowing users to verify that software matches Google&#39;s specific build intent rather than just its author&#39;s identity.</li><li>The transparency scope extends beyond standard applications to include Mainline modules, which are OS components capable of dynamic updates outside the normal release cycle.</li><li>Google is providing open-source verification tooling via GitHub, enabling independent auditing of the transparency state by users and researchers.</li></ul></div>
+            
+            <div style="padding:1.25rem 1.4rem"><a href="https://thehackernews.com/2026/05/android-apps-get-public-verification.html" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
+            
+          </div>
+        </div><div class="toc-row-wrap should-row" data-priority="should">
+          <div class="toc-row-inner" onclick="toggleTocRow(this)">
+            <span class="toc-num toc-num-should">02</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
+                <span class="toc-title-link">Websites with an undefined trust level: avoiding the trap</span>
+              </div>
+              <div class="toc-row-meta">
+                <span class="source-dot" style="background:#2dd4bf"></span>
+                <span class="source-name" style="color:#2dd4bf">securelist.com</span>
+                <span class="meta-sep">·</span>
+                <span class="meta-time">2026-05-06 09:30</span>
+              </div>
+            </div>
+            <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:80%"></div></div><span class="score-num score-num-mid">80</span></div>
+            <span class="toc-row-chevron">⌄</span>
+          </div>
+          <div class="toc-row-body">
+            <div class="analysis-strip">
+              <span><strong>Provider</strong> openai / Qwen3.6-35B-A3B</span>
+              <span><strong>Score</strong> 80/100</span>
+              <span><strong>Why</strong> <span class="justification"><p>The article provides actionable technical indicators and regional threat intelligence for a growing category of manipulative web scams, making it highly relevant for threat hunting and web filtering policy development. While valuable for defenders, its focus on consumer-level fraud and vendor-specific detection frameworks limits its broader strategic impact. It warrants attention for practical defense but does not address critical infrastructure or advanced threat vectors.</p>
+</span></span>
+            </div>
+            <div class="tabs">
+              <button class="tab-btn active" onclick="switchTab(this,'tldr-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862')">TL;DR</button>
+              <button class="tab-btn" onclick="switchTab(this,'brief-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862')">Brief</button>
+              <button class="tab-btn" onclick="switchTab(this,'standard-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862')">Standard</button>
+              <button class="tab-btn" onclick="switchTab(this,'comprehensive-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862')">Full</button>
+              <button class="tab-btn" onclick="switchTab(this,'keypoints-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862')">Key Points</button>
+              <button class="tab-btn" onclick="switchTab(this,'insights-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862')">Insights</button>
+              <button class="tab-btn" onclick="switchTab(this,'reports-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862')">Reports</button>
+              
+            </div>
+            
+            <div id="tldr-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862" class="tab-panel active"><div class="prose">Suspicious websites masquerading as legitimate services pose significant financial and privacy risks by tricking users into paying for fake goods or hidden subscriptions, but they can be effectively identified and avoided by verifying domain age, technical security indicators, and payment methods alongside automated security filtering.</div></div>
+            <div id="brief-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862" class="tab-panel"><div class="prose"><p>Websites categorized with an undefined trust level operate on the fringes of legality by manipulating users into paying for non-existent services or signing up for hidden subscriptions. Unlike traditional phishing sites that directly target credentials, these resources rely on psychological pressure and carefully crafted legal loopholes to extract funds or sensitive information.</p>
+
+<p>Kaspersky addresses this threat by implementing a new web filtering category that automatically evaluates domain age, IP reputation, DNS configuration, HTTP headers, and SSL validity. Users can manually identify these threats by checking for recently registered domains, cheap top-level domains, unrealistic financial promises, and irreversible payment methods.</p>
+
+<p>Regional analysis from January 2026 reveals that fake browser extensions masquerading as security products are the dominant global threat, appearing in nine out of ten regions analyzed. Specific geographic breakdowns highlight localized dangers, including fraudulent trading platforms in Africa, fake betting services in Latin America, binary options brokers in Russia, and crypto scams in CIS countries. Ultimately, protecting yourself requires combining automated security tools with vigilant manual verification of domain legitimacy and payment security.</p>
+</div></div>
+            <div id="standard-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862" class="tab-panel"><div class="prose"><p>Websites categorized with an undefined trust level operate on the fringes of legality by manipulating users into paying for non-existent services or signing up for hidden subscriptions. Unlike traditional phishing sites that directly target credentials, these resources rely on psychological pressure and carefully crafted legal loopholes to extract funds or sensitive information. Kaspersky addresses this threat by implementing a new web filtering category that automatically evaluates domain age, IP reputation, DNS configuration, HTTP headers, and SSL validity.</p>
+
+<p>Users can manually identify these threats by checking for recently registered domains, cheap top-level domains, unrealistic financial promises, and irreversible payment methods. Technical verification requires assessing IP reputation, DNS records like SPF and DMARC, and the presence of critical security headers such as Content-Security-Policy and HSTS. While hidden WHOIS data alone is not proof of fraud, it becomes highly suspicious when combined with newly registered domains and missing legal pages.</p>
+
+<p>Regional analysis from January 2026 reveals that fake browser extensions masquerading as security products are the dominant global threat, appearing in nine out of ten regions analyzed. Specific geographic breakdowns highlight localized dangers, including fraudulent trading platforms in Africa, fake betting services in Latin America, binary options brokers in Russia, and crypto scams in CIS countries. Kaspersky&rsquo;s detection model is certified by AV-Comparatives and triggers a default warning when users attempt to access flagged resources.</p>
+
+<p>Additional protective measures include using third-party trust analysis tools, verifying HTTPS certificates, and maintaining real-time security software. If a user interacts with a suspicious site, immediate actions should include contacting the bank to block transactions, changing compromised passwords, running a full antivirus scan, and reporting the incident to relevant cybercrime agencies.</p>
+</div></div>
+            <div id="comprehensive-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862" class="tab-panel"><div class="prose"><h2 id="overview-of-undefined-trust-level-websites">Overview of Undefined Trust Level Websites</h2>
+
+<p>Websites categorized with an undefined trust level operate on the fringes of legality by manipulating users into paying for non-existent services. They frequently trick visitors into signing up for hidden subscriptions or disclosing personal data through deliberately obscure terms of service. Unlike traditional phishing sites that directly target credentials, these resources rely on psychological pressure and carefully crafted legal loopholes. They often masquerade as legitimate online stores, financial platforms, or subscription services.</p>
+
+<h2 id="kaspersky-detection-framework">Kaspersky Detection Framework</h2>
+
+<p>Kaspersky addresses this threat by implementing a new web filtering category called &ldquo;Sites with an undefined trust level&rdquo; across its security products. The detection system automatically evaluates multiple technical indicators to classify suspicious resources. Key analysis factors include domain name structure, registration age, IP address reputation, DNS configuration, and HTTP security header presence. This detection component is enabled by default and triggers a warning when users attempt to access flagged resources. Kaspersky has also been independently certified by AV-Comparatives as a provider of effective protective technology against fake shops.</p>
+
+<h2 id="manual-and-technical-identification-methods">Manual and Technical Identification Methods</h2>
+
+<p>Users can identify potentially fraudulent sites by combining visual inspection with technical verification. Visual and behavioral red flags include randomly generated domain names, cheap top-level domains, and unprofessional layouts. Content warning signs feature unrealistic financial promises, continuous countdown timers, and the absence of verifiable contact details. Legitimate businesses typically offer reversible payment options and active social media presence, whereas fraudulent sites restrict transactions to cryptocurrency or wire transfers.</p>
+
+<p>Technical verification requires checking domain registration dates through WHOIS lookups, as scam sites are frequently less than six months old. Users should also assess IP reputation, DNS records like SPF and DMARC, and the presence of critical HTTP headers such as Content-Security-Policy and HSTS. While hidden WHOIS data alone is not proof of fraud, it becomes highly suspicious when combined with newly registered domains and missing legal pages.</p>
+
+<h2 id="global-and-regional-threat-statistics">Global and Regional Threat Statistics</h2>
+
+<p>Regional analysis from January 2026 reveals distinct threat landscapes across different geographic areas. Globally, fake browser extensions masquerading as security products are the dominant danger, appearing in nine out of ten regions analyzed. These extensions intercept browser data, hijack search queries, and inject advertisements. Specific regional breakdowns highlight localized threats that vary significantly by geography.</p>
+
+<ul>
+<li><strong>Africa:</strong> Over 90% of the top suspicious sites are fraudulent online trading platforms that prevent fund withdrawals.</li>
+<li><strong>Latin America:</strong> Fake betting services, Ponzi schemes, and dubious investment programs predominate the threat landscape.</li>
+<li><strong>Russia:</strong> The landscape is dominated by fake binary options brokers and educational platforms with hidden fraudulent subscriptions.</li>
+<li><strong>CIS Countries:</strong> Crypto scams, play-to-earn blockchain games, and bots for inflating social engagement metrics lead the rankings.</li>
+<li><strong>MENA Region:</strong> Fake VoIP services, betting clones, and Ponzi schemes are prevalent among targeted users.</li>
+<li><strong>East Asia:</strong> High concentrations of fake brokers, crypto gaming platforms, and drive-by attack servers are detected.</li>
+<li><strong>South Asia:</strong> Microloan services, dubious video downloaders, and counterfeit SEO tools represent primary risks.</li>
+<li><strong>Europe &amp; Canada:</strong> Intermediary phishing sites, fake security extensions, and dropshipping scams are actively distributed.</li>
+<li><strong>Oceania:</strong> Global threats like fake privacy extensions and crypto Ponzi schemes dominate the regional statistics.</li>
+</ul>
+
+<h2 id="protective-measures-and-incident-response">Protective Measures and Incident Response</h2>
+
+<p>To mitigate risks, users should verify URLs, check for HTTPS certificates, and maintain real-time security software. Third-party trust analysis tools like ScamAdviser and APIVoid can provide additional risk scoring based on domain and server reputation. If a user interacts with a suspicious site, immediate post-incident actions are critical for damage control. Users should contact their bank to block transactions, change compromised passwords, and run a full antivirus scan. Reporting the website to local cybercrime or consumer protection agencies helps protect other potential victims. Sharing experiences through reviews or warnings also contributes to broader community awareness.</p>
+</div></div>
+            <div id="keypoints-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862" class="tab-panel"><ul class="kp-list"><li>Websites categorized with an undefined trust level manipulate users into paying for non-existent services or signing up for hidden subscriptions rather than directly stealing sensitive credentials.</li><li>Kaspersky&#39;s security solutions automatically detect these suspicious resources by analyzing technical factors including domain age, IP reputation, DNS configuration, HTTP security headers, and SSL certificates.</li><li>Users can identify potentially fraudulent websites by verifying domain registration dates, checking for cheap top-level domains, looking for unrealistic financial promises, and ensuring legitimate contact information and reversible payment options are present.</li><li>Regional threat analysis from January 2026 shows that fake browser extensions mimicking security products are the most widespread global threat, while specific regions face distinct dangers such as trading scams in Africa and betting platforms in Latin America.</li></ul></div>
+            <div id="insights-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862" class="tab-panel"><ul class="kp-list"><li>Verifying HTTP security headers such as Content-Security-Policy, HSTS, and X-Frame-Options serves as a critical technical baseline for assessing a site&#39;s security hygiene, as their absence often signals unprofessional maintenance or malicious configuration.</li><li>Hidden WHOIS registration data should not be treated as definitive proof of fraud, since legitimate businesses routinely use privacy services, but it becomes a high-risk indicator when paired with newly registered domains and missing legal contact pages.</li><li>A seemingly harmless image upload service can function as a weaponized intermediary server that triggers stealthy malware downloads or hijacks browser sessions, demonstrating how standard user interactions can be exploited for drive-by attacks.</li><li>Websites that exclusively accept cryptocurrency or irreversible bank transfers represent a major financial risk, as scammers deliberately restrict payment options to prevent chargebacks and fund recovery.</li></ul></div>
+            <div id="reports-6e33eb1fef6411b71e4ffc38695960f9:c501d1f98c3bd862" class="tab-panel"><ul class="report-list"><li class="report-item">
+              <div class="report-title"><a href="https://www.av-comparatives.org/tests/fake-shops-detection-certification-2025-kaspersky-premium/" target="_blank" rel="noopener">Fake Shops Detection Certification 2025</a></div>
+              <div class="report-meta">AV-Comparatives</div>
+              <div class="report-context">The article references this third-party certification to confirm that Kaspersky&#39;s solutions have been independently validated as effective protective technology against fake shops.</div>
+            </li></ul></div>
+            <div style="padding:1.25rem 1.4rem"><a href="https://securelist.com/suspicious-websites-undefined-trust-level/119675/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section id="overview">
+  <div class="overview-card">
+    <button class="overview-toggle" onclick="toggleOverview(this)">
+      <span class="section-label">INTELLIGENCE BRIEF</span>
+      <span class="overview-chevron" style="transform:rotate(180deg)">⌄</span>
+    </button>
+    <div class="overview-grid" id="overview-grid">
+      <div class="overview-cell overview-cell-full">
+        <div class="overview-cell-head">
+          <span class="overview-tag overview-tag-exec">EXEC</span>
+          <span class="overview-title">Executive Overview</span>
+        </div>
+        <div class="overview-body prose"><p>This digest covers critical vulnerability exploitation, active malware campaigns, and infrastructure fraud trends reported during the coverage window. The threat landscape is dominated by the active exploitation of a critical remote code execution flaw in Palo Alto Networks PAN-OS, alongside a sophisticated remote access trojan campaign targeting Microsoft Phone Link, and broader fraud activities leveraging undefined trust level websites.</p>
+
+<p>Palo Alto Networks has identified CVE-2026-0300 as a critical buffer overflow vulnerability affecting the PAN-OS User-ID Authentication Portal. The flaw enables unauthenticated attackers to achieve arbitrary code execution with root privileges. The vulnerability carries a CVSS score of 9.3 when the portal is publicly accessible and 8.7 when restricted to internal networks. Threat intelligence indicates active exploitation in the wild. Shadowserver is tracking approximately 5,800 exposed PAN-OS VM-series firewalls, predominantly located in Asia and North America. Palo Alto Networks has scheduled the release of patches for affected versions starting May 13, 2026. The vendor reports that its security products serve over 70,000 customers globally, including 90% of Fortune 10 companies.</p>
+
+<p>In malware activity, attackers are utilizing the CloudZ remote access tool in conjunction with a custom Pheno plugin to compromise the Microsoft Phone Link application. This campaign intercepts sensitive mobile data, including credentials and one-time passwords, directly from the host computer without requiring compromise of the victim&rsquo;s mobile device. The initial infection chain involves a fake ConnectWise ScreenConnect executable that drops a .NET loader, which establishes persistence and deploys the CloudZ trojan. The Pheno plugin monitors Phone Link activity, extracts synchronized data from the application&rsquo;s SQLite database, and transmits the information to a command-and-control server. The CloudZ trojan receives Base64-encoded commands to execute shell operations, exfiltrate browser data, and manage additional plugins.</p>
+
+<p>Infrastructure analysis from Kaspersky highlights websites categorized with an undefined trust level that manipulate users into paying for non-existent services or signing up for hidden subscriptions. Technical detection relies on analyzing domain age, IP reputation, DNS configuration, HTTP security headers, and SSL certificates. Regional threat data from January 2026 indicates that fake browser extensions mimicking security products are the most widespread global threat, while specific regions face distinct dangers, including trading scams in Africa and betting platforms in Latin America.</p>
+
+<p>On the defensive side, Google is expanding Binary Transparency for Android by establishing a public cryptographic ledger to verify production applications and system modules. This measure aims to counter binary supply chain attacks that compromise software update channels while maintaining valid digital signatures. All Google production Android applications released after May 1, 2026, will include cryptographic entries in the ledger to confirm authenticity and detect unauthorized modifications. Google is also releasing verification tooling to allow independent auditing of the transparency state.</p>
+</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<a id="back-top" href="#nav">↑ TOP</a>
+
+<footer id="footer">
+  <span class="footer-left">DOWNLINK · 2026-05-06 06:20 UTC · 4 hours intelligence window</span>
+  <span class="footer-right">5 articles</span>
+</footer>
+
+<script>
+function toggleTocRow(inner) {
+  var row = inner.closest('.toc-row-wrap');
+  var body = row.querySelector('.toc-row-body');
+  var chevron = row.querySelector('.toc-row-chevron');
+  if (!body) return;
+  var isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  row.classList.toggle('open', !isOpen);
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+
+function handleClusterClick(event, summary) {
+  var row = summary.closest('.toc-row-wrap');
+  var canonBody = row.querySelector('.toc-row-body');
+  var chevron = row.querySelector('.toc-row-chevron');
+  if (!canonBody) return;
+  
+  if (event.target.closest('.toc-cluster-chevron')) return;
+  event.preventDefault();
+  var details = summary.closest('details');
+  var isOpen = canonBody.classList.contains('open');
+  canonBody.classList.toggle('open', !isOpen);
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  
+  if (details) details.open = !isOpen;
+}
+
+
+function toggleTocMember(titleEl, bodyId) {
+  var body = document.getElementById(bodyId);
+  if (!body) return;
+  body.classList.toggle('open');
+}
+
+function toggleOverview(btn) {
+  var grid = document.getElementById('overview-grid');
+  var chev = btn.querySelector('.overview-chevron');
+  var hidden = grid.style.display === 'none';
+  grid.style.display = hidden ? '' : 'none';
+  chev.style.transform = hidden ? 'rotate(180deg)' : '';
+}
+
+function switchTab(btn, panelId) {
+  var container = btn.closest('.toc-row-body') || btn.closest('.article-body');
+  if (!container) return;
+  container.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  container.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  btn.classList.add('active');
+  var panel = document.getElementById(panelId);
+  if (panel) panel.classList.add('active');
+}
+
+function setFilter(btn) {
+  var f = btn.dataset.filter;
+  document.querySelectorAll('.filter-btn').forEach(function(b){
+    b.className = 'filter-btn';
+    if (b.dataset.filter === f) {
+      if (f === 'all') b.classList.add('active-all');
+      else if (f === 'must') b.classList.add('active-must');
+      else if (f === 'should') b.classList.add('active-should');
+      else if (f === 'may') b.classList.add('active-may');
+    }
+  });
+  document.querySelectorAll('.toc-row-wrap[data-priority]').forEach(function(row){
+    if (f === 'all' || row.dataset.priority === f) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+}
+
+
+(function() {
+  var counts = {must:0, should:0, may:0};
+  document.querySelectorAll('.toc-row-wrap[data-priority]').forEach(function(r){
+    var p = r.dataset.priority;
+    if (counts[p] !== undefined) counts[p]++;
+  });
+  document.querySelector('.must-count').textContent   = counts.must;
+  document.querySelector('.should-count').textContent = counts.should;
+  document.querySelector('.may-count').textContent    = counts.may;
+})();
+
+
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  var t = e.target;
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return;
+  if (e.key === 'e') {
+    document.querySelectorAll('.toc-row-wrap:not(.open)').forEach(function(row){
+      var body = row.querySelector('.toc-row-body');
+      var chevron = row.querySelector('.toc-row-chevron');
+      if (body) { body.classList.add('open'); row.classList.add('open'); if (chevron) chevron.style.transform = 'rotate(180deg)'; }
+    });
+  }
+  if (e.key === 'c') {
+    document.querySelectorAll('.toc-row-wrap.open').forEach(function(row){
+      var body = row.querySelector('.toc-row-body');
+      var chevron = row.querySelector('.toc-row-chevron');
+      if (body) { body.classList.remove('open'); row.classList.remove('open'); if (chevron) chevron.style.transform = ''; }
+    });
+  }
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CVE-2026-31431 Kernel Privilege Escalation and QLNX Linux Malware Targeting Developer Infrastructure — DOWNLINK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #0b0b0e;
+  --surface: #111116;
+  --surface2:#15151c;
+  --border:  #1c1c25;
+  --border2: #252530;
+  --text:    #dddde8;
+  --text2:   #a8a8be;
+  --text3:   #4a4a60;
+  --cyan:    oklch(74% 0.14 196);
+  --must:    oklch(66% 0.15 38);
+  --should:  oklch(73% 0.16 60);
+  --may:     oklch(65% 0.13 250);
+  --mono:    'IBM Plex Mono', 'SF Mono', 'Fira Code', Consolas, monospace;
+  --sans:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius:  4px;
+}
+
+
+html {
+  background: var(--bg);
+  background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  scroll-behavior: smooth;
+}
+body { min-height: 100vh; max-width: 900px; margin: 0 auto; }
+::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+ 
+@keyframes target-pulse {
+  0%,100% { border-color: var(--cyan); }
+  50%      { border-color: var(--border); }
+}
+
+ 
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text3);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-label::before { content: "//"; opacity: 0.5; font-size: 11px; }
+
+ 
+#nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: color-mix(in oklch, var(--bg) 90%, transparent);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  text-decoration: none;
+}
+.nav-logo:hover { text-decoration: none; }
+.nav-logo-down { font-family: var(--mono); font-weight: 600; font-size: 16px; letter-spacing: 0.14em; color: var(--text); }
+.nav-logo-link { font-family: var(--mono); font-weight: 600; font-size: 16px; letter-spacing: 0.14em; color: var(--cyan); }
+.nav-logo-ver {
+  margin-left: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--cyan);
+  letter-spacing: 0.1em;
+  border: 1px solid color-mix(in oklch, var(--cyan) 30%, transparent);
+  background: color-mix(in oklch, var(--cyan) 7%, transparent);
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+.nav-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-date  { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; }
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.nav-window { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; }
+.nav-swipe {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--cyan);
+  border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
+  background: color-mix(in oklch, var(--cyan) 8%, transparent);
+  padding: 3px 10px;
+  border-radius: 2px;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.nav-swipe:hover { border-color: var(--cyan); color: var(--text); text-decoration: none; }
+.nav-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  letter-spacing: 0.08em;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  padding: 3px 10px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.nav-count-dot { color: var(--should); }
+
+ 
+.nav-switcher {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  white-space: nowrap;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text3) 50%),
+                    linear-gradient(135deg, var(--text3) 50%, transparent 50%);
+  background-position: calc(100% - 10px) 50%, calc(100% - 6px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  padding-right: 22px;
+}
+.nav-switcher:hover { border-color: var(--cyan); color: var(--text); }
+.nav-switcher:focus { outline: 1px solid var(--cyan); outline-offset: 1px; }
+
+ 
+.priority-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-must   { color: var(--must);   border: 1px solid color-mix(in oklch, var(--must)   45%, transparent); background: color-mix(in oklch, var(--must)   12%, transparent); }
+.badge-should { color: var(--should); border: 1px solid color-mix(in oklch, var(--should) 45%, transparent); background: color-mix(in oklch, var(--should) 12%, transparent); }
+.badge-may    { color: var(--may);    border: 1px solid color-mix(in oklch, var(--may)    45%, transparent); background: color-mix(in oklch, var(--may)    12%, transparent); }
+.badge-opt    { color: var(--text3);  border: 1px solid var(--border2); background: transparent; }
+
+ 
+.group-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+ 
+.score-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 60px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.score-track {
+  width: 32px; height: 3px;
+  background: var(--border2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.score-fill { height: 100%; border-radius: 2px; }
+.score-fill-high   { background: var(--must); }
+.score-fill-mid    { background: var(--should); }
+.score-fill-low    { background: var(--text3); }
+.score-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  min-width: 20px;
+  text-align: right;
+}
+.score-num-high { color: var(--must); }
+.score-num-mid  { color: var(--should); }
+.score-num-low  { color: var(--text3); }
+
+ 
+#toc {
+  padding: 20px 40px 48px;
+}
+.toc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.toc-header {
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.toc-body { padding: 8px 20px 16px; }
+.toc-group { margin-bottom: 4px; }
+.toc-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.toc-group-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  padding: 2px 7px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.toc-group-count { font-family: var(--mono); font-size: 9px; color: var(--text3); }
+.toc-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  min-width: 20px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.toc-num-must   { color: var(--must); }
+.toc-num-should { color: var(--should); }
+.toc-num-may    { color: var(--may); }
+.toc-num-opt    { color: var(--text3); }
+.toc-title-link { color: var(--text); font-size: 13px; flex: 1; line-height: 1.5; cursor: pointer; }
+.toc-title-link:hover { color: var(--text2); text-decoration: none; }
+.toc-child-indent { color: var(--text3); font-size: 10px; margin-top: 2px; flex-shrink: 0; }
+.toc-child-title  { color: var(--text2); font-size: 12px; flex: 1; line-height: 1.5; }
+.toc-child-title:hover { color: var(--text); text-decoration: none; }
+
+ 
+.toc-row-wrap {
+  position: relative;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+  transition: background 0.12s;
+}
+.toc-row-wrap:last-child { border-bottom: none; }
+.toc-row-wrap::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.toc-row-wrap:hover { background: var(--surface2); }
+.toc-row-wrap:hover::before { opacity: 1; }
+.toc-row-wrap.must-row::before   { background: var(--must); }
+.toc-row-wrap.should-row::before { background: var(--should); }
+.toc-row-wrap.may-row::before    { background: var(--may); }
+.toc-row-inner {
+  display: flex;
+  gap: 12px;
+  padding: 9px 8px 9px 12px;
+  align-items: flex-start;
+  cursor: pointer;
+  user-select: none;
+}
+.toc-row-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.toc-row-chevron {
+  color: var(--text3);
+  font-size: 13px;
+  text-align: center;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 8px;
+  align-self: center;
+}
+.toc-row-body { display: none; border-top: 1px solid var(--border); }
+.toc-row-body.open { display: block; }
+
+ 
+#overview {
+  padding: 28px 40px 0;
+}
+.overview-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.overview-toggle {
+  all: unset;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 24px;
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+.overview-chevron {
+  color: var(--text3);
+  font-size: 14px;
+  transition: transform 0.2s;
+}
+.overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.overview-cell {
+  padding: 20px 24px;
+}
+.overview-cell-full { grid-column: 1 / -1; }
+.overview-cell-border-r { border-right: 1px solid var(--border); }
+.overview-cell-border-b { border-bottom: 1px solid var(--border); }
+.overview-cell-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.overview-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  padding: 1px 5px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.overview-tag-exec {
+  color: var(--cyan);
+  border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
+  background: color-mix(in oklch, var(--cyan) 8%, transparent);
+}
+.overview-tag-num {
+  color: var(--text3);
+  border: 1px solid var(--border2);
+  background: transparent;
+}
+.overview-title { font-family: var(--sans); font-weight: 600; font-size: 13px; color: var(--text); letter-spacing: 0.01em; }
+.overview-body  { color: var(--text2); font-size: 13px; line-height: 1.75; font-weight: 400; }
+.overview-body p { margin-bottom: 0.6rem; }
+.overview-body p:last-child { margin-bottom: 0; }
+.overview-body ul, .overview-body ol { padding-left: 1.4rem; margin: 0.5rem 0; }
+.overview-body li { margin-bottom: 0.25rem; }
+.overview-body strong { color: var(--text); }
+.overview-body a { color: var(--cyan); }
+
+ 
+.filter-bar { display: flex; gap: 2px; }
+.filter-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 400;
+  color: var(--text3);
+  padding: 4px 10px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.filter-btn.active-all    { color: var(--text2);  background: color-mix(in oklch, var(--text2)  10%, transparent); border-color: color-mix(in oklch, var(--text2)  35%, transparent); font-weight: 600; }
+.filter-btn.active-must   { color: var(--must);   background: color-mix(in oklch, var(--must)   10%, transparent); border-color: color-mix(in oklch, var(--must)   35%, transparent); font-weight: 600; }
+.filter-btn.active-should { color: var(--should); background: color-mix(in oklch, var(--should) 10%, transparent); border-color: color-mix(in oklch, var(--should) 35%, transparent); font-weight: 600; }
+.filter-btn.active-may    { color: var(--may);    background: color-mix(in oklch, var(--may)    10%, transparent); border-color: color-mix(in oklch, var(--may)    35%, transparent); font-weight: 600; }
+.filter-count { opacity: 0.6; }
+.source-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.source-name { font-family: var(--mono); font-size: 10px; }
+.meta-sep    { color: var(--text3); font-family: var(--mono); font-size: 10px; }
+.meta-time   { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+
+ 
+.article-body { display: none; border-top: 1px solid var(--border); }
+.article-body.open { display: block; }
+
+.analysis-strip {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 1.1rem;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text2);
+}
+.analysis-strip strong { color: var(--text); font-weight: 500; }
+.justification p { display: inline; margin: 0; }
+
+.tabs {
+  display: flex;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.tab-btn {
+  padding: 0.55rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text3);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+  margin-bottom: -1px;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.tab-panel { display: none; padding: 1.25rem 1.4rem; }
+.tab-panel.active { display: block; }
+
+ 
+.prose { line-height: 1.8; color: var(--text2); font-size: 13.5px; }
+.prose p { margin-bottom: 0.75rem; }
+.prose p:last-child { margin-bottom: 0; }
+.prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1.1rem 0 0.4rem; font-size: 0.9rem; letter-spacing: 0.02em; }
+.prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+.prose li { margin-bottom: 0.3rem; }
+.prose strong { color: var(--text); font-weight: 600; }
+.prose em { color: var(--text3); font-style: italic; }
+.prose code { background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 0.1rem 0.35rem; font-family: var(--mono); font-size: 12px; color: var(--text); }
+.prose blockquote { border-left: 2px solid color-mix(in oklch, var(--cyan) 30%, transparent); padding-left: 1rem; color: var(--text3); margin: 0.75rem 0; }
+.prose a { color: var(--cyan); }
+
+.kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+.kp-list li { display: flex; gap: 0.6rem; font-size: 13.5px; line-height: 1.6; color: var(--text2); }
+.kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+
+.report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+.report-item {
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.85rem;
+}
+.report-title { font-size: 13.5px; font-weight: 600; line-height: 1.45; color: var(--text); }
+.report-title a { color: var(--text); }
+.report-title a:hover { color: var(--cyan); }
+.report-meta { margin-top: 0.25rem; font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+.report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+
+ 
+.toc-cluster { border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
+.toc-cluster:last-child { border-bottom: none; }
+.toc-cluster summary {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 7px 0; cursor: pointer; list-style: none; user-select: none;
+}
+.toc-cluster summary::-webkit-details-marker { display: none; }
+.toc-cluster summary:hover .toc-title-link { color: var(--text2); }
+.toc-cluster-chevron { color: var(--text3); font-size: 10px; margin-top: 3px; flex-shrink: 0; width: 1rem; transition: transform .15s; }
+details[open] .toc-cluster-chevron { transform: rotate(90deg); }
+.toc-cluster-members { list-style: none; padding-left: 32px; }
+.toc-cluster-member {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 4px 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+}
+.toc-cluster-member:last-child { border-bottom: none; }
+
+ 
+#footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.footer-left, .footer-right {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.06em;
+}
+
+ 
+#back-top {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  color: var(--text3);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  transition: color .15s, border-color .15s;
+}
+#back-top:hover { color: var(--cyan); border-color: var(--cyan); text-decoration: none; }
+
+ 
+@media (max-width: 700px) {
+  #nav { padding: 10px 16px; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+  .nav-center { display: none; }
+  .nav-window { display: none; }
+  .nav-right { display: contents; }
+  .nav-swipe { order: 1; margin-left: auto; }
+  .nav-count { order: 2; width: 100%; white-space: normal; flex-wrap: wrap; }
+  #toc, #overview { padding-left: 16px; padding-right: 16px; }
+  #footer { padding: 12px 16px; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .overview-grid { grid-template-columns: 1fr; }
+  .overview-cell-border-r { border-right: none; border-top: 1px solid var(--border); }
+  .overview-cell-full { grid-column: auto; }
+  #back-top { bottom: 1rem; right: 0.75rem; }
+  #digest-title { padding: 12px 16px; }
+  .digest-title-text { font-size: 18px; }
+}
+#digest-title {
+  padding: 16px 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.digest-title-text {
+  font-family: var(--sans);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.3;
+  display: block;
+}
+</style>
+</head>
+<body>
+
+
+<nav id="nav">
+  <a class="nav-logo" href="index.html">
+    <span class="nav-logo-down">DOWN</span><span class="nav-logo-link">LINK</span>
+  </a>
+  <div class="nav-center">
+    <span class="nav-date">2026-05-05 22:11 UTC</span>
+  </div>
+  <div class="nav-right">
+    <span class="nav-window">4 hours window</span>
+    <a class="nav-swipe" href="downlink-swipe-2026-05-06_0211.html">Triage</a>
+    <div class="nav-count">
+      <span class="nav-count-dot">■</span>
+      <span>2 articles</span>
+      <span style="color:var(--text3)">·</span><span>Qwen3.6-35B-A3B</span>
+    </div>
+  </div>
+</nav>
+
+
+
+<div id="digest-title">
+  <span class="digest-title-text">CVE-2026-31431 Kernel Privilege Escalation and QLNX Linux Malware Targeting Developer Infrastructure</span>
+</div>
+
+
+
+<section id="toc">
+  <div class="toc-card">
+    <div class="toc-header" style="display:flex;align-items:center;justify-content:space-between">
+      <span class="section-label">READING LIST</span>
+      <div class="filter-bar">
+        <button class="filter-btn active-all" data-filter="all" onclick="setFilter(this)">ALL <span class="filter-count">2</span></button>
+        <button class="filter-btn" data-filter="must" onclick="setFilter(this)">MUST <span class="filter-count must-count"></span></button>
+        <button class="filter-btn" data-filter="should" onclick="setFilter(this)">SHOULD <span class="filter-count should-count"></span></button>
+        <button class="filter-btn" data-filter="may" onclick="setFilter(this)">MAY <span class="filter-count may-count"></span></button>
+      </div>
+    </div>
+    <div class="toc-body">
+      <div class="toc-group">
+        <div class="toc-group-head">
+          <span class="toc-group-label priority-badge badge-must">Must Read</span>
+          <span class="toc-group-count">1 items</span>
+        </div>
+        <div class="toc-row-wrap must-row" data-priority="must">
+          <div class="toc-row-inner" onclick="toggleTocRow(this)">
+            <span class="toc-num toc-num-must">01</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
+                <span class="toc-title-link">Copy Fail: What You Need to Know About the Most Severe Linux Threat in Years</span>
+              </div>
+              <div class="toc-row-meta">
+                <span class="source-dot" style="background:#c084fc"></span>
+                <span class="source-name" style="color:#c084fc">unit42.paloaltonetworks.com</span>
+                <span class="meta-sep">·</span>
+                <span class="meta-time">2026-05-05 23:00</span>
+              </div>
+            </div>
+            <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:96%"></div></div><span class="score-num score-num-high">96</span></div>
+            <span class="toc-row-chevron">⌄</span>
+          </div>
+          <div class="toc-row-body">
+            <div class="analysis-strip">
+              <span><strong>Provider</strong> openai / Qwen3.6-35B-A3B</span>
+              <span><strong>Score</strong> 96/100</span>
+              <span><strong>Why</strong> <span class="justification"><p>This article covers CVE-2026-31431, a critical and highly reliable Linux kernel vulnerability that enables consistent root privilege escalation across virtually all major distributions since 2017. Its deterministic exploitability, container escape capabilities, and ability to bypass file integrity monitoring make it an immediate priority for Linux and cloud security teams. The advisory provides actionable mitigation steps and detection queries, underscoring its urgent relevance.</p>
+</span></span>
+            </div>
+            <div class="tabs">
+              <button class="tab-btn active" onclick="switchTab(this,'tldr-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e')">TL;DR</button>
+              <button class="tab-btn" onclick="switchTab(this,'brief-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e')">Brief</button>
+              <button class="tab-btn" onclick="switchTab(this,'standard-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e')">Standard</button>
+              <button class="tab-btn" onclick="switchTab(this,'comprehensive-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e')">Full</button>
+              <button class="tab-btn" onclick="switchTab(this,'keypoints-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e')">Key Points</button>
+              <button class="tab-btn" onclick="switchTab(this,'insights-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e')">Insights</button>
+              <button class="tab-btn" onclick="switchTab(this,'reports-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e')">Reports</button>
+              
+            </div>
+            
+            <div id="tldr-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e" class="tab-panel active"><div class="prose">A highly reliable deterministic Linux kernel vulnerability (CVE-2026-31431) allows unprivileged users to consistently escalate to root across virtually all modern Linux distributions by exploiting a cryptographic subsystem flaw. Organizations must immediately apply vendor kernel patches or disable the vulnerable algif_aead module to prevent exploitation.</div></div>
+            <div id="brief-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e" class="tab-panel"><div class="prose"><p>On April 29, 2026, researchers publicly disclosed CVE-2026-31431, a critical local privilege escalation vulnerability known as Copy Fail. This deterministic logic flaw resides in the Linux kernel&rsquo;s cryptographic subsystem and allows unprivileged users to consistently gain root access across virtually all major Linux distributions released since 2017. The vulnerability stems from a buggy in-place optimization introduced in 2017 that improperly chains page cache pages into a writable scatterlist during cryptographic operations. Attackers can exploit this flaw by manipulating the AF_ALG socket interface and the splice() system call to overwrite four bytes in the in-memory page cache of setuid-root binaries. Because the corruption occurs entirely in RAM, traditional file integrity monitoring tools remain blind to the compromise. A single 732-byte Python script successfully exploits the flaw on the first attempt without requiring race conditions or kernel-specific offsets. Palo Alto Networks strongly recommends applying vendor-issued kernel updates immediately, or disabling the vulnerable algif_aead module as an interim mitigation. Security teams should also monitor for anomalous process launches and proof-of-concept execution patterns to detect active exploitation.</p>
+</div></div>
+            <div id="standard-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e" class="tab-panel"><div class="prose"><p>Palo Alto Networks Unit 42 has published a detailed technical analysis of CVE-2026-31431, widely known as Copy Fail. This vulnerability represents one of the most severe Linux threats in recent years due to its exceptional reliability and broad impact. Publicly disclosed on April 29, 2026, the flaw enables unprivileged local attackers to consistently escalate privileges to root across virtually all major Linux distributions. The vulnerability affects Linux kernels ranging from version 4.14 to 6.19.12, impacting mainstream platforms such as Ubuntu, Red Hat Enterprise Linux, Debian, SUSE, Amazon Linux, and AlmaLinux. The root cause traces back to a combination of three independent kernel updates spanning from 2011 to 2017. A fatal in-place optimization introduced in 2017 causes the authencesn algorithm to improperly use the destination buffer as a scratch pad. During cryptographic operations, this bug writes four controlled bytes past the legitimate output region directly into the system&rsquo;s file page cache. The vulnerability is located specifically within the algif_aead module of the AF_ALG user-space crypto API interface. Exploitation relies on misusing the interaction between the AF_ALG socket interface and the splice() system call. An attacker can supply a controlled four-byte overwrite value by manipulating the seqno_lo parameter inside the Associated Authenticated Data during a sendmsg() call. This overwrite targets the page cache of any readable setuid-root binary, such as /usr/bin/su or sudo. By injecting shellcode into the cached binary, the attacker forces the system to execute malicious code with superuser privileges. Unlike previous kernel exploits, Copy Fail is completely deterministic and does not rely on race conditions or memory offsets. A standalone 732-byte Python script can successfully exploit the flaw on the first attempt across different distributions without modification. The in-memory nature of the corruption ensures stealth, as physical files on disk remain unchanged and bypass traditional virtual file system integrity checks. Palo Alto Networks strongly urges organizations to apply vendor-issued kernel updates immediately. If patching is not feasible, administrators should implement an interim mitigation by disabling the algif_aead module using specific modprobe commands. The Linux Foundation has also published an official advisory detailing mitigation steps. Security teams can leverage Unit 42 managed threat hunting queries to detect exploitation attempts, including anomalous su process launches and correlated curl executions. Palo Alto Networks customers benefit from built-in protections through Cortex XDR, XSIAM, and Cortex Cloud endpoint security products.</p>
+</div></div>
+            <div id="comprehensive-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e" class="tab-panel"><div class="prose"><h3 id="executive-summary-vulnerability-overview">Executive Summary &amp; Vulnerability Overview</h3>
+
+<p>Palo Alto Networks Unit 42 has issued a comprehensive advisory regarding CVE-2026-31431, a critical local privilege escalation vulnerability commonly referred to as Copy Fail. Publicly disclosed on April 29, 2026, this flaw represents a severe and highly reliable threat to Linux environments. The vulnerability enables unprivileged local attackers to consistently escalate their access to root privileges across virtually all major Linux distributions released since 2017. It impacts Linux kernels ranging from version 4.14 to 6.19.12, affecting mainstream platforms including Ubuntu, Amazon Linux, Red Hat Enterprise Linux, Debian, SUSE, and AlmaLinux.</p>
+
+<h3 id="root-cause-technical-mechanism">Root Cause &amp; Technical Mechanism</h3>
+
+<p>The vulnerability originates from a deterministic logic flaw within the Linux kernel&rsquo;s cryptographic subsystem. Specifically, the issue resides in the algif_aead module of the AF_ALG interface, which serves as a user-space cryptographic API. The flaw resulted from a combination of three independent kernel updates:</p>
+
+<ul>
+<li>The addition of the authencesn algorithm in 2011</li>
+<li>The AF_ALG interface gaining AEAD support in 2015</li>
+<li>A fatal in-place optimization introduced in 2017 that improperly chains page cache pages into a writable scatterlist</li>
+</ul>
+
+<p>During cryptographic operations, the 2017 optimization bug causes the authencesn algorithm to misuse the destination buffer as a scratch pad. This error writes four controlled bytes past the legitimate output region directly into the system&rsquo;s file page cache. The official patch resolves the issue by reverting the module to out-of-place operation, effectively separating the source and destination scatterlists to keep page cache pages strictly read-only.</p>
+
+<h3 id="exploitation-methodology-impact">Exploitation Methodology &amp; Impact</h3>
+
+<p>Attackers exploit this memory handling error by misusing the interaction between the AF_ALG socket interface and the splice() system call. When splice() hands page-cache pages into the crypto subsystem, the vulnerability allows the attacker to direct a four-byte overwrite straight into the kernel&rsquo;s file page cache. The exploitation process involves the following steps:</p>
+
+<ul>
+<li>The attacker controls the exact overwrite value by supplying the seqno_lo parameter inside bytes 4–7 of the Associated Authenticated Data during a sendmsg() call.</li>
+<li>The overwrite targets the page cache of any readable setuid-root binary, such as /usr/bin/su, sudo, or passwd.</li>
+<li>By manipulating the splice offset, splice length, and assoclen parameters, the attacker injects shellcode directly into the .text section of the cached binary.</li>
+<li>When the binary executes, it grants the attacker UID 0 privileges, effectively breaking kernel trust boundaries.</li>
+</ul>
+
+<p>The impact extends beyond simple privilege escalation. Because the kernel and page cache are shared across an entire node, this flaw allows attackers to easily break out of Kubernetes containers, overtake multi-tenant hosts, and compromise continuous integration and continuous delivery pipelines. The exploit is exceptionally severe due to its 100% reliability, deterministic nature, and lack of reliance on race conditions or kernel offsets. A single 732-byte Python script successfully exploits the flaw on the first attempt across different distributions without requiring compilation or external dependencies. Furthermore, the corruption occurs entirely in RAM, meaning physical files on disk remain unmodified and bypass traditional virtual file system integrity monitoring tools.</p>
+
+<h3 id="mitigation-detection-guidance">Mitigation &amp; Detection Guidance</h3>
+
+<p>Palo Alto Networks strongly recommends applying vendor-issued kernel updates immediately to resolve the vulnerability. If immediate patching is not feasible, administrators should implement an interim mitigation by disabling the affected algif_aead module. This can be accomplished by running the following commands as root:</p>
+
+<ul>
+<li>echo &ldquo;install algif_aead /bin/false&rdquo; &gt; /etc/modprobe.d/disable-algif.conf</li>
+<li>rmmod algif_aead</li>
+</ul>
+
+<p>The Linux Foundation has also published an official advisory detailing mitigation steps for CVE-2026-31431. Security teams can leverage Unit 42 managed threat hunting queries to detect exploitation attempts across their environments. Recommended detection strategies include:</p>
+
+<ul>
+<li>Monitoring for non-root users launching the su process via an uncommon parent process</li>
+<li>Identifying correlated curl and su process executions within a two-minute window to flag proof-of-concept activity</li>
+<li>Utilizing Cortex XDR and XSIAM behavioral threat protection modules to identify malicious operations targeting Linux endpoints</li>
+</ul>
+
+<h3 id="palo-alto-networks-protections">Palo Alto Networks Protections</h3>
+
+<p>Palo Alto Networks customers are protected against CVE-2026-31431 through multiple security products. Cortex XDR and XSIAM provide multi-layered defense using Advanced WildFire, Endpoint Protection Modules, Behavioral Threat Protection, and the Local Analysis module. Cortex Cloud endpoint protection leverages behavioral and AI-enabled analytics to detect and prevent malicious operations on Linux endpoints, including containers and virtual machines. Additionally, Cortex Cloud 2.1 can detect misused cloud platform IAM policies and alert teams when assets are vulnerable to these threats. Organizations requiring immediate assistance can engage the Unit 42 Incident Response team for proactive assessments or compromise remediation.</p>
+</div></div>
+            <div id="keypoints-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e" class="tab-panel"><ul class="kp-list"><li>CVE-2026-31431, commonly referred to as Copy Fail, is a deterministic local privilege escalation vulnerability in the Linux kernel&#39;s cryptographic subsystem that allows unprivileged attackers to consistently gain root access across virtually all major Linux distributions released since 2017.</li><li>The vulnerability originates from a buggy in-place optimization in the algif_aead module that improperly chains page cache pages into a writable scatterlist, allowing attackers to overwrite four bytes in the page cache of setuid-root binaries to inject shellcode.</li><li>The exploit is highly reliable and portable, as a single 732-byte Python script can successfully escalate privileges on the first attempt without requiring compilation or external dependencies.</li><li>Organizations are strongly advised to apply vendor-issued kernel updates immediately, or implement an interim mitigation by disabling the vulnerable algif_aead module if patching is not feasible.</li></ul></div>
+            <div id="insights-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e" class="tab-panel"><ul class="kp-list"><li>The vulnerability bypasses traditional file integrity monitoring and leaves no disk traces because it corrupts the in-memory page cache of setuid binaries rather than modifying the actual files on disk.</li><li>The flaw stems from a combination of three separate kernel updates across 2011, 2015, and 2017, where a 2017 in-place optimization bug improperly chains page cache pages into a writable scatterlist.</li><li>The shared nature of the kernel and page cache across an entire node allows this single vulnerability to facilitate container escapes in Kubernetes environments and compromise multi-tenant hosts.</li><li>Security teams can detect potential exploitation by monitoring for non-root users launching the su process via unexpected parent processes or looking for correlated curl and su executions within a two-minute window.</li></ul></div>
+            <div id="reports-0f42f37bffcc9f165b753780c481f5ef:04cbcd5a7fd0c20e" class="tab-panel"><ul class="report-list"><li class="report-item">
+              <div class="report-title"><a href="https://lore.kernel.org/linux-cve-announce/2026042214-CVE-2026-31431-3d65@gregkh/" target="_blank" rel="noopener">Linux Foundation Advisory on CVE-2026-31431</a></div>
+              <div class="report-meta">Linux Foundation</div>
+              <div class="report-context">The article explicitly cites this as an official advisory posted by the Linux Foundation containing mitigation details for the vulnerability.</div>
+            </li><li class="report-item">
+              <div class="report-title"><a href="https://www.microsoft.com/en-us/security/blog/2026/05/01/cve-2026-31431-copy-fail-vulnerability-enables-linux-root-privilege-escalation/" target="_blank" rel="noopener">CVE-2026-31431 Copy Fail Vulnerability Enables Linux Root Privilege Escalation</a></div>
+              <div class="report-meta">Microsoft Security</div>
+              <div class="report-context">The article references this Microsoft Security blog post to support claims regarding the vulnerability&#39;s deterministic nature and its consistent ability to escalate privileges across major Linux distributions.</div>
+            </li></ul></div>
+            <div style="padding:1.25rem 1.4rem"><a href="https://unit42.paloaltonetworks.com/cve-2026-31431-copy-fail/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
+            
+          </div>
+        </div>
+      </div><div class="toc-group">
+        <div class="toc-group-head">
+          <span class="toc-group-label priority-badge badge-should">Should Read</span>
+          <span class="toc-group-count">1 items</span>
+        </div>
+        <div class="toc-row-wrap should-row" data-priority="should">
+          <div class="toc-row-inner" onclick="toggleTocRow(this)">
+            <span class="toc-num toc-num-should">01</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
+                <span class="toc-title-link">New stealthy Quasar Linux malware targets software developers</span>
+              </div>
+              <div class="toc-row-meta">
+                <span class="source-dot" style="background:#38bdf8"></span>
+                <span class="source-name" style="color:#38bdf8">bleepingcomputer.com</span>
+                <span class="meta-sep">·</span>
+                <span class="meta-time">2026-05-05 22:01</span>
+              </div>
+            </div>
+            <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:88%"></div></div><span class="score-num score-num-mid">88</span></div>
+            <span class="toc-row-chevron">⌄</span>
+          </div>
+          <div class="toc-row-body">
+            <div class="analysis-strip">
+              <span><strong>Provider</strong> openai / Qwen3.6-35B-A3B</span>
+              <span><strong>Score</strong> 88/100</span>
+              <span><strong>Why</strong> <span class="justification"><p>This article details a novel, fileless Linux implant with advanced evasion techniques and direct supply-chain attack potential, making it highly relevant for DevSecOps and threat intelligence professionals. Its focus on targeting developer environments and bypassing enterprise controls provides actionable defensive insights for securing software delivery pipelines. The disclosed IoCs and architectural breakdown offer immediate value for detection and mitigation efforts.</p>
+</span></span>
+            </div>
+            <div class="tabs">
+              <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1')">TL;DR</button>
+              <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1')">Brief</button>
+              <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1')">Standard</button>
+              <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1')">Full</button>
+              <button class="tab-btn" onclick="switchTab(this,'keypoints-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1')">Key Points</button>
+              <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1')">Insights</button>
+              
+              
+            </div>
+            
+            <div id="tldr-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1" class="tab-panel active"><div class="prose">Quasar Linux (QLNX) is a stealthy, fileless malware implant targeting developer workstations and DevOps environments to steal credentials and facilitate supply-chain attacks through highly persistent, undetectable operations.</div></div>
+            <div id="brief-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1" class="tab-panel"><div class="prose"><p>A previously undocumented Linux implant named Quasar Linux (QLNX) is actively targeting developer workstations and DevOps environments. The malware operates as a fileless, in-memory tool that dynamically compiles rootkit and backdoor modules on the host using gcc. It employs seven distinct persistence mechanisms, including LD_PRELOAD, systemd, and crontab, to ensure continuous operation even if the process is terminated. QLNX features a comprehensive suite of capabilities designed for stealth, credential harvesting, and lateral movement across networks. By compromising developer systems, threat actors can bypass enterprise security controls and steal credentials used in software delivery pipelines. This approach enables supply-chain attacks where malicious packages are published to platforms like npm, PyPI, and GitHub. Trend Micro researchers analyzed the implant and noted that it currently evades detection by most security vendors. Only four security solutions flag the QLNX binary as malicious at this time. The company has released indicators of compromise to help defenders identify and mitigate infections.</p>
+</div></div>
+            <div id="standard-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1" class="tab-panel"><div class="prose"><p>A previously undocumented Linux implant named Quasar Linux (QLNX) is targeting software developers and DevOps environments across multiple code distribution platforms. The malware kit is deployed through npm, PyPI, GitHub, AWS, Docker, and Kubernetes to facilitate supply-chain attacks. Researchers at Trend Micro analyzed the QLNX implant and discovered that it dynamically compiles rootkit shared objects and PAM backdoor modules on the target host using gcc. The malware is engineered for stealth and long-term persistence by running entirely in memory, deleting its original binary, wiping logs, spoofing process names, and clearing forensic environment variables. It utilizes seven distinct persistence mechanisms, including LD_PRELOAD, systemd, crontab, init.d scripts, XDG autostart, and bashrc injection. QLNX is structured around multiple functional blocks that serve as a complete attack toolkit. Its RAT core provides a 58-command framework for interactive shell access, file management, and persistent C2 communication over custom TCP/TLS or HTTP/S channels. A dual-layer rootkit combines a userland LD_PRELOAD component with a kernel-level eBPF module to hide files, processes, and network ports. The credential access layer harvests SSH keys, browser data, cloud configurations, and /etc/shadow while intercepting plaintext authentication via PAM backdoors. Additional modules enable keylogging, screenshot capture, clipboard monitoring, TCP tunneling, SOCKS proxying, and SSH-based lateral movement. The execution engine supports process injection and in-memory payload execution, while a filesystem monitoring module tracks activity via inotify. After establishing a fileless foothold, QLNX deploys these stealth mechanisms and proceeds to harvest developer and cloud credentials. This strategy allows attackers to bypass enterprise security controls and access the credentials that secure software delivery pipelines. The approach mirrors recent supply chain incidents where compromised developer accounts were used to publish trojanized packages to public repositories. Trend Micro has not disclosed specific attack details or attribution, leaving the deployment volume and activity levels unclear. Currently, only four security solutions detect the QLNX binary, and the company has published indicators of compromise for defensive use.</p>
+</div></div>
+            <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1" class="tab-panel"><div class="prose"><h3 id="introduction-and-targeting">Introduction and Targeting</h3>
+
+<p>A previously undocumented Linux implant named Quasar Linux (QLNX) is actively targeting software developers and DevOps environments. The malware kit is designed to operate across development and DevOps ecosystems, specifically leveraging npm, PyPI, GitHub, AWS, Docker, and Kubernetes. This deployment strategy enables threat actors to execute supply-chain attacks by publishing malicious packages directly to code distribution platforms.</p>
+
+<h3 id="stealth-and-persistence-architecture">Stealth and Persistence Architecture</h3>
+
+<p>Researchers at Trend Micro analyzed the QLNX implant and documented its highly evasive operational characteristics. The malware maintains a fileless foothold by running exclusively in memory and immediately deleting its original binary from disk. It actively wipes system logs, spoofs process names, and clears forensic environment variables to avoid detection. QLNX employs seven distinct persistence mechanisms to guarantee long-term survival, including LD_PRELOAD, systemd, crontab, init.d scripts, XDG autostart, and bashrc injection. These methods ensure the malware loads into every dynamically linked process and automatically respawns if terminated.</p>
+
+<h3 id="functional-modules-and-capabilities">Functional Modules and Capabilities</h3>
+
+<p>QLNX operates as a complete attack toolkit composed of multiple specialized functional blocks. Its RAT core features a 58-command framework that provides interactive shell access, file and process management, and persistent command-and-control communication over custom TCP/TLS or HTTP/S channels. A dual-layer rootkit combines a userland LD_PRELOAD component with a kernel-level eBPF module to conceal files, processes, and network ports at both the application and operating system levels. The credential access layer systematically harvests SSH keys, browser data, cloud configurations, and /etc/shadow files while intercepting plaintext authentication data through PAM-based backdoors. Surveillance capabilities include keylogging, screenshot capture, and clipboard monitoring. Networking features support TCP tunneling, SOCKS proxying, port scanning, SSH-based lateral movement, and peer-to-peer mesh networking. An execution engine handles process injection via ptrace and /proc/pid/mem, alongside in-memory execution of shared objects and BOF/COFF payloads. A filesystem monitoring module tracks real-time file activity using inotify.</p>
+
+<h3 id="operational-impact-and-detection-status">Operational Impact and Detection Status</h3>
+
+<p>After initial access, QLNX establishes its stealth mechanisms and proceeds to harvest developer and cloud credentials. Compromising developer workstations allows attackers to bypass enterprise security controls and access the credentials that secure software delivery pipelines. This methodology mirrors recent supply chain incidents where stolen developer accounts were used to publish trojanized packages to public repositories. Trend Micro has not disclosed specific attack details or threat actor attribution, leaving the exact deployment volume and activity levels unclear. At the time of publication, only four security solutions detect the QLNX binary as malicious. The company has released indicators of compromise to assist defenders in detecting infections and implementing protective measures.</p>
+</div></div>
+            <div id="keypoints-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1" class="tab-panel"><ul class="kp-list"><li>QLNX is a stealthy Linux malware implant targeting developer workstations and DevOps environments that could enable supply-chain attacks through malicious packages published on code distribution platforms.</li><li>The malware maintains long-term persistence and evades detection by running entirely in memory, dynamically compiling rootkit components, wiping logs, and utilizing seven distinct persistence mechanisms.</li><li>QLNX features a comprehensive suite of capabilities including a dual-layer rootkit, credential harvesting, surveillance modules, and lateral movement tools to steal developer and cloud credentials.</li><li>Researchers at Trend Micro identified the implant but noted that only four security solutions currently detect it, with no specific attacks or threat actor attribution disclosed.</li></ul></div>
+            <div id="insights-9b0668029ed36930305fba71c3bfe542:0f0fb3da4d09c9c1" class="tab-panel"><ul class="kp-list"><li>QLNX dynamically compiles its rootkit and PAM backdoor modules on the target host using gcc, enabling it to operate as a fileless, in-memory implant that deletes its original binary from disk.</li><li>The malware achieves dual-layer stealth by combining a userland LD_PRELOAD rootkit with a kernel-level eBPF component to simultaneously hide files, processes, and network ports at both the application and OS levels.</li><li>By targeting developer workstations and DevOps environments like npm and GitHub, QLNX bypasses enterprise security controls to harvest credentials that directly enable supply-chain attacks through malicious package publication.</li></ul></div>
+            
+            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/new-stealthy-quasar-linux-malware-targets-software-developers/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section id="overview">
+  <div class="overview-card">
+    <button class="overview-toggle" onclick="toggleOverview(this)">
+      <span class="section-label">INTELLIGENCE BRIEF</span>
+      <span class="overview-chevron" style="transform:rotate(180deg)">⌄</span>
+    </button>
+    <div class="overview-grid" id="overview-grid">
+      <div class="overview-cell overview-cell-full">
+        <div class="overview-cell-head">
+          <span class="overview-tag overview-tag-exec">EXEC</span>
+          <span class="overview-title">Executive Overview</span>
+        </div>
+        <div class="overview-body prose"><p>This digest covers two significant developments impacting the Linux ecosystem, highlighting a critical kernel vulnerability and a sophisticated malware implant targeting modern development workflows. The overarching trend reflects an ongoing focus on Linux-based infrastructure, with threat actors and researchers increasingly documenting high-impact flaws in core system components alongside advanced implants designed to compromise developer environments and supply chains.</p>
+
+<p>The first major incident involves CVE-2026-31431, widely designated as Copy Fail. This vulnerability represents a deterministic local privilege escalation flaw within the Linux kernel’s cryptographic subsystem. The root cause traces to a flawed in-place optimization in the algif_aead module, which incorrectly chains page cache pages into a writable scatterlist. This architectural defect enables unprivileged users to overwrite four bytes within the page cache of setuid-root binaries, effectively injecting shellcode and achieving consistent root access. The vulnerability demonstrates remarkable portability across major Linux distributions released since 2017. Independent analysis confirms that a single 732-byte Python script successfully executes the exploit on the first attempt, requiring no compilation or external dependencies. This reliability and ease of deployment significantly elevate the operational risk associated with the flaw.</p>
+
+<p>In parallel, security researchers have identified QLNX, a stealthy Linux malware implant strategically focused on software developers and DevOps environments. QLNX exhibits a comprehensive feature set designed to facilitate long-term persistence and supply-chain compromise. The implant operates entirely in memory, dynamically compiles rootkit components, and systematically purges forensic logs to maintain stealth. It leverages seven distinct persistence mechanisms and integrates dual-layer rootkit functionality, credential harvesting, surveillance modules, and lateral movement tools aimed at exfiltrating developer and cloud credentials. Despite its advanced capabilities, the threat detection landscape remains limited, with only four security solutions currently capable of identifying the implant. No specific attacks or threat actor attributions have been publicly linked to QLNX at this time.</p>
+
+<p>Evaluated within the designated intelligence reporting window of May 5–6, 2026, these disclosures highlight the continued criticality of Linux security posture. The deterministic nature of CVE-2026-31431 establishes a highly reliable privilege escalation vector, while QLNX represents a sophisticated, in-memory threat tailored for developer ecosystems. Both cases demonstrate advanced evasion techniques and broad operational impact across enterprise Linux deployments.</p>
+</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<a id="back-top" href="#nav">↑ TOP</a>
+
+<footer id="footer">
+  <span class="footer-left">DOWNLINK · 2026-05-05 22:11 UTC · 4 hours intelligence window</span>
+  <span class="footer-right">2 articles</span>
+</footer>
+
+<script>
+function toggleTocRow(inner) {
+  var row = inner.closest('.toc-row-wrap');
+  var body = row.querySelector('.toc-row-body');
+  var chevron = row.querySelector('.toc-row-chevron');
+  if (!body) return;
+  var isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  row.classList.toggle('open', !isOpen);
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+
+function handleClusterClick(event, summary) {
+  var row = summary.closest('.toc-row-wrap');
+  var canonBody = row.querySelector('.toc-row-body');
+  var chevron = row.querySelector('.toc-row-chevron');
+  if (!canonBody) return;
+  
+  if (event.target.closest('.toc-cluster-chevron')) return;
+  event.preventDefault();
+  var details = summary.closest('details');
+  var isOpen = canonBody.classList.contains('open');
+  canonBody.classList.toggle('open', !isOpen);
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  
+  if (details) details.open = !isOpen;
+}
+
+
+function toggleTocMember(titleEl, bodyId) {
+  var body = document.getElementById(bodyId);
+  if (!body) return;
+  body.classList.toggle('open');
+}
+
+function toggleOverview(btn) {
+  var grid = document.getElementById('overview-grid');
+  var chev = btn.querySelector('.overview-chevron');
+  var hidden = grid.style.display === 'none';
+  grid.style.display = hidden ? '' : 'none';
+  chev.style.transform = hidden ? 'rotate(180deg)' : '';
+}
+
+function switchTab(btn, panelId) {
+  var container = btn.closest('.toc-row-body') || btn.closest('.article-body');
+  if (!container) return;
+  container.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  container.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  btn.classList.add('active');
+  var panel = document.getElementById(panelId);
+  if (panel) panel.classList.add('active');
+}
+
+function setFilter(btn) {
+  var f = btn.dataset.filter;
+  document.querySelectorAll('.filter-btn').forEach(function(b){
+    b.className = 'filter-btn';
+    if (b.dataset.filter === f) {
+      if (f === 'all') b.classList.add('active-all');
+      else if (f === 'must') b.classList.add('active-must');
+      else if (f === 'should') b.classList.add('active-should');
+      else if (f === 'may') b.classList.add('active-may');
+    }
+  });
+  document.querySelectorAll('.toc-row-wrap[data-priority]').forEach(function(row){
+    if (f === 'all' || row.dataset.priority === f) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+}
+
+
+(function() {
+  var counts = {must:0, should:0, may:0};
+  document.querySelectorAll('.toc-row-wrap[data-priority]').forEach(function(r){
+    var p = r.dataset.priority;
+    if (counts[p] !== undefined) counts[p]++;
+  });
+  document.querySelector('.must-count').textContent   = counts.must;
+  document.querySelector('.should-count').textContent = counts.should;
+  document.querySelector('.may-count').textContent    = counts.may;
+})();
+
+
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  var t = e.target;
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return;
+  if (e.key === 'e') {
+    document.querySelectorAll('.toc-row-wrap:not(.open)').forEach(function(row){
+      var body = row.querySelector('.toc-row-body');
+      var chevron = row.querySelector('.toc-row-chevron');
+      if (body) { body.classList.add('open'); row.classList.add('open'); if (chevron) chevron.style.transform = 'rotate(180deg)'; }
+    });
+  }
+  if (e.key === 'c') {
+    document.querySelectorAll('.toc-row-wrap.open').forEach(function(row){
+      var body = row.querySelector('.toc-row-body');
+      var chevron = row.querySelector('.toc-row-chevron');
+      if (body) { body.classList.remove('open'); row.classList.remove('open'); if (chevron) chevron.style.transform = ''; }
+    });
+  }
+});
+
+</script>
+</body>
+</html>

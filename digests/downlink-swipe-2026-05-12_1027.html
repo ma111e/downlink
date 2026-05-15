@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+  }
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; overflow-x: hidden; }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklch, var(--cyan) 60%, transparent); }
+    70%  { box-shadow: 0 0 0 5px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); animation: pulse-ring 2s ease-out infinite; }
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; height: 620px; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--discard); border-color: var(--discard); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--accept);  border-color: var(--accept); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .kp-list li { display: flex; gap: 0.6rem; font-size: 13px; line-height: 1.6; color: var(--text2); }
+  .kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); }
+  .report-title a { color: var(--text); text-decoration: none; }
+  .report-title a:hover { color: var(--cyan); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<script>
+window.__DL_ARTICLES = [{"n":4,"title":"Mini Shai-Hulud Worm Compromises TanStack, Mistral AI, Guardrails AI \u0026 More Packages","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/mini-shai-hulud-worm-compromises.html","time":"08:50","priority":"MUST READ","score":95,"group":null,"groupColor":null,"tldr":"The Mini Shai-Hulud supply chain attack compromised multiple npm and PyPI packages by hijacking GitHub Actions and stealing credentials, deploying a self-spreading worm that exfiltrates sensitive data and persists across development environments.","briefOverview":"\u003cp\u003eTeamPCP has launched a fresh Mini Shai-Hulud supply chain attack compromising multiple npm and PyPI packages from major projects like TanStack, Mistral AI, and Guardrails AI. The malicious code includes an obfuscated JavaScript file that profiles the environment and deploys a comprehensive credential stealer. This stealer targets cloud providers, cryptocurrency wallets, AI tools, and CI systems, exfiltrating data to a decentralized messaging service domain. Attackers also use stolen GitHub tokens to commit encrypted data to controlled repositories as a fallback. The worm autonomously spreads by scanning for npm tokens with bypass_2fa enabled and exchanging GitHub OIDC tokens for per-package publish tokens. TanStack has assigned CVE-2026-45321 to the incident, rating it as critical with a CVSS score of 9.6. The attack impacted 42 packages and 84 versions across the ecosystem. PyPI compromises like the mistralai package contain malicious code with country-aware logic that avoids Russian-language environments. The campaign demonstrates a highly sophisticated, self-spreading threat targeting both frontend tooling and AI infrastructure.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eTeamPCP, the threat actor behind a recent supply chain attack spree, has compromised npm and PyPI packages from TanStack, UiPath, Mistral AI, OpenSearch, and Guardrails AI in a fresh Mini Shai-Hulud campaign.\u003c/p\u003e\n\n\u003cp\u003eThe affected npm packages contain an obfuscated JavaScript file named router_init.js that profiles the execution environment and launches a credential stealer. This malware targets cloud providers, cryptocurrency wallets, AI tools, messaging apps, and CI systems like GitHub Actions. Exfiltrated data is sent to the filev2.getsession[.]org domain, a deliberate choice to evade enterprise detection due to its association with a privacy-focused messaging service.\u003c/p\u003e\n\n\u003cp\u003eAs a fallback, encrypted data is committed to attacker-controlled GitHub repositories using stolen tokens via the GraphQL API. The malware also establishes persistence by injecting hooks into Claude Code and Visual Studio Code to survive reboots. Additionally, it installs a gh-token-monitor service to track and re-exfiltrate GitHub tokens while injecting malicious workflows that serialize repository secrets and upload them to api.masscan[.]cloud.\u003c/p\u003e\n\n\u003cp\u003eTanStack traced the compromise to a chained GitHub Actions attack involving pull_request_target triggers, cache poisoning, and runtime memory extraction of an OIDC token. Notably, no npm tokens were stolen, and the npm publish workflow itself remained uncompromised. The attackers staged the payload in a GitHub fork, injected it into published npm tarballs, and hijacked the legitimate TanStack/router workflow to publish compromised versions with valid SLSA provenance.\u003c/p\u003e\n\n\u003cp\u003eThis makes the worm the first documented npm threat capable of producing malicious packages with valid SLSA Build Level 3 attestations. The worm spreads autonomously by finding npm tokens with bypass_2fa enabled, enumerating packages by the same maintainer, and exchanging GitHub OIDC tokens for per-package publish tokens. The TanStack compromise is assigned CVE-2026-45321 with a CVSS score of 9.6, impacting 42 packages and 84 versions.\u003c/p\u003e\n\n\u003cp\u003eBeyond npm, the campaign affected PyPI packages including guardrails-ai@0.10.1 and mistralai@2.4.6. Microsoft analysis revealed the mistralai package downloads a credential stealer with country-aware logic that avoids Russian-language environments. The payload carries a 1-in-6 chance of executing rm -rf / on systems detected in Israel or Iran.\u003c/p\u003e\n\n\u003cp\u003eThe guardrails-ai compromise executes malicious code on import, checking for Linux systems before downloading and running a remote Python artifact without integrity verification. The campaign continues to propagate across search infrastructure, AI tooling, enterprise automation, and CI/CD ecosystems.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"executive-summary\"\u003eExecutive Summary\u003c/h3\u003e\n\n\u003cp\u003eTeamPCP has executed a sophisticated Mini Shai-Hulud supply chain attack targeting both npm and PyPI ecosystems. The campaign compromises critical packages from TanStack, Mistral AI, Guardrails AI, OpenSearch, and UiPath, deploying a self-spreading worm with advanced credential theft, persistence, and evasion capabilities.\u003c/p\u003e\n\n\u003ch3 id=\"attack-vector-and-payload-execution\"\u003eAttack Vector and Payload Execution\u003c/h3\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003enpm Compromise:\u003c/strong\u003e Affected packages contain an obfuscated JavaScript file (\u003ccode\u003erouter_init.js\u003c/code\u003e) that profiles the execution environment and deploys a comprehensive credential stealer.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003ePyPI Compromise:\u003c/strong\u003e Packages like \u003ccode\u003eguardrails-ai@0.10.1\u003c/code\u003e execute malicious code immediately upon import. The malware checks for Linux systems, downloads a remote Python artifact (\u003ccode\u003e/tmp/transformers.pyz\u003c/code\u003e), and executes it without integrity verification.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eTarget Scope:\u003c/strong\u003e The stealer actively targets cloud providers, cryptocurrency wallets, AI tools, messaging applications, and CI/CD systems such as GitHub Actions.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"data-exfiltration-and-evasion-techniques\"\u003eData Exfiltration and Evasion Techniques\u003c/h3\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003ePrimary Exfiltration:\u003c/strong\u003e Stolen data is transmitted to \u003ccode\u003efilev2.getsession[.]org\u003c/code\u003e, a domain chosen to bypass enterprise security controls due to its association with a decentralized privacy-focused messaging service.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eFallback Mechanism:\u003c/strong\u003e Encrypted data is committed to attacker-controlled repositories under the author name \u003ccode\u003eclaude@users.noreply.github.com\u003c/code\u003e via the GitHub GraphQL API using compromised tokens.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003ePersistence:\u003c/strong\u003e The malware injects hooks into Claude Code and Microsoft Visual Studio Code to ensure re-execution on every IDE launch. It also deploys a \u003ccode\u003egh-token-monitor\u003c/code\u003e service to continuously track and re-exfiltrate GitHub tokens.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eWorkflow Injection:\u003c/strong\u003e Two malicious GitHub Actions workflows are injected to serialize repository secrets into JSON and upload them to \u003ccode\u003eapi.masscan[.]cloud\u003c/code\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"self-spreading-mechanics-and-slsa-abuse\"\u003eSelf-Spreading Mechanics and SLSA Abuse\u003c/h3\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eAutonomous Propagation:\u003c/strong\u003e The worm locates npm tokens with \u003ccode\u003ebypass_2fa\u003c/code\u003e enabled, enumerates all packages published by the same maintainer, and exchanges a GitHub OIDC token for a per-package publish token to bypass traditional authentication.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSLSA Provenance:\u003c/strong\u003e Compromised packages carry valid SLSA Build Level 3 attestations, marking the first documented npm worm capable of producing malicious packages with cryptographically valid supply chain provenance.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eTanStack Postmortem:\u003c/strong\u003e TanStack traced the initial compromise to a chained GitHub Actions attack utilizing \u003ccode\u003epull_request_target\u003c/code\u003e triggers, cache poisoning, and runtime memory extraction of an OIDC token from the runner process. No npm tokens were stolen, and the npm publish workflow itself was not compromised.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"incident-impact-and-cve-assignment\"\u003eIncident Impact and CVE Assignment\u003c/h3\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eCVE-2026-45321:\u003c/strong\u003e Assigned to the TanStack compromise with a CVSS score of 9.6.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eScope:\u003c/strong\u003e Impacts 42 packages and 84 versions across the TanStack ecosystem.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eAffected Packages:\u003c/strong\u003e Includes \u003ccode\u003e@opensearch-project/opensearch\u003c/code\u003e (versions 3.5.3, 3.6.2, 3.7.0, 3.8.0), \u003ccode\u003e@squawk/mcp@0.9.5\u003c/code\u003e, \u003ccode\u003e@squawk/weather@0.5.10\u003c/code\u003e, \u003ccode\u003e@squawk/flightplan@0.5.6\u003c/code\u003e, and multiple \u003ccode\u003e@tallyui/connector\u003c/code\u003e packages.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"destructive-capabilities-and-geofencing\"\u003eDestructive Capabilities and Geofencing\u003c/h3\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003emistralai Package:\u003c/strong\u003e Microsoft security analysis revealed the package downloads a credential stealer from \u003ccode\u003e83.142.209[.]194\u003c/code\u003e with country-aware logic.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eGeofenced Destruction:\u003c/strong\u003e The payload contains a destructive branch that avoids Russian-language environments and carries a 1-in-6 probability of executing \u003ccode\u003erm -rf /\u003c/code\u003e when the system is detected in Israel or Iran.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eEcosystem Impact:\u003c/strong\u003e The campaign continues to propagate across search infrastructure, AI tooling, aviation-related developer packages, enterprise automation, frontend tooling, and CI/CD-adjacent systems.\u003c/li\u003e\n\u003c/ul\u003e\n","keyPoints":["TeamPCP's Mini Shai-Hulud campaign compromised multiple npm and PyPI packages, including those from TanStack, Mistral AI, and Guardrails AI, by deploying a self-spreading worm.","The worm spreads across the npm ecosystem by hijacking GitHub Actions workflows and exchanging OIDC tokens for per-package publish tokens to bypass authentication.","Compromised packages deploy credential stealers that exfiltrate sensitive data to external domains and inject malicious GitHub Actions workflows to serialize repository secrets.","The mistralai PyPI package contains malicious code with country-aware logic that avoids Russian-language environments and carries a 1-in-6 chance of executing rm -rf / on systems located in Israel or Iran."],"insights":["The worm autonomously propagates by scanning for npm tokens with bypass_2fa enabled and exchanging GitHub OIDC tokens for per-package publish tokens, effectively bypassing traditional authentication.","Exfiltrated data is routed through Session Protocol, a decentralized privacy-focused messaging service, to deliberately evade enterprise security controls and network blocking.","This campaign marks the first documented npm worm capable of publishing malicious packages with valid SLSA Build Level 3 provenance attestations, directly undermining supply chain verification mechanisms.","The malware ensures persistent access by injecting hooks into Claude Code and VS Code, guaranteeing the credential stealer executes on every IDE launch."],"referencedReports":[{"title":"Mini Shai-Hulud is Back: TanStack Compromised","url":"https://www.aikido.dev/blog/mini-shai-hulud-is-back-tanstack-compromised","publisher":"Aikido Security","context":"Cited alongside other security firms to analyze the credential stealer and supply chain attack."},{"title":"Shai-Hulud Compromises the TanStack Ecosystem: 80 Packages Compromised","url":"https://www.endorlabs.com/learn/shai-hulud-compromises-the-tanstack-ecosystem-80-packages-compromised","publisher":"Endor Labs","context":"Referenced as a third-party analysis detailing the scope of the npm compromise."},{"title":"Mass NPM Supply Chain Attack: TanStack \u0026 Mistral","url":"https://safedep.io/mass-npm-supply-chain-attack-tanstack-mistral/","publisher":"SafeDep","context":"Listed as a source providing technical analysis on the widespread attack across npm and PyPI."},{"title":"TanStack npm packages compromised: Mini Shai-Hulud supply chain attack","url":"https://socket.dev/blog/tanstack-npm-packages-compromised-mini-shai-hulud-supply-chain-attack","publisher":"Socket","context":"Cited alongside other researchers to describe the worm's propagation and impact."},{"title":"Mini Shai-Hulud is Back: A self-spreading supply chain attack hits the npm ecosystem","url":"https://www.stepsecurity.io/blog/tanstack-npm-packages-compromised-mini-shai-hulud-supply-chain-attack","publisher":"StepSecurity","context":"Referenced to explain the worm's self-spreading capabilities and credential theft mechanisms."},{"title":"NPM Supply Chain Compromise Postmortem","url":"https://tanstack.com/blog/npm-supply-chain-compromise-postmortem","publisher":"TanStack","context":"Linked as the official postmortem where TanStack traced the compromise to chained GitHub Actions attacks and OIDC token extraction."},{"title":"The Monsters in Your Build Cache: GitHub Actions Cache Poisoning","url":"https://adnanthekhan.com/2024/05/06/the-monsters-in-your-build-cache-github-actions-cache-poisoning/","publisher":"Adnan The Khan","context":"Cited as a technical analysis explaining the GitHub Actions cache poisoning technique leveraged in the attack."},{"title":"GHSA-g7cv-rxg3-hmpx","url":"https://github.com/TanStack/router/security/advisories/GHSA-g7cv-rxg3-hmpx","publisher":"GitHub / TanStack","context":"Referenced as the official security advisory assigning CVE-2026-45321 and documenting the critical severity of the compromise."}],"body":"\u003cp\u003eTeamPCP has launched a fresh Mini Shai-Hulud supply chain attack compromising multiple npm and PyPI packages from major projects like TanStack, Mistral AI, and Guardrails AI. The malicious code includes an obfuscated JavaScript file that profiles the environment and deploys a comprehensive credential stealer. This stealer targets cloud providers, cryptocurrency wallets, AI tools, and CI systems, exfiltrating data to a decentralized messaging service domain. Attackers also use stolen GitHub tokens to commit encrypted data to controlled repositories as a fallback. The worm autonomously spreads by scanning for npm tokens with bypass_2fa enabled and exchanging GitHub OIDC tokens for per-package publish tokens. TanStack has assigned CVE-2026-45321 to the incident, rating it as critical with a CVSS score of 9.6. The attack impacted 42 packages and 84 versions across the ecosystem. PyPI compromises like the mistralai package contain malicious code with country-aware logic that avoids Russian-language environments. The campaign demonstrates a highly sophisticated, self-spreading threat targeting both frontend tooling and AI infrastructure.\u003c/p\u003e\n"},{"n":1,"title":"State of ransomware in 2026","source":"securelist.com","sourceColor":"#2dd4bf","link":"https://securelist.com/state-of-ransomware-in-2026/119761/","time":"07:00","priority":"SHOULD READ","score":88,"group":null,"groupColor":null,"tldr":"Ransomware is shifting toward data-centric extortion and post-quantum encryption, making proactive defense, secure remote access, and immutable backups essential for organizations.","briefOverview":"\u003cp\u003eThe 2026 ransomware landscape is defined by a shift toward encryptionless extortion and the adoption of post-quantum cryptography by emerging threat families. Although the percentage of organizations affected by ransomware decreased in 2025, the threat remains highly persistent and efficiently scaled.\u003c/p\u003e\n\n\u003cp\u003eAttackers are increasingly relying on defense evasion tools, such as EDR killers and BYOVD techniques, to neutralize endpoint protections before deployment. As ransom payments dropped to 28%, groups like ShinyHunters are prioritizing data theft and public disclosure over file encryption.\u003c/p\u003e\n\n\u003cp\u003eInitial access has become highly industrialized through initial access brokers, with RDWeb portals emerging as a preferred remote access vector. Law enforcement has disrupted several dark web platforms, but new actors like Qilin and The Gentlemen quickly fill operational vacuums. Organizations must prioritize proactive patching, secure remote access architectures, and immutable backups to mitigate these evolving risks.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eKaspersky’s 2026 annual report highlights that ransomware continues to be a persistent and adaptive cyberthreat despite a regional decline in affected organizations in 2025. The threat landscape is evolving through several distinct operational shifts. New ransomware families are adopting post-quantum cryptography, with the PE32 group utilizing the NIST-selected Kyber1024 algorithm to resist decryption by both classical and quantum computers. Simultaneously, attackers are implementing encryptionless extortion as ransom payments fell to 28% in 2025. Groups like ShinyHunters now focus exclusively on data exfiltration and public leak sites, shifting the primary risk from business continuity to compliance and reputational damage.\u003c/p\u003e\n\n\u003cp\u003eDefense evasion has become a deliberate phase of the attack lifecycle, with operators routinely deploying EDR killers and exploiting signed drivers through Bring Your Own Vulnerable Driver techniques. Initial access remains highly commoditized through initial access brokers, who increasingly target inadequately secured RDWeb portals alongside traditional RDP and VPN vectors. The underground ecosystem facilitates this industrialization, with compromised credentials and datasets traded on Telegram channels and dark web forums. Law enforcement actions have seized major platforms like RAMP and LeakBase, yet the market remains resilient as dormant groups like RansomHub are replaced by faster-growing operators.\u003c/p\u003e\n\n\u003cp\u003eIn 2025, Qilin emerged as the dominant targeted attack group, while Clop specialized in supply-chain-style compromises and Akira maintained steady operational consistency. Emerging 2026 actors like The Gentlemen demonstrate a professionalized, data-centric approach that targets enterprise hardware such as FortiOS and Cisco ASA appliances. To counter these threats, Kaspersky recommends automated vulnerability management, Microsoft’s Vulnerable Driver Blocklist, and strict remote access controls using ZTNA and continuous multi-factor authentication. Network segmentation, offline immutable backups, and comprehensive incident response planning are also essential. Ultimately, the report emphasizes that preventing initial compromise and maintaining robust data security controls are critical to surviving the modern ransomware ecosystem.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"overview-and-threat-landscape\"\u003eOverview and Threat Landscape\u003c/h2\u003e\n\n\u003cp\u003eThe 2026 ransomware report from Kaspersky outlines a highly adaptive threat environment that remains persistent despite a documented decline in affected organizations across all regions in 2025. Ransomware operators are refining their tactics and scaling operations with greater efficiency. The manufacturing sector alone faced over $18 billion in potential losses from ransomware attacks in the first three quarters of 2025. This underscores that formal decreases in attack frequency do not equate to reduced severity or financial impact.\u003c/p\u003e\n\n\u003ch2 id=\"key-operational-shifts\"\u003eKey Operational Shifts\u003c/h2\u003e\n\n\u003cp\u003eThe ransomware ecosystem is undergoing three major operational transformations. First, encryptionless extortion is rising as ransom payments dropped to 28% in 2025. Groups like ShinyHunters now bypass file encryption entirely, focusing instead on data theft and public disclosure. This shifts the victim\u0026rsquo;s primary concern from operational disruption to regulatory consequences and reputational harm.\u003c/p\u003e\n\n\u003cp\u003eSecond, defense evasion has become a standardized, repeatable phase of the attack lifecycle. Operators routinely deploy EDR killers and exploit trusted, signed drivers through Bring Your Own Vulnerable Driver techniques to degrade defensive visibility. Third, new ransomware families are integrating post-quantum cryptography. The PE32 group utilizes the Kyber1024 algorithm, a NIST-selected standard that secures AES keys against both classical and quantum decryption attempts.\u003c/p\u003e\n\n\u003ch2 id=\"ecosystem-dynamics-and-actor-analysis\"\u003eEcosystem Dynamics and Actor Analysis\u003c/h2\u003e\n\n\u003cp\u003eInitial access has become highly industrialized through an Access-as-a-Service model. Initial access brokers supply pre-compromised credentials harvested from infostealers and phishing campaigns. While RDP and VPN remain common vectors, attackers are increasingly targeting RDWeb portals that are frequently vulnerable or inadequately safeguarded.\u003c/p\u003e\n\n\u003cp\u003eThe underground market facilitates this specialization, with compromised datasets and access credentials traded on Telegram channels and dark web forums. The competitive landscape features both established and emerging actors. Qilin dominated targeted attacks in 2025 through high-volume operations and a structured affiliate model. Clop distinguished itself with supply-chain-style attacks exploiting enterprise software, while Akira maintained consistent operational stability. RansomHub experienced sudden dormancy, creating a market vacuum filled by newer groups.\u003c/p\u003e\n\n\u003cp\u003eEmerging 2026 actors like The Gentlemen demonstrate a professionalized, data-centric approach. They target widely deployed enterprise hardware such as FortiOS, SonicWall, and Cisco ASA appliances, focusing on controlled pressure and reputational risk rather than immediate disruption. Other noted groups include Devman, MintEye, DireWolf, NightSpire, Vect, Tengu, and Kazu, illustrating the low barrier to entry and constant churn within the ecosystem.\u003c/p\u003e\n\n\u003ch2 id=\"law-enforcement-and-dark-web-activity\"\u003eLaw Enforcement and Dark Web Activity\u003c/h2\u003e\n\n\u003cp\u003eLaw enforcement agencies are actively disrupting ransomware infrastructure by seizing dark web platforms and data leak sites. Major underground forums like RAMP and LeakBase were seized in early 2026, following takedowns of Nulled, Cracked, and XSS in 2025. Specific ransomware groups like BlackSuit and 8Base also saw their leak sites seized.\u003c/p\u003e\n\n\u003cp\u003eWhile these actions cause coordination friction for initial access brokers and affiliates, similar forums typically emerge to fill the void. The dark web remains a central hub for malware distribution, service advertisements, and cross-group collaboration, ensuring operational continuity despite enforcement pressure.\u003c/p\u003e\n\n\u003ch2 id=\"defensive-recommendations\"\u003eDefensive Recommendations\u003c/h2\u003e\n\n\u003cp\u003eKaspersky outlines several critical defensive measures to counter the evolving threat. Organizations must prioritize proactive patching and vulnerability management, utilizing automated tools to update operating systems and software. Enabling Microsoft’s Vulnerable Driver Blocklist is essential to thwart BYOVD attacks.\u003c/p\u003e\n\n\u003cp\u003eRemote access infrastructure requires strict hardening, with RDP and RDWeb connections restricted behind VPNs or Zero Trust Network Access architectures. Continuous multi-factor authentication and the Principle of Least Privilege should be enforced across all endpoints. Network segmentation and robust EDR solutions like Kaspersky NEXT are necessary to detect suspicious driver loading and limit lateral movement.\u003c/p\u003e\n\n\u003cp\u003eFinally, maintaining regularly tested offline backups, conducting simulated phishing training, and developing comprehensive incident response plans are vital. The report strongly advises against paying ransoms due to infrastructure risks and affiliate instability, recommending the use of free decryptors when available.\u003c/p\u003e\n","keyPoints":["Ransomware groups are increasingly adopting post-quantum cryptography, with families like PE32 utilizing the NIST-selected Kyber1024 algorithm to resist decryption by classical and quantum computers.","As ransom payments dropped to 28% in 2025, attackers are shifting toward encryptionless extortion that focuses exclusively on data theft and public disclosure rather than file encryption.","Initial access remains highly industrialized through initial access brokers selling compromised credentials, with attackers increasingly targeting RDWeb portals as a preferred remote access vector.","Defense evasion has become a standard phase of the attack lifecycle, with operators routinely deploying EDR killers and exploiting signed drivers through Bring Your Own Vulnerable Driver techniques to disable endpoint protections.","Law enforcement takedowns of underground forums and leak sites have disrupted some operations, but the ransomware ecosystem remains stable with new groups like Qilin and The Gentlemen quickly filling operational vacuums."],"insights":["The shift to encryptionless extortion renders traditional offline backups ineffective, as organizations now face direct risks from data exposure, regulatory penalties, and reputational damage.","Attackers are systematically disabling EDR tools by exploiting trusted, signed drivers through BYOVD techniques, making Microsoft’s Vulnerable Driver Blocklist a critical defensive control.","With public RDP exposure increasingly restricted, initial access brokers are pivoting to target inadequately secured RDWeb portals as the primary remote access vector.","Emerging groups like \"The Gentlemen\" are professionalizing ransomware by focusing on controlled data exfiltration and targeting widely deployed enterprise hardware such as FortiOS and Cisco ASA appliances.","Captured credentials from infostealers now fuel the access-as-a-service market, requiring continuous authentication and strict credential monitoring to prevent breaches from single compromised accounts."],"referencedReports":[{"title":"Kaspersky and VDC Research Reveal Over $18B in Potential Losses from Ransomware Attacks on the Global Manufacturing Industry in 2025","url":"https://www.kaspersky.com/about/press-releases/kaspersky-and-vdc-research-reveal-over-18b-in-potential-losses-from-ransomware-attacks-on-the-global-manufacturing-industry-in-2025","publisher":"Kaspersky \u0026 VDC Research","context":"Cited for joint research findings indicating that ransomware attacks caused over $18 billion in losses in the manufacturing sector during the first three quarters of 2025."},{"title":"Crypto Ransomware 2026","url":"https://www.chainalysis.com/blog/crypto-ransomware-2026/","publisher":"Chainalysis","context":"Referenced to support the statistic that the share of ransom payments dropped to 28% in 2025."}],"body":"\u003cp\u003eThe 2026 ransomware landscape is defined by a shift toward encryptionless extortion and the adoption of post-quantum cryptography by emerging threat families. Although the percentage of organizations affected by ransomware decreased in 2025, the threat remains highly persistent and efficiently scaled.\u003c/p\u003e\n\n\u003cp\u003eAttackers are increasingly relying on defense evasion tools, such as EDR killers and BYOVD techniques, to neutralize endpoint protections before deployment. As ransom payments dropped to 28%, groups like ShinyHunters are prioritizing data theft and public disclosure over file encryption.\u003c/p\u003e\n\n\u003cp\u003eInitial access has become highly industrialized through initial access brokers, with RDWeb portals emerging as a preferred remote access vector. Law enforcement has disrupted several dark web platforms, but new actors like Qilin and The Gentlemen quickly fill operational vacuums. Organizations must prioritize proactive patching, secure remote access architectures, and immutable backups to mitigate these evolving risks.\u003c/p\u003e\n"},{"n":2,"title":"Instructure reaches 'agreement' with ShinyHunters to stop data leak","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/instructure-reaches-agreement-with-shinyhunters-to-stop-data-leak/","time":"09:23","priority":"SHOULD READ","score":85,"group":"N","groupColor":"#fb923c","tldr":"Instructure reached an agreement with the ShinyHunters extortion group to prevent the leak of over 3.6TB of stolen Canvas LMS data, though experts warn that ransom payments do not guarantee data security or prevent future attacks.","briefOverview":"\u003cp\u003eInstructure, the company behind the Canvas learning management system, has reached an agreement with the ShinyHunters extortion group to prevent the online leak of stolen data. The agreement includes the return and destruction of over 3.6TB of uncompressed data, verified by shred logs provided by the attackers. The breach exploited multiple cross-site scripting vulnerabilities within Canvas\u0026rsquo;s Free-for-Teacher environment, allowing hackers to steal data and deface login portals across thousands of educational institutions. Although Instructure states that no customers will be extorted and that the platform has been restored, the FBI warns that ransom payments do not guarantee data security or prevent future attacks. Instructure has temporarily disabled the compromised Free-for-Teacher accounts and plans to share further incident details in an upcoming webinar. The company also disclosed a separate September 2025 breach involving its Salesforce instance, which was similarly claimed by ShinyHunters. This incident follows a pattern of recent high-profile attacks attributed to the same cybercrime group targeting major corporations and institutions worldwide.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eInstructure, the developer of the widely used Canvas learning management system, has announced a resolution with the ShinyHunters extortion group regarding a recent cyberattack. The company confirmed that the attackers returned the stolen data and provided shred logs to verify its destruction. This agreement ensures that no Instructure customers will face extortion or public data leaks as a result of the incident. The breach initially compromised over 3.6TB of uncompressed data by exploiting multiple cross-site scripting vulnerabilities in Canvas\u0026rsquo;s Free-for-Teacher environment. Following the initial data theft, ShinyHunters exploited the same vulnerability to deface Canvas login portals and issue a ransom deadline of May 12. Instructure has since restored the platform to full functionality and temporarily shut down all Free-for-Teacher accounts to contain the threat. The company advises customers to continue monitoring their Canvas environments and administrative activity for any anomalies. While Instructure maintains that the agreement covers all impacted customers, the FBI has repeatedly warned that paying ransom demands does not guarantee that threat actors will refrain from selling data or launching future attacks. Instructure leadership plans to provide additional details about the incident and its security measures during a webinar on May 13. The company also disclosed a separate security incident in September 2025 involving its Salesforce instance, which was similarly claimed by ShinyHunters. This attack is part of a broader campaign by the group, which has recently targeted numerous high-profile organizations including Google, Cisco, the European Commission, and several other major corporations.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"incident-overview\"\u003eIncident Overview\u003c/h3\u003e\n\n\u003cp\u003eInstructure, the edtech giant behind the Canvas learning management system, has reached an agreement with the ShinyHunters extortion group to prevent the public leak of data stolen during a recent cyberattack. The company serves over 30 million educators and students across more than 8,000 schools and universities worldwide. According to Instructure, the attackers returned the stolen data and provided shred logs confirming its complete destruction. The agreement explicitly covers all impacted customers, and the company states that no individual customers need to engage with the unauthorized actor.\u003c/p\u003e\n\n\u003ch3 id=\"attack-vector-and-timeline\"\u003eAttack Vector and Timeline\u003c/h3\u003e\n\n\u003cp\u003eShinyHunters claimed responsibility for stealing more than 3.6TB of uncompressed data after exploiting multiple cross-site scripting vulnerabilities. The attackers specifically targeted the Free-for-Teacher environment, a free, limited version of Canvas designed for individual educators. By injecting malicious JavaScript into user-generated content features, the group obtained authenticated admin sessions and performed privileged actions to exfiltrate data. On May 7, the same threat actors used the identical vulnerability to deface Canvas login portals and leave an extortion message. They warned that the company and its customers had until May 12 to enter negotiations to pay a ransom.\u003c/p\u003e\n\n\u003ch3 id=\"company-response-and-security-measures\"\u003eCompany Response and Security Measures\u003c/h3\u003e\n\n\u003cp\u003eInstructure confirmed that Canvas has been fully restored and is available for normal use. The company temporarily shut down all Free-for-Teacher accounts and is actively working to resolve the underlying security issues. Instructure recommends that customers continue normal monitoring of their Canvas environments, integrations, and administrative activity. Leadership plans to share further details regarding the incident and the specific measures taken to secure systems against future breaches during a webinar on May 13.\u003c/p\u003e\n\n\u003ch3 id=\"industry-context-and-advisory-warnings\"\u003eIndustry Context and Advisory Warnings\u003c/h3\u003e\n\n\u003cp\u003eThe FBI has repeatedly warned that paying ransom demands does not guarantee that threat actors will refrain from selling stolen data to other cybercriminals or attempting to extort victims again. This incident follows a separate breach disclosed by Instructure in September 2025, which also was claimed by ShinyHunters and involved unauthorized access to the company\u0026rsquo;s Salesforce instance. ShinyHunters has recently claimed responsibility for numerous high-profile breaches targeting major organizations, including Google, Cisco, the European Commission, Match Group, Rockstar Games, ADT, Vimeo, McGraw-Hill, Medtronic, and Zara. The article also references related reports and upcoming security events, highlighting the ongoing threat landscape for educational technology platforms.\u003c/p\u003e\n","keyPoints":["Instructure reached an agreement with the ShinyHunters extortion group to prevent the online leak of stolen data and confirmed the attackers returned and destroyed the information.","The cyberattack exploited multiple cross-site scripting vulnerabilities in Canvas's Free-for-Teacher environment to steal over 3.6TB of uncompressed data and deface login portals.","The FBI has repeatedly warned that paying ransom demands does not guarantee threat actors will refrain from selling stolen data or attempting future extortion.","Instructure temporarily disabled Free-For-Teacher accounts and is working to resolve the security issues while planning to share further incident details in an upcoming webinar."],"insights":["The attack chain leveraged multiple XSS vulnerabilities in Canvas's user-generated content features to escalate privileges and hijack authenticated admin sessions.","ShinyHunters provided shred logs to verify data destruction, a rare compliance measure from an extortion group that confirms the data was returned and destroyed per the agreement.","Instructure immediately disabled the Free-for-Teacher accounts after the second intrusion, demonstrating a rapid containment strategy focused on isolating the specific compromised environment."],"referencedReports":[{"title":"FBI Ransomware Advisory/Warning","url":"https://www.fbi.gov/how-we-can-help-you/scams-and-safety/common-frauds-and-scams/ransomware","publisher":"Federal Bureau of Investigation (FBI)","context":"The article cites this link to reference the FBI's repeated warnings that paying ransom demands does not guarantee data recovery or prevent future extortion attempts."}],"body":"\u003cp\u003eInstructure, the company behind the Canvas learning management system, has reached an agreement with the ShinyHunters extortion group to prevent the online leak of stolen data. The agreement includes the return and destruction of over 3.6TB of uncompressed data, verified by shred logs provided by the attackers. The breach exploited multiple cross-site scripting vulnerabilities within Canvas\u0026rsquo;s Free-for-Teacher environment, allowing hackers to steal data and deface login portals across thousands of educational institutions. Although Instructure states that no customers will be extorted and that the platform has been restored, the FBI warns that ransom payments do not guarantee data security or prevent future attacks. Instructure has temporarily disabled the compromised Free-for-Teacher accounts and plans to share further incident details in an upcoming webinar. The company also disclosed a separate September 2025 breach involving its Salesforce instance, which was similarly claimed by ShinyHunters. This incident follows a pattern of recent high-profile attacks attributed to the same cybercrime group targeting major corporations and institutions worldwide.\u003c/p\u003e\n"},{"n":3,"title":"Instructure Reaches Ransom Agreement with ShinyHunters to Stop 3.65TB Canvas Leak","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/instructure-reaches-ransom-agreement.html","time":"07:37","priority":"SHOULD READ","score":85,"group":"N","groupColor":"#fb923c","tldr":"Instructure paid a ransom to the ShinyHunters extortion group to prevent the leak of 3.65TB of stolen data affecting nearly 9,000 educational institutions. The breach compromised 275 million records after attackers exploited a vulnerability in the company's Free-for-Teacher environment.","briefOverview":"\u003cp\u003eInstructure, the parent company of the Canvas learning management system, reached a ransom agreement with the ShinyHunters extortion group to prevent the public leak of 3.65TB of stolen data. The breach impacted nearly 9,000 educational organizations and involved the exfiltration of approximately 275 million records containing usernames, email addresses, and enrollment information. Attackers initially gained access by exploiting an unspecified vulnerability in Canvas\u0026rsquo;s Free-for-Teacher environment. Following a second wave of activity that defaced login portals at 330 institutions and set a May 12, 2026 deadline, Instructure negotiated the return of the data and secured confirmation of its destruction. The company has temporarily shut down Free-for-Teacher accounts, revoked privileged credentials, and rotated internal keys to secure its network. While course content and user credentials were not compromised, the stolen metadata poses a significant risk for targeted phishing campaigns against staff, students, and parents. Instructure is currently working with forensic vendors to improve its cybersecurity posture and conduct a comprehensive review of the incident.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eInstructure, a Utah-based educational technology company and parent of Canvas, announced it reached a ransom agreement with the ShinyHunters cybercrime group. The company cited concerns about the potential publication of stolen data from thousands of schools and universities as the primary reason for the controversial payment. The agreement covers all impacted customers and confirms that the pilfered information was returned along with digital proof of its destruction. Instructure also stated that customers will not face separate extortion attempts related to this incident. The breach initially occurred late last month when attackers weaponized an unspecified vulnerability in Canvas\u0026rsquo;s Free-for-Teacher environment. This exploit allowed them to siphon approximately 275 million records containing usernames, email addresses, course names, enrollment details, and messages. Although the incident initially appeared contained, a second wave of unauthorized activity emerged on May 7, 2026. During this follow-up attack, the group defaced Canvas login portals at roughly 330 institutions and issued a ransom deadline of May 12, 2026. In response to the breach, Instructure immediately shut down Free-for-Teacher accounts and revoked privileged credentials and access tokens. The company also rotated internal keys, restricted token creation pathways, and deployed additional security controls across its systems. Instructure emphasized that course content, submissions, and user credentials remained secure throughout the incident. However, the exfiltrated records provide threat actors with enough personal context to launch targeted phishing campaigns against staff, students, and parents. Security analysts warn that leaked data could facilitate impersonation attacks targeting school administrators, IT support, and financial aid offices. Institutions are advised to issue immediate phishing advisories and communicate directly with their communities to mitigate follow-on attacks. The company is currently collaborating with expert vendors to conduct forensic analysis and strengthen its overall cybersecurity posture.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"incident-overview\"\u003eIncident Overview\u003c/h3\u003e\n\n\u003cp\u003eInstructure, the Utah-based parent company of the Canvas learning management system, confirmed a network breach by the ShinyHunters extortion group. The incident resulted in the theft of 3.65TB of data and impacted nearly 9,000 educational organizations. Instructure ultimately reached a ransom agreement to prevent the public release of the stolen information. The company stated that the agreement covers all affected customers and confirmed the return of the data along with digital verification of its destruction. Additionally, Instructure assured that no customers would face separate extortion demands stemming from the hack.\u003c/p\u003e\n\n\u003ch3 id=\"attack-vector-and-timeline\"\u003eAttack Vector and Timeline\u003c/h3\u003e\n\n\u003cp\u003eThe initial compromise leveraged an unspecified vulnerability related to support tickets within Canvas\u0026rsquo;s Free-for-Teacher environment. This access point allowed attackers to exfiltrate approximately 275 million records containing usernames, email addresses, course names, enrollment information, and direct messages. While the breach was initially contained, a secondary wave of activity was detected on May 7, 2026. During this follow-up phase, the group defaced Canvas login portals at approximately 330 institutions and set a ransom negotiation deadline of May 12, 2026.\u003c/p\u003e\n\n\u003ch3 id=\"containment-and-remediation\"\u003eContainment and Remediation\u003c/h3\u003e\n\n\u003cp\u003eInstructure took immediate defensive measures following the discovery of the breach. The company implemented the following security controls:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eTemporarily disabled all Free-for-Teacher accounts to halt unauthorized access.\u003c/li\u003e\n\u003cli\u003eRevoked privileged credentials and access tokens for affected systems.\u003c/li\u003e\n\u003cli\u003eRotated internal cryptographic keys and restricted token creation pathways.\u003c/li\u003e\n\u003cli\u003eDeployed additional network security controls and partnered with forensic vendors for comprehensive analysis.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"data-impact-and-threat-landscape\"\u003eData Impact and Threat Landscape\u003c/h3\u003e\n\n\u003cp\u003eInstructure emphasized that core academic materials, including course content, student submissions, and user credentials, were not compromised. However, the exfiltrated metadata provides threat actors with sufficient personal context to conduct highly targeted phishing campaigns. Analysts note that the stolen records could be used to impersonate school administrators, IT support staff, or financial aid offices in follow-on attacks. Consequently, institutions are strongly advised to issue immediate phishing advisories and establish direct communication channels with staff, students, and parents to mitigate secondary exploitation risks.\u003c/p\u003e\n","keyPoints":["Instructure reached a ransom agreement with the ShinyHunters group to prevent the leak of 3.65TB of data affecting nearly 9,000 educational organizations.","Attackers obtained initial access and exfiltrated approximately 275 million records by weaponizing an unspecified vulnerability in Canvas's Free-for-Teacher environment.","Instructure has temporarily shut down Free-for-Teacher accounts, revoked privileged credentials, and rotated internal keys to secure its systems.","The company confirmed that course content, submissions, and user credentials were not compromised, though the leaked data could facilitate targeted phishing campaigns."],"insights":["The initial compromise exploited a vulnerability in the public \"Free-for-Teacher\" environment, prompting Instructure to immediately shut down those accounts and restrict token creation pathways.","The extortion campaign utilized a two-stage pressure tactic, combining an initial data exfiltration of 275 million records with a later coordinated defacement of login portals across 330 institutions to enforce a ransom deadline.","While course content and credentials were not compromised, the exfiltrated metadata provides sufficient personal context for targeted phishing, making immediate institutional phishing advisories and direct communications a critical defensive step."],"referencedReports":[],"body":"\u003cp\u003eInstructure, the parent company of the Canvas learning management system, reached a ransom agreement with the ShinyHunters extortion group to prevent the public leak of 3.65TB of stolen data. The breach impacted nearly 9,000 educational organizations and involved the exfiltration of approximately 275 million records containing usernames, email addresses, and enrollment information. Attackers initially gained access by exploiting an unspecified vulnerability in Canvas\u0026rsquo;s Free-for-Teacher environment. Following a second wave of activity that defaced login portals at 330 institutions and set a May 12, 2026 deadline, Instructure negotiated the return of the data and secured confirmation of its destruction. The company has temporarily shut down Free-for-Teacher accounts, revoked privileged credentials, and rotated internal keys to secure its network. While course content and user credentials were not compromised, the stolen metadata poses a significant risk for targeted phishing campaigns against staff, students, and parents. Instructure is currently working with forensic vendors to improve its cybersecurity posture and conduct a comprehensive review of the incident.\u003c/p\u003e\n"},{"n":5,"title":"OpenAI Launches Daybreak for AI-Powered Vulnerability Detection and Patch Validation","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/openai-launches-daybreak-for-ai-powered.html","time":"06:55","priority":"MAY READ","score":0,"group":null,"groupColor":null,"tldr":"","briefOverview":"","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":[],"insights":[],"referencedReports":[],"body":""}];
+window.__DL_DIGEST   = "downlink-digest-2026-05-12_1027.html";
+window.__DL_WINDOW   = "4 hours";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function GroupBadge({ group, groupColor }) {
+  if (!group || !groupColor) return null;
+  const c = groupColor;
+  return (
+    <span style={{
+      display: "inline-block", flexShrink: 0,
+      width: 20, height: 20,
+      border: "1px solid color-mix(in oklch, " + c + " 45%, transparent)",
+      background: "color-mix(in oklch, " + c + " 12%, transparent)",
+      borderRadius: 2
+    }} />
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+function pointList(items) {
+  return (
+    <ul className="kp-list">
+      {(items || []).map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            <a href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => <div className="prose">{article.tldr}</div> });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Full", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  if (article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => pointList(article.keyPoints) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => pointList(article.insights) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  const initialTab = tabs[0] ? tabs[0].id : "source";
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  return (
+    <>
+      <div className="tabs">
+        {tabs.map(tab => (
+          <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <nav style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--cyan)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="live-dot" />
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em" }}>LIVE</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      </div>
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+        border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+      }}>
+        {Math.min(index + 1, total)} / {total}
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+              {article.source}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 22, lineHeight: 1.3, color: "var(--text)", letterSpacing: "-0.005em" }}>
+          {article.title}
+        </h2>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text2)", fontSize: 14, lineHeight: 1.65, fontWeight: 400 }}>{article.tldr}</p>
+        {article.keyPoints && article.keyPoints.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+            <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+              {article.keyPoints.map((kp, i) => (
+                <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: priorityC, marginTop: 3, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.35, color: "var(--text)", marginBottom: 12 }}>
+          {article.title}
+        </h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor }}>{article.source}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Fly right then flip to detail view
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.28s cubic-bezier(.4,0,.6,1)";
+          el.style.transform = `translate(60%, ${dy}px) rotate(12deg) scale(0.95)`;
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.getBoundingClientRect();
+            el2.style.transition = "";
+          }
+        }, 280);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{
+        opacity: 0,
+        color: flipped ? "var(--accept)" : "var(--discard)",
+        borderColor: flipped ? "var(--accept)" : "var(--discard)"
+      }}>{flipped ? "DONE" : "SKIP"}</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "80px 24px 0" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: "32px 24px 48px" }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 32 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 32, textAlign: "center" }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<div id="root"></div>
+</body>
+</html>

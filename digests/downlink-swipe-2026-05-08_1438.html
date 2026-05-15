@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+  }
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; overflow-x: hidden; }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklch, var(--cyan) 60%, transparent); }
+    70%  { box-shadow: 0 0 0 5px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); animation: pulse-ring 2s ease-out infinite; }
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; height: 620px; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--discard); border-color: var(--discard); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--accept);  border-color: var(--accept); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .kp-list li { display: flex; gap: 0.6rem; font-size: 13px; line-height: 1.6; color: var(--text2); }
+  .kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); }
+  .report-title a { color: var(--text); text-decoration: none; }
+  .report-title a:hover { color: var(--cyan); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<script>
+window.__DL_ARTICLES = [{"n":2,"title":"CISA gives feds four days to patch Ivanti flaw exploited as zero-day","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/cisa-gives-feds-four-days-to-patch-ivanti-flaw-exploited-as-zero-day/","time":"12:16","priority":"MUST READ","score":95,"group":null,"groupColor":null,"tldr":"CISA has mandated that US federal agencies patch the actively exploited Ivanti EPMM zero-day vulnerability within four days, and Ivanti has released updated software versions to address the flaw.","briefOverview":"\u003cp\u003eThe U.S. Cybersecurity and Infrastructure Security Agency has ordered federal agencies to patch a critical Ivanti vulnerability within four days. Tracked as CVE-2026-6973, this flaw enables remote code execution for attackers who possess administrative privileges on affected systems. Ivanti released a security advisory recommending immediate updates to specific software versions and the rotation of administrative credentials. The vendor noted that exploitation remains limited and strictly requires admin authentication. Furthermore, the vulnerability only impacts on-premises EPMM deployments, leaving cloud-based solutions unaffected. Security researchers currently track over 800 exposed appliances online, though patch rates remain unverified. Previous zero-day patches in January significantly reduce the risk for this latest flaw if credentials were already rotated. Organizations should prioritize the May 10 federal deadline and verify their EPMM version against the recommended updates.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eThe U.S. Cybersecurity and Infrastructure Security Agency has mandated that federal agencies patch the actively exploited Ivanti Endpoint Manager Mobile vulnerability by midnight on Sunday, May 10. This high-severity flaw, identified as CVE-2026-6973, allows attackers with administrative privileges to execute arbitrary code remotely on systems running version 12.8.0.0 and earlier. Ivanti published a Thursday security advisory detailing remediation steps, which include installing updated software versions 12.6.1.1, 12.7.0.1, and 12.8.0.1. The company also advised administrators to review accounts holding administrative rights and rotate those credentials immediately. At the time of disclosure, Ivanti reported very limited exploitation and confirmed that successful attacks require admin authentication. The vulnerability exclusively affects on-premises EPMM appliances and does not impact cloud-based offerings like Ivanti Neurons for MDM or Ivanti EPM. Meanwhile, the Shadowserver Foundation currently tracks more than 800 EPMM appliances exposed to the internet, though the exact number of patched systems is unknown. This advisory follows previous security notices from late January regarding CVE-2026-1281 and CVE-2026-1340, which were also exploited in zero-day attacks. CISA previously issued a similar four-day patching order for federal agencies targeting the CVE-2026-1340 flaw. Ivanti emphasized that organizations that followed January recommendations to rotate credentials will face significantly reduced risk from the current vulnerability. Ivanti continues to support over 40,000 global clients through a network of more than 7,000 partners.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eVulnerability Overview and Scope\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eThe U.S. Cybersecurity and Infrastructure Security Agency has issued an emergency mandate requiring federal agencies to patch a critical Ivanti flaw within four days. Tracked as CVE-2026-6973, this high-severity vulnerability enables remote code execution for attackers who possess administrative privileges. The flaw impacts Ivanti Endpoint Manager Mobile versions 12.8.0.0 and earlier. Crucially, the vulnerability only affects on-premises EPMM deployments. It does not extend to cloud-based solutions such as Ivanti Neurons for MDM, Ivanti EPM, or Ivanti Sentry.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eRemediation Guidance and Vendor Advisory\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eIvanti published a Thursday security advisory outlining immediate mitigation steps for customers. Organizations must install updated software versions, specifically 12.6.1.1, 12.7.0.1, or 12.8.0.1. The vendor also strongly recommends reviewing all accounts with administrative rights and rotating those credentials. At the time of disclosure, Ivanti reported very limited exploitation and confirmed that successful attacks strictly require admin authentication. The company noted that organizations following January credential rotation recommendations will see significantly reduced risk from this specific flaw.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eThreat Landscape and Exposure\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eCISA added the security flaw to its Known Exploited Vulnerabilities catalog and set a strict deadline of midnight Sunday, May 10. The agency warned that this vulnerability type remains a frequent attack vector posing significant risks to the federal enterprise. Independent tracking by the Shadowserver Foundation currently reveals over 800 EPMM appliances exposed online. However, there is no available data on how many of these systems have already been patched. This situation follows previous zero-day attacks in late January involving CVE-2026-1281 and CVE-2026-1340. CISA previously mandated a similar four-day federal patching window for the CVE-2026-1340 flaw.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eOrganizational Context\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eIvanti provides IT asset management solutions to more than 40,000 clients worldwide. The company operates with support from an extensive network of over 7,000 partners. The article also references related security advisories and upcoming industry events focused on autonomous validation and exploit chaining.\u003c/p\u003e\n","keyPoints":["CISA has mandated that U.S. federal agencies patch the actively exploited Ivanti EPMM zero-day vulnerability, CVE-2026-6973, by midnight Sunday, May 10.","Ivanti has released updated software versions for on-premises EPMM appliances and advised administrators to review and rotate credentials with administrative privileges.","The vulnerability allows attackers with administrative access to execute arbitrary code remotely on systems running EPMM version 12.8.0.0 and earlier.","Shadowserver currently tracks over 800 Ivanti EPMM appliances exposed online, though the number of patched systems remains unknown."],"insights":["Exploitation requires administrative authentication, making credential rotation and strict admin access reviews a direct mitigation strategy.","The vulnerability exclusively affects on-premises EPMM deployments, meaning cloud-based Ivanti solutions remain unaffected and organizations can triage remediation based on infrastructure type.","CISA mandated a four-day federal patch deadline despite Ivanti reporting only \"very limited exploitation\" at disclosure, indicating a proactive threat intelligence response rather than a widespread active campaign."],"referencedReports":[{"title":"May 2026 Security Advisory","url":"https://hub.ivanti.com/s/article/May-2026-Security-Advisory-Ivanti-Endpoint-Manager-Mobile-EPMM-Multiple-CVEs?language=en_US","publisher":"Ivanti","context":"The article references this document as the Thursday security advisory where Ivanti outlined patching instructions and confirmed limited exploitation."},{"title":"CISA adds one known exploited vulnerability to catalog","url":"https://www.cisa.gov/news-events/alerts/2026/04/08/cisa-adds-one-known-exploited-vulnerability-catalog","publisher":"CISA","context":"The article cites this alert as the official notice where CISA added the flaw to its Known Exploited Vulnerabilities catalog and mandated federal remediation."}],"body":"\u003cp\u003eThe U.S. Cybersecurity and Infrastructure Security Agency has ordered federal agencies to patch a critical Ivanti vulnerability within four days. Tracked as CVE-2026-6973, this flaw enables remote code execution for attackers who possess administrative privileges on affected systems. Ivanti released a security advisory recommending immediate updates to specific software versions and the rotation of administrative credentials. The vendor noted that exploitation remains limited and strictly requires admin authentication. Furthermore, the vulnerability only impacts on-premises EPMM deployments, leaving cloud-based solutions unaffected. Security researchers currently track over 800 exposed appliances online, though patch rates remain unverified. Previous zero-day patches in January significantly reduce the risk for this latest flaw if credentials were already rotated. Organizations should prioritize the May 10 federal deadline and verify their EPMM version against the recommended updates.\u003c/p\u003e\n"},{"n":6,"title":"Quasar Linux RAT Steals Developer Credentials for Software Supply Chain Compromise","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/quasar-linux-rat-steals-developer.html","time":"11:00","priority":"MUST READ","score":92,"group":null,"groupColor":null,"tldr":"Quasar Linux RAT (QLNX) is a stealthy malware implant targeting developers and DevOps environments to harvest sensitive credentials and compromise the software supply chain through advanced rootkit techniques and fileless execution.","briefOverview":"\u003cp\u003eQuasar Linux RAT (QLNX) is a fileless malware implant designed to target developer and DevOps systems. It establishes a silent foothold by masquerading as a kernel thread and executing entirely from memory. The malware systematically harvests sensitive credentials from high-value configuration files such as .npmrc, .git-credentials, and .kube/config. Compromising these assets allows threat actors to push malicious packages to registries, access cloud infrastructure, or pivot through CI/CD pipelines. QLNX employs a two-tiered rootkit architecture that combines userland LD_PRELOAD hooking with a kernel-level eBPF component to hide its processes and files. It also features a PAM inline-hook backdoor that intercepts plaintext credentials during authentication. The implant maintains persistence through multiple methods, including systemd, crontab, and shell injection. It communicates with a command-and-control server over raw TCP, HTTPS, and HTTP to receive over 50 distinct operational commands.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eA previously undocumented Linux implant known as Quasar Linux RAT (QLNX) is actively targeting developer environments to establish a persistent foothold. The malware executes filelessly from memory and disguises itself as standard kernel threads like kworker or ksoftirqd. Once deployed, QLNX profiles the host to detect containerized environments and systematically wipes system logs to cover its tracks. It utilizes at least seven different persistence mechanisms, including systemd services, crontab entries, and .bashrc shell injections. The implant features a robust credential harvester that extracts secrets from critical configuration files such as .npmrc, .pypirc, .git-credentials, .aws/credentials, .kube/config, .docker/config.json, .vault-token, Terraform credentials, GitHub CLI tokens, and .env files. Harvesting these assets enables operators to push poisoned packages to NPM or PyPI registries, access cloud infrastructure, or pivot through CI/CD pipelines. QLNX also includes a PAM inline-hook backdoor that intercepts plaintext credentials during authentication events and logs outbound SSH session data. A secondary PAM-based credentials logger is automatically loaded into every dynamically linked process to extract service names, usernames, and authentication tokens. The malware employs a dual-layer evasion strategy that combines a userland rootkit via the LD_PRELOAD mechanism with a kernel-level eBPF component. This architecture dynamically conceals processes, files, and network ports from standard Linux utilities upon receiving C2 instructions. Communication with the command-and-control server occurs continuously over raw TCP, HTTPS, and HTTP. The implant supports 58 distinct commands that allow operators to execute shell commands, manage files, inject code, take screenshots, log keystrokes, establish SOCKS proxies, run Beacon Object Files, and manage a peer-to-peer mesh network.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"malware-overview-and-targeting\"\u003eMalware Overview and Targeting\u003c/h1\u003e\n\n\u003cp\u003eQuasar Linux RAT (QLNX) is a previously undocumented Linux implant designed to establish a silent foothold in developer and DevOps environments. The malware is engineered for long-term stealth and credential theft, specifically targeting high-value assets across the software supply chain.\u003c/p\u003e\n\n\u003ch1 id=\"execution-and-evasion-techniques\"\u003eExecution and Evasion Techniques\u003c/h1\u003e\n\n\u003cp\u003eQLNX operates filelessly by executing entirely from memory. It masquerades as standard kernel threads, such as kworker or ksoftirqd, to avoid detection. Upon initial compromise, the implant profiles the host environment to identify containerized setups and immediately wipes system logs to erase its tracks. The malware utilizes a two-tiered rootkit architecture to maintain stealth:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eA userland rootkit is deployed through the Linux dynamic linker\u0026rsquo;s LD_PRELOAD mechanism to hide implant artifacts and processes.\u003c/li\u003e\n\u003cli\u003eA kernel-level eBPF component leverages the BPF subsystem to dynamically conceal processes, files, and network ports from standard userland tools like ps, ls, and netstat when instructed by the command-and-control server.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch1 id=\"persistence-mechanisms\"\u003ePersistence Mechanisms\u003c/h1\u003e\n\n\u003cp\u003eThe implant establishes persistence through at least seven distinct methods to ensure long-term access. These mechanisms include systemd service creation, crontab job scheduling, .bashrc shell injection, and additional redundant persistence methods that guarantee survival across reboots and system changes.\u003c/p\u003e\n\n\u003ch1 id=\"credential-harvesting-capabilities\"\u003eCredential Harvesting Capabilities\u003c/h1\u003e\n\n\u003cp\u003eQLNX features a specialized credential harvester that systematically extracts secrets from critical configuration files. The targeted files include .npmrc (npm tokens), .pypirc (PyPI credentials), .git-credentials, .aws/credentials, .kube/config, .docker/config.json, .vault-token, Terraform credentials, GitHub CLI tokens, and .env files. The compromise of these assets allows threat actors to push malicious packages to NPM or PyPI registries, access cloud infrastructure, or pivot through CI/CD pipelines.\u003c/p\u003e\n\n\u003ch1 id=\"authentication-interception-and-logging\"\u003eAuthentication Interception and Logging\u003c/h1\u003e\n\n\u003cp\u003eThe malware includes advanced authentication interception capabilities through two distinct PAM-based mechanisms. A PAM inline-hook backdoor intercepts plaintext credentials during authentication events, logs outbound SSH session data, and transmits the information to the command-and-control server. A secondary PAM-based credentials logger is automatically loaded into every dynamically linked process to extract service names, usernames, and authentication tokens.\u003c/p\u003e\n\n\u003ch1 id=\"command-and-control-and-operational-capabilities\"\u003eCommand-and-Control and Operational Capabilities\u003c/h1\u003e\n\n\u003cp\u003eOnce established, QLNX runs a persistent loop to maintain communication with the attacker-controlled infrastructure over raw TCP, HTTPS, and HTTP. The implant supports 58 distinct commands that grant operators complete control over the compromised host. These commands enable a wide range of post-compromise activities, including executing arbitrary shell commands, managing files, injecting code into processes, taking screenshots, logging keystrokes, establishing SOCKS proxies and TCP tunnels, running Beacon Object Files (BOFs), and managing a peer-to-peer (P2P) mesh network. The malware exfiltrates all collected data to the attacker\u0026rsquo;s infrastructure and chains these capabilities together into a coherent attack workflow designed for supply chain compromise.\u003c/p\u003e\n","keyPoints":["Quasar Linux RAT (QLNX) is a fileless malware implant that targets developer and DevOps systems to harvest sensitive credentials from high-value configuration files.","The malware masquerades as a kernel thread and employs a two-tiered rootkit architecture using LD_PRELOAD and eBPF to hide its processes and artifacts from standard system tools.","QLNX utilizes a PAM inline-hook backdoor and a dynamically loaded credentials logger to intercept and exfiltrate plaintext authentication data to an attacker-controlled server.","The implant supports 58 distinct commands and establishes persistence through multiple methods, including systemd, crontab, and shell injection, while maintaining communication with its command-and-control infrastructure."],"insights":["QLNX automatically loads a PAM-based credentials logger into every dynamically linked process, enabling silent token extraction without modifying target binaries.","The malware targets specific DevOps configuration files, allowing operators to directly push poisoned packages to NPM or PyPI registries and pivot through CI/CD pipelines.","QLNX employs a dual-layer evasion architecture that combines userland LD_PRELOAD hooking with a kernel-level eBPF component to dynamically hide processes and network activity from standard Linux forensic tools."],"referencedReports":[{"title":"Quasar Linux QLNX: A Silent Foothold in the Software Supply Chain","url":"https://www.trendmicro.com/en_us/research/26/e/quasar-linux-qlnx-a-silent-foothold-in-the-software-supply-chain.html","publisher":"Trend Micro","context":"The article cites this document as a technical analysis by Trend Micro researchers Aliakbar Zahravi and Ahmed Mohamed Ibrahim."}],"body":"\u003cp\u003eQuasar Linux RAT (QLNX) is a fileless malware implant designed to target developer and DevOps systems. It establishes a silent foothold by masquerading as a kernel thread and executing entirely from memory. The malware systematically harvests sensitive credentials from high-value configuration files such as .npmrc, .git-credentials, and .kube/config. Compromising these assets allows threat actors to push malicious packages to registries, access cloud infrastructure, or pivot through CI/CD pipelines. QLNX employs a two-tiered rootkit architecture that combines userland LD_PRELOAD hooking with a kernel-level eBPF component to hide its processes and files. It also features a PAM inline-hook backdoor that intercepts plaintext credentials during authentication. The implant maintains persistence through multiple methods, including systemd, crontab, and shell injection. It communicates with a command-and-control server over raw TCP, HTTPS, and HTTP to receive over 50 distinct operational commands.\u003c/p\u003e\n"},{"n":4,"title":"Zara data breach exposed personal information of 197,000 people","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/zara-data-breach-exposed-personal-information-of-197-000-people/","time":"10:42","priority":"SHOULD READ","score":85,"group":null,"groupColor":null,"tldr":"The ShinyHunters extortion gang breached Zara by exploiting compromised Anodot authentication tokens, exposing customer emails, locations, and purchase history for approximately 197,400 people.","briefOverview":"\u003cp\u003eThe ShinyHunters extortion gang has claimed responsibility for a data breach at Zara that exposed customer information for approximately 197,400 individuals. The attackers gained access to databases hosted by a former technology provider by compromising Anodot authentication tokens. The stolen data contains unique email addresses, geographic locations, product SKUs, order IDs, and support tickets. However, the breach did not compromise sensitive personal identifiers, payment information, or credentials. Inditex, Zara\u0026rsquo;s parent company, confirmed the incident, applied its security protocols, and notified relevant authorities. The company noted that its core operations and systems remained unaffected throughout the incident. ShinyHunters has been linked to multiple similar attacks across various industries using compromised SaaS authentication tokens and vishing campaigns.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eThe ShinyHunters extortion gang has claimed responsibility for a significant data breach at the Spanish fast-fashion retailer Zara. According to the data breach notification service Have I Been Pwned, the incident exposed the personal information of 197,400 individuals. The compromised databases were hosted by a former technology provider and contained business relationship data across different international markets. Have I Been Pwned\u0026rsquo;s analysis confirmed that the stolen dataset includes unique email addresses, geographic locations, product SKUs, order IDs, and support ticket origins. Despite the scale of the exposure, Inditex clarified that the attackers did not obtain names, phone numbers, addresses, credentials, or payment details. The parent company stated that its core operations and systems were unaffected and that it has immediately applied its security protocols. Inditex has also begun notifying relevant authorities about the unauthorized access stemming from the former provider\u0026rsquo;s systems. ShinyHunters leaked a 140GB archive allegedly stolen from BigQuery instances using compromised Anodot authentication tokens. The group previously reported using these tokens to steal data from dozens of companies, though they were blocked by AI-based detection when targeting Salesforce instances. This attack method aligns with ShinyHunters\u0026rsquo; broader campaign, which combines widespread vishing targeting corporate SSO accounts with token theft to access connected SaaS applications. The gang has claimed responsibility for numerous high-profile breaches in recent months, including incidents at Google, Cisco, PornHub, Match Group, Vimeo, Rockstar Games, and ADT. Additional targets claimed by the group include the European Commission, McGraw Hill, Medtronic, Carnival, 7-Eleven, Udemy, and Instructure. The Instructure attacks involved twice compromising the platform, with the second breach exploiting a vulnerability to deface login portals for hundreds of colleges. The article also notes that another Spanish fashion retailer, MANGO, recently notified customers of a breach involving marketing campaign data compromised through a hacked vendor. No ransomware or extortion group has claimed responsibility for the MANGO incident, leaving the attackers unidentified. The article concludes by referencing related security reports on breaches affecting companies like Aura, Instructure, and Vimeo.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"incident-overview\"\u003eIncident Overview\u003c/h2\u003e\n\n\u003cp\u003eThe article details a data breach at Zara, the flagship brand of the Inditex Group, which exposed customer data for approximately 197,400 individuals. The breach was widely reported and subsequently attributed to the ShinyHunters extortion gang. The compromised databases were hosted by a former technology provider rather than Inditex\u0026rsquo;s own infrastructure.\u003c/p\u003e\n\n\u003ch2 id=\"compromised-data-scope\"\u003eCompromised Data \u0026amp; Scope\u003c/h2\u003e\n\n\u003cp\u003eAnalysis by Have I Been Pwned confirmed the exact scope of the exposed dataset. The stolen information includes:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e197,400 unique email addresses\u003c/li\u003e\n\u003cli\u003eGeographic locations\u003c/li\u003e\n\u003cli\u003eProduct SKUs and order IDs\u003c/li\u003e\n\u003cli\u003eSupport ticket origins and associated market data\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eCrucially, the article emphasizes that the breach did not compromise sensitive personal identifiers. Names, phone numbers, physical addresses, login credentials, and payment information such as bank cards remain secure.\u003c/p\u003e\n\n\u003ch2 id=\"attack-vector-attribution\"\u003eAttack Vector \u0026amp; Attribution\u003c/h2\u003e\n\n\u003cp\u003eShinyHunters claimed responsibility for the breach and published a 140GB data archive on their leak site. The group utilized compromised Anodot authentication tokens to extract data from BigQuery instances. This method aligns with their previously documented tactics, where they leverage stolen SaaS authentication tokens to access connected enterprise applications. The group also noted encountering AI-based detection systems that blocked their attempts to exfiltrate data from Salesforce instances.\u003c/p\u003e\n\n\u003ch2 id=\"corporate-response-impact\"\u003eCorporate Response \u0026amp; Impact\u003c/h2\u003e\n\n\u003cp\u003eInditex acknowledged the unauthorized access and confirmed that it immediately activated its security protocols. The company has initiated notifications to relevant authorities regarding the security incident. Inditex explicitly stated that its core operations and internal systems were unaffected by the breach. The parent company has not yet disclosed the specific threat actor behind the initial compromise or identified the former technology provider involved.\u003c/p\u003e\n\n\u003ch2 id=\"shinyhunters-campaign-context\"\u003eShinyHunters Campaign Context\u003c/h2\u003e\n\n\u003cp\u003eThe article outlines ShinyHunters\u0026rsquo; broader operational pattern, which relies heavily on credential theft and SaaS exploitation. The group has been linked to widespread vishing campaigns targeting employees and Business Process Outsourcing agents. These campaigns aim to steal Microsoft Entra, Okta, and Google SSO credentials to access connected SaaS platforms like Salesforce, SAP, Slack, Adobe, Atlassian, Zendesk, Dropbox, Microsoft 365, and Google Workspace. Recent months have seen the group claim responsibility for breaches across diverse sectors, including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eTechnology \u0026amp; Media: Google, Cisco, Vimeo, Rockstar Games, Instructure\u003c/li\u003e\n\u003cli\u003eRetail \u0026amp; Hospitality: PornHub, Match Group, Carnival, 7-Eleven, Udemy\u003c/li\u003e\n\u003cli\u003eEnterprise \u0026amp; Public Sector: ADT, European Commission, McGraw Hill, Medtronic\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe Instructure attacks are highlighted as particularly notable, with the group breaching the platform twice. The second compromise exploited a security vulnerability to deface Canvas login portals for approximately 330 colleges and universities, accompanied by ransom demands for data stolen in the earlier breach.\u003c/p\u003e\n\n\u003ch2 id=\"related-industry-incidents-references\"\u003eRelated Industry Incidents \u0026amp; References\u003c/h2\u003e\n\n\u003cp\u003eThe article draws a parallel to a recent October breach at MANGO, another Spanish fashion retailer. MANGO notified customers that personal data used in marketing campaigns was compromised after its marketing vendor was hacked. Unlike the Zara incident, no extortion group has claimed responsibility for the MANGO breach, leaving the attackers unknown. The article also references related security reports covering breaches at Aura, Instructure, and Vimeo, alongside promotional content for an upcoming cybersecurity validation summit.\u003c/p\u003e\n","keyPoints":["The ShinyHunters extortion gang claimed responsibility for a data breach at Zara that exposed customer data for approximately 197,400 individuals.","The attackers gained access to databases hosted by a former technology provider by compromising Anodot authentication tokens.","The stolen data includes unique email addresses, geographic locations, product SKUs, order IDs, and support tickets, but does not contain payment information or sensitive personal identifiers like names or addresses.","Inditex, Zara's parent company, confirmed the unauthorized access to its former tech provider's systems and has notified relevant authorities while its core operations remain unaffected."],"insights":["The breach originated from a *former* technology provider's databases, highlighting that decommissioned vendor access remains an active attack surface that organizations must actively secure.","ShinyHunters reported being blocked by AI-based detection during a Salesforce exfiltration attempt, indicating that AI-driven monitoring can successfully interrupt large-scale SaaS data theft campaigns.","The attackers chained vishing campaigns to steal corporate SSO credentials with compromised SaaS authentication tokens, demonstrating how credential harvesting and API token abuse can be combined to access multiple connected enterprise applications."],"referencedReports":[],"body":"\u003cp\u003eThe ShinyHunters extortion gang has claimed responsibility for a data breach at Zara that exposed customer information for approximately 197,400 individuals. The attackers gained access to databases hosted by a former technology provider by compromising Anodot authentication tokens. The stolen data contains unique email addresses, geographic locations, product SKUs, order IDs, and support tickets. However, the breach did not compromise sensitive personal identifiers, payment information, or credentials. Inditex, Zara\u0026rsquo;s parent company, confirmed the incident, applied its security protocols, and notified relevant authorities. The company noted that its core operations and systems remained unaffected throughout the incident. ShinyHunters has been linked to multiple similar attacks across various industries using compromised SaaS authentication tokens and vishing campaigns.\u003c/p\u003e\n"},{"n":1,"title":"Pro-Ukraine BO Team and Head Mare hackers appear to team up in attacks against Russia","source":"therecord.media","sourceColor":"#a78bfa","link":"https://therecord.media/ukraine-bo-team-head-mare-hacktivists-team-up-kaspersky","time":"13:09","priority":"SHOULD READ","score":82,"group":null,"groupColor":null,"tldr":"Researchers have identified overlapping infrastructure and tools used by pro-Ukraine hacktivist groups BO Team and Head Mare, indicating they are coordinating cyber attacks against Russian organizations.","briefOverview":"\u003cp\u003eResearchers at Kaspersky have identified evidence suggesting that pro-Ukraine hacktivist groups BO Team and Head Mare are coordinating cyber operations against Russian organizations. The analysis reveals overlapping infrastructure and shared command-and-control systems hosted on the same compromised machines. BO Team, which emerged in early 2024, has shifted its focus from destructive attacks to covert cyber espionage targeting manufacturing, telecommunications, and energy sectors. Meanwhile, Head Mare, active since 2023, specializes in exploiting newly disclosed vulnerabilities and deploying custom malware through phishing campaigns. A likely cooperation model involves Head Mare securing initial network access via phishing, followed by BO Team deploying additional malware to expand access and conduct further operations. Both groups primarily target Russian and Belarusian entities, marking a significant evolution in their coordinated threat landscape.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eResearchers at the Moscow-based cybersecurity firm Kaspersky have identified overlapping infrastructure and tools used by two pro-Ukraine hacktivist groups, BO Team and Head Mare. This evidence points to operational coordination in attacks targeting Russian organizations. Previously, BO Team, also known as Black Owl, operated more autonomously than other hacktivist groups with its own resources and deployment methods. The group first surfaced in early 2024 through a Telegram channel and has since expanded its capabilities significantly. In the first quarter of 2026, BO Team targeted twenty organizations, shifting its focus from healthcare entities to companies in manufacturing, telecommunications, and the oil and gas sector. The attackers typically utilize targeted phishing emails containing malicious files disguised as legitimate documents to gain initial access. Once inside, they deploy backdoors such as BrockenDoor, alongside other malware including Remcos and DarkGate.\u003c/p\u003e\n\n\u003cp\u003eHead Mare, which initially emerged in 2023 on the social platform X, is known for leveraging newly disclosed vulnerabilities in its phishing campaigns. The group also relies on its own custom malware, specifically PhantomDL and PhantomCore. While both groups have consistently focused on Russian and Belarusian targets, operational links between them were previously undocumented. Kaspersky researchers propose a multi-stage attack scenario where Head Mare gains initial network access through phishing. Following this initial breach, BO Team would deploy additional malware to expand access and conduct further operations. This coordinated approach highlights a serious and continuously evolving threat within the Russian cyber landscape.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"executive-summary\"\u003eExecutive Summary\u003c/h2\u003e\n\n\u003cp\u003eA recent analysis by Kaspersky researchers indicates that pro-Ukraine hacktivist groups BO Team and Head Mare are coordinating cyber operations against Russian and Belarusian organizations. The identification of shared command-and-control infrastructure suggests a deliberate operational partnership rather than isolated activities.\u003c/p\u003e\n\n\u003ch2 id=\"group-profiles-and-capabilities\"\u003eGroup Profiles and Capabilities\u003c/h2\u003e\n\n\u003cp\u003eBO Team, also referred to as Black Owl, first appeared in early 2024 via a Telegram channel. The group has historically operated with significant autonomy, utilizing its own resources and distinct deployment methodologies. Over the past year, BO Team has transitioned from primarily destructive attacks to more covert cyber espionage operations. In the first quarter of 2026 alone, the group targeted twenty organizations, shifting its focus away from healthcare entities and toward manufacturing, telecommunications, and oil and gas companies. Their initial access strategy relies heavily on targeted phishing emails containing malicious files disguised as legitimate documents. Post-exploitation activities include the deployment of backdoors like BrockenDoor, as well as additional malware such as Remcos and DarkGate.\u003c/p\u003e\n\n\u003cp\u003eHead Mare initially emerged in 2023 on the social media platform X. This group distinguishes itself by exploiting newly disclosed vulnerabilities during phishing campaigns. They also develop and utilize custom malware suites, specifically PhantomDL and PhantomCore. Like BO Team, Head Mare concentrates its efforts on Russian and Belarusian targets.\u003c/p\u003e\n\n\u003ch2 id=\"operational-coordination-and-threat-landscape\"\u003eOperational Coordination and Threat Landscape\u003c/h2\u003e\n\n\u003cp\u003ePrior to this report, there was insufficient evidence linking BO Team and Head Mare operationally. Kaspersky researchers now point to overlapping infrastructure and shared command-and-control systems operating on the same compromised hosts as clear indicators of coordination. The researchers outline a plausible multi-stage attack model to explain this partnership. In this scenario, Head Mare secures initial network access through phishing campaigns. Subsequently, BO Team deploys additional malware to expand access and conduct further operations within the compromised environment. This evolving cooperation marks a significant shift in the Russian cyber threat landscape, as both groups remain serious, continuously evolving threats.\u003c/p\u003e\n","keyPoints":["Researchers at Kaspersky identified overlapping infrastructure and shared command-and-control systems used by pro-Ukraine hacktivist groups BO Team and Head Mare, indicating operational coordination against Russian targets.","BO Team has shifted its operational focus from destructive attacks to covert cyber espionage, targeting organizations in the manufacturing, telecommunications, and oil and gas sectors.","The groups utilize distinct malware tools, with BO Team deploying backdoors like BrockenDoor and Head Mare employing custom malware such as PhantomDL and PhantomCore.","A potential cooperation model involves Head Mare gaining initial network access through phishing, followed by BO Team deploying additional malware to expand access and conduct further operations."],"insights":["BO Team has shifted from destructive attacks to covert cyber espionage, specifically targeting manufacturing, telecommunications, and oil and gas companies.","The potential multi-stage attack model, where Head Mare gains initial access through phishing and BO Team deploys follow-on malware, suggests a coordinated division of labor.","Head Mare consistently exploits newly disclosed vulnerabilities in its phishing campaigns, indicating a reliance on zero-day or near-zero-day exploits for initial access.","Shared command-and-control infrastructure between the two groups means that defensive efforts targeting one group's C2 could simultaneously disrupt operations for both."],"referencedReports":[{"title":"BO Team Campaign: ZeronetKit \u0026 Head Mare","url":"https://securelist.ru/tr/boteam-campaign-zeronetkit-headmare/115429/","publisher":"Kaspersky Securelist","context":"Kaspersky researchers cite this report to detail overlapping infrastructure and tools used by BO Team and Head Mare."},{"title":"BO Team","url":"https://securelist.ru/bo-team/112753/","publisher":"Kaspersky Securelist","context":"The article references this prior Kaspersky report to note BO Team's autonomous operations and historical collaboration with Ukrainian military intelligence."},{"title":"Head Mare Hacktivists","url":"https://securelist.com/head-mare-hacktivists/113555/","publisher":"Kaspersky Securelist","context":"The article cites this research to provide background on Head Mare's emergence and use of custom malware."}],"body":"\u003cp\u003eResearchers at Kaspersky have identified evidence suggesting that pro-Ukraine hacktivist groups BO Team and Head Mare are coordinating cyber operations against Russian organizations. The analysis reveals overlapping infrastructure and shared command-and-control systems hosted on the same compromised machines. BO Team, which emerged in early 2024, has shifted its focus from destructive attacks to covert cyber espionage targeting manufacturing, telecommunications, and energy sectors. Meanwhile, Head Mare, active since 2023, specializes in exploiting newly disclosed vulnerabilities and deploying custom malware through phishing campaigns. A likely cooperation model involves Head Mare securing initial network access via phishing, followed by BO Team deploying additional malware to expand access and conduct further operations. Both groups primarily target Russian and Belarusian entities, marking a significant evolution in their coordinated threat landscape.\u003c/p\u003e\n"},{"n":5,"title":"One Missed Threat Per Week: What 25M Alerts Reveal About Low-Severity Risk","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/one-missed-threat-per-week-what-25m.html","time":"10:30","priority":"SHOULD READ","score":82,"group":null,"groupColor":null,"tldr":"Traditional security operations ignore low-severity alerts due to analyst volume constraints, causing roughly one missed enterprise breach per week, but AI-driven full-coverage investigation resolves this by analyzing every alert regardless of its severity label.","briefOverview":"\u003cp\u003eTraditional security operations rely on severity-based triage, causing defenders to ignore low-severity and informational alerts. This practice creates predictable gaps that attackers systematically exploit, resulting in roughly one missed enterprise breach per week. The analysis of 25 million alerts reveals that nearly 1% of confirmed incidents originate from these deprioritized categories.\u003c/p\u003e\n\n\u003cp\u003eEndpoint detection tools frequently mark active infections as resolved, leaving over half of confirmed compromises invisible without forensic memory scans. Attackers have shifted away from attachment-based phishing, instead leveraging trusted cloud platforms and embedding malicious links in PDF metadata or DOCX files. Cloud telemetry shows threat actors prioritizing long-term persistence and defense evasion, frequently exploiting low-severity AWS S3 misconfigurations.\u003c/p\u003e\n\n\u003cp\u003eTraditional SOCs and MDR providers cannot scale to investigate the expanding volume of telemetry across endpoints, cloud, and identity systems. This capacity bottleneck breaks the feedback loop required for continuous detection improvement. Implementing AI-driven triage enables full coverage of all alerts, surfacing early-stage threats and allowing human analysts to focus on high-confidence decisions.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eA recent analysis of 25 million security alerts across enterprise environments highlights a critical vulnerability in traditional security operations. Defenders have institutionalized the practice of ignoring low-severity and informational alerts due to triage economics, resulting in approximately one missed breach per week at average enterprise scale. The dataset encompasses 10 million monitored endpoints, 82,000 forensic investigations, 180 million files, and telemetry from millions of IPs, domains, and phishing emails.\u003c/p\u003e\n\n\u003cp\u003eNearly 1% of confirmed incidents stem from these ignored alert categories, with endpoint-specific rates climbing to 2%. Furthermore, over 51% of confirmed endpoint infections were already marked as mitigated by EDR vendors, meaning automated remediation cannot be trusted without live memory forensics. Attackers have adapted their methodology by abandoning attachment-heavy phishing in favor of link-based campaigns hosted on trusted platforms like OneDrive, Vercel, and PayPal.\u003c/p\u003e\n\n\u003cp\u003eThey routinely use mechanisms like Cloudflare Turnstile CAPTCHA to block automated security scanners while evading signature-based detection. Four specific gateway bypass techniques were documented, including Base64 payloads in SVG files and dynamically loaded pages served through legitimate cloud shares. Cloud telemetry reveals a strategic focus on defense evasion and persistence, with attackers manipulating tokens and exploiting low-severity AWS S3 misconfigurations to maintain long-term access.\u003c/p\u003e\n\n\u003cp\u003eTraditional SOCs and MDRs face an insurmountable human capacity ceiling, leaving roughly 60% of alerts unreviewed and preventing critical feedback loops for detection tuning. When low-severity alerts are never investigated, missed threats never surface, and detection rules remain uncorrected. Shifting to an AI-driven investigation model removes the human capacity bottleneck, enabling forensic-grade analysis of every alert regardless of severity.\u003c/p\u003e\n\n\u003cp\u003eThis approach achieved sub-minute triage times and a 98% verdict accuracy rate across the full dataset, escalating less than 2% of alerts to human analysts. Consequently, security teams can continuously improve their detection engineering while focusing their expertise on high-confidence decision points.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"dataset-scale-and-scope\"\u003eDataset Scale and Scope\u003c/h3\u003e\n\n\u003cp\u003eThe analysis is grounded in a comprehensive dataset comprising 25 million security alerts across live enterprise environments. This volume includes telemetry from 10 million monitored endpoints, 82,000 forensic endpoint investigations, and 180 million analyzed files. Network and web telemetry covers 7 million IP addresses, 3 million domains and URLs, and over 550,000 phishing emails.\u003c/p\u003e\n\n\u003ch3 id=\"the-low-severity-blind-spot\"\u003eThe Low-Severity Blind Spot\u003c/h3\u003e\n\n\u003cp\u003eTraditional security operations have institutionalized severity-based triage, causing defenders to systematically ignore low-severity and informational alerts. This operational gap allows threat actors to exploit predictable defenses, resulting in roughly one missed enterprise breach per week. Key metrics include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eNearly 1% of confirmed incidents originate from deprioritized alert categories.\u003c/li\u003e\n\u003cli\u003eEndpoint-specific rates climb to nearly 2%.\u003c/li\u003e\n\u003cli\u003eAverage enterprises generate 450,000 alerts annually, yielding 54 uninvestigated threats yearly.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"edr-reliability-and-endpoint-forensics\"\u003eEDR Reliability and Endpoint Forensics\u003c/h3\u003e\n\n\u003cp\u003eA critical finding challenges the foundational assumption that EDR remediation guarantees a clean environment. Of the 82,000 alerts subjected to live forensic memory scans, 2,600 contained active infections. Strikingly, 51% of these confirmed compromises were already marked as mitigated by their source EDR vendor. Without memory-level forensics, infections remain invisible, with active malware families like Mimikatz, Cobalt Strike, Meterpreter, and StrelaStealer running undetected.\u003c/p\u003e\n\n\u003ch3 id=\"evolving-phishing-tactics\"\u003eEvolving Phishing Tactics\u003c/h3\u003e\n\n\u003cp\u003eAttackers have fundamentally shifted their phishing methodology, moving away from attachment-heavy campaigns. Less than 6% of confirmed malicious phishing emails contained attachments, with most relying on malicious links and social engineering. Threat actors now host infrastructure on platforms trusted by default, including Vercel, CodePen, OneDrive, and PayPal. One documented campaign leveraged PayPal\u0026rsquo;s legitimate invoicing system to embed callback numbers and Unicode homoglyphs, successfully bypassing standard authentication checks. Defenders can now use Cloudflare Turnstile CAPTCHA as a reliable indicator of malicious intent, while Google reCAPTCHA correlates with legitimate infrastructure. The report also identifies four new gateway bypass techniques:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eBase64 payloads hidden in SVG files\u003c/li\u003e\n\u003cli\u003eLinks embedded in PDF annotation metadata\u003c/li\u003e\n\u003cli\u003eDynamically loaded phishing pages served through OneDrive shares\u003c/li\u003e\n\u003cli\u003eDOCX files concealing archived HTML content with QR codes\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"cloud-persistence-and-misconfigurations\"\u003eCloud Persistence and Misconfigurations\u003c/h3\u003e\n\n\u003cp\u003eCloud telemetry reveals that attackers are playing long games focused on defense evasion and persistence rather than high-impact behaviors like lateral movement. The dominant pattern involves token manipulation, abuse of legitimate cloud features, and obfuscation to avoid triggering higher-severity detections. AWS misconfigurations significantly compound this risk, with S3 accounts representing roughly 70% of all cloud control violations. The most common issues involve access management, server logging, and cross-account restrictions. These findings rarely trigger alerts, are classified as low severity, and are repeatedly exploited to accelerate attacker movement once a foothold is established.\u003c/p\u003e\n\n\u003ch3 id=\"operational-limits-of-traditional-socs-and-mdrs\"\u003eOperational Limits of Traditional SOCs and MDRs\u003c/h3\u003e\n\n\u003cp\u003eTraditional security operations face an insurmountable human capacity bottleneck that technology alone cannot resolve. As telemetry expands across endpoint, cloud, identity, network, and SaaS layers, every SOC eventually hits the same ceiling. MDR providers face identical constraints, leaving approximately 60% of alerts unreviewed regardless of whether they are handled in-house or outsourced. This volume forces aggressive triage and automated closures, breaking the critical feedback loop required for system improvement. When low-severity alerts are never investigated, missed threats never surface, and detection rules fail to correct themselves.\u003c/p\u003e\n\n\u003ch3 id=\"ai-driven-full-coverage-solution\"\u003eAI-Driven Full Coverage Solution\u003c/h3\u003e\n\n\u003cp\u003eInvestigating the full 25 million alert volume requires removing the human analyst capacity constraint. The article demonstrates that an AI SOC can triage and investigate the entire dataset with sub-minute median triage times and a 98% verdict accuracy rate. Only less than 2% of alerts are escalated to human analysts, shifting their focus from discovery to high-confidence decision-making. Full-coverage investigation grounds triage outcomes in forensic evidence rather than severity assumptions. Early-stage threats with weak initial signals are surfaced before progression, and every investigation generates feedback that continuously tunes detection rules at the source. This transforms security posture from a static defense into a continuously improving system.\u003c/p\u003e\n","keyPoints":["Nearly 1% of confirmed incidents originate from low-severity or informational alerts, translating to roughly one missed breach per week at average enterprise scale.","Over 51% of confirmed endpoint compromises were already marked as mitigated by EDR vendors, indicating that automated remediation cannot be trusted without forensic memory scans.","Attackers bypass email gateways by routing malicious links through trusted platforms like OneDrive and PayPal while hiding payloads in SVG files, PDF metadata, and DOCX documents.","Cloud telemetry shows threat actors favoring long-term persistence and defense evasion tactics, frequently exploiting low-severity AWS S3 misconfigurations to establish footholds.","Traditional security operations cannot investigate all alerts due to human capacity limits, but AI-driven triage enables full coverage and continuously improves detection rules through forensic analysis."],"insights":["Cloudflare Turnstile CAPTCHA usage is a consistent signal of malicious intent, while Google reCAPTCHA correlates with legitimate infrastructure, allowing defenders to invert standard bot-detection signals for phishing identification.","Traditional security operations suffer from a broken feedback loop where uninvestigated low-severity alerts prevent detection rules from being corrected, meaning the system cannot self-improve without full-coverage forensic analysis.","Attackers are migrating phishing infrastructure onto platforms trusted by default (e.g., Vercel, OneDrive, PayPal) and using mechanisms like CAPTCHAs to block automated security scanners rather than human users.","EDR vendors frequently close tickets and declare threats resolved while active malware families like Mimikatz and Cobalt Strike remain running in memory, rendering automated remediation unreliable without live forensic memory scans."],"referencedReports":[{"title":"2026 AI SOC Report for CISOs","url":"https://intezer.com/2026-ai-soc-report-for-cisos/","publisher":"Intezer","context":"The article directs readers to this document to explore the full report and research findings that underpin the analysis of 25 million security alerts."}],"body":"\u003cp\u003eTraditional security operations rely on severity-based triage, causing defenders to ignore low-severity and informational alerts. This practice creates predictable gaps that attackers systematically exploit, resulting in roughly one missed enterprise breach per week. The analysis of 25 million alerts reveals that nearly 1% of confirmed incidents originate from these deprioritized categories.\u003c/p\u003e\n\n\u003cp\u003eEndpoint detection tools frequently mark active infections as resolved, leaving over half of confirmed compromises invisible without forensic memory scans. Attackers have shifted away from attachment-based phishing, instead leveraging trusted cloud platforms and embedding malicious links in PDF metadata or DOCX files. Cloud telemetry shows threat actors prioritizing long-term persistence and defense evasion, frequently exploiting low-severity AWS S3 misconfigurations.\u003c/p\u003e\n\n\u003cp\u003eTraditional SOCs and MDR providers cannot scale to investigate the expanding volume of telemetry across endpoints, cloud, and identity systems. This capacity bottleneck breaks the feedback loop required for continuous detection improvement. Implementing AI-driven triage enables full coverage of all alerts, surfacing early-stage threats and allowing human analysts to focus on high-confidence decisions.\u003c/p\u003e\n"},{"n":3,"title":"Trellix source code breach claimed by RansomHouse hackers","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/trellix-source-code-breach-claimed-by-ransomhouse-hackers/","time":"13:23","priority":"SHOULD READ","score":78,"group":null,"groupColor":null,"tldr":"RansomHouse claims responsibility for breaching Trellix's source code repository, which the company confirmed but stated shows no evidence of exploitation.","briefOverview":"\u003cp\u003eRansomHouse has claimed responsibility for a breach of Trellix’s source code repository, publishing screenshots and a small set of images as proof of access. Trellix, an international cybersecurity firm serving Fortune 100 customers across 185 countries, confirmed unauthorized access to a portion of its repository on May 1. The company immediately engaged forensic experts and notified law enforcement regarding the incident. Despite the intrusion, Trellix stated there is currently no evidence that its source code distribution process was compromised or that the code has been exploited. The attackers allege the breach occurred on April 17 and resulted in data encryption. BleepingComputer was unable to independently verify the authenticity of the leaked materials. The investigation remains ongoing, with Trellix promising to release additional details as they become available.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eRansomHouse, a cybercrime group active since 2022, has publicly claimed responsibility for compromising Trellix’s source code repository. The threat actor published screenshots on their data leak site indicating access to the cybersecurity company’s appliance management system. As proof, they also released a small set of images, though BleepingComputer could not confirm the authenticity of the data.\u003c/p\u003e\n\n\u003cp\u003eTrellix is a global cybersecurity firm that employed over 3,500 people and served more than 53,000 customers in 185 countries as of 2025. The company officially disclosed the breach on May 1 and confirmed that unauthorized access was detected. Upon learning of the incident, Trellix immediately began working with leading forensic experts and notified law enforcement.\u003c/p\u003e\n\n\u003cp\u003eThe company emphasized that its investigation has found no evidence that its source code release or distribution process was affected. Furthermore, there is no indication that the source code has been exploited. According to the threat actor, the intrusion took place on April 17 and resulted in data encryption.\u003c/p\u003e\n\n\u003cp\u003eRansomHouse initially launched as a data-extortion operation but has since integrated advanced encryption utilities into its toolkit. These tools include Mario, which performs dual-encryption passes, and MrAgent, which automates encryptor deployment on VMware ESXi hypervisors. The group recently made headlines for stealing 740,000 customer records from Japanese e-commerce giant Askul Corporation.\u003c/p\u003e\n\n\u003cp\u003eTrellix’s investigation is still underway, and the company previously committed to sharing more details once they become available. Initial requests for comment from BleepingComputer went unanswered until the group’s disclosure prompted a follow-up.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"incident-overview\"\u003eIncident Overview\u003c/h3\u003e\n\n\u003cp\u003eThe article reports that the RansomHouse threat group has claimed responsibility for breaching the source code repository of Trellix. The attackers allege that the intrusion occurred on April 17 and resulted in data encryption. As proof of the breach, RansomHouse published screenshots on their data leak site indicating access to Trellix’s appliance management system. They also leaked a small set of images to substantiate their claim.\u003c/p\u003e\n\n\u003ch3 id=\"vendor-response-status\"\u003eVendor Response \u0026amp; Status\u003c/h3\u003e\n\n\u003cp\u003eTrellix, an international cybersecurity firm, officially confirmed the breach in a statement released on May 1. The company acknowledged that it identified unauthorized access to a portion of its source code repository. Upon discovery, Trellix immediately engaged leading forensic experts to investigate the incident and notified law enforcement. Despite the confirmed unauthorized access, the company stated that its investigation has found no evidence that its source code release or distribution process was affected. Additionally, Trellix emphasized that there is no indication the source code has been exploited. The investigation remains ongoing, and the company previously promised to share additional details as they become available.\u003c/p\u003e\n\n\u003ch3 id=\"threat-actor-profile\"\u003eThreat Actor Profile\u003c/h3\u003e\n\n\u003cp\u003eRansomHouse is identified as a cybercrime group that launched in 2022. The group initially operated as a data-extortion operation, listing victims on a darkweb portal and leaking or selling stolen corporate network data. Over time, the threat actor has expanded its capabilities by integrating advanced encryption utilities into its toolkit. Notable tools mentioned include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eMario:\u003c/strong\u003e A utility that performs a dual-encryption pass using two keys on target files.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eMrAgent:\u003c/strong\u003e A tool that automates the deployment of encryptors on VMware ESXi hypervisors.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"evidence-verification\"\u003eEvidence \u0026amp; Verification\u003c/h3\u003e\n\n\u003cp\u003eThe authenticity of the data claimed by RansomHouse has not been independently verified. BleepingComputer was unable to confirm the validity of the published screenshots and images. Following the group’s disclosure, BleepingComputer requested details from Trellix. Initially, the company did not disclose perpetrator information and did not respond to early requests. After the RansomHouse claim emerged, Trellix told BleepingComputer it was aware of the claims and is actively looking into the matter.\u003c/p\u003e\n\n\u003ch3 id=\"context-related-activity\"\u003eContext \u0026amp; Related Activity\u003c/h3\u003e\n\n\u003cp\u003eTrellix operates on a global scale, serving Fortune 100 customers across 185 countries. As of 2025, the company reported more than 53,000 customers and 3,500 employees. RansomHouse has recently been involved in other high-profile incidents, including a breach of Japanese e-commerce giant Askul Corporation. In that case, the group stole 740,000 customer records along with other sensitive information.\u003c/p\u003e\n","keyPoints":["RansomHouse claims responsibility for breaching Trellix's source code repository and has published screenshots as proof of access.","Trellix confirmed unauthorized access to a portion of its source code repository and is investigating the incident with forensic experts.","The company stated there is no evidence that its source code distribution process was affected or that the code has been exploited.","The alleged intrusion occurred on April 17 and resulted in data encryption, though the authenticity of the leaked data has not been verified."],"insights":["Trellix confirmed unauthorized access to its source code repository but explicitly stated there is no evidence that its source code release or distribution process was affected or exploited.","RansomHouse has evolved from a data-extortion group into a more advanced threat actor by integrating multi-layered encryption utilities like 'Mario' and automated VMware ESXi attack deployment tools like 'MrAgent'.","The attackers provided only screenshots and a small set of images as proof of the intrusion, which BleepingComputer could not verify, highlighting the necessity of independent forensic validation for leak claims."],"referencedReports":[],"body":"\u003cp\u003eRansomHouse has claimed responsibility for a breach of Trellix’s source code repository, publishing screenshots and a small set of images as proof of access. Trellix, an international cybersecurity firm serving Fortune 100 customers across 185 countries, confirmed unauthorized access to a portion of its repository on May 1. The company immediately engaged forensic experts and notified law enforcement regarding the incident. Despite the intrusion, Trellix stated there is currently no evidence that its source code distribution process was compromised or that the code has been exploited. The attackers allege the breach occurred on April 17 and resulted in data encryption. BleepingComputer was unable to independently verify the authenticity of the leaked materials. The investigation remains ongoing, with Trellix promising to release additional details as they become available.\u003c/p\u003e\n"}];
+window.__DL_DIGEST   = "downlink-digest-2026-05-08_1438.html";
+window.__DL_WINDOW   = "4 hours";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function GroupBadge({ group, groupColor }) {
+  if (!group || !groupColor) return null;
+  const c = groupColor;
+  return (
+    <span style={{
+      display: "inline-block", flexShrink: 0,
+      width: 20, height: 20,
+      border: "1px solid color-mix(in oklch, " + c + " 45%, transparent)",
+      background: "color-mix(in oklch, " + c + " 12%, transparent)",
+      borderRadius: 2
+    }} />
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+function pointList(items) {
+  return (
+    <ul className="kp-list">
+      {(items || []).map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            <a href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => <div className="prose">{article.tldr}</div> });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Full", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  if (article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => pointList(article.keyPoints) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => pointList(article.insights) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  const initialTab = tabs[0] ? tabs[0].id : "source";
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  return (
+    <>
+      <div className="tabs">
+        {tabs.map(tab => (
+          <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <nav style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--cyan)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="live-dot" />
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em" }}>LIVE</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      </div>
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+        border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+      }}>
+        {Math.min(index + 1, total)} / {total}
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+              {article.source}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 22, lineHeight: 1.3, color: "var(--text)", letterSpacing: "-0.005em" }}>
+          {article.title}
+        </h2>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text2)", fontSize: 14, lineHeight: 1.65, fontWeight: 400 }}>{article.tldr}</p>
+        {article.keyPoints && article.keyPoints.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+            <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+              {article.keyPoints.map((kp, i) => (
+                <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: priorityC, marginTop: 3, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.35, color: "var(--text)", marginBottom: 12 }}>
+          {article.title}
+        </h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor }}>{article.source}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Fly right then flip to detail view
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.28s cubic-bezier(.4,0,.6,1)";
+          el.style.transform = `translate(60%, ${dy}px) rotate(12deg) scale(0.95)`;
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.getBoundingClientRect();
+            el2.style.transition = "";
+          }
+        }, 280);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{
+        opacity: 0,
+        color: flipped ? "var(--accept)" : "var(--discard)",
+        borderColor: flipped ? "var(--accept)" : "var(--discard)"
+      }}>{flipped ? "DONE" : "SKIP"}</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "80px 24px 0" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: "32px 24px 48px" }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 32 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 32, textAlign: "center" }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<div id="root"></div>
+</body>
+</html>

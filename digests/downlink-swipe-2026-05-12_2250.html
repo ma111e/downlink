@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+  }
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; overflow-x: hidden; }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklch, var(--cyan) 60%, transparent); }
+    70%  { box-shadow: 0 0 0 5px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); animation: pulse-ring 2s ease-out infinite; }
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; height: 620px; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--discard); border-color: var(--discard); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--accept);  border-color: var(--accept); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .kp-list li { display: flex; gap: 0.6rem; font-size: 13px; line-height: 1.6; color: var(--text2); }
+  .kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); }
+  .report-title a { color: var(--text); text-decoration: none; }
+  .report-title a:hover { color: var(--cyan); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<script>
+window.__DL_ARTICLES = [{"n":4,"title":"Microsoft Patch Tuesday for May 2026 — Snort rules and prominent vulnerabilities","source":"blog.talosintelligence.com","sourceColor":"#60a5fa","link":"https://blog.talosintelligence.com/microsoft-patch-tuesday-may-2026/","time":"19:57","priority":"MUST READ","score":95,"group":"V","groupColor":"#f472b6","tldr":"Microsoft Patch Tuesday for May 2026 addresses 137 vulnerabilities including 31 critical remote code execution flaws across Windows, Office, and Azure services, prompting Cisco Talos to release new Snort rules for detection despite no active exploitation in the wild.","briefOverview":"\u003cp\u003eMicrosoft released its May 2026 security update addressing 137 vulnerabilities, including 31 marked as critical. None of the vulnerabilities were actively exploited in the wild at the time of release. Sixteen critical flaws involve remote code execution across Windows services, Azure, Office, and SharePoint. Notable vulnerabilities include a race condition in the Windows Native WiFi Miniport Driver and buffer overflows in Windows GDI and Netlogon. Cisco Talos has released new Snort rulesets to detect exploitation attempts for these critical flaws. Defenders are advised to update their rulesets and apply the latest Microsoft security patches immediately.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eMicrosoft Patch Tuesday for May 2026 includes 137 vulnerabilities, with 31 classified as critical. Microsoft observed no active exploitation of these vulnerabilities in the wild. Out of the 31 critical entries, 16 are remote code execution (RCE) vulnerabilities affecting Windows services, Azure, Office, SharePoint, and other products. Key critical RCEs include CVE-2026-32161, a race condition in the Windows Native WiFi Miniport Driver, and CVE-2026-41089, a stack-based buffer overflow in Windows Netlogon allowing unauthenticated network execution. Other critical flaws involve heap-based buffer overflows in Windows GDI and Office, as well as use-after-free vulnerabilities in Microsoft Word. Azure Managed Instance for Apache Cassandra is affected by access control and input validation flaws allowing network-based code execution. Microsoft SharePoint is vulnerable to an access control issue allowing authenticated Site Owners to execute code remotely. Windows Win32K – GRFX contains a heap overflow that can lead to a contained execution environment escape via Remote Desktop. Windows DNS Client is vulnerable to a heap overflow triggered by crafted DNS responses. Office for Android and Microsoft Dynamics 365 also feature critical vulnerabilities allowing local or network-based code execution. Cisco Talos highlighted several \u0026ldquo;important\u0026rdquo; elevation of privilege vulnerabilities deemed more likely to be exploited. These include flaws in the Windows Cloud Files Mini Filter Driver, TCP/IP, Win32k, Kernel, WinSock, and Remote Desktop Services. Talos released new Snort rulesets to detect exploitation attempts for these vulnerabilities. Snort 2 rules include identifiers 1:66438-1:66445, 1:66451-1:66460, and 1:66470-1:66476. Snort 3 rules include identifiers 1:301494-1:301497, 1:301500-1:301506, 1:66472-1:66473, and 1:66476. Organizations should update their rulesets and apply Microsoft\u0026rsquo;s security updates to mitigate these risks.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eOverview\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eMicrosoft released its monthly security update for May 2026, addressing 137 vulnerabilities. Of these, 31 are marked as critical. Microsoft has not observed any of the included vulnerabilities being actively exploited in the wild.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eCritical Remote Code Execution (RCE) Vulnerabilities\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eSixteen critical vulnerabilities allow remote code execution.\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eWindows Native WiFi:\u003c/strong\u003e CVE-2026-32161 is a critical use-after-free race condition allowing code execution over an adjacent network.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eAzure:\u003c/strong\u003e CVE-2026-33109 and CVE-2026-33844 affect Apache Cassandra with access control and input validation flaws allowing network-based code execution by authorized attackers.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eWindows GDI:\u003c/strong\u003e CVE-2026-35421 is a heap-based buffer overflow triggered by opening a crafted EMF file in Microsoft Paint.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eMicrosoft Office/Word:\u003c/strong\u003e Multiple critical flaws exist, including use-after-free (CVE-2026-40358, CVE-2026-40361, CVE-2026-40366), heap overflows (CVE-2026-40363), type confusion (CVE-2026-40364), and untrusted pointer dereference (CVE-2026-40367). These allow local code execution.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSharePoint:\u003c/strong\u003e CVE-2026-40365 allows an authenticated Site Owner to inject and execute code remotely.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eWindows Win32K:\u003c/strong\u003e CVE-2026-40403 is a heap overflow allowing local code execution and potential RDP escape.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eWindows Netlogon:\u003c/strong\u003e CVE-2026-41089 is a stack-based buffer overflow allowing unauthenticated network code execution on domain controllers.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eWindows DNS Client:\u003c/strong\u003e CVE-2026-41096 is a heap overflow triggered by crafted DNS responses, allowing unauthenticated remote code execution.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eOffice for Android:\u003c/strong\u003e CVE-2026-42831 is a heap overflow triggered by opening a malicious file.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eDynamics 365:\u003c/strong\u003e CVE-2026-42898 is a code injection flaw allowing network-based code execution by authorized attackers.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003e\u003cstrong\u003eImportant Elevation of Privilege (EoP) Vulnerabilities\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eCisco Talos highlighted vulnerabilities deemed \u0026ldquo;more likely\u0026rdquo; to be exploited.\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eCVE-2026-33835: Windows Cloud Files Mini Filter Driver.\u003c/li\u003e\n\u003cli\u003eCVE-2026-33837: Windows TCP/IP.\u003c/li\u003e\n\u003cli\u003eCVE-2026-33840: Win32k.\u003c/li\u003e\n\u003cli\u003eCVE-2026-33841: Windows Kernel.\u003c/li\u003e\n\u003cli\u003eCVE-2026-35416: WinSock Ancillary Function Driver.\u003c/li\u003e\n\u003cli\u003eCVE-2026-35417: Windows Win32k.\u003c/li\u003e\n\u003cli\u003eCVE-2026-40369: Windows Kernel.\u003c/li\u003e\n\u003cli\u003eCVE-2026-40397: Common Log File System Driver.\u003c/li\u003e\n\u003cli\u003eCVE-2026-40398: Remote Desktop Services.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003e\u003cstrong\u003eDefensive Measures and Snort Rules\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eCisco Talos released new Snort rulesets to detect exploitation attempts.\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eSnort 2 Rules:\u003c/strong\u003e 1:66438-1:66445, 1:66451-1:66460, and 1:66470-1:66476.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSnort 3 Rules:\u003c/strong\u003e 1:301494-1:301497, 1:301500-1:301506, 1:66472-1:66473, and 1:66476.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eUpdates:\u003c/strong\u003e Cisco Security Firewall customers should update their SRU, and Snort.org subscribers should download the latest rule pack.\u003c/li\u003e\n\u003c/ul\u003e\n","keyPoints":["Microsoft's May 2026 Patch Tuesday release addresses 137 vulnerabilities, including 31 critical flaws, with no active exploitation observed in the wild.","Sixteen critical vulnerabilities are remote code execution flaws impacting Windows services and applications like Office, Azure, SharePoint, and the DNS Client.","Cisco Talos identified several important elevation of privilege vulnerabilities that Microsoft considers more likely to be exploited.","Talos released new Snort 2 and Snort 3 rulesets to detect exploitation attempts for these vulnerabilities, noting that additional rules may be released later."],"insights":["Microsoft explicitly categorized certain Elevation of Privilege vulnerabilities as having a \"more likely\" exploitation probability, signaling a targeted focus for defensive prioritization.","Multiple critical flaws require highly specific, low-friction triggers, such as opening a crafted EMF file in Microsoft Paint or processing a malicious Office document on Android, indicating easily achievable attack vectors.","Critical remote code execution vulnerabilities in core network services like Windows Netlogon and the DNS Client can be exploited via unauthenticated network requests, directly threatening domain controller and DNS infrastructure integrity.","Defenders can immediately implement detection for these threats by deploying the article's explicitly listed Snort 2 and Snort 3 rule IDs across both legacy and modern IDS/IPS platforms."],"referencedReports":[],"body":"\u003cp\u003eMicrosoft released its May 2026 security update addressing 137 vulnerabilities, including 31 marked as critical. None of the vulnerabilities were actively exploited in the wild at the time of release. Sixteen critical flaws involve remote code execution across Windows services, Azure, Office, and SharePoint. Notable vulnerabilities include a race condition in the Windows Native WiFi Miniport Driver and buffer overflows in Windows GDI and Netlogon. Cisco Talos has released new Snort rulesets to detect exploitation attempts for these critical flaws. Defenders are advised to update their rulesets and apply the latest Microsoft security patches immediately.\u003c/p\u003e\n"},{"n":11,"title":"Fortinet warns of critical RCE flaws in FortiSandbox and FortiAuthenticator","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/fortinet-warns-of-critical-rce-flaws-in-fortisandbox-and-fortiauthenticator/","time":"18:23","priority":"MUST READ","score":95,"group":null,"groupColor":null,"tldr":"Fortinet has released urgent patches for two critical remote code execution vulnerabilities in FortiAuthenticator and FortiSandbox that allow unauthenticated attackers to execute arbitrary commands, prompting immediate remediation despite no current reports of exploitation.","briefOverview":"\u003cp\u003eFortinet has issued security updates to address two critical vulnerabilities affecting its FortiAuthenticator and FortiSandbox products. The first flaw, CVE-2026-44277, is an improper access control issue in the FortiAuthenticator Identity and Access Management solution that allows unauthenticated attackers to execute unauthorized code.\u003c/p\u003e\n\n\u003cp\u003eThis issue has been patched in versions 6.5.7, 6.6.9, and 8.0.3, though the cloud-hosted FortiAuthenticator service remains unaffected. The second vulnerability, CVE-2026-26083, is a missing authorization weakness in FortiSandbox that enables remote code execution through crafted HTTP requests.\u003c/p\u003e\n\n\u003cp\u003eWhile neither flaw is currently being exploited in the wild, historical data shows that Fortinet vulnerabilities are frequently weaponized in ransomware and cyber-espionage campaigns. Organizations are strongly advised to apply the available patches immediately to prevent potential exploitation.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eFortinet has released security updates to address two critical vulnerabilities in its FortiSandbox and FortiAuthenticator products. These flaws could enable attackers to run commands or arbitrary code on unpatched systems. The first vulnerability, tracked as CVE-2026-44277, impacts the company\u0026rsquo;s FortiAuthenticator Identity and Access Management solution.\u003c/p\u003e\n\n\u003cp\u003eIt is classified as an improper access control weakness under CWE-284 that permits unauthenticated attackers to execute unauthorized code via crafted requests. Fortinet has patched this issue in FortiAuthenticator versions 6.5.7, 6.6.9, and 8.0.3. The company explicitly noted that FortiAuthenticator Cloud, formerly known as FortiTrust Identity, is not impacted by this vulnerability.\u003c/p\u003e\n\n\u003cp\u003eThe second flaw, identified as CVE-2026-26083, addresses a missing authorization weakness under CWE-862. This vulnerability affects the FortiSandbox, FortiSandbox Cloud, and FortiSandbox PaaS WEB UI interfaces. Attackers could exploit this weakness to achieve remote code execution on vulnerable FortiSandbox systems through HTTP requests.\u003c/p\u003e\n\n\u003cp\u003eFortinet has not tagged either of these security flaws as being actively exploited in the wild. However, the advisory highlights that Fortinet vulnerabilities are frequently exploited in ransomware and cyber-espionage attacks, often as zero-days. For example, the company addressed another critical flaw in the FortiClient Enterprise Management Server platform in February, which threat intelligence firm Defused flagged as actively exploited one month later.\u003c/p\u003e\n\n\u003cp\u003eMore recently, the U.S. Cybersecurity and Infrastructure Security Agency ordered federal agencies to secure FortiClient EMS instances against an authentication bypass flaw in early April. In total, CISA has added 24 Fortinet vulnerabilities to its known exploited catalog in recent years. Thirteen of these previously cataloged flaws were also abused in ransomware attacks.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"overview\"\u003eOverview\u003c/h3\u003e\n\n\u003cp\u003eFortinet has issued a security advisory detailing critical remote code execution flaws affecting its FortiAuthenticator and FortiSandbox product lines. The company has released patches to mitigate these vulnerabilities, which stem from improper access control and missing authorization weaknesses. While no active exploitation has been confirmed, the advisory emphasizes the high risk of zero-day abuse based on historical attack patterns.\u003c/p\u003e\n\n\u003ch3 id=\"vulnerability-details\"\u003eVulnerability Details\u003c/h3\u003e\n\n\u003cp\u003eThe first flaw, designated as CVE-2026-44277, targets the FortiAuthenticator Identity and Access Management solution. Key technical details include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eIt is classified as an improper access control vulnerability (CWE-284).\u003c/li\u003e\n\u003cli\u003eIt allows unauthenticated attackers to execute unauthorized code or commands through crafted requests.\u003c/li\u003e\n\u003cli\u003ePatches are available for FortiAuthenticator versions 6.5.7, 6.6.9, and 8.0.3.\u003c/li\u003e\n\u003cli\u003eThe cloud-hosted FortiAuthenticator Identity and Access Management as a Service (IDaaS) is explicitly exempt from this issue.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe second flaw, identified as CVE-2026-26083, impacts the FortiSandbox ecosystem. Key technical details include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eIt is classified as a missing authorization vulnerability (CWE-862).\u003c/li\u003e\n\u003cli\u003eIt affects the FortiSandbox, FortiSandbox Cloud, and FortiSandbox PaaS WEB UI.\u003c/li\u003e\n\u003cli\u003eUnauthenticated attackers can leverage HTTP requests to execute unauthorized code or commands on vulnerable systems.\u003c/li\u003e\n\u003cli\u003eThe vulnerability compromises FortiSandbox systems designed to defend against malicious activity, including zero-day threats.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"historical-context-exploitation-trends\"\u003eHistorical Context \u0026amp; Exploitation Trends\u003c/h3\u003e\n\n\u003cp\u003eFortinet explicitly stated that neither CVE-2026-44277 nor CVE-2026-26083 is currently being exploited in the wild. However, the advisory provides critical context regarding the vendor\u0026rsquo;s historical security landscape. Fortinet vulnerabilities are frequently weaponized in ransomware and cyber-espionage campaigns, often functioning as zero-days.\u003c/p\u003e\n\n\u003cp\u003eRecent examples illustrate this pattern clearly:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eIn February, Fortinet patched a critical flaw in the FortiClient Enterprise Management Server platform (CVE-2026-21643).\u003c/li\u003e\n\u003cli\u003eThreat intelligence firm Defused flagged that specific flaw as actively exploited just one month after its release.\u003c/li\u003e\n\u003cli\u003eIn early April, the U.S. Cybersecurity and Infrastructure Security Agency mandated federal agencies to patch an authentication bypass flaw (CVE-2026-35616) in the same FortiClient EMS platform.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"regulatory-industry-impact\"\u003eRegulatory \u0026amp; Industry Impact\u003c/h3\u003e\n\n\u003cp\u003eThe regulatory response to Fortinet\u0026rsquo;s security track record underscores the urgency of prompt remediation. CISA has systematically tracked the vendor\u0026rsquo;s vulnerability history through its Known Exploited Vulnerabilities catalog. Current data indicates that CISA has added 24 Fortinet vulnerabilities to the catalog in recent years.\u003c/p\u003e\n\n\u003cp\u003eFurthermore, thirteen of those cataloged flaws have been directly abused in ransomware attacks. This historical data strongly supports immediate patching across all affected FortiAuthenticator and FortiSandbox deployments.\u003c/p\u003e\n","keyPoints":["Fortinet has released patches for two critical vulnerabilities in FortiAuthenticator and FortiSandbox that enable unauthenticated attackers to execute arbitrary code via improper access control and missing authorization weaknesses.","The FortiAuthenticator flaw, tracked as CVE-2026-44277, impacts specific software versions but does not affect the cloud-hosted FortiAuthenticator Identity and Access Management service.","The FortiSandbox flaw, tracked as CVE-2026-26083, impacts the FortiSandbox, FortiSandbox Cloud, and FortiSandbox PaaS WEB UI interfaces.","While neither vulnerability is currently reported as exploited in the wild, Fortinet flaws have historically been frequently abused in ransomware and cyber-espionage attacks."],"insights":["The patch targets are fragmented across three distinct version branches (6.5.7, 6.6.9, and 8.0.3), requiring administrators to validate specific build numbers rather than applying a single universal update.","FortiAuthenticator Cloud is explicitly exempt from the access control flaw, meaning hybrid deployments only require remediation on virtual or on-premises instances.","Historical exploitation patterns show Fortinet flaws are frequently weaponized as zero-days in ransomware and cyber-espionage campaigns, making immediate patching critical despite current lack of in-the-wild reports.","CISA’s Known Exploited Vulnerabilities catalog already tracks 24 recent Fortinet flaws, with 13 directly tied to ransomware, indicating a sustained, high-value targeting campaign against the vendor's ecosystem."],"referencedReports":[{"title":"FG-IR-26-128","url":"https://fortiguard.fortinet.com/psirt/FG-IR-26-128","publisher":"Fortinet","context":"The article explicitly cites this link as the official Tuesday advisory detailing the critical access control and authorization flaws in FortiAuthenticator and FortiSandbox."}],"body":"\u003cp\u003eFortinet has issued security updates to address two critical vulnerabilities affecting its FortiAuthenticator and FortiSandbox products. The first flaw, CVE-2026-44277, is an improper access control issue in the FortiAuthenticator Identity and Access Management solution that allows unauthenticated attackers to execute unauthorized code.\u003c/p\u003e\n\n\u003cp\u003eThis issue has been patched in versions 6.5.7, 6.6.9, and 8.0.3, though the cloud-hosted FortiAuthenticator service remains unaffected. The second vulnerability, CVE-2026-26083, is a missing authorization weakness in FortiSandbox that enables remote code execution through crafted HTTP requests.\u003c/p\u003e\n\n\u003cp\u003eWhile neither flaw is currently being exploited in the wild, historical data shows that Fortinet vulnerabilities are frequently weaponized in ransomware and cyber-espionage campaigns. Organizations are strongly advised to apply the available patches immediately to prevent potential exploitation.\u003c/p\u003e\n"},{"n":2,"title":"West Pharmaceutical warns of ransomware attack impacting business operations","source":"therecord.media","sourceColor":"#a78bfa","link":"https://therecord.media/west-pharmaceutical-warns-of-ransomware-attack-impacting-operations","time":"19:00","priority":"SHOULD READ","score":88,"group":null,"groupColor":null,"tldr":"West Pharmaceutical Services suffered a ransomware attack on May 4 that encrypted critical manufacturing and shipping systems, disrupting global operations and resulting in data theft. The company has partially restored core systems and engaged Unit 42 for investigation, though full recovery remains uncertain.","briefOverview":"\u003cp\u003eWest Pharmaceutical Services has filed an SEC report warning that a ransomware attack on May 4 disrupted its global manufacturing and shipping operations. The breach encrypted critical systems and resulted in data theft, prompting the company to shut down and isolate affected on-premise infrastructure. While core enterprise systems have been partially restored and some production sites have restarted, a timeline for complete recovery remains uncertain.\u003c/p\u003e\n\n\u003cp\u003eWest engaged Palo Alto Networks’ Unit 42 to lead the investigation and containment efforts. The company is currently investigating the scope of the exfiltrated data and the financial impact of the incident. Cybersecurity experts note that the healthcare sector is experiencing a sustained surge in ransomware and data-theft attacks in 2026.\u003c/p\u003e\n\n\u003cp\u003eThis elevated threat landscape raises concerns about potential disruptions to critical patient care services.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eWest Pharmaceutical Services, a major Pennsylvania-based provider of injectable solutions and medical packaging, disclosed a ransomware attack that breached its network on May 4. The incident resulted in data theft and the encryption of critical systems used for manufacturing, shipping, and receiving products. In an SEC 8-K filing, the company warned customers that the breach temporarily disrupted global business operations.\u003c/p\u003e\n\n\u003cp\u003eTo contain the threat, West shut down and isolated affected on-premise infrastructure, restricted access to enterprise systems, and notified law enforcement. Palo Alto Networks’ incident response team, Unit 42, was hired to lead the investigation and containment efforts. Although core enterprise systems have been restored and critical processes have restarted at some facilities, the timeline for full restoration across all sites has not been finalized.\u003c/p\u003e\n\n\u003cp\u003eThe company is still determining the exact scope of the stolen information and the financial impact of the attack. No ransomware group has claimed responsibility for the breach as of the report date. West is actively taking steps to mitigate the risk of data dissemination and is leveraging its business continuity plans to minimize customer delays.\u003c/p\u003e\n\n\u003cp\u003eThe company employs over 10,000 people across 50 global locations and reported net sales exceeding $3 billion in 2025. Cybersecurity experts highlight that the healthcare industry is facing a sustained increase in malicious activity throughout 2026. Both nation-state actors and cybercriminals are driving this elevated volume of ransomware and data-theft operations.\u003c/p\u003e\n\n\u003cp\u003eErrol Weiss, chief security officer at Health ISAC, warned that the same techniques used for espionage or financial gain could be adapted to cause destructive impacts. He emphasized that prolonged interruptions to healthcare services could directly endanger patient lives.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"incident-overview-and-breach-details\"\u003eIncident Overview and Breach Details\u003c/h1\u003e\n\n\u003cp\u003eWest Pharmaceutical Services, a large Pennsylvania-based pharmaceutical company, reported a ransomware attack that compromised its network on May 4. The attackers successfully stole data and encrypted critical systems responsible for manufacturing, shipping, and receiving products. The company formally notified customers and filed an 8-K report with the Securities and Exchange Commission (SEC) on Monday evening.\u003c/p\u003e\n\n\u003ch1 id=\"containment-and-response-measures\"\u003eContainment and Response Measures\u003c/h1\u003e\n\n\u003cp\u003eWest Pharmaceutical immediately shut down and isolated the on-premise infrastructure affected by the breach. The company restricted access to enterprise systems and notified law enforcement regarding the incident. Palo Alto Networks’ incident response team, Unit 42, was contracted to lead the investigation and contain the attack.\u003c/p\u003e\n\n\u003cp\u003eWhile core enterprise systems have been restored, critical processes for shipping, receiving, and manufacturing have only restarted at some sites. The timeline for complete restoration across all locations remains unfinalized. The company is still investigating the specific scope of information exfiltrated during the initial breach.\u003c/p\u003e\n\n\u003ch1 id=\"operational-and-financial-impact\"\u003eOperational and Financial Impact\u003c/h1\u003e\n\n\u003cp\u003eFinancial impact assessments are currently ongoing, and no ransomware gang has claimed responsibility for the attack as of Tuesday. West is taking proactive steps to mitigate the risk of disseminating the stolen data. The organization is leveraging its business continuity plans and working directly with customers to minimize delays and mitigate risk.\u003c/p\u003e\n\n\u003cp\u003eWest Pharmaceutical employs more than 10,000 staff across 50 global locations and reported net sales exceeding $3 billion in 2025. The company serves as a major provider of injectable solutions, manufacturing stoppers, seals, syringe components, auto-injectors, and wearable injectors.\u003c/p\u003e\n\n\u003ch1 id=\"industry-threat-landscape\"\u003eIndustry Threat Landscape\u003c/h1\u003e\n\n\u003cp\u003eCybersecurity experts note that the healthcare industry has experienced a significant increase in cyberattacks throughout 2026. These incidents are driven by both nation-state actors and traditional cybercriminals. Errol Weiss, chief security officer at the healthcare information sharing organization Health ISAC, reported a sustained and high level of malicious activity targeting the sector.\u003c/p\u003e\n\n\u003cp\u003eHe stated that the volume and impact of attacks are highly likely to remain elevated compared to previous years. The threat landscape is particularly focused on ransomware and data-theft operations. Weiss highlighted a critical operational risk regarding the interchangeable use of access techniques across different attack motives.\u003c/p\u003e\n\n\u003ch1 id=\"risk-assessment-and-patient-safety-concerns\"\u003eRisk Assessment and Patient Safety Concerns\u003c/h1\u003e\n\n\u003cp\u003eThe same methods used for espionage, financial gain, or destructive impact can be deployed by threat actors. His primary concern centers on the potential for life-threatening consequences if healthcare services are interrupted. The sustained malicious activity underscores the vulnerability of critical medical supply chains to cyber disruptions.\u003c/p\u003e\n","keyPoints":["West Pharmaceutical Services filed an SEC report warning that a ransomware attack on May 4 encrypted critical systems and disrupted global manufacturing and shipping operations.","The company has partially restored core enterprise systems and restarted critical processes at some sites while engaging Palo Alto Networks’ Unit 42 to lead the investigation and containment efforts.","West Pharmaceutical is still investigating the scope of the stolen data and the financial impact of the breach, with no ransomware group claiming responsibility as of the report.","Cybersecurity experts note that the healthcare industry is experiencing a sustained increase in ransomware and data-theft attacks in 2026, raising concerns about potential disruptions to patient care."],"insights":["West Pharmaceutical immediately shut down and isolated on-premise infrastructure and restricted enterprise access to contain the breach.","Palo Alto Networks’ Unit 42 was engaged to lead the investigation and containment efforts.","Health ISAC highlights that 2026 healthcare attacks increasingly involve nation-state actors and cybercriminals, raising the risk of life-threatening service interruptions.","West is actively leveraging business continuity plans to mitigate customer risk and minimize delays."],"referencedReports":[{"title":"SEC 8-K Filing","url":"https://www.sec.gov/ix?doc=%2FArchives%2Fedgar%2Fdata%2F105770%2F000010577026000068%2Fwst-20260507.htm","publisher":"West Pharmaceutical Services / SEC","context":"The article cites this official SEC filing as the company's formal report warning customers about the ransomware breach and subsequent operational disruptions."}],"body":"\u003cp\u003eWest Pharmaceutical Services has filed an SEC report warning that a ransomware attack on May 4 disrupted its global manufacturing and shipping operations. The breach encrypted critical systems and resulted in data theft, prompting the company to shut down and isolate affected on-premise infrastructure. While core enterprise systems have been partially restored and some production sites have restarted, a timeline for complete recovery remains uncertain.\u003c/p\u003e\n\n\u003cp\u003eWest engaged Palo Alto Networks’ Unit 42 to lead the investigation and containment efforts. The company is currently investigating the scope of the exfiltrated data and the financial impact of the incident. Cybersecurity experts note that the healthcare sector is experiencing a sustained surge in ransomware and data-theft attacks in 2026.\u003c/p\u003e\n\n\u003cp\u003eThis elevated threat landscape raises concerns about potential disruptions to critical patient care services.\u003c/p\u003e\n"},{"n":3,"title":"Foxconn confirms cyberattack impacting North American factories","source":"therecord.media","sourceColor":"#a78bfa","link":"https://therecord.media/foxconn-confirms-cyberattack-north-american-factories","time":"19:57","priority":"SHOULD READ","score":88,"group":null,"groupColor":null,"tldr":"Foxconn confirmed that its North American factories were targeted by the Nitrogen ransomware gang, causing operational disruptions and claims of 8 terabytes of stolen data, but the company has since restored normal production cycles.","briefOverview":"\u003cp\u003eFoxconn has confirmed that a cyberattack impacted several of its North American manufacturing facilities. The company\u0026rsquo;s cybersecurity team activated response mechanisms and implemented operational measures to maintain production continuity. Affected sites are now resuming normal production cycles.\u003c/p\u003e\n\n\u003cp\u003eThe Nitrogen ransomware gang claimed responsibility for the incident on Monday. They alleged they stole eight terabytes of data and millions of files containing technical information from major technology companies. Operational disruptions were reported at a Wisconsin factory, where network outages forced staff to work manually with paper and pen.\u003c/p\u003e\n\n\u003cp\u003eFoxconn has faced multiple ransomware incidents in recent years, including attacks by LockBit and other groups targeting its Mexican and semiconductor operations. Security researchers note that Nitrogen is a financially motivated threat group first observed in 2023. The malware strain appears to be built using a tool based on the now-defunct Conti ransomware.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eFoxconn, the world\u0026rsquo;s largest contract electronics manufacturer, confirmed that a cyberattack disrupted operations at multiple North American factories. The company declined to specify the exact number of impacted facilities, which include locations in Wisconsin, Ohio, Texas, Virginia, Indiana, and Mexico. A spokesperson stated that the cybersecurity team immediately activated response protocols and deployed measures to ensure production and delivery continuity. All affected factories have since resumed normal production cycles.\u003c/p\u003e\n\n\u003cp\u003eOn Monday, the Nitrogen ransomware gang publicly took credit for the breach. The group claimed to have exfiltrated eight terabytes of data along with millions of files, some of which contain technical information from prominent technology firms. Employees at a Wisconsin facility reported experiencing Wi-Fi outages starting on Friday. The network disruptions caused widespread computer failures, forcing staff to rely on paper and pen for various tasks. Foxconn previously acknowledged the technical issues to DysruptionHub, confirming the implementation of emergency response mechanisms.\u003c/p\u003e\n\n\u003cp\u003eThe company generated $258.3 billion in revenue in 2025 and manufactures products for major clients including Apple, Google, Microsoft, and Cisco. Foxconn has a documented history of ransomware targeting, having been attacked by the LockBit gang in 2024. The same group previously targeted Foxconn\u0026rsquo;s Mexican factories in 2022, while another ransomware group struck Mexican facilities in 2020. Cybersecurity experts believe the Nitrogen strain was developed using a builder based on the defunct Conti ransomware. Researchers at Barracuda Networks described Nitrogen as a sophisticated, financially motivated threat group that first emerged in 2023.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eIncident Overview\u003c/strong\u003e\nFoxconn has confirmed that a cyberattack impacted several of its North American manufacturing facilities. The company\u0026rsquo;s spokesperson declined to provide specific details regarding the exact number of affected sites. Known Foxconn locations in North America span Wisconsin, Ohio, Texas, Virginia, Indiana, and multiple facilities across Mexico. The organization\u0026rsquo;s cybersecurity team immediately activated incident response mechanisms and implemented operational measures to safeguard production continuity. Affected factories are currently resuming normal production cycles.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eAttack Attribution and Claims\u003c/strong\u003e\nThe Nitrogen ransomware gang claimed responsibility for the breach on Monday. The attackers alleged they successfully exfiltrated eight terabytes of data. This stolen dataset reportedly includes millions of files containing technical information from several prominent technology firms. Operational impacts were observed at a Foxconn factory in Wisconsin. Employees reported Wi-Fi connectivity issues beginning on Friday. Network outages rendered computers inoperable, compelling staff to complete tasks manually using paper and pen. Foxconn had previously confirmed to DysruptionHub that it was addressing technical issues and had deployed emergency response protocols.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eCompany Profile and Financial Context\u003c/strong\u003e\nFoxconn operates as the world\u0026rsquo;s largest contract manufacturer of electronics. The company reported $258.3 billion in revenue for the year 2025. It manufactures products for major technology clients, including Apple, Google, Microsoft, and Cisco. The firm has experienced repeated ransomware incidents over the past several years. Key historical incidents include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eThe LockBit ransomware gang targeted its semiconductor segment in 2024.\u003c/li\u003e\n\u003cli\u003eThe same group attacked Foxconn\u0026rsquo;s Mexican manufacturing operations in 2022.\u003c/li\u003e\n\u003cli\u003eAnother ransomware gang targeted additional Mexican facilities in 2020.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003e\u003cstrong\u003eThreat Actor and Malware Analysis\u003c/strong\u003e\nCybersecurity experts analyze Nitrogen as a sophisticated threat group driven by financial motives. Researchers at Barracuda Networks noted that the group was first observed in 2023. Technical analysis indicates the Nitrogen ransomware strain was created using a builder based on the now-defunct Conti ransomware. Coveware published a technical blog detailing a bug in the Nitrogen ESXi malware component. The incident highlights the ongoing threat of financially motivated ransomware groups targeting critical global supply chain manufacturers.\u003c/p\u003e\n","keyPoints":["Foxconn confirmed that its North American factories were impacted by a cyberattack but have resumed normal production.","The Nitrogen ransomware gang claimed responsibility for the incident and reported stealing 8 terabytes of data along with millions of files.","Staff at a Wisconsin facility experienced network outages and computer failures that disrupted daily operations.","Foxconn has faced multiple past ransomware attacks, including incidents in 2020, 2022, and 2024.","Researchers identified Nitrogen as a financially motivated threat group that first appeared in 2023 and uses a builder based on the defunct Conti ransomware."],"insights":["Nitrogen ransomware utilizes a builder based on the now-defunct Conti ransomware, indicating technical lineage and potential tooling reuse.","The attackers claimed to have stolen technical information from prominent tech firms, suggesting the breach extends beyond Foxconn to its major clients.","Nitrogen is a financially motivated threat group first observed in 2023, representing a relatively new actor in the ransomware landscape."],"referencedReports":[{"title":"Nitrogen Ransomware ESXi Malware Has a Bug","url":"https://www.coveware.com/blog/2026/2/2/nitrogen-ransomware-esxi-malware-has-a-bug","publisher":"Coveware","context":"The article cites this technical analysis to support the claim that Nitrogen ransomware was created using a builder based on the defunct Conti ransomware."},{"title":"Nitrogen Ransomware: From Staged Loader to Full-Scale Extortion","url":"https://blog.barracuda.com/2025/11/07/nitrogen-ransomware--from-staged-loader-to-full-scale-extortion","publisher":"Barracuda Networks","context":"The article references researchers from this entity who characterized Nitrogen as a sophisticated, financially motivated threat group first observed in 2023."}],"body":"\u003cp\u003eFoxconn has confirmed that a cyberattack impacted several of its North American manufacturing facilities. The company\u0026rsquo;s cybersecurity team activated response mechanisms and implemented operational measures to maintain production continuity. Affected sites are now resuming normal production cycles.\u003c/p\u003e\n\n\u003cp\u003eThe Nitrogen ransomware gang claimed responsibility for the incident on Monday. They alleged they stole eight terabytes of data and millions of files containing technical information from major technology companies. Operational disruptions were reported at a Wisconsin factory, where network outages forced staff to work manually with paper and pen.\u003c/p\u003e\n\n\u003cp\u003eFoxconn has faced multiple ransomware incidents in recent years, including attacks by LockBit and other groups targeting its Mexican and semiconductor operations. Security researchers note that Nitrogen is a financially motivated threat group first observed in 2023. The malware strain appears to be built using a tool based on the now-defunct Conti ransomware.\u003c/p\u003e\n"},{"n":8,"title":"UK fines water supplier $1.3M for exposing data of 664k customers","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/uk-fines-water-supplier-13m-for-exposing-data-of-664k-customers/","time":"20:17","priority":"SHOULD READ","score":82,"group":null,"groupColor":null,"tldr":"The UK Information Commissioner's Office fined South Staffordshire Water over $1.3 million for severe cybersecurity failures that allowed attackers to steal and leak the personal data of nearly 664,000 customers and employees. The penalty underscores the necessity of strict access controls, comprehensive network monitoring, and timely patching to prevent prolonged undetected breaches.","briefOverview":"\u003cp\u003eThe UK Information Commissioner’s Office has issued a £963,900 fine to South Staffordshire Water Plc and its parent company for a severe cyberattack that compromised the personal data of 663,887 customers and employees. The breach originated in September 2020 and primarily unfolded between May and July 2022 after attackers gained domain administrator access. Initial claims by the Cl0p ransomware group were dismissed by the company, but the ICO confirmed the authenticity of the leaked data. The intrusion began through a phishing attack that allowed malware to remain undetected for twenty months. The regulator identified multiple critical security failures, including inadequate privilege controls, minimal network monitoring, and reliance on obsolete software. The exposed information included sensitive customer and employee details such as bank accounts, National Insurance numbers, and account credentials. The penalty was reduced by forty percent because the company admitted liability early and cooperated fully with the investigation.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eThe Information Commissioner’s Office has fined South Staffordshire Water Plc and its parent company £963,900 for a cyberattack that exposed the personal data of 663,887 customers and employees. The company, which supplies drinking water to 1.6 million consumers daily, initially dismissed claims from the Cl0p ransomware gang regarding a 2022 attack. However, the ICO’s investigation confirmed that the leaked data samples were authentic and traced the compromise back to September 2020. The attack primarily occurred between May and July 2022, during which attackers escalated privileges and obtained domain administrator access. The intrusion was only discovered in July 2022 when routine IT performance problems prompted an internal investigation. The compromised data contained full names, physical addresses, email addresses, phone numbers, dates of birth, customer account credentials, bank account details, and employee HR records including National Insurance numbers. The regulator highlighted several severe security failures that enabled the breach. These failures included insufficient controls to prevent privilege escalation, monitoring coverage limited to only 5% of the IT environment, and the continued use of obsolete software like Windows Server 2003. Additionally, the company suffered from poor vulnerability management, missing security patches, and a lack of regular internal and external security scans. The ICO determined that these deficiencies violated UK data protection requirements. The initial penalty amount was higher, but the regulator applied a 40% reduction because the company admitted liability early, cooperated with the investigation, and agreed to settle without appealing the decision.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eIncident Overview\u003c/strong\u003e\nThe UK Information Commissioner’s Office (ICO) has issued a £963,900 ($1.3 million) fine to South Staffordshire Water Plc and its parent company, South Staffordshire Plc. The penalty stems from a severe cyberattack that compromised the personal information of 663,887 customers and employees. The company, responsible for supplying 330 million liters of drinking water daily to 1.6 million consumers, initially rejected claims made by the Cl0p ransomware gang regarding a 2022 intrusion. Despite the company\u0026rsquo;s dismissal, the ICO confirmed that the leaked data samples were authentic and traced the initial compromise back to September 2020.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eAttack Timeline and Execution\u003c/strong\u003e\nThe breach unfolded in distinct phases, with the majority of the malicious activity occurring between May and July 2022. The intrusion began through a phishing attack that successfully delivered malware onto the firm’s systems. This malware operated undetected for twenty months before the attackers escalated their privileges across the network. By gaining domain administrator access, the threat actors were able to extract and publish sensitive information on the dark web. The breach was only discovered in July 2022 when underlying IT performance problems triggered an internal investigation.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eCompromised Data and Security Failures\u003c/strong\u003e\nThe exposed dataset contained highly sensitive personal and financial information. Customer data included full names, physical addresses, email addresses, phone numbers, dates of birth, customer account credentials, and bank account details. Employee records contained HR data such as National Insurance numbers. The ICO identified multiple critical security failures that facilitated this prolonged data exposure.\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eInsufficient controls to prevent privilege escalation\u003c/li\u003e\n\u003cli\u003eNetwork monitoring coverage restricted to approximately 5% of the IT environment\u003c/li\u003e\n\u003cli\u003eContinued reliance on obsolete software, specifically Windows Server 2003\u003c/li\u003e\n\u003cli\u003ePoor vulnerability management practices and missing security patches\u003c/li\u003e\n\u003cli\u003eAbsence of regular internal and external security scans\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003e\u003cstrong\u003eRegulatory Findings and Penalty Resolution\u003c/strong\u003e\nThe ICO concluded that these systemic security deficiencies constituted a clear violation of UK data protection requirements. The regulator noted that the failures left customers and employees vulnerable for nearly two years. The initial fine amount was significantly higher, but the penalty was reduced by 40%. This reduction was applied because South Staffordshire admitted liability early, cooperated fully with the investigation, and agreed to settle the case without appealing the decision.\u003c/p\u003e\n","keyPoints":["The UK Information Commissioner's Office fined South Staffordshire Water Plc and its parent company £963,900 for a cyberattack that exposed the personal data of 663,887 customers and employees.","The breach began in September 2020 and primarily occurred between May and July 2022 after attackers gained domain administrator access through a phishing attack and undetected malware.","The regulator identified multiple security failures, including insufficient privilege escalation controls, monitoring of only 5% of the IT environment, use of obsolete software, and poor vulnerability management.","The leaked data contained sensitive information such as physical addresses, bank account details, customer credentials, and employee National Insurance numbers.","The initial penalty was reduced by 40% because the company admitted liability early, cooperated with the investigation, and agreed to settle without appeal."],"insights":["The investigation revealed that security monitoring covered only about 5% of the IT environment, which directly enabled the malware to remain undetected for 20 months.","The attacker successfully escalated privileges to domain administrator access, demonstrating that insufficient access controls and missing security patches allowed unrestricted lateral movement.","The initial penalty was reduced by 40% specifically because the company admitted liability early and cooperated fully, showing that transparent regulatory engagement can significantly mitigate financial penalties.","Reliance on obsolete infrastructure like Windows Server 2003 and the absence of regular internal and external security scans created exploitable gaps that facilitated the long-term data exfiltration."],"referencedReports":[],"body":"\u003cp\u003eThe UK Information Commissioner’s Office has issued a £963,900 fine to South Staffordshire Water Plc and its parent company for a severe cyberattack that compromised the personal data of 663,887 customers and employees. The breach originated in September 2020 and primarily unfolded between May and July 2022 after attackers gained domain administrator access. Initial claims by the Cl0p ransomware group were dismissed by the company, but the ICO confirmed the authenticity of the leaked data. The intrusion began through a phishing attack that allowed malware to remain undetected for twenty months. The regulator identified multiple critical security failures, including inadequate privilege controls, minimal network monitoring, and reliance on obsolete software. The exposed information included sensitive customer and employee details such as bank accounts, National Insurance numbers, and account credentials. The penalty was reduced by forty percent because the company admitted liability early and cooperated fully with the investigation.\u003c/p\u003e\n"},{"n":10,"title":"Microsoft May 2026 Patch Tuesday fixes 120 flaws, no zero-days","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/microsoft/microsoft-may-2026-patch-tuesday-fixes-120-flaws-no-zero-days/","time":"18:08","priority":"SHOULD READ","score":82,"group":"V","groupColor":"#f472b6","tldr":"Microsoft's May 2026 Patch Tuesday addresses 120 vulnerabilities, including 17 critical flaws, with no zero-days disclosed.","briefOverview":"\u003cp\u003eMicrosoft’s May 2026 Patch Tuesday addresses 120 security flaws across its software ecosystem, with no zero-day vulnerabilities disclosed. The update resolves 17 critical vulnerabilities, including 14 remote code execution flaws, two elevation of privilege issues, and one information disclosure flaw. Additional fixes span elevation of privilege, security feature bypass, remote code execution, information disclosure, denial of service, and spoofing categories. The reported flaw count excludes earlier monthly updates for Azure, Copilot, Teams, and other Microsoft services, as well as Chromium Edge flaws patched by Google. IT administrators are strongly advised to update Microsoft Office immediately, as several remote code execution flaws can be triggered through email attachments or the preview pane. Notable fixes include critical remote code execution vulnerabilities in Windows GDI, SharePoint Server, and the Windows DNS Client.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eMicrosoft released its May 2026 Patch Tuesday security updates today, addressing a total of 120 vulnerabilities without disclosing any zero-day exploits. The patch cycle resolves 17 critical flaws, comprising 14 remote code execution vulnerabilities, two elevation of privilege issues, and one information disclosure flaw. The complete breakdown includes 61 elevation of privilege vulnerabilities, six security feature bypass flaws, 31 remote code execution issues, 14 information disclosure flaws, eight denial of service problems, and 13 spoofing vulnerabilities. Microsoft explicitly notes that this count excludes earlier monthly fixes for Mariner, Azure, Copilot, Microsoft Teams, and Microsoft Partner Center. It also omits 131 Edge and Chromium flaws that were patched by Google earlier in the month. Alongside security fixes, Microsoft released non-security cumulative updates for Windows 11, specifically KB5089549 and KB5087420, as well as an extended security update for Windows 10, KB5087544. Security researchers emphasize that several Office, Word, and Excel remote code execution flaws can be triggered via the preview pane or malicious attachments, making immediate patching essential. Key vulnerabilities addressed include CVE-2026-35421, a Windows GDI flaw exploitable through malicious Enhanced Metafile files, and CVE-2026-41096, a DNS Client vulnerability that allows remote code execution via crafted DNS responses. The update also resolves critical remote code execution flaws in Microsoft SharePoint Server and Microsoft Office Click-To-Run. Beyond Microsoft, multiple vendors released security advisories in May 2026. Adobe, Apple, Cisco, Fortinet, Google, Ivanti, Mozilla, Palo Alto Networks, SAP, and vm2 all published updates addressing critical and high-severity flaws. Palo Alto Networks and Ivanti specifically warned about actively exploited zero-day vulnerabilities, though Palo Alto has not yet released official patches. A complete list of resolved CVEs and their severity ratings is available in Microsoft’s official Patch Tuesday report.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"overview-of-microsoft-s-may-2026-patch-tuesday\"\u003eOverview of Microsoft\u0026rsquo;s May 2026 Patch Tuesday\u003c/h2\u003e\n\n\u003cp\u003eMicrosoft’s May 2026 Patch Tuesday security update addresses 120 vulnerabilities across its product ecosystem. The release does not include any zero-day vulnerabilities. Instead, it focuses on resolving known flaws across multiple severity levels and attack vectors.\u003c/p\u003e\n\n\u003ch2 id=\"critical-vulnerabilities-and-breakdown\"\u003eCritical Vulnerabilities and Breakdown\u003c/h2\u003e\n\n\u003cp\u003eThe update resolves 17 critical vulnerabilities, with the majority posing remote code execution risks. The complete breakdown of the 120 flaws is categorized as follows:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e61 Elevation of Privilege Vulnerabilities\u003c/li\u003e\n\u003cli\u003e6 Security Feature Bypass Vulnerabilities\u003c/li\u003e\n\u003cli\u003e31 Remote Code Execution Vulnerabilities\u003c/li\u003e\n\u003cli\u003e14 Information Disclosure Vulnerabilities\u003c/li\u003e\n\u003cli\u003e8 Denial of Service Vulnerabilities\u003c/li\u003e\n\u003cli\u003e13 Spoofing Vulnerabilities\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"scope-and-exclusions\"\u003eScope and Exclusions\u003c/h2\u003e\n\n\u003cp\u003eMicrosoft’s reporting methodology for this Patch Tuesday excludes several earlier monthly fixes. The count does not include vulnerabilities patched earlier this month for Mariner, Azure, Copilot, Microsoft Teams, or Microsoft Partner Center. Additionally, 131 Edge and Chromium flaws fixed by Google are excluded from the total. Alongside security patches, Microsoft released non-security cumulative updates for Windows 11, specifically KB5089549 and KB5087420. An extended security update for Windows 10, KB5087544, was also released.\u003c/p\u003e\n\n\u003ch2 id=\"notable-vulnerabilities-and-remediation-guidance\"\u003eNotable Vulnerabilities and Remediation Guidance\u003c/h2\u003e\n\n\u003cp\u003eWhile no zero-days were disclosed, several critical flaws require immediate attention. Security researchers highlight that numerous Microsoft Office, Word, and Excel remote code execution vulnerabilities can be triggered via the preview pane or malicious email attachments. Administrators are strongly advised to update Microsoft Office immediately, particularly for users who frequently handle attachments. Key vulnerabilities addressed in this update include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eCVE-2026-35421: A Windows GDI remote code execution flaw exploitable through malicious Enhanced Metafile files opened in Microsoft Paint.\u003c/li\u003e\n\u003cli\u003eCVE-2026-40365: A critical SharePoint Server remote code execution vulnerability allowing authenticated attackers to execute code remotely.\u003c/li\u003e\n\u003cli\u003eCVE-2026-41096: A Windows DNS Client remote code execution flaw that allows attackers to corrupt memory and execute code via crafted DNS responses.\u003c/li\u003e\n\u003cli\u003eMultiple critical remote code execution and elevation of privilege flaws in Microsoft Office Click-To-Run, SharePoint Server, and Windows Win32K components.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"industry-wide-security-updates-in-may-2026\"\u003eIndustry-Wide Security Updates in May 2026\u003c/h2\u003e\n\n\u003cp\u003eOther major vendors released security advisories and patches during the same period. Adobe updated After Effects, Premiere Pro, Media Encoder, Commerce, and Illustrator. AMD disclosed fixes for an elevation of privileges vulnerability in Zen 2-based CPU operation caches. Apple released updates for macOS, iOS, watchOS, iPadOS, visionOS, and tvOS. Cisco addressed numerous products, including a denial-of-service flaw that requires manual system reboots. Fortinet patched critical remote code execution flaws in FortiSandbox and FortiAuthenticator. Google published its May Android security bulletin, fixing ten vulnerabilities. Ivanti addressed a high-severity remote code execution flaw in Endpoint Manager Mobile that was actively exploited. Mozilla released updates for five Firefox vulnerabilities. Palo Alto Networks warned of a critical PAN-OS User-ID Authentication Portal flaw exploited as a zero-day, though official patches remain unavailable. SAP released updates for one high-severity and two critical flaws. Finally, vm2 patched a critical sandboxing vulnerability in the popular Node.js library.\u003c/p\u003e\n\n\u003ch2 id=\"technical-reporting\"\u003eTechnical Reporting\u003c/h2\u003e\n\n\u003cp\u003eA complete list of resolved vulnerabilities, including CVE identifiers, affected components, and severity ratings, is available in Microsoft’s official Patch Tuesday report. The data covers critical, important, and other severity levels across .NET, ASP.NET Core, Azure services, Microsoft Office, Windows kernel components, and third-party integrations.\u003c/p\u003e\n","keyPoints":["Microsoft's May 2026 Patch Tuesday addresses 120 security flaws without disclosing any zero-day vulnerabilities.","The update resolves 17 critical vulnerabilities, including 14 remote code execution flaws and 2 elevation of privilege issues.","Key fixes target remote code execution vulnerabilities in Microsoft Office, Windows GDI, SharePoint Server, and the Windows DNS Client.","The reported flaw count excludes earlier monthly updates for Azure, Copilot, Teams, and other Microsoft services, as well as Chromium Edge flaws patched by Google.","Multiple other vendors, including Adobe, Apple, Cisco, and Palo Alto Networks, released security updates or advisories in May 2026."],"insights":["Office RCE vulnerabilities can be triggered via the preview pane, making immediate patching essential for users who frequently open email attachments.","Microsoft's Patch Tuesday bulletin excludes earlier monthly fixes for Azure, Copilot, Teams, and Edge, meaning the official flaw count underestimates an organization's total exposure to Microsoft product vulnerabilities.","The DNS Client vulnerability allows remote code execution through maliciously crafted DNS responses from an attacker-controlled server, bypassing traditional network perimeter controls.","While Microsoft disclosed no zero-days this month, other vendors like Palo Alto Networks and Ivanti are actively addressing zero-day exploits, with some critical flaws still lacking official patches."],"referencedReports":[{"title":"Adobe Security Bulletin","url":"https://helpx.adobe.com/security/security-bulletin.html","publisher":"Adobe","context":"The article references Adobe's May 2026 security updates for products including After Effects, Premiere Pro, and Illustrator."},{"title":"AMD Product Security Bulletin","url":"https://www.amd.com/en/resources/product-security/bulletin/amd-sb-7052.html","publisher":"AMD","context":"The article cites AMD's disclosure of an elevation of privileges vulnerability in the Zen 2-based CPU operation cache."},{"title":"Apple Security Update","url":"https://support.apple.com/en-us/100100","publisher":"Apple","context":"The article notes Apple released security updates for macOS, iOS, watchOS, iPadOS, visionOS, and tvOS."},{"title":"Cisco Security Updates","url":"https://sec.cloudapps.cisco.com/security/center/publicationListing.x","publisher":"Cisco","context":"The article references Cisco's release of security updates for numerous products, including a denial-of-service flaw requiring manual reboots."},{"title":"Android May Security Bulletin","url":"https://docs.qualcomm.com/securitybulletin/may-2026-bulletin.html","publisher":"Google","context":"The article states Google released its May security bulletin, which fixes ten vulnerabilities."},{"title":"Mozilla Security Advisory","url":"https://mozilla.org/en-US/security/advisories/mfsa2026-45/","publisher":"Mozilla","context":"The article references Mozilla's release of security updates addressing five Firefox vulnerabilities."},{"title":"SAP May Security Updates","url":"https://support.sap.com/en/my-support/knowledge-base/security-notes-news/may-2026.html","publisher":"SAP","context":"The article cites SAP's May security updates, which include fixes for one high-severity and two critical flaws."}],"body":"\u003cp\u003eMicrosoft’s May 2026 Patch Tuesday addresses 120 security flaws across its software ecosystem, with no zero-day vulnerabilities disclosed. The update resolves 17 critical vulnerabilities, including 14 remote code execution flaws, two elevation of privilege issues, and one information disclosure flaw. Additional fixes span elevation of privilege, security feature bypass, remote code execution, information disclosure, denial of service, and spoofing categories. The reported flaw count excludes earlier monthly updates for Azure, Copilot, Teams, and other Microsoft services, as well as Chromium Edge flaws patched by Google. IT administrators are strongly advised to update Microsoft Office immediately, as several remote code execution flaws can be triggered through email attachments or the preview pane. Notable fixes include critical remote code execution vulnerabilities in Windows GDI, SharePoint Server, and the Windows DNS Client.\u003c/p\u003e\n"},{"n":9,"title":"Windows 11 KB5089549 \u0026 KB5087420 cumulative updates released","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/microsoft/windows-11-kb5089549-and-kb5087420-cumulative-updates-released/","time":"18:09","priority":"SHOULD READ","score":80,"group":"V","groupColor":"#f472b6","tldr":"Microsoft has released mandatory Windows 11 cumulative updates KB5089549 and KB5087420 to patch 120 security vulnerabilities across all supported versions, with no reported zero-days or known issues. Administrators and users should install the update immediately through Windows Update or the Microsoft Update Catalog to maintain system security.","briefOverview":"\u003cp\u003eMicrosoft has released mandatory Windows 11 cumulative updates KB5089549 and KB5087420 to address 120 security vulnerabilities across versions 25H2, 24H2, and 23H2. These updates are part of the May 2026 Patch Tuesday and are considered mandatory for all supported systems. Users can install them through Windows Update or the Microsoft Update Catalog.\u003c/p\u003e\n\n\u003cp\u003eThe release introduces several new features, including an Xbox mode for desktop, expanded archive format support in File Explorer, and haptic feedback for compatible input devices. Microsoft reports no zero-days or known issues with this update, emphasizing its stability. Future Windows 11 improvements are already planned, including a movable taskbar, reduced Copilot integration, and faster out-of-box experiences.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eMicrosoft has released the May 2026 Patch Tuesday cumulative updates for Windows 11, specifically KB5089549 and KB5087420. These mandatory updates target versions 25H2, 24H2, and 23H2 to patch 120 security vulnerabilities discovered in previous months. The fifth Patch Tuesday release of 2026 is based on the 24H2 branch, meaning both 24H2 and 25H2 receive identical fixes.\u003c/p\u003e\n\n\u003cp\u003eAfter installation, build numbers will update to 26200.8457 for 25H2, 26100.8457 for 24H2, and 22631.7079 for 23H2. The update introduces an Xbox mode for desktop, expands File Explorer archive support to include uu, cpio, xar, and nupkg formats, and adds haptic feedback for compatible pens and mice. Voice typing receives a simplified interface, and an Arabic 101 Legacy keyboard layout is now available.\u003c/p\u003e\n\n\u003cp\u003eFile Explorer also preserves view preferences in Downloads and Documents folders while removing a dark mode white flash. Microsoft renamed the Drag Tray to Drop Tray and moved its settings to the Multitasking menu to prevent accidental triggers. Security enhancements include a new icon for Windows Protected Print Mode and a registry-based policy to lock batch files during execution.\u003c/p\u003e\n\n\u003cp\u003eReliability improvements cover taskbar loading, Windows Hello persistence, storage information performance, and startup app launch times. Microsoft Store download errors have been reduced, and third-party audio driver compatibility with midisrv.exe has been improved. The FAT32 command-line formatting limit has been raised from 32GB to 2TB, and Delivery Optimization now uses less memory.\u003c/p\u003e\n\n\u003cp\u003eMicrosoft reports no zero-days or known issues with this release. The company also outlined future plans to restore the movable taskbar, improve right-click menu performance, limit Copilot integration, reduce ads, and introduce skippable updates.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eRelease Overview and Build Updates\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eMicrosoft has released the May 2026 Patch Tuesday cumulative updates for Windows 11, specifically KB5089549 and KB5087420. These mandatory updates target versions 25H2, 24H2, and 23H2 to patch 120 security vulnerabilities discovered in previous months. The fifth Patch Tuesday release of 2026 is based on the 24H2 branch, meaning both 24H2 and 25H2 receive identical fixes. Users can install the updates through Windows Update or the Microsoft Update Catalog.\u003c/p\u003e\n\n\u003cp\u003eAfter installation, build numbers will update to 26200.8457 for 25H2, 26100.8457 for 24H2, and 22631.7079 for 23H2. The release contains no exclusive changes between versions, ensuring a consistent patch across all supported Windows 11 editions. Administrators should verify the build numbers post-installation to confirm successful deployment.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eNew Features and Interface Changes\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eThe update introduces several user-facing enhancements across multiple system components. Key additions include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eFile Explorer now supports additional archive formats, including uu, cpio, xar, and NuGet Packages (nupkg).\u003c/li\u003e\n\u003cli\u003eView and sort preferences are preserved in Downloads and Documents folders when apps launch File Explorer directly.\u003c/li\u003e\n\u003cli\u003eA white flash issue in dark mode when opening This PC or resizing the Details pane has been resolved.\u003c/li\u003e\n\u003cli\u003eMicrosoft renamed the Drag Tray to Drop Tray, relocating its settings to System \u0026gt; Multitasking to prevent accidental screen triggers.\u003c/li\u003e\n\u003cli\u003eInput and accessibility features have been expanded with haptic feedback support for compatible devices like the Surface Slim Pen 2 and ASUS Pen 3.0.\u003c/li\u003e\n\u003cli\u003eVoice typing now displays animations directly on the dictation key instead of a full-screen overlay.\u003c/li\u003e\n\u003cli\u003eThe Arabic 101 Legacy keyboard layout is available for users preferring the pre-AltGr design.\u003c/li\u003e\n\u003cli\u003ePrinting settings now display an icon indicating Windows Protected Print Mode support.\u003c/li\u003e\n\u003cli\u003eStorage formatting limits for FAT32 volumes via command line have been increased from 32GB to 2TB.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003e\u003cstrong\u003eSecurity and Administrative Controls\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eAdministrators gain tighter control over script execution through a new secure batch file processing mode. This feature prevents batch files from modifying themselves during execution. To enable it, administrators must add the LockBatchFilesWhenInUse DWORD value under HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Command Processor. Policy authors can also enforce this via the Application Control for Business manifest schema. Microsoft Store reliability has improved by reducing unexpected download and installation errors, specifically addressing error codes 0x80070057, 0x80070008, and 0x80073d28.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eReliability and Performance Improvements\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eUnderlying system stability has been enhanced across several core processes. explorer.exe reliability has improved during sign-in, taskbar menu interactions, Task View usage, and Quick Access unpinning. The taskbar system tray area now loads more consistently. Windows Hello Face reliability and Fingerprint persistence across upgrades have been strengthened. Storage information performance for large volumes has been optimized in the Advanced Storage Settings menu. Delivery Optimization now consumes less memory, reducing the risk of unexpected resource spikes. Startup application launch performance has been accelerated following device boot.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eMicrosoft\u0026rsquo;s Statement and Future Roadmap\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eMicrosoft reports no zero-days or known issues with this Patch Tuesday release. The company attributes this stability to its commitment to a reliable Windows experience. Looking ahead, Microsoft is developing a major quality update that will restore the movable taskbar and significantly improve right-click menu performance. Additional plans include limiting Copilot integration, reducing system ads, and enabling skippable Windows Updates for a faster out-of-box experience.\u003c/p\u003e\n","keyPoints":["Microsoft has released mandatory Windows 11 cumulative updates KB5089549 and KB5087420 to patch 120 security vulnerabilities across versions 25H2, 24H2, and 23H2.","The May 2026 Patch Tuesday release introduces new features such as an Xbox mode for desktop, expanded archive format support in File Explorer, and haptic feedback for compatible input devices.","Administrators can enable a more secure batch file processing mode by adding the LockBatchFilesWhenInUse registry value or using the Application Control for Business manifest control.","Microsoft reports no zero-days or known issues with this update, while also confirming future plans to restore the movable taskbar and reduce Copilot integration."],"insights":["Administrators can enforce batch file integrity during execution by enabling the LockBatchFilesWhenInUse registry DWORD under HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Command Processor.","Microsoft is rebranding the Drag Tray to Drop Tray and relocating its configuration to System \u003e Multitasking settings to prevent accidental screen triggers near the top edge.","Command-line FAT32 volume formatting limits have been increased from 32GB to 2TB, allowing larger legacy filesystem partitions without third-party tools."],"referencedReports":[],"body":"\u003cp\u003eMicrosoft has released mandatory Windows 11 cumulative updates KB5089549 and KB5087420 to address 120 security vulnerabilities across versions 25H2, 24H2, and 23H2. These updates are part of the May 2026 Patch Tuesday and are considered mandatory for all supported systems. Users can install them through Windows Update or the Microsoft Update Catalog.\u003c/p\u003e\n\n\u003cp\u003eThe release introduces several new features, including an Xbox mode for desktop, expanded archive format support in File Explorer, and haptic feedback for compatible input devices. Microsoft reports no zero-days or known issues with this update, emphasizing its stability. Future Windows 11 improvements are already planned, including a movable taskbar, reduced Copilot integration, and faster out-of-box experiences.\u003c/p\u003e\n"},{"n":6,"title":"Microsoft releases Windows 10 KB5087544 extended security update","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/microsoft/microsoft-releases-windows-10-kb5087544-extended-security-update/","time":"18:58","priority":"SHOULD READ","score":78,"group":"V","groupColor":"#f472b6","tldr":"Microsoft released the Windows 10 KB5087544 extended security update to patch 120 May 2026 vulnerabilities and fix Remote Desktop warning display issues. Administrators should temporarily remove affected BitLocker Group Policy settings to prevent unexpected recovery key prompts until a permanent fix is deployed.","briefOverview":"\u003cp\u003eMicrosoft has released the Windows 10 KB5087544 extended security update to address vulnerabilities identified during the May 2026 Patch Tuesday. This update resolves 120 security flaws and fixes a rendering bug that caused Remote Desktop security warnings to display incorrectly in multi-monitor environments. Windows 10 and Windows 10 Enterprise LTSC 2021 will be updated to builds 19045.7291 and 19044.7291, respectively. The release focuses exclusively on security patches and bug fixes, as Microsoft has ceased adding new features to Windows 10. Administrators should also be aware of a known issue where certain systems prompt for BitLocker recovery keys after installing recent updates. This problem specifically impacts configurations using PCR7 in the TPM validation profile alongside Secure Boot conditions tied to the Windows UEFI CA 2023 certificate. Microsoft recommends temporarily removing the affected Group Policy setting and suspending BitLocker to regenerate PCR bindings until a permanent fix is available. The update also introduces dynamic Secure Boot status reporting and applies a daylight savings time adjustment for Egypt.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eMicrosoft has officially released the Windows 10 KB5087544 extended security update to address vulnerabilities discovered during the May 2026 Patch Tuesday. The update patches a total of 120 security flaws and resolves a known issue where Remote Desktop Connection security warnings render incorrectly in multi-monitor setups with varying display scaling settings. Upon installation, Windows 10 will advance to build 19045.7291, while Windows 10 Enterprise LTSC 2021 will reach build 19044.7291. Microsoft continues to prioritize security maintenance over feature development for the Windows 10 platform. Beyond the primary security patches, the update enables dynamic status reporting for Secure Boot states within the Windows Security App. It also incorporates additional high-confidence device targeting data to expand automatic Secure Boot certificate distribution for devices that demonstrate sufficient successful update signals. A daylight savings time update has been included to support the Arab Republic of Egypt government\u0026rsquo;s 2023 DST change order. Administrators must also address a documented workaround for a known issue that triggers BitLocker recovery key prompts after recent updates. This specific problem affects systems configured with a BitLocker Group Policy that includes PCR7 in the TPM validation profile, combined with Secure Boot and boot manager conditions linked to the Windows UEFI CA 2023 certificate. To mitigate this temporarily, Microsoft advises removing the affected Group Policy setting and suspending BitLocker before resuming it to regenerate default PCR bindings. The company is actively working on a permanent fix for this BitLocker configuration conflict. Users enrolled in the Extended Security Updates program or running Windows 10 Enterprise LTSC can install the update through standard Windows Update channels. Microsoft has published a detailed changelog outlining all security fixes and known issues associated with KB5087544.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"overview-of-windows-10-kb5087544-extended-security-update\"\u003eOverview of Windows 10 KB5087544 Extended Security Update\u003c/h3\u003e\n\n\u003cp\u003eMicrosoft has released the Windows 10 KB5087544 extended security update to address vulnerabilities identified during the May 2026 Patch Tuesday. This release focuses exclusively on security patches and bug fixes, as Microsoft has officially stopped adding new features to the Windows 10 platform. The update brings Windows 10 to build 19045.7291 and Windows 10 Enterprise LTSC 2021 to build 19044.7291.\u003c/p\u003e\n\n\u003ch3 id=\"security-vulnerabilities-and-feature-updates\"\u003eSecurity Vulnerabilities and Feature Updates\u003c/h3\u003e\n\n\u003cp\u003eThe primary objective of KB5087544 is to patch 120 vulnerabilities discovered during the May 2026 Patch Tuesday cycle. Beyond standard security fixes, the update introduces several operational improvements and regional adjustments. Key enhancements include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eRemote Desktop Warning Fix:\u003c/strong\u003e Resolves a rendering issue that caused newly introduced RDP security warnings to display incorrectly in multi-monitor configurations with different display scaling settings.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSecure Boot Enhancements:\u003c/strong\u003e Enables dynamic status reporting for Secure Boot states in the Windows Security App. The update also adds high-confidence device targeting data to automatically distribute new Secure Boot certificates to devices that demonstrate sufficient successful update signals.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eDaylight Savings Time Adjustment:\u003c/strong\u003e Applies a regional update for the Arab Republic of Egypt to align with the government\u0026rsquo;s 2023 DST change order.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"known-issues-and-mitigation-strategies\"\u003eKnown Issues and Mitigation Strategies\u003c/h3\u003e\n\n\u003cp\u003eMicrosoft has documented a significant known issue affecting certain enterprise configurations after installing recent updates. The problem causes Windows to unexpectedly prompt users for their BitLocker recovery key. This behavior is isolated to systems utilizing a specific BitLocker Group Policy configuration that includes PCR7 in the TPM validation profile. The issue is further compounded by Secure Boot and boot manager conditions tied to the newer Windows UEFI CA 2023 certificate.\u003c/p\u003e\n\n\u003cp\u003eTo mitigate this issue temporarily, Microsoft recommends the following steps:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eRemove the affected Group Policy setting from the system configuration.\u003c/li\u003e\n\u003cli\u003eSuspend BitLocker protection on the affected drives.\u003c/li\u003e\n\u003cli\u003eResume BitLocker to regenerate the default PCR bindings.\nMicrosoft is actively developing a permanent fix for this BitLocker configuration conflict and will provide further guidance as the solution progresses.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"deployment-instructions\"\u003eDeployment Instructions\u003c/h3\u003e\n\n\u003cp\u003eOrganizations running Windows 10 Enterprise LTSC or enrolled in the Extended Security Updates (ESU) program can install KB5087544 through standard update channels. Users should navigate to Settings, select Windows Update, and manually trigger a check for updates. The complete list of security fixes, known issues, and technical workarounds is available in Microsoft\u0026rsquo;s official documentation for the May 12, 2026 release.\u003c/p\u003e\n","keyPoints":["Microsoft released the Windows 10 KB5087544 extended security update to patch 120 vulnerabilities identified during the May 2026 Patch Tuesday.","The update resolves a rendering issue that caused Remote Desktop security warnings to display incorrectly in multi-monitor setups with varying display scaling.","Administrators should temporarily remove affected BitLocker Group Policy settings and suspend and resume BitLocker to prevent unexpected recovery key prompts caused by recent updates.","Windows 10 and Windows 10 Enterprise LTSC 2021 will be updated to build 19045.7291 and 19044.7291 respectively after installation."],"insights":["The BitLocker recovery key prompt regression is specifically triggered by Group Policy configurations that include PCR7 in the TPM validation profile alongside Secure Boot conditions tied to the Windows UEFI CA 2023 certificate.","Administrators can temporarily mitigate the BitLocker prompt issue by removing the affected Group Policy setting and suspending and resuming BitLocker to regenerate default PCR bindings.","The update expands Secure Boot visibility by enabling dynamic status reporting in the Windows Security App and automatically distributes new certificates to devices that demonstrate sufficient successful update signals."],"referencedReports":[],"body":"\u003cp\u003eMicrosoft has released the Windows 10 KB5087544 extended security update to address vulnerabilities identified during the May 2026 Patch Tuesday. This update resolves 120 security flaws and fixes a rendering bug that caused Remote Desktop security warnings to display incorrectly in multi-monitor environments. Windows 10 and Windows 10 Enterprise LTSC 2021 will be updated to builds 19045.7291 and 19044.7291, respectively. The release focuses exclusively on security patches and bug fixes, as Microsoft has ceased adding new features to Windows 10. Administrators should also be aware of a known issue where certain systems prompt for BitLocker recovery keys after installing recent updates. This problem specifically impacts configurations using PCR7 in the TPM validation profile alongside Secure Boot conditions tied to the Windows UEFI CA 2023 certificate. Microsoft recommends temporarily removing the affected Group Policy setting and suspending BitLocker to regenerate PCR bindings until a permanent fix is available. The update also introduces dynamic Secure Boot status reporting and applies a daylight savings time adjustment for Egypt.\u003c/p\u003e\n"},{"n":1,"title":"Congressman launches inquiry into how food retailers use surveillance pricing","source":"therecord.media","sourceColor":"#a78bfa","link":"https://therecord.media/congressman-launches-inquiry-into-food-retail-surveillance","time":"19:47","priority":"MAY READ","score":68,"group":null,"groupColor":null,"tldr":"Congressman Frank Pallone Jr. is investigating major retailers for using consumer data and AI algorithms to implement surveillance pricing, requiring companies to disclose their data sources and pricing mechanisms.","briefOverview":"\u003cp\u003eCongressman Frank Pallone Jr. has initiated a formal inquiry into how major food retailers utilize surveillance pricing techniques. He sent a letter to twenty-five companies, including Walmart, Target, and Amazon, demanding transparency regarding their data collection practices. The inquiry seeks to determine whether these businesses manipulate prices based on personal consumer information.\u003c/p\u003e\n\n\u003cp\u003ePallone emphasized that shoppers deserve to know if algorithms are being used to maximize profits at their expense. New York state recently passed legislation requiring companies to disclose if artificial intelligence influences pricing decisions. Following this law, Target began displaying pop-up notifications when algorithmic pricing is applied.\u003c/p\u003e\n\n\u003cp\u003eThe congressman is now requiring all targeted retailers to report their specific data elements and pricing methodologies. Companies must also clarify whether they source data from third parties and if customers can opt out of data-driven pricing. A January 2025 Federal Trade Commission report previously highlighted how retailers use browsing behavior and geolocation to set variable prices. This congressional action builds on existing regulatory efforts to address opaque algorithmic pricing models.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eHouse Energy and Commerce Committee ranking member Frank Pallone Jr. launched an official inquiry into whether more than two dozen food retailers are employing surveillance pricing strategies. On Monday, he distributed a letter to twenty-five major retailers, specifically naming Albertsons, Stop and Shop, Amazon, Whole Foods, CVS, Target, Walgreens, Walmart, and Wegmans. The correspondence directly asks these organizations how they gather personal data and whether they apply it to determine individualized product costs.\u003c/p\u003e\n\n\u003cp\u003ePallone stated that consumers have a right to understand if their personal information is being leveraged to manipulate prices or test algorithmic pricing models. He noted that an increasing number of firms are relying on technological advancements to extract maximum profit from financially strained shoppers. This legislative push follows a recent New York state mandate that requires companies to publicly disclose if they utilize artificial intelligence for price setting.\u003c/p\u003e\n\n\u003cp\u003eAfter the regulation took effect, Target implemented a website pop-up warning users when a price was generated by an algorithm using their personal data. The congressional letter highlights that a significant portion of Americans remain unaware that their data is actively driving variable pricing, a practice especially common among online shoppers. Pallone has directed each company to submit a detailed report on every customer data element used to calculate prices.\u003c/p\u003e\n\n\u003cp\u003eRetailers must also explain whether they employ artificial intelligence or machine learning algorithms to establish pricing structures. The inquiry further demands disclosure on whether companies acquire pricing data from external third-party sources. Businesses must also outline their current policies regarding customer opt-out mechanisms for data-driven pricing. This effort aligns with a January 2025 Federal Trade Commission report that documented how retailers use browsing behavior and geolocation to set variable prices. The FTC report was compiled from responses provided by six major companies that utilize real-time pricing tools. These tools allow retailers to dynamically adjust costs using algorithms tailored to individual consumer traits derived from personal data.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"congressional-inquiry-into-surveillance-pricing\"\u003eCongressional Inquiry into Surveillance Pricing\u003c/h3\u003e\n\n\u003cp\u003eHouse Energy and Commerce Committee ranking member Frank Pallone Jr. has formally initiated an investigation into the widespread use of surveillance pricing by major food retailers. The inquiry targets twenty-five specific companies, including Albertsons, Stop and Shop, Amazon, Whole Foods, CVS, Target, Walgreens, Walmart, and Wegmans. Pallone sent a letter on Monday demanding transparency regarding how these retailers collect personal data and apply it to determine individualized product costs.\u003c/p\u003e\n\n\u003ch3 id=\"core-objectives-of-the-letter\"\u003eCore Objectives of the Letter\u003c/h3\u003e\n\n\u003cp\u003eThe correspondence emphasizes that consumers deserve full visibility into whether businesses manipulate prices using personal information or experiment with algorithmic pricing models. Pallone warned that an increasing number of companies are leveraging technological advances to maximize profits at the expense of financially strained shoppers. This legislative action directly follows a recent New York state law that mandates public disclosure whenever artificial intelligence is used to set prices.\u003c/p\u003e\n\n\u003cp\u003eFollowing the implementation of this regulation, Target began displaying pop-up notifications to alert users when a price was generated by an algorithm utilizing their personal data. The congressional letter highlights that many Americans remain completely unaware that their personal information is being used to calculate variable prices. This lack of transparency is particularly pervasive among online shoppers who interact with dynamic pricing systems daily.\u003c/p\u003e\n\n\u003ch3 id=\"data-collection-and-consumer-awareness\"\u003eData Collection and Consumer Awareness\u003c/h3\u003e\n\n\u003cp\u003ePallone has directed each of the twenty-five companies to submit a comprehensive report detailing every customer data element used to establish prices. Retailers must explicitly explain whether they utilize artificial intelligence or machine learning algorithms to determine pricing structures. The inquiry further requires companies to disclose whether they acquire pricing data from external third-party sources.\u003c/p\u003e\n\n\u003cp\u003eBusinesses must also outline their current policies and technical capabilities regarding customer opt-out mechanisms for data-driven pricing. This demand for transparency aligns with broader regulatory scrutiny of algorithmic pricing practices across the retail sector. Key compliance requirements include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eReporting all customer data elements used to set prices\u003c/li\u003e\n\u003cli\u003eDisclosing the use of AI or machine learning algorithms\u003c/li\u003e\n\u003cli\u003eIdentifying third-party data sources used for pricing decisions\u003c/li\u003e\n\u003cli\u003eExplaining opt-out procedures for customers\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"regulatory-context-and-ftc-findings\"\u003eRegulatory Context and FTC Findings\u003c/h3\u003e\n\n\u003cp\u003eA January 2025 Federal Trade Commission report previously documented how businesses charge customers higher prices based on insights from consumer data and behaviors. The FTC report specifically noted that pricing algorithms factor in geolocation, demographics, shopping habits, and even granular browsing behaviors like mouse movements. This report was compiled from responses provided by six major companies that utilize real-time pricing tools.\u003c/p\u003e\n\n\u003cp\u003eThese tools enable retailers to dynamically adjust costs using algorithms tailored to individual consumer traits derived from personal data. The congressional inquiry builds directly upon these findings to enforce stricter accountability and transparency standards across the industry.\u003c/p\u003e\n","keyPoints":["Congressman Frank Pallone Jr. sent a letter to 25 major retailers investigating how they use personal data to set variable prices.","The inquiry requires companies to disclose their data collection practices, pricing algorithms, and whether customers can opt out of data-driven pricing.","New York state has already implemented a law requiring businesses to disclose if they use artificial intelligence to determine prices based on personal data.","A January 2025 FTC report confirmed that retailers use consumer data such as geolocation, demographics, and browsing behavior to dynamically adjust prices.","Many consumers remain unaware that their personal information is being used to manipulate the prices they see, particularly during online shopping."],"insights":["The FTC report specifically lists mouse movement on webpages as a data input for dynamic pricing, highlighting granular behavioral tracking that extends beyond traditional demographic or location data.","The congressional letter explicitly requires disclosure on third-party data sourcing for pricing, highlighting that external data aggregation is a primary compliance focus for the inquiry.","The FTC’s inquiry targets third-party vendors that sell real-time pricing change tools, indicating that an external software ecosystem is actively enabling dynamic pricing across the retail sector."],"referencedReports":[{"title":"Preliminary FTC Report on Surveillance Pricing","url":"https://therecord.media/surveillance-pricing-preliminary-ftc-report","publisher":"Federal Trade Commission","context":"The article references this January 2025 report, which details how major retailers use consumer data and algorithmic tools to dynamically adjust prices based on individual traits."}],"body":"\u003cp\u003eCongressman Frank Pallone Jr. has initiated a formal inquiry into how major food retailers utilize surveillance pricing techniques. He sent a letter to twenty-five companies, including Walmart, Target, and Amazon, demanding transparency regarding their data collection practices. The inquiry seeks to determine whether these businesses manipulate prices based on personal consumer information.\u003c/p\u003e\n\n\u003cp\u003ePallone emphasized that shoppers deserve to know if algorithms are being used to maximize profits at their expense. New York state recently passed legislation requiring companies to disclose if artificial intelligence influences pricing decisions. Following this law, Target began displaying pop-up notifications when algorithmic pricing is applied.\u003c/p\u003e\n\n\u003cp\u003eThe congressman is now requiring all targeted retailers to report their specific data elements and pricing methodologies. Companies must also clarify whether they source data from third parties and if customers can opt out of data-driven pricing. A January 2025 Federal Trade Commission report previously highlighted how retailers use browsing behavior and geolocation to set variable prices. This congressional action builds on existing regulatory efforts to address opaque algorithmic pricing models.\u003c/p\u003e\n"},{"n":5,"title":"Webinar: Fixing the gaps in network incident response","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/webinar-fixing-the-gaps-in-network-incident-response/","time":"19:46","priority":"MAY READ","score":55,"group":null,"groupColor":null,"tldr":"Network incidents escalate when IT teams rely on manual triage across disparate systems, making automated, AI-assisted workflows essential for streamlining coordination and accelerating incident resolution.","briefOverview":"\u003cp\u003eMost network incidents escalate not due to poor visibility, but because IT teams must manually triage alerts and coordinate across disconnected systems. As alert sources multiply from monitoring platforms, infrastructure tools, identity systems, and security products, manual investigation slows response times and increases disruption risks. Tines addresses this by providing automation and AI-assisted workflows that streamline incident response and reduce repetitive manual tasks. A live webinar hosted by BleepingComputer on June 2, 2026, will explore how coordinated response workflows can accelerate incident resolution. Attendees will learn how to close gaps between alerting, triage, analysis, routing, and resolution. The session will cover how incidents evolve, where traditional workflows break down, and how to automatically enrich alerts with contextual data. By prioritizing and routing incidents without manual intervention, teams can move from fragmented responses to coordinated, system-wide resolutions. This approach directly reduces response delays and prevents service outages.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eNetwork incidents frequently escalate because IT teams are forced to manually triage alerts and coordinate responses across disparate systems during high-pressure situations. Alert volumes continue to grow as they originate from a wide variety of sources, including monitoring platforms, infrastructure systems, identity tools, and security products. Despite this complexity, many teams still rely on manual investigation and routing, which slows response times and heightens the risk of service disruptions. To address these challenges, Tines offers intelligent workflows that combine automation and artificial intelligence to streamline incident response. These workflows reduce repetitive manual work and coordinate actions across multiple platforms simultaneously. BleepingComputer will host a live webinar on Tuesday, June 2, 2026, titled From alert to resolution: Fixing the gaps in network incident response. The session will examine why coordinated response workflows are necessary to reduce response times and prevent outages. Attendees will learn how to close the operational gaps between alerting, triage, analysis, routing, and resolution. The webinar will also explore how network incidents typically evolve from an initial alert into a full service impact. Participants will discover where triage, enrichment, and routing processes break down in real-world environments. The discussion will cover techniques for automatically enriching alerts with network, identity, and threat context. Additionally, the session will demonstrate methods to prioritize and route incidents without requiring manual intervention. Ultimately, the webinar aims to show how teams can transition from fragmented responses to coordinated resolutions across complex systems. By adopting these automated and AI-assisted workflows, IT organizations can significantly reduce response delays and improve overall incident resolution.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"incident-escalation-drivers\"\u003eIncident Escalation Drivers\u003c/h3\u003e\n\n\u003cp\u003eMost network incidents do not escalate because of a lack of visibility. Instead, they escalate because IT teams are forced to manually triage alerts and coordinate responses across disparate systems during high-pressure incidents. As environments become more complex, alert volumes continue to grow from a wide variety of sources. These sources include monitoring platforms, infrastructure systems, identity tools, and security products. Despite the increasing volume and complexity, many IT teams still rely on manual investigation and routing. This reliance on manual processes slows response times and increases the risk of service disruptions.\u003c/p\u003e\n\n\u003ch3 id=\"the-tines-solution\"\u003eThe Tines Solution\u003c/h3\u003e\n\n\u003cp\u003eTines addresses these operational challenges by helping teams build intelligent workflows. These workflows combine automation and artificial intelligence to streamline incident response. The platform reduces repetitive manual work and coordinates action across multiple systems simultaneously. By integrating these capabilities, Tines enables IT teams to move incidents from initial alerts to resolution much faster. This coordinated approach directly addresses the fragmentation that typically hinders effective incident management.\u003c/p\u003e\n\n\u003ch3 id=\"webinar-details-and-agenda\"\u003eWebinar Details and Agenda\u003c/h3\u003e\n\n\u003cp\u003eBleepingComputer will host a live webinar titled From alert to resolution: Fixing the gaps in network incident response on Tuesday, June 2, 2026. The session will explore why IT teams need more coordinated response workflows to reduce response times and prevent outages. Attendees will learn how to close the gaps between alerting, triage, analysis, routing, and resolution. The webinar agenda includes several key technical and operational topics.\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eHow network incidents typically evolve from initial alert to service impact\u003c/li\u003e\n\u003cli\u003eWhere triage, enrichment, and routing break down in real-world workflows\u003c/li\u003e\n\u003cli\u003eHow to automatically enrich alerts with network, identity, and threat context\u003c/li\u003e\n\u003cli\u003eTechniques to prioritize and route incidents without manual intervention\u003c/li\u003e\n\u003cli\u003eHow to move from fragmented response to coordinated resolution across systems\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"strategic-impact\"\u003eStrategic Impact\u003c/h3\u003e\n\n\u003cp\u003eThe webinar will examine how automation and AI-assisted workflows can help reduce manual overhead. These workflows improve coordination and speed incident resolution across complex environments. By implementing automated enrichment and routing, teams can eliminate the delays caused by manual investigation. The session will demonstrate how to transition from fragmented responses to coordinated resolutions. Ultimately, adopting these intelligent workflows allows IT teams to reduce response delays and improve incident resolution across their entire infrastructure.\u003c/p\u003e\n","keyPoints":["Most network incidents escalate because IT teams must manually triage alerts and coordinate responses across disparate systems during high-pressure situations.","Alert volumes continue to grow from diverse sources including monitoring platforms, infrastructure tools, identity systems, and security products.","Tines offers automation and AI-assisted workflows to streamline incident response, reduce repetitive manual work, and coordinate actions across systems.","The upcoming webinar will examine how incidents evolve, where triage and routing break down, and how to automatically enrich and prioritize alerts without manual intervention.","Implementing coordinated response workflows enables IT teams to reduce response delays and accelerate incident resolution across complex environments."],"insights":["Incident escalation stems from manual coordination bottlenecks across disparate systems rather than insufficient visibility.","Automatically enriching alerts with network, identity, and threat context before triage eliminates manual investigation delays.","Implementing automated routing and prioritization removes human intervention from high-pressure alert handling, directly accelerating resolution."],"referencedReports":[],"body":"\u003cp\u003eMost network incidents escalate not due to poor visibility, but because IT teams must manually triage alerts and coordinate across disconnected systems. As alert sources multiply from monitoring platforms, infrastructure tools, identity systems, and security products, manual investigation slows response times and increases disruption risks. Tines addresses this by providing automation and AI-assisted workflows that streamline incident response and reduce repetitive manual tasks. A live webinar hosted by BleepingComputer on June 2, 2026, will explore how coordinated response workflows can accelerate incident resolution. Attendees will learn how to close gaps between alerting, triage, analysis, routing, and resolution. The session will cover how incidents evolve, where traditional workflows break down, and how to automatically enrich alerts with contextual data. By prioritizing and routing incidents without manual intervention, teams can move from fragmented responses to coordinated, system-wide resolutions. This approach directly reduces response delays and prevents service outages.\u003c/p\u003e\n"},{"n":7,"title":"Signal adds security warnings for social engineering, phishing attacks","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/signal-adds-security-warnings-for-social-engineering-phishing-attacks/","time":"19:40","priority":"MAY READ","score":0,"group":null,"groupColor":null,"tldr":"","briefOverview":"","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":[],"insights":[],"referencedReports":[],"body":""}];
+window.__DL_DIGEST   = "downlink-digest-2026-05-12_2250.html";
+window.__DL_WINDOW   = "4 hours";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function GroupBadge({ group, groupColor }) {
+  if (!group || !groupColor) return null;
+  const c = groupColor;
+  return (
+    <span style={{
+      display: "inline-block", flexShrink: 0,
+      width: 20, height: 20,
+      border: "1px solid color-mix(in oklch, " + c + " 45%, transparent)",
+      background: "color-mix(in oklch, " + c + " 12%, transparent)",
+      borderRadius: 2
+    }} />
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+function pointList(items) {
+  return (
+    <ul className="kp-list">
+      {(items || []).map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            <a href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => <div className="prose">{article.tldr}</div> });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Full", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  if (article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => pointList(article.keyPoints) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => pointList(article.insights) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  const initialTab = tabs[0] ? tabs[0].id : "source";
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  return (
+    <>
+      <div className="tabs">
+        {tabs.map(tab => (
+          <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <nav style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--cyan)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="live-dot" />
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em" }}>LIVE</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      </div>
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+        border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+      }}>
+        {Math.min(index + 1, total)} / {total}
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+              {article.source}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 22, lineHeight: 1.3, color: "var(--text)", letterSpacing: "-0.005em" }}>
+          {article.title}
+        </h2>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text2)", fontSize: 14, lineHeight: 1.65, fontWeight: 400 }}>{article.tldr}</p>
+        {article.keyPoints && article.keyPoints.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+            <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+              {article.keyPoints.map((kp, i) => (
+                <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: priorityC, marginTop: 3, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.35, color: "var(--text)", marginBottom: 12 }}>
+          {article.title}
+        </h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor }}>{article.source}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Fly right then flip to detail view
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.28s cubic-bezier(.4,0,.6,1)";
+          el.style.transform = `translate(60%, ${dy}px) rotate(12deg) scale(0.95)`;
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.getBoundingClientRect();
+            el2.style.transition = "";
+          }
+        }, 280);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{
+        opacity: 0,
+        color: flipped ? "var(--accept)" : "var(--discard)",
+        borderColor: flipped ? "var(--accept)" : "var(--discard)"
+      }}>{flipped ? "DONE" : "SKIP"}</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "80px 24px 0" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: "32px 24px 48px" }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 32 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 32, textAlign: "center" }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<div id="root"></div>
+</body>
+</html>

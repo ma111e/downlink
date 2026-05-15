@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+  }
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; overflow-x: hidden; }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklch, var(--cyan) 60%, transparent); }
+    70%  { box-shadow: 0 0 0 5px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); animation: pulse-ring 2s ease-out infinite; }
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; height: 620px; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--discard); border-color: var(--discard); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--accept);  border-color: var(--accept); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .kp-list li { display: flex; gap: 0.6rem; font-size: 13px; line-height: 1.6; color: var(--text2); }
+  .kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); }
+  .report-title a { color: var(--text); text-decoration: none; }
+  .report-title a:hover { color: var(--cyan); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<script>
+window.__DL_ARTICLES = [{"n":4,"title":"RubyGems Suspends New Signups After Hundreds of Malicious Packages Are Uploaded","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/rubygems-suspends-new-signups-after.html","time":"14:47","priority":"MUST READ","score":95,"group":null,"groupColor":null,"tldr":"RubyGems has temporarily suspended new account registrations following a major malicious attack that involved the upload of hundreds of compromised packages to the platform.","briefOverview":"\u003cp\u003eRubyGems, the standard package manager for the Ruby programming language, has temporarily suspended new account registrations following a major malicious attack on the platform. Maciej Mensfeld, a senior product manager at Mend.io, confirmed that hundreds of packages were uploaded, with some containing exploits. Visitors attempting to register for new accounts are currently greeted with a message stating that registration has been disabled. Mend.io, which secures the RubyGems platform, intends to release further details once the incident is contained. The identity of the attackers remains unknown. This event occurs amidst a broader trend of software supply chain attacks targeting open-source ecosystems. Threat actors like TeamPCP have been compromising widely used packages to distribute credential-stealing malware. According to a report published by Google on Monday, the credentials stolen from affected environments are being monetized through partnerships with ransomware and data theft extortion groups.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eRubyGems, the standard package manager for the Ruby programming language, has temporarily paused account sign-ups in response to what has been described as a major malicious attack. Maciej Mensfeld, senior product manager for software supply chain security at Mend.io, confirmed the situation in a post on X. He stated that hundreds of packages are involved in the incident, with some carrying exploits. Visitors to the RubyGems sign-up page are now greeted with a message indicating that new account registration has been temporarily disabled. Mend.io, which secures RubyGems, plans to release more details once the incident is contained. It is currently unknown who is behind the attack. This development occurs as software supply chain attacks targeting open-source ecosystems have been on the rise. Threat actors like TeamPCP have compromised widely used packages to distribute credential-stealing malware. This malware is capable of harvesting sensitive data and allowing attackers to expand their reach. A report published on Monday by Google detailed how credentials stolen from affected environments have been monetized. These credentials are sold through partnerships with ransomware and data theft extortion groups. The article notes that this is a developing story and advises readers to check back for more details.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"incident-overview\"\u003eIncident Overview\u003c/h2\u003e\n\n\u003cp\u003eRubyGems, the standard package manager for the Ruby programming language, has temporarily suspended new account registrations following a major malicious attack. Maciej Mensfeld, senior product manager for software supply chain security at Mend.io, confirmed the attack in a post on X. He noted that hundreds of packages are involved, with some carrying exploits.\u003c/p\u003e\n\n\u003ch2 id=\"platform-impact\"\u003ePlatform Impact\u003c/h2\u003e\n\n\u003cp\u003eVisitors to the RubyGems sign-up page are currently greeted with a message stating that new account registration has been temporarily disabled. Mend.io, which secures RubyGems, intends to release more details once the incident is contained. It is currently unknown who is behind the attack.\u003c/p\u003e\n\n\u003ch2 id=\"security-context\"\u003eSecurity Context\u003c/h2\u003e\n\n\u003cp\u003eThe development comes as software supply chain attacks targeting open-source ecosystems have been on the rise. Threat actors like TeamPCP have compromised widely used packages to distribute credential-stealing malware. This malware is capable of harvesting sensitive data and allowing attackers to expand their reach.\u003c/p\u003e\n\n\u003ch2 id=\"threat-actor-monetization\"\u003eThreat Actor \u0026amp; Monetization\u003c/h2\u003e\n\n\u003cp\u003eA report published on Monday by Google detailed how credentials stolen from affected environments have been monetized. These credentials are monetized through partnerships with ransomware and data theft extortion groups. The article notes that this is a developing story and advises readers to check back for more details.\u003c/p\u003e\n","keyPoints":["RubyGems has temporarily disabled new account registrations following a major malicious attack on the platform.","Hundreds of packages were uploaded to the site, with some containing exploits.","Mend.io, which secures RubyGems, will release further details once the incident is contained.","The attack occurs amid a rising trend of software supply chain threats targeting open-source ecosystems to distribute credential-stealing malware."],"insights":["Stolen credentials are monetized through partnerships with ransomware and data theft extortion groups, indicating a sophisticated, multi-stage monetization strategy.","Threat actors are employing worm-like propagation techniques, exemplified by the 'Mini Shai Hulud worm,' to compromise widely used packages and expand their reach.","The attack demonstrates the vulnerability of open-source registries to direct package uploads, as hundreds of malicious packages were successfully distributed before the platform suspended new registrations."],"referencedReports":[],"body":"\u003cp\u003eRubyGems, the standard package manager for the Ruby programming language, has temporarily suspended new account registrations following a major malicious attack on the platform. Maciej Mensfeld, a senior product manager at Mend.io, confirmed that hundreds of packages were uploaded, with some containing exploits. Visitors attempting to register for new accounts are currently greeted with a message stating that registration has been disabled. Mend.io, which secures the RubyGems platform, intends to release further details once the incident is contained. The identity of the attackers remains unknown. This event occurs amidst a broader trend of software supply chain attacks targeting open-source ecosystems. Threat actors like TeamPCP have been compromising widely used packages to distribute credential-stealing malware. According to a report published by Google on Monday, the credentials stolen from affected environments are being monetized through partnerships with ransomware and data theft extortion groups.\u003c/p\u003e\n"},{"n":2,"title":"Android 17 to expand banking scam call and privacy protections","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/android-17-to-expand-banking-scam-call-and-privacy-protections/","time":"17:00","priority":"SHOULD READ","score":85,"group":null,"groupColor":null,"tldr":"Android 17 significantly strengthens device security by introducing automated banking scam call detection, enhanced anti-theft locking features, and expanded threat detection capabilities that will also backport to older Android versions.","briefOverview":"\u003cp\u003eAndroid 17 introduces significant security and privacy enhancements focused on combating device theft, banking scams, and malicious app behavior. The update will automatically detect and terminate spoofed banking calls by cross-referencing caller numbers with internal bank databases. Device theft protection is strengthened through a new \u0026ldquo;Mark as lost\u0026rdquo; feature that requires biometric authentication to disable tracking or access the device. Live Threat Detection expands its capabilities to identify SMS forwarding misuse, concealed accessibility overlays, and hidden application icons. Additional privacy measures include hiding SMS one-time passwords for three hours and introducing temporary precise-location sharing. These security improvements will initially launch on Android 17 but will also backport to older Android versions starting at Android 10 and 11. Rollout timelines will vary across the ecosystem depending on device manufacturer adoption.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eAndroid 17 is set to roll out next month with a comprehensive suite of security and privacy protections targeting device theft, financial fraud, and malicious software. Google will expand protections against caller ID spoofing by working directly with banking applications to detect and automatically terminate scam calls. The initial rollout includes partnerships with Revolut, Itaú Unibanco, and Nubank, with the feature backporting to Android 11 and later versions.\u003c/p\u003e\n\n\u003cp\u003eAnti-malware capabilities are also being upgraded through an expanded Live Threat Detection system that leverages Play Protect to analyze app behavior. This updated detection engine will now flag SMS forwarding misuse, concealed accessibility overlays, apps that hide or alter their icons, and malicious background launches. Device-level security under the Advanced Protection framework is being tightened by restricting accessibility service access to explicitly labeled tools.\u003c/p\u003e\n\n\u003cp\u003eThe update also disables device-to-device unlocking and removes Chrome WebGPU support to reduce the attack surface. To combat physical theft, the new \u0026ldquo;Mark as lost\u0026rdquo; feature mandates biometric authentication for unlocking, which prevents thieves from bypassing tracking even with a known passcode. Once activated, the feature automatically disables the Quick Settings menu and blocks new Wi-Fi and Bluetooth connections.\u003c/p\u003e\n\n\u003cp\u003eAdditional privacy enhancements include hiding SMS one-time passwords from most applications for three hours to prevent interception. Android 12 and newer devices will also allow users to view the lock-screen IMEI for ownership verification during recovery efforts. Chrome for Android will scan downloaded APKs for known malware prior to installation, while carriers can ship devices with 2G networks disabled by default in regions where legacy networks are retired.\u003c/p\u003e\n\n\u003cp\u003eThe update introduces AISeal with pKVM to enforce hardware-backed isolation for AI data processing, alongside post-quantum cryptography protections. Pixel devices will initially receive verification for official Android builds backed by a public ledger, though broader OEM adoption will dictate actual rollout timelines.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch3 id=\"android-17-security-and-privacy-overview\"\u003eAndroid 17 Security and Privacy Overview\u003c/h3\u003e\n\n\u003cp\u003eAndroid 17 is scheduled to release next month and introduces a broad range of security and privacy features designed to address device theft, financial fraud, and malicious application behavior. Google is prioritizing both proactive threat detection and reactive device recovery mechanisms across the Android ecosystem.\u003c/p\u003e\n\n\u003ch3 id=\"banking-scam-call-protections\"\u003eBanking Scam Call Protections\u003c/h3\u003e\n\n\u003cp\u003eThe update expands protections against scammers who spoof caller IDs to impersonate financial institutions. Android will collaborate directly with banking applications to identify spoofed calls and automatically terminate the connection upon detection. Authenticity verification relies on app-level queries and cross-referencing calling numbers against internal databases provided by partner banks. This verification process is strictly isolated and does not interfere with standard customer communications. The initial banking partners include Revolut, Itaú Unibanco, and Nubank. Although the feature launches with Android 17, Google has committed to backporting the functionality to Android 11 and later versions.\u003c/p\u003e\n\n\u003ch3 id=\"live-threat-detection-and-advanced-protection\"\u003eLive Threat Detection and Advanced Protection\u003c/h3\u003e\n\n\u003cp\u003eLive Threat Detection, an anti-stalkerware capability powered by Play Protect, is being expanded to identify additional abuse techniques. The enhanced system will now detect SMS forwarding misuse, concealed accessibility overlays, applications that hide or alter their icons, and malicious background launches. The Advanced Protection device-level security framework, originally introduced in Android 16, is also being strengthened. New restrictions limit accessibility service access exclusively to apps explicitly labeled as accessibility tools. The update also disables device-to-device unlocking and turns off Chrome WebGPU support. Additionally, Advanced Protection now includes scam detection capabilities for chat notifications.\u003c/p\u003e\n\n\u003ch3 id=\"device-theft-mitigation-and-mark-as-lost\"\u003eDevice Theft Mitigation and \u0026ldquo;Mark as Lost\u0026rdquo;\u003c/h3\u003e\n\n\u003cp\u003eTo increase resistance against physical theft, Android 17 introduces an enhanced \u0026ldquo;Mark as lost\u0026rdquo; feature. This function allows users to lock their phone using biometric authentication as an alternative to traditional passcodes or PINs. Thieves will be unable to disable device tracking or regain access even if they possess the device passcode or PIN. Once a device is marked as lost, the Quick Settings menu becomes completely unavailable. The system also forcibly disables WiFi and Bluetooth connections to prevent network reconnection. In select markets including Argentina, Chile, Colombia, Mexico, and the United Kingdom, this theft protection feature will be available on smartphones running Android 10 or later.\u003c/p\u003e\n\n\u003ch3 id=\"additional-security-and-privacy-enhancements\"\u003eAdditional Security and Privacy Enhancements\u003c/h3\u003e\n\n\u003cp\u003eThe update implements several other notable improvements across the platform:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eChrome for Android will scan downloaded APK files for known malware before permitting installation.\u003c/li\u003e\n\u003cli\u003eRemote Lock and Theft Detection Lock will be enabled by default on Android 17 devices and select Android 10+ devices in targeted regions.\u003c/li\u003e\n\u003cli\u003eAndroid 17 reduces the number of allowed PIN or password guessing attempts and increases the delay between failed unlock attempts.\u003c/li\u003e\n\u003cli\u003eDevices running Android 12 or higher will allow users to view the lock-screen IMEI for ownership verification and recovery purposes.\u003c/li\u003e\n\u003cli\u003eTemporary precise-location sharing is introduced, alongside improved location access indicators, usage history, and a new contact picker for granting temporary access to specific contacts.\u003c/li\u003e\n\u003cli\u003eAISeal is introduced with pKVM to enforce hardware-backed isolation for all AI-related data processing.\u003c/li\u003e\n\u003cli\u003ePixel devices will initially gain verification for official Android builds, supported by a public ledger for authentic Google apps and GMS APIs.\u003c/li\u003e\n\u003cli\u003eAndroid will hide SMS one-time passwords from most applications for a three-hour window to prevent OTP theft.\u003c/li\u003e\n\u003cli\u003eCarriers will be able to ship devices with 2G networks disabled by default in regions where legacy cellular networks have been retired.\u003c/li\u003e\n\u003cli\u003eThe platform is adding post-quantum cryptography protections to ensure future-proof security.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch3 id=\"ecosystem-rollout-and-adoption\"\u003eEcosystem Rollout and Adoption\u003c/h3\u003e\n\n\u003cp\u003eGoogle acknowledges that rollout timelines will vary significantly across the Android ecosystem. Certain features, such as OS verification and advanced device-level security, are launching exclusively on Pixel devices or are restricted to newer hardware models. Other capabilities remain open to OEM adoption, meaning implementation will depend on individual device manufacturer schedules and regional carrier requirements.\u003c/p\u003e\n","keyPoints":["Android 17 will automatically detect and terminate banking scam calls by cross-referencing caller numbers with internal bank databases.","The new \"Mark as lost\" feature enables biometric device locking and disables Quick Settings, Wi-Fi, and Bluetooth to prevent thieves from disabling tracking.","Live Threat Detection is being expanded to identify malicious behaviors such as SMS forwarding misuse, concealed accessibility overlays, and hidden app icons.","Advanced Protection restrictions now limit accessibility service access to explicitly labeled tools and disable Chrome WebGPU support.","Additional security enhancements include scanning downloaded APKs for malware, hiding SMS one-time passwords for three hours, and enabling post-quantum cryptography protections."],"insights":["Android 17 hides SMS one-time passwords from most applications for three hours to prevent malicious apps from intercepting authentication codes.","The \"Mark as lost\" feature now mandates biometric authentication to unlock, rendering traditional passcode theft ineffective for disabling tracking.","Scam call detection operates via app-level queries and bank-provided internal number databases rather than carrier-level network verification.","AISeal introduces pKVM to enforce hardware-backed isolation for all AI-related data processing, separating sensitive AI workloads from standard software environments.","Carriers can ship devices with 2G networks disabled by default in regions where legacy cellular networks are retired, removing connectivity to outdated infrastructure."],"referencedReports":[],"body":"\u003cp\u003eAndroid 17 introduces significant security and privacy enhancements focused on combating device theft, banking scams, and malicious app behavior. The update will automatically detect and terminate spoofed banking calls by cross-referencing caller numbers with internal bank databases. Device theft protection is strengthened through a new \u0026ldquo;Mark as lost\u0026rdquo; feature that requires biometric authentication to disable tracking or access the device. Live Threat Detection expands its capabilities to identify SMS forwarding misuse, concealed accessibility overlays, and hidden application icons. Additional privacy measures include hiding SMS one-time passwords for three hours and introducing temporary precise-location sharing. These security improvements will initially launch on Android 17 but will also backport to older Android versions starting at Android 10 and 11. Rollout timelines will vary across the ecosystem depending on device manufacturer adoption.\u003c/p\u003e\n"},{"n":1,"title":"European countries are exporting surveillance tech to countries with poor human rights records, report says","source":"therecord.media","sourceColor":"#a78bfa","link":"https://therecord.media/eu-countries-export-surveillance-tech-to-countries-with-human-rights-issues","time":"16:49","priority":"SHOULD READ","score":80,"group":null,"groupColor":null,"tldr":"European surveillance tech companies continue to sell spyware to nations with documented human rights abuses, exposing critical failures in the EU's export control enforcement and allowing abusive regimes to acquire intrusion tools with impunity.","briefOverview":"\u003cp\u003eA new Human Rights Watch report reveals that European surveillance technology companies are selling spyware and intrusion tools to nations with documented human rights abuses. Despite the European Commission implementing stricter export rules in 2021, member states continue to authorize these sales without adequate oversight. Trade documents obtained through freedom of information requests show that companies in Bulgaria, Poland, Finland, Denmark, Estonia, and the Czech Republic exported these technologies to over two dozen countries with poor human rights records. Several major EU exporters, including France, Germany, and Italy, refused to share their trade records or ignored requests for transparency. The European Commission maintains that member states hold final responsibility for export licenses and emphasizes ongoing dialogue with industry and civil society. The report urges EU authorities to use an upcoming September evaluation of the export rules to strengthen due diligence and prevent further abuses.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eHuman Rights Watch released a report detailing how European surveillance tech vendors have sold spyware to countries with documented human rights violations. The advocacy group bases its findings on trade documents acquired through freedom of information requests. Bulgaria emerged as a leading exporter, with its companies selling technology to more than twenty nations, including authoritarian regimes like the United Arab Emirates and Azerbaijan. Poland was also identified for allowing the sale of call-interception systems to Rwanda. Companies in Finland, Denmark, Estonia, and the Czech Republic similarly exported these tools to rights-abusing governments. In contrast, France, Greece, Spain, Germany, and Italy either refused to share relevant trade records or ignored transparency requests. The report highlights that spyware and surveillance technology represent a major business sector within the EU, with most member states hosting at least one vendor. Furthermore, nearly all companies identified in a 2024 Google Threat Analysis Group report on commercial surveillance are based in the European Union. The EU’s 2021 regulatory framework expanded the definition of surveillance products and mandated human rights assessments for export licenses. Despite these measures, the report concludes that the bloc is doing too little to prevent sales to governments that use the tools to crack down on dissent. A European Commission spokesperson stated that export controls require authorization and must be regularly updated to address evolving security risks. The commission emphasized that member states ultimately decide which technologies to export. The report recommends that EU bodies use a planned September evaluation of the rules to enhance transparency and due diligence requirements.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"executive-summary\"\u003eExecutive Summary\u003c/h2\u003e\n\n\u003cp\u003eA recent Human Rights Watch report exposes widespread violations of European export controls regarding commercial surveillance technology. The analysis demonstrates that EU member states are failing to enforce existing regulations, allowing spyware and intrusion tools to reach governments with documented human rights abuses. The advocacy group bases its conclusions on trade documents obtained through freedom of information requests.\u003c/p\u003e\n\n\u003ch2 id=\"key-export-findings\"\u003eKey Export Findings\u003c/h2\u003e\n\n\u003cp\u003eTrade records reveal that companies in Bulgaria, Poland, Finland, Denmark, Estonia, and the Czech Republic collectively sold surveillance technology to over two dozen nations. Bulgaria emerged as a top exporter, supplying tools to more than twenty countries, including authoritarian regimes such as the United Arab Emirates and Azerbaijan. Poland was specifically identified for permitting the sale of call-interception systems to Rwanda.\u003c/p\u003e\n\n\u003cp\u003eSeveral major EU economies actively obstructed transparency efforts. France, Greece, Spain, Germany, and Italy either refused to share relevant trade records or completely ignored requests for documentation. The report notes that spyware and surveillance technology constitute a significant commercial sector within the EU, with a majority of member states hosting at least one vendor. Additionally, nearly all companies highlighted in a 2024 Google Threat Analysis Group report on the commercial surveillance industry are headquartered in the European Union.\u003c/p\u003e\n\n\u003ch2 id=\"regulatory-framework-and-enforcement-gaps\"\u003eRegulatory Framework and Enforcement Gaps\u003c/h2\u003e\n\n\u003cp\u003eThe European Commission implemented updated export rules in 2021 to address these concerns. These regulations expanded the definition of surveillance technology products and mandated that exporting countries evaluate the human rights practices of destination nations. A reporting regime was also established to track exports for review by the European Commission.\u003c/p\u003e\n\n\u003cp\u003eDespite these measures, the report concludes that the EU is doing too little to prevent sales to governments that utilize these tools for crackdowns on dissent and serious rights violations. The framework relies heavily on member state compliance, which has proven inconsistent across the bloc.\u003c/p\u003e\n\n\u003ch2 id=\"institutional-responses\"\u003eInstitutional Responses\u003c/h2\u003e\n\n\u003cp\u003eA European Commission spokesperson issued a statement emphasizing that the bloc attaches great importance to cyber-surveillance items. The commission noted that significantly strengthened export controls now require authorization before any such items can leave EU territory. The spokesperson clarified that member states ultimately retain the responsibility for deciding which surveillance technologies to export.\u003c/p\u003e\n\n\u003cp\u003eThe commission further stated that export controls must be regularly updated to adjust to evolving security risks and rapid technological developments. It highlighted a constant dialogue with industry, academia, and civil society to balance security concerns with trade requirements.\u003c/p\u003e\n\n\u003ch2 id=\"recommendations-and-next-steps\"\u003eRecommendations and Next Steps\u003c/h2\u003e\n\n\u003cp\u003eThe report urges EU government bodies to utilize an upcoming September evaluation of the updated rules. Authorities are advised to strengthen due diligence and transparency requirements to finally curb exports to abusive governments. The advocacy group warns that increasing government procurement of commercial spyware poses a significant threat to human rights worldwide.\u003c/p\u003e\n\n\u003cp\u003eKey recommendations include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eStrengthening due diligence protocols for all surveillance tech exports.\u003c/li\u003e\n\u003cli\u003eMandating greater transparency in member state trade reporting.\u003c/li\u003e\n\u003cli\u003eUtilizing the September regulatory review to enforce stricter controls.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eUltimately, the EU remains part of the problem due to its role as a primary hub for surveillance technology development and export. Strengthening enforcement mechanisms is critical to preventing further rights violations globally.\u003c/p\u003e\n","keyPoints":["European surveillance technology companies have sold spyware and similar intrusion tools to countries with documented human rights abuses.","A Human Rights Watch report alleges that the European Commission has failed to effectively police member states' surveillance tech sales despite 2021 export rules.","Bulgarian and Polish companies were identified as exporting surveillance technology to authoritarian regimes including the United Arab Emirates, Azerbaijan, and Rwanda.","France, Germany, Italy, Spain, and Greece refused to share trade records or ignored requests regarding their surveillance tech exports."],"insights":["The EU's export control framework delegates final licensing authority to individual member states, creating a decentralized compliance structure that has failed to prevent sales to abusive governments despite centralized rules.","Major EU tech exporters like France, Germany, and Italy actively obstructed transparency by ignoring or refusing freedom of information requests, directly undermining the bloc's own reporting regime.","The upcoming September evaluation of the 2021 export rules offers a critical regulatory window to mandate stricter due diligence and transparency requirements before current enforcement gaps become institutionalized."],"referencedReports":[{"title":"EU Failure to Prevent Surveillance Exports to Rights Abusers","url":"https://www.hrw.org/report/2026/05/12/looking-the-other-way/eu-failure-to-prevent-surveillance-exports-to-rights","publisher":"Human Rights Watch","context":"The article cites this report as the primary source alleging that the European Commission has failed to enforce export rules despite member states selling spyware to countries with documented human rights abuses."},{"title":"Buying Spying: Insights into Commercial Surveillance Vendors","url":"https://storage.googleapis.com/gweb-uniblog-publish-prod/documents/Buying_Spying_-_Insights_into_Commercial_Surveillance_Vendors_-_TAG_report.pdf","publisher":"Google Threat Analysis Group","context":"The article references this 2024 report to establish that the vast majority of commercial surveillance vendors operating globally are based within the European Union."}],"body":"\u003cp\u003eA new Human Rights Watch report reveals that European surveillance technology companies are selling spyware and intrusion tools to nations with documented human rights abuses. Despite the European Commission implementing stricter export rules in 2021, member states continue to authorize these sales without adequate oversight. Trade documents obtained through freedom of information requests show that companies in Bulgaria, Poland, Finland, Denmark, Estonia, and the Czech Republic exported these technologies to over two dozen countries with poor human rights records. Several major EU exporters, including France, Germany, and Italy, refused to share their trade records or ignored requests for transparency. The European Commission maintains that member states hold final responsibility for export licenses and emphasizes ongoing dialogue with industry and civil society. The report urges EU authorities to use an upcoming September evaluation of the export rules to strengthen due diligence and prevent further abuses.\u003c/p\u003e\n"},{"n":3,"title":"Škoda warns of customer data breach after online shop hack","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/skoda-warns-of-customer-data-breach-after-online-shop-hack/","time":"17:07","priority":"MAY READ","score":68,"group":null,"groupColor":null,"tldr":"Škoda Auto disclosed a data breach caused by an e-commerce portal vulnerability that exposed customer names, addresses, and password hashes, though financial data remained secure. The company has patched the flaw and warned customers to monitor for phishing and change any reused credentials.","briefOverview":"\u003cp\u003eŠkoda Auto has disclosed a data breach following a cyberattack on its online e-commerce portal. Threat actors exploited an unspecified software vulnerability to temporarily access the store system and steal customer information. The compromised data includes names, addresses, contact details, order history, and cryptographic password hashes. However, the company confirmed that full financial information was not stored on the affected systems and remains secure. Škoda has patched the vulnerability, reported the incident to data protection authorities, and engaged an IT forensics team for analysis. While there is currently no evidence of data misuse, the company has warned customers to watch for phishing attempts and change any reused credentials. This incident follows recent cyberattacks targeting other major automotive brands, including Renault, Dacia, and Jaguar Land Rover. A spokesperson was not immediately available to confirm the total number of affected customers or discuss potential ransom demands. The breach highlights the ongoing security challenges facing the automotive industry\u0026rsquo;s digital infrastructure.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eŠkoda Auto, a wholly owned subsidiary of the Volkswagen Group, has publicly disclosed a data breach resulting from a cyberattack on its online shop.\u003c/p\u003e\n\n\u003cp\u003eThe 130-year-old Czech manufacturer reported that threat actors exploited an unspecified vulnerability in the software powering its e-commerce portal.\u003c/p\u003e\n\n\u003cp\u003eThis exploitation allowed attackers to temporarily gain unauthorized access to the store system and extract customer records.\u003c/p\u003e\n\n\u003cp\u003eDespite the breach, Škoda emphasized that full credit card details were not stored on the compromised systems and are instead processed exclusively by third-party payment service providers.\u003c/p\u003e\n\n\u003cp\u003eThe company confirmed that direct access to financial data was not possible during the attack.\u003c/p\u003e\n\n\u003cp\u003eUpon detecting the unauthorized activity, Škoda immediately patched the security flaw and reported the incident to the relevant data protection supervisory authority.\u003c/p\u003e\n\n\u003cp\u003eThe company has also transferred the investigation to a specialized IT forensics team for technical analysis.\u003c/p\u003e\n\n\u003cp\u003eWhile there is currently no evidence of data misuse, the company issued explicit warnings regarding potential phishing campaigns.\u003c/p\u003e\n\n\u003cp\u003eThe automaker advised customers to remain vigilant against suspicious emails, texts, or calls referencing Škoda or recent orders.\u003c/p\u003e\n\n\u003cp\u003eAdditionally, the company recommended that individuals check their bank statements and credit card bills regularly.\u003c/p\u003e\n\n\u003cp\u003eCustomers are also urged to immediately notify their banks or payment providers if they notice any unusual activity.\u003c/p\u003e\n\n\u003cp\u003eŠkoda cautioned that threat actors may attempt to log into other online accounts if victims reuse the same credentials across different platforms.\u003c/p\u003e\n\n\u003cp\u003eA spokesperson was not immediately available to comment on the total number of affected customers or whether ransom negotiations occurred.\u003c/p\u003e\n\n\u003cp\u003eThis disclosure arrives shortly after similar cyber incidents impacted other major automotive brands, including Renault, Dacia, and Jaguar Land Rover.\u003c/p\u003e\n\n\u003cp\u003eJaguar Land Rover suffered a severe cyberattack that disrupted production operations, reduced wholesale volumes by 43 percent, and incurred over $220 million in costs.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003cp\u003e\u003cstrong\u003eIncident Overview\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eŠkoda Auto, a wholly owned subsidiary of the Volkswagen Group, has disclosed a data breach stemming from a cyberattack on its online e-commerce portal.\u003c/p\u003e\n\n\u003cp\u003eThe 130-year-old Czech automaker reported that threat actors successfully exploited an unspecified vulnerability in the software underlying its online store.\u003c/p\u003e\n\n\u003cp\u003eThis exploitation granted attackers temporary, unauthorized access to the store system, enabling them to extract a significant volume of customer records.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eCompromised Data and System Impact\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eThe data accessed by the threat actors includes a comprehensive set of personally identifiable information.\u003c/p\u003e\n\n\u003cp\u003eSpecifically, the breach exposed customer names, physical addresses, contact details such as email addresses and phone numbers, order history, and login credentials.\u003c/p\u003e\n\n\u003cp\u003eThe compromised credentials consist of email addresses paired with cryptographic password hashes.\u003c/p\u003e\n\n\u003cp\u003eDespite the extensive data extraction, Škoda confirmed that full financial information was not stored on the compromised systems.\u003c/p\u003e\n\n\u003cp\u003ePayment processing is handled exclusively by third-party payment service providers, meaning direct access to complete credit card details was not possible during the attack.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eResponse and Mitigation Measures\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eUpon detecting the unauthorized activity through technical security monitoring, Škoda immediately patched the exploited vulnerability to contain the breach.\u003c/p\u003e\n\n\u003cp\u003eThe company formally reported the incident to the relevant data protection supervisory authority and handed the investigation over to a specialized IT forensics team for technical analysis.\u003c/p\u003e\n\n\u003cp\u003eŠkoda stated that there is currently no evidence indicating that the stolen data has been misused.\u003c/p\u003e\n\n\u003cp\u003eHowever, the company issued explicit warnings regarding potential downstream attacks.\u003c/p\u003e\n\n\u003cp\u003eAffected individuals are advised to remain highly vigilant against phishing attempts delivered via email, text messages, or phone calls.\u003c/p\u003e\n\n\u003cp\u003eThe automaker specifically warned that threat actors may attempt to log into other online accounts if customers reuse credentials across multiple platforms.\u003c/p\u003e\n\n\u003cp\u003e\u003cstrong\u003eCustomer Guidance and Industry Context\u003c/strong\u003e\u003c/p\u003e\n\n\u003cp\u003eŠkoda provided detailed guidance for impacted customers to mitigate further risk.\u003c/p\u003e\n\n\u003cp\u003eIndividuals are urged to regularly monitor their bank statements and credit card bills for any unusual activity.\u003c/p\u003e\n\n\u003cp\u003eCustomers are also instructed to immediately notify their banks or payment service providers if they detect suspicious transactions.\u003c/p\u003e\n\n\u003cp\u003eA Škoda spokesperson was not immediately available to comment on the total number of affected customers or whether ransom demands were made.\u003c/p\u003e\n\n\u003cp\u003eThis disclosure follows a recent pattern of cyber incidents within the automotive sector, including a data breach affecting UK customers of Renault and Dacia in October.\u003c/p\u003e\n\n\u003cp\u003eAdditionally, Jaguar Land Rover suffered a severe cyberattack that disrupted production operations, reduced wholesale volumes by 43 percent, and incurred over $220 million in costs.\u003c/p\u003e\n","keyPoints":["Škoda Auto disclosed a data breach after attackers exploited a vulnerability in its e-commerce portal software to access customer data.","The compromised information includes customer names, addresses, contact details, order history, and cryptographic password hashes.","Financial data such as full credit card details were not stored on the compromised systems and remain secure.","The company has patched the security flaw, reported the incident to authorities, and warned customers to watch for phishing attacks and change any reused credentials."],"insights":["The article highlights that full credit card details were not stored on the compromised systems, relying instead on third-party payment service providers, which effectively limited the breach impact to non-financial PII.","Škoda warns that threat actors may attempt to log in to other online accounts if customers reuse credentials, indicating a high probability of credential stuffing attacks targeting the exposed email and password hashes.","The breach occurs amidst a broader wave of cyberattacks in the automotive sector, including a Jaguar Land Rover incident that resulted in over $220 million in costs and severe production disruptions, highlighting the critical operational risks of IT security failures."],"referencedReports":[],"body":"\u003cp\u003eŠkoda Auto has disclosed a data breach following a cyberattack on its online e-commerce portal. Threat actors exploited an unspecified software vulnerability to temporarily access the store system and steal customer information. The compromised data includes names, addresses, contact details, order history, and cryptographic password hashes. However, the company confirmed that full financial information was not stored on the affected systems and remains secure. Škoda has patched the vulnerability, reported the incident to data protection authorities, and engaged an IT forensics team for analysis. While there is currently no evidence of data misuse, the company has warned customers to watch for phishing attempts and change any reused credentials. This incident follows recent cyberattacks targeting other major automotive brands, including Renault, Dacia, and Jaguar Land Rover. A spokesperson was not immediately available to confirm the total number of affected customers or discuss potential ransom demands. The breach highlights the ongoing security challenges facing the automotive industry\u0026rsquo;s digital infrastructure.\u003c/p\u003e\n"}];
+window.__DL_DIGEST   = "downlink-digest-2026-05-12_1830.html";
+window.__DL_WINDOW   = "4 hours";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function GroupBadge({ group, groupColor }) {
+  if (!group || !groupColor) return null;
+  const c = groupColor;
+  return (
+    <span style={{
+      display: "inline-block", flexShrink: 0,
+      width: 20, height: 20,
+      border: "1px solid color-mix(in oklch, " + c + " 45%, transparent)",
+      background: "color-mix(in oklch, " + c + " 12%, transparent)",
+      borderRadius: 2
+    }} />
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+function pointList(items) {
+  return (
+    <ul className="kp-list">
+      {(items || []).map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            <a href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => <div className="prose">{article.tldr}</div> });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Full", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  if (article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => pointList(article.keyPoints) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => pointList(article.insights) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  const initialTab = tabs[0] ? tabs[0].id : "source";
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  return (
+    <>
+      <div className="tabs">
+        {tabs.map(tab => (
+          <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <nav style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--cyan)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="live-dot" />
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em" }}>LIVE</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      </div>
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+        border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+      }}>
+        {Math.min(index + 1, total)} / {total}
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+              {article.source}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 22, lineHeight: 1.3, color: "var(--text)", letterSpacing: "-0.005em" }}>
+          {article.title}
+        </h2>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text2)", fontSize: 14, lineHeight: 1.65, fontWeight: 400 }}>{article.tldr}</p>
+        {article.keyPoints && article.keyPoints.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+            <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+              {article.keyPoints.map((kp, i) => (
+                <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: priorityC, marginTop: 3, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {article.group && <GroupBadge group={article.group} groupColor={article.groupColor} />}
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.35, color: "var(--text)", marginBottom: 12 }}>
+          {article.title}
+        </h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor }}>{article.source}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Fly right then flip to detail view
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.28s cubic-bezier(.4,0,.6,1)";
+          el.style.transform = `translate(60%, ${dy}px) rotate(12deg) scale(0.95)`;
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.getBoundingClientRect();
+            el2.style.transition = "";
+          }
+        }, 280);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{
+        opacity: 0,
+        color: flipped ? "var(--accept)" : "var(--discard)",
+        borderColor: flipped ? "var(--accept)" : "var(--discard)"
+      }}>{flipped ? "DONE" : "SKIP"}</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "80px 24px 0" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: "32px 24px 48px" }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 32 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 32, textAlign: "center" }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<div id="root"></div>
+</body>
+</html>
