@@ -2,15 +2,18 @@ package notification
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
 	"downlink/pkg/models"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 	gogit "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -604,17 +607,67 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 	manifest.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
 	manifest.Digests = nil
 
-	for i, digest := range toRender {
-		log.WithFields(log.Fields{"digestId": digest.Id, "index": i + 1, "total": len(toRender)}).
-			Info("Rendering digest")
+	// Phase 1: render and write HTML files in parallel (template execution is CPU-bound).
+	// wt.Add (git index) is not goroutine-safe, so staging happens after this phase.
+	type renderedPaths struct {
+		digestRelPath string
+		swipeRelPath  string
+	}
+	paths := make([]renderedPaths, len(toRender))
 
-		if _, err := p.renderAndStage(wt, digest, outputDir, theme); err != nil {
-			return err
+	workers := max(runtime.NumCPU()-1, 1)
+	log.WithFields(log.Fields{"count": len(toRender), "workers": workers}).Info("Rendering digests in parallel")
+
+	g, _ := errgroup.WithContext(context.Background())
+	g.SetLimit(workers)
+
+	for i, digest := range toRender {
+		g.Go(func() error {
+			log.WithFields(log.Fields{"digestId": digest.Id, "index": i + 1, "total": len(toRender)}).
+				Info("Rendering digest")
+
+			digestFilename := DigestHTMLFilename(digest)
+			digestRelPath := filepath.Join(outputDir, digestFilename)
+			digestAbsPath := filepath.Join(p.cfg.CloneDir, digestRelPath)
+
+			htmlBytes, err := RenderDigestHTML(digest, theme)
+			if err != nil {
+				return fmt.Errorf("github pages: render digest %s: %w", digest.Id, err)
+			}
+			if err := os.MkdirAll(filepath.Dir(digestAbsPath), 0755); err != nil {
+				return fmt.Errorf("github pages: create output dir: %w", err)
+			}
+			if err := os.WriteFile(digestAbsPath, htmlBytes, 0644); err != nil {
+				return fmt.Errorf("github pages: write digest HTML %s: %w", digest.Id, err)
+			}
+
+			swipeBytes, err := RenderSwipeHTML(digest, digestFilename)
+			if err != nil {
+				return fmt.Errorf("github pages: render swipe %s: %w", digest.Id, err)
+			}
+			swipeRelPath := filepath.Join(outputDir, SwipeHTMLFilename(digest))
+			swipeAbsPath := filepath.Join(p.cfg.CloneDir, swipeRelPath)
+			if err := os.WriteFile(swipeAbsPath, swipeBytes, 0644); err != nil {
+				return fmt.Errorf("github pages: write swipe HTML %s: %w", digest.Id, err)
+			}
+
+			paths[i] = renderedPaths{digestRelPath: digestRelPath, swipeRelPath: swipeRelPath}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	// Phase 2: stage all rendered files and update the manifest sequentially.
+	for i, rp := range paths {
+		if _, err := wt.Add(rp.digestRelPath); err != nil {
+			return fmt.Errorf("github pages: stage digest file: %w", err)
 		}
-		if err := p.renderAndStageSwipe(wt, digest, outputDir); err != nil {
-			return err
+		if _, err := wt.Add(rp.swipeRelPath); err != nil {
+			return fmt.Errorf("github pages: stage swipe file: %w", err)
 		}
-		manifest.Upsert(ManifestEntryFromDigest(digest))
+		manifest.Upsert(ManifestEntryFromDigest(toRender[i]))
 	}
 
 	if err := manifest.Write(manifestAbsPath); err != nil {
