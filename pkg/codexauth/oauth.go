@@ -68,8 +68,10 @@ func RequestDeviceCode(ctx context.Context) (*DeviceCodeResponse, error) {
 		return nil, fmt.Errorf("device code request failed: HTTP %d", resp.StatusCode)
 	}
 
+	rawBody, _ := io.ReadAll(resp.Body)
+
 	var dc DeviceCodeResponse
-	if err := json.NewDecoder(resp.Body).Decode(&dc); err != nil {
+	if err := json.Unmarshal(rawBody, &dc); err != nil {
 		return nil, err
 	}
 	if dc.UserCode == "" || dc.DeviceAuthID == "" {
