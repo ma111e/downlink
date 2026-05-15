@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -12,15 +14,59 @@ func createAuthLoginCommand() *cobra.Command {
 	var modelName string
 
 	cmd := &cobra.Command{
-		Use:   "login openai-codex",
-		Short: "Register a ChatGPT/Codex subscription via device-code OAuth",
-		Args:  cobra.ExactArgs(1),
+		Use:   "login [provider-type]",
+		Short: "Register a provider subscription via device-code OAuth",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if args[0] != "openai-codex" {
-				return fmt.Errorf("unsupported provider %q — only openai-codex is supported", args[0])
+			client := getNewDownlinkClient()
+
+			// Step 1: Provider type — positional arg or interactive selector
+			var providerType string
+			if len(args) > 0 {
+				providerType = args[0]
+			} else {
+				opts := make([]huh.Option[string], len(oauthProviderTypes))
+				for i, t := range oauthProviderTypes {
+					opts[i] = huh.NewOption(t, t)
+				}
+				if err := huh.NewSelect[string]().
+					Title("Provider type").
+					Options(opts...).
+					Value(&providerType).
+					Run(); err != nil {
+					fmt.Println("Cancelled.")
+					return nil
+				}
 			}
 
-			client := getNewDownlinkClient()
+			// Step 2: Config entry name — flag or interactive input
+			if !cmd.Flags().Changed("provider-name") {
+				providerName = providerType + "-sub"
+				if err := huh.NewInput().
+					Title("Provider config name").
+					Description("Name of the config entry to create or reuse").
+					Value(&providerName).
+					Validate(func(s string) error {
+						if strings.TrimSpace(s) == "" {
+							return fmt.Errorf("name is required")
+						}
+						return nil
+					}).
+					Run(); err != nil {
+					fmt.Println("Cancelled.")
+					return nil
+				}
+			}
+
+			// Step 3: Model name — flag or interactive selection/input
+			if !cmd.Flags().Changed("model-name") {
+				modelName = resolveModelInteractive(client, providerType, "")
+				if modelName == "" {
+					return nil // user cancelled
+				}
+			}
+
+			// OAuth device-code flow
 			resp, err := client.StartCodexLogin(providerName, modelName)
 			if err != nil {
 				return fmt.Errorf("failed to start login: %w", err)
@@ -62,10 +108,10 @@ func createAuthLoginCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&providerName, "provider-name", "codex-sub",
-		"Name of the openai-codex provider config entry (created if missing)")
-	cmd.Flags().StringVar(&modelName, "model-name", "codex-mini",
-		"Model name to use when auto-creating the provider entry")
+	cmd.Flags().StringVar(&providerName, "provider-name", "",
+		"Name of the provider config entry to create or reuse")
+	cmd.Flags().StringVar(&modelName, "model-name", "",
+		"Model name to associate with the provider entry")
 
 	return cmd
 }
