@@ -60,6 +60,7 @@ func getNewDownlinkClient() *downlinkclient.DownlinkClient {
 	var opts []grpc.DialOption
 
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(32*1024*1024)))
 	conn, err := grpc.NewClient(fmt.Sprintf("%s:%d", address, port), opts...)
 	if err != nil {
 		log.WithFields(log.Fields{
