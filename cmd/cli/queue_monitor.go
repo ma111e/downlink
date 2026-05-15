@@ -7,13 +7,12 @@ import (
 
 	"charm.land/bubbles/v2/progress"
 	"charm.land/bubbles/v2/spinner"
-	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"downlink/pkg/downlinkclient"
 )
 
-// ── messages ─────────────────────────────────────────────────────────────────
+// ── messages ──────────────────────────────────────────────────────────────────
 
 type queuePollMsg         struct{}
 type queueDataMsg         downlinkclient.QueueStatus
@@ -38,7 +37,27 @@ type taskStep struct {
 	status taskStatus
 }
 
-// ── styles ───────────────────────────────────────────────────────────────────
+type activeJob struct {
+	title     string
+	taskSteps []taskStep
+	taskMap   map[string]int
+	done      bool
+}
+
+// allTasksDone returns true when every named slot has completed or errored.
+func (j *activeJob) allTasksDone() bool {
+	if len(j.taskSteps) == 0 {
+		return false
+	}
+	for _, s := range j.taskSteps {
+		if s.name != "" && s.status != taskCompleted && s.status != taskError {
+			return false
+		}
+	}
+	return true
+}
+
+// ── styles ────────────────────────────────────────────────────────────────────
 
 var (
 	qmPurple = lipgloss.Color("#7C3AED")
@@ -60,26 +79,26 @@ var (
 	qmColHeader = lipgloss.NewStyle().Bold(true).Foreground(qmGray)
 	qmStepOk    = lipgloss.NewStyle().Foreground(qmGreen)
 	qmStepErr   = lipgloss.NewStyle().Foreground(qmRed)
+	qmSection   = lipgloss.NewStyle().Bold(true).Foreground(qmGray)
 )
 
 // ── model ─────────────────────────────────────────────────────────────────────
 
 type queueMonitorModel struct {
-	client          *downlinkclient.DownlinkClient
-	status          downlinkclient.QueueStatus
-	spin            spinner.Model
-	prog            progress.Model
-	vp              viewport.Model
-	width           int
-	height          int
-	maxSeen         int
-	actionMsg       string
-	actionErr       bool
-	taskSteps       []taskStep
-	taskMap         map[string]int // taskName → index in taskSteps
-	activeArticleId string
-	cursor          int
-	streamErr       string
+	client         *downlinkclient.DownlinkClient
+	status         downlinkclient.QueueStatus
+	spin           spinner.Model
+	prog           progress.Model
+	width          int
+	height         int
+	maxSeen        int
+	actionMsg      string
+	actionErr      bool
+	activeJobs     map[string]*activeJob // articleId → in-flight job
+	activeJobOrder []string              // insertion-order for stable display
+	titleCache     map[string]string     // articleId → title
+	cursor         int
+	streamErr      string
 }
 
 func newQueueMonitorModel(client *downlinkclient.DownlinkClient) queueMonitorModel {
@@ -90,11 +109,11 @@ func newQueueMonitorModel(client *downlinkclient.DownlinkClient) queueMonitorMod
 		progress.WithWidth(40),
 	)
 	return queueMonitorModel{
-		client:  client,
-		spin:    sp,
-		prog:    pr,
-		vp:      viewport.New(),
-		taskMap: make(map[string]int),
+		client:     client,
+		spin:       sp,
+		prog:       pr,
+		activeJobs: make(map[string]*activeJob),
+		titleCache: make(map[string]string),
 	}
 }
 
@@ -149,104 +168,50 @@ func cmdDequeueArticle(c *downlinkclient.DownlinkClient, articleId string) tea.C
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-// overheadLines returns the number of terminal lines used outside the viewport.
-func overheadLines(hasTaskStrip, hasActionMsg bool) int {
-	// \n + title + sep + \n + now + \n + progress + \n + hdr + hdr-sep + \n + help
-	n := 12
-	if hasTaskStrip {
-		n += 2 // strip line + blank
-	}
-	if hasActionMsg {
-		n += 2 // msg line + blank
-	}
-	return n
-}
-
-// syncViewport rebuilds the viewport content and adjusts scroll to keep cursor visible.
-func (m *queueMonitorModel) syncViewport() {
-	if m.width == 0 {
-		return
-	}
-	titleColW := max(m.width-54, 20)
-
-	// rebuild rows
-	content := buildQueueRows(m.status.Queue, m.cursor, titleColW)
-	m.vp.SetContent(content)
-
-	// resize viewport
-	hasStrip := len(m.taskSteps) > 0 && m.status.IsProcessing
-	vpH := max(m.height-overheadLines(hasStrip, m.actionMsg != ""), 3)
-	m.vp.SetHeight(vpH)
-	m.vp.SetWidth(m.width)
-
-	// scroll to keep cursor visible
-	if len(m.status.Queue) > 0 {
-		if m.cursor < m.vp.YOffset() {
-			m.vp.SetYOffset(m.cursor)
-		} else if m.cursor >= m.vp.YOffset()+m.vp.Height() {
-			m.vp.SetYOffset(m.cursor - m.vp.Height() + 1)
-		}
-	}
-}
-
-// buildQueueRows renders the full queue as a string for viewport content.
-func buildQueueRows(queue []downlinkclient.QueueJobWithTitle, cursor, titleColW int) string {
-	if len(queue) == 0 {
-		return ""
-	}
-	var b strings.Builder
-	contentFmt := fmt.Sprintf("%%-%ds  %%-14s  %%-20s", titleColW)
-	for i, j := range queue {
-		profile := j.ProviderName
-		if profile == "" {
-			profile = j.ProviderType
-		}
-		if profile == "" {
-			profile = "—"
-		}
-		model := j.ModelName
-		if model == "" {
-			model = "—"
-		}
-		numStr := fmt.Sprintf("%3d", i+1)
-		content := fmt.Sprintf(contentFmt,
-			truncate(j.ArticleTitle, titleColW),
-			truncate(profile, 14),
-			truncate(model, 20),
-		)
-		if i == cursor {
-			b.WriteString(qmSelected.Render("▶ "+numStr+"  "+content) + "\n")
-		} else {
-			b.WriteString("  " + numStr + "  " + content + "\n")
-		}
-	}
-	return b.String()
-}
-
-// applyQueueStatus updates the model for a fresh queue snapshot.
+// applyQueueStatus applies a fresh queue snapshot to the model.
 func (m queueMonitorModel) applyQueueStatus(s downlinkclient.QueueStatus) queueMonitorModel {
-	if !s.IsProcessing || s.CurrentId != m.activeArticleId {
-		m.activeArticleId = s.CurrentId
-		if !s.IsProcessing {
-			m.activeArticleId = ""
+	// update title cache
+	for _, j := range s.Queue {
+		if j.ArticleTitle != "" {
+			m.titleCache[j.ArticleId] = j.ArticleTitle
 		}
-		m.taskSteps = nil
-		m.taskMap = make(map[string]int)
 	}
+	if s.CurrentId != "" && s.CurrentTitle != "" {
+		m.titleCache[s.CurrentId] = s.CurrentTitle
+	}
+
+	// backfill titles on jobs that were created before a title was known
+	for id, job := range m.activeJobs {
+		if job.title == "" {
+			if t, ok := m.titleCache[id]; ok {
+				job.title = t
+			}
+		}
+	}
+
+	// prune done jobs; next queue_update is the signal they've cleared
+	newOrder := m.activeJobOrder[:0]
+	for _, id := range m.activeJobOrder {
+		if job, ok := m.activeJobs[id]; ok && job.done {
+			delete(m.activeJobs, id)
+		} else {
+			newOrder = append(newOrder, id)
+		}
+	}
+	m.activeJobOrder = newOrder
+
 	m.status = s
-	total := len(s.Queue)
-	if s.IsProcessing {
-		total++
-	}
+
+	total := len(s.Queue) + len(m.activeJobs)
 	if total > m.maxSeen {
 		m.maxSeen = total
 	}
+
 	if len(s.Queue) > 0 {
 		m.cursor = min(m.cursor, len(s.Queue)-1)
 	} else {
 		m.cursor = 0
 	}
-	m.syncViewport()
 	return m
 }
 
@@ -258,7 +223,6 @@ func (m queueMonitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.prog.SetWidth(max(msg.Width-30, 10))
-		m.syncViewport()
 		return m, nil
 
 	case queueDataMsg:
@@ -266,7 +230,7 @@ func (m queueMonitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmdPollTick()
 
 	case queueStreamUpdateMsg:
-		m.streamErr = "" // clear transient error on successful stream event
+		m.streamErr = ""
 		m = m.applyQueueStatus(downlinkclient.QueueStatus(msg))
 		return m, nil
 
@@ -275,26 +239,43 @@ func (m queueMonitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case queueProgressMsg:
 		ap := downlinkclient.AnalysisProgress(msg)
-		if m.taskSteps == nil && ap.TotalTasks > 0 {
-			m.taskSteps = make([]taskStep, ap.TotalTasks)
-			m.taskMap = make(map[string]int)
+		if ap.Status == "token" || ap.ArticleId == "" {
+			return m, nil
 		}
-		if ap.TaskIndex > 0 && ap.TaskIndex <= len(m.taskSteps) {
+
+		job, exists := m.activeJobs[ap.ArticleId]
+		if !exists {
+			job = &activeJob{taskMap: make(map[string]int)}
+			if t, ok := m.titleCache[ap.ArticleId]; ok {
+				job.title = t
+			}
+			m.activeJobs[ap.ArticleId] = job
+			m.activeJobOrder = append(m.activeJobOrder, ap.ArticleId)
+		}
+
+		if ap.TotalTasks > 0 && len(job.taskSteps) < ap.TotalTasks {
+			job.taskSteps = append(job.taskSteps, make([]taskStep, ap.TotalTasks-len(job.taskSteps))...)
+		}
+
+		if ap.TaskIndex > 0 && ap.TaskIndex <= len(job.taskSteps) {
 			idx := ap.TaskIndex - 1
-			if _, known := m.taskMap[ap.TaskName]; !known && ap.TaskName != "" {
-				m.taskMap[ap.TaskName] = idx
-				m.taskSteps[idx].name = ap.TaskName
+			if ap.TaskName != "" {
+				job.taskSteps[idx].name = ap.TaskName
+				job.taskMap[ap.TaskName] = idx
 			}
 			switch ap.Status {
 			case "started":
-				m.taskSteps[idx].status = taskActive
+				job.taskSteps[idx].status = taskActive
 			case "completed":
-				m.taskSteps[idx].status = taskCompleted
+				job.taskSteps[idx].status = taskCompleted
 			case "error":
-				m.taskSteps[idx].status = taskError
+				job.taskSteps[idx].status = taskError
 			}
 		}
-		m.syncViewport() // may need to resize if task strip just appeared
+
+		if job.allTasksDone() {
+			job.done = true
+		}
 		return m, nil
 
 	case queueStreamErrMsg:
@@ -305,7 +286,6 @@ func (m queueMonitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s := string(msg)
 		m.actionErr = strings.HasPrefix(s, "error:")
 		m.actionMsg = s
-		m.syncViewport()
 		return m, cmdFetchStatus(m.client)
 
 	case spinner.TickMsg:
@@ -329,13 +309,11 @@ func (m queueMonitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
-				m.syncViewport()
 			}
 			return m, nil
 		case "down", "j":
 			if m.cursor < len(m.status.Queue)-1 {
 				m.cursor++
-				m.syncViewport()
 			}
 			return m, nil
 		case "d":
@@ -372,65 +350,80 @@ func (m queueMonitorModel) View() tea.View {
 	b.WriteString("  " + titleStr + strings.Repeat(" ", gap) + stateStr + "\n")
 	b.WriteString("  " + qmDim.Render(strings.Repeat("─", w-4)) + "\n\n")
 
-	// ── current article ──
-	if m.status.IsProcessing {
-		cur := m.status.CurrentTitle
-		if cur == "" {
-			cur = "processing…"
-		}
-		b.WriteString("  " + qmDim.Render("now") + "   " + m.spin.View() + " " + qmCurrent.Render(truncate(cur, max(w-14, 10))) + "\n\n")
-	} else {
-		b.WriteString("  " + qmDim.Render("now") + "   " + qmDim.Render("—") + "\n\n")
-	}
-
 	// ── progress bar ──
+	activeCount := len(m.activeJobs)
 	pending := len(m.status.Queue)
-	active := pending
-	if m.status.IsProcessing {
-		active++
+	total := activeCount + pending
+	if total > m.maxSeen {
+		m.maxSeen = total
 	}
 	var pct float64
-	if m.maxSeen > 0 {
-		pct = 1.0 - float64(active)/float64(m.maxSeen)
-	}
 	var countStr string
 	if m.maxSeen > 0 {
-		countStr = fmt.Sprintf("%d / %d", m.maxSeen-active, m.maxSeen)
+		pct = 1.0 - float64(total)/float64(m.maxSeen)
+		countStr = fmt.Sprintf("%d / %d", m.maxSeen-total, m.maxSeen)
+	} else if !m.status.IsProcessing {
+		countStr = "idle"
 	} else {
-		countStr = fmt.Sprintf("%d queued", pending)
+		countStr = "starting…"
 	}
 	b.WriteString("  " + m.prog.ViewAs(pct) + "  " + qmDim.Render(countStr) + "\n\n")
 
-	// ── task strip ──
-	if len(m.taskSteps) > 0 && m.status.IsProcessing {
-		var parts []string
-		for _, step := range m.taskSteps {
-			if step.name == "" {
+	// ── active section ──
+	if len(m.activeJobOrder) > 0 {
+		sectionSep := strings.Repeat("─", max(w-14, 4))
+		b.WriteString("  " + qmSection.Render("Active") + "  " + qmDim.Render(sectionSep) + "\n")
+
+		for _, id := range m.activeJobOrder {
+			job, ok := m.activeJobs[id]
+			if !ok || job.done {
 				continue
 			}
-			var label string
-			switch step.status {
-			case taskActive:
-				label = qmCurrent.Render(step.name) + " " + m.spin.View()
-			case taskCompleted:
-				label = qmStepOk.Render(step.name + " ✓")
-			case taskError:
-				label = qmStepErr.Render(step.name + " ✗")
-			default:
-				label = qmDim.Render(step.name + " ○")
+			title := job.title
+			if title == "" {
+				title = id
 			}
-			parts = append(parts, label)
-		}
-		if len(parts) > 0 {
-			b.WriteString("  " + strings.Join(parts, qmDim.Render("  ·  ")) + "\n\n")
+			b.WriteString("  " + qmCurrent.Render(truncate(title, max(w-4, 20))) + "\n")
+
+			// task strip
+			var parts []string
+			hasAny := false
+			for _, step := range job.taskSteps {
+				if step.name == "" {
+					continue
+				}
+				hasAny = true
+				var label string
+				switch step.status {
+				case taskActive:
+					label = qmCurrent.Render(step.name) + " " + m.spin.View()
+				case taskCompleted:
+					label = qmStepOk.Render(step.name + " ✓")
+				case taskError:
+					label = qmStepErr.Render(step.name + " ✗")
+				default:
+					label = qmDim.Render(step.name + " ○")
+				}
+				parts = append(parts, label)
+			}
+			if hasAny {
+				b.WriteString("    " + strings.Join(parts, qmDim.Render("  ·  ")) + "\n")
+			} else {
+				b.WriteString("    " + m.spin.View() + " " + qmDim.Render("waiting for tasks…") + "\n")
+			}
+			b.WriteString("\n")
 		}
 	}
 
-	// ── queue table ──
-	titleColW := max(w-54, 20)
-	colFmt := fmt.Sprintf("  %%3s  %%-%ds  %%-14s  %%-20s", titleColW)
+	// ── queued section ──
+	if pending > 0 || (len(m.activeJobOrder) > 0) {
+		sectionSep := strings.Repeat("─", max(w-13, 4))
+		b.WriteString("  " + qmSection.Render("Queued") + "  " + qmDim.Render(sectionSep) + "\n")
+	}
 
-	if len(m.status.Queue) > 0 {
+	if pending > 0 {
+		titleColW := max(w-54, 20)
+		colFmt := fmt.Sprintf("  %%3s  %%-%ds  %%-14s  %%-20s", titleColW)
 		b.WriteString(qmColHeader.Render(fmt.Sprintf(colFmt, "#", "TITLE", "PROFILE", "MODEL")) + "\n")
 		b.WriteString(qmDim.Render(fmt.Sprintf(colFmt,
 			"───",
@@ -438,9 +431,35 @@ func (m queueMonitorModel) View() tea.View {
 			strings.Repeat("─", 14),
 			strings.Repeat("─", 20),
 		)) + "\n")
-		b.WriteString(m.vp.View())
-	} else if !m.status.IsProcessing {
+		contentFmt := fmt.Sprintf("%%-%ds  %%-14s  %%-20s", titleColW)
+		for i, j := range m.status.Queue {
+			profile := j.ProviderName
+			if profile == "" {
+				profile = j.ProviderType
+			}
+			if profile == "" {
+				profile = "—"
+			}
+			model := j.ModelName
+			if model == "" {
+				model = "—"
+			}
+			numStr := fmt.Sprintf("%3d", i+1)
+			content := fmt.Sprintf(contentFmt,
+				truncate(j.ArticleTitle, titleColW),
+				truncate(profile, 14),
+				truncate(model, 20),
+			)
+			if i == m.cursor {
+				b.WriteString(qmSelected.Render("▶ "+numStr+"  "+content) + "\n")
+			} else {
+				b.WriteString("  " + numStr + "  " + content + "\n")
+			}
+		}
+	} else if !m.status.IsProcessing && len(m.activeJobOrder) == 0 {
 		b.WriteString("  " + qmDim.Render("Queue is empty") + "\n")
+	} else if pending == 0 && m.status.IsProcessing {
+		b.WriteString("  " + qmDim.Render("(all jobs in flight)") + "\n")
 	}
 	b.WriteString("\n")
 
