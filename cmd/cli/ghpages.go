@@ -249,10 +249,10 @@ When no title is given, an interactive list is shown to pick from.`,
 
 	republishAllCmd := &cobra.Command{
 		Use:   "republish-all",
-		Short: "Re-render all archived digests with the current templates",
-		Long: `Fetch every digest from the running downlink server, re-render each page
-with the current templates, rebuild the manifest from scratch, and push
-the result as a single commit to GitHub Pages.
+		Short: "Re-render all published digests with the current templates",
+		Long: `Fetch every digest from the running downlink server, filter to those already
+present in the GitHub Pages manifest, re-render each page with the current
+templates, rebuild the manifest, and push the result as a single commit.
 
 Use --dry-run to render and stage locally without committing or pushing.
 
@@ -291,7 +291,31 @@ This command requires a running downlink server (--address / --port).`,
 	republishAllCmd.Flags().BoolVar(&republishDryRun, "dry-run", false, "Render and stage locally without committing or pushing")
 
 	digestCmd.AddCommand(addCmd, removeCmd, republishAllCmd)
-	cmd.AddCommand(initCmd, reinitCmd, digestCmd)
+
+	var republishIndexDryRun bool
+
+	republishIndexCmd := &cobra.Command{
+		Use:   "republish-index",
+		Short: "Re-render the archive index pages with the current templates",
+		Long: `Re-render the archive index pages (both the digest-subdirectory index and
+the root index.html) with the current templates and push the result as a
+single commit. Digest HTML files and the manifest are not modified.
+
+Use --dry-run to write the files locally without committing or pushing.
+
+This command does not require a running downlink server.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := buildConfig()
+			if err != nil {
+				return err
+			}
+			publisher := notification.NewGitHubPagesPublisher(cfg)
+			return publisher.RepublishIndex(republishIndexDryRun)
+		},
+	}
+	republishIndexCmd.Flags().BoolVar(&republishIndexDryRun, "dry-run", false, "Write index files locally without committing or pushing")
+
+	cmd.AddCommand(initCmd, reinitCmd, digestCmd, republishIndexCmd)
 	return cmd
 }
 

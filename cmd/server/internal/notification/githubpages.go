@@ -576,18 +576,36 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 		return fmt.Errorf("github pages: failed to get worktree: %w", err)
 	}
 
-	// Load existing manifest to preserve SourceRepo, then rebuild Digests cleanly.
+	// Load existing manifest to get the set of already-published filenames,
+	// then rebuild Digests cleanly from only those digests.
 	manifestRelPath := filepath.Join(outputDir, ManifestFilename)
 	manifestAbsPath := filepath.Join(p.cfg.CloneDir, manifestRelPath)
 	manifest, err := LoadManifest(manifestAbsPath)
 	if err != nil {
 		return fmt.Errorf("github pages: load manifest: %w", err)
 	}
+	published := make(map[string]bool, len(manifest.Digests))
+	for _, e := range manifest.Digests {
+		published[e.Filename] = true
+	}
+	var toRender []models.Digest
+	for _, d := range digests {
+		if published[DigestHTMLFilename(d)] {
+			toRender = append(toRender, d)
+		}
+	}
+	if len(toRender) == 0 {
+		log.Info("RepublishAll: no server digests match the published manifest — nothing to do")
+		return nil
+	}
+	log.WithFields(log.Fields{"published": len(published), "matched": len(toRender)}).
+		Info("Filtered to published digests only")
+
 	manifest.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
 	manifest.Digests = nil
 
-	for i, digest := range digests {
-		log.WithFields(log.Fields{"digestId": digest.Id, "index": i + 1, "total": len(digests)}).
+	for i, digest := range toRender {
+		log.WithFields(log.Fields{"digestId": digest.Id, "index": i + 1, "total": len(toRender)}).
 			Info("Rendering digest")
 
 		if _, err := p.renderAndStage(wt, digest, outputDir, theme); err != nil {
@@ -611,11 +629,11 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 	}
 
 	if dryRun {
-		log.WithField("count", len(digests)).Info("Dry run complete — skipping commit and push")
+		log.WithField("count", len(toRender)).Info("Dry run complete — skipping commit and push")
 		return nil
 	}
 
-	commitMsg := fmt.Sprintf("Republish all %d digests (template migration)", len(digests))
+	commitMsg := fmt.Sprintf("Republish %d digests (template migration)", len(toRender))
 	if _, err = wt.Commit(commitMsg, &gogit.CommitOptions{
 		Author: &object.Signature{
 			Name:  p.cfg.CommitAuthor,
@@ -626,31 +644,89 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 		return fmt.Errorf("github pages: failed to commit: %w", err)
 	}
 
+	if err := p.pushWithRetry(repo, wt, auth); err != nil {
+		return err
+	}
+
+	log.WithField("count", len(toRender)).Info("Published digests republished to GitHub Pages")
+	return nil
+}
+
+// RepublishIndex re-renders the archive index pages with the current templates
+// and pushes the result as a single commit. The manifest and digest HTML files
+// are not touched. Pass dryRun=true to write locally without committing.
+func (p *GitHubPagesPublisher) RepublishIndex(dryRun bool) error {
+	outputDir, err := resolveGitHubPagesOutputDir(p.cfg.OutputDir)
+	if err != nil {
+		return fmt.Errorf("github pages: invalid output dir: %w", err)
+	}
+
+	auth := &githttp.BasicAuth{
+		Username: "x-access-token",
+		Password: p.cfg.Token,
+	}
+
+	repo, err := p.ensureRepo(auth)
+	if err != nil {
+		return fmt.Errorf("github pages: failed to prepare local repo: %w", err)
+	}
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("github pages: failed to get worktree: %w", err)
+	}
+
+	if err := p.ensureIndex(wt, outputDir); err != nil {
+		return err
+	}
+
+	if dryRun {
+		log.Info("Dry run complete — skipping commit and push")
+		return nil
+	}
+
+	if _, err = wt.Commit("Republish index pages (template migration)", &gogit.CommitOptions{
+		Author: &object.Signature{
+			Name:  p.cfg.CommitAuthor,
+			Email: p.cfg.CommitEmail,
+			When:  time.Now(),
+		},
+	}); err != nil {
+		return fmt.Errorf("github pages: failed to commit: %w", err)
+	}
+
+	if err := p.pushWithRetry(repo, wt, auth); err != nil {
+		return err
+	}
+
+	log.Info("Index pages republished to GitHub Pages")
+	return nil
+}
+
+// pushWithRetry pushes and retries once after pulling on non-fast-forward rejection.
+func (p *GitHubPagesPublisher) pushWithRetry(repo *gogit.Repository, wt *gogit.Worktree, auth *githttp.BasicAuth) error {
 	pushOpts := &gogit.PushOptions{
 		RemoteName: "origin",
 		Auth:       auth,
 	}
 	if err := repo.Push(pushOpts); err != nil {
-		if isNonFastForward(err) {
-			log.Warn("GitHub Pages push rejected (non-fast-forward); pulling and retrying")
-			pullErr := wt.Pull(&gogit.PullOptions{
-				RemoteName:    "origin",
-				ReferenceName: plumbing.NewBranchReferenceName(p.cfg.Branch),
-				Auth:          auth,
-				Force:         true,
-			})
-			if pullErr != nil && pullErr != gogit.NoErrAlreadyUpToDate {
-				return fmt.Errorf("github pages: rebase pull failed: %w", pullErr)
-			}
-			if retryErr := repo.Push(pushOpts); retryErr != nil {
-				return fmt.Errorf("github pages: push retry failed: %w", retryErr)
-			}
-		} else {
+		if !isNonFastForward(err) {
 			return fmt.Errorf("github pages: push failed: %w", err)
 		}
+		log.Warn("GitHub Pages push rejected (non-fast-forward); pulling and retrying")
+		pullErr := wt.Pull(&gogit.PullOptions{
+			RemoteName:    "origin",
+			ReferenceName: plumbing.NewBranchReferenceName(p.cfg.Branch),
+			Auth:          auth,
+			Force:         true,
+		})
+		if pullErr != nil && pullErr != gogit.NoErrAlreadyUpToDate {
+			return fmt.Errorf("github pages: rebase pull failed: %w", pullErr)
+		}
+		if retryErr := repo.Push(pushOpts); retryErr != nil {
+			return fmt.Errorf("github pages: push retry failed: %w", retryErr)
+		}
 	}
-
-	log.WithField("count", len(digests)).Info("All digests republished to GitHub Pages")
 	return nil
 }
 
