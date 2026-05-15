@@ -163,6 +163,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 
 	// Step 1: Ensure all articles have been analyzed; trigger analysis for those that haven't
 	var analyses []models.ArticleAnalysis
+	var analysisErrors map[string]string // articleId → human-readable error, transient
 	if req.SkipAnalysis {
 		log.Info("Skipping article analysis (skip_analysis requested)")
 		articleIds := make([]string, len(articles))
@@ -209,8 +210,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 				_ = stream.Send(ev)
 			}
 		}
-		var failedCount int
-		analyses, failedCount, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, onAnalysisStart, onTaskProgress)
+		analyses, analysisErrors, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, onAnalysisStart, onTaskProgress)
 		if err != nil {
 			if cancelled(stream) {
 				return ctx.Err()
@@ -218,8 +218,8 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 			_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: fmt.Sprintf("failed to ensure articles are analyzed: %v", err)})
 			return fmt.Errorf("failed to ensure articles are analyzed: %w", err)
 		}
-		if failedCount > 0 {
-			msg := fmt.Sprintf("%d article(s) could not be analyzed after retry and will be excluded from the digest", failedCount)
+		if len(analysisErrors) > 0 {
+			msg := fmt.Sprintf("%d article(s) could not be analyzed after retry", len(analysisErrors))
 			log.Warn(msg)
 			sendProgress(stream, "analyze", "warning: "+msg, 0, 0)
 		}
@@ -349,8 +349,11 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	// ProviderResults, and DigestAnalyses are populated for renderers.
 	if fullDigest, err := store.Db.GetDigest(digest.Id); err != nil {
 		log.WithError(err).Warn("Failed to reload digest for notifications, skipping all")
-	} else if _, err := sendConfiguredDigestNotifications(stream, fullDigest, req.GetTheme(), false, req.GhPagesEnabled); err != nil {
-		log.WithError(err).Warn("Failed to send one or more digest notifications")
+	} else {
+		fullDigest.AnalysisErrors = analysisErrors
+		if _, err := sendConfiguredDigestNotifications(stream, fullDigest, req.GetTheme(), false, req.GhPagesEnabled); err != nil {
+			log.WithError(err).Warn("Failed to send one or more digest notifications")
+		}
 	}
 
 	// Final event: send the completed digest
@@ -549,7 +552,7 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 	oneShotAnalysis bool,
 	onStart func(articleId, articleTitle string, current, total uint32),
 	onTaskFactory func(articleId, articleTitle string) func(taskName, status string, taskIndex, totalTasks int, err error),
-) ([]models.ArticleAnalysis, int, error) {
+) ([]models.ArticleAnalysis, map[string]string, error) {
 	// Batch-fetch existing analyses for all articles in one query
 	articleIds := make([]string, len(articles))
 	for i, a := range articles {
@@ -591,15 +594,16 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 		firstErrMu       sync.Mutex
 		firstAnalysisErr error
 		completed        atomic.Uint32
-		failedCount      atomic.Uint32
+		articleErrors    = make(map[string]string)
 		total            = uint32(len(needsAnalysis))
 	)
 
-	captureErr := func(e error) {
+	captureErr := func(articleId string, e error) {
 		firstErrMu.Lock()
 		if firstAnalysisErr == nil {
 			firstAnalysisErr = e
 		}
+		articleErrors[articleId] = classifyAnalysisError(e)
 		firstErrMu.Unlock()
 	}
 
@@ -666,15 +670,14 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 
 			if err != nil {
 				log.WithError(err).WithField("articleId", article.Id).Warn("Failed to analyze article after retry, skipping")
-				captureErr(err)
-				failedCount.Add(1)
+				captureErr(article.Id, err)
 				return nil
 			}
 
 			analysis, err := store.Db.GetArticleAnalysis(article.Id)
 			if err != nil || analysis == nil {
 				log.WithError(err).WithField("articleId", article.Id).Warn("Analysis completed but could not be retrieved")
-				failedCount.Add(1)
+				captureErr(article.Id, fmt.Errorf("analysis result unavailable after completion"))
 				return nil
 			}
 
@@ -687,10 +690,8 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 
 	if err := g.Wait(); err != nil {
 		log.WithError(err).WithField("articlesProcessed", completed.Load()).WithField("articlesTotal", total).Info("Article analysis loop cancelled")
-		return nil, 0, err
+		return nil, nil, err
 	}
-
-	failed := int(failedCount.Load())
 
 	// Collect all analyses in article order
 	var analyses []models.ArticleAnalysis
@@ -702,12 +703,41 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 
 	if len(analyses) == 0 {
 		if firstAnalysisErr != nil {
-			return nil, failed, fmt.Errorf("no analyses available for any article in the time window: %w", firstAnalysisErr)
+			return nil, articleErrors, fmt.Errorf("no analyses available for any article in the time window: %w", firstAnalysisErr)
 		}
-		return nil, failed, fmt.Errorf("no analyses available for any article in the time window")
+		return nil, articleErrors, fmt.Errorf("no analyses available for any article in the time window")
 	}
 
-	return analyses, failed, nil
+	return analyses, articleErrors, nil
+}
+
+// classifyAnalysisError converts a raw analysis error into a short human-readable
+// reason shown in the rendered digest next to articles that could not be scored.
+func classifyAnalysisError(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	lower := strings.ToLower(msg)
+	switch {
+	case errors.Is(err, context.DeadlineExceeded) || strings.Contains(lower, "deadline exceeded") || strings.Contains(lower, "timeout") || strings.Contains(lower, "timed out"):
+		return "Analysis timed out"
+	case errors.Is(err, context.Canceled) || strings.Contains(lower, "context canceled"):
+		return "Analysis cancelled"
+	case strings.Contains(lower, "429") || strings.Contains(lower, "rate limit") || strings.Contains(lower, "too many requests"):
+		return "Rate limited by model provider"
+	case strings.Contains(lower, "401") || strings.Contains(lower, "unauthorized") || strings.Contains(lower, "invalid api key"):
+		return "Model provider authentication failed"
+	case strings.Contains(lower, "503") || strings.Contains(lower, "502") || strings.Contains(lower, "unavailable") || strings.Contains(lower, "overloaded"):
+		return "Model provider unavailable"
+	case strings.Contains(lower, "result unavailable"):
+		return "Analysis result unavailable after completion"
+	default:
+		if len(msg) > 120 {
+			msg = msg[:120] + "…"
+		}
+		return "Analysis error: " + msg
+	}
 }
 
 // duplicateGroupingResult holds the parsed LLM response for duplicate identification

@@ -59,6 +59,7 @@ type Digest struct {
 	ProviderResults     []DigestProviderResult `gorm:"-" json:"provider_results"`          // Handled through separate table
 	DigestAnalyses      []DigestAnalysis       `gorm:"-" json:"digest_analyses,omitempty"` // Handled through separate table
 	Articles            []Article              `gorm:"many2many:digest_articles;" json:"-"`
+	AnalysisErrors      map[string]string      `gorm:"-" json:"-"` // transient: articleId → classified error, not persisted
 }
 
 // TableName specifies the table name for Digest
