@@ -550,25 +550,27 @@ Batch Analysis by Feed/Time:
 		Long:  `View and control the analysis queue.`,
 	}
 
-	// Queue status command
+	// Queue status command — live TUI monitor
 	queueStatusCmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show queue status",
-		Long:  `Display the current state of the analysis queue.`,
+		Short: "Monitor queue progress",
+		Long:  `Live TUI monitor for the analysis queue. Press s/x/c to start/stop/clear, q to quit.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
-			status := client.GetQueueStatus()
-
 			if jsonOutput {
+				status := client.GetQueueStatus()
 				out, err := json.MarshalIndent(status, "", "  ")
 				if err != nil {
 					fmt.Printf("Error marshalling to JSON: %v\n", err)
 					return
 				}
 				fmt.Println(string(out))
-			} else {
-				printQueueStatus(status)
+				return
+			}
+
+			if err := runQueueMonitor(client); err != nil {
+				fmt.Printf("Queue monitor error: %v\n", err)
 			}
 		},
 	}
