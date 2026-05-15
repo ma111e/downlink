@@ -78,8 +78,8 @@
     transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
   }
   .pill-btn:hover { transform: scale(1.06); }
-  .pill-btn.skip:hover { border-color: var(--discard); color: var(--discard); }
-  .pill-btn.read:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
 
   .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
   .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
@@ -410,7 +410,7 @@ function CardBack({ article, onBack }) {
   );
 }
 
-function SwipeCard({ article, isTop, depth, onSwipe }) {
+function SwipeCard({ article, isTop, depth, onSwipe, onFlipChange }) {
   const [dx, setDx]             = React.useState(0);
   const [dy, setDy]             = React.useState(0);
   const [dragging, setDragging] = React.useState(false);
@@ -419,8 +419,9 @@ function SwipeCard({ article, isTop, depth, onSwipe }) {
   const startRef = React.useRef({ x: 0, y: 0 });
 
   React.useEffect(() => {
-    if (isTop && !flipped) {
-      window.__downlinkFlipTop = () => setFlipped(true);
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
     }
     return () => { if (isTop) window.__downlinkFlipTop = null; };
   }, [isTop, flipped]);
@@ -478,8 +479,9 @@ function SwipeCard({ article, isTop, depth, onSwipe }) {
 }
 
 function App() {
-  const [index, setIndex] = React.useState(0);
-  const [tick, setTick]   = React.useState(0);
+  const [index, setIndex]       = React.useState(0);
+  const [tick, setTick]         = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
   const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
   const total     = ARTICLES.length;
   const remaining = total - index;
@@ -508,7 +510,7 @@ function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [finished]);
 
-  const advance = () => { setIndex(i => i + 1); setTick(t => t + 1); };
+  const advance = () => { setIndex(i => i + 1); setTick(t => t + 1); setTopFlipped(false); };
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -562,26 +564,25 @@ function App() {
                   isTop={realDepth === 0}
                   depth={realDepth}
                   onSwipe={(dir) => { if (dir === "left") advance(); }}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
                 />
               );
             })}
           </div>
 
           <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 32 }}>
-            <button className="pill-btn skip" onClick={advance} title="Skip (ArrowLeft)">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--text3)", letterSpacing: "0.12em", textAlign: "center", lineHeight: 1.7 }}>
-              <div>&#8592; SKIP · READ &#8594;</div>
-              <div style={{ opacity: 0.6, marginTop: 2 }}>SWIPE OR CLICK</div>
-            </div>
-            <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="Read details (ArrowRight)">
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
           </div>
 
           <div style={{ marginTop: 32, textAlign: "center" }}>
