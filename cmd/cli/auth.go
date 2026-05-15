@@ -61,6 +61,7 @@ func selectOAuthProvider(client *downlinkclient.DownlinkClient) (string, error) 
 	}
 
 	var selected string
+	flushStdin()
 	if err := huh.NewSelect[string]().
 		Title("Select provider").
 		Options(opts...).
@@ -96,6 +97,7 @@ func selectCredential(client *downlinkclient.DownlinkClient, providerName string
 	}
 
 	var selected string
+	flushStdin()
 	if err := huh.NewSelect[string]().
 		Title("Select credential").
 		Options(opts...).

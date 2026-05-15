@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"downlink/pkg/downlinkclient"
@@ -87,4 +89,13 @@ func findFeedByIDOrNormalizedName(client *downlinkclient.DownlinkClient, input s
 func printAvailableFeeds(feeds []models.Feed) {
 	fmt.Println("\nAvailable feeds:")
 	printFeedTable(feeds)
+}
+
+// flushStdin discards any bytes buffered in the tty input queue.
+// Call this before starting a huh form to prevent a leftover Enter keypress
+// from a previous form (or from keys typed during a network call) from being
+// immediately consumed by the new form.
+func flushStdin() {
+	const tcflsh = 0x540B // TCFLSH ioctl, Linux
+	syscall.Syscall(syscall.SYS_IOCTL, os.Stdin.Fd(), tcflsh, 0)
 }

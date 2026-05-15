@@ -313,6 +313,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 
 	// Step 1: Provider type
 	var providerType string
+	flushStdin()
 	if err := huh.NewSelect[string]().
 		Title("Provider type").
 		Options(
@@ -331,6 +332,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 
 	// Step 2: Name (unique)
 	var name string
+	flushStdin()
 	if err := huh.NewInput().
 		Title("Name").
 		Description("A unique identifier for this provider entry").
@@ -355,6 +357,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 	var apiKey, baseURL string
 	switch providerType {
 	case "openai", "anthropic", "mistral", "openai-codex":
+		flushStdin()
 		if err := huh.NewInput().
 			Title("API key").
 			EchoMode(huh.EchoModePassword).
@@ -369,6 +372,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 			fmt.Println("Cancelled.")
 			return
 		}
+		flushStdin()
 		if err := huh.NewInput().
 			Title("Base URL").
 			Description("Leave empty to use the provider's default endpoint").
@@ -381,6 +385,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 		baseURL = strings.TrimSpace(baseURL)
 	case "ollama":
 		baseURL = "http://localhost:11434"
+		flushStdin()
 		if err := huh.NewInput().
 			Title("Base URL").
 			Value(&baseURL).
@@ -389,6 +394,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 			return
 		}
 	case "llamacpp":
+		flushStdin()
 		if err := huh.NewInput().
 			Title("Base URL").
 			Value(&baseURL).
@@ -413,6 +419,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 
 	// Step 5: Timeout minutes (optional)
 	var timeoutStr string
+	flushStdin()
 	if err := huh.NewInput().
 		Title("Timeout (minutes)").
 		Placeholder("20").
@@ -440,6 +447,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 
 	// Step 6: Enable?
 	enabled := true
+	flushStdin()
 	if err := huh.NewConfirm().
 		Title("Enable this provider?").
 		Value(&enabled).
@@ -471,6 +479,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 
 	// Final confirmation
 	confirm := true
+	flushStdin()
 	if err := huh.NewConfirm().
 		Title("Add this provider?").
 		Value(&confirm).
@@ -504,6 +513,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 
 	if err != nil || resp == nil || len(resp.Models) == 0 {
 		var modelName string
+		flushStdin()
 		_ = huh.NewInput().
 			Title("Model name").
 			Placeholder("e.g. gpt-4o").
@@ -536,6 +546,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 	options = append(options, huh.NewOption("Custom...", customVal))
 
 	var modelChoice string
+	flushStdin()
 	if err := huh.NewSelect[string]().
 		Title("Model").
 		Options(options...).
@@ -549,6 +560,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 	}
 
 	var customModel string
+	flushStdin()
 	_ = huh.NewInput().
 		Title("Model name").
 		Value(&customModel).
@@ -584,6 +596,7 @@ func runUpdateProviderInteractive(client *downlinkclient.DownlinkClient) {
 	}
 
 	var selectedIdx int
+	flushStdin()
 	if err := huh.NewSelect[int]().
 		Title("Select provider to update").
 		Options(options...).
@@ -597,6 +610,7 @@ func runUpdateProviderInteractive(client *downlinkclient.DownlinkClient) {
 
 	// Model
 	modelName := p.ModelName
+	flushStdin()
 	if err := huh.NewInput().
 		Title("Model name").
 		Value(&modelName).
@@ -613,6 +627,7 @@ func runUpdateProviderInteractive(client *downlinkclient.DownlinkClient) {
 
 	// API key (leave blank to keep current)
 	apiKey := ""
+	flushStdin()
 	if err := huh.NewInput().
 		Title("API key").
 		Description("Leave empty to keep the current key").
@@ -625,6 +640,7 @@ func runUpdateProviderInteractive(client *downlinkclient.DownlinkClient) {
 
 	// Base URL
 	baseURL := p.BaseURL
+	flushStdin()
 	if err := huh.NewInput().
 		Title("Base URL").
 		Description("Leave empty to keep the current value (blank = provider default)").
@@ -636,6 +652,7 @@ func runUpdateProviderInteractive(client *downlinkclient.DownlinkClient) {
 
 	// Enabled
 	enabled := p.Enabled
+	flushStdin()
 	if err := huh.NewConfirm().
 		Title("Enable this provider?").
 		Value(&enabled).
@@ -682,6 +699,7 @@ func runRemoveProvider(cmd *cobra.Command, args []string) {
 	}
 
 	var selectedIdx int
+	flushStdin()
 	if err := huh.NewSelect[int]().
 		Title("Select provider to remove").
 		Options(options...).
@@ -695,6 +713,7 @@ func runRemoveProvider(cmd *cobra.Command, args []string) {
 	fmt.Printf("\nProvider: %s  (%s / %s)\n\n", selected.Name, selected.ProviderType, selected.ModelName)
 
 	confirm := false
+	flushStdin()
 	if err := huh.NewConfirm().
 		Title(fmt.Sprintf("Remove %q?", selected.Name)).
 		Affirmative("Yes, remove").

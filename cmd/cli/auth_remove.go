@@ -46,6 +46,7 @@ func createAuthRemoveCommand() *cobra.Command {
 			}
 
 			confirm := false
+			flushStdin()
 			if err := huh.NewConfirm().
 				Title(fmt.Sprintf("Remove credential %s from provider %s?", credentialID, providerName)).
 				Affirmative("Yes, remove").

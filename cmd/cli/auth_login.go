@@ -28,6 +28,7 @@ func createAuthLoginCommand() *cobra.Command {
 				for i, t := range oauthProviderTypes {
 					opts[i] = huh.NewOption(t, t)
 				}
+				flushStdin()
 				if err := huh.NewSelect[string]().
 					Title("Provider type").
 					Options(opts...).
@@ -41,6 +42,7 @@ func createAuthLoginCommand() *cobra.Command {
 			// Step 2: Config entry name — flag or interactive input
 			if !cmd.Flags().Changed("provider-name") {
 				providerName = providerType + "-sub"
+				flushStdin()
 				if err := huh.NewInput().
 					Title("Provider config name").
 					Description("Name of the config entry to create or reuse").

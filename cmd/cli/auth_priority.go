@@ -56,6 +56,7 @@ func createAuthPriorityCommand() *cobra.Command {
 				priority = int32(p)
 			} else {
 				var priorityStr string
+				flushStdin()
 				if err := huh.NewInput().
 					Title("Priority").
 					Description("Lower value = higher priority (0 = use first)").
@@ -75,6 +76,7 @@ func createAuthPriorityCommand() *cobra.Command {
 			}
 
 			confirm := true
+			flushStdin()
 			if err := huh.NewConfirm().
 				Title(fmt.Sprintf("Set priority for credential %s to %d?", credentialID, priority)).
 				Value(&confirm).
