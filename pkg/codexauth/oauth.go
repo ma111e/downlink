@@ -8,15 +8,38 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
 
+// flexInt unmarshals a JSON field that may be a number or a quoted number string.
+// The OpenAI device-code endpoint returns "interval" as a string.
+type flexInt int
+
+func (f *flexInt) UnmarshalJSON(data []byte) error {
+	var n int
+	if err := json.Unmarshal(data, &n); err == nil {
+		*f = flexInt(n)
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return fmt.Errorf("flexInt: cannot parse %s: %w", data, err)
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return fmt.Errorf("flexInt: cannot parse %q as integer: %w", s, err)
+	}
+	*f = flexInt(n)
+	return nil
+}
+
 // DeviceCodeResponse is returned by the usercode endpoint.
 type DeviceCodeResponse struct {
-	UserCode     string `json:"user_code"`
-	DeviceAuthID string `json:"device_auth_id"`
-	Interval     int    `json:"interval"`
+	UserCode     string  `json:"user_code"`
+	DeviceAuthID string  `json:"device_auth_id"`
+	Interval     flexInt `json:"interval"`
 }
 
 // TokenPair holds the access and refresh tokens.
@@ -52,8 +75,8 @@ func RequestDeviceCode(ctx context.Context) (*DeviceCodeResponse, error) {
 	if dc.UserCode == "" || dc.DeviceAuthID == "" {
 		return nil, fmt.Errorf("device code response missing user_code or device_auth_id")
 	}
-	if dc.Interval < int(minPollInterval.Seconds()) {
-		dc.Interval = int(minPollInterval.Seconds())
+	if int(dc.Interval) < int(minPollInterval.Seconds()) {
+		dc.Interval = flexInt(minPollInterval.Seconds())
 	}
 	return &dc, nil
 }
