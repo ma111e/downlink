@@ -4,21 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
+	"downlink/pkg/downlinkclient"
 	"downlink/pkg/models"
 
+	"charm.land/huh/v2"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
 )
 
-// LLM commands
-func createLLMCommands() *cobra.Command {
+// Model commands
+func createModelCommands() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "llm",
-		Short: "Manage LLM providers",
-		Long:  `Configure and manage LLM providers and models.`,
+		Use:   "model",
+		Short: "Manage LLM provider configurations",
+		Long:  `Add, remove, and configure LLM provider entries.`,
 	}
 
 	// Combined list command that replaces both providers and models commands
@@ -269,6 +272,331 @@ func createLLMCommands() *cobra.Command {
 	saveProvidersCmd.Flags().BoolVarP(&updateAllProviders, "all", "a", false, "Update all providers with the same settings")
 	saveProvidersCmd.Flags().StringVarP(&inputFile, "file", "f", "", "JSON file containing provider configurations")
 
-	cmd.AddCommand(listCmd, saveProvidersCmd)
+	addProviderCmd := &cobra.Command{
+		Use:   "add",
+		Short: "Add a new LLM provider configuration",
+		Long:  `Interactively create a new LLM provider entry.`,
+		Run:   runAddProvider,
+	}
+
+	removeProviderCmd := &cobra.Command{
+		Use:   "remove",
+		Short: "Remove an LLM provider configuration",
+		Long:  `Interactively select and remove an existing LLM provider entry.`,
+		Run:   runRemoveProvider,
+	}
+
+	cmd.AddCommand(listCmd, saveProvidersCmd, addProviderCmd, removeProviderCmd)
 	return cmd
+}
+
+func runAddProvider(cmd *cobra.Command, args []string) {
+	client := getNewDownlinkClient()
+
+	existing, err := client.GetLLMProviders()
+	if err != nil {
+		fmt.Printf("Error fetching providers: %v\n", err)
+		return
+	}
+
+	// Step 1: Provider type
+	var providerType string
+	if err := huh.NewSelect[string]().
+		Title("Provider type").
+		Options(
+			huh.NewOption("openai", "openai"),
+			huh.NewOption("anthropic", "anthropic"),
+			huh.NewOption("mistral", "mistral"),
+			huh.NewOption("ollama", "ollama"),
+			huh.NewOption("llamacpp", "llamacpp"),
+			huh.NewOption("openai-codex", "openai-codex"),
+		).
+		Value(&providerType).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	// Step 2: Name (unique)
+	var name string
+	if err := huh.NewInput().
+		Title("Name").
+		Description("A unique identifier for this provider entry").
+		Value(&name).
+		Validate(func(s string) error {
+			if strings.TrimSpace(s) == "" {
+				return fmt.Errorf("name is required")
+			}
+			for _, p := range existing {
+				if p.Name == s {
+					return fmt.Errorf("a provider named %q already exists", s)
+				}
+			}
+			return nil
+		}).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	// Step 3: API key or base URL (conditional on provider type)
+	var apiKey, baseURL string
+	switch providerType {
+	case "openai", "anthropic", "mistral", "openai-codex":
+		if err := huh.NewInput().
+			Title("API key").
+			EchoMode(huh.EchoModePassword).
+			Value(&apiKey).
+			Validate(func(s string) error {
+				if strings.TrimSpace(s) == "" {
+					return fmt.Errorf("API key is required")
+				}
+				return nil
+			}).
+			Run(); err != nil {
+			fmt.Println("Cancelled.")
+			return
+		}
+	case "ollama":
+		baseURL = "http://localhost:11434"
+		if err := huh.NewInput().
+			Title("Base URL").
+			Value(&baseURL).
+			Run(); err != nil {
+			fmt.Println("Cancelled.")
+			return
+		}
+	case "llamacpp":
+		if err := huh.NewInput().
+			Title("Base URL").
+			Value(&baseURL).
+			Validate(func(s string) error {
+				if strings.TrimSpace(s) == "" {
+					return fmt.Errorf("base URL is required for llamacpp")
+				}
+				return nil
+			}).
+			Run(); err != nil {
+			fmt.Println("Cancelled.")
+			return
+		}
+	}
+
+	// Step 4: Model selection
+	modelName := resolveModelInteractive(client, providerType, baseURL)
+	if modelName == "" {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	// Step 5: Timeout minutes (optional)
+	var timeoutStr string
+	if err := huh.NewInput().
+		Title("Timeout (minutes)").
+		Placeholder("20").
+		Description("Press Enter to use the default (20 minutes)").
+		Value(&timeoutStr).
+		Validate(func(s string) error {
+			if s == "" {
+				return nil
+			}
+			n, err := strconv.Atoi(strings.TrimSpace(s))
+			if err != nil || n <= 0 {
+				return fmt.Errorf("must be a positive integer")
+			}
+			return nil
+		}).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+	var timeoutMinutes *int
+	if s := strings.TrimSpace(timeoutStr); s != "" {
+		n, _ := strconv.Atoi(s)
+		timeoutMinutes = &n
+	}
+
+	// Step 6: Enable?
+	enabled := true
+	if err := huh.NewConfirm().
+		Title("Enable this provider?").
+		Value(&enabled).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	// Summary
+	fmt.Println()
+	tw := newTable("FIELD", "VALUE")
+	fmt.Fprintf(tw, "Name\t%s\n", name)
+	fmt.Fprintf(tw, "Type\t%s\n", providerType)
+	fmt.Fprintf(tw, "Model\t%s\n", modelName)
+	if apiKey != "" {
+		fmt.Fprintf(tw, "API key\t%s\n", mask(apiKey))
+	}
+	if baseURL != "" {
+		fmt.Fprintf(tw, "Base URL\t%s\n", baseURL)
+	}
+	if timeoutMinutes != nil {
+		fmt.Fprintf(tw, "Timeout\t%dm\n", *timeoutMinutes)
+	} else {
+		fmt.Fprintf(tw, "Timeout\t20m (default)\n")
+	}
+	fmt.Fprintf(tw, "Enabled\t%v\n", enabled)
+	tw.Flush()
+	fmt.Println()
+
+	// Final confirmation
+	confirm := true
+	if err := huh.NewConfirm().
+		Title("Add this provider?").
+		Value(&confirm).
+		Run(); err != nil || !confirm {
+		fmt.Println("Aborted.")
+		return
+	}
+
+	newProvider := models.ProviderConfig{
+		Name:           name,
+		ProviderType:   providerType,
+		ModelName:      modelName,
+		APIKey:         apiKey,
+		BaseURL:        baseURL,
+		TimeoutMinutes: timeoutMinutes,
+		Enabled:        enabled,
+	}
+
+	if err := client.SaveLLMProviders(append(existing, newProvider)); err != nil {
+		fmt.Printf("Error saving provider: %v\n", err)
+		return
+	}
+	fmt.Printf("✓ Provider %q added.\n", name)
+}
+
+// resolveModelInteractive fetches available models for the provider and lets the user pick one.
+// Falls back to a free-text input if the fetch fails or returns no results.
+func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType, baseURL string) string {
+	fmt.Println("Fetching available models...")
+	resp, err := client.GetAvailableModelsForProvider(providerType, baseURL)
+
+	if err != nil || resp == nil || len(resp.Models) == 0 {
+		var modelName string
+		_ = huh.NewInput().
+			Title("Model name").
+			Placeholder("e.g. gpt-4o").
+			Value(&modelName).
+			Validate(func(s string) error {
+				if strings.TrimSpace(s) == "" {
+					return fmt.Errorf("model name is required")
+				}
+				return nil
+			}).
+			Run()
+		return strings.TrimSpace(modelName)
+	}
+
+	if len(resp.Models) == 1 {
+		m := resp.Models[0]
+		fmt.Printf("Auto-selected model: %s\n", m.Name)
+		return m.Name
+	}
+
+	const customVal = "__custom__"
+	options := make([]huh.Option[string], 0, len(resp.Models)+1)
+	for _, m := range resp.Models {
+		label := m.Name
+		if m.DisplayName != "" && m.DisplayName != m.Name {
+			label = fmt.Sprintf("%s (%s)", m.Name, m.DisplayName)
+		}
+		options = append(options, huh.NewOption(label, m.Name))
+	}
+	options = append(options, huh.NewOption("Custom...", customVal))
+
+	var modelChoice string
+	if err := huh.NewSelect[string]().
+		Title("Model").
+		Options(options...).
+		Value(&modelChoice).
+		Run(); err != nil {
+		return ""
+	}
+
+	if modelChoice != customVal {
+		return modelChoice
+	}
+
+	var customModel string
+	_ = huh.NewInput().
+		Title("Model name").
+		Value(&customModel).
+		Validate(func(s string) error {
+			if strings.TrimSpace(s) == "" {
+				return fmt.Errorf("model name is required")
+			}
+			return nil
+		}).
+		Run()
+	return strings.TrimSpace(customModel)
+}
+
+func runRemoveProvider(cmd *cobra.Command, args []string) {
+	client := getNewDownlinkClient()
+
+	providers, err := client.GetLLMProviders()
+	if err != nil {
+		fmt.Printf("Error fetching providers: %v\n", err)
+		return
+	}
+	if len(providers) == 0 {
+		fmt.Println("No providers configured.")
+		return
+	}
+
+	options := make([]huh.Option[int], len(providers))
+	for i, p := range providers {
+		status := "disabled"
+		if p.Enabled {
+			status = "enabled"
+		}
+		label := fmt.Sprintf("%s  (%s / %s / %s)", p.Name, p.ProviderType, p.ModelName, status)
+		options[i] = huh.NewOption(label, i)
+	}
+
+	var selectedIdx int
+	if err := huh.NewSelect[int]().
+		Title("Select provider to remove").
+		Options(options...).
+		Value(&selectedIdx).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	selected := providers[selectedIdx]
+	fmt.Printf("\nProvider: %s  (%s / %s)\n\n", selected.Name, selected.ProviderType, selected.ModelName)
+
+	confirm := false
+	if err := huh.NewConfirm().
+		Title(fmt.Sprintf("Remove %q?", selected.Name)).
+		Affirmative("Yes, remove").
+		Negative("No, keep it").
+		Value(&confirm).
+		Run(); err != nil || !confirm {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	updated := make([]models.ProviderConfig, 0, len(providers)-1)
+	for i, p := range providers {
+		if i != selectedIdx {
+			updated = append(updated, p)
+		}
+	}
+
+	if err := client.SaveLLMProviders(updated); err != nil {
+		fmt.Printf("Error saving providers: %v\n", err)
+		return
+	}
+	fmt.Printf("✓ Provider %q removed.\n", selected.Name)
 }

@@ -43,7 +43,7 @@ func main() {
 	rootCmd.AddCommand(createArticleCommands())
 	rootCmd.AddCommand(createFeedCommands())
 	rootCmd.AddCommand(createAnalysisCommands())
-	rootCmd.AddCommand(createLLMCommands())
+	rootCmd.AddCommand(createModelCommands())
 	rootCmd.AddCommand(createDigestCommands())
 	rootCmd.AddCommand(createConfigCommands())
 	rootCmd.AddCommand(createGHPagesCommands())

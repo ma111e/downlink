@@ -1,8 +1,9 @@
 module downlink
 
-go 1.24.0
+go 1.25.8
 
 require (
+	charm.land/huh/v2 v2.0.3
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.3.1
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/SebastiaanKlippert/go-wkhtmltopdf v1.9.3
@@ -10,7 +11,6 @@ require (
 	github.com/cloudwego/eino-ext/components/model/claude v0.1.16
 	github.com/cloudwego/eino-ext/components/model/ollama v0.1.8
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.11
-	github.com/davecgh/go-spew v1.1.1
 	github.com/gocolly/colly/v2 v2.1.0
 	github.com/gomarkdown/markdown v0.0.0-20250311123330-531bef5e742b
 	github.com/google/uuid v1.6.0
@@ -25,8 +25,7 @@ require (
 	github.com/subosito/gotenv v1.6.0
 	github.com/tebeka/selenium v0.9.9
 	github.com/wailsapp/wails/v2 v2.10.2
-	golang.org/x/sync v0.16.0
-	golang.org/x/text v0.28.0
+	golang.org/x/sync v0.19.0
 	google.golang.org/grpc v1.71.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/src-d/go-git.v4 v4.13.1
@@ -37,6 +36,9 @@ require (
 )
 
 require (
+	charm.land/bubbles/v2 v2.0.0 // indirect
+	charm.land/bubbletea/v2 v2.0.2 // indirect
+	charm.land/lipgloss/v2 v2.0.1 // indirect
 	cloud.google.com/go/auth v0.7.2 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.3 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
@@ -49,6 +51,7 @@ require (
 	github.com/antchfx/xmlquery v1.2.4 // indirect
 	github.com/antchfx/xpath v1.1.8 // indirect
 	github.com/anthropics/anthropic-sdk-go v1.26.0 // indirect
+	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.33.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.3 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.29.1 // indirect
@@ -71,6 +74,17 @@ require (
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/canhlinh/svg2png v0.0.0-20201124065332-6ba87c82371f // indirect
+	github.com/catppuccin/go v0.2.0 // indirect
+	github.com/charmbracelet/colorprofile v0.4.2 // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20260205113103-524a6607adb8 // indirect
+	github.com/charmbracelet/x/ansi v0.11.6 // indirect
+	github.com/charmbracelet/x/exp/ordered v0.1.0 // indirect
+	github.com/charmbracelet/x/exp/strings v0.0.0-20240722160745-212f7b056ed0 // indirect
+	github.com/charmbracelet/x/term v0.2.2 // indirect
+	github.com/charmbracelet/x/termios v0.1.1 // indirect
+	github.com/charmbracelet/x/windows v0.2.2 // indirect
+	github.com/clipperhouse/displaywidth v0.11.0 // indirect
+	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/cloudwego/eino-ext/libs/acl/openai v0.1.15 // indirect
 	github.com/deckarep/golang-set/v2 v2.8.0 // indirect
@@ -112,17 +126,21 @@ require (
 	github.com/leaanthony/gosod v1.0.4 // indirect
 	github.com/leaanthony/slicer v1.6.0 // indirect
 	github.com/leaanthony/u v1.1.1 // indirect
+	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-runewidth v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v1.14.24 // indirect
 	github.com/mcuadros/go-version v0.0.0-20190830083331-035f6764e8d2 // indirect
 	github.com/meguminnnnnnnnn/go-openai v0.1.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
+	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/mmcdole/goxpp v1.1.1-0.20240225020742-a0c311522b23 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/nikolalohinski/gonja v1.5.3 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
@@ -151,6 +169,7 @@ require (
 	github.com/wailsapp/mimetype v1.4.1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
+	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/yargevad/filepathx v1.0.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
@@ -166,7 +185,8 @@ require (
 	golang.org/x/mod v0.26.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
 	google.golang.org/api v0.189.0 // indirect
