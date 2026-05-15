@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"downlink/cmd/server/notification"
 	"downlink/pkg/models"
 	"fmt"
@@ -9,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -145,20 +145,53 @@ the branch will be lost. Prompts for confirmation before proceeding.`,
 	}
 
 	addCmd := &cobra.Command{
-		Use:   "add <digest-id>",
+		Use:   "add [digest-id]",
 		Short: "Fetch a digest from the server and publish it to the GitHub Pages archive",
 		Long: `Fetch the digest from the running downlink server, render it to HTML,
 add it to the archive manifest, and push the result to GitHub Pages.
 
+When no digest ID is provided an interactive list of available digests is shown.
+
 This command requires a running downlink server (--address / --port).`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := buildConfig()
 			if err != nil {
 				return err
 			}
 			client := getNewDownlinkClient()
-			digest, err := client.GetDigest(args[0])
+
+			digestID := ""
+			if len(args) == 1 {
+				digestID = args[0]
+			} else {
+				digests, err := client.ListDigests(0)
+				if err != nil {
+					return fmt.Errorf("list digests: %w", err)
+				}
+				if len(digests) == 0 {
+					return fmt.Errorf("no digests found on the server")
+				}
+				options := make([]huh.Option[string], len(digests))
+				for i, d := range digests {
+					title := d.Title
+					if title == "" {
+						title = "(untitled)"
+					}
+					label := fmt.Sprintf("%s  %s  (%d articles)",
+						d.CreatedAt.Format("2006-01-02 15:04"), title, d.ArticleCount)
+					options[i] = huh.NewOption(label, d.Id)
+				}
+				if err := huh.NewSelect[string]().
+					Title("Select a digest to publish").
+					Options(options...).
+					Value(&digestID).
+					Run(); err != nil {
+					return err
+				}
+			}
+
+			digest, err := client.GetDigest(digestID)
 			if err != nil {
 				return fmt.Errorf("fetch digest: %w", err)
 			}
@@ -194,8 +227,15 @@ When no title is given, an interactive list is shown to pick from.`,
 				if len(titles) == 0 {
 					return fmt.Errorf("no digests found in the manifest")
 				}
-				title, err = selectFromList(titles)
-				if err != nil {
+				options := make([]huh.Option[string], len(titles))
+				for i, t := range titles {
+					options[i] = huh.NewOption(t, t)
+				}
+				if err := huh.NewSelect[string]().
+					Title("Select a digest to remove").
+					Options(options...).
+					Value(&title).
+					Run(); err != nil {
 					return err
 				}
 			}
@@ -209,23 +249,3 @@ When no title is given, an interactive list is shown to pick from.`,
 	return cmd
 }
 
-// selectFromList prints a numbered list of items to stderr and reads the
-// user's choice from stdin. Returns the selected item.
-func selectFromList(items []string) (string, error) {
-	fmt.Fprintln(os.Stderr, "Select a digest to remove:")
-	for i, item := range items {
-		fmt.Fprintf(os.Stderr, "  %d) %s\n", i+1, item)
-	}
-	fmt.Fprintf(os.Stderr, "Enter number (1-%d): ", len(items))
-
-	scanner := bufio.NewScanner(os.Stdin)
-	if !scanner.Scan() {
-		return "", fmt.Errorf("no input provided")
-	}
-	raw := strings.TrimSpace(scanner.Text())
-	n, err := strconv.Atoi(raw)
-	if err != nil || n < 1 || n > len(items) {
-		return "", fmt.Errorf("invalid selection %q: enter a number between 1 and %d", raw, len(items))
-	}
-	return items[n-1], nil
-}
