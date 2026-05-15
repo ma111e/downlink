@@ -209,13 +209,19 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 				_ = stream.Send(ev)
 			}
 		}
-		analyses, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, onAnalysisStart, onTaskProgress)
+		var failedCount int
+		analyses, failedCount, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, onAnalysisStart, onTaskProgress)
 		if err != nil {
 			if cancelled(stream) {
 				return ctx.Err()
 			}
 			_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: fmt.Sprintf("failed to ensure articles are analyzed: %v", err)})
 			return fmt.Errorf("failed to ensure articles are analyzed: %w", err)
+		}
+		if failedCount > 0 {
+			msg := fmt.Sprintf("%d article(s) could not be analyzed after retry and will be excluded from the digest", failedCount)
+			log.Warn(msg)
+			sendProgress(stream, "analyze", "warning: "+msg, 0, 0)
 		}
 	}
 
@@ -320,19 +326,22 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	}
 	digest.DigestAnalyses = digestAnalyses
 
-	// Store digest-article associations in a single batch operation
-	articleIds := make([]string, len(articles))
-	for i, article := range articles {
-		articleIds[i] = article.Id
+	// Store digest-article associations; only include articles that were
+	// successfully analyzed to prevent unscored entries in the rendered digest.
+	analyzedArticleIds := make([]string, len(digestAnalyses))
+	for i, da := range digestAnalyses {
+		analyzedArticleIds[i] = da.ArticleId
 	}
-	if err = store.Db.StoreDigestArticlesBatch(digest.Id, articleIds); err != nil {
+	if err = store.Db.StoreDigestArticlesBatch(digest.Id, analyzedArticleIds); err != nil {
 		log.WithError(err).WithField("digestId", digest.Id).Warn("Failed to batch store digest-article associations")
 	}
-	digest.ArticleCount = &articleLen // restore for the final done event
+	analyzedLen := len(analyzedArticleIds)
+	digest.ArticleCount = &analyzedLen
 
 	log.WithFields(log.Fields{
 		"id":              digest.Id,
-		"articleCount":    articleLen,
+		"articleCount":    analyzedLen,
+		"skipped":         articleLen - analyzedLen,
 		"analysisCount":   len(digestAnalyses),
 		"duplicateGroups": len(groupingResult.DuplicateGroups),
 	}).Info("Digest generated successfully")
@@ -348,7 +357,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	// Final event: send the completed digest
 	if err := stream.Send(&protos.DigestProgressEvent{
 		Stage:   "done",
-		Message: fmt.Sprintf("digest %s generated with %d articles", digest.Id, articleLen),
+		Message: fmt.Sprintf("digest %s generated with %d articles", digest.Id, analyzedLen),
 		Digest:  mappers.DigestToProto(&digest),
 	}); err != nil {
 		return fmt.Errorf("failed to send final digest event: %w", err)
@@ -541,7 +550,7 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 	oneShotAnalysis bool,
 	onStart func(articleId, articleTitle string, current, total uint32),
 	onTaskFactory func(articleId, articleTitle string) func(taskName, status string, taskIndex, totalTasks int, err error),
-) ([]models.ArticleAnalysis, error) {
+) ([]models.ArticleAnalysis, int, error) {
 	// Batch-fetch existing analyses for all articles in one query
 	articleIds := make([]string, len(articles))
 	for i, a := range articles {
@@ -583,6 +592,7 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 		firstErrMu       sync.Mutex
 		firstAnalysisErr error
 		completed        atomic.Uint32
+		failedCount      atomic.Uint32
 		total            = uint32(len(needsAnalysis))
 	)
 
@@ -628,30 +638,44 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 				}
 			}
 
-			stepCtx, cancel := context.WithTimeout(gctx, 60*time.Minute)
 			analysisReq := &protos.AnalyzeArticleWithProviderModelRequest{
 				ArticleId:      article.Id,
 				SkipCategorize: true,
 			}
-			var err error
-			if oneShotAnalysis {
-				_, err = s.llms.AnalyzeArticleOneShot(stepCtx, analysisReq, taskCb)
-			} else {
-				_, err = s.llms.AnalyzeArticleWithProgress(stepCtx, analysisReq, taskCb)
+
+			analyze := func(ctx context.Context) error {
+				if oneShotAnalysis {
+					_, err := s.llms.AnalyzeArticleOneShot(ctx, analysisReq, taskCb)
+					return err
+				}
+				_, err := s.llms.AnalyzeArticleWithProgress(ctx, analysisReq, taskCb)
+				return err
 			}
+
+			stepCtx, cancel := context.WithTimeout(gctx, 60*time.Minute)
+			err := analyze(stepCtx)
 			cancel()
+
+			if err != nil {
+				log.WithError(err).WithField("articleId", article.Id).Warn("Article analysis failed, retrying once")
+				retryCtx, retryCancel := context.WithTimeout(gctx, 60*time.Minute)
+				err = analyze(retryCtx)
+				retryCancel()
+			}
 
 			completed.Add(1)
 
 			if err != nil {
-				log.WithError(err).WithField("articleId", article.Id).Warn("Failed to analyze article, skipping")
+				log.WithError(err).WithField("articleId", article.Id).Warn("Failed to analyze article after retry, skipping")
 				captureErr(err)
+				failedCount.Add(1)
 				return nil
 			}
 
 			analysis, err := store.Db.GetArticleAnalysis(article.Id)
 			if err != nil || analysis == nil {
 				log.WithError(err).WithField("articleId", article.Id).Warn("Analysis completed but could not be retrieved")
+				failedCount.Add(1)
 				return nil
 			}
 
@@ -664,8 +688,10 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 
 	if err := g.Wait(); err != nil {
 		log.WithError(err).WithField("articlesProcessed", completed.Load()).WithField("articlesTotal", total).Info("Article analysis loop cancelled")
-		return nil, err
+		return nil, 0, err
 	}
+
+	failed := int(failedCount.Load())
 
 	// Collect all analyses in article order
 	var analyses []models.ArticleAnalysis
@@ -677,12 +703,12 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 
 	if len(analyses) == 0 {
 		if firstAnalysisErr != nil {
-			return nil, fmt.Errorf("no analyses available for any article in the time window: %w", firstAnalysisErr)
+			return nil, failed, fmt.Errorf("no analyses available for any article in the time window: %w", firstAnalysisErr)
 		}
-		return nil, fmt.Errorf("no analyses available for any article in the time window")
+		return nil, failed, fmt.Errorf("no analyses available for any article in the time window")
 	}
 
-	return analyses, nil
+	return analyses, failed, nil
 }
 
 // duplicateGroupingResult holds the parsed LLM response for duplicate identification
