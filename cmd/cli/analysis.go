@@ -93,7 +93,6 @@ func createAnalysisCommands() *cobra.Command {
 
 			provider := current.Provider
 			persona := current.Persona
-			writingStyle := current.WritingStyle
 
 			if err := huh.NewForm(
 				huh.NewGroup(
@@ -106,19 +105,14 @@ func createAnalysisCommands() *cobra.Command {
 						Title("Persona").
 						Description("Additional prompt prefix to customize the AI instructions").
 						Value(&persona),
-					huh.NewText().
-						Title("Writing style").
-						Description("Writing style guide injected into the digest summary prompt").
-						Value(&writingStyle),
 				),
 			).Run(); err != nil {
 				return err
 			}
 
 			config := models.AnalysisConfig{
-				Provider:     provider,
-				Persona:      strings.TrimSpace(persona),
-				WritingStyle: strings.TrimSpace(writingStyle),
+				Provider: provider,
+				Persona:  strings.TrimSpace(persona),
 			}
 			if err := client.UpdateAnalysisConfig(config); err != nil {
 				return fmt.Errorf("update config: %w", err)
