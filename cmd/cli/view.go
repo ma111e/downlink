@@ -77,13 +77,8 @@ func fmtDuration(d time.Duration) string {
 	return d.String()
 }
 
-// shortID returns the first 8 characters of an ID, or the full ID if shorter.
-// Safe replacement for ad-hoc id[:N] / id[N:] slicing that panics on short IDs.
 func shortID(id string) string {
-	if len(id) <= 8 {
-		return id
-	}
-	return id[:8]
+	return id
 }
 
 func section(title string) {
