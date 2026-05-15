@@ -275,10 +275,11 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	sendProgress(stream, "store", "storing digest...", 0, 0)
 	now := time.Now()
 	articleLen := len(articles)
+	zero := 0
 	digest := models.Digest{
 		Id:                  generateDigestId(now),
 		CreatedAt:           now,
-		ArticleCount:        &articleLen,
+		ArticleCount:        &zero, // StoreDigestArticlesBatch will increment to the real count
 		TimeWindow:          windowDuration,
 		RawGroupingResponse: rawResponse,
 		Title:               digestTitle,
@@ -327,6 +328,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	if err = store.Db.StoreDigestArticlesBatch(digest.Id, articleIds); err != nil {
 		log.WithError(err).WithField("digestId", digest.Id).Warn("Failed to batch store digest-article associations")
 	}
+	digest.ArticleCount = &articleLen // restore for the final done event
 
 	log.WithFields(log.Fields{
 		"id":              digest.Id,
