@@ -178,8 +178,12 @@ This command requires a running downlink server (--address / --port).`,
 					if title == "" {
 						title = "(untitled)"
 					}
+					articleCount := 0
+					if d.ArticleCount != nil {
+						articleCount = *d.ArticleCount
+					}
 					label := fmt.Sprintf("%s  %s  (%d articles)",
-						d.CreatedAt.Format("2006-01-02 15:04"), title, d.ArticleCount)
+						d.CreatedAt.Format("2006-01-02 15:04"), title, articleCount)
 					options[i] = huh.NewOption(label, d.Id)
 				}
 				if err := huh.NewSelect[string]().
