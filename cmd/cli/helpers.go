@@ -91,6 +91,36 @@ func printAvailableFeeds(feeds []models.Feed) {
 	printFeedTable(feeds)
 }
 
+// printArticleContentPreview prints the first and last 10 non-empty lines of
+// content, indented by prefix. Used by --dry-run --debug to spot-check article
+// bodies without printing the full text.
+func printArticleContentPreview(content, prefix string) {
+	if content == "" {
+		fmt.Printf("%s(no content)\n", prefix)
+		return
+	}
+	var lines []string
+	for _, l := range strings.Split(content, "\n") {
+		if strings.TrimSpace(l) != "" {
+			lines = append(lines, l)
+		}
+	}
+	const n = 10
+	if len(lines) <= n*2 {
+		for _, l := range lines {
+			fmt.Printf("%s%s\n", prefix, l)
+		}
+		return
+	}
+	for _, l := range lines[:n] {
+		fmt.Printf("%s%s\n", prefix, l)
+	}
+	fmt.Printf("%s... (%d lines omitted) ...\n", prefix, len(lines)-n*2)
+	for _, l := range lines[len(lines)-n:] {
+		fmt.Printf("%s%s\n", prefix, l)
+	}
+}
+
 // flushStdin discards any bytes buffered in the tty input queue.
 // Call this before starting a huh form to prevent a leftover Enter keypress
 // from a previous form (or from keys typed during a network call) from being

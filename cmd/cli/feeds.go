@@ -301,7 +301,7 @@ func createFeedCommands() *cobra.Command {
 
 	// Refresh feeds command
 	var fromStr, toStr, betweenStr string
-	var overwrite, restore, refreshDryRun bool
+	var overwrite, restore, refreshDryRun, refreshDebug bool
 	refreshCmd := &cobra.Command{
 		Use:   "refresh [feed-id-or-name|all]",
 		Short: "Refresh feeds",
@@ -380,6 +380,9 @@ Examples:
 						fmt.Printf("  Articles (%d):\n", len(articles))
 						for _, article := range articles {
 							fmt.Printf("    - %s\n", article.Title)
+							if refreshDebug {
+								printArticleContentPreview(article.Content, "      ")
+							}
 						}
 					}
 
@@ -535,6 +538,7 @@ Examples:
 	refreshCmd.Flags().BoolVar(&overwrite, "overwrite", false, "Overwrite existing articles instead of skipping them")
 	refreshCmd.Flags().BoolVar(&restore, "restore", false, "Overwrite existing articles that have no content")
 	refreshCmd.Flags().BoolVar(&refreshDryRun, "dry-run", false, "Preview matching articles without refreshing")
+	refreshCmd.Flags().BoolVar(&refreshDebug, "debug", false, "With --dry-run: show first and last 10 lines of each article's content")
 
 	// Delete feed command
 	deleteCmd := &cobra.Command{
