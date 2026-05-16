@@ -328,8 +328,7 @@ Time window filtering:
     - Relative: "-7d" (7 days ago), "-2h" (2 hours ago), "-30m" (30 minutes ago)
 
 Examples:
-  downlink-cli feeds refresh                          # Refresh all feeds
-  downlink-cli feeds refresh all                      # Refresh all feeds explicitly
+  downlink-cli feeds refresh all                      # Refresh all feeds
   downlink-cli feeds refresh tech-news --from -7d     # Articles from last 7 days
   downlink-cli feeds refresh "My Feed" --from 2025-01-01  # Articles from Jan 1, 2025
   downlink-cli feeds refresh feed-123 --from -1d --to now # Articles from last 24 hours`,
@@ -403,8 +402,12 @@ Examples:
 						fmt.Printf("    - %s\n", e)
 					}
 				}
+			} else if len(args) == 0 {
+				fmt.Fprintln(cmd.ErrOrStderr(), "Error: feed name or ID required. Use \"all\" to refresh every feed.")
+				_ = cmd.Usage()
+				return
 			} else {
-				// Refresh all feeds
+				// Refresh all feeds (args[0] == "all")
 				// If time window filtering is requested, refresh each feed individually with the filter
 				if fromTime != nil || toTime != nil {
 					// Dry-run mode: just list feeds that would be refreshed
