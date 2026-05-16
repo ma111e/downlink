@@ -733,6 +733,22 @@ func (p *GitHubPagesPublisher) RepublishIndex(dryRun bool) error {
 		return err
 	}
 
+	status, err := wt.Status()
+	if err != nil {
+		return fmt.Errorf("github pages: failed to get worktree status: %w", err)
+	}
+	hasStaged := false
+	for _, s := range status {
+		if s.Staging != gogit.Unmodified {
+			hasStaged = true
+			break
+		}
+	}
+	if !hasStaged {
+		log.Info("RepublishIndex: index pages already up to date — nothing to commit")
+		return nil
+	}
+
 	if dryRun {
 		log.Info("Dry run complete — skipping commit and push")
 		return nil
