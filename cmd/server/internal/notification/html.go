@@ -350,7 +350,6 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		"dupColor":           dupGroupColor,
 		"sourceColor":        sourceColor,
 		"sourceColorVal":     sourceColorVal,
-		"dupBadgeStyle":      dupBadgeStyle,
 		"dupGroupLetter":     dupGroupLetter,
 		"tocBadgeClass":      tocBadgeClass,
 		"tocNumClass":        tocNumClass,
@@ -513,12 +512,6 @@ func dupGroupLetter(group string) string {
 		h = h*31 + uint32(c)
 	}
 	return string(rune('A' + h%26))
-}
-
-// dupBadgeStyle returns inline CSS for a group badge (color + border + background).
-func dupBadgeStyle(group string) template.CSS {
-	c := paletteColor(group)
-	return template.CSS(fmt.Sprintf("color:%s;border:1px solid %s40;background:%s1a", c, c, c))
 }
 
 // tocBadgeClass returns the CSS class for a TOC group header priority badge.
