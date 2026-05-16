@@ -17,11 +17,26 @@ import (
 // FeedsServer implements the FeedsService gRPC service
 type FeedsServer struct {
 	protos.UnimplementedFeedsServiceServer
+	queue *QueueServer
 }
 
 // NewFeedsServer creates a new feeds server instance
-func NewFeedsServer() *FeedsServer {
-	return &FeedsServer{}
+func NewFeedsServer(queue *QueueServer) *FeedsServer {
+	return &FeedsServer{queue: queue}
+}
+
+// autoEnqueue submits newly stored articles to the analysis queue when auto_analyze is enabled.
+func (s *FeedsServer) autoEnqueue(ctx context.Context, articleIDs []string) {
+	if !config.Config.Analysis.AutoAnalyze || len(articleIDs) == 0 || s.queue == nil {
+		return
+	}
+	req := &protos.EnqueueArticlesRequest{
+		ArticleIds:   articleIDs,
+		ProviderName: config.Config.Analysis.Provider,
+	}
+	if _, err := s.queue.EnqueueArticles(ctx, req); err != nil {
+		log.WithError(err).Warn("Failed to auto-enqueue articles for analysis")
+	}
 }
 
 // ListFeeds implements the ListFeeds RPC method
@@ -91,6 +106,7 @@ func (s *FeedsServer) RefreshAllFeeds(req *protos.RefreshAllFeedsRequest, stream
 	for range enabledFeeds {
 		ev := <-resultCh
 		completed++
+		s.autoEnqueue(stream.Context(), ev.fetchResult.StoredArticleIDs)
 		resp := buildRefreshFeedResponse(ev.feed.Id, ev.feed.Title, ev.fetchResult, ev.err)
 		if sendErr := stream.Send(&protos.RefreshAllFeedsEvent{
 			Result:    resp,
@@ -105,7 +121,7 @@ func (s *FeedsServer) RefreshAllFeeds(req *protos.RefreshAllFeedsRequest, stream
 	return nil
 }
 
-func (s *FeedsServer) RefreshFeed(_ context.Context, req *protos.RefreshFeedRequest) (*protos.RefreshFeedResponse, error) {
+func (s *FeedsServer) RefreshFeed(ctx context.Context, req *protos.RefreshFeedRequest) (*protos.RefreshFeedResponse, error) {
 	logFields := log.Fields{"feed_id": req.FeedId}
 
 	// Convert proto timestamps to Go time.Time pointers
@@ -133,6 +149,8 @@ func (s *FeedsServer) RefreshFeed(_ context.Context, req *protos.RefreshFeedRequ
 		log.WithError(err).WithField("feed_id", req.FeedId).Error("Failed to refresh feed")
 		return nil, err
 	}
+
+	s.autoEnqueue(ctx, fetchResult.StoredArticleIDs)
 
 	feed, _ := manager.Manager.GetFeed(req.FeedId)
 	return buildRefreshFeedResponse(req.FeedId, feed.Title, fetchResult, nil), nil

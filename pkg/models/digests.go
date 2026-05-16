@@ -40,6 +40,7 @@ type AnalysisConfig struct {
 	Persona      string            `json:"persona,omitempty"`        // Additional prompt prefix to customize the AI instructions
 	WritingStyle string            `json:"writing_style,omitempty"`  // Writing style guide injected into digest summary prompt
 	WorkerPool   *WorkerPoolConfig `json:"worker_pool,omitempty"`    // Configuration for the analysis worker pool
+	AutoAnalyze  bool              `json:"auto_analyze,omitempty"`   // Automatically enqueue articles for analysis after each feed refresh
 }
 
 // WorkerPoolConfig contains the configuration for the worker pool

@@ -82,8 +82,9 @@ type FeedResult struct {
 
 // FetchResult holds statistics from a single feed fetch operation
 type FetchResult struct {
-	TotalFetched int
-	Stored       int
-	Skipped      int
-	Errors       []string
+	TotalFetched     int
+	Stored           int
+	Skipped          int
+	Errors           []string
+	StoredArticleIDs []string // IDs of articles successfully stored in this fetch
 }

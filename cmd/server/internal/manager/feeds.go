@@ -223,6 +223,7 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 		} else {
 			log.WithField("articleId", articleId).Debug("New article stored successfully")
 			result.Stored++
+			result.StoredArticleIDs = append(result.StoredArticleIDs, article.Id)
 		}
 	}
 

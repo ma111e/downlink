@@ -97,6 +97,7 @@ func main() {
 			}
 
 			applyGHPagesFlagOverrides(cmd)
+			applyAnalysisFlagOverrides(cmd)
 
 			initGHPages, _ := cmd.Flags().GetBool("init-gh-pages")
 			reinitGHPages, _ := cmd.Flags().GetBool("reinit-gh-pages")
@@ -214,6 +215,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&solimenAddr, "solimen-addr", "http://localhost:5011", "Solimen service address for full_browser scraping (e.g. http://localhost:5011)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (trace, debug, info, warn, error)")
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentLLMRequests, "max-concurrent-llm-requests", 1, "Maximum number of concurrent LLM analysis requests (default: 1)")
+	rootCmd.PersistentFlags().Bool("auto-analyze", false, "Automatically enqueue articles for analysis after each feed refresh [overrides config]")
 	//rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./excuses-client.yml)")
 
 	rootCmd.PersistentFlags().Bool("gh-pages-enabled", false, "Enable GitHub Pages publishing [overrides config]")
@@ -265,6 +267,17 @@ func runGitHubPagesInit(_ *cobra.Command, reinit bool) error {
 
 	publisher := notification.NewGitHubPagesPublisher(ghCfg)
 	return publisher.InitPages(reinit)
+}
+
+// applyAnalysisFlagOverrides copies CLI flag / env var values into the analysis config.
+func applyAnalysisFlagOverrides(cmd *cobra.Command) {
+	a := &config.Config.Analysis
+	if cmd.Flags().Changed("auto-analyze") {
+		v, _ := cmd.Flags().GetBool("auto-analyze")
+		a.AutoAnalyze = v
+	} else if viper.IsSet("auto-analyze") {
+		a.AutoAnalyze = viper.GetBool("auto-analyze")
+	}
 }
 
 // applyGHPagesFlagOverrides copies CLI flag / env var values into the loaded config.
@@ -386,10 +399,11 @@ func startServer(host string, port int, tls bool, certFile, keyFile string, maxC
 	protos.RegisterArticleServiceServer(grpcServer, services.NewArticleServer())
 	protos.RegisterAnalysisServiceServer(grpcServer, services.NewAnalysisServer())
 	protos.RegisterCategoriesServiceServer(grpcServer, services.NewCategoriesServer())
-	protos.RegisterFeedsServiceServer(grpcServer, services.NewFeedsServer())
+	queueServer := services.NewQueueServer(llmsServer, maxConcurrentLLMRequests)
+	protos.RegisterFeedsServiceServer(grpcServer, services.NewFeedsServer(queueServer))
 	protos.RegisterDigestServiceServer(grpcServer, digestServer)
 	protos.RegisterLLMsServiceServer(grpcServer, llmsServer)
-	protos.RegisterQueueServiceServer(grpcServer, services.NewQueueServer(llmsServer, maxConcurrentLLMRequests))
+	protos.RegisterQueueServiceServer(grpcServer, queueServer)
 	protos.RegisterServerConfigServiceServer(grpcServer, services.NewServerConfigServer())
 	protos.RegisterAuthServiceServer(grpcServer, auth.NewService(config.CodexManager))
 
