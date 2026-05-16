@@ -24,6 +24,7 @@ type FeedsFile struct {
 type FeedConfig struct {
 	URL       string         `json:"url" yaml:"url"`
 	Title     string         `json:"title,omitempty" yaml:"title,omitempty"`
+	Note      string         `json:"note,omitempty" yaml:"note,omitempty"`
 	Type      string         `json:"type" yaml:"type"`
 	Enabled   bool           `json:"enabled" yaml:"enabled"`
 	Scraper   map[string]any `json:"scraper,omitempty" yaml:"scraper,omitempty"`
