@@ -34,6 +34,7 @@ type swipeArticle struct {
 
 type swipeTemplateData struct {
 	DigestFilename string
+	DigestTitle    string
 	TimeWindow     string
 	ArticlesJSON   string
 }
@@ -150,6 +151,7 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string) ([]byte, error
 
 	data := swipeTemplateData{
 		DigestFilename: digestFilename,
+		DigestTitle:    digest.Title,
 		TimeWindow:     formatDuration(digest.TimeWindow),
 		ArticlesJSON:   string(articlesJSON),
 	}
