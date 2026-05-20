@@ -22,6 +22,7 @@ Authorization: Bearer <access_token>
 **OAuth Token Sources** (checked in order):
 1. `OPENAI_ACCESS_TOKEN` environment variable
 2. `CHATGPT_TOKEN` environment variable
+3. `CODEX_TOKEN` environment variable
 
 **Response Processing:**
 - Parses JSON response containing a `models` array
@@ -58,6 +59,8 @@ And selects an OpenAI Codex provider, the CLI:
 Set one of these to enable live API fetching:
 
 ```bash
+export CODEX_TOKEN="<your-access-token>"
+# or
 export OPENAI_ACCESS_TOKEN="<your-access-token>"
 # or
 export CHATGPT_TOKEN="<your-access-token>"
@@ -70,7 +73,7 @@ Without a valid token, you'll be prompted to enter the model name manually (e.g.
 ### With OAuth Token
 
 ```bash
-export OPENAI_ACCESS_TOKEN="your-token-here"
+export CODEX_TOKEN="your-token-here"
 dlk model
 # Select "openai-codex" provider
 # CLI fetches available models and lets you pick one
@@ -90,7 +93,7 @@ dlk model
 ### Error: "Could not fetch Codex models from API"
 
 This means the API call failed. Check:
-1. OAuth token is valid: `echo $OPENAI_ACCESS_TOKEN`
+1. OAuth token is set: `echo $CODEX_TOKEN` (or `$OPENAI_ACCESS_TOKEN` or `$CHATGPT_TOKEN`)
 2. Token is still fresh (they expire)
 3. Network connectivity to `chatgpt.com`
 

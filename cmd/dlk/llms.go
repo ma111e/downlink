@@ -585,9 +585,12 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 		if accessToken == "" {
 			accessToken = os.Getenv("CHATGPT_TOKEN")
 		}
+		if accessToken == "" {
+			accessToken = os.Getenv("CODEX_TOKEN")
+		}
 
 		if accessToken == "" {
-			fmt.Println("Error: OPENAI_ACCESS_TOKEN or CHATGPT_TOKEN environment variable required for Codex")
+			fmt.Println("Error: OPENAI_ACCESS_TOKEN, CHATGPT_TOKEN, or CODEX_TOKEN environment variable required for Codex")
 			var modelName string
 			flushStdin()
 			_ = huh.NewInput().
