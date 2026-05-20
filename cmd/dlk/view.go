@@ -477,6 +477,30 @@ func printProviderTable(providers []models.ProviderConfig) {
 	tw.Flush()
 }
 
+// printProviderListTable prints providers without the temperature column (for model list).
+func printProviderListTable(providers []models.ProviderConfig) {
+	tw := newTable("NAME", "TYPE", "MODEL", "ENABLED")
+	for _, p := range providers {
+		name := p.Name
+		if name == "" {
+			name = styleDim.Render("(unnamed)")
+		}
+		var enabled string
+		if p.Enabled {
+			enabled = styleOK.Render("yes")
+		} else {
+			enabled = styleErr.Render("no")
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
+			name,
+			dashIfEmpty(p.ProviderType),
+			dashIfEmpty(p.ModelName),
+			enabled,
+		)
+	}
+	tw.Flush()
+}
+
 // ── detail formatters ────────────────────────────────────────────────────────
 
 func printArticleDetail(client *downlinkclient.DownlinkClient, a models.Article) {

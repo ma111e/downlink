@@ -120,7 +120,7 @@ func createModelCommands() *cobra.Command {
 				}
 				fmt.Println(string(out))
 			} else {
-				printProviderTable(providers)
+				printProviderListTable(providers)
 			}
 		},
 	}
