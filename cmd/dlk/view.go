@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/lipgloss"
 	"downlink/pkg/downlinkclient"
 	"downlink/pkg/models"
 )
@@ -22,7 +23,9 @@ func newTable(headers ...string) *tabwriter.Writer {
 	seps := make([]string, len(headers))
 	for i, h := range headers {
 		styled[i] = styleColHdr.Render(h)
-		seps[i] = styleDim.Render(strings.Repeat("─", len(h)))
+		// Use lipgloss.Width to get visible width (accounts for ANSI codes)
+		width := lipgloss.Width(h)
+		seps[i] = styleDim.Render(strings.Repeat("─", width))
 	}
 	fmt.Fprintln(tw, strings.Join(styled, "\t"))
 	fmt.Fprintln(tw, strings.Join(seps, "\t"))
