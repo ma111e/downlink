@@ -6,16 +6,16 @@ import (
 	"downlink/pkg/protos"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 )
 
 // ── live refresh display ──────────────────────────────────────────────────────
-
-var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 type feedRow struct {
 	title    string
@@ -254,12 +254,12 @@ func createFeedCommands() *cobra.Command {
 	addCmd := &cobra.Command{
 		Use:   "add",
 		Short: "Register a new feed",
-		Long:  `Add a new feed to be monitored.`,
+		Long:  `Add a new feed to be monitored. Run without --url to use the interactive wizard.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
-			if feedURL == "" {
-				fmt.Println("Error: Feed URL is required")
+			if !cmd.Flags().Changed("url") {
+				runAddFeedInteractive(client)
 				return
 			}
 
@@ -279,13 +279,11 @@ func createFeedCommands() *cobra.Command {
 				}
 			}
 
-			err := client.RegisterFeed(feedConfig)
-			if err != nil {
+			if err := client.RegisterFeed(feedConfig); err != nil {
 				fmt.Printf("Failed to register feed: %v\n", err)
 				return
 			}
-
-			fmt.Println("Feed registered successfully")
+			fmt.Println(styleOK.Render("✓") + " Feed registered successfully")
 		},
 	}
 
@@ -297,7 +295,6 @@ func createFeedCommands() *cobra.Command {
 	addCmd.Flags().StringVar(&feedArticleSelector, "selector-article", "", "CSS selector for article content")
 	addCmd.Flags().StringVar(&feedCutoffSelector, "selector-cutoff", "", "CSS selector where extraction stops")
 	addCmd.Flags().StringVar(&feedBlacklistSelector, "selector-blacklist", "", "CSS selector for elements to exclude")
-	addCmd.MarkFlagRequired("url")
 
 	// Refresh feeds command
 	var fromStr, toStr, betweenStr string
@@ -406,8 +403,29 @@ Examples:
 					}
 				}
 			} else if len(args) == 0 {
-				fmt.Fprintln(cmd.ErrOrStderr(), "Error: feed name or ID required. Use \"all\" to refresh every feed.")
-				_ = cmd.Usage()
+				feed, err := selectFeed(client)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					return
+				}
+				if feed.Id == "" {
+					fmt.Println("Cancelled.")
+					return
+				}
+				resp, err := client.RefreshFeedWithTimeWindow(feed.Id, fromTime, toTime, overwrite, restore)
+				if err != nil {
+					fmt.Printf("Failed to refresh feed %s: %v\n", feed.Title, err)
+					return
+				}
+				fmt.Printf("Feed %q refreshed\n", feed.Title)
+				fmt.Printf("  Fetched: %-4d  Stored: %-4d  Skipped: %d\n",
+					resp.TotalFetched, resp.Stored, resp.Skipped)
+				if len(resp.Errors) > 0 {
+					fmt.Printf("  Errors (%d):\n", len(resp.Errors))
+					for _, e := range resp.Errors {
+						fmt.Printf("    - %s\n", e)
+					}
+				}
 				return
 			} else {
 				// Refresh all feeds (args[0] == "all")
@@ -545,22 +563,121 @@ Examples:
 		Use:     "delete [id]",
 		Aliases: []string{"del", "rm"},
 		Short:   "Delete a feed",
-		Long:    `Remove a feed from being monitored.`,
-		Args:    cobra.ExactArgs(1),
+		Long:    `Remove a feed from being monitored. Omit ID to pick interactively.`,
+		Args:    cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
-			feedId := args[0]
-			err := client.DeleteFeed(feedId)
-			if err != nil {
-				fmt.Printf("Failed to delete feed: %v\n", err)
+			var feedId, feedTitle string
+			if len(args) == 1 {
+				feedId = args[0]
+				feedTitle = feedId
+			} else {
+				feed, err := selectFeed(client)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					return
+				}
+				if feed.Id == "" {
+					fmt.Println("Cancelled.")
+					return
+				}
+				feedId = feed.Id
+				feedTitle = feed.Title
+			}
+
+			confirm := false
+			flushStdin()
+			if err := huh.NewConfirm().
+				Title(fmt.Sprintf("Delete feed %q?", feedTitle)).
+				Affirmative("Yes, delete").
+				Negative("No, keep it").
+				Value(&confirm).
+				Run(); err != nil || !confirm {
+				fmt.Println("Cancelled.")
 				return
 			}
 
-			fmt.Printf("Feed %s deleted successfully\n", feedId)
+			if err := client.DeleteFeed(feedId); err != nil {
+				fmt.Printf("Failed to delete feed: %v\n", err)
+				return
+			}
+			fmt.Printf("%s Feed %q deleted\n", styleOK.Render("✓"), feedTitle)
 		},
 	}
 
 	cmd.AddCommand(listCmd, addCmd, refreshCmd, deleteCmd)
 	return cmd
+}
+
+func runAddFeedInteractive(client *downlinkclient.DownlinkClient) {
+	var url, name, feedType, scraping string
+	feedType = "rss"
+
+	flushStdin()
+	if err := huh.NewInput().
+		Title("Feed URL").
+		Placeholder("https://example.com/feed.xml").
+		Value(&url).
+		Validate(func(s string) error {
+			if strings.TrimSpace(s) == "" {
+				return fmt.Errorf("URL is required")
+			}
+			return nil
+		}).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	flushStdin()
+	if err := huh.NewInput().
+		Title("Feed name").
+		Description("Leave empty to auto-detect from the feed").
+		Value(&name).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	flushStdin()
+	if err := huh.NewSelect[string]().
+		Title("Feed type").
+		Options(
+			huh.NewOption("RSS", "rss"),
+			huh.NewOption("Atom", "atom"),
+		).
+		Value(&feedType).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	flushStdin()
+	if err := huh.NewSelect[string]().
+		Title("Scraping mode").
+		Options(
+			huh.NewOption("Static (default)", ""),
+			huh.NewOption("Dynamic (headless JS)", "dynamic"),
+			huh.NewOption("Full browser", "full_browser"),
+		).
+		Value(&scraping).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	cfg := models.FeedConfig{
+		URL:      strings.TrimSpace(url),
+		Title:    strings.TrimSpace(name),
+		Type:     feedType,
+		Enabled:  true,
+		Scraping: scraping,
+	}
+
+	if err := client.RegisterFeed(cfg); err != nil {
+		fmt.Printf("Failed to register feed: %v\n", err)
+		return
+	}
+	fmt.Println(styleOK.Render("✓") + " Feed registered successfully")
 }

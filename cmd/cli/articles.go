@@ -82,15 +82,39 @@ func createArticleCommands() *cobra.Command {
 	listCmd.Flags().StringVar(&cliBetween, "between", "", "Filter articles between two dates/durations (e.g., '-7d,-1d', '2025-01-01,2025-01-07')")
 
 	// Get article command
+	var showMarkdown bool
 	getCmd := &cobra.Command{
 		Use:   "get [id]",
 		Short: "Get article details",
-		Long:  `Retrieve detailed information about a specific article by its ID.`,
-		Args:  cobra.ExactArgs(1),
+		Long:  `Retrieve detailed information about a specific article. Omit ID to pick interactively.`,
+		Args:  cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
-			articleId := args[0]
+			var articleId string
+			if len(args) == 1 {
+				articleId = args[0]
+			} else {
+				startDate, endDate, _ := parseTimeWindow(cliStartDate, cliEndDate, cliBetween, nil)
+				filter := models.ArticleFilter{
+					UnreadOnly:     unreadOnly,
+					BookmarkedOnly: bookmarkedOnly,
+					CategoryName:   categoryName,
+					StartDate:      startDate,
+					EndDate:        endDate,
+				}
+				article, err := selectArticle(client, filter)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					return
+				}
+				if article.Id == "" {
+					fmt.Println("Cancelled.")
+					return
+				}
+				articleId = article.Id
+			}
+
 			article, err := client.GetArticle(articleId)
 			if err != nil {
 				fmt.Printf("Failed to get article: %v\n", err)
@@ -104,22 +128,39 @@ func createArticleCommands() *cobra.Command {
 					return
 				}
 				fmt.Println(string(out))
+			} else if showMarkdown {
+				printArticleDetailMarkdown(article)
 			} else {
 				printArticleDetail(article)
 			}
 		},
 	}
+	getCmd.Flags().BoolVar(&showMarkdown, "markdown", false, "Display content in styled markdown format")
 
 	// Update article command
 	updateCmd := &cobra.Command{
 		Use:   "update [id]",
 		Short: "Update article properties",
-		Long:  `Mark articles as read/unread or bookmarked/unbookmarked.`,
-		Args:  cobra.ExactArgs(1),
+		Long:  `Mark articles as read/unread or bookmarked/unbookmarked. Omit ID to pick interactively.`,
+		Args:  cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
-			articleId := args[0]
+			var articleId string
+			if len(args) == 1 {
+				articleId = args[0]
+			} else {
+				article, err := selectArticle(client, models.ArticleFilter{})
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					return
+				}
+				if article.Id == "" {
+					fmt.Println("Cancelled.")
+					return
+				}
+				articleId = article.Id
+			}
 
 			// Get flags for updating
 			markRead, _ := cmd.Flags().GetBool("read")
@@ -163,7 +204,7 @@ func createArticleCommands() *cobra.Command {
 				return
 			}
 
-			fmt.Printf("Article %s updated successfully\n", articleId)
+			fmt.Printf("%s Article updated\n", styleOK.Render("✓"))
 		},
 	}
 

@@ -79,15 +79,31 @@ func createDigestCommands() *cobra.Command {
 	listCmd.Flags().IntVar(&digestLimit, "limit", 0, "Maximum number of digests to return (0 = all)")
 
 	// Get digest command
+	var showMarkdown bool
 	getCmd := &cobra.Command{
 		Use:   "get [id]",
 		Short: "Get digest details",
-		Long:  `View details of a specific digest.`,
-		Args:  cobra.ExactArgs(1),
+		Long:  `View details of a specific digest. Omit ID to pick interactively.`,
+		Args:  cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
-			digestId := args[0]
+			var digestId string
+			if len(args) == 1 {
+				digestId = args[0]
+			} else {
+				digest, err := selectDigest(client)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					return
+				}
+				if digest.Id == "" {
+					fmt.Println("Cancelled.")
+					return
+				}
+				digestId = digest.Id
+			}
+
 			digest, err := client.GetDigest(digestId)
 			if err != nil {
 				fmt.Printf("Failed to get digest: %v\n", err)
@@ -107,10 +123,15 @@ func createDigestCommands() *cobra.Command {
 					fmt.Printf("Failed to get digest articles: %v\n", err)
 					return
 				}
-				printDigestDetail(digest, articles)
+				if showMarkdown {
+					printDigestDetailMarkdown(digest, articles)
+				} else {
+					printDigestDetail(digest, articles)
+				}
 			}
 		},
 	}
+	getCmd.Flags().BoolVar(&showMarkdown, "markdown", false, "Display summary in styled markdown format")
 
 	// Generate digest command
 	var digestFrom, digestTo, digestBetween, digestTheme, digestTestID string
@@ -380,12 +401,27 @@ Examples:
 	articlesCmd := &cobra.Command{
 		Use:   "articles [digest-id]",
 		Short: "List articles in digest",
-		Long:  `View all articles included in a specific digest.`,
-		Args:  cobra.ExactArgs(1),
+		Long:  `View all articles included in a specific digest. Omit ID to pick interactively.`,
+		Args:  cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
-			digestId := args[0]
+			var digestId string
+			if len(args) == 1 {
+				digestId = args[0]
+			} else {
+				digest, err := selectDigest(client)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					return
+				}
+				if digest.Id == "" {
+					fmt.Println("Cancelled.")
+					return
+				}
+				digestId = digest.Id
+			}
+
 			articles, err := client.GetDigestArticles(digestId)
 			if err != nil {
 				fmt.Printf("Failed to get digest articles: %v\n", err)

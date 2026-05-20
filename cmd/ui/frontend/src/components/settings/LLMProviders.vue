@@ -109,7 +109,7 @@ const addProvider = () => {
   const maxRetries = 3;
   const timeoutMinutes = 5;
 
-  articleAnalysisStore.providers.push({
+  articleAnalysisStore.providers.push(new ProviderConfig({
     name: '',
     provider_type: providerType,
     model_name: '',
@@ -119,7 +119,7 @@ const addProvider = () => {
     max_retries: maxRetries,
     timeout_minutes: timeoutMinutes,
     api_key: ''
-  });
+  }));
 
   // Reset the input
   newProviderInput.value = '';

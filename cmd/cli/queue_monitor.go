@@ -12,6 +12,7 @@ import (
 	"downlink/pkg/downlinkclient"
 )
 
+
 // ── messages ──────────────────────────────────────────────────────────────────
 
 type queuePollMsg         struct{}
@@ -57,30 +58,6 @@ func (j *activeJob) allTasksDone() bool {
 	return true
 }
 
-// ── styles ────────────────────────────────────────────────────────────────────
-
-var (
-	qmPurple = lipgloss.Color("#7C3AED")
-	qmGreen  = lipgloss.Color("#10B981")
-	qmRed    = lipgloss.Color("#EF4444")
-	qmGray   = lipgloss.Color("#6B7280")
-	qmWhite  = lipgloss.Color("#E5E7EB")
-	qmAmber  = lipgloss.Color("#F59E0B")
-
-	qmTitle     = lipgloss.NewStyle().Bold(true)
-	qmActive    = lipgloss.NewStyle().Bold(true).Foreground(qmGreen)
-	qmDim       = lipgloss.NewStyle().Foreground(qmGray)
-	qmCurrent   = lipgloss.NewStyle().Foreground(qmWhite)
-	qmSelected  = lipgloss.NewStyle().Bold(true).Foreground(qmWhite)
-	qmKey       = lipgloss.NewStyle().Bold(true).Foreground(qmPurple)
-	qmOk        = lipgloss.NewStyle().Foreground(qmGreen)
-	qmErrStyle  = lipgloss.NewStyle().Foreground(qmRed)
-	qmWarn      = lipgloss.NewStyle().Foreground(qmAmber)
-	qmColHeader = lipgloss.NewStyle().Bold(true).Foreground(qmGray)
-	qmStepOk    = lipgloss.NewStyle().Foreground(qmGreen)
-	qmStepErr   = lipgloss.NewStyle().Foreground(qmRed)
-	qmSection   = lipgloss.NewStyle().Bold(true).Foreground(qmGray)
-)
 
 // ── model ─────────────────────────────────────────────────────────────────────
 
@@ -339,16 +316,16 @@ func (m queueMonitorModel) View() tea.View {
 
 	// ── header ──
 	b.WriteString("\n")
-	titleStr := qmTitle.Render("Analysis Queue")
+	titleStr := styleBold.Render("Analysis Queue")
 	var stateStr string
 	if m.status.IsProcessing {
-		stateStr = qmActive.Render("● PROCESSING")
+		stateStr = styleActive.Render("● PROCESSING")
 	} else {
-		stateStr = qmDim.Render("○  IDLE")
+		stateStr = styleDim.Render("○  IDLE")
 	}
 	gap := max(w-lipgloss.Width(titleStr)-lipgloss.Width(stateStr)-4, 1)
 	b.WriteString("  " + titleStr + strings.Repeat(" ", gap) + stateStr + "\n")
-	b.WriteString("  " + qmDim.Render(strings.Repeat("─", w-4)) + "\n\n")
+	b.WriteString("  " + styleDim.Render(strings.Repeat("─", w-4)) + "\n\n")
 
 	// ── progress bar ──
 	activeCount := len(m.activeJobs)
@@ -367,12 +344,12 @@ func (m queueMonitorModel) View() tea.View {
 	} else {
 		countStr = "starting…"
 	}
-	b.WriteString("  " + m.prog.ViewAs(pct) + "  " + qmDim.Render(countStr) + "\n\n")
+	b.WriteString("  " + m.prog.ViewAs(pct) + "  " + styleDim.Render(countStr) + "\n\n")
 
 	// ── active section ──
 	if len(m.activeJobOrder) > 0 {
 		sectionSep := strings.Repeat("─", max(w-14, 4))
-		b.WriteString("  " + qmSection.Render("Active") + "  " + qmDim.Render(sectionSep) + "\n")
+		b.WriteString("  " + styleSection.Render("Active") + "  " + styleDim.Render(sectionSep) + "\n")
 
 		for _, id := range m.activeJobOrder {
 			job, ok := m.activeJobs[id]
@@ -383,7 +360,7 @@ func (m queueMonitorModel) View() tea.View {
 			if title == "" {
 				title = id
 			}
-			b.WriteString("  " + qmCurrent.Render(truncate(title, max(w-4, 20))) + "\n")
+			b.WriteString("  " + styleCurrent.Render(truncate(title, max(w-4, 20))) + "\n")
 
 			// task strip
 			var parts []string
@@ -396,20 +373,20 @@ func (m queueMonitorModel) View() tea.View {
 				var label string
 				switch step.status {
 				case taskActive:
-					label = qmCurrent.Render(step.name) + " " + m.spin.View()
+					label = styleCurrent.Render(step.name) + " " + m.spin.View()
 				case taskCompleted:
-					label = qmStepOk.Render(step.name + " ✓")
+					label = styleOK.Render(step.name + " ✓")
 				case taskError:
-					label = qmStepErr.Render(step.name + " ✗")
+					label = styleErr.Render(step.name + " ✗")
 				default:
-					label = qmDim.Render(step.name + " ○")
+					label = styleDim.Render(step.name + " ○")
 				}
 				parts = append(parts, label)
 			}
 			if hasAny {
-				b.WriteString("    " + strings.Join(parts, qmDim.Render("  ·  ")) + "\n")
+				b.WriteString("    " + strings.Join(parts, styleDim.Render("  ·  ")) + "\n")
 			} else {
-				b.WriteString("    " + m.spin.View() + " " + qmDim.Render("waiting for tasks…") + "\n")
+				b.WriteString("    " + m.spin.View() + " " + styleDim.Render("waiting for tasks…") + "\n")
 			}
 			b.WriteString("\n")
 		}
@@ -418,14 +395,14 @@ func (m queueMonitorModel) View() tea.View {
 	// ── queued section ──
 	if pending > 0 || (len(m.activeJobOrder) > 0) {
 		sectionSep := strings.Repeat("─", max(w-13, 4))
-		b.WriteString("  " + qmSection.Render("Queued") + "  " + qmDim.Render(sectionSep) + "\n")
+		b.WriteString("  " + styleSection.Render("Queued") + "  " + styleDim.Render(sectionSep) + "\n")
 	}
 
 	if pending > 0 {
 		titleColW := max(w-54, 20)
 		colFmt := fmt.Sprintf("  %%3s  %%-%ds  %%-14s  %%-20s", titleColW)
-		b.WriteString(qmColHeader.Render(fmt.Sprintf(colFmt, "#", "TITLE", "PROFILE", "MODEL")) + "\n")
-		b.WriteString(qmDim.Render(fmt.Sprintf(colFmt,
+		b.WriteString(styleColHdr.Render(fmt.Sprintf(colFmt, "#", "TITLE", "PROFILE", "MODEL")) + "\n")
+		b.WriteString(styleDim.Render(fmt.Sprintf(colFmt,
 			"───",
 			strings.Repeat("─", titleColW),
 			strings.Repeat("─", 14),
@@ -451,39 +428,39 @@ func (m queueMonitorModel) View() tea.View {
 				truncate(model, 20),
 			)
 			if i == m.cursor {
-				b.WriteString(qmSelected.Render("▶ "+numStr+"  "+content) + "\n")
+				b.WriteString(styleSelected.Render("▶ "+numStr+"  "+content) + "\n")
 			} else {
 				b.WriteString("  " + numStr + "  " + content + "\n")
 			}
 		}
 	} else if !m.status.IsProcessing && len(m.activeJobOrder) == 0 {
-		b.WriteString("  " + qmDim.Render("Queue is empty") + "\n")
+		b.WriteString("  " + styleDim.Render("Queue is empty") + "\n")
 	} else if pending == 0 && m.status.IsProcessing {
-		b.WriteString("  " + qmDim.Render("(all jobs in flight)") + "\n")
+		b.WriteString("  " + styleDim.Render("(all jobs in flight)") + "\n")
 	}
 	b.WriteString("\n")
 
 	// ── action feedback ──
 	if m.actionMsg != "" {
 		if m.actionErr {
-			b.WriteString("  " + qmErrStyle.Render(m.actionMsg) + "\n\n")
+			b.WriteString("  " + styleErr.Render(m.actionMsg) + "\n\n")
 		} else {
-			b.WriteString("  " + qmOk.Render(m.actionMsg) + "\n\n")
+			b.WriteString("  " + styleOK.Render(m.actionMsg) + "\n\n")
 		}
 	}
 
 	// ── stream error ──
 	if m.streamErr != "" {
-		b.WriteString("  " + qmWarn.Render("⚠  "+m.streamErr) + "\n\n")
+		b.WriteString("  " + styleWarn.Render("⚠  "+m.streamErr) + "\n\n")
 	}
 
 	// ── help ──
-	help := qmKey.Render("s") + qmDim.Render(" start") + "   " +
-		qmKey.Render("x") + qmDim.Render(" stop") + "   " +
-		qmKey.Render("c") + qmDim.Render(" clear") + "   " +
-		qmKey.Render("↑↓") + "/" + qmKey.Render("jk") + qmDim.Render(" select") + "   " +
-		qmKey.Render("d") + qmDim.Render(" dequeue") + "   " +
-		qmKey.Render("q") + qmDim.Render(" quit")
+	help := styleKey.Render("s") + styleDim.Render(" start") + "   " +
+		styleKey.Render("x") + styleDim.Render(" stop") + "   " +
+		styleKey.Render("c") + styleDim.Render(" clear") + "   " +
+		styleKey.Render("↑↓") + "/" + styleKey.Render("jk") + styleDim.Render(" select") + "   " +
+		styleKey.Render("d") + styleDim.Render(" dequeue") + "   " +
+		styleKey.Render("q") + styleDim.Render(" quit")
 	b.WriteString("  " + help + "\n")
 
 	v := tea.NewView(b.String())

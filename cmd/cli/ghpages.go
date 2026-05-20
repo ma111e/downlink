@@ -126,13 +126,17 @@ the branch will be lost. Prompts for confirmation before proceeding.`,
 			if branchName == "" {
 				branchName = "main"
 			}
-			fmt.Fprintln(os.Stderr, "WARNING: ghpages reinit will DELETE ALL content from the remote")
-			fmt.Fprintf(os.Stderr, "branch %q and start fresh. Type \"yes\" to confirm: ", branchName)
-			var answer string
-			fmt.Fscan(os.Stdin, &answer)
-			if strings.TrimSpace(strings.ToLower(answer)) != "yes" {
+			confirm := false
+			flushStdin()
+			if err := huh.NewConfirm().
+				Title(fmt.Sprintf("Delete ALL content from branch %q and reinitialise?", branchName)).
+				Description("This will erase all existing digest HTML files on the remote branch.").
+				Affirmative("Yes, reinitialise").
+				Negative("No, abort").
+				Value(&confirm).
+				Run(); err != nil || !confirm {
 				fmt.Fprintln(os.Stderr, "Aborted.")
-				os.Exit(1)
+				return nil
 			}
 			publisher := notification.NewGitHubPagesPublisher(cfg)
 			return publisher.InitPages(true)

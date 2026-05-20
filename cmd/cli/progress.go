@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
 type batchRow struct {
 	label   string
 	done    bool

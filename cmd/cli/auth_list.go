@@ -39,15 +39,18 @@ func createAuthListCommand() *cobra.Command {
 				return nil
 			}
 
-			fmt.Printf("%-10s  %-30s  %-8s  %-12s  %s\n", "ID", "LABEL", "PRIORITY", "STATUS", "ERROR")
+			tw := newTable("ID", "LABEL", "PRIORITY", "STATUS", "ERROR")
 			for _, c := range resp.Credentials {
 				status := c.LastStatus
 				if status == "" {
-					status = "ok"
+					status = styleOK.Render("ok")
+				} else if status == "error" {
+					status = styleErr.Render(status)
 				}
-				fmt.Printf("%-10s  %-30s  %-8d  %-12s  %s\n",
+				fmt.Fprintf(tw, "%s\t%s\t%d\t%s\t%s\n",
 					c.Id, c.Label, c.Priority, status, c.LastErrorReason)
 			}
+			tw.Flush()
 			return nil
 		},
 	}

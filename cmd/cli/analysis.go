@@ -227,36 +227,26 @@ Batch Analysis by Feed/Time:
 					return
 				}
 
-				// Display models to user
-				fmt.Printf("Available models for %s:\n\n", providerType)
+				opts := make([]huh.Option[string], len(matchingModels))
 				for i, m := range matchingModels {
-					fmt.Printf("%d. %s", i+1, m.Name)
+					label := m.Name
 					if m.DisplayName != "" && m.DisplayName != m.Name {
-						fmt.Printf(" (%s)", m.DisplayName)
+						label = fmt.Sprintf("%s (%s)", m.Name, m.DisplayName)
 					}
 					if m.Description != "" {
-						fmt.Printf("\n   %s", m.Description)
+						label += "\n   " + m.Description
 					}
-					fmt.Println()
+					opts[i] = huh.NewOption(label, m.Name)
 				}
-
-				// Read user selection
-				fmt.Print("\nSelect model number (1-" + fmt.Sprintf("%d", len(matchingModels)) + "): ")
-				var choice int
-				_, err = fmt.Scanln(&choice)
-				if err != nil {
-					fmt.Println("Error reading input")
+				flushStdin()
+				if err := huh.NewSelect[string]().
+					Title(fmt.Sprintf("Select model for %s", providerType)).
+					Options(opts...).
+					Value(&modelName).
+					Run(); err != nil {
+					fmt.Println("Cancelled.")
 					return
 				}
-
-				if choice < 1 || choice > len(matchingModels) {
-					fmt.Println("Invalid selection")
-					return
-				}
-
-				// Use selected model
-				modelName = matchingModels[choice-1].Name
-				fmt.Printf("\nSelected: %s\n\n", modelName)
 			}
 
 			// If a single article ID provided with no filters, treat as single-article mode
@@ -481,12 +471,27 @@ Batch Analysis by Feed/Time:
 		Use:     "list [article-id]",
 		Aliases: []string{"ls"},
 		Short:   "List all analyses for an article",
-		Long:    `Retrieve all analysis results for a specific article.`,
-		Args:    cobra.ExactArgs(1),
+		Long:    `Retrieve all analysis results for a specific article. Omit ID to pick interactively.`,
+		Args:    cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
-			articleId := args[0]
+			var articleId string
+			if len(args) == 1 {
+				articleId = args[0]
+			} else {
+				article, err := selectArticle(client, models.ArticleFilter{})
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					return
+				}
+				if article.Id == "" {
+					fmt.Println("Cancelled.")
+					return
+				}
+				articleId = article.Id
+			}
+
 			analyses, err := client.GetAllArticleAnalyses(articleId)
 
 			if err != nil {
@@ -514,6 +519,7 @@ Batch Analysis by Feed/Time:
 	}
 
 	// Get analysis by ID command
+	var showMarkdown bool
 	getByIdCmd := &cobra.Command{
 		Use:   "get [analysis-id]",
 		Short: "Get analysis by ID",
@@ -537,11 +543,14 @@ Batch Analysis by Feed/Time:
 					return
 				}
 				fmt.Println(string(out))
+			} else if showMarkdown {
+				printAnalysisDetailMarkdown(analysis)
 			} else {
 				printAnalysisDetail(analysis)
 			}
 		},
 	}
+	getByIdCmd.Flags().BoolVar(&showMarkdown, "markdown", false, "Display content in styled markdown format")
 
 	// Queue management commands
 	queueCmd := &cobra.Command{
