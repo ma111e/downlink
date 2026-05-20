@@ -579,16 +579,50 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 
 	var models []string
 
-	// Special handling for OpenAI Codex: use layered fallback strategy
+	// Special handling for OpenAI Codex: fetch directly from Codex API
 	if strings.EqualFold(providerType, "openai-codex") {
-		// Try to get OAuth token from environment or config
 		accessToken := os.Getenv("OPENAI_ACCESS_TOKEN")
 		if accessToken == "" {
 			accessToken = os.Getenv("CHATGPT_TOKEN")
 		}
 
+		if accessToken == "" {
+			fmt.Println("Error: OPENAI_ACCESS_TOKEN or CHATGPT_TOKEN environment variable required for Codex")
+			var modelName string
+			flushStdin()
+			_ = huh.NewInput().
+				Title("Model name").
+				Placeholder("e.g. gpt-4o").
+				Value(&modelName).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("model name is required")
+					}
+					return nil
+				}).
+				Run()
+			return strings.TrimSpace(modelName)
+		}
+
 		models = getCodexModelIDs(accessToken)
-		fmt.Printf("Found %d Codex models (via API/cache/defaults)\n", len(models))
+		if len(models) == 0 {
+			fmt.Println("Error: Could not fetch Codex models from API")
+			var modelName string
+			flushStdin()
+			_ = huh.NewInput().
+				Title("Model name").
+				Placeholder("e.g. gpt-4o").
+				Value(&modelName).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("model name is required")
+					}
+					return nil
+				}).
+				Run()
+			return strings.TrimSpace(modelName)
+		}
+		fmt.Printf("Found %d Codex models\n", len(models))
 	} else {
 		// Standard provider: use server-provided models
 		resp, err := client.GetAvailableModelsForProvider(providerType, baseURL)
@@ -614,23 +648,6 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 		for _, m := range resp.Models {
 			models = append(models, m.Name)
 		}
-	}
-
-	if len(models) == 0 {
-		var modelName string
-		flushStdin()
-		_ = huh.NewInput().
-			Title("Model name").
-			Placeholder("e.g. gpt-4o").
-			Value(&modelName).
-			Validate(func(s string) error {
-				if strings.TrimSpace(s) == "" {
-					return fmt.Errorf("model name is required")
-				}
-				return nil
-			}).
-			Run()
-		return strings.TrimSpace(modelName)
 	}
 
 	if len(models) == 1 {
