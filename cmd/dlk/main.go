@@ -48,7 +48,6 @@ func main() {
 	rootCmd.AddCommand(createConfigCommands())
 	rootCmd.AddCommand(createQueueCommands())
 	rootCmd.AddCommand(createPublishCommands())
-	rootCmd.AddCommand(createAuthCommands())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

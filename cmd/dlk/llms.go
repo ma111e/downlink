@@ -125,6 +125,41 @@ func createModelCommands() *cobra.Command {
 		},
 	}
 
+	// Set persona command
+	setPersonaCmd := &cobra.Command{
+		Use:   "set-persona",
+		Short: "Set analysis persona prompt",
+		Long:  `Set or update the persona — a custom prompt prefix injected before analysis requests.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client := getNewDownlinkClient()
+
+			// Load current config to preserve Provider and Workers
+			config, err := client.GetAnalysisConfig()
+			if err != nil {
+				return fmt.Errorf("fetch analysis config: %w", err)
+			}
+
+			persona := config.Persona
+			flushStdin()
+			if err := huh.NewText().
+				Title("Persona").
+				Description("Prompt prefix injected before every analysis request — leave blank to clear").
+				Value(&persona).
+				Run(); err != nil {
+				return err
+			}
+
+			// Update with trimmed persona, preserving other fields
+			config.Persona = strings.TrimSpace(persona)
+			if err := client.UpdateAnalysisConfig(config); err != nil {
+				return fmt.Errorf("save analysis config: %w", err)
+			}
+
+			fmt.Printf("%s Persona updated\n", styleOK.Render("✓"))
+			return nil
+		},
+	}
+
 	// Save LLM providers command
 	var providerType, modelName, apiKey, baseURLFlag string
 	var temperature float64
@@ -330,7 +365,7 @@ func createModelCommands() *cobra.Command {
 		Run:   runRemoveProvider,
 	}
 
-	cmd.AddCommand(listCmd, saveProvidersCmd, addProviderCmd, removeProviderCmd)
+	cmd.AddCommand(listCmd, setPersonaCmd, saveProvidersCmd, addProviderCmd, removeProviderCmd, createAuthCommands())
 	return cmd
 }
 

@@ -34,8 +34,8 @@ func createAnalysisCommands() *cobra.Command {
 	}
 
 	getConfigCmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get analysis configuration",
+		Use:   "show",
+		Short: "Show analysis configuration",
 		Long:  `View the current configuration for article analysis.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
@@ -59,133 +59,7 @@ func createAnalysisCommands() *cobra.Command {
 		},
 	}
 
-	updateConfigCmd := &cobra.Command{
-		Use:   "set",
-		Short: "Update analysis configuration",
-		Long:  `Interactively set the configuration for article analysis.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			client := getNewDownlinkClient()
-
-			current, err := client.GetAnalysisConfig()
-			if err != nil {
-				return fmt.Errorf("fetch current config: %w", err)
-			}
-
-			providers, err := client.GetLLMProviders()
-			if err != nil {
-				return fmt.Errorf("fetch providers: %w", err)
-			}
-			if len(providers) == 0 {
-				return fmt.Errorf("no providers configured — add one with 'model add' first")
-			}
-
-			options := make([]huh.Option[string], len(providers))
-			for i, p := range providers {
-				label := p.Name
-				if p.ProviderType != "" {
-					label = fmt.Sprintf("%s (%s)", p.Name, p.ProviderType)
-				}
-				if !p.Enabled {
-					label += " [disabled]"
-				}
-				options[i] = huh.NewOption(label, p.Name)
-			}
-
-			provider := current.Provider
-			persona := current.Persona
-
-			if err := huh.NewForm(
-				huh.NewGroup(
-					huh.NewSelect[string]().
-						Title("Provider").
-						Description("Configured provider to use for analysis").
-						Options(options...).
-						Value(&provider),
-					huh.NewText().
-						Title("Persona").
-						Description("Additional prompt prefix to customize the AI instructions").
-						Value(&persona),
-				),
-			).Run(); err != nil {
-				return err
-			}
-
-			config := models.AnalysisConfig{
-				Provider: provider,
-				Persona:  strings.TrimSpace(persona),
-			}
-			if err := client.UpdateAnalysisConfig(config); err != nil {
-				return fmt.Errorf("update config: %w", err)
-			}
-
-			fmt.Println("Analysis configuration updated successfully")
-			return nil
-		},
-	}
-
-	configCmd.AddCommand(getConfigCmd, updateConfigCmd)
-
-	// Model selection command
-	modelCmd := &cobra.Command{
-		Use:   "model",
-		Short: "Select a model for analysis",
-		Long:  `Interactively choose a model from a provider for article analysis.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			client := getNewDownlinkClient()
-
-			if providerType == "" {
-				return fmt.Errorf("--provider is required (use 'model list providers' to see available providers)")
-			}
-
-			modelsResp, err := client.GetAvailableModels()
-			if err != nil {
-				return fmt.Errorf("failed to get available models: %w", err)
-			}
-
-			if modelsResp == nil || len(modelsResp.Models) == 0 {
-				return fmt.Errorf("no models available")
-			}
-
-			// Filter models by provider type
-			var matchingModels []models.ModelInfo
-			for _, m := range modelsResp.Models {
-				if m.ProviderType == providerType || strings.EqualFold(m.ProviderType, providerType) {
-					matchingModels = append(matchingModels, m)
-				}
-			}
-
-			if len(matchingModels) == 0 {
-				return fmt.Errorf("no models available for provider '%s'", providerType)
-			}
-
-			opts := make([]huh.Option[string], len(matchingModels))
-			for i, m := range matchingModels {
-				label := m.Name
-				if m.DisplayName != "" && m.DisplayName != m.Name {
-					label = fmt.Sprintf("%s (%s)", m.Name, m.DisplayName)
-				}
-				if m.Description != "" {
-					label += "\n   " + m.Description
-				}
-				opts[i] = huh.NewOption(label, m.Name)
-			}
-
-			selected := ""
-			flushStdin()
-			if err := huh.NewSelect[string]().
-				Title(fmt.Sprintf("Select model for %s", providerType)).
-				Options(opts...).
-				Value(&selected).
-				Run(); err != nil {
-				return nil
-			}
-
-			fmt.Printf("%s Selected: %s\n", styleOK.Render("✓"), selected)
-			return nil
-		},
-	}
-	modelCmd.Flags().StringVar(&providerType, "provider", "", "Provider name (required)")
-	modelCmd.MarkFlagRequired("provider")
+	configCmd.AddCommand(getConfigCmd)
 
 	// Analyze article(s) command — smart handling of single vs batch
 	var runFrom, runTo, runBetween string
@@ -615,6 +489,6 @@ Batch Analysis by Feed/Time:
 	getByIdCmd.Flags().BoolVar(&showMarkdown, "markdown", false, "Display content in styled markdown format")
 
 	// Queue management commands
-	cmd.AddCommand(configCmd, modelCmd, analyzeCmd, getAllCmd, getByIdCmd)
+	cmd.AddCommand(configCmd, analyzeCmd, getAllCmd, getByIdCmd)
 	return cmd
 }
