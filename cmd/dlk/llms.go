@@ -20,21 +20,85 @@ import (
 func createModelCommands() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "model",
-		Short: "Manage LLM provider configurations",
-		Long:  `Add, remove, and configure LLM provider entries.`,
+		Short: "Select and manage LLM models",
+		Long:  `Select the active LLM model for analysis, or manage provider configurations.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client := getNewDownlinkClient()
+
+			// Get all configured providers
+			providers, err := client.GetLLMProviders()
+			if err != nil {
+				return fmt.Errorf("fetch providers: %w", err)
+			}
+			if len(providers) == 0 {
+				return fmt.Errorf("no providers configured — use 'model add' first")
+			}
+
+			// Build provider picker options: show name (type) — current model
+			providerOpts := make([]huh.Option[int], len(providers))
+			for i, p := range providers {
+				label := p.Name
+				if p.ProviderType != "" {
+					label = fmt.Sprintf("%s (%s)", p.Name, p.ProviderType)
+				}
+				if p.ModelName != "" {
+					label = fmt.Sprintf("%s — %s", label, p.ModelName)
+				}
+				providerOpts[i] = huh.NewOption(label, i)
+			}
+
+			selectedIdx := -1
+			flushStdin()
+			if err := huh.NewSelect[int]().
+				Title("Select LLM provider").
+				Options(providerOpts...).
+				Value(&selectedIdx).
+				Run(); err != nil {
+				return nil
+			}
+
+			if selectedIdx < 0 || selectedIdx >= len(providers) {
+				return fmt.Errorf("invalid selection")
+			}
+
+			selected := providers[selectedIdx]
+
+			// Load available models for the selected provider
+			modelName := resolveModelInteractive(client, selected.ProviderType, selected.BaseURL)
+			if modelName == "" {
+				return nil // user cancelled
+			}
+
+			// Save the model selection
+			// 1. Update provider's ModelName
+			providers[selectedIdx].ModelName = modelName
+			if err := client.SaveLLMProviders(providers); err != nil {
+				return fmt.Errorf("save provider config: %w", err)
+			}
+
+			// 2. Load existing analysis config to preserve Persona/Workers
+			analysisConfig, err := client.GetAnalysisConfig()
+			if err != nil {
+				return fmt.Errorf("fetch analysis config: %w", err)
+			}
+
+			// 3. Update analysis config with the new provider
+			analysisConfig.Provider = selected.Name
+			if err := client.UpdateAnalysisConfig(analysisConfig); err != nil {
+				return fmt.Errorf("save analysis config: %w", err)
+			}
+
+			fmt.Printf("%s Active model: %s via %s\n",
+				styleOK.Render("✓"), modelName, selected.Name)
+			return nil
+		},
 	}
 
 	listCmd := &cobra.Command{
-		Use:   "list",
-		Short: "List LLM resources",
-		Long:  `List configured providers or available models.`,
-	}
-
-	listProvidersCmd := &cobra.Command{
-		Use:     "providers",
-		Aliases: []string{"profiles"},
+		Use:     "list",
+		Aliases: []string{"ls"},
 		Short:   "List configured LLM providers",
-		Long:    `Display all configured LLM provider entries. "profiles" is accepted as an alias.`,
+		Long:    `Display all configured LLM provider entries.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
@@ -60,38 +124,6 @@ func createModelCommands() *cobra.Command {
 			}
 		},
 	}
-
-	listModelsCmd := &cobra.Command{
-		Use:   "models",
-		Short: "List available LLM models",
-		Long:  `Display models available from all configured providers.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			client := getNewDownlinkClient()
-
-			availableModels, err := client.GetAvailableModels()
-			if err != nil {
-				fmt.Printf("Error getting available models: %v\n", err)
-				return
-			}
-			if availableModels == nil || len(availableModels.Models) == 0 {
-				fmt.Println("No available models returned.")
-				return
-			}
-
-			if jsonOutput {
-				out, err := json.MarshalIndent(availableModels, "", "  ")
-				if err != nil {
-					fmt.Printf("Error marshalling to JSON: %v\n", err)
-					return
-				}
-				fmt.Println(string(out))
-			} else {
-				printModelInfoTable(availableModels.Models)
-			}
-		},
-	}
-
-	listCmd.AddCommand(listProvidersCmd, listModelsCmd)
 
 	// Save LLM providers command
 	var providerType, modelName, apiKey, baseURLFlag string
