@@ -129,9 +129,9 @@ func createArticleCommands() *cobra.Command {
 				}
 				fmt.Println(string(out))
 			} else if showMarkdown {
-				printArticleDetailMarkdown(article)
+				printArticleDetailMarkdown(client, article)
 			} else {
-				printArticleDetail(article)
+				printArticleDetail(client, article)
 			}
 		},
 	}

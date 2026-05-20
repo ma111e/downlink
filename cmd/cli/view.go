@@ -479,7 +479,7 @@ func printProviderTable(providers []models.ProviderConfig) {
 
 // ── detail formatters ────────────────────────────────────────────────────────
 
-func printArticleDetail(a models.Article) {
+func printArticleDetail(client *downlinkclient.DownlinkClient, a models.Article) {
 	section("Article " + shortID(a.Id))
 
 	tags := make([]string, len(a.Tags))
@@ -493,9 +493,10 @@ func printArticleDetail(a models.Article) {
 		score = fmt.Sprintf("%d", *a.LatestImportanceScore)
 	}
 
+	feedName := getFeedName(client, a.FeedId)
 	kvBlock([][2]string{
 		{"Title", a.Title},
-		{"Feed", a.FeedId},
+		{"Feed", feedName},
 		{"Link", a.Link},
 		{"Published", fmtTime(a.PublishedAt)},
 		{"Fetched", fmtTime(a.FetchedAt)},
@@ -514,7 +515,7 @@ func printArticleDetail(a models.Article) {
 	}
 }
 
-func printArticleDetailMarkdown(a models.Article) {
+func printArticleDetailMarkdown(client *downlinkclient.DownlinkClient, a models.Article) {
 	section("Article " + shortID(a.Id))
 
 	tags := make([]string, len(a.Tags))
@@ -528,9 +529,10 @@ func printArticleDetailMarkdown(a models.Article) {
 		score = fmt.Sprintf("%d", *a.LatestImportanceScore)
 	}
 
+	feedName := getFeedName(client, a.FeedId)
 	kvBlock([][2]string{
 		{"Title", a.Title},
-		{"Feed", a.FeedId},
+		{"Feed", feedName},
 		{"Link", a.Link},
 		{"Published", fmtTime(a.PublishedAt)},
 		{"Fetched", fmtTime(a.FetchedAt)},

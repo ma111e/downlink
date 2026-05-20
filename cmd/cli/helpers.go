@@ -247,3 +247,17 @@ func selectDigest(client *downlinkclient.DownlinkClient) (models.Digest, error) 
 	}
 	return models.Digest{}, nil
 }
+
+// getFeedName returns the feed title by ID, or the ID if lookup fails.
+func getFeedName(client *downlinkclient.DownlinkClient, feedId string) string {
+	feeds, err := client.ListFeeds()
+	if err != nil {
+		return feedId
+	}
+	for _, f := range feeds {
+		if f.Id == feedId {
+			return f.Title
+		}
+	}
+	return feedId
+}
