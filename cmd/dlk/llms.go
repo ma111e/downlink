@@ -577,20 +577,14 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType, baseURL string) string {
 	fmt.Println("Fetching available models...")
 
-	var models []string
+	var modelList []string
 
-	// Special handling for OpenAI Codex: fetch directly from Codex API
+	// Special handling for OpenAI Codex: fetch models using stored credentials
 	if strings.EqualFold(providerType, "openai-codex") {
-		accessToken := os.Getenv("OPENAI_ACCESS_TOKEN")
-		if accessToken == "" {
-			accessToken = os.Getenv("CHATGPT_TOKEN")
-		}
-		if accessToken == "" {
-			accessToken = os.Getenv("CODEX_TOKEN")
-		}
-
-		if accessToken == "" {
-			fmt.Println("Error: OPENAI_ACCESS_TOKEN, CHATGPT_TOKEN, or CODEX_TOKEN environment variable required for Codex")
+		// Fetch provider configs to get stored credentials
+		providers, err := client.GetLLMProviders()
+		if err != nil {
+			fmt.Println("Error: Could not fetch provider credentials from server")
 			var modelName string
 			flushStdin()
 			_ = huh.NewInput().
@@ -607,8 +601,37 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 			return strings.TrimSpace(modelName)
 		}
 
-		models = getCodexModelIDs(accessToken)
-		if len(models) == 0 {
+		// Find the Codex provider config to get stored credentials
+		var codexProvider *models.ProviderConfig
+		for i := range providers {
+			if strings.EqualFold(providers[i].ProviderType, "openai-codex") {
+				codexProvider = &providers[i]
+				break
+			}
+		}
+
+		if codexProvider == nil || len(codexProvider.Credentials) == 0 {
+			fmt.Println("Error: No Codex credentials stored. Run 'dlk model auth login' to authenticate.")
+			var modelName string
+			flushStdin()
+			_ = huh.NewInput().
+				Title("Model name").
+				Placeholder("e.g. gpt-4o").
+				Value(&modelName).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("model name is required")
+					}
+					return nil
+				}).
+				Run()
+			return strings.TrimSpace(modelName)
+		}
+
+		// Use the first credential (highest priority) to fetch models
+		accessToken := codexProvider.Credentials[0].AccessToken
+		modelList = getCodexModelIDs(accessToken)
+		if len(modelList) == 0 {
 			fmt.Println("Error: Could not fetch Codex models from API")
 			var modelName string
 			flushStdin()
@@ -625,7 +648,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 				Run()
 			return strings.TrimSpace(modelName)
 		}
-		fmt.Printf("Found %d Codex models\n", len(models))
+		fmt.Printf("Found %d Codex models\n", len(modelList))
 	} else {
 		// Standard provider: use server-provided models
 		resp, err := client.GetAvailableModelsForProvider(providerType, baseURL)
@@ -649,18 +672,18 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 
 		// Convert server model list to string slugs
 		for _, m := range resp.Models {
-			models = append(models, m.Name)
+			modelList = append(modelList, m.Name)
 		}
 	}
 
-	if len(models) == 1 {
-		fmt.Printf("Auto-selected model: %s\n", models[0])
-		return models[0]
+	if len(modelList) == 1 {
+		fmt.Printf("Auto-selected model: %s\n", modelList[0])
+		return modelList[0]
 	}
 
 	const customVal = "__custom__"
-	options := make([]huh.Option[string], 0, len(models)+1)
-	for _, model := range models {
+	options := make([]huh.Option[string], 0, len(modelList)+1)
+	for _, model := range modelList {
 		options = append(options, huh.NewOption(model, model))
 	}
 	options = append(options, huh.NewOption("Custom...", customVal))
