@@ -125,6 +125,68 @@ func createAnalysisCommands() *cobra.Command {
 
 	configCmd.AddCommand(getConfigCmd, updateConfigCmd)
 
+	// Model selection command
+	modelCmd := &cobra.Command{
+		Use:   "model",
+		Short: "Select a model for analysis",
+		Long:  `Interactively choose a model from a provider for article analysis.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client := getNewDownlinkClient()
+
+			if providerType == "" {
+				return fmt.Errorf("--provider is required (use 'model list providers' to see available providers)")
+			}
+
+			modelsResp, err := client.GetAvailableModels()
+			if err != nil {
+				return fmt.Errorf("failed to get available models: %w", err)
+			}
+
+			if modelsResp == nil || len(modelsResp.Models) == 0 {
+				return fmt.Errorf("no models available")
+			}
+
+			// Filter models by provider type
+			var matchingModels []models.ModelInfo
+			for _, m := range modelsResp.Models {
+				if m.ProviderType == providerType || strings.EqualFold(m.ProviderType, providerType) {
+					matchingModels = append(matchingModels, m)
+				}
+			}
+
+			if len(matchingModels) == 0 {
+				return fmt.Errorf("no models available for provider '%s'", providerType)
+			}
+
+			opts := make([]huh.Option[string], len(matchingModels))
+			for i, m := range matchingModels {
+				label := m.Name
+				if m.DisplayName != "" && m.DisplayName != m.Name {
+					label = fmt.Sprintf("%s (%s)", m.Name, m.DisplayName)
+				}
+				if m.Description != "" {
+					label += "\n   " + m.Description
+				}
+				opts[i] = huh.NewOption(label, m.Name)
+			}
+
+			selected := ""
+			flushStdin()
+			if err := huh.NewSelect[string]().
+				Title(fmt.Sprintf("Select model for %s", providerType)).
+				Options(opts...).
+				Value(&selected).
+				Run(); err != nil {
+				return nil
+			}
+
+			fmt.Printf("%s Selected: %s\n", styleOK.Render("✓"), selected)
+			return nil
+		},
+	}
+	modelCmd.Flags().StringVar(&providerType, "provider", "", "Provider name (required)")
+	modelCmd.MarkFlagRequired("provider")
+
 	// Analyze article(s) command — smart handling of single vs batch
 	var runFrom, runTo, runBetween string
 	var runDryRun, runKeyPointsOnly, runSelectModel, runAllTime bool
@@ -637,6 +699,6 @@ Batch Analysis by Feed/Time:
 
 	queueCmd.AddCommand(queueStatusCmd, queueStartCmd, queueStopCmd, queueClearCmd)
 
-	cmd.AddCommand(configCmd, analyzeCmd, getAllCmd, getByIdCmd, queueCmd)
+	cmd.AddCommand(configCmd, modelCmd, analyzeCmd, getAllCmd, getByIdCmd, queueCmd)
 	return cmd
 }
