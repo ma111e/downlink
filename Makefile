@@ -9,9 +9,9 @@ all: ui server cli
 proto:
 	protoc --go_out=./pkg/ --go-grpc_out=./pkg/ -I=./pkg/pb/ ./pkg/pb/*
 
-## cli : Builds the cli from ./cmd/cli
+## cli : Builds the cli from ./cmd/dlk
 cli:
-	go build ./cmd/cli
+	go build ./cmd/dlk
 
 ## ui : Builds the ui from ./cmd/ui
 ui:
