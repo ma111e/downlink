@@ -576,9 +576,47 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 // Falls back to a free-text input if the fetch fails or returns no results.
 func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType, baseURL string) string {
 	fmt.Println("Fetching available models...")
-	resp, err := client.GetAvailableModelsForProvider(providerType, baseURL)
 
-	if err != nil || resp == nil || len(resp.Models) == 0 {
+	var models []string
+
+	// Special handling for OpenAI Codex: use layered fallback strategy
+	if strings.EqualFold(providerType, "openai-codex") {
+		// Try to get OAuth token from environment or config
+		accessToken := os.Getenv("OPENAI_ACCESS_TOKEN")
+		if accessToken == "" {
+			accessToken = os.Getenv("CHATGPT_TOKEN")
+		}
+
+		models = getCodexModelIDs(accessToken)
+		fmt.Printf("Found %d Codex models (via API/cache/defaults)\n", len(models))
+	} else {
+		// Standard provider: use server-provided models
+		resp, err := client.GetAvailableModelsForProvider(providerType, baseURL)
+
+		if err != nil || resp == nil || len(resp.Models) == 0 {
+			var modelName string
+			flushStdin()
+			_ = huh.NewInput().
+				Title("Model name").
+				Placeholder("e.g. gpt-4o").
+				Value(&modelName).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("model name is required")
+					}
+					return nil
+				}).
+				Run()
+			return strings.TrimSpace(modelName)
+		}
+
+		// Convert server model list to string slugs
+		for _, m := range resp.Models {
+			models = append(models, m.Name)
+		}
+	}
+
+	if len(models) == 0 {
 		var modelName string
 		flushStdin()
 		_ = huh.NewInput().
@@ -595,20 +633,15 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 		return strings.TrimSpace(modelName)
 	}
 
-	if len(resp.Models) == 1 {
-		m := resp.Models[0]
-		fmt.Printf("Auto-selected model: %s\n", m.Name)
-		return m.Name
+	if len(models) == 1 {
+		fmt.Printf("Auto-selected model: %s\n", models[0])
+		return models[0]
 	}
 
 	const customVal = "__custom__"
-	options := make([]huh.Option[string], 0, len(resp.Models)+1)
-	for _, m := range resp.Models {
-		label := m.Name
-		if m.DisplayName != "" && m.DisplayName != m.Name {
-			label = fmt.Sprintf("%s (%s)", m.Name, m.DisplayName)
-		}
-		options = append(options, huh.NewOption(label, m.Name))
+	options := make([]huh.Option[string], 0, len(models)+1)
+	for _, model := range models {
+		options = append(options, huh.NewOption(model, model))
 	}
 	options = append(options, huh.NewOption("Custom...", customVal))
 
