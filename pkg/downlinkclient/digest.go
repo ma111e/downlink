@@ -56,8 +56,9 @@ type GenerateDigestOptions struct {
 	OneShotAnalysis bool
 	Test            bool
 	TestDigestID    string
-	GHPagesEnabled  *bool // When non-nil, overrides the server's GitHub Pages enabled config for this run
-	OnEvent         func(*protos.DigestProgressEvent)
+	GHPagesEnabled             *bool // When non-nil, overrides the server's GitHub Pages enabled config for this run
+	ReanalyzeOnModelChange     bool
+	OnEvent                    func(*protos.DigestProgressEvent)
 }
 
 // Method to generate a new digest, streaming progress events to onEvent as they arrive.
@@ -88,7 +89,8 @@ func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options
 		OneShotAnalysis: options.OneShotAnalysis,
 		Test:            options.Test,
 		TestDigestId:    options.TestDigestID,
-		GhPagesEnabled:  options.GHPagesEnabled,
+		GhPagesEnabled:         options.GHPagesEnabled,
+		ReanalyzeOnModelChange: options.ReanalyzeOnModelChange,
 	})
 	if err != nil {
 		return models.Digest{}, err

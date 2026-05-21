@@ -135,7 +135,7 @@ func createDigestCommands() *cobra.Command {
 
 	// Generate digest command
 	var digestFrom, digestTo, digestBetween, digestTheme, digestTestID string
-	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages bool
+	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages, digestReanalyzeOnModelChange bool
 	generateCmd := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate a new digest",
@@ -353,9 +353,10 @@ Examples:
 				ExcludeDigested: excludeDigested,
 				SkipSummary:     skipSummary,
 				Theme:           digestTheme,
-				OneShotAnalysis: oneShotAnalysis,
-				GHPagesEnabled:  ghPagesEnabled,
-				OnEvent:         handler,
+				OneShotAnalysis:        oneShotAnalysis,
+				GHPagesEnabled:         ghPagesEnabled,
+				ReanalyzeOnModelChange: digestReanalyzeOnModelChange,
+				OnEvent:                handler,
 			})
 
 			prog.stop()
@@ -396,6 +397,7 @@ Examples:
 	generateCmd.Flags().StringVar(&digestTestID, "test-digest-id", "", "Digest ID to use with --test (default: server-selected rich test digest)")
 	generateCmd.Flags().BoolVar(&digestNoGHPages, "no-gh-pages", false, "Disable GitHub Pages publishing for this run (overrides server config)")
 	generateCmd.Flags().BoolVar(&digestGHPages, "gh-pages", false, "Enable GitHub Pages publishing for this run (overrides server config)")
+	generateCmd.Flags().BoolVar(&digestReanalyzeOnModelChange, "reanalyze-on-model-change", false, "Re-analyze articles whose existing analysis was produced by a different model than the one currently configured")
 
 	// Get digest articles command
 	articlesCmd := &cobra.Command{

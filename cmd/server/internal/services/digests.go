@@ -210,7 +210,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 				_ = stream.Send(ev)
 			}
 		}
-		analyses, analysisErrors, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, onAnalysisStart, onTaskProgress)
+		analyses, analysisErrors, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, req.ReanalyzeOnModelChange, onAnalysisStart, onTaskProgress)
 		if err != nil {
 			if cancelled(stream) {
 				return ctx.Err()
@@ -550,6 +550,7 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 	ctx context.Context,
 	articles []models.Article,
 	oneShotAnalysis bool,
+	reanalyzeOnModelChange bool,
 	onStart func(articleId, articleTitle string, current, total uint32),
 	onTaskFactory func(articleId, articleTitle string) func(taskName, status string, taskIndex, totalTasks int, err error),
 ) ([]models.ArticleAnalysis, map[string]string, error) {
@@ -564,10 +565,38 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 		analysisMap = make(map[string]*models.ArticleAnalysis)
 	}
 
+	var currentProviderType, currentModelName string
+	if reanalyzeOnModelChange {
+		resolved, resolveErr := ResolveLLM(LLMRequest{MaxTokens: defaultMaxTokensLarge})
+		if resolveErr != nil {
+			log.WithError(resolveErr).Warn("reanalyze-on-model-change: could not resolve current model, will re-analyze all articles with existing analyses")
+		} else {
+			currentProviderType = resolved.ProviderType
+			currentModelName = resolved.ModelName
+		}
+	}
+
 	var needsAnalysis []models.Article
 	for _, article := range articles {
-		if analysisMap[article.Id] == nil {
+		existing := analysisMap[article.Id]
+		if existing == nil {
 			needsAnalysis = append(needsAnalysis, article)
+			continue
+		}
+		if reanalyzeOnModelChange {
+			modelChanged := currentProviderType == "" ||
+				existing.ProviderType != currentProviderType ||
+				existing.ModelName != currentModelName
+			if modelChanged {
+				log.WithFields(log.Fields{
+					"articleId":        article.Id,
+					"existingProvider": existing.ProviderType,
+					"existingModel":    existing.ModelName,
+					"currentProvider":  currentProviderType,
+					"currentModel":     currentModelName,
+				}).Info("Re-analyzing article: analysis model differs from current model")
+				needsAnalysis = append(needsAnalysis, article)
+			}
 		}
 	}
 
