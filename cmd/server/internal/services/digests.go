@@ -284,7 +284,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	zero := 0
 	digest := models.Digest{
 		Id:                  generateDigestId(now),
-		CreatedAt:           now,
+		CreatedAt:           windowStart,
 		ArticleCount:        &zero, // StoreDigestArticlesBatch will increment to the real count
 		TimeWindow:          windowDuration,
 		RawGroupingResponse: rawResponse,
