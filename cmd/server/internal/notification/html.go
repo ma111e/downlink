@@ -331,7 +331,9 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 	}
 
 	data := digestTemplateData{
-		StartedAt:        digest.CreatedAt.Add(-digest.TimeWindow).Format("2006-01-02 15:04 UTC"),
+		// CreatedAt is the article-selection window start; show it directly so the
+		// digest page matches the archive index's period_start (see ManifestEntryFromDigest).
+		StartedAt:        digest.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
 		ArticleCount:     articleCount,
 		ModelName:        digestModelName,
 		TimeWindow:       formatDuration(digest.TimeWindow),
