@@ -129,7 +129,8 @@ func TestManifestEntryFromDigest(t *testing.T) {
 
 	got := ManifestEntryFromDigest(digest)
 	if got.Filename != "downlink-digest-2026-04-24_1200.html" ||
-		got.StartedAt != "2026-04-24 12:00 UTC" ||
+		got.PeriodStart != "2026-04-24 12:00 UTC" ||
+		got.StartedAt != "2026-04-25 12:00 UTC" ||
 		got.TimeWindow != "1 day" ||
 		got.ArticleCount != 2 ||
 		got.MustCount != 1 ||

@@ -148,10 +148,13 @@ func ManifestEntryFromDigest(d models.Digest) ManifestEntry {
 	provider, model := digestProviderLabel(d)
 	must, should, may, opt := digestPriorityCounts(d)
 	headlines, headlinePriorities := digestHeadlinePreview(d, 0)
+	// CreatedAt is the window start (see GenerateDigest). period_start — the
+	// timestamp the archive index displays — is therefore CreatedAt directly,
+	// and started_at (used for "last sync") is the window end, CreatedAt+window.
 	return ManifestEntry{
 		Filename:           DigestHTMLFilename(d),
-		StartedAt:          d.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
-		PeriodStart:        d.CreatedAt.UTC().Add(-d.TimeWindow).Format("2006-01-02 15:04 UTC"),
+		StartedAt:          d.CreatedAt.UTC().Add(d.TimeWindow).Format("2006-01-02 15:04 UTC"),
+		PeriodStart:        d.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
 		TimeWindow:         formatDuration(d.TimeWindow),
 		ArticleCount:       len(d.Articles),
 		MustCount:          must,
