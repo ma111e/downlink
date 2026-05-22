@@ -951,8 +951,10 @@ func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[
 	windowDuration := windowEnd.Sub(windowStart)
 
 	var styleBlock string
-	if ws := config.Config.Analysis.WritingStyle; ws != "" {
-		styleBlock = fmt.Sprintf("\nWriting style:\n%s\n", ws)
+	if config.Config != nil {
+		if ws := config.Config.Analysis.WritingStyle; ws != "" {
+			styleBlock = fmt.Sprintf("\nWriting style:\n%s\n", ws)
+		}
 	}
 
 	return fmt.Sprintf(`You are a senior cyber threat intelligence analyst authoring a news digest for a technical security audience (threat hunters, detection engineers, SOC analysts, and incident responders).
@@ -982,7 +984,7 @@ Respond with a JSON object in this exact format (no markdown fences, no extra te
 }
 
 The summary must be purely factual and descriptive. Do NOT include sections on strategic recommendations, action items, mitigation advice, or "what you should do." This digest is for intelligence reporting only: present threats, incidents, and trends as reported, without prescribing any response.
-`, windowStart.UTC().Format(time.RFC3339), windowEnd.UTC().Format(time.RFC3339), windowDuration.String(), styleBlock, articlesList.String())
+`, styleBlock, windowStart.UTC().Format(time.RFC3339), windowEnd.UTC().Format(time.RFC3339), windowDuration.String(), articlesList.String())
 }
 
 // buildDigestAnalyses creates DigestAnalysis entries from analyses and grouping results
