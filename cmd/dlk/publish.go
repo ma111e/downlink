@@ -143,11 +143,6 @@ the branch will be lost. Prompts for confirmation before proceeding.`,
 		},
 	}
 
-	digestCmd := &cobra.Command{
-		Use:   "digest",
-		Short: "Add or remove a digest from the GitHub Pages archive",
-	}
-
 	addCmd := &cobra.Command{
 		Use:   "add [digest-id]",
 		Short: "Fetch a digest from the server and publish it to the GitHub Pages archive",
@@ -298,8 +293,6 @@ This command requires a running downlink server (--address / --port).`,
 	republishAllCmd.Flags().StringVar(&republishTheme, "theme", "dark", "Theme to use when re-rendering digest pages")
 	republishAllCmd.Flags().BoolVar(&republishDryRun, "dry-run", false, "Render and stage locally without committing or pushing")
 
-	digestCmd.AddCommand(addCmd, removeCmd, republishAllCmd)
-
 	var republishIndexDryRun bool
 
 	republishIndexCmd := &cobra.Command{
@@ -323,6 +316,6 @@ This command does not require a running downlink server.`,
 	}
 	republishIndexCmd.Flags().BoolVar(&republishIndexDryRun, "dry-run", false, "Write index files locally without committing or pushing")
 
-	cmd.AddCommand(initCmd, reinitCmd, digestCmd, republishIndexCmd)
+	cmd.AddCommand(initCmd, reinitCmd, addCmd, removeCmd, republishAllCmd, republishIndexCmd)
 	return cmd
 }
