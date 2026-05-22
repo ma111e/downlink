@@ -248,7 +248,8 @@ When no title is given, an interactive list is shown to pick from.`,
 				}
 			}
 
-			return publisher.RemoveDigest(title)
+			_, err = publisher.RemoveDigest(title)
+			return err
 		},
 	}
 

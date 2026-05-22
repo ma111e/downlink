@@ -149,12 +149,14 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 // RemoveDigest removes the digest identified by title from the archive.
 // It resolves the title to a filename via the manifest, deletes both the
 // digest and swipe HTML files, updates manifest.json, commits, and pushes.
-func (p *GitHubPagesPublisher) RemoveDigest(title string) error {
+// It returns the SHA of the pushed commit so callers can wait for the
+// corresponding GitHub Pages build to deploy (see WaitForPagesBuild).
+func (p *GitHubPagesPublisher) RemoveDigest(title string) (string, error) {
 	log.WithField("title", title).Info("Removing digest from GitHub Pages")
 
 	outputDir, err := resolveGitHubPagesOutputDir(p.cfg.OutputDir)
 	if err != nil {
-		return fmt.Errorf("github pages: invalid output dir: %w", err)
+		return "", fmt.Errorf("github pages: invalid output dir: %w", err)
 	}
 
 	auth := &githttp.BasicAuth{
@@ -164,12 +166,12 @@ func (p *GitHubPagesPublisher) RemoveDigest(title string) error {
 
 	repo, err := p.ensureRepo(auth)
 	if err != nil {
-		return fmt.Errorf("github pages: failed to prepare local repo: %w", err)
+		return "", fmt.Errorf("github pages: failed to prepare local repo: %w", err)
 	}
 
 	wt, err := repo.Worktree()
 	if err != nil {
-		return fmt.Errorf("github pages: failed to get worktree: %w", err)
+		return "", fmt.Errorf("github pages: failed to get worktree: %w", err)
 	}
 
 	// Resolve title → filename via the manifest.
@@ -177,11 +179,11 @@ func (p *GitHubPagesPublisher) RemoveDigest(title string) error {
 	manifestAbsPath := filepath.Join(p.cfg.CloneDir, manifestRelPath)
 	manifest, err := LoadManifest(manifestAbsPath)
 	if err != nil {
-		return fmt.Errorf("github pages: load manifest: %w", err)
+		return "", fmt.Errorf("github pages: load manifest: %w", err)
 	}
 	entry, ok := manifest.FindByTitle(title)
 	if !ok {
-		return fmt.Errorf("github pages: no digest with title %q found in manifest", title)
+		return "", fmt.Errorf("github pages: no digest with title %q found in manifest", title)
 	}
 	digestFilename := entry.Filename
 
@@ -189,7 +191,7 @@ func (p *GitHubPagesPublisher) RemoveDigest(title string) error {
 	digestRelPath := filepath.Join(outputDir, digestFilename)
 	if fileExists(filepath.Join(p.cfg.CloneDir, digestRelPath)) {
 		if _, err := wt.Remove(digestRelPath); err != nil {
-			return fmt.Errorf("github pages: failed to stage digest removal: %w", err)
+			return "", fmt.Errorf("github pages: failed to stage digest removal: %w", err)
 		}
 	}
 
@@ -198,28 +200,29 @@ func (p *GitHubPagesPublisher) RemoveDigest(title string) error {
 	swipeRelPath := filepath.Join(outputDir, swipeFilename)
 	if fileExists(filepath.Join(p.cfg.CloneDir, swipeRelPath)) {
 		if _, err := wt.Remove(swipeRelPath); err != nil {
-			return fmt.Errorf("github pages: failed to stage swipe removal: %w", err)
+			return "", fmt.Errorf("github pages: failed to stage swipe removal: %w", err)
 		}
 	}
 
 	// Drop the entry from the manifest and re-stage it.
 	manifest.Remove(digestFilename)
 	if err := manifest.Write(manifestAbsPath); err != nil {
-		return fmt.Errorf("github pages: write manifest: %w", err)
+		return "", fmt.Errorf("github pages: write manifest: %w", err)
 	}
 	if _, err := wt.Add(manifestRelPath); err != nil {
-		return fmt.Errorf("github pages: failed to stage manifest: %w", err)
+		return "", fmt.Errorf("github pages: failed to stage manifest: %w", err)
 	}
 
 	commitMsg := fmt.Sprintf("Remove digest %q", title)
-	if _, err = wt.Commit(commitMsg, &gogit.CommitOptions{
+	commitHash, err := wt.Commit(commitMsg, &gogit.CommitOptions{
 		Author: &object.Signature{
 			Name:  p.cfg.CommitAuthor,
 			Email: p.cfg.CommitEmail,
 			When:  time.Now(),
 		},
-	}); err != nil {
-		return fmt.Errorf("github pages: failed to commit: %w", err)
+	})
+	if err != nil {
+		return "", fmt.Errorf("github pages: failed to commit: %w", err)
 	}
 
 	pushOpts := &gogit.PushOptions{
@@ -236,18 +239,18 @@ func (p *GitHubPagesPublisher) RemoveDigest(title string) error {
 				Force:         true,
 			})
 			if pullErr != nil && pullErr != gogit.NoErrAlreadyUpToDate {
-				return fmt.Errorf("github pages: rebase pull failed: %w", pullErr)
+				return "", fmt.Errorf("github pages: rebase pull failed: %w", pullErr)
 			}
 			if retryErr := repo.Push(pushOpts); retryErr != nil {
-				return fmt.Errorf("github pages: push retry failed: %w", retryErr)
+				return "", fmt.Errorf("github pages: push retry failed: %w", retryErr)
 			}
 		} else {
-			return fmt.Errorf("github pages: push failed: %w", err)
+			return "", fmt.Errorf("github pages: push failed: %w", err)
 		}
 	}
 
 	log.WithField("title", title).Info("Digest removed from GitHub Pages")
-	return nil
+	return commitHash.String(), nil
 }
 
 // ManifestTitles clones (or updates) the repo and returns the list of digest

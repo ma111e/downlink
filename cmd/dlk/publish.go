@@ -243,7 +243,8 @@ When no title is given, an interactive list is shown to pick from.`,
 				}
 			}
 
-			return publisher.RemoveDigest(title)
+			_, err = publisher.RemoveDigest(title)
+			return err
 		},
 	}
 
@@ -394,8 +395,16 @@ This command requires a running downlink server (--address / --port).`,
 				}
 			}
 
-			if err := publisher.RemoveDigest(digest.Title); err != nil {
+			removeSHA, err := publisher.RemoveDigest(digest.Title)
+			if err != nil {
 				return fmt.Errorf("remove digest: %w", err)
+			}
+			// Wait for the removal to deploy before re-publishing: GitHub cancels
+			// an in-flight Pages build when a newer commit lands, so pushing the
+			// re-add immediately would skip deploying the removal. Best-effort —
+			// a wait failure must not leave the digest removed-but-not-re-added.
+			if err := publisher.WaitForPagesBuild(removeSHA); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: waiting for removal to deploy: %v\n", err)
 			}
 			return publisher.SendDigest(digest)
 		},

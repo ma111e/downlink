@@ -8,11 +8,84 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
 var githubPagesAPIBaseURL = "https://api.github.com"
+
+// Poll cadence for WaitForPagesBuild. Declared as vars so tests can shorten them.
+var (
+	githubPagesBuildPollInterval = 5 * time.Second
+	githubPagesBuildPollTimeout  = 5 * time.Minute
+)
+
+type githubPagesBuild struct {
+	Status string `json:"status"`
+	Commit string `json:"commit"`
+	Error  struct {
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// WaitForPagesBuild blocks until the GitHub Pages build for commitSHA has
+// finished deploying. GitHub serialises Pages builds and cancels an in-flight
+// build when a newer commit is pushed, so a flow that pushes twice in quick
+// succession (republish: remove then re-add) would otherwise only ever deploy
+// the second commit — the removal would never go live. Polling the builds API
+// until the removal commit is "built" lets the caller sequence the two pushes.
+//
+// Requires the token to have Pages read access. A timeout or an unavailable
+// builds endpoint (404) is logged and returned as nil so the caller can still
+// proceed rather than leave a digest removed-but-not-re-added.
+func (p *GitHubPagesPublisher) WaitForPagesBuild(commitSHA string) error {
+	if commitSHA == "" {
+		return nil
+	}
+	owner, repo, err := parseGitHubRepoURL(p.cfg.RepoURL)
+	if err != nil {
+		return err
+	}
+	apiURL := fmt.Sprintf("%s/repos/%s/%s/pages/builds/latest",
+		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo)
+
+	log.WithField("commit", commitSHA).Info("Waiting for GitHub Pages build to deploy")
+	deadline := time.Now().Add(githubPagesBuildPollTimeout)
+	for {
+		var build githubPagesBuild
+		status, body, err := p.doGitHubPagesRequest(http.MethodGet, apiURL, nil, &build)
+		if err != nil {
+			return err
+		}
+		if status == http.StatusNotFound {
+			log.WithField("commit", commitSHA).Warn("GitHub Pages builds endpoint returned 404; skipping deployment wait")
+			return nil
+		}
+		if status != http.StatusOK {
+			return fmt.Errorf("github pages: get latest build returned %d: %s", status, body)
+		}
+
+		if build.Commit == commitSHA {
+			switch build.Status {
+			case "built":
+				log.WithField("commit", commitSHA).Info("GitHub Pages build deployed")
+				return nil
+			case "errored":
+				return fmt.Errorf("github pages: build for %s errored: %s", commitSHA, build.Error.Message)
+			}
+		}
+
+		if time.Now().After(deadline) {
+			log.WithFields(log.Fields{
+				"commit":  commitSHA,
+				"timeout": githubPagesBuildPollTimeout,
+			}).Warn("Timed out waiting for GitHub Pages build to deploy; proceeding")
+			return nil
+		}
+		time.Sleep(githubPagesBuildPollInterval)
+	}
+}
 
 type githubPagesSite struct {
 	Source githubPagesSource `json:"source"`
