@@ -63,7 +63,7 @@ func (s *LLMsServer) GetLLMProviders(_ context.Context, _ *protos.GetLLMProvider
 // SaveLLMProviders updates the LLM provider configurations
 func (s *LLMsServer) SaveLLMProviders(_ context.Context, req *protos.SaveLLMProvidersRequest) (*emptypb.Empty, error) {
 	config.Config.Providers = mappers.AllProviderConfigsToModels(req.Providers)
-	if err := config.Config.Save(config.ConfigPath); err != nil {
+	if err := config.SaveConfig(config.Config); err != nil {
 		return nil, err
 	}
 

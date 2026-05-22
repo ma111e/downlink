@@ -109,6 +109,13 @@ func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
 		Enabled: &config.Enabled,
 	}
 
+	// Preserve runtime state of an existing feed: StoreFeed does a full upsert,
+	// so without this the LastFetch timestamp and GroupId would be reset.
+	if existing, err := m.store.GetFeed(feedId); err == nil {
+		feed.LastFetch = existing.LastFetch
+		feed.GroupId = existing.GroupId
+	}
+
 	// Store feed
 	if err := m.store.StoreFeed(feed); err != nil {
 		return err

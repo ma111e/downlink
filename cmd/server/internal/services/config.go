@@ -37,9 +37,7 @@ func (s *ServerConfigServer) SaveConfig(ctx context.Context, req *protos.SaveCon
 	if err != nil {
 		return nil, err
 	}
-	config.Config = newConfig
-
-	if err := config.Config.Save(config.ConfigPath); err != nil {
+	if err := config.SaveConfig(newConfig); err != nil {
 		return nil, err
 	}
 
@@ -49,7 +47,7 @@ func (s *ServerConfigServer) SaveConfig(ctx context.Context, req *protos.SaveCon
 // UpdateAnalysisConfig updates the analysis configuration
 func (s *ServerConfigServer) UpdateAnalysisConfig(_ context.Context, req *protos.UpdateAnalysisConfigRequest) (*emptypb.Empty, error) {
 	config.Config.Analysis = *mappers.AnalysisConfigToModel(req.AnalysisConfig)
-	if err := config.Config.Save(config.ConfigPath); err != nil {
+	if err := config.SaveConfig(config.Config); err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil

@@ -27,6 +27,13 @@ service FeedsService {
 
   // DeleteFeed removes a feed from both the models and the database
   rpc DeleteFeed(DeleteFeedRequest) returns (google.protobuf.Empty) {}
+
+  // ApplyFeeds reconciles the database to match the desired set of feeds:
+  // feeds in the request are created/updated, feeds absent from it are disabled.
+  rpc ApplyFeeds(ApplyFeedsRequest) returns (ApplyFeedsResponse) {}
+
+  // DeleteFeeds removes the given feeds (by id) from the database
+  rpc DeleteFeeds(DeleteFeedsRequest) returns (DeleteFeedsResponse) {}
 }
 
 // ListFeedsRequest is the request for the ListFeeds method
@@ -80,6 +87,33 @@ message RefreshFeedRequest {
 // DeleteFeedRequest is the request for the DeleteFeed method
 message DeleteFeedRequest {
   string feed_id = 1;
+}
+
+// ApplyFeedsRequest carries the desired set of feeds to reconcile against
+message ApplyFeedsRequest {
+  repeated FeedConfig feeds = 1;
+  Selectors default_selectors = 2; // baked into feeds lacking their own selectors
+  bool dry_run = 3;                // when true, compute the plan but make no changes
+}
+
+// ApplyFeedsResponse reports the (would-be, when dry_run) reconciliation outcome.
+// Each list carries human-readable identifiers (e.g. "title — url"), not ids.
+message ApplyFeedsResponse {
+  repeated string created = 1;
+  repeated string updated = 2;
+  repeated string disabled = 3;
+}
+
+// DeleteFeedsRequest carries the ids of the feeds to delete
+message DeleteFeedsRequest {
+  repeated string feed_ids = 1;
+  bool dry_run = 2; // when true, report what would be deleted but make no changes
+}
+
+// DeleteFeedsResponse reports the (would-be, when dry_run) deletion outcome
+message DeleteFeedsResponse {
+  repeated string deleted = 1;
+  repeated string not_found = 2;
 }
 
 // FeedGroup represents a group of feeds

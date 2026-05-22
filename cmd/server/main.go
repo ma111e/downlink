@@ -12,7 +12,6 @@ import (
 	"downlink/pkg/llmgateway"
 	"downlink/pkg/models"
 	"downlink/pkg/protos"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -156,30 +155,6 @@ func main() {
 				<-sigCh
 				os.Exit(0)
 			}()
-
-			if err := registerConfiguredFeeds(); err != nil {
-				log.WithError(err).Fatalln("Failed to register configured feeds")
-			}
-
-			// Disable any feeds in the database that are not found in the configuration file
-			dbFeeds, err := store.Db.ListFeeds()
-			if err != nil {
-				log.Errorf("failed to list feeds from database: %v", err)
-			}
-			configFeedURLs := make(map[string]struct{}, len(config.Config.Feeds))
-			for _, configFeed := range config.Config.Feeds {
-				configFeedURLs[configFeed.URL] = struct{}{}
-			}
-			for _, dbFeed := range dbFeeds {
-				_, found := configFeedURLs[dbFeed.URL]
-
-				if !found || dbFeed.Enabled == nil || !*dbFeed.Enabled {
-					err = manager.Manager.UpdateFeedEnabled(dbFeed.Id, false)
-					if err != nil {
-						log.Errorf("failed to update feed in database: %v", err)
-					}
-				}
-			}
 
 			if refresh {
 				go func() {
@@ -341,23 +316,6 @@ func applyGHPagesFlagOverrides(cmd *cobra.Command) {
 	} else if viper.IsSet("gh-pages-discord-webhook") {
 		gh.DiscordWebhookURL = viper.GetString("gh-pages-discord-webhook")
 	}
-}
-
-// registerConfiguredFeeds registers all feeds from the configuration
-func registerConfiguredFeeds() error {
-	var errs []error
-	for _, feedConfig := range config.Config.Feeds {
-
-		if err := manager.Manager.RegisterFeed(feedConfig); err != nil {
-			log.WithFields(log.Fields{
-				"url":  feedConfig.URL,
-				"type": feedConfig.Type,
-				"err":  err,
-			}).Error("Failed to register feed")
-			errs = append(errs, fmt.Errorf("%s (%s): %w", feedConfig.URL, feedConfig.Type, err))
-		}
-	}
-	return errors.Join(errs...)
 }
 
 func startServer(host string, port int, tls bool, certFile, keyFile string, maxConcurrentLLMRequests int) {

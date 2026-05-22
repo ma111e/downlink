@@ -5,12 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"downlink/pkg/models"
-
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -39,7 +35,7 @@ func ReloadConfig() error {
 	return nil
 }
 
-// LoadConfigFromFile loads configuration from a JSON file and feeds from feeds.yml
+// LoadConfigFromFile loads configuration from a JSON file.
 func LoadConfigFromFile(path string) (*models.ServerConfig, error) {
 	var config *models.ServerConfig
 
@@ -64,31 +60,5 @@ func LoadConfigFromFile(path string) (*models.ServerConfig, error) {
 		}
 	}
 
-	feedsPath := filepath.Join(filepath.Dir(path), "feeds.yml")
-	feedsFile, err := loadFeedsFromFile(feedsPath)
-	if os.IsNotExist(err) {
-		log.WithField("path", feedsPath).Warn("feeds.yml not found; starting with no configured feeds")
-	} else if err != nil {
-		return config, fmt.Errorf("failed to load feeds config: %w", err)
-	}
-	if feedsFile != nil {
-		config.Feeds = feedsFile.Feeds
-		config.DefaultSelectors = feedsFile.DefaultSelectors
-	}
-
 	return config, nil
-}
-
-func loadFeedsFromFile(path string) (*models.FeedsFile, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	var ff models.FeedsFile
-	if err := yaml.Unmarshal(data, &ff); err != nil {
-		return nil, fmt.Errorf("failed to parse feeds file: %w", err)
-	}
-
-	return &ff, nil
 }

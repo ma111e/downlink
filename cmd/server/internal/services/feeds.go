@@ -185,27 +185,6 @@ func (s *FeedsServer) DeleteFeed(_ context.Context, req *protos.DeleteFeedReques
 		return nil, fmt.Errorf("failed to remove feed from database: %w", err)
 	}
 
-	// Find and remove the feed from the configuration
-	feedRemoved := false
-	for i, configFeed := range config.Config.Feeds {
-		// More robust matching logic
-		if configFeed.URL == feed.URL {
-			// Remove this feed from the models
-			config.Config.Feeds = append(config.Config.Feeds[:i], config.Config.Feeds[i+1:]...)
-			feedRemoved = true
-			break
-		}
-	}
-
-	if !feedRemoved {
-		log.WithField("feedId", req.FeedId).Warn("Feed removed from database but not found in models")
-	}
-
-	// Save the updated configuration
-	if err := config.Config.Save(config.ConfigPath); err != nil {
-		return nil, fmt.Errorf("failed to save updated configuration: %w", err)
-	}
-
 	log.WithFields(log.Fields{
 		"feedId": req.FeedId,
 		"title":  feed.Title,
@@ -213,6 +192,64 @@ func (s *FeedsServer) DeleteFeed(_ context.Context, req *protos.DeleteFeedReques
 	}).Info("Feed deleted successfully")
 
 	return &emptypb.Empty{}, nil
+}
+
+// ApplyFeeds reconciles the stored feeds to match the desired set in the request.
+func (s *FeedsServer) ApplyFeeds(_ context.Context, req *protos.ApplyFeedsRequest) (*protos.ApplyFeedsResponse, error) {
+	configs := make([]models.FeedConfig, 0, len(req.Feeds))
+	for _, pf := range req.Feeds {
+		mc, err := mappers.FeedConfigToModel(pf)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse feed config: %w", err)
+		}
+		configs = append(configs, *mc)
+	}
+
+	var defaults *models.Selectors
+	if req.DefaultSelectors != nil {
+		defaults = &models.Selectors{
+			Article:   req.DefaultSelectors.Article,
+			Cutoff:    req.DefaultSelectors.Cutoff,
+			Blacklist: req.DefaultSelectors.Blacklist,
+		}
+	}
+
+	res, err := manager.Manager.ApplyFeeds(configs, defaults, req.DryRun)
+	if err != nil {
+		return nil, err
+	}
+
+	log.WithFields(log.Fields{
+		"created":  len(res.Created),
+		"updated":  len(res.Updated),
+		"disabled": len(res.Disabled),
+		"dry_run":  req.DryRun,
+	}).Info("Applied feeds")
+
+	return &protos.ApplyFeedsResponse{
+		Created:  res.Created,
+		Updated:  res.Updated,
+		Disabled: res.Disabled,
+	}, nil
+}
+
+// DeleteFeeds removes the given feeds (by id) from the database.
+func (s *FeedsServer) DeleteFeeds(_ context.Context, req *protos.DeleteFeedsRequest) (*protos.DeleteFeedsResponse, error) {
+	res, err := manager.Manager.DeleteFeeds(req.FeedIds, req.DryRun)
+	if err != nil {
+		return nil, err
+	}
+
+	log.WithFields(log.Fields{
+		"deleted":   len(res.Deleted),
+		"not_found": len(res.NotFound),
+		"dry_run":   req.DryRun,
+	}).Info("Deleted feeds")
+
+	return &protos.DeleteFeedsResponse{
+		Deleted:  res.Deleted,
+		NotFound: res.NotFound,
+	}, nil
 }
 
 func (s *FeedsServer) RegisterFeed(_ context.Context, req *protos.RegisterFeedRequest) (*emptypb.Empty, error) {

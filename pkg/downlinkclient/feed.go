@@ -96,6 +96,41 @@ func (pc *DownlinkClient) DeleteFeed(feedId string) error {
 	return nil
 }
 
+// ApplyFeeds reconciles the server's feeds to match the desired set: feeds in
+// configs are created/updated, feeds absent from it are disabled.
+func (pc *DownlinkClient) ApplyFeeds(configs []models.FeedConfig, defaults *models.Selectors, dryRun bool) (*protos.ApplyFeedsResponse, error) {
+	protoFeeds := make([]*protos.FeedConfig, 0, len(configs))
+	for i := range configs {
+		pf, err := mappers.FeedConfigToProto(&configs[i])
+		if err != nil {
+			return nil, err
+		}
+		protoFeeds = append(protoFeeds, pf)
+	}
+
+	req := &protos.ApplyFeedsRequest{
+		Feeds:  protoFeeds,
+		DryRun: dryRun,
+	}
+	if defaults != nil {
+		req.DefaultSelectors = &protos.Selectors{
+			Article:   defaults.Article,
+			Cutoff:    defaults.Cutoff,
+			Blacklist: defaults.Blacklist,
+		}
+	}
+
+	return pc.feedsClient.ApplyFeeds(pc.ctx, req)
+}
+
+// DeleteFeeds removes the given feeds (by id) from the database.
+func (pc *DownlinkClient) DeleteFeeds(feedIds []string, dryRun bool) (*protos.DeleteFeedsResponse, error) {
+	return pc.feedsClient.DeleteFeeds(pc.ctx, &protos.DeleteFeedsRequest{
+		FeedIds: feedIds,
+		DryRun:  dryRun,
+	})
+}
+
 // RefreshFeedWithTimeWindow refreshes a specific feed with optional time window filtering.
 // Returns the per-feed stats from the server.
 func (pc *DownlinkClient) RefreshFeedWithTimeWindow(feedId string, from *time.Time, to *time.Time, overwrite bool, restore bool) (*protos.RefreshFeedResponse, error) {

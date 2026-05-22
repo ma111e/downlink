@@ -6,6 +6,7 @@ import (
 	"downlink/pkg/protos"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -13,6 +14,7 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 // ── live refresh display ──────────────────────────────────────────────────────
@@ -207,6 +209,14 @@ var (
 	feedArticleSelector   string
 	feedCutoffSelector    string
 	feedBlacklistSelector string
+
+	// apply / delete flags
+	applyFile    string
+	applyDryRun  bool
+	deleteFile   string
+	deleteTitle  string
+	deleteId     string
+	deleteDryRun bool
 )
 
 // Feed commands
@@ -558,56 +568,213 @@ Examples:
 	refreshCmd.Flags().BoolVar(&refreshDryRun, "dry-run", false, "Preview matching articles without refreshing")
 	refreshCmd.Flags().BoolVar(&refreshDebug, "debug", false, "With --dry-run: show first and last 10 lines of each article's content")
 
-	// Delete feed command
-	deleteCmd := &cobra.Command{
-		Use:     "delete [id]",
-		Aliases: []string{"del", "rm"},
-		Short:   "Delete a feed",
-		Long:    `Remove a feed from being monitored. Omit ID to pick interactively.`,
-		Args:    cobra.MaximumNArgs(1),
+	// Apply feeds command
+	applyCmd := &cobra.Command{
+		Use:   "apply",
+		Short: "Reconcile feeds from a file",
+		Long: `Reconcile the database to match a feeds YAML file: feeds in the file are
+created or updated, and feeds no longer present are disabled (their articles are kept).`,
 		Run: func(cmd *cobra.Command, args []string) {
-			client := getNewDownlinkClient()
-
-			var feedId, feedTitle string
-			if len(args) == 1 {
-				feedId = args[0]
-				feedTitle = feedId
-			} else {
-				feed, err := selectFeed(client)
-				if err != nil {
-					fmt.Printf("Error: %v\n", err)
-					return
-				}
-				if feed.Id == "" {
-					fmt.Println("Cancelled.")
-					return
-				}
-				feedId = feed.Id
-				feedTitle = feed.Title
+			ff, err := loadFeedsFile(applyFile)
+			if err != nil {
+				fmt.Printf("%s %v\n", styleErr.Render("✗"), err)
+				return
 			}
 
+			client := getNewDownlinkClient()
+			res, err := client.ApplyFeeds(ff.Feeds, ff.DefaultSelectors, applyDryRun)
+			if err != nil {
+				fmt.Printf("Failed to apply feeds: %v\n", err)
+				return
+			}
+
+			if jsonOutput {
+				out, _ := json.MarshalIndent(map[string][]string{
+					"created": res.Created, "updated": res.Updated, "disabled": res.Disabled,
+				}, "", "  ")
+				fmt.Println(string(out))
+				return
+			}
+
+			if applyDryRun {
+				fmt.Println(styleWarn.Render("DRY RUN — no changes applied"))
+			}
+			printFeedActionList("Created", res.Created)
+			printFeedActionList("Updated", res.Updated)
+			printFeedActionList("Disabled", res.Disabled)
+			if len(res.Created)+len(res.Updated)+len(res.Disabled) == 0 {
+				fmt.Println(styleDim.Render("Nothing to do; feeds already in sync."))
+			}
+		},
+	}
+	applyCmd.Flags().StringVarP(&applyFile, "file", "f", "", "Path to feeds YAML file (required)")
+	applyCmd.Flags().BoolVar(&applyDryRun, "dry-run", false, "Show what would change without applying")
+	_ = applyCmd.MarkFlagRequired("file")
+
+	// Delete feed command
+	deleteCmd := &cobra.Command{
+		Use:     "delete",
+		Aliases: []string{"del", "rm"},
+		Short:   "Delete feeds",
+		Long: `Delete feeds by file (-f), title (-t), or id (-i). The selectors are
+mutually exclusive; with none, pick a feed interactively. -t deletes every feed
+matching the title. Deleting a feed also removes its articles.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			selectors := 0
+			for _, s := range []string{deleteFile, deleteTitle, deleteId} {
+				if s != "" {
+					selectors++
+				}
+			}
+			if selectors > 1 {
+				fmt.Println("Specify only one of --file, --title, or --id.")
+				return
+			}
+
+			client := getNewDownlinkClient()
+
+			ids, labels, err := resolveDeleteTargets(client)
+			if err != nil {
+				fmt.Printf("%s %v\n", styleErr.Render("✗"), err)
+				return
+			}
+			if len(ids) == 0 {
+				fmt.Println("No matching feeds to delete.")
+				return
+			}
+
+			if deleteDryRun {
+				fmt.Println(styleWarn.Render("DRY RUN — would delete:"))
+				for _, l := range labels {
+					fmt.Printf("  - %s\n", l)
+				}
+				return
+			}
+
+			fmt.Println("About to delete:")
+			for _, l := range labels {
+				fmt.Printf("  - %s\n", l)
+			}
 			confirm := false
 			flushStdin()
 			if err := huh.NewConfirm().
-				Title(fmt.Sprintf("Delete feed %q?", feedTitle)).
+				Title(fmt.Sprintf("Delete %d feed(s) and their articles?", len(ids))).
 				Affirmative("Yes, delete").
-				Negative("No, keep it").
+				Negative("No, keep them").
 				Value(&confirm).
 				Run(); err != nil || !confirm {
 				fmt.Println("Cancelled.")
 				return
 			}
 
-			if err := client.DeleteFeed(feedId); err != nil {
-				fmt.Printf("Failed to delete feed: %v\n", err)
+			res, err := client.DeleteFeeds(ids, false)
+			if err != nil {
+				fmt.Printf("Failed to delete feeds: %v\n", err)
 				return
 			}
-			fmt.Printf("%s Feed %q deleted\n", styleOK.Render("✓"), feedTitle)
+			fmt.Printf("%s Deleted %d feed(s)\n", styleOK.Render("✓"), len(res.Deleted))
+			for _, nf := range res.NotFound {
+				fmt.Printf("  %s\n", styleDim.Render("not found: "+nf))
+			}
 		},
 	}
+	deleteCmd.Flags().StringVarP(&deleteFile, "file", "f", "", "Delete the feeds defined in this YAML file")
+	deleteCmd.Flags().StringVarP(&deleteTitle, "title", "t", "", "Delete all feeds with this title")
+	deleteCmd.Flags().StringVarP(&deleteId, "id", "i", "", "Delete the feed with this id")
+	deleteCmd.Flags().BoolVar(&deleteDryRun, "dry-run", false, "Show what would be deleted without deleting")
 
-	cmd.AddCommand(listCmd, addCmd, refreshCmd, deleteCmd)
+	cmd.AddCommand(listCmd, addCmd, refreshCmd, applyCmd, deleteCmd)
 	return cmd
+}
+
+// loadFeedsFile reads and parses a feeds YAML file (same format as feeds.yml).
+func loadFeedsFile(path string) (*models.FeedsFile, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read feeds file: %w", err)
+	}
+	var ff models.FeedsFile
+	if err := yaml.Unmarshal(data, &ff); err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %w", path, err)
+	}
+	return &ff, nil
+}
+
+// resolveDeleteTargets turns the active delete selector (--id/--title/--file, or
+// the interactive picker) into the feed ids to delete plus display labels.
+func resolveDeleteTargets(client *downlinkclient.DownlinkClient) (ids []string, labels []string, err error) {
+	switch {
+	case deleteId != "":
+		return []string{deleteId}, []string{deleteId}, nil
+
+	case deleteTitle != "":
+		feeds, err := client.ListFeeds()
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, f := range feeds {
+			if f.Title == deleteTitle {
+				ids = append(ids, f.Id)
+				labels = append(labels, feedDisplay(f))
+			}
+		}
+		if len(ids) == 0 {
+			return nil, nil, fmt.Errorf("no feeds found with title %q", deleteTitle)
+		}
+		return ids, labels, nil
+
+	case deleteFile != "":
+		ff, err := loadFeedsFile(deleteFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		feeds, err := client.ListFeeds()
+		if err != nil {
+			return nil, nil, err
+		}
+		byURL := make(map[string]models.Feed, len(feeds))
+		for _, f := range feeds {
+			byURL[f.URL] = f
+		}
+		for _, fc := range ff.Feeds {
+			if f, ok := byURL[fc.URL]; ok {
+				ids = append(ids, f.Id)
+				labels = append(labels, feedDisplay(f))
+			} else {
+				fmt.Printf("  %s\n", styleDim.Render("not in DB, skipping: "+fc.URL))
+			}
+		}
+		return ids, labels, nil
+
+	default:
+		feed, err := selectFeed(client)
+		if err != nil {
+			return nil, nil, err
+		}
+		if feed.Id == "" {
+			return nil, nil, nil // cancelled
+		}
+		return []string{feed.Id}, []string{feedDisplay(feed)}, nil
+	}
+}
+
+// feedDisplay renders a feed for human-readable CLI output.
+func feedDisplay(f models.Feed) string {
+	if f.Title == "" {
+		return f.URL
+	}
+	return fmt.Sprintf("%s (%s)", f.Title, f.URL)
+}
+
+// printFeedActionList prints a labelled group of feed actions, if non-empty.
+func printFeedActionList(label string, items []string) {
+	if len(items) == 0 {
+		return
+	}
+	fmt.Println(styleSection.Render(fmt.Sprintf("%s (%d)", label, len(items))))
+	for _, it := range items {
+		fmt.Printf("  - %s\n", it)
+	}
 }
 
 func runAddFeedInteractive(client *downlinkclient.DownlinkClient) {

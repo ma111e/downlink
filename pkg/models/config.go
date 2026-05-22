@@ -1,13 +1,5 @@
 package models
 
-import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-
-	"gopkg.in/yaml.v3"
-)
-
 // ServerConfig represents application configuration
 type ServerConfig struct {
 	Feeds            []FeedConfig        `json:"feeds"`
@@ -44,42 +36,4 @@ type GitHubPagesNotificationConfig struct {
 	CommitEmail       string `json:"commit_email"`        // default "downlink-bot@users.noreply.github.com"
 	CloneDir          string `json:"clone_dir"`           // local working clone; default: os.TempDir()/downlink-ghpages
 	DiscordWebhookURL string `json:"discord_webhook_url"` // optional: notify this webhook when a page is published
-}
-
-func (sc *ServerConfig) Save(path string) error {
-	// Marshal only the file-persisted fields, excluding feeds (stored in feeds.yml)
-	configFile := struct {
-		DbPath        string              `json:"db_path"`
-		Providers     []ProviderConfig    `json:"providers"`
-		Analysis      AnalysisConfig      `json:"analysis"`
-		Notifications NotificationsConfig `json:"notifications"`
-	}{
-		DbPath:        sc.DbPath,
-		Providers:     sc.Providers,
-		Analysis:      sc.Analysis,
-		Notifications: sc.Notifications,
-	}
-	data, err := json.MarshalIndent(configFile, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		return err
-	}
-
-	feedsPath := filepath.Join(filepath.Dir(path), "feeds.yml")
-	return sc.SaveFeeds(feedsPath)
-}
-
-func (sc *ServerConfig) SaveFeeds(path string) error {
-	ff := FeedsFile{
-		DefaultSelectors: sc.DefaultSelectors,
-		Feeds:            sc.Feeds,
-	}
-	data, err := yaml.Marshal(ff)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0644)
 }

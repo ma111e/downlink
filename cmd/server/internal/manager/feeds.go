@@ -306,6 +306,124 @@ func (m *FeedManager) UpdateFeedEnabled(id string, enabled bool) error {
 	return m.store.StoreFeed(feed)
 }
 
+// ApplyResult reports the outcome of an ApplyFeeds reconciliation. Each list
+// holds human-readable feed labels ("title — url"), not ids.
+type ApplyResult struct {
+	Created  []string
+	Updated  []string
+	Disabled []string
+}
+
+// ApplyFeeds reconciles the stored feeds against the desired set: feeds in
+// configs are created or updated, and feeds absent from configs that are still
+// enabled get disabled (articles preserved). When dryRun is true the plan is
+// computed but nothing is written.
+func (m *FeedManager) ApplyFeeds(configs []models.FeedConfig, defaults *models.Selectors, dryRun bool) (ApplyResult, error) {
+	var result ApplyResult
+
+	current, err := m.ListFeeds()
+	if err != nil {
+		return result, fmt.Errorf("failed to list feeds: %w", err)
+	}
+	currentByID := make(map[string]struct{}, len(current))
+	for _, f := range current {
+		currentByID[f.Id] = struct{}{}
+	}
+
+	desiredIDs := make(map[string]struct{}, len(configs))
+	for i := range configs {
+		cfg := configs[i]
+		bakeDefaultSelectors(&cfg, defaults)
+		id := generateFeedId(cfg.URL)
+		desiredIDs[id] = struct{}{}
+
+		label := feedLabel(cfg.Title, cfg.URL)
+		if _, exists := currentByID[id]; exists {
+			result.Updated = append(result.Updated, label)
+		} else {
+			result.Created = append(result.Created, label)
+		}
+
+		if !dryRun {
+			if err := m.RegisterFeed(cfg); err != nil {
+				return result, fmt.Errorf("failed to apply feed %s: %w", cfg.URL, err)
+			}
+		}
+	}
+
+	for _, f := range current {
+		if _, ok := desiredIDs[f.Id]; ok {
+			continue
+		}
+		if f.Enabled == nil || !*f.Enabled {
+			continue
+		}
+		result.Disabled = append(result.Disabled, feedLabel(f.Title, f.URL))
+		if !dryRun {
+			if err := m.UpdateFeedEnabled(f.Id, false); err != nil {
+				return result, fmt.Errorf("failed to disable feed %s: %w", f.URL, err)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// DeleteResult reports the outcome of a DeleteFeeds call. Deleted holds
+// human-readable feed labels; NotFound holds the requested ids with no match.
+type DeleteResult struct {
+	Deleted  []string
+	NotFound []string
+}
+
+// DeleteFeeds removes the given feeds (by id), cascading article deletion. When
+// dryRun is true the targets are reported but nothing is deleted.
+func (m *FeedManager) DeleteFeeds(feedIds []string, dryRun bool) (DeleteResult, error) {
+	var result DeleteResult
+	for _, id := range feedIds {
+		feed, err := m.GetFeed(id)
+		if err != nil {
+			result.NotFound = append(result.NotFound, id)
+			continue
+		}
+		result.Deleted = append(result.Deleted, feedLabel(feed.Title, feed.URL))
+		if !dryRun {
+			if err := m.RemoveFeed(id); err != nil {
+				return result, fmt.Errorf("failed to delete feed %s: %w", id, err)
+			}
+		}
+	}
+	return result, nil
+}
+
+// bakeDefaultSelectors fills any empty selector field on cfg from defaults, so
+// each feed carries its effective selectors once stored.
+func bakeDefaultSelectors(cfg *models.FeedConfig, defaults *models.Selectors) {
+	if defaults == nil {
+		return
+	}
+	if cfg.Selectors == nil {
+		cfg.Selectors = &models.Selectors{}
+	}
+	if cfg.Selectors.Article == "" {
+		cfg.Selectors.Article = defaults.Article
+	}
+	if cfg.Selectors.Cutoff == "" {
+		cfg.Selectors.Cutoff = defaults.Cutoff
+	}
+	if cfg.Selectors.Blacklist == "" {
+		cfg.Selectors.Blacklist = defaults.Blacklist
+	}
+}
+
+// feedLabel renders a feed for human-readable output.
+func feedLabel(title, url string) string {
+	if title == "" {
+		return url
+	}
+	return fmt.Sprintf("%s — %s", title, url)
+}
+
 // RefreshAllFeeds refreshes all enabled feeds
 func (m *FeedManager) RefreshAllFeeds(wg *sync.WaitGroup) {
 	feeds, err := m.ListFeeds()

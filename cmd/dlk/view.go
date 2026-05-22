@@ -729,7 +729,6 @@ func printServerConfig(c models.ServerConfig) {
 	kvBlock([][2]string{
 		{"DB path", dashIfEmpty(c.DbPath)},
 		{"Solimen address", dashIfEmpty(c.SolimenAddr)},
-		{"Feeds configured", fmt.Sprintf("%d", len(c.Feeds))},
 	})
 
 	section("Providers")

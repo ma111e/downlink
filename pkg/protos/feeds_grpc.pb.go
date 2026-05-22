@@ -25,6 +25,8 @@ const (
 	FeedsService_RefreshAllFeeds_FullMethodName = "/downlink.FeedsService/RefreshAllFeeds"
 	FeedsService_RefreshFeed_FullMethodName     = "/downlink.FeedsService/RefreshFeed"
 	FeedsService_DeleteFeed_FullMethodName      = "/downlink.FeedsService/DeleteFeed"
+	FeedsService_ApplyFeeds_FullMethodName      = "/downlink.FeedsService/ApplyFeeds"
+	FeedsService_DeleteFeeds_FullMethodName     = "/downlink.FeedsService/DeleteFeeds"
 )
 
 // FeedsServiceClient is the client API for FeedsService service.
@@ -43,6 +45,11 @@ type FeedsServiceClient interface {
 	RefreshFeed(ctx context.Context, in *RefreshFeedRequest, opts ...grpc.CallOption) (*RefreshFeedResponse, error)
 	// DeleteFeed removes a feed from both the models and the database
 	DeleteFeed(ctx context.Context, in *DeleteFeedRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// ApplyFeeds reconciles the database to match the desired set of feeds:
+	// feeds in the request are created/updated, feeds absent from it are disabled.
+	ApplyFeeds(ctx context.Context, in *ApplyFeedsRequest, opts ...grpc.CallOption) (*ApplyFeedsResponse, error)
+	// DeleteFeeds removes the given feeds (by id) from the database
+	DeleteFeeds(ctx context.Context, in *DeleteFeedsRequest, opts ...grpc.CallOption) (*DeleteFeedsResponse, error)
 }
 
 type feedsServiceClient struct {
@@ -112,6 +119,26 @@ func (c *feedsServiceClient) DeleteFeed(ctx context.Context, in *DeleteFeedReque
 	return out, nil
 }
 
+func (c *feedsServiceClient) ApplyFeeds(ctx context.Context, in *ApplyFeedsRequest, opts ...grpc.CallOption) (*ApplyFeedsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ApplyFeedsResponse)
+	err := c.cc.Invoke(ctx, FeedsService_ApplyFeeds_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *feedsServiceClient) DeleteFeeds(ctx context.Context, in *DeleteFeedsRequest, opts ...grpc.CallOption) (*DeleteFeedsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteFeedsResponse)
+	err := c.cc.Invoke(ctx, FeedsService_DeleteFeeds_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FeedsServiceServer is the server API for FeedsService service.
 // All implementations must embed UnimplementedFeedsServiceServer
 // for forward compatibility.
@@ -128,6 +155,11 @@ type FeedsServiceServer interface {
 	RefreshFeed(context.Context, *RefreshFeedRequest) (*RefreshFeedResponse, error)
 	// DeleteFeed removes a feed from both the models and the database
 	DeleteFeed(context.Context, *DeleteFeedRequest) (*emptypb.Empty, error)
+	// ApplyFeeds reconciles the database to match the desired set of feeds:
+	// feeds in the request are created/updated, feeds absent from it are disabled.
+	ApplyFeeds(context.Context, *ApplyFeedsRequest) (*ApplyFeedsResponse, error)
+	// DeleteFeeds removes the given feeds (by id) from the database
+	DeleteFeeds(context.Context, *DeleteFeedsRequest) (*DeleteFeedsResponse, error)
 	mustEmbedUnimplementedFeedsServiceServer()
 }
 
@@ -152,6 +184,12 @@ func (UnimplementedFeedsServiceServer) RefreshFeed(context.Context, *RefreshFeed
 }
 func (UnimplementedFeedsServiceServer) DeleteFeed(context.Context, *DeleteFeedRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteFeed not implemented")
+}
+func (UnimplementedFeedsServiceServer) ApplyFeeds(context.Context, *ApplyFeedsRequest) (*ApplyFeedsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ApplyFeeds not implemented")
+}
+func (UnimplementedFeedsServiceServer) DeleteFeeds(context.Context, *DeleteFeedsRequest) (*DeleteFeedsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteFeeds not implemented")
 }
 func (UnimplementedFeedsServiceServer) mustEmbedUnimplementedFeedsServiceServer() {}
 func (UnimplementedFeedsServiceServer) testEmbeddedByValue()                      {}
@@ -257,6 +295,42 @@ func _FeedsService_DeleteFeed_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FeedsService_ApplyFeeds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApplyFeedsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FeedsServiceServer).ApplyFeeds(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FeedsService_ApplyFeeds_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FeedsServiceServer).ApplyFeeds(ctx, req.(*ApplyFeedsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FeedsService_DeleteFeeds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteFeedsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FeedsServiceServer).DeleteFeeds(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FeedsService_DeleteFeeds_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FeedsServiceServer).DeleteFeeds(ctx, req.(*DeleteFeedsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FeedsService_ServiceDesc is the grpc.ServiceDesc for FeedsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -279,6 +353,14 @@ var FeedsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteFeed",
 			Handler:    _FeedsService_DeleteFeed_Handler,
+		},
+		{
+			MethodName: "ApplyFeeds",
+			Handler:    _FeedsService_ApplyFeeds_Handler,
+		},
+		{
+			MethodName: "DeleteFeeds",
+			Handler:    _FeedsService_DeleteFeeds_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
