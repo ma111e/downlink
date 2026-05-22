@@ -316,6 +316,91 @@ This command does not require a running downlink server.`,
 	}
 	republishIndexCmd.Flags().BoolVar(&republishIndexDryRun, "dry-run", false, "Write index files locally without committing or pushing")
 
-	cmd.AddCommand(initCmd, reinitCmd, addCmd, removeCmd, republishAllCmd, republishIndexCmd)
+	republishCmd := &cobra.Command{
+		Use:   "republish [digest-id-or-title]",
+		Short: "Remove and re-publish a single digest with the current templates",
+		Long: `Remove the digest from the GitHub Pages archive and re-publish it with the
+current templates. Equivalent to running remove followed by add.
+
+Accepts a digest ID or full title as argument. When no argument is given,
+an interactive list of available digests is shown.
+
+This command requires a running downlink server (--address / --port).`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := buildConfig()
+			if err != nil {
+				return err
+			}
+			client := getNewDownlinkClient()
+			publisher := notification.NewGitHubPagesPublisher(cfg)
+
+			var digest models.Digest
+			if len(args) == 1 {
+				digest, err = client.GetDigest(args[0])
+				if err != nil {
+					all, listErr := client.ListDigests(0)
+					if listErr != nil {
+						return fmt.Errorf("fetch digest: %w", err)
+					}
+					found := false
+					for _, d := range all {
+						if strings.EqualFold(d.Title, args[0]) {
+							digest, err = client.GetDigest(d.Id)
+							if err != nil {
+								return fmt.Errorf("fetch digest: %w", err)
+							}
+							found = true
+							break
+						}
+					}
+					if !found {
+						return fmt.Errorf("digest not found: %q", args[0])
+					}
+				}
+			} else {
+				digests, err := client.ListDigests(0)
+				if err != nil {
+					return fmt.Errorf("list digests: %w", err)
+				}
+				if len(digests) == 0 {
+					return fmt.Errorf("no digests found on the server")
+				}
+				options := make([]huh.Option[string], len(digests))
+				for i, d := range digests {
+					title := d.Title
+					if title == "" {
+						title = "(untitled)"
+					}
+					articleCount := 0
+					if d.ArticleCount != nil {
+						articleCount = *d.ArticleCount
+					}
+					label := fmt.Sprintf("%s  %s  (%d articles)",
+						d.CreatedAt.Format("2006-01-02 15:04"), title, articleCount)
+					options[i] = huh.NewOption(label, d.Id)
+				}
+				var digestID string
+				if err := huh.NewSelect[string]().
+					Title("Select a digest to republish").
+					Options(options...).
+					Value(&digestID).
+					Run(); err != nil {
+					return err
+				}
+				digest, err = client.GetDigest(digestID)
+				if err != nil {
+					return fmt.Errorf("fetch digest: %w", err)
+				}
+			}
+
+			if err := publisher.RemoveDigest(digest.Title); err != nil {
+				return fmt.Errorf("remove digest: %w", err)
+			}
+			return publisher.SendDigest(digest)
+		},
+	}
+
+	cmd.AddCommand(initCmd, reinitCmd, addCmd, removeCmd, republishAllCmd, republishIndexCmd, republishCmd)
 	return cmd
 }
