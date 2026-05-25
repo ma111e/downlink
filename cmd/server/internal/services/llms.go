@@ -71,7 +71,7 @@ func (s *LLMsServer) SaveLLMProviders(_ context.Context, req *protos.SaveLLMProv
 }
 
 // GetAvailableModels fetches available models from all configured providers concurrently.
-func (s *LLMsServer) GetAvailableModels(_ context.Context, _ *protos.GetAvailableModelsRequest) (*protos.ModelsResponse, error) {
+func (s *LLMsServer) GetAvailableModels(_ context.Context, req *protos.GetAvailableModelsRequest) (*protos.ModelsResponse, error) {
 	// Deduplicate by provider type + base URL
 	type work struct {
 		provider models.ProviderConfig
@@ -80,6 +80,9 @@ func (s *LLMsServer) GetAvailableModels(_ context.Context, _ *protos.GetAvailabl
 	var jobs []work
 	for _, provider := range config.Config.Providers {
 		if !provider.Enabled {
+			continue
+		}
+		if req.ProviderName != "" && provider.Name != req.ProviderName {
 			continue
 		}
 		key := provider.ProviderType + ":" + provider.BaseURL

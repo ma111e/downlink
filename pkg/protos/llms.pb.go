@@ -234,6 +234,7 @@ func (x *SaveLLMProvidersRequest) GetProviders() []*ProviderConfig {
 // GetAvailableModelsRequest is the request for the GetAvailableModels method
 type GetAvailableModelsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderName  string                 `protobuf:"bytes,1,opt,name=provider_name,json=providerName,proto3" json:"provider_name,omitempty"` // when set, only fetch models for this named provider
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -266,6 +267,13 @@ func (x *GetAvailableModelsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetAvailableModelsRequest.ProtoReflect.Descriptor instead.
 func (*GetAvailableModelsRequest) Descriptor() ([]byte, []int) {
 	return file_llms_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetAvailableModelsRequest) GetProviderName() string {
+	if x != nil {
+		return x.ProviderName
+	}
+	return ""
 }
 
 // ModelInfo represents generic model information
@@ -1987,8 +1995,9 @@ const file_llms_proto_rawDesc = "" +
 	"\x17GetLLMProvidersResponse\x126\n" +
 	"\tproviders\x18\x01 \x03(\v2\x18.downlink.ProviderConfigR\tproviders\"Q\n" +
 	"\x17SaveLLMProvidersRequest\x126\n" +
-	"\tproviders\x18\x01 \x03(\v2\x18.downlink.ProviderConfigR\tproviders\"\x1b\n" +
-	"\x19GetAvailableModelsRequest\"\x99\x01\n" +
+	"\tproviders\x18\x01 \x03(\v2\x18.downlink.ProviderConfigR\tproviders\"@\n" +
+	"\x19GetAvailableModelsRequest\x12#\n" +
+	"\rprovider_name\x18\x01 \x01(\tR\fproviderName\"\x99\x01\n" +
 	"\tModelInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +

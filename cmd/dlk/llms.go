@@ -64,7 +64,7 @@ func createModelCommands() *cobra.Command {
 			selected := providers[selectedIdx]
 
 			// Load available models for the selected provider
-			modelName := resolveModelInteractive(client, selected.ProviderType, selected.BaseURL)
+			modelName := resolveModelInteractive(client, selected.Name, selected.ProviderType, selected.BaseURL)
 			if modelName == "" {
 				return nil // user cancelled
 			}
@@ -477,8 +477,8 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Step 4: Model selection
-	modelName := resolveModelInteractive(client, providerType, baseURL)
+	// Step 4: Model selection (new provider not yet saved, so no name filter)
+	modelName := resolveModelInteractive(client, "", providerType, baseURL)
 	if modelName == "" {
 		fmt.Println("Cancelled.")
 		return
@@ -574,7 +574,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 
 // resolveModelInteractive fetches available models for the provider and lets the user pick one.
 // Falls back to a free-text input if the fetch fails or returns no results.
-func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType, baseURL string) string {
+func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName, providerType, baseURL string) string {
 	fmt.Println("Fetching available models...")
 
 	var modelList []string
@@ -651,7 +651,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerType
 		fmt.Printf("Found %d Codex models\n", len(modelList))
 	} else {
 		// Standard provider: use server-provided models
-		resp, err := client.GetAvailableModelsForProvider(providerType, baseURL)
+		resp, err := client.GetAvailableModelsForProvider(providerName, providerType, baseURL)
 
 		if err != nil || resp == nil || len(resp.Models) == 0 {
 			var modelName string

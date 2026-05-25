@@ -53,22 +53,16 @@ func (pc *DownlinkClient) GetAvailableModels() (*models.ModelsResponse, error) {
 	return &modelsResponse, nil
 }
 
-// GetAvailableModelsForProvider fetches models for a single provider (by type + base URL).
-// It calls the shared gRPC endpoint and filters the result, so no proto changes are needed.
-func (pc *DownlinkClient) GetAvailableModelsForProvider(providerType, baseURL string) (*models.ModelsResponse, error) {
-	res, err := pc.llmsClient.GetAvailableModels(pc.ctx, &protos.GetAvailableModelsRequest{})
+// GetAvailableModelsForProvider fetches models for a single named provider.
+func (pc *DownlinkClient) GetAvailableModelsForProvider(providerName, providerType, baseURL string) (*models.ModelsResponse, error) {
+	res, err := pc.llmsClient.GetAvailableModels(pc.ctx, &protos.GetAvailableModelsRequest{
+		ProviderName: providerName,
+	})
 	if err != nil {
 		return nil, err
 	}
-
 	full := mappers.ModelsResponseToModel(res)
-	filtered := make([]models.ModelInfo, 0, len(full.Models))
-	for _, m := range full.Models {
-		if m.ProviderType == providerType {
-			filtered = append(filtered, m)
-		}
-	}
-	return &models.ModelsResponse{Models: filtered, Error: full.Error}, nil
+	return &full, nil
 }
 
 // GetAnalysisConfig returns the current enrichment configuration
