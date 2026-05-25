@@ -39,11 +39,13 @@ var fallbackCodexModels = []string{
 // Falls back to a hardcoded list if the token is missing or the API call fails.
 func getCodexModelIDs(accessToken string) []string {
 	if accessToken == "" {
+		fmt.Println("Note: using built-in model list (no credentials available)")
 		return fallbackCodexModels
 	}
 
 	models, err := fetchCodexModelsFromAPI(accessToken)
 	if err != nil || len(models) == 0 {
+		fmt.Println("Note: using built-in model list (API fetch failed)")
 		return fallbackCodexModels
 	}
 
