@@ -631,23 +631,6 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 		// Use the first credential (highest priority) to fetch models
 		accessToken := codexProvider.Credentials[0].AccessToken
 		modelList = getCodexModelIDs(accessToken)
-		if len(modelList) == 0 {
-			fmt.Println("Error: Could not fetch Codex models from API")
-			var modelName string
-			flushStdin()
-			_ = huh.NewInput().
-				Title("Model name").
-				Placeholder("e.g. gpt-4o").
-				Value(&modelName).
-				Validate(func(s string) error {
-					if strings.TrimSpace(s) == "" {
-						return fmt.Errorf("model name is required")
-					}
-					return nil
-				}).
-				Run()
-			return strings.TrimSpace(modelName)
-		}
 		fmt.Printf("Found %d Codex models\n", len(modelList))
 	} else {
 		// Standard provider: use server-provided models

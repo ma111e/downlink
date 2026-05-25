@@ -25,17 +25,26 @@ type CodexModel struct {
 	ContextWindowSize int    `json:"context_window_size"`
 }
 
+var fallbackCodexModels = []string{
+	"gpt-5.5",
+	"gpt-5.4",
+	"gpt-5.4-mini",
+	"gpt-5.3-codex",
+	"gpt-5.2",
+	"gpt-5.3-codex-spark",
+}
+
 // getCodexModelIDs fetches available Codex models directly from the OpenAI Codex API.
 // Returns models sorted by priority, with hidden models filtered out.
-// Returns empty list if token is unavailable or API call fails.
+// Falls back to a hardcoded list if the token is missing or the API call fails.
 func getCodexModelIDs(accessToken string) []string {
 	if accessToken == "" {
-		return nil
+		return fallbackCodexModels
 	}
 
 	models, err := fetchCodexModelsFromAPI(accessToken)
-	if err != nil {
-		return nil
+	if err != nil || len(models) == 0 {
+		return fallbackCodexModels
 	}
 
 	return models
