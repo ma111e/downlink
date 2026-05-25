@@ -34,6 +34,20 @@ func createModelCommands() *cobra.Command {
 				return fmt.Errorf("no providers configured — use 'model add' first")
 			}
 
+			// Show currently active provider/model
+			if analysisConfig, err := client.GetAnalysisConfig(); err == nil && analysisConfig.Provider != "" {
+				for _, p := range providers {
+					if p.Name == analysisConfig.Provider {
+						if p.ModelName != "" {
+							fmt.Printf("Current: %s - %s\n", p.Name, p.ModelName)
+						} else {
+							fmt.Printf("Current: %s\n", p.Name)
+						}
+						break
+					}
+				}
+			}
+
 			// Build provider picker options: show name (type) — current model
 			providerOpts := make([]huh.Option[int], len(providers))
 			for i, p := range providers {
