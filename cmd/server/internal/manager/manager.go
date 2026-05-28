@@ -98,13 +98,6 @@ func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
 		}
 		scraperMap["selectors"] = sel
 	}
-	if len(config.Headers) > 0 {
-		headers := map[string]any{}
-		for k, v := range config.Headers {
-			headers[k] = v
-		}
-		scraperMap["headers"] = headers
-	}
 
 	// Create feed
 	feed := models.Feed{

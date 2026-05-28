@@ -14,13 +14,12 @@ type solimenResp struct {
 	HTML  string `json:"html"`
 }
 
-func solimenScrape(addr, rawURL string, triggers models.HostTriggers, headers map[string]string) (solimenResp, error) {
+func solimenScrape(addr, rawURL string, triggers models.HostTriggers) (solimenResp, error) {
 	body, err := json.Marshal(struct {
 		URL      string              `json:"url"`
 		Triggers models.HostTriggers `json:"triggers"`
 		Formats  []string            `json:"formats"`
-		Headers  map[string]string   `json:"headers,omitempty"`
-	}{URL: rawURL, Triggers: triggers, Formats: []string{"html"}, Headers: headers})
+	}{URL: rawURL, Triggers: triggers, Formats: []string{"html"}})
 	if err != nil {
 		return solimenResp{}, err
 	}

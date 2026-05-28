@@ -62,7 +62,7 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 	log.WithFields(logFields).Info("Fetching feed")
 
 	// Fetch items
-	items, err := scraper.Fetch(feed.URL, feed.Scraper)
+	items, err := scraper.Fetch(feed.URL)
 	if err != nil {
 		return result, fmt.Errorf("failed to fetch feed: %w", err)
 	}
@@ -157,7 +157,7 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 						}
 					}
 
-					scrapeResult, serr := solimenScrape(m.solimenAddr, article.Link, triggers, scrapers.HeadersFromParams(feed.Scraper))
+					scrapeResult, serr := solimenScrape(m.solimenAddr, article.Link, triggers)
 					if serr != nil {
 						log.WithError(serr).WithField("article", article.Id).Error("Failed to scrape article content via solimen")
 						result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", item.Title, serr))

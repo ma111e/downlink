@@ -4,11 +4,9 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"downlink/pkg/models"
 	"strings"
 	"time"
-
-	"downlink/pkg/models"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/mmcdole/gofeed"
@@ -31,12 +29,11 @@ func NewRSSFeedScraper(configSelectors *models.Selectors) *RSSFeedScraper {
 }
 
 // Fetch fetches and parses an RSS feed
-func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.FeedItem, error) {
+func (s *RSSFeedScraper) Fetch(url string) ([]models.FeedItem, error) {
 	log.WithField("url", url).Debug("Fetching RSS feed")
 
-	// Parse the feed. We issue the request ourselves (rather than ParseURL) so we
-	// can attach the Alt-Used header and any configured custom headers.
-	feed, err := s.fetchFeed(url, HeadersFromParams(params))
+	// Parse the feed
+	feed, err := s.parser.ParseURL(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse feed: %w", err)
 	}
@@ -98,36 +95,6 @@ func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.Feed
 	return items, nil
 }
 
-// fetchFeed retrieves and parses the feed. It always sends an Alt-Used header
-// advertising the target host and applies any custom headers on top.
-func (s *RSSFeedScraper) fetchFeed(url string, headers map[string]string) (*gofeed.Feed, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Alt-Used", req.URL.Host)
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	client := s.parser.Client
-	if client == nil {
-		client = http.DefaultClient
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("feed request returned status %d", resp.StatusCode)
-	}
-
-	return s.parser.Parse(resp.Body)
-}
-
 func (s *RSSFeedScraper) ScrapeContent(url string, params map[string]any) (string, error) {
 	domain := strings.Split(strings.Split(url, "://")[1], "/")[0]
 
@@ -137,21 +104,19 @@ func (s *RSSFeedScraper) ScrapeContent(url string, params map[string]any) (strin
 	var dom *goquery.Selection
 	var err error
 
-	headers := HeadersFromParams(params)
-
 	scrapingMode, _ := params["scraping"].(string)
 	if scrapingMode == "dynamic" {
 		log.WithFields(log.Fields{
 			"url":    url,
 			"method": "dynamic",
 		}).Debug("Using dynamic scraping (Playwright)")
-		dom, err = anonymizedScraper.ScrapeContentWithPlaywright(url, headers)
+		dom, err = anonymizedScraper.ScrapeContentWithPlaywright(url)
 	} else {
 		log.WithFields(log.Fields{
 			"url":    url,
 			"method": "static",
 		}).Debug("Using static scraping (HTTP)")
-		dom, err = anonymizedScraper.ScrapeContent(url, headers)
+		dom, err = anonymizedScraper.ScrapeContent(url)
 	}
 
 	if err != nil {
