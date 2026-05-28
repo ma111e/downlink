@@ -1096,8 +1096,10 @@ func fetchProviderModels(providerType string, provider models.ProviderConfig) ([
 
 	// Get the API key from provider config
 	apiKey := provider.APIKey
-	// Ollama and llama.cpp don't require an API key
-	if apiKey == "" && providerType != "ollama" && providerType != "llamacpp" {
+	// Ollama and llama.cpp don't require an API key. The cloud providers
+	// (openai/anthropic/mistral) only need a key when a custom Base URL forces
+	// the live query path — the models.dev path (no Base URL) needs none.
+	if apiKey == "" && providerType != "ollama" && providerType != "llamacpp" && provider.BaseURL != "" {
 		return nil, fmt.Errorf("api key not found for %s", providerType)
 	}
 
@@ -1108,6 +1110,9 @@ func fetchProviderModels(providerType string, provider models.ProviderConfig) ([
 	// Provider-specific configuration
 	switch providerType {
 	case "mistral":
+		if provider.BaseURL == "" {
+			return getModelsDevModelList(providerType)
+		}
 		// Set API endpoint
 		apiEndpoint = "https://api.mistral.ai/v1/models"
 		if provider.BaseURL != "" {
@@ -1193,6 +1198,9 @@ func fetchProviderModels(providerType string, provider models.ProviderConfig) ([
 		}
 
 	case "openai":
+		if provider.BaseURL == "" {
+			return getModelsDevModelList(providerType)
+		}
 		// Set API endpoint - BaseURL may be a host (https://host) or include /v1 (https://host/v1).
 		// Normalise by stripping a trailing /v1 so we can always append /v1/models.
 		apiEndpoint = "https://api.openai.com/v1/models"
@@ -1241,6 +1249,9 @@ func fetchProviderModels(providerType string, provider models.ProviderConfig) ([
 		}
 
 	case "anthropic":
+		if provider.BaseURL == "" {
+			return getModelsDevModelList(providerType)
+		}
 		// Set API base endpoint
 		apiBase := "https://api.anthropic.com/v1/models"
 		if provider.BaseURL != "" {

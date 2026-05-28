@@ -66,13 +66,13 @@ func ParseTimeString(s string) (time.Time, error) {
 	}
 
 	// Try date-only format (YYYY-MM-DD)
-	t, err = time.Parse("2006-01-02", s)
+	t, err = time.ParseInLocation("2006-01-02", s, time.Local)
 	if err == nil {
 		return t, nil
 	}
 
 	// Try date with time format (YYYY-MM-DD HH:MM:SS)
-	t, err = time.Parse("2006-01-02 15:04:05", s)
+	t, err = time.ParseInLocation("2006-01-02 15:04:05", s, time.Local)
 	if err == nil {
 		return t, nil
 	}

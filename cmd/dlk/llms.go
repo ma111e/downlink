@@ -34,15 +34,17 @@ func createModelCommands() *cobra.Command {
 				return fmt.Errorf("no providers configured — use 'model add' first")
 			}
 
-			// Show currently active provider/model
+			// Show currently active provider/model and find its index for pre-selection
+			selectedIdx := -1
 			if analysisConfig, err := client.GetAnalysisConfig(); err == nil && analysisConfig.Provider != "" {
-				for _, p := range providers {
+				for i, p := range providers {
 					if p.Name == analysisConfig.Provider {
 						if p.ModelName != "" {
 							fmt.Printf("Current: %s - %s\n", p.Name, p.ModelName)
 						} else {
 							fmt.Printf("Current: %s\n", p.Name)
 						}
+						selectedIdx = i
 						break
 					}
 				}
@@ -60,8 +62,6 @@ func createModelCommands() *cobra.Command {
 				}
 				providerOpts[i] = huh.NewOption(label, i)
 			}
-
-			selectedIdx := -1
 			flushStdin()
 			if err := huh.NewSelect[int]().
 				Title("Select LLM provider").
