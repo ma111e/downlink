@@ -138,6 +138,7 @@ func FeedConfigToProto(config *models.FeedConfig) (*protos.FeedConfig, error) {
 		Type:     config.Type,
 		Enabled:  config.Enabled,
 		Scraping: config.Scraping,
+		Headers:  config.Headers,
 	}
 
 	if config.Selectors != nil {
@@ -168,6 +169,7 @@ func FeedConfigToModel(config *protos.FeedConfig) (*models.FeedConfig, error) {
 		Type:     config.Type,
 		Enabled:  config.Enabled,
 		Scraping: config.Scraping,
+		Headers:  config.Headers,
 	}
 
 	if config.Selectors != nil {

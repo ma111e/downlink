@@ -91,24 +91,35 @@ func (s *AnonymizedScraper) anonymizeRequest(r *colly.Request) {
 		r.Headers.Set(k, v)
 	}
 
+	// Advertise the target host as the alternative service in use.
+	if r.URL != nil {
+		r.Headers.Set("Alt-Used", r.URL.Host)
+	}
+
 	// Randomize request timing to mimic human browsing behavior
 	time.Sleep(time.Duration(rand.Intn(3000)) * time.Millisecond)
 }
 
 // ScrapeContent visits the URL, processes the HTML content and returns the largest content block.
-func (s *AnonymizedScraper) ScrapeContent(url string) (dom *goquery.Selection, err error) {
+// Custom headers, when provided, are applied to the request and take precedence over the
+// anonymization defaults.
+func (s *AnonymizedScraper) ScrapeContent(url string, headers map[string]string) (dom *goquery.Selection, err error) {
 	// Process the HTML content once the body is received
 	s.Collector.OnHTML("body", func(e *colly.HTMLElement) {
 		dom = e.DOM
 	})
 
-	// Dump the request
-	// s.Collector.OnRequest(func(r *colly.Request) {
-	// 	spew.Dump(r)
-	// })
+	// Build per-request headers so the shared collector is not mutated.
+	var hdr http.Header
+	if len(headers) > 0 {
+		hdr = http.Header{}
+		for k, v := range headers {
+			hdr.Set(k, v)
+		}
+	}
 
-	// Visit the URL
-	if err := s.Collector.Visit(url); err != nil {
+	// Issue the request with the (optional) custom headers
+	if err := s.Collector.Request(http.MethodGet, url, nil, nil, hdr); err != nil {
 		log.Printf("Failed to visit %s: %v", url, err)
 		return nil, err
 	}
@@ -232,7 +243,7 @@ func (s *AnonymizedScraper) reconnectBrowser() error {
 
 // ScrapeContentWithPlaywright uses Playwright to fetch a page,
 // waiting for JavaScript to fully load before retrieving the DOM.
-func (s *AnonymizedScraper) ScrapeContentWithPlaywright(url string) (*goquery.Selection, error) {
+func (s *AnonymizedScraper) ScrapeContentWithPlaywright(url string, customHeaders map[string]string) (*goquery.Selection, error) {
 	// Initialize Playwright if not already done
 	if err := s.initPlaywright(); err != nil {
 		return nil, err
@@ -260,6 +271,14 @@ func (s *AnonymizedScraper) ScrapeContentWithPlaywright(url string) (*goquery.Se
 		"DNT":                       "1",
 		"Connection":                "keep-alive",
 		"Upgrade-Insecure-Requests": "1",
+	}
+	// Advertise the target host as the alternative service in use.
+	if host := hostFromURL(url); host != "" {
+		headers["Alt-Used"] = host
+	}
+	// Custom headers take precedence over the anonymization defaults.
+	for k, v := range customHeaders {
+		headers[k] = v
 	}
 	err = page.SetExtraHTTPHeaders(headers)
 	if err != nil {

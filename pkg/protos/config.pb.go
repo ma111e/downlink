@@ -583,6 +583,7 @@ type FeedConfig struct {
 	Scraping      string                 `protobuf:"bytes,6,opt,name=scraping,proto3" json:"scraping,omitempty"`
 	Selectors     *Selectors             `protobuf:"bytes,7,opt,name=selectors,proto3" json:"selectors,omitempty"`
 	Type          string                 `protobuf:"bytes,8,opt,name=type,proto3" json:"type,omitempty"`
+	Headers       map[string]string      `protobuf:"bytes,9,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // custom HTTP headers applied to all requests for this feed
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -671,6 +672,13 @@ func (x *FeedConfig) GetType() string {
 		return x.Type
 	}
 	return ""
+}
+
+func (x *FeedConfig) GetHeaders() map[string]string {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
 }
 
 // CodexCredentialProto carries one ChatGPT/Codex OAuth credential for round-tripping
@@ -1012,7 +1020,7 @@ const file_config_proto_rawDesc = "" +
 	"\tSelectors\x12\x18\n" +
 	"\aarticle\x18\x01 \x01(\tR\aarticle\x12\x16\n" +
 	"\x06cutoff\x18\x02 \x01(\tR\x06cutoff\x12\x1c\n" +
-	"\tblacklist\x18\x03 \x01(\tR\tblacklist\"\xb5\x03\n" +
+	"\tblacklist\x18\x03 \x01(\tR\tblacklist\"\xae\x04\n" +
 	"\n" +
 	"FeedConfig\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
@@ -1022,13 +1030,17 @@ const file_config_proto_rawDesc = "" +
 	"\aenabled\x18\x05 \x01(\bR\aenabled\x12\x1a\n" +
 	"\bscraping\x18\x06 \x01(\tR\bscraping\x121\n" +
 	"\tselectors\x18\a \x01(\v2\x13.downlink.SelectorsR\tselectors\x12\x12\n" +
-	"\x04type\x18\b \x01(\tR\x04type\x1a9\n" +
+	"\x04type\x18\b \x01(\tR\x04type\x12;\n" +
+	"\aheaders\x18\t \x03(\v2!.downlink.FeedConfig.HeadersEntryR\aheaders\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aP\n" +
 	"\fScraperEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value:\x028\x01\"\xf4\x02\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value:\x028\x01\x1a:\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf4\x02\n" +
 	"\x14CodexCredentialProto\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n" +
@@ -1081,7 +1093,7 @@ func file_config_proto_rawDescGZIP() []byte {
 	return file_config_proto_rawDescData
 }
 
-var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_config_proto_goTypes = []any{
 	(*GetConfigRequest)(nil),              // 0: downlink.GetConfigRequest
 	(*GetConfigResponse)(nil),             // 1: downlink.GetConfigResponse
@@ -1098,8 +1110,9 @@ var file_config_proto_goTypes = []any{
 	(*AnalysisConfig)(nil),                // 12: downlink.AnalysisConfig
 	nil,                                   // 13: downlink.FeedConfig.ParamsEntry
 	nil,                                   // 14: downlink.FeedConfig.ScraperEntry
-	(*anypb.Any)(nil),                     // 15: google.protobuf.Any
-	(*emptypb.Empty)(nil),                 // 16: google.protobuf.Empty
+	nil,                                   // 15: downlink.FeedConfig.HeadersEntry
+	(*anypb.Any)(nil),                     // 16: google.protobuf.Any
+	(*emptypb.Empty)(nil),                 // 17: google.protobuf.Empty
 }
 var file_config_proto_depIdxs = []int32{
 	4,  // 0: downlink.GetConfigResponse.config:type_name -> downlink.ServerConfig
@@ -1115,19 +1128,20 @@ var file_config_proto_depIdxs = []int32{
 	13, // 10: downlink.FeedConfig.params:type_name -> downlink.FeedConfig.ParamsEntry
 	14, // 11: downlink.FeedConfig.scraper:type_name -> downlink.FeedConfig.ScraperEntry
 	8,  // 12: downlink.FeedConfig.selectors:type_name -> downlink.Selectors
-	10, // 13: downlink.ProviderConfig.credentials:type_name -> downlink.CodexCredentialProto
-	15, // 14: downlink.FeedConfig.ScraperEntry.value:type_name -> google.protobuf.Any
-	0,  // 15: downlink.ServerConfigService.GetConfig:input_type -> downlink.GetConfigRequest
-	2,  // 16: downlink.ServerConfigService.SaveConfig:input_type -> downlink.SaveConfigRequest
-	3,  // 17: downlink.ServerConfigService.UpdateAnalysisConfig:input_type -> downlink.UpdateAnalysisConfigRequest
-	1,  // 18: downlink.ServerConfigService.GetConfig:output_type -> downlink.GetConfigResponse
-	16, // 19: downlink.ServerConfigService.SaveConfig:output_type -> google.protobuf.Empty
-	16, // 20: downlink.ServerConfigService.UpdateAnalysisConfig:output_type -> google.protobuf.Empty
-	18, // [18:21] is the sub-list for method output_type
-	15, // [15:18] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	15, // 13: downlink.FeedConfig.headers:type_name -> downlink.FeedConfig.HeadersEntry
+	10, // 14: downlink.ProviderConfig.credentials:type_name -> downlink.CodexCredentialProto
+	16, // 15: downlink.FeedConfig.ScraperEntry.value:type_name -> google.protobuf.Any
+	0,  // 16: downlink.ServerConfigService.GetConfig:input_type -> downlink.GetConfigRequest
+	2,  // 17: downlink.ServerConfigService.SaveConfig:input_type -> downlink.SaveConfigRequest
+	3,  // 18: downlink.ServerConfigService.UpdateAnalysisConfig:input_type -> downlink.UpdateAnalysisConfigRequest
+	1,  // 19: downlink.ServerConfigService.GetConfig:output_type -> downlink.GetConfigResponse
+	17, // 20: downlink.ServerConfigService.SaveConfig:output_type -> google.protobuf.Empty
+	17, // 21: downlink.ServerConfigService.UpdateAnalysisConfig:output_type -> google.protobuf.Empty
+	19, // [19:22] is the sub-list for method output_type
+	16, // [16:19] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_config_proto_init() }
@@ -1142,7 +1156,7 @@ func file_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_config_proto_rawDesc), len(file_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

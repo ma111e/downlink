@@ -78,7 +78,7 @@ func createModelCommands() *cobra.Command {
 			selected := providers[selectedIdx]
 
 			// Load available models for the selected provider
-			modelName := resolveModelInteractive(client, selected.Name, selected.ProviderType, selected.BaseURL)
+			modelName := resolveModelInteractive(client, selected.Name, selected.ProviderType, selected.BaseURL, selected.ModelName)
 			if modelName == "" {
 				return nil // user cancelled
 			}
@@ -492,7 +492,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 	}
 
 	// Step 4: Model selection (new provider not yet saved, so no name filter)
-	modelName := resolveModelInteractive(client, "", providerType, baseURL)
+	modelName := resolveModelInteractive(client, "", providerType, baseURL, "")
 	if modelName == "" {
 		fmt.Println("Cancelled.")
 		return
@@ -588,7 +588,8 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 
 // resolveModelInteractive fetches available models for the provider and lets the user pick one.
 // Falls back to a free-text input if the fetch fails or returns no results.
-func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName, providerType, baseURL string) string {
+// currentModel is the already-configured model name; if non-empty it is placed first in the list.
+func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName, providerType, baseURL, currentModel string) string {
 	fmt.Println("Fetching available models...")
 
 	var modelList []string
@@ -673,6 +674,17 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 		}
 	}
 
+	// Move the currently configured model to the top so it is easy to re-confirm.
+	if currentModel != "" {
+		filtered := make([]string, 0, len(modelList))
+		for _, m := range modelList {
+			if m != currentModel {
+				filtered = append(filtered, m)
+			}
+		}
+		modelList = append([]string{currentModel}, filtered...)
+	}
+
 	if len(modelList) == 1 {
 		fmt.Printf("Auto-selected model: %s\n", modelList[0])
 		return modelList[0]
@@ -685,7 +697,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 	}
 	options = append(options, huh.NewOption("Custom...", customVal))
 
-	var modelChoice string
+	modelChoice := currentModel // pre-select the active model
 	flushStdin()
 	if err := huh.NewSelect[string]().
 		Title("Model").
