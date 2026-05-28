@@ -62,20 +62,6 @@ func createModelCommands() *cobra.Command {
 				}
 				providerOpts[i] = huh.NewOption(label, i)
 			}
-			// Move the active provider to the top of the list so it is immediately visible.
-			// Option values stay equal to the original provider index, so selection and save
-			// logic below remain correct and the persisted order is unchanged.
-			if selectedIdx >= 0 {
-				active := providerOpts[selectedIdx]
-				reordered := make([]huh.Option[int], 0, len(providerOpts))
-				reordered = append(reordered, active)
-				for i, opt := range providerOpts {
-					if i != selectedIdx {
-						reordered = append(reordered, opt)
-					}
-				}
-				providerOpts = reordered
-			}
 			flushStdin()
 			if err := huh.NewSelect[int]().
 				Title("Select LLM provider").
@@ -418,7 +404,6 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 			huh.NewOption("ollama", "ollama"),
 			huh.NewOption("llamacpp", "llamacpp"),
 			huh.NewOption("openai-codex", "openai-codex"),
-			huh.NewOption("custom (OpenAI-compatible)", "custom"),
 		).
 		Value(&providerType).
 		Run(); err != nil {
@@ -500,33 +485,6 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 				}
 				return nil
 			}).
-			Run(); err != nil {
-			fmt.Println("Cancelled.")
-			return
-		}
-	case "custom":
-		flushStdin()
-		if err := huh.NewInput().
-			Title("Base URL").
-			Placeholder("e.g. https://openrouter.ai/api/v1").
-			Value(&baseURL).
-			Validate(func(s string) error {
-				if strings.TrimSpace(s) == "" {
-					return fmt.Errorf("base URL is required for a custom provider")
-				}
-				return nil
-			}).
-			Run(); err != nil {
-			fmt.Println("Cancelled.")
-			return
-		}
-		baseURL = strings.TrimSpace(baseURL)
-		flushStdin()
-		if err := huh.NewInput().
-			Title("API key").
-			Description("Leave empty if the endpoint requires no key").
-			EchoMode(huh.EchoModePassword).
-			Value(&apiKey).
 			Run(); err != nil {
 			fmt.Println("Cancelled.")
 			return
@@ -632,23 +590,6 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 // Falls back to a free-text input if the fetch fails or returns no results.
 // currentModel is the already-configured model name; if non-empty it is placed first in the list.
 func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName, providerType, baseURL, currentModel string) string {
-	// Custom providers have no discoverable model list; ask for the name directly.
-	if strings.EqualFold(providerType, "custom") {
-		modelName := currentModel
-		flushStdin()
-		_ = huh.NewInput().
-			Title("Model name").
-			Value(&modelName).
-			Validate(func(s string) error {
-				if strings.TrimSpace(s) == "" {
-					return fmt.Errorf("model name is required")
-				}
-				return nil
-			}).
-			Run()
-		return strings.TrimSpace(modelName)
-	}
-
 	fmt.Println("Fetching available models...")
 
 	var modelList []string

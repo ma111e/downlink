@@ -66,8 +66,6 @@ func New(cfg Config) (ChatModelProvider, error) {
 		return newEinoOpenAICompat(cfg, "https://api.mistral.ai/v1")
 	case "openai-codex":
 		return newCodexFromConfig(cfg)
-	case "custom":
-		return newEinoOpenAI(cfg)
 	default:
 		return newEinoOpenAI(cfg)
 	}
