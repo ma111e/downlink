@@ -1,10 +1,10 @@
 package scrapers
 
 import (
-	"bytes"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -98,16 +98,34 @@ func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.Feed
 	return items, nil
 }
 
-// fetchFeed retrieves and parses the feed through the anonymized scraper, which
-// applies User-Agent rotation, spoofed headers, and the Alt-Used header. Any custom
-// headers are sent on top.
+// fetchFeed retrieves and parses the feed. It always sends an Alt-Used header
+// advertising the target host and applies any custom headers on top.
 func (s *RSSFeedScraper) fetchFeed(url string, headers map[string]string) (*gofeed.Feed, error) {
-	anon := GetSharedAnonymizedScraper(hostFromURL(url))
-	body, err := anon.FetchBytes(url, headers)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	return s.parser.Parse(bytes.NewReader(body))
+	req.Header.Set("Alt-Used", req.URL.Host)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	client := s.parser.Client
+	if client == nil {
+		client = http.DefaultClient
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("feed request returned status %d", resp.StatusCode)
+	}
+
+	return s.parser.Parse(resp.Body)
 }
 
 func (s *RSSFeedScraper) ScrapeContent(url string, params map[string]any) (string, error) {

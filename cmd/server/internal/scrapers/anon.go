@@ -96,19 +96,13 @@ func (s *AnonymizedScraper) anonymizeRequest(r *colly.Request) {
 		r.Headers.Set("Alt-Used", r.URL.Host)
 	}
 
-	log.WithFields(log.Fields{
-		"method":  r.Method,
-		"url":     r.URL.String(),
-		"headers": r.Headers,
-	}).Debug("Sending HTTP request")
-
 	// Randomize request timing to mimic human browsing behavior
 	time.Sleep(time.Duration(rand.Intn(3000)) * time.Millisecond)
 }
 
 // ScrapeContent visits the URL, processes the HTML content and returns the largest content block.
-// Custom headers, when provided, are sent with the request; headers that collide with the
-// anonymization defaults are overwritten by anonymizeRequest.
+// Custom headers, when provided, are applied to the request and take precedence over the
+// anonymization defaults.
 func (s *AnonymizedScraper) ScrapeContent(url string, headers map[string]string) (dom *goquery.Selection, err error) {
 	// Process the HTML content once the body is received
 	s.Collector.OnHTML("body", func(e *colly.HTMLElement) {
@@ -131,31 +125,6 @@ func (s *AnonymizedScraper) ScrapeContent(url string, headers map[string]string)
 	}
 
 	return dom, nil
-}
-
-// FetchBytes performs an anonymized GET and returns the raw response body. Unlike
-// ScrapeContent it does not parse the DOM, so it suits feed payloads (RSS/Atom). The
-// User-Agent rotation, spoofed headers, and Alt-Used header are applied by anonymizeRequest.
-func (s *AnonymizedScraper) FetchBytes(url string, headers map[string]string) ([]byte, error) {
-	var body []byte
-	s.Collector.OnResponse(func(r *colly.Response) {
-		body = r.Body
-	})
-
-	// Build per-request headers so the shared collector is not mutated.
-	var hdr http.Header
-	if len(headers) > 0 {
-		hdr = http.Header{}
-		for k, v := range headers {
-			hdr.Set(k, v)
-		}
-	}
-
-	if err := s.Collector.Request(http.MethodGet, url, nil, nil, hdr); err != nil {
-		return nil, err
-	}
-
-	return body, nil
 }
 
 // initPlaywright initializes the Playwright connection to Lightpanda running in Docker.
@@ -311,13 +280,6 @@ func (s *AnonymizedScraper) ScrapeContentWithPlaywright(url string, customHeader
 	for k, v := range customHeaders {
 		headers[k] = v
 	}
-
-	log.WithFields(log.Fields{
-		"method":  "GET",
-		"url":     url,
-		"headers": headers,
-	}).Debug("Sending HTTP request (playwright)")
-
 	err = page.SetExtraHTTPHeaders(headers)
 	if err != nil {
 		log.Errorf("Failed to set extra HTTP headers: %v", err)
