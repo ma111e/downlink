@@ -81,7 +81,7 @@ func TestRenderSwipeHTMLInjectsDigestAndArticles(t *testing.T) {
 		`"comprehensiveSynthesis":"\u003cp\u003eArticle B comprehensive synthesis.\u003c/p\u003e\n"`,
 		`"keyPoints":["Article B key point"]`,
 		`"insights":["Article B insight"]`,
-		`"referencedReports":[{"title":"Article B report","url":"https://example.com/report","publisher":"Example Labs","context":"Supporting source."}]`,
+		`"referencedReports":[{"title":"Article B report","url":"https://example.com/report","publisher":"Example Labs","context":"Supporting source.","category":"","primary":false}]`,
 		`"title":"Article A"`,
 		`"priority":"SHOULD READ"`,
 		`function AnalysisTabs({ article })`,

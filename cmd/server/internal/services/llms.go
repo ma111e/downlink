@@ -257,6 +257,17 @@ func normalizeCategory(category string) string {
 	return "news"
 }
 
+// normalizeReportCategory coerces a referenced-report category into the allowed
+// set, returning "" for any unexpected value (so no pill is shown rather than a
+// fabricated one).
+func normalizeReportCategory(category string) string {
+	c := strings.ToLower(strings.TrimSpace(category))
+	if allowedCategories[c] {
+		return c
+	}
+	return ""
+}
+
 func getAnalysisTasks(contentLen int, skipCategorize bool, fastMode bool) []analysisTask {
 	if fastMode {
 		return []analysisTask{
@@ -330,10 +341,12 @@ Return ONLY the JSON object below.`,
 Only include a link when the article clearly frames it as a report/research/advisory/whitepaper/study/technical analysis from another entity.
 Do not include ordinary source links, product pages, news articles, social media posts, generic homepages, or links that are not explicitly described as research/report material.
 Exclude any sponsored, promoted, advertorial, or paid-placement content.
-For each item, capture the report title, URL, publisher/entity, and a short context sentence explaining how the article references it.
+For each item, capture the report title, URL, publisher/entity, a short context sentence explaining how the article references it, a category, and whether it is a primary source.
+Category — choose exactly ONE of: news, research, advisory, opinion, guide (same meanings as the article categories).
+primary — true if the article is based on, heavily relies on, or builds upon this report (a foundational source); otherwise false.
 If none are present, return an empty referenced_reports array.
 Return ONLY the JSON object below.`,
-			schema: `{"referenced_reports": [{"title": "<report title>", "url": "<absolute URL>", "publisher": "<publisher/entity>", "context": "<short context>"}]}`,
+			schema: `{"referenced_reports": [{"title": "<report title>", "url": "<absolute URL>", "publisher": "<publisher/entity>", "context": "<short context>", "category": "<news|research|advisory|opinion|guide>", "primary": <true|false>}]}`,
 		},
 	)
 
@@ -963,6 +976,8 @@ func referencedReportsFromResult(value any) []models.ReferencedReport {
 			URL:       stringFromObject(obj, "url"),
 			Publisher: stringFromObject(obj, "publisher"),
 			Context:   stringFromObject(obj, "context"),
+			Category:  normalizeReportCategory(stringFromObject(obj, "category")),
+			Primary:   boolFromObject(obj, "primary"),
 		}
 		if report.URL == "" {
 			report.URL = stringFromObject(obj, "URL")
@@ -982,6 +997,11 @@ func stringFromObject(obj map[string]interface{}, key string) string {
 		return ""
 	}
 	return strings.TrimSpace(value)
+}
+
+func boolFromObject(obj map[string]interface{}, key string) bool {
+	value, _ := obj[key].(bool)
+	return value
 }
 
 // storeAnalysisFromResult takes an assembled result map and persists it as an ArticleAnalysis.

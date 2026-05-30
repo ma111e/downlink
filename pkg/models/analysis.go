@@ -15,6 +15,8 @@ type ReferencedReport struct {
 	URL       string `json:"url"`
 	Publisher string `json:"publisher"`
 	Context   string `json:"context"`
+	Category  string `json:"category"`
+	Primary   bool   `json:"primary"`
 }
 
 // ArticleAnalysis represents an analysis result from an LLM provider for an article
