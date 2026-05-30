@@ -300,6 +300,7 @@ Return ONLY the JSON object below.`,
 
 Only include a link when the article clearly frames it as a report/research/advisory/whitepaper/study/technical analysis from another entity.
 Do not include ordinary source links, product pages, news articles, social media posts, generic homepages, or links that are not explicitly described as research/report material.
+Exclude any sponsored, promoted, advertorial, or paid-placement content.
 For each item, capture the report title, URL, publisher/entity, and a short context sentence explaining how the article references it.
 If none are present, return an empty referenced_reports array.
 Return ONLY the JSON object below.`,
