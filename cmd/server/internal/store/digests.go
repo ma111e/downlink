@@ -20,8 +20,8 @@ func (s *GormStore) StoreDigest(digest models.Digest) error {
 func (s *GormStore) GetDigest(id string) (models.Digest, error) {
 	var digest models.Digest
 
-	// Preload provider results
-	result := s.db.Preload("Articles").First(&digest, "id = ?", id)
+	// Preload provider results (with article tags + category for the generated digest)
+	result := s.db.Preload("Articles.Tags").Preload("Articles.Category").First(&digest, "id = ?", id)
 	if result.Error != nil {
 		return digest, fmt.Errorf("failed to get digest: %w", result.Error)
 	}

@@ -46,6 +46,8 @@ type ArticleEntry struct {
 	Source              string
 	Link                string
 	PublishedAt         string
+	Category            string   // article category (one of the fixed set), empty if unset
+	Tags                []string // entity tags (actors/tools/techniques/country/stakeholders), without '#'
 	ImportanceScore     int
 	ReadTag             string
 	DuplicateGroup      string
@@ -273,12 +275,23 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 			}
 		}
 
+		var category string
+		if art.CategoryName != nil {
+			category = *art.CategoryName
+		}
+		tags := make([]string, 0, len(art.Tags))
+		for _, t := range art.Tags {
+			tags = append(tags, t.Name)
+		}
+
 		articleEntries = append(articleEntries, ArticleEntry{
 			Id:                  art.Id,
 			Title:               articleTitle(art.Title),
 			Source:              articleSource(art.Link),
 			Link:                art.Link,
 			PublishedAt:         art.PublishedAt.Format("2006-01-02 15:04"),
+			Category:            category,
+			Tags:                tags,
 			ImportanceScore:     importanceScore,
 			ReadTag:             tag,
 			DuplicateGroup:      da.DuplicateGroup,
