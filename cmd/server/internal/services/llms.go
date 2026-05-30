@@ -236,6 +236,27 @@ func (s *LLMsServer) prepareArticleContext(articleId string) (*articleContext, e
 // %s
 // <end_of_output_format>`, actx.articleJSON, task.instruction, task.schema)
 // }
+// allowedCategories is the fixed set of categories the categorize task may assign.
+// Keep in sync with the category instruction in getAnalysisTasks and the frontend
+// CATEGORY_OPTIONS in ArticleList.vue.
+var allowedCategories = map[string]bool{
+	"news":     true,
+	"research": true,
+	"advisory": true,
+	"opinion":  true,
+	"guide":    true,
+}
+
+// normalizeCategory coerces a model-produced category into the allowed set,
+// falling back to "news" for any unexpected value.
+func normalizeCategory(category string) string {
+	c := strings.ToLower(strings.TrimSpace(category))
+	if allowedCategories[c] {
+		return c
+	}
+	return "news"
+}
+
 func getAnalysisTasks(contentLen int, skipCategorize bool, fastMode bool) []analysisTask {
 	if fastMode {
 		return []analysisTask{
@@ -256,18 +277,26 @@ Return ONLY the JSON object below.`,
 			name: "categorize",
 			instruction: `You are a cybersecurity analyst. Assign exactly one category and between 3 and 15 tags to the article.
 
-Tag priority order (high to low):
-1. Attack techniques (sandbox escape, exploitation methods, etc.)
-2. Named malware families
-3. Named threat actors
-4. CVEs
-5. Named victim organizations
-6. Named tools or software with specific vulnerabilities mentioned
+Category — choose exactly ONE of these values (lowercase, no other value allowed):
+- news: reporting on a specific incident or event
+- research: technical deep-dive, whitepaper, or vulnerability analysis
+- advisory: vendor/CERT advisory, patch, or coordinated disclosure
+- opinion: commentary, trend piece, or best-practice perspective
+- guide: tutorial, how-to, or educational material
+If unsure, use "news".
+
+Tags identify the ecosystem of the event. Extract them in this priority order (high to low):
+1. Named threat actors / groups
+2. Tools and named malware families
+3. Notable techniques (exploitation methods, sandbox escape, etc.)
+4. Country / geography involved
+5. All stakeholders of the event (victim organizations, vendors, government agencies, other affected parties)
+6. Other relevant named entities (CVEs, affected products) as relevant
 
 If covering all entities would exceed 15 tags, drop the lowest-priority ones first.
-Tags must be lowercase kebab-case prefixed with # (e.g. #ransomware, #apt29, #cve-2024-1234).
+Tags must be lowercase kebab-case prefixed with # (e.g. #lazarus, #cobalt-strike, #spearphishing, #north-korea, #defense-sector).
 Return ONLY the JSON object. Make your decision quickly: one pass through the article is sufficient. Be very careful about looping, don't loop.`,
-			schema: `{"category": "<single category>", "tags": ["#tag1", "#tag2"]}`,
+			schema: `{"category": "<news|research|advisory|opinion|guide>", "tags": ["#tag1", "#tag2"]}`,
 		})
 	}
 
@@ -1031,7 +1060,7 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 
 	var categoryName *string
 	if category, ok := result["category"].(string); ok && category != "" {
-		cat, err := store.Db.GetOrCreateCategory(category)
+		cat, err := store.Db.GetOrCreateCategory(normalizeCategory(category))
 		if err == nil {
 			categoryName = &cat.Name
 		}
