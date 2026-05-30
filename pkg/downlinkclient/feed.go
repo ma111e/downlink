@@ -65,7 +65,7 @@ func (pc *DownlinkClient) RefreshAllFeeds(onEvent func(ev *protos.RefreshAllFeed
 // RefreshAllFeedsWithTimeWindow refreshes all enabled feeds within the given time window.
 // It lists all feeds and calls RefreshFeedWithTimeWindow for each enabled feed.
 // onResult is called after each feed completes (result may be nil on error).
-func (pc *DownlinkClient) RefreshAllFeedsWithTimeWindow(from, to *time.Time, onResult func(res *protos.RefreshFeedResponse, err error)) error {
+func (pc *DownlinkClient) RefreshAllFeedsWithTimeWindow(from, to *time.Time, lastN int, onResult func(res *protos.RefreshFeedResponse, err error)) error {
 	feeds, err := pc.ListFeeds()
 	if err != nil {
 		return err
@@ -75,7 +75,7 @@ func (pc *DownlinkClient) RefreshAllFeedsWithTimeWindow(from, to *time.Time, onR
 		if feed.Enabled != nil && !*feed.Enabled {
 			continue
 		}
-		res, err := pc.RefreshFeedWithTimeWindow(feed.Id, from, to, false, false)
+		res, err := pc.RefreshFeedWithTimeWindow(feed.Id, from, to, false, false, lastN)
 		if onResult != nil {
 			onResult(res, err)
 		}
@@ -133,7 +133,7 @@ func (pc *DownlinkClient) DeleteFeeds(feedIds []string, dryRun bool) (*protos.De
 
 // RefreshFeedWithTimeWindow refreshes a specific feed with optional time window filtering.
 // Returns the per-feed stats from the server.
-func (pc *DownlinkClient) RefreshFeedWithTimeWindow(feedId string, from *time.Time, to *time.Time, overwrite bool, restore bool) (*protos.RefreshFeedResponse, error) {
+func (pc *DownlinkClient) RefreshFeedWithTimeWindow(feedId string, from *time.Time, to *time.Time, overwrite bool, restore bool, lastN int) (*protos.RefreshFeedResponse, error) {
 	req := &protos.RefreshFeedRequest{
 		FeedId:    feedId,
 		Overwrite: overwrite,
@@ -146,6 +146,10 @@ func (pc *DownlinkClient) RefreshFeedWithTimeWindow(feedId string, from *time.Ti
 
 	if to != nil {
 		req.To = timestamppb.New(*to)
+	}
+
+	if lastN > 0 {
+		req.LastN = int32(lastN)
 	}
 
 	return pc.feedsClient.RefreshFeed(pc.ctx, req)

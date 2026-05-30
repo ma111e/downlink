@@ -3,6 +3,7 @@ package manager
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -31,7 +32,7 @@ func (m *FeedManager) GetFeed(id string) (models.Feed, error) {
 // If provided, only articles with PublishedAt between from and to (inclusive) will be stored
 // If overwrite is true, existing articles will be overwritten instead of skipped
 // If restore is true, only existing articles with no content will be overwritten
-func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time, overwrite bool, restore bool) (models.FetchResult, error) {
+func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time, overwrite bool, restore bool, lastN int) (models.FetchResult, error) {
 	result := models.FetchResult{}
 
 	// Validate time window parameters
@@ -67,6 +68,14 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 		return result, fmt.Errorf("failed to fetch feed: %w", err)
 	}
 	result.TotalFetched = len(items)
+
+	// If lastN is set, keep only the N most-recently-published articles.
+	if lastN > 0 && len(items) > lastN {
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].PublishedAt.After(items[j].PublishedAt)
+		})
+		items = items[:lastN]
+	}
 
 	// Store items
 	for _, item := range items {
@@ -281,18 +290,18 @@ func (m *FeedManager) RefreshFeed(id string) (models.FetchResult, error) {
 		return models.FetchResult{}, err
 	}
 
-	return m.FetchFeed(feed, nil, nil, false, false)
+	return m.FetchFeed(feed, nil, nil, false, false, 0)
 }
 
 // RefreshFeedWithTimeWindow refreshes a feed by Id with optional time window filtering
 // from and to can be nil to disable filtering
-func (m *FeedManager) RefreshFeedWithTimeWindow(id string, from *time.Time, to *time.Time, overwrite bool, restore bool) (models.FetchResult, error) {
+func (m *FeedManager) RefreshFeedWithTimeWindow(id string, from *time.Time, to *time.Time, overwrite bool, restore bool, lastN int) (models.FetchResult, error) {
 	feed, err := m.GetFeed(id)
 	if err != nil {
 		return models.FetchResult{}, err
 	}
 
-	return m.FetchFeed(feed, from, to, overwrite, restore)
+	return m.FetchFeed(feed, from, to, overwrite, restore, lastN)
 }
 
 // UpdateFeedEnabled updates the enabled status of a feed
@@ -450,7 +459,7 @@ func (m *FeedManager) RefreshAllFeeds(wg *sync.WaitGroup) {
 	// Create a worker pool
 	for _, feed := range enabledFeeds {
 		go func(feed models.Feed) {
-			fetchResult, err := m.FetchFeed(feed, nil, nil, false, false)
+			fetchResult, err := m.FetchFeed(feed, nil, nil, false, false, 0)
 			resultCh <- models.FeedResult{
 				Feed:        feed,
 				Error:       err,

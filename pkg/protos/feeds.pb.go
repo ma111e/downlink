@@ -392,10 +392,11 @@ func (x *RefreshAllFeedsEvent) GetEventType() RefreshEventType {
 type RefreshFeedRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FeedId        string                 `protobuf:"bytes,1,opt,name=feed_id,json=feedId,proto3" json:"feed_id,omitempty"`
-	From          *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`            // Optional: start of time window
-	To            *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=to,proto3" json:"to,omitempty"`                // Optional: end of time window
-	Overwrite     bool                   `protobuf:"varint,4,opt,name=overwrite,proto3" json:"overwrite,omitempty"` // Optional: overwrite existing articles
-	Restore       bool                   `protobuf:"varint,5,opt,name=restore,proto3" json:"restore,omitempty"`     // Optional: overwrite only articles with no content
+	From          *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`                 // Optional: start of time window
+	To            *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=to,proto3" json:"to,omitempty"`                     // Optional: end of time window
+	Overwrite     bool                   `protobuf:"varint,4,opt,name=overwrite,proto3" json:"overwrite,omitempty"`      // Optional: overwrite existing articles
+	Restore       bool                   `protobuf:"varint,5,opt,name=restore,proto3" json:"restore,omitempty"`          // Optional: overwrite only articles with no content
+	LastN         int32                  `protobuf:"varint,6,opt,name=last_n,json=lastN,proto3" json:"last_n,omitempty"` // Optional: keep only the N most-recently-published articles
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -463,6 +464,13 @@ func (x *RefreshFeedRequest) GetRestore() bool {
 		return x.Restore
 	}
 	return false
+}
+
+func (x *RefreshFeedRequest) GetLastN() int32 {
+	if x != nil {
+		return x.LastN
+	}
+	return 0
 }
 
 // DeleteFeedRequest is the request for the DeleteFeed method
@@ -1112,13 +1120,14 @@ const file_feeds_proto_rawDesc = "" +
 	"\tcompleted\x18\x02 \x01(\x05R\tcompleted\x12\x14\n" +
 	"\x05total\x18\x03 \x01(\x05R\x05total\x129\n" +
 	"\n" +
-	"event_type\x18\x04 \x01(\x0e2\x1a.downlink.RefreshEventTypeR\teventType\"\xc1\x01\n" +
+	"event_type\x18\x04 \x01(\x0e2\x1a.downlink.RefreshEventTypeR\teventType\"\xd8\x01\n" +
 	"\x12RefreshFeedRequest\x12\x17\n" +
 	"\afeed_id\x18\x01 \x01(\tR\x06feedId\x12.\n" +
 	"\x04from\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x04from\x12*\n" +
 	"\x02to\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02to\x12\x1c\n" +
 	"\toverwrite\x18\x04 \x01(\bR\toverwrite\x12\x18\n" +
-	"\arestore\x18\x05 \x01(\bR\arestore\",\n" +
+	"\arestore\x18\x05 \x01(\bR\arestore\x12\x15\n" +
+	"\x06last_n\x18\x06 \x01(\x05R\x05lastN\",\n" +
 	"\x11DeleteFeedRequest\x12\x17\n" +
 	"\afeed_id\x18\x01 \x01(\tR\x06feedId\"\x9a\x01\n" +
 	"\x11ApplyFeedsRequest\x12*\n" +

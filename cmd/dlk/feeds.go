@@ -142,7 +142,7 @@ func (d *progressDisplay) printErrors() {
 // given time window, rendering live progress and printing a summary line. It
 // returns an error only when the feed list itself cannot be fetched; per-feed
 // scrape failures are surfaced through the progress display.
-func refreshAllFeedsWithWindow(client *downlinkclient.DownlinkClient, fromTime, toTime *time.Time, overwrite, restore bool) error {
+func refreshAllFeedsWithWindow(client *downlinkclient.DownlinkClient, fromTime, toTime *time.Time, overwrite, restore bool, lastN int) error {
 	feeds, err := client.ListFeeds()
 	if err != nil {
 		return fmt.Errorf("failed to list feeds: %w", err)
@@ -171,7 +171,7 @@ func refreshAllFeedsWithWindow(client *downlinkclient.DownlinkClient, fromTime, 
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			resp, err := client.RefreshFeedWithTimeWindow(feed.Id, fromTime, toTime, overwrite, restore)
+			resp, err := client.RefreshFeedWithTimeWindow(feed.Id, fromTime, toTime, overwrite, restore, lastN)
 			if err != nil {
 				display.completeFeed(&protos.RefreshFeedResponse{
 					FeedId:    feed.Id,
@@ -309,6 +309,7 @@ func createFeedCommands() *cobra.Command {
 	// Refresh feeds command
 	var fromStr, toStr, betweenStr string
 	var overwrite, restore, refreshDryRun, refreshDebug bool
+	var lastN int
 	refreshCmd := &cobra.Command{
 		Use:   "refresh [feed-id-or-name|all]",
 		Short: "Refresh feeds",
@@ -338,12 +339,19 @@ Examples:
   downlink-cli feeds refresh all                      # Refresh all feeds
   downlink-cli feeds refresh tech-news --from 7d       # Articles from last 7 days
   downlink-cli feeds refresh "My Feed" --from 2025-01-01  # Articles from Jan 1, 2025
-  downlink-cli feeds refresh feed-123 --from 1d --to now  # Articles from last 24 hours`,
+  downlink-cli feeds refresh feed-123 --from 1d --to now  # Articles from last 24 hours
+  downlink-cli feeds refresh my-feed --last-n 10      # 10 most recent articles
+  downlink-cli feeds refresh all --last-n 5           # 5 most recent articles per feed`,
 		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			fromTime, toTime, err := parseTimeWindow(fromStr, toStr, betweenStr, nil)
 			if err != nil {
 				fmt.Println(err)
+				return
+			}
+
+			if lastN > 0 && (fromTime != nil || toTime != nil) {
+				fmt.Println("Error: --last-n cannot be combined with --from, --to, or --between")
 				return
 			}
 
@@ -397,7 +405,7 @@ Examples:
 					return
 				}
 
-				resp, err := client.RefreshFeedWithTimeWindow(feedId, fromTime, toTime, overwrite, restore)
+				resp, err := client.RefreshFeedWithTimeWindow(feedId, fromTime, toTime, overwrite, restore, lastN)
 				if err != nil {
 					fmt.Printf("Failed to refresh feed %s: %v\n", feedTitle, err)
 					return
@@ -422,7 +430,7 @@ Examples:
 					fmt.Println("Cancelled.")
 					return
 				}
-				resp, err := client.RefreshFeedWithTimeWindow(feed.Id, fromTime, toTime, overwrite, restore)
+				resp, err := client.RefreshFeedWithTimeWindow(feed.Id, fromTime, toTime, overwrite, restore, lastN)
 				if err != nil {
 					fmt.Printf("Failed to refresh feed %s: %v\n", feed.Title, err)
 					return
@@ -439,8 +447,8 @@ Examples:
 				return
 			} else {
 				// Refresh all feeds (args[0] == "all")
-				// If time window filtering is requested, refresh each feed individually with the filter
-				if fromTime != nil || toTime != nil {
+				// If time window or last-n filtering is requested, refresh each feed individually with the filter
+				if fromTime != nil || toTime != nil || lastN > 0 {
 					// Dry-run mode: just list feeds that would be refreshed
 					if refreshDryRun {
 						feeds, err := client.ListFeeds()
@@ -486,7 +494,7 @@ Examples:
 						return
 					}
 
-					if err := refreshAllFeedsWithWindow(client, fromTime, toTime, overwrite, restore); err != nil {
+					if err := refreshAllFeedsWithWindow(client, fromTime, toTime, overwrite, restore, lastN); err != nil {
 						fmt.Println(err)
 						return
 					}
@@ -567,6 +575,7 @@ Examples:
 	refreshCmd.Flags().BoolVar(&restore, "restore", false, "Overwrite existing articles that have no content")
 	refreshCmd.Flags().BoolVar(&refreshDryRun, "dry-run", false, "Preview matching articles without refreshing")
 	refreshCmd.Flags().BoolVar(&refreshDebug, "debug", false, "With --dry-run: show first and last 10 lines of each article's content")
+	refreshCmd.Flags().IntVar(&lastN, "last-n", 0, "Keep only the N most-recently-published articles (mutually exclusive with --from/--to/--between)")
 
 	// Apply feeds command
 	applyCmd := &cobra.Command{

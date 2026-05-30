@@ -262,7 +262,7 @@ Examples:
 				} else {
 					fmt.Printf("Refreshing feeds from %s to %s...\n",
 						fromTime.Format("2006-01-02 15:04:05"), toTimeVal.Format("2006-01-02 15:04:05"))
-					if err := refreshAllFeedsWithWindow(client, fromTime, &toTimeVal, false, false); err != nil {
+					if err := refreshAllFeedsWithWindow(client, fromTime, &toTimeVal, false, false, 0); err != nil {
 						fmt.Println(err)
 						return
 					}

@@ -97,7 +97,7 @@ func (s *FeedsServer) RefreshAllFeeds(req *protos.RefreshAllFeedsRequest, stream
 			return err
 		}
 		go func(f models.Feed) {
-			fr, err := manager.Manager.RefreshFeedWithTimeWindow(f.Id, nil, nil, false, false)
+			fr, err := manager.Manager.RefreshFeedWithTimeWindow(f.Id, nil, nil, false, false, 0)
 			resultCh <- feedEvent{feed: f, fetchResult: fr, err: err}
 		}(feed)
 	}
@@ -144,7 +144,7 @@ func (s *FeedsServer) RefreshFeed(ctx context.Context, req *protos.RefreshFeedRe
 	}
 	log.WithFields(logFields).Info("Refreshing feed")
 
-	fetchResult, err := manager.Manager.RefreshFeedWithTimeWindow(req.FeedId, fromTime, toTime, req.Overwrite, req.Restore)
+	fetchResult, err := manager.Manager.RefreshFeedWithTimeWindow(req.FeedId, fromTime, toTime, req.Overwrite, req.Restore, int(req.LastN))
 	if err != nil {
 		log.WithError(err).WithField("feed_id", req.FeedId).Error("Failed to refresh feed")
 		return nil, err
