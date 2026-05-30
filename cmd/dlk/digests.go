@@ -481,24 +481,14 @@ Examples:
 func newDigestProgressHandler(prog *batchProgress) func(*protos.DigestProgressEvent) {
 	var (
 		total     uint32
-		started   uint32
-		completed uint32
+		started   int
+		completed int
 		// Ordered list of article IDs as they begin, so new article rows
 		// are inserted in deterministic order beneath the "analyze" header.
-		articleOrder []string
-		articleSeen  = map[string]bool{}
+		articleOrder     []string
+		articleSeen      = map[string]bool{}
+		articleCompleted = map[string]bool{}
 	)
-
-	updateAnalyzeHeader := func() {
-		var label string
-		if total > 0 {
-			inFlight := started - completed
-			label = fmt.Sprintf("analyzing [%d/%d, %d in parallel]", completed, total, inFlight)
-		} else {
-			label = "analyzing articles"
-		}
-		prog.updateRow("analyze", label)
-	}
 
 	articleRowId := func(articleId string) string { return "analyze:art:" + articleId }
 	// Row format: "      └ <title> · <task> (N/M)" (~8 chars of indent/glyph).
@@ -515,6 +505,44 @@ func newDigestProgressHandler(prog *batchProgress) func(*protos.DigestProgressEv
 		return t
 	}
 
+	ensureArticleStarted := func(articleId, articleTitle string) {
+		if articleSeen[articleId] {
+			return
+		}
+		articleSeen[articleId] = true
+		articleOrder = append(articleOrder, articleId)
+		started++
+		afterKey := "analyze"
+		if len(articleOrder) > 1 {
+			afterKey = articleRowId(articleOrder[len(articleOrder)-2])
+		}
+		prog.insertRowAfter(afterKey, articleRowId(articleId),
+			fmt.Sprintf("      └ %s", shortTitle(articleTitle)))
+	}
+
+	markArticleCompleted := func(articleId string) bool {
+		if articleCompleted[articleId] {
+			return false
+		}
+		articleCompleted[articleId] = true
+		completed++
+		return true
+	}
+
+	updateAnalyzeHeader := func() {
+		var label string
+		if total > 0 {
+			inFlight := started - completed
+			if inFlight < 0 {
+				inFlight = 0
+			}
+			label = fmt.Sprintf("analyzing [%d/%d, %d in parallel]", completed, total, inFlight)
+		} else {
+			label = "analyzing articles"
+		}
+		prog.updateRow("analyze", label)
+	}
+
 	return func(ev *protos.DigestProgressEvent) {
 		switch ev.Stage {
 		case "fetch":
@@ -527,18 +555,8 @@ func newDigestProgressHandler(prog *batchProgress) func(*protos.DigestProgressEv
 			if ev.Total > 0 {
 				total = ev.Total
 			}
-			if ev.ArticleId != "" && !articleSeen[ev.ArticleId] {
-				articleSeen[ev.ArticleId] = true
-				articleOrder = append(articleOrder, ev.ArticleId)
-				started++
-				// Insert the article's row right after "analyze" (or after the
-				// last article row we inserted, to preserve start-order).
-				afterKey := "analyze"
-				if len(articleOrder) > 1 {
-					afterKey = articleRowId(articleOrder[len(articleOrder)-2])
-				}
-				prog.insertRowAfter(afterKey, articleRowId(ev.ArticleId),
-					fmt.Sprintf("      └ %s", shortTitle(ev.ArticleTitle)))
+			if ev.ArticleId != "" {
+				ensureArticleStarted(ev.ArticleId, ev.ArticleTitle)
 			}
 			updateAnalyzeHeader()
 		case "analyze_task":
@@ -556,19 +574,22 @@ func newDigestProgressHandler(prog *batchProgress) func(*protos.DigestProgressEv
 					// Last task for this article: mark the row done.
 					prog.updateRow(rowId, fmt.Sprintf("      └ %s", title))
 					prog.completeRow(rowId, true, "")
-					completed++
-					updateAnalyzeHeader()
-					if completed == total && total > 0 {
-						prog.completeRow("analyze", true, fmt.Sprintf("%d articles", total))
+					if markArticleCompleted(ev.ArticleId) {
+						updateAnalyzeHeader()
+						if completed == int(total) && total > 0 {
+							prog.completeRow("analyze", true, fmt.Sprintf("%d articles", total))
+						}
 					}
 				} else {
 					prog.updateRow(rowId,
 						fmt.Sprintf("      └ %s · %s done", title, ev.TaskName))
 				}
 			case "error":
+				ensureArticleStarted(ev.ArticleId, ev.ArticleTitle)
 				prog.completeRow(rowId, false, fmt.Sprintf("%s: %s", title, ev.Error))
-				completed++
-				updateAnalyzeHeader()
+				if markArticleCompleted(ev.ArticleId) {
+					updateAnalyzeHeader()
+				}
 			}
 		case "dedupe":
 			prog.showRow("dedupe")
