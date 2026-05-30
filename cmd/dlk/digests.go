@@ -6,6 +6,7 @@ import (
 	"downlink/pkg/downlinkclient"
 	"downlink/pkg/models"
 	"downlink/pkg/protos"
+	"downlink/pkg/utils"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -134,7 +135,7 @@ func createDigestCommands() *cobra.Command {
 	getCmd.Flags().BoolVar(&showMarkdown, "markdown", false, "Display summary in styled markdown format")
 
 	// Generate digest command
-	var digestFrom, digestTo, digestBetween, digestTheme, digestTestID string
+	var digestFrom, digestTo, digestBetween, digestDay, digestTheme, digestTestID string
 	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages, digestReanalyzeOnModelChange bool
 	generateCmd := &cobra.Command{
 		Use:   "generate",
@@ -146,7 +147,9 @@ Examples:
   downlink-cli digest generate --from -7d           # Last 7 days
   downlink-cli digest generate --from -2h           # Last 2 hours
   downlink-cli digest generate --from 2025-01-01    # From specific date
-  downlink-cli digest generate --from -7d --to -1d  # Between 7 days and 1 day ago`,
+  downlink-cli digest generate --from -7d --to -1d  # Between 7 days and 1 day ago
+  downlink-cli digest generate --day 2025-01-15     # Single UTC day (midnight to midnight)
+  downlink-cli digest generate --day yesterday      # Yesterday in UTC`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if digestGHPages && digestNoGHPages {
 				fmt.Println("Error: --gh-pages and --no-gh-pages are mutually exclusive")
@@ -215,21 +218,37 @@ Examples:
 				return
 			}
 
-			defaultFrom := time.Now().Add(-24 * time.Hour)
-			fromTime, toTime, err := parseTimeWindow(digestFrom, digestTo, digestBetween, &defaultFrom)
-			if err != nil {
-				fmt.Println(err)
-				return
+			var fromTime *time.Time
+			var toTimeVal time.Time
+
+			if digestDay != "" {
+				if digestFrom != "" || digestTo != "" || digestBetween != "" {
+					fmt.Println("Error: --day cannot be combined with --from, --to, or --between")
+					return
+				}
+				start, end, err := utils.ParseDayUTC(digestDay)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				fromTime = &start
+				toTimeVal = end
+			} else {
+				defaultFrom := time.Now().Add(-24 * time.Hour)
+				ft, toTime, err := parseTimeWindow(digestFrom, digestTo, digestBetween, &defaultFrom)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				fromTime = ft
+				if toTime != nil {
+					toTimeVal = *toTime
+				} else {
+					toTimeVal = time.Now()
+				}
 			}
 
 			// Calculate hours from time window
-			var toTimeVal time.Time
-			if toTime != nil {
-				toTimeVal = *toTime
-			} else {
-				toTimeVal = time.Now()
-			}
-
 			hours := int(toTimeVal.Sub(*fromTime).Hours())
 			if hours < 1 {
 				hours = 1 // Minimum 1 hour
@@ -346,13 +365,13 @@ Examples:
 
 			handler := newDigestProgressHandler(prog)
 			digest, err := client.GenerateDigestWithOptions(ctx, downlinkclient.GenerateDigestOptions{
-				StartTime:       *fromTime,
-				EndTime:         toTimeVal,
-				SkipAnalysis:    skipAnalysis,
-				SkipDuplicates:  skipDuplicates,
-				ExcludeDigested: excludeDigested,
-				SkipSummary:     skipSummary,
-				Theme:           digestTheme,
+				StartTime:              *fromTime,
+				EndTime:                toTimeVal,
+				SkipAnalysis:           skipAnalysis,
+				SkipDuplicates:         skipDuplicates,
+				ExcludeDigested:        excludeDigested,
+				SkipSummary:            skipSummary,
+				Theme:                  digestTheme,
 				OneShotAnalysis:        oneShotAnalysis,
 				GHPagesEnabled:         ghPagesEnabled,
 				ReanalyzeOnModelChange: digestReanalyzeOnModelChange,
@@ -384,6 +403,7 @@ Examples:
 	generateCmd.Flags().StringVar(&digestFrom, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '-24h' — default: -24h)")
 	generateCmd.Flags().StringVar(&digestTo, "to", "", "End of time window (e.g., 'now', '2025-01-01', '-1h')")
 	generateCmd.Flags().StringVar(&digestBetween, "between", "", "Filter articles between two dates/durations (e.g., '-7d,-1d', '2025-01-01,2025-01-07')")
+	generateCmd.Flags().StringVar(&digestDay, "day", "", "Select a single day, midnight-to-midnight UTC (YYYY-MM-DD, 'today', or 'yesterday'). Mutually exclusive with --from/--to/--between")
 	generateCmd.Flags().BoolVar(&digestDryRun, "dry-run", false, "List matching articles without generating digest")
 	generateCmd.Flags().BoolVar(&digestRefreshFeeds, "refresh-feeds", false, "Refresh all feeds over the same time window before generating the digest")
 	generateCmd.Flags().Bool("skip-llm", false, "Skip all LLM usage (analysis, duplicate detection, and summary)")
