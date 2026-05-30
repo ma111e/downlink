@@ -20,8 +20,6 @@ type swipeArticle struct {
 	Time                   string                    `json:"time"`
 	Priority               string                    `json:"priority"`
 	Score                  int                       `json:"score"`
-	Group                  *string                   `json:"group"`
-	GroupColor             *string                   `json:"groupColor"`
 	Tldr                   string                    `json:"tldr"`
 	BriefOverview          string                    `json:"briefOverview"`
 	StandardSynthesis      string                    `json:"standardSynthesis"`
@@ -105,14 +103,6 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string) ([]byte, error
 		tag := readTag(score)
 		srcDomain := articleSource(art.Link)
 
-		var group, groupColor *string
-		if da.DuplicateGroup != "" {
-			g := dupGroupLetter(da.DuplicateGroup)
-			c := paletteColor(da.DuplicateGroup)
-			group = &g
-			groupColor = &c
-		}
-
 		articles = append(articles, swipeArticle{
 			N:                      i + 1,
 			Title:                  articleTitle(art.Title),
@@ -122,8 +112,6 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string) ([]byte, error
 			Time:                   art.PublishedAt.Format("15:04"),
 			Priority:               swipePriorityLabel(tag),
 			Score:                  score,
-			Group:                  group,
-			GroupColor:             groupColor,
 			Tldr:                   tldr,
 			BriefOverview:          briefOverview,
 			StandardSynthesis:      standardSynthesis,
