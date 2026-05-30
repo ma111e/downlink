@@ -74,6 +74,16 @@ func NewAnonymizedScraper(domain string) *AnonymizedScraper {
 		scraper.anonymizeRequest(r)
 	})
 
+	// Overlay per-request custom headers (carried in colly.Context) after the
+	// anonymization step so caller-supplied headers win over the anon profile.
+	c.OnRequest(func(r *colly.Request) {
+		if custom, ok := r.Ctx.GetAny(customHeadersKey).(map[string]string); ok {
+			for k, v := range custom {
+				r.Headers.Set(k, v)
+			}
+		}
+	})
+
 	return scraper
 }
 
@@ -90,6 +100,23 @@ func (s *AnonymizedScraper) HTTPClient() *http.Client {
 		Timeout: 60 * time.Second,
 	}
 }
+
+// headersCtxKey carries caller-supplied custom HTTP headers through a request's
+// context so anonRoundTripper can overlay them after the anon profile.
+type headersCtxKey struct{}
+
+// contextWithHeaders attaches custom HTTP headers to ctx. anonRoundTripper applies
+// them last, so they take precedence over the anon profile (custom headers win).
+func contextWithHeaders(ctx context.Context, headers map[string]string) context.Context {
+	if len(headers) == 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, headersCtxKey{}, headers)
+}
+
+// customHeadersKey is the colly.Context key under which per-request custom headers
+// are carried so they can be overlaid after anonymizeRequest (custom headers win).
+const customHeadersKey = "customHeaders"
 
 // anonRoundTripper applies the anon profile to every outbound request before
 // delegating to a base RoundTripper. Because it runs at the transport layer it
@@ -117,6 +144,17 @@ func (t *anonRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 		r.Header.Set("Alt-Used", r.URL.Host)
 	}
 
+	// Overlay caller-supplied custom headers last so they win over the profile.
+	// Accept-Encoding is skipped: Go's transport must own it (no brotli support).
+	if custom, ok := r.Context().Value(headersCtxKey{}).(map[string]string); ok {
+		for k, v := range custom {
+			if http.CanonicalHeaderKey(k) == "Accept-Encoding" {
+				continue
+			}
+			r.Header.Set(k, v)
+		}
+	}
+
 	return t.base.RoundTrip(r)
 }
 
@@ -142,20 +180,23 @@ func (s *AnonymizedScraper) anonymizeRequest(r *colly.Request) {
 	time.Sleep(time.Duration(rand.Intn(3000)) * time.Millisecond)
 }
 
-// ScrapeContent visits the URL, processes the HTML content and returns the largest content block.
-func (s *AnonymizedScraper) ScrapeContent(url string) (dom *goquery.Selection, err error) {
+// ScrapeContent visits the URL, processes the HTML content and returns the largest
+// content block. Custom headers, when provided, are carried via colly.Context and
+// overlaid after the anon profile so they take precedence (custom headers win).
+func (s *AnonymizedScraper) ScrapeContent(url string, headers map[string]string) (dom *goquery.Selection, err error) {
 	// Process the HTML content once the body is received
 	s.Collector.OnHTML("body", func(e *colly.HTMLElement) {
 		dom = e.DOM
 	})
 
-	// Dump the request
-	// s.Collector.OnRequest(func(r *colly.Request) {
-	// 	spew.Dump(r)
-	// })
+	// Carry custom headers out-of-band so the overlay handler can apply them after
+	// anonymizeRequest. Same GET/redirect/allow-list semantics as Visit.
+	ctx := colly.NewContext()
+	if len(headers) > 0 {
+		ctx.Put(customHeadersKey, headers)
+	}
 
-	// Visit the URL
-	if err := s.Collector.Visit(url); err != nil {
+	if err := s.Collector.Request(http.MethodGet, url, nil, ctx, nil); err != nil {
 		log.Printf("Failed to visit %s: %v", url, err)
 		return nil, err
 	}
@@ -279,7 +320,8 @@ func (s *AnonymizedScraper) reconnectBrowser() error {
 
 // ScrapeContentWithPlaywright uses Playwright to fetch a page,
 // waiting for JavaScript to fully load before retrieving the DOM.
-func (s *AnonymizedScraper) ScrapeContentWithPlaywright(url string) (*goquery.Selection, error) {
+// Custom headers, when provided, are overlaid after the anon profile (custom wins).
+func (s *AnonymizedScraper) ScrapeContentWithPlaywright(url string, customHeaders map[string]string) (*goquery.Selection, error) {
 	// Initialize Playwright if not already done
 	if err := s.initPlaywright(); err != nil {
 		return nil, err
@@ -307,6 +349,10 @@ func (s *AnonymizedScraper) ScrapeContentWithPlaywright(url string) (*goquery.Se
 		"DNT":                       "1",
 		"Connection":                "keep-alive",
 		"Upgrade-Insecure-Requests": "1",
+	}
+	// Overlay caller-supplied custom headers last so they win over the profile.
+	for k, v := range customHeaders {
+		headers[k] = v
 	}
 	err = page.SetExtraHTTPHeaders(headers)
 	if err != nil {

@@ -1,12 +1,14 @@
 package scrapers
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"downlink/pkg/models"
 	"strings"
 	"time"
+
+	"downlink/pkg/models"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/mmcdole/gofeed"
@@ -36,11 +38,19 @@ func NewRSSFeedScraper(configSelectors *models.Selectors) *RSSFeedScraper {
 }
 
 // Fetch fetches and parses an RSS feed
-func (s *RSSFeedScraper) Fetch(url string) ([]models.FeedItem, error) {
+func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.FeedItem, error) {
 	log.WithField("url", url).Debug("Fetching RSS feed")
 
-	// Parse the feed
-	feed, err := s.parser.ParseURL(url)
+	// Parse the feed through the anon HTTP client. Any per-feed custom headers are
+	// carried via the request context so the transport overlays them after the anon
+	// profile (custom headers win).
+	var feed *gofeed.Feed
+	var err error
+	if headers := HeadersFromParams(params); len(headers) > 0 {
+		feed, err = s.parser.ParseURLWithContext(url, contextWithHeaders(context.Background(), headers))
+	} else {
+		feed, err = s.parser.ParseURL(url)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse feed: %w", err)
 	}
@@ -111,19 +121,21 @@ func (s *RSSFeedScraper) ScrapeContent(url string, params map[string]any) (strin
 	var dom *goquery.Selection
 	var err error
 
+	headers := HeadersFromParams(params)
+
 	scrapingMode, _ := params["scraping"].(string)
 	if scrapingMode == "dynamic" {
 		log.WithFields(log.Fields{
 			"url":    url,
 			"method": "dynamic",
 		}).Debug("Using dynamic scraping (Playwright)")
-		dom, err = anonymizedScraper.ScrapeContentWithPlaywright(url)
+		dom, err = anonymizedScraper.ScrapeContentWithPlaywright(url, headers)
 	} else {
 		log.WithFields(log.Fields{
 			"url":    url,
 			"method": "static",
 		}).Debug("Using static scraping (HTTP)")
-		dom, err = anonymizedScraper.ScrapeContent(url)
+		dom, err = anonymizedScraper.ScrapeContent(url, headers)
 	}
 
 	if err != nil {

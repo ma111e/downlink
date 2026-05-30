@@ -62,7 +62,7 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 	log.WithFields(logFields).Info("Fetching feed")
 
 	// Fetch items
-	items, err := scraper.Fetch(feed.URL)
+	items, err := scraper.Fetch(feed.URL, feed.Scraper)
 	if err != nil {
 		return result, fmt.Errorf("failed to fetch feed: %w", err)
 	}
