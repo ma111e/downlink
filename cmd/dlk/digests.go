@@ -144,10 +144,10 @@ func createDigestCommands() *cobra.Command {
 
 Examples:
   downlink-cli digest generate                      # Last 24 hours (default)
-  downlink-cli digest generate --from -7d           # Last 7 days
-  downlink-cli digest generate --from -2h           # Last 2 hours
+  downlink-cli digest generate --from 7d             # Last 7 days
+  downlink-cli digest generate --from 2h             # Last 2 hours
   downlink-cli digest generate --from 2025-01-01    # From specific date
-  downlink-cli digest generate --from -7d --to -1d  # Between 7 days and 1 day ago
+  downlink-cli digest generate --from 7d --to 1d    # Between 7 days and 1 day ago
   downlink-cli digest generate --day 2025-01-15     # Single UTC day (midnight to midnight)
   downlink-cli digest generate --day yesterday      # Yesterday in UTC`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -400,9 +400,9 @@ Examples:
 	}
 
 	// Add flags for generate command
-	generateCmd.Flags().StringVar(&digestFrom, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '-24h' — default: -24h)")
-	generateCmd.Flags().StringVar(&digestTo, "to", "", "End of time window (e.g., 'now', '2025-01-01', '-1h')")
-	generateCmd.Flags().StringVar(&digestBetween, "between", "", "Filter articles between two dates/durations (e.g., '-7d,-1d', '2025-01-01,2025-01-07')")
+	generateCmd.Flags().StringVar(&digestFrom, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '24h' — default: 24h)")
+	generateCmd.Flags().StringVar(&digestTo, "to", "", "End of time window (e.g., 'now', '2025-01-01', '1h')")
+	generateCmd.Flags().StringVar(&digestBetween, "between", "", "Filter articles between two dates/durations (e.g., '7d,1d', '2025-01-01,2025-01-07')")
 	generateCmd.Flags().StringVar(&digestDay, "day", "", "Select a single day, midnight-to-midnight UTC (YYYY-MM-DD, 'today', or 'yesterday'). Mutually exclusive with --from/--to/--between")
 	generateCmd.Flags().BoolVar(&digestDryRun, "dry-run", false, "List matching articles without generating digest")
 	generateCmd.Flags().BoolVar(&digestRefreshFeeds, "refresh-feeds", false, "Refresh all feeds over the same time window before generating the digest")

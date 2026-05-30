@@ -78,10 +78,10 @@ Batch Analysis by Feed/Time:
   downlink-cli analysis run                        # Analyze all articles
   downlink-cli analysis run my-feed                # Analyze articles from a feed
   downlink-cli analysis run all                    # Explicitly analyze all articles
-  downlink-cli analysis run --from -7d             # Analyze articles from last 7 days
-  downlink-cli analysis run my-feed --from -1d    # Analyze feed articles from last 24h
-  downlink-cli analysis run --from -7d --key-points-only # Key points only for last 7 days
-  downlink-cli analysis run --dry-run --from -7d  # Preview matching articles`,
+  downlink-cli analysis run --from 7d              # Analyze articles from last 7 days
+  downlink-cli analysis run my-feed --from 1d     # Analyze feed articles from last 24h
+  downlink-cli analysis run --from 7d --key-points-only # Key points only for last 7 days
+  downlink-cli analysis run --dry-run --from 7d   # Preview matching articles`,
 		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
@@ -395,9 +395,9 @@ Batch Analysis by Feed/Time:
 	analyzeCmd.Flags().StringVarP(&modelName, "model", "m", "", "Override model name")
 	analyzeCmd.Flags().StringSliceVar(&profileNames, "profile", nil, "LLM profile name(s) to use (comma-separated or repeated). Cannot be combined with --provider/--model.")
 	analyzeCmd.Flags().BoolVar(&runSelectModel, "select-model", false, "Interactively select a model for the provider (requires --provider)")
-	analyzeCmd.Flags().StringVar(&runFrom, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '-7d')")
-	analyzeCmd.Flags().StringVar(&runTo, "to", "", "End of time window (e.g., 'now', '2025-01-01', '-1h')")
-	analyzeCmd.Flags().StringVar(&runBetween, "between", "", "Filter articles between two dates/durations (e.g., '-7d,-1d', '2025-01-01,2025-01-07')")
+	analyzeCmd.Flags().StringVar(&runFrom, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '7d')")
+	analyzeCmd.Flags().StringVar(&runTo, "to", "", "End of time window (e.g., 'now', '2025-01-01', '1h')")
+	analyzeCmd.Flags().StringVar(&runBetween, "between", "", "Filter articles between two dates/durations (e.g., '7d,1d', '2025-01-01,2025-01-07')")
 	analyzeCmd.Flags().BoolVar(&runDryRun, "dry-run", false, "List matching articles without analyzing")
 	analyzeCmd.Flags().BoolVar(&runKeyPointsOnly, "key-points-only", false, "Extract only key points, skip other analysis")
 	analyzeCmd.Flags().BoolVar(&runAllTime, "all-time", false, "Analyze articles from all time (no time window restriction)")

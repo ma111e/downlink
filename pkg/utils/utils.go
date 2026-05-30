@@ -12,7 +12,7 @@ import (
 //   - "now" - current time
 //   - RFC3339: "2006-01-02T15:04:05Z07:00"
 //   - Date: "2006-01-02"
-//   - Relative: "-7d", "-2h", "-30m" (days, hours, minutes ago)
+//   - Relative: "7d", "2h", "30m" or "-7d", "-2h", "-30m" (days, hours, minutes ago)
 func ParseTimeString(s string) (time.Time, error) {
 	s = strings.TrimSpace(s)
 
@@ -21,17 +21,19 @@ func ParseTimeString(s string) (time.Time, error) {
 		return time.Now(), nil
 	}
 
-	// Handle relative time (e.g., "-7d", "-2h", "-30m")
-	if strings.HasPrefix(s, "-") {
-		// Parse relative duration
-		durationStr := s[1:] // Remove the "-"
+	// Handle relative time (e.g., "7d", "-2h", "30m")
+	durationStr := strings.TrimPrefix(s, "-")
+	isRelative := durationStr != s || // had a leading "-"
+		strings.HasSuffix(s, "d") ||
+		strings.HasSuffix(s, "h") ||
+		strings.HasSuffix(s, "m") ||
+		strings.HasSuffix(s, "s")
 
+	if isRelative {
 		var duration time.Duration
 		var err error
 
-		// Check the suffix
 		if strings.HasSuffix(durationStr, "d") {
-			// Days
 			days := durationStr[:len(durationStr)-1]
 			var daysInt int
 			_, err = fmt.Sscanf(days, "%d", &daysInt)
@@ -40,13 +42,10 @@ func ParseTimeString(s string) (time.Time, error) {
 			}
 			duration = time.Duration(daysInt) * 24 * time.Hour
 		} else if strings.HasSuffix(durationStr, "h") {
-			// Hours
 			duration, err = time.ParseDuration(durationStr)
 		} else if strings.HasSuffix(durationStr, "m") {
-			// Minutes
 			duration, err = time.ParseDuration(durationStr)
 		} else if strings.HasSuffix(durationStr, "s") {
-			// Seconds
 			duration, err = time.ParseDuration(durationStr)
 		} else {
 			return time.Time{}, fmt.Errorf("invalid relative time format: %s (use d, h, m, or s suffix)", s)
@@ -77,7 +76,7 @@ func ParseTimeString(s string) (time.Time, error) {
 		return t, nil
 	}
 
-	return time.Time{}, fmt.Errorf("unable to parse time string: %s (supported formats: 'now', RFC3339, 'YYYY-MM-DD', or relative like '-7d')", s)
+	return time.Time{}, fmt.Errorf("unable to parse time string: %s (supported formats: 'now', RFC3339, 'YYYY-MM-DD', or relative like '7d')", s)
 }
 
 // ParseDayUTC parses a single-day selector into a [start, end) window covering

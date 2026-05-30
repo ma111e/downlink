@@ -336,9 +336,9 @@ Time window filtering:
 
 Examples:
   downlink-cli feeds refresh all                      # Refresh all feeds
-  downlink-cli feeds refresh tech-news --from -7d     # Articles from last 7 days
+  downlink-cli feeds refresh tech-news --from 7d       # Articles from last 7 days
   downlink-cli feeds refresh "My Feed" --from 2025-01-01  # Articles from Jan 1, 2025
-  downlink-cli feeds refresh feed-123 --from -1d --to now # Articles from last 24 hours`,
+  downlink-cli feeds refresh feed-123 --from 1d --to now  # Articles from last 24 hours`,
 		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			fromTime, toTime, err := parseTimeWindow(fromStr, toStr, betweenStr, nil)
@@ -560,9 +560,9 @@ Examples:
 			}
 		},
 	}
-	refreshCmd.Flags().StringVar(&fromStr, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '-7d')")
-	refreshCmd.Flags().StringVar(&toStr, "to", "", "End of time window (e.g., 'now', '2025-01-01', '-1h')")
-	refreshCmd.Flags().StringVar(&betweenStr, "between", "", "Filter articles between two dates/durations (e.g., '-7d,-1d', '2025-01-01,2025-01-07')")
+	refreshCmd.Flags().StringVar(&fromStr, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '7d')")
+	refreshCmd.Flags().StringVar(&toStr, "to", "", "End of time window (e.g., 'now', '2025-01-01', '1h')")
+	refreshCmd.Flags().StringVar(&betweenStr, "between", "", "Filter articles between two dates/durations (e.g., '7d,1d', '2025-01-01,2025-01-07')")
 	refreshCmd.Flags().BoolVar(&overwrite, "overwrite", false, "Overwrite existing articles instead of skipping them")
 	refreshCmd.Flags().BoolVar(&restore, "restore", false, "Overwrite existing articles that have no content")
 	refreshCmd.Flags().BoolVar(&refreshDryRun, "dry-run", false, "Preview matching articles without refreshing")

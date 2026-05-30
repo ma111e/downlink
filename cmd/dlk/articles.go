@@ -77,9 +77,9 @@ func createArticleCommands() *cobra.Command {
 	listCmd.Flags().BoolVar(&unreadOnly, "unread", false, "Show only unread articles")
 	listCmd.Flags().BoolVar(&bookmarkedOnly, "bookmarked", false, "Show only bookmarked articles")
 	listCmd.Flags().StringVar(&categoryName, "category", "", "Filter by category name")
-	listCmd.Flags().StringVar(&cliStartDate, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '-7d')")
-	listCmd.Flags().StringVar(&cliEndDate, "to", "", "End of time window (e.g., 'now', '2025-01-01', '-1h')")
-	listCmd.Flags().StringVar(&cliBetween, "between", "", "Filter articles between two dates/durations (e.g., '-7d,-1d', '2025-01-01,2025-01-07')")
+	listCmd.Flags().StringVar(&cliStartDate, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '7d')")
+	listCmd.Flags().StringVar(&cliEndDate, "to", "", "End of time window (e.g., 'now', '2025-01-01', '1h')")
+	listCmd.Flags().StringVar(&cliBetween, "between", "", "Filter articles between two dates/durations (e.g., '7d,1d', '2025-01-01,2025-01-07')")
 
 	// Get article command
 	var showMarkdown bool
