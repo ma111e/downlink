@@ -81,16 +81,17 @@ func ParseTimeString(s string) (time.Time, error) {
 
 // ParseDayUTC parses a single-day selector into a [start, end) window covering
 // that whole day in UTC (midnight to midnight). Accepts "YYYY-MM-DD",
-// "today", or "yesterday".
+// "today", or "yesterday". For the "today"/"yesterday" shortcuts the calendar
+// date is taken from local time, while the returned window is still UTC.
 func ParseDayUTC(s string) (start, end time.Time, err error) {
 	s = strings.TrimSpace(s)
 	var day time.Time
 	switch strings.ToLower(s) {
 	case "today":
-		now := time.Now().UTC()
+		now := time.Now()
 		day = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	case "yesterday":
-		now := time.Now().UTC().AddDate(0, 0, -1)
+		now := time.Now().AddDate(0, 0, -1)
 		day = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	default:
 		day, err = time.ParseInLocation("2006-01-02", s, time.UTC)
