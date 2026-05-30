@@ -22,8 +22,15 @@ type RSSFeedScraper struct {
 
 // NewRSSFeedScraper creates a new RSSFeedScraper instance
 func NewRSSFeedScraper(configSelectors *models.Selectors) *RSSFeedScraper {
+	parser := gofeed.NewParser()
+	// Fetch feeds through the shared anonymized scraper's profile (rotating
+	// User-Agent + spoofed browser headers) so WAFs don't reject the default
+	// Go-http-client User-Agent. The HTTP client follows redirects across hosts
+	// and imposes no domain allowlist, so feeds behind redirects keep working.
+	parser.Client = GetSharedAnonymizedScraper("").HTTPClient()
+
 	return &RSSFeedScraper{
-		parser:          gofeed.NewParser(),
+		parser:          parser,
 		configSelectors: configSelectors,
 	}
 }

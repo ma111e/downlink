@@ -30,15 +30,10 @@ type AnonymizedScraper struct {
 	playwrightInit bool
 }
 
-// NewAnonymizedScraper creates a new instance of AnonymizedScraper for the given domain.
-func NewAnonymizedScraper(domain string) *AnonymizedScraper {
-	// Create a new collector with the allowed domain
-	c := colly.NewCollector(
-		colly.AllowedDomains(domain),
-	)
-
-	// Setup a custom HTTP client with advanced configurations
-	transport := &http.Transport{
+// newAnonTransport builds the HTTP transport used by both the colly collector and
+// the anon HTTP client: relaxed TLS verification and bounded dial timeouts.
+func newAnonTransport() *http.Transport {
+	return &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true, // Bypass SSL verification
 		},
@@ -47,9 +42,18 @@ func NewAnonymizedScraper(domain string) *AnonymizedScraper {
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
 	}
+}
 
+// NewAnonymizedScraper creates a new instance of AnonymizedScraper for the given domain.
+func NewAnonymizedScraper(domain string) *AnonymizedScraper {
+	// Create a new collector with the allowed domain
+	c := colly.NewCollector(
+		colly.AllowedDomains(domain),
+	)
+
+	// Setup a custom HTTP client with advanced configurations
 	client := &http.Client{
-		Transport: transport,
+		Transport: newAnonTransport(),
 		Timeout:   60 * time.Second,
 	}
 	c.SetClient(client)
@@ -71,6 +75,49 @@ func NewAnonymizedScraper(domain string) *AnonymizedScraper {
 	})
 
 	return scraper
+}
+
+// HTTPClient returns an *http.Client that carries this scraper's anon profile
+// (rotating User-Agent from s.userAgents + spoofed headers + Alt-Used) on every
+// request via anonRoundTripper. Unlike the colly path it follows redirects across
+// hosts and imposes no domain allowlist, so it suits feed/RSS fetching.
+func (s *AnonymizedScraper) HTTPClient() *http.Client {
+	return &http.Client{
+		Transport: &anonRoundTripper{
+			base:       newAnonTransport(),
+			userAgents: s.userAgents,
+		},
+		Timeout: 60 * time.Second,
+	}
+}
+
+// anonRoundTripper applies the anon profile to every outbound request before
+// delegating to a base RoundTripper. Because it runs at the transport layer it
+// also applies on each redirect hop. It rotates the User-Agent from the same pool
+// the owning AnonymizedScraper uses.
+type anonRoundTripper struct {
+	base       http.RoundTripper
+	userAgents []string
+}
+
+func (t *anonRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	// RoundTrippers must not mutate the supplied request; clone before editing.
+	r := req.Clone(req.Context())
+	r.Header.Set("User-Agent", t.userAgents[rand.Intn(len(t.userAgents))])
+
+	// Spoof browser headers. Accept-Encoding is intentionally omitted so Go's
+	// transport negotiates gzip and decompresses transparently (it has no brotli
+	// support, so advertising "br" would risk a body we cannot decode).
+	r.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+	r.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	r.Header.Set("DNT", "1")
+	r.Header.Set("Connection", "keep-alive")
+	r.Header.Set("Upgrade-Insecure-Requests", "1")
+	if r.URL != nil {
+		r.Header.Set("Alt-Used", r.URL.Host)
+	}
+
+	return t.base.RoundTrip(r)
 }
 
 // anonymizeRequest applies header spoofing, rotates the User-Agent, and adds a random delay.
