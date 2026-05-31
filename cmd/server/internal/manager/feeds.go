@@ -167,7 +167,13 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 						}
 					}
 
-					scrapeResult, serr := solimenScrape(m.solimenAddr, article.Link, triggers)
+					scrapeResult, serr := solimenScrape(article.Id, m.solimenAddr, article.Link, triggers)
+					// Trace the solimen result whenever one came back, regardless of
+					// reported state or downstream parse outcome, so failed scrapes
+					// are inspectable too.
+					if serr == nil && trace.Enabled() {
+						trace.Scrape(article.Id, article.Link, scrapeResult.State, scrapeResult.HTML)
+					}
 					if serr != nil {
 						log.WithError(serr).WithField("article", article.Id).Error("Failed to scrape article content via solimen")
 						result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", item.Title, serr))
@@ -186,9 +192,6 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 									feedSelectors = nil
 								}
 							}
-						}
-						if trace.Enabled() {
-							trace.Scrape(article.Id, article.Link, scrapeResult.State, scrapeResult.HTML)
 						}
 						doc, perr := goquery.NewDocumentFromReader(strings.NewReader(scrapeResult.HTML))
 						if perr != nil {

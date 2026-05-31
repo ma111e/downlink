@@ -160,6 +160,17 @@ func HTTP(method, rawURL string, status int, contentType string, body []byte, du
 	}
 }
 
+// SolimenRequest records the JSON query body POSTed to the solimen scrape
+// service, so the exact request can be compared against its result.
+func SolimenRequest(articleID, rawURL string, payload []byte) {
+	if !enabled {
+		return
+	}
+	if path, ok := subPath("scrape", prefix()+"-"+sanitize(articleID)+".request.json"); ok {
+		writeFile(path, payload)
+	}
+}
+
 // Scrape records the raw HTML returned by a browser scrape (solimen) plus a
 // metadata sidecar.
 func Scrape(articleID, rawURL, state, html string) {

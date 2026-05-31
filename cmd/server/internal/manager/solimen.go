@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"downlink/pkg/models"
+	"downlink/pkg/trace"
 )
 
 type solimenResp struct {
@@ -14,7 +15,7 @@ type solimenResp struct {
 	HTML  string `json:"html"`
 }
 
-func solimenScrape(addr, rawURL string, triggers models.HostTriggers) (solimenResp, error) {
+func solimenScrape(articleID, addr, rawURL string, triggers models.HostTriggers) (solimenResp, error) {
 	body, err := json.Marshal(struct {
 		URL      string              `json:"url"`
 		Triggers models.HostTriggers `json:"triggers"`
@@ -22,6 +23,10 @@ func solimenScrape(addr, rawURL string, triggers models.HostTriggers) (solimenRe
 	}{URL: rawURL, Triggers: triggers, Formats: []string{"html"}})
 	if err != nil {
 		return solimenResp{}, err
+	}
+
+	if trace.Enabled() {
+		trace.SolimenRequest(articleID, rawURL, body)
 	}
 
 	resp, err := http.Post(addr+"/scrape", "application/json", bytes.NewReader(body))
