@@ -263,7 +263,7 @@ func init() {
 // theme selects the visual style; an empty string or "dark" uses the default dark theme.
 //
 // The provider/model switcher in the rendered page is populated client-side
-// from manifest.json — the page itself only embeds the digest id and a hash
+// from manifest.json - the page itself only embeds the digest id and a hash
 // of its article set used to filter siblings.
 func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 	// Build a lookup: articleId → DigestAnalysis (for duplicate metadata and analysis)
@@ -390,8 +390,8 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		}
 	}
 
-	// Count tag occurrences per TOC row — matching the row-level tag filter, where a
-	// cluster row carries only its canonical article's tags — so the filter cloud can
+	// Count tag occurrences per TOC row - matching the row-level tag filter, where a
+	// cluster row carries only its canonical article's tags - so the filter cloud can
 	// show how many rows each tag matches. Ordered by count desc, name asc.
 	tagCounts := make(map[string]int)
 	for gi := range tocGroups {
@@ -744,13 +744,13 @@ func tocBadgeClass(label string) string {
 func tocGroupTooltip(label string) string {
 	switch label {
 	case "Must Read":
-		return "Score 91–100: breaking or high-impact event — active exploitation in the wild, major breach, critical patch, or named threat actor operation."
+		return "Score 91–100: breaking or high-impact event - active exploitation in the wild, major breach, critical patch, or named threat actor operation."
 	case "Should Read":
 		return "Score 76–90: specific event or finding with broad relevance, even if not immediately urgent."
 	case "May Read":
-		return "Score 61–75: specific but narrow or low-urgency event, or solid technical analysis grounded in named concrete cases. Tags from this group are excluded from the tag filter."
+		return "Score 61–75: specific but narrow or low-urgency event, or solid technical analysis grounded in named concrete cases. Tags excluded from filter."
 	case "Optional":
-		return "Score ≤60: generic concepts, opinion, trend pieces, evergreen educational content, or low-novelty reporting. Tags from this group are excluded from the tag filter."
+		return "Score ≤60: generic concepts, opinion, trend pieces, evergreen educational content, or low-novelty reporting. Tags excluded from filter."
 	case "Unscored":
 		return "No importance score assigned (article was not analyzed)."
 	default:
