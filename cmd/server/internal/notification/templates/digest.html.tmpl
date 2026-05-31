@@ -411,6 +411,25 @@ a:hover { text-decoration: underline; }
 }
 .cat-filter:hover { border-color: var(--cyan); color: var(--text); }
 .cat-filter:focus { outline: 1px solid var(--cyan); outline-offset: 1px; }
+/* clickable tag pill cloud — filters the reading list by tag */
+.toc-tag-cloud { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; width: 100%; }
+.tag-pill {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 3px;
+  color: var(--text2);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  cursor: pointer;
+}
+.tag-pill:hover { border-color: var(--cyan); color: var(--text); }
+.tag-pill.active {
+  color: var(--text);
+  border-color: var(--cyan);
+  background: color-mix(in oklch, var(--cyan) 18%, transparent);
+}
 .filter-bar { display: flex; gap: 2px; }
 .filter-btn {
   background: none;
@@ -773,6 +792,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
           <button class="filter-btn" data-filter="should" onclick="setFilter(this)">SHOULD <span class="filter-count should-count"></span></button>
           <button class="filter-btn" data-filter="may" onclick="setFilter(this)">MAY <span class="filter-count may-count"></span></button>
         </div>
+        {{if .Tags}}<div class="toc-tag-cloud">{{range .Tags}}<button class="tag-pill" data-tag="{{.}}" onclick="toggleTagFilter(this)">#{{.}}</button>{{end}}</div>{{end}}
       </div>
     </div>
     <div class="toc-body">
@@ -781,7 +801,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
           <span class="toc-group-label {{tocBadgeClass .Label}}">{{.Label}}</span>
           <span class="toc-group-count">{{len .Rows}} items</span>
         </div>
-        {{range $i, $row := .Rows}}{{if $row.IsCluster}}<div class="toc-row-wrap {{priorityRowClass $row.Canonical.ReadTag}}" data-priority="{{priorityKey $row.Canonical.ReadTag}}" data-category="{{$row.Canonical.Category}}">
+        {{range $i, $row := .Rows}}{{if $row.IsCluster}}<div class="toc-row-wrap {{priorityRowClass $row.Canonical.ReadTag}}" data-priority="{{priorityKey $row.Canonical.ReadTag}}" data-category="{{$row.Canonical.Category}}" data-tags="{{if $row.CanonDetail}}{{joinTags $row.CanonDetail.Tags}}{{end}}">
           <details class="toc-cluster" style="border:none">
             <summary class="toc-row-inner" onclick="handleClusterClick(event,this)">
               <span class="toc-cluster-chevron">▶</span>
@@ -893,7 +913,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               <a href="{{$row.CanonDetail.Link}}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a>
             </div>{{end}}
           </div>{{end}}
-        </div>{{else}}<div class="toc-row-wrap {{priorityRowClass $row.Entry.ReadTag}}" data-priority="{{priorityKey $row.Entry.ReadTag}}" data-category="{{$row.Entry.Category}}">
+        </div>{{else}}<div class="toc-row-wrap {{priorityRowClass $row.Entry.ReadTag}}" data-priority="{{priorityKey $row.Entry.ReadTag}}" data-category="{{$row.Entry.Category}}" data-tags="{{if $row.Detail}}{{joinTags $row.Detail.Tags}}{{end}}">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
             <span class="toc-num {{tocNumClass $row.Entry.ReadTag}}">{{printf "%02d" (add $i 1)}}</span>
             <div style="flex:1;min-width:0">
@@ -1034,13 +1054,15 @@ function switchTab(btn, panelId) {
   if (panel) panel.classList.add('active');
 }
 
-var curPriority = 'all', curCategory = 'all';
+var curPriority = 'all', curCategory = 'all', curTags = [];
 
 function applyFilters() {
   document.querySelectorAll('.toc-row-wrap').forEach(function(row){
     var okP = curPriority === 'all' || row.dataset.priority === curPriority;
     var okC = curCategory === 'all' || row.dataset.category === curCategory;
-    row.style.display = (okP && okC) ? '' : 'none';
+    var rowTags = (row.dataset.tags || '').split(' ');
+    var okT = curTags.length === 0 || curTags.some(function(t){ return rowTags.indexOf(t) >= 0; });
+    row.style.display = (okP && okC && okT) ? '' : 'none';
   });
   // Hide any group whose rows are all filtered out.
   document.querySelectorAll('.toc-group').forEach(function(g){
@@ -1068,6 +1090,14 @@ function setFilter(btn) {
 
 function setCategoryFilter(v) {
   curCategory = v;
+  applyFilters();
+}
+
+function toggleTagFilter(btn) {
+  var t = btn.dataset.tag;
+  var i = curTags.indexOf(t);
+  if (i >= 0) { curTags.splice(i, 1); btn.classList.remove('active'); }
+  else { curTags.push(t); btn.classList.add('active'); }
   applyFilters();
 }
 

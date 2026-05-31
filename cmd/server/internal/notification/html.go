@@ -234,6 +234,7 @@ type digestTemplateData struct {
 	TOCGroups        []TOCGroup
 	ArticleEntries   []ArticleEntry
 	Categories       []string // categories present among articles, for the TOC category filter
+	Tags             []string // distinct tags present among articles, for the TOC tag filter cloud
 }
 
 // RenderDigestHTML generates a self-contained HTML file for the given digest.
@@ -338,6 +339,25 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		}
 	}
 
+	// Collect distinct tags present among articles, ordered by frequency (most-used
+	// first, name ascending as tiebreak), for the TOC tag filter cloud.
+	tagCounts := make(map[string]int)
+	for _, e := range articleEntries {
+		for _, t := range e.Tags {
+			tagCounts[t]++
+		}
+	}
+	tags := make([]string, 0, len(tagCounts))
+	for t := range tagCounts {
+		tags = append(tags, t)
+	}
+	sort.Slice(tags, func(i, j int) bool {
+		if tagCounts[tags[i]] != tagCounts[tags[j]] {
+			return tagCounts[tags[i]] > tagCounts[tags[j]]
+		}
+		return tags[i] < tags[j]
+	})
+
 	// Sort TOC by importance score descending before grouping.
 	sort.Slice(tocEntries, func(i, j int) bool {
 		return tocEntries[i].ImportanceScore > tocEntries[j].ImportanceScore
@@ -391,12 +411,14 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		TOCGroups:        tocGroups,
 		ArticleEntries:   articleEntries,
 		Categories:       categories,
+		Tags:             tags,
 		ThemeOverride:    themeOverride,
 	}
 
 	funcMap := template.FuncMap{
 		"add":                func(a, b int) int { return a + b },
 		"slugify":            func(s string) string { return strings.ReplaceAll(s, " ", "-") },
+		"joinTags":           func(t []string) string { return strings.Join(t, " ") },
 		"dupColor":           dupGroupColor,
 		"sourceColor":        sourceColor,
 		"sourceColorVal":     sourceColorVal,
