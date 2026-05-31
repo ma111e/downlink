@@ -6,6 +6,40 @@ import (
 	"time"
 )
 
+func TestHighlightTagsInSectionText(t *testing.T) {
+	re := compileTagRegexp([]string{"cobalt-strike", "lazarus", "north-korea"})
+	if re == nil {
+		t.Fatal("compileTagRegexp returned nil for non-empty tags")
+	}
+
+	// Multi-word kebab tag matches spaced prose; single-word matches; case-insensitive.
+	got := string(highlightPlain("Lazarus deployed Cobalt Strike against North Korea targets", re))
+	for _, want := range []string{
+		`<mark class="tag-hl">Lazarus</mark>`,
+		`<mark class="tag-hl">Cobalt Strike</mark>`,
+		`<mark class="tag-hl">North Korea</mark>`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("highlightPlain() missing %q in:\n%s", want, got)
+		}
+	}
+
+	// HTML fragments: text is highlighted but tags/attributes (e.g. href) are untouched.
+	frag := highlightHTMLFragment(`<p>See <a href="https://lazarus.example/cobalt-strike">Lazarus report</a></p>`, re)
+	gotFrag := string(frag)
+	if !strings.Contains(gotFrag, `<mark class="tag-hl">Lazarus</mark> report`) {
+		t.Fatalf("highlightHTMLFragment() did not highlight link text:\n%s", gotFrag)
+	}
+	if !strings.Contains(gotFrag, `href="https://lazarus.example/cobalt-strike"`) {
+		t.Fatalf("highlightHTMLFragment() corrupted the href attribute:\n%s", gotFrag)
+	}
+
+	// No tags → escape only, no marks, no panic.
+	if got := string(highlightPlain("plain <b>text</b>", nil)); got != "plain &lt;b&gt;text&lt;/b&gt;" {
+		t.Fatalf("highlightPlain(nil) = %q, want escaped passthrough", got)
+	}
+}
+
 func TestRenderDigestIndexUsesManifest(t *testing.T) {
 	htmlBytes, err := RenderDigestIndex()
 	if err != nil {

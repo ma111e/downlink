@@ -5,8 +5,10 @@ import (
 	"downlink/pkg/digestthemes"
 	"downlink/pkg/models"
 	"fmt"
+	"html"
 	"html/template"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -26,17 +28,30 @@ type TOCEntry struct {
 }
 
 // RenderedAnalysis holds markdown-converted HTML versions of analysis text fields.
+// Text fields are template.HTML because matched entity tags are wrapped in
+// <mark class="tag-hl"> at build time (see highlight* helpers).
 type RenderedAnalysis struct {
 	ProviderType           string
 	ModelName              string
-	Tldr                   string
+	Tldr                   template.HTML
 	Justification          template.HTML
 	BriefOverview          template.HTML
 	StandardSynthesis      template.HTML
 	ComprehensiveSynthesis template.HTML
-	KeyPoints              []string
-	Insights               []string
-	ReferencedReports      []models.ReferencedReport
+	KeyPoints              []template.HTML
+	Insights               []template.HTML
+	ReferencedReports      []RenderedReport
+}
+
+// RenderedReport is a referenced report prepared for the digest template, with its
+// context prose tag-highlighted.
+type RenderedReport struct {
+	Title     string
+	URL       string
+	Publisher string
+	Category  string
+	Primary   bool
+	Context   template.HTML
 }
 
 // ArticleEntry holds enriched article data for template rendering
@@ -259,22 +274,6 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 			IsMostComprehensive: da.IsMostComprehensive,
 		})
 
-		var rendered *RenderedAnalysis
-		if analysis != nil {
-			rendered = &RenderedAnalysis{
-				ProviderType:           analysis.ProviderType,
-				ModelName:              analysis.ModelName,
-				Tldr:                   analysis.Tldr,
-				Justification:          markdownToHTML(analysis.Justification),
-				BriefOverview:          markdownToHTML(analysis.BriefOverview),
-				StandardSynthesis:      markdownToHTML(analysis.StandardSynthesis),
-				ComprehensiveSynthesis: markdownToHTML(analysis.ComprehensiveSynthesis),
-				KeyPoints:              analysis.KeyPoints,
-				Insights:               analysis.Insights,
-				ReferencedReports:      analysis.ReferencedReports,
-			}
-		}
-
 		var category string
 		if art.CategoryName != nil {
 			category = *art.CategoryName
@@ -282,6 +281,23 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		tags := make([]string, 0, len(art.Tags))
 		for _, t := range art.Tags {
 			tags = append(tags, t.Name)
+		}
+		tagRe := compileTagRegexp(tags)
+
+		var rendered *RenderedAnalysis
+		if analysis != nil {
+			rendered = &RenderedAnalysis{
+				ProviderType:           analysis.ProviderType,
+				ModelName:              analysis.ModelName,
+				Tldr:                   highlightPlain(analysis.Tldr, tagRe),
+				Justification:          highlightHTMLFragment(markdownToHTML(analysis.Justification), tagRe),
+				BriefOverview:          highlightHTMLFragment(markdownToHTML(analysis.BriefOverview), tagRe),
+				StandardSynthesis:      highlightHTMLFragment(markdownToHTML(analysis.StandardSynthesis), tagRe),
+				ComprehensiveSynthesis: highlightHTMLFragment(markdownToHTML(analysis.ComprehensiveSynthesis), tagRe),
+				KeyPoints:              highlightPlainSlice(analysis.KeyPoints, tagRe),
+				Insights:               highlightPlainSlice(analysis.Insights, tagRe),
+				ReferencedReports:      renderReports(analysis.ReferencedReports, tagRe),
+			}
 		}
 
 		articleEntries = append(articleEntries, ArticleEntry{
@@ -474,6 +490,106 @@ func markdownToHTML(md string) template.HTML {
 	renderer := mdhtml.NewRenderer(opts)
 	output := markdown.ToHTML([]byte(md), p, renderer)
 	return template.HTML(output) //nolint:gosec // markdown is LLM-generated content stored in our own DB
+}
+
+// htmlTagSplit matches HTML tags so highlighting can skip them and only touch text nodes.
+var htmlTagSplit = regexp.MustCompile(`<[^>]*>`)
+
+// compileTagRegexp builds a single case-insensitive, word-bounded alternation that
+// matches any of the given kebab-case tags in prose, treating '-' as interchangeable
+// with whitespace/hyphens (e.g. "cobalt-strike" matches "Cobalt Strike"). Returns nil
+// when there are no usable tags.
+func compileTagRegexp(tags []string) *regexp.Regexp {
+	terms := make([]string, 0, len(tags))
+	for _, t := range tags {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		// Escape regex metachars, then let '-' match runs of spaces/hyphens.
+		// (QuoteMeta leaves '-' unescaped, so replace the literal character.)
+		quoted := regexp.QuoteMeta(t)
+		quoted = strings.ReplaceAll(quoted, "-", `[\s-]+`)
+		terms = append(terms, quoted)
+	}
+	if len(terms) == 0 {
+		return nil
+	}
+	// Longest terms first so multi-word tags win over any shorter overlap.
+	sort.Slice(terms, func(i, j int) bool { return len(terms[i]) > len(terms[j]) })
+	return regexp.MustCompile(`(?i)\b(?:` + strings.Join(terms, "|") + `)\b`)
+}
+
+// highlightSegments wraps tag matches in <mark class="tag-hl"> within the text portions
+// of an HTML string only, never inside tags/attributes. The input must already be valid
+// HTML (escaped text + real tags).
+func highlightSegments(htmlStr string, re *regexp.Regexp) string {
+	if re == nil {
+		return htmlStr
+	}
+	tags := htmlTagSplit.FindAllStringIndex(htmlStr, -1)
+	var b strings.Builder
+	last := 0
+	wrap := func(text string) {
+		b.WriteString(re.ReplaceAllString(text, `<mark class="tag-hl">$0</mark>`))
+	}
+	for _, loc := range tags {
+		wrap(htmlStr[last:loc[0]]) // text before this tag
+		b.WriteString(htmlStr[loc[0]:loc[1]]) // the tag itself, untouched
+		last = loc[1]
+	}
+	wrap(htmlStr[last:]) // trailing text
+	return b.String()
+}
+
+// highlightHTMLFragment highlights tag matches inside an already-HTML fragment.
+func highlightHTMLFragment(h template.HTML, re *regexp.Regexp) template.HTML {
+	if re == nil {
+		return h
+	}
+	return template.HTML(highlightSegments(string(h), re)) //nolint:gosec // input is our own rendered HTML
+}
+
+// highlightPlain HTML-escapes a plain string (preserving prior escaping behavior) and
+// then highlights tag matches, returning render-ready HTML.
+func highlightPlain(s string, re *regexp.Regexp) template.HTML {
+	escaped := html.EscapeString(s)
+	if re == nil {
+		return template.HTML(escaped) //nolint:gosec // value is html-escaped above
+	}
+	return template.HTML(highlightSegments(escaped, re)) //nolint:gosec // value is html-escaped above
+}
+
+// highlightPlainSlice applies highlightPlain to each element.
+func highlightPlainSlice(items []string, re *regexp.Regexp) []template.HTML {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]template.HTML, len(items))
+	for i, s := range items {
+		out[i] = highlightPlain(s, re)
+	}
+	return out
+}
+
+// renderReports prepares referenced reports for the digest template, tag-highlighting the
+// context prose of each.
+func renderReports(reports []models.ReferencedReport, re *regexp.Regexp) []RenderedReport {
+	if len(reports) == 0 {
+		return nil
+	}
+	out := make([]RenderedReport, len(reports))
+	for i, r := range reports {
+		out[i] = RenderedReport{
+			Title:     r.Title,
+			URL:       r.URL,
+			Publisher: r.Publisher,
+			Category:  r.Category,
+			Primary:   r.Primary,
+			Context:   highlightPlain(r.Context, re),
+		}
+	}
+	return out
 }
 
 // colorPalette is a set of visually distinct colors used for source and duplicate group dots.
