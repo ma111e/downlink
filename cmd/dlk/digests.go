@@ -136,7 +136,7 @@ func createDigestCommands() *cobra.Command {
 
 	// Generate digest command
 	var digestFrom, digestTo, digestBetween, digestDay, digestTheme, digestTestID string
-	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages, digestReanalyzeOnModelChange bool
+	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages, digestReanalyzeOnModelChange, digestReanalyze bool
 	generateCmd := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate a new digest",
@@ -177,7 +177,7 @@ Examples:
 					case <-ctx.Done():
 						return
 					case <-sigCh:
-						prog.updateRow("cancel", "cancelling — waiting for server confirmation...")
+						prog.updateRow("cancel", "cancelling...")
 						cancel()
 						select {
 						case <-sigCh:
@@ -343,7 +343,7 @@ Examples:
 				case <-ctx.Done():
 					return
 				case <-sigCh:
-					prog.updateRow("cancel", "cancelling — waiting for server confirmation...")
+					prog.updateRow("cancel", "cancelling...")
 					cancel()
 					select {
 					case <-sigCh:
@@ -375,6 +375,7 @@ Examples:
 				OneShotAnalysis:        oneShotAnalysis,
 				GHPagesEnabled:         ghPagesEnabled,
 				ReanalyzeOnModelChange: digestReanalyzeOnModelChange,
+				Reanalyze:              digestReanalyze,
 				OnEvent:                handler,
 			})
 
@@ -418,6 +419,7 @@ Examples:
 	generateCmd.Flags().BoolVar(&digestNoGHPages, "no-gh-pages", false, "Disable GitHub Pages publishing for this run (overrides server config)")
 	generateCmd.Flags().BoolVar(&digestGHPages, "gh-pages", false, "Enable GitHub Pages publishing for this run (overrides server config)")
 	generateCmd.Flags().BoolVar(&digestReanalyzeOnModelChange, "reanalyze-on-model-change", false, "Re-analyze articles whose existing analysis was produced by a different model than the one currently configured")
+	generateCmd.Flags().BoolVar(&digestReanalyze, "reanalyze", false, "Re-analyze every article in the window, even if it already has an analysis")
 
 	// Get digest articles command
 	articlesCmd := &cobra.Command{

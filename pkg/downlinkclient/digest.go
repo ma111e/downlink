@@ -58,6 +58,7 @@ type GenerateDigestOptions struct {
 	TestDigestID    string
 	GHPagesEnabled             *bool // When non-nil, overrides the server's GitHub Pages enabled config for this run
 	ReanalyzeOnModelChange     bool
+	Reanalyze                  bool
 	OnEvent                    func(*protos.DigestProgressEvent)
 }
 
@@ -91,6 +92,7 @@ func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options
 		TestDigestId:    options.TestDigestID,
 		GhPagesEnabled:         options.GHPagesEnabled,
 		ReanalyzeOnModelChange: options.ReanalyzeOnModelChange,
+		Reanalyze:              options.Reanalyze,
 	})
 	if err != nil {
 		return models.Digest{}, err
