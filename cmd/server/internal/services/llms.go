@@ -374,6 +374,8 @@ Return ONLY the JSON object below.`,
 
 Generic or evergreen articles — those that discuss broad concepts, trends, or best practices without reporting a specific recent event — must score ≤60 regardless of how relevant or well-written they are. Example: "How AI hallucination creates security risks" is ≤60 even if insightful, because it describes no concrete incident.
 
+If the article is itself a digest, roundup/recap, or weekly/monthly summary — i.e. a curated collection of multiple unrelated items rather than coverage of a single event — always set the score to exactly 40 and justify it as an aggregator/summary piece.
+
 Provide a score (integer 1–100) and a concise justification of 1–3 sentences.
 Return ONLY the JSON object below.`,
 		schema: `{"importance_score": <integer 1-100>, "justification": "<1-3 sentences>"}`,
