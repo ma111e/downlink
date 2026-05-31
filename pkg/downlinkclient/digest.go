@@ -46,20 +46,21 @@ func (pc *DownlinkClient) GetDigestArticles(digestId string) ([]models.Article, 
 }
 
 type GenerateDigestOptions struct {
-	StartTime       time.Time
-	EndTime         time.Time
-	SkipAnalysis    bool
-	SkipDuplicates  bool
-	ExcludeDigested bool
-	SkipSummary     bool
-	Theme           string
-	OneShotAnalysis bool
-	Test            bool
-	TestDigestID    string
-	GHPagesEnabled             *bool // When non-nil, overrides the server's GitHub Pages enabled config for this run
-	ReanalyzeOnModelChange     bool
-	Reanalyze                  bool
-	OnEvent                    func(*protos.DigestProgressEvent)
+	StartTime              time.Time
+	EndTime                time.Time
+	SkipAnalysis           bool
+	SkipDuplicates         bool
+	ExcludeDigested        bool
+	SkipSummary            bool
+	Theme                  string
+	OneShotAnalysis        bool
+	Test                   bool
+	TestDigestID           string
+	GHPagesEnabled         *bool // When non-nil, overrides the server's GitHub Pages enabled config for this run
+	ReanalyzeOnModelChange bool
+	Reanalyze              bool
+	VibeScore              *bool // When non-nil, overrides the server's vibe_score config for this run
+	OnEvent                func(*protos.DigestProgressEvent)
 }
 
 // Method to generate a new digest, streaming progress events to onEvent as they arrive.
@@ -80,19 +81,20 @@ func (pc *DownlinkClient) GenerateDigest(ctx context.Context, startTime time.Tim
 
 func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options GenerateDigestOptions) (models.Digest, error) {
 	stream, err := pc.digestClient.GenerateDigest(ctx, &protos.GenerateDigestRequest{
-		StartTime:       timestamppb.New(options.StartTime),
-		EndTime:         timestamppb.New(options.EndTime),
-		SkipAnalysis:    options.SkipAnalysis,
-		SkipDuplicates:  options.SkipDuplicates,
-		ExcludeDigested: options.ExcludeDigested,
-		SkipSummary:     options.SkipSummary,
-		Theme:           options.Theme,
-		OneShotAnalysis: options.OneShotAnalysis,
-		Test:            options.Test,
-		TestDigestId:    options.TestDigestID,
+		StartTime:              timestamppb.New(options.StartTime),
+		EndTime:                timestamppb.New(options.EndTime),
+		SkipAnalysis:           options.SkipAnalysis,
+		SkipDuplicates:         options.SkipDuplicates,
+		ExcludeDigested:        options.ExcludeDigested,
+		SkipSummary:            options.SkipSummary,
+		Theme:                  options.Theme,
+		OneShotAnalysis:        options.OneShotAnalysis,
+		Test:                   options.Test,
+		TestDigestId:           options.TestDigestID,
 		GhPagesEnabled:         options.GHPagesEnabled,
 		ReanalyzeOnModelChange: options.ReanalyzeOnModelChange,
 		Reanalyze:              options.Reanalyze,
+		VibeScore:              options.VibeScore,
 	})
 	if err != nil {
 		return models.Digest{}, err

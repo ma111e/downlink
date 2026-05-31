@@ -301,6 +301,7 @@ type GenerateDigestRequest struct {
 	GhPagesEnabled         *bool                  `protobuf:"varint,11,opt,name=gh_pages_enabled,json=ghPagesEnabled,proto3,oneof" json:"gh_pages_enabled,omitempty"`                     // When set, overrides the server's GitHub Pages enabled config for this run
 	ReanalyzeOnModelChange bool                   `protobuf:"varint,12,opt,name=reanalyze_on_model_change,json=reanalyzeOnModelChange,proto3" json:"reanalyze_on_model_change,omitempty"` // Re-analyze articles whose existing analysis used a different model than the current default
 	Reanalyze              bool                   `protobuf:"varint,13,opt,name=reanalyze,proto3" json:"reanalyze,omitempty"`                                                             // Re-analyze every article in the window, even if it already has a current-model analysis
+	VibeScore              *bool                  `protobuf:"varint,14,opt,name=vibe_score,json=vibeScore,proto3,oneof" json:"vibe_score,omitempty"`                                      // When set, overrides the server's vibe_score config for this run (legacy single-number importance prompt)
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -422,6 +423,13 @@ func (x *GenerateDigestRequest) GetReanalyzeOnModelChange() bool {
 func (x *GenerateDigestRequest) GetReanalyze() bool {
 	if x != nil {
 		return x.Reanalyze
+	}
+	return false
+}
+
+func (x *GenerateDigestRequest) GetVibeScore() bool {
+	if x != nil && x.VibeScore != nil {
+		return *x.VibeScore
 	}
 	return false
 }
@@ -1085,7 +1093,7 @@ const file_digests_proto_rawDesc = "" +
 	"\barticles\x18\x01 \x03(\v2\x11.downlink.ArticleR\barticles\"%\n" +
 	"\x13DeleteDigestRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x19\n" +
-	"\x17DeleteAllDigestsRequest\"\xbe\x04\n" +
+	"\x17DeleteAllDigestsRequest\"\xf1\x04\n" +
 	"\x15GenerateDigestRequest\x129\n" +
 	"\n" +
 	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
@@ -1101,8 +1109,11 @@ const file_digests_proto_rawDesc = "" +
 	" \x01(\tR\ftestDigestId\x12-\n" +
 	"\x10gh_pages_enabled\x18\v \x01(\bH\x00R\x0eghPagesEnabled\x88\x01\x01\x129\n" +
 	"\x19reanalyze_on_model_change\x18\f \x01(\bR\x16reanalyzeOnModelChange\x12\x1c\n" +
-	"\treanalyze\x18\r \x01(\bR\treanalyzeB\x13\n" +
-	"\x11_gh_pages_enabled\"B\n" +
+	"\treanalyze\x18\r \x01(\bR\treanalyze\x12\"\n" +
+	"\n" +
+	"vibe_score\x18\x0e \x01(\bH\x01R\tvibeScore\x88\x01\x01B\x13\n" +
+	"\x11_gh_pages_enabledB\r\n" +
+	"\v_vibe_score\"B\n" +
 	"\x16GenerateDigestResponse\x12(\n" +
 	"\x06digest\x18\x01 \x01(\v2\x10.downlink.DigestR\x06digest\"\xf5\x02\n" +
 	"\x13DigestProgressEvent\x12\x14\n" +

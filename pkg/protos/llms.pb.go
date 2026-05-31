@@ -362,6 +362,7 @@ type AnalyzeArticleWithProviderModelRequest struct {
 	FastMode       bool                   `protobuf:"varint,4,opt,name=fast_mode,json=fastMode,proto3" json:"fast_mode,omitempty"`                   // If true, only extract key points
 	ProviderName   string                 `protobuf:"bytes,6,opt,name=provider_name,json=providerName,proto3" json:"provider_name,omitempty"`        // Named profile from config.providers; takes precedence over provider_type/model_name
 	SkipReferences bool                   `protobuf:"varint,7,opt,name=skip_references,json=skipReferences,proto3" json:"skip_references,omitempty"` // If true, skip the referenced_reports task
+	VibeScore      *bool                  `protobuf:"varint,8,opt,name=vibe_score,json=vibeScore,proto3,oneof" json:"vibe_score,omitempty"`          // When set, overrides the server's vibe_score config (legacy single-number importance prompt)
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -434,6 +435,13 @@ func (x *AnalyzeArticleWithProviderModelRequest) GetProviderName() string {
 func (x *AnalyzeArticleWithProviderModelRequest) GetSkipReferences() bool {
 	if x != nil {
 		return x.SkipReferences
+	}
+	return false
+}
+
+func (x *AnalyzeArticleWithProviderModelRequest) GetVibeScore() bool {
+	if x != nil && x.VibeScore != nil {
+		return *x.VibeScore
 	}
 	return false
 }
@@ -1995,7 +2003,7 @@ const file_llms_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12#\n" +
-	"\rprovider_type\x18\x05 \x01(\tR\fproviderType\"\xfc\x01\n" +
+	"\rprovider_type\x18\x05 \x01(\tR\fproviderType\"\xaf\x02\n" +
 	"&AnalyzeArticleWithProviderModelRequest\x12\x1d\n" +
 	"\n" +
 	"article_id\x18\x01 \x01(\tR\tarticleId\x12#\n" +
@@ -2004,7 +2012,10 @@ const file_llms_proto_rawDesc = "" +
 	"model_name\x18\x03 \x01(\tR\tmodelName\x12\x1b\n" +
 	"\tfast_mode\x18\x04 \x01(\bR\bfastMode\x12#\n" +
 	"\rprovider_name\x18\x06 \x01(\tR\fproviderName\x12'\n" +
-	"\x0fskip_references\x18\a \x01(\bR\x0eskipReferencesJ\x04\b\x05\x10\x06\"`\n" +
+	"\x0fskip_references\x18\a \x01(\bR\x0eskipReferences\x12\"\n" +
+	"\n" +
+	"vibe_score\x18\b \x01(\bH\x00R\tvibeScore\x88\x01\x01B\r\n" +
+	"\v_vibe_scoreJ\x04\b\x05\x10\x06\"`\n" +
 	"'AnalyzeArticleWithProviderModelResponse\x125\n" +
 	"\banalysis\x18\x01 \x01(\v2\x19.downlink.ArticleAnalysisR\banalysis\"S\n" +
 	"\x15AnalyzeArticleRequest\x12\x1d\n" +
@@ -2231,6 +2242,7 @@ func file_llms_proto_init() {
 	}
 	file_config_proto_init()
 	file_analysis_proto_init()
+	file_llms_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

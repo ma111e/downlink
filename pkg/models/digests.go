@@ -6,15 +6,15 @@ import (
 
 // CodexCredential holds OAuth state for a single ChatGPT/Codex account.
 type CodexCredential struct {
-	Id               string     `json:"id"`                          // short random ID
-	Label            string     `json:"label"`                       // email or fallback
-	Priority         int        `json:"priority"`                    // lower = preferred
+	Id               string     `json:"id"`       // short random ID
+	Label            string     `json:"label"`    // email or fallback
+	Priority         int        `json:"priority"` // lower = preferred
 	AccessToken      string     `json:"access_token"`
 	RefreshToken     string     `json:"refresh_token"`
 	LastRefresh      time.Time  `json:"last_refresh"`
-	AuthMode         string     `json:"auth_mode"`                   // "chatgpt"
-	Source           string     `json:"source"`                      // "manual:device_code"
-	LastStatus       string     `json:"last_status,omitempty"`       // "ok" | "auth_failed" | "rate_limited"
+	AuthMode         string     `json:"auth_mode"`             // "chatgpt"
+	Source           string     `json:"source"`                // "manual:device_code"
+	LastStatus       string     `json:"last_status,omitempty"` // "ok" | "auth_failed" | "rate_limited"
 	LastStatusAt     *time.Time `json:"last_status_at,omitempty"`
 	LastErrorReason  string     `json:"last_error_reason,omitempty"`
 	LastErrorResetAt *time.Time `json:"last_error_reset_at,omitempty"` // when rate_limited expires
@@ -22,7 +22,7 @@ type CodexCredential struct {
 
 // ProviderConfig represents configuration for a specific LLM provider used for digest generation
 type ProviderConfig struct {
-	Name           string            `json:"name"`                      // User-defined name for this provider configuration (required)
+	Name           string            `json:"name"` // User-defined name for this provider configuration (required)
 	ProviderType   string            `json:"provider_type"`
 	ModelName      string            `json:"model_name"`
 	Enabled        bool              `json:"enabled"`
@@ -36,11 +36,12 @@ type ProviderConfig struct {
 
 // AnalysisConfig represents the configuration for the analysis features
 type AnalysisConfig struct {
-	Provider     string            `json:"provider,omitempty"`       // Name of the configured provider to use for analysis
-	Persona      string            `json:"persona,omitempty"`        // Additional prompt prefix to customize the AI instructions
-	WritingStyle string            `json:"writing_style,omitempty"`  // Writing style guide injected into digest summary prompt
-	WorkerPool   *WorkerPoolConfig `json:"worker_pool,omitempty"`    // Configuration for the analysis worker pool
-	AutoAnalyze  bool              `json:"auto_analyze,omitempty"`   // Automatically enqueue articles for analysis after each feed refresh
+	Provider     string            `json:"provider,omitempty"`      // Name of the configured provider to use for analysis
+	Persona      string            `json:"persona,omitempty"`       // Additional prompt prefix to customize the AI instructions
+	WritingStyle string            `json:"writing_style,omitempty"` // Writing style guide injected into digest summary prompt
+	WorkerPool   *WorkerPoolConfig `json:"worker_pool,omitempty"`   // Configuration for the analysis worker pool
+	AutoAnalyze  bool              `json:"auto_analyze,omitempty"`  // Automatically enqueue articles for analysis after each feed refresh
+	VibeScore    bool              `json:"vibe_score,omitempty"`    // Use the legacy single-number LLM importance prompt instead of the rubric scoring system
 }
 
 // WorkerPoolConfig contains the configuration for the worker pool

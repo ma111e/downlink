@@ -269,7 +269,17 @@ func normalizeReportCategory(category string) string {
 	return ""
 }
 
-func getAnalysisTasks(contentLen int, fastMode bool) []analysisTask {
+// vibeScoreEnabled resolves whether the legacy single-number importance prompt
+// should be used. A per-request override (non-nil) wins; otherwise the server's
+// analysis config default applies.
+func vibeScoreEnabled(reqVibe *bool) bool {
+	if reqVibe != nil {
+		return *reqVibe
+	}
+	return config.Config.Analysis.VibeScore
+}
+
+func getAnalysisTasks(contentLen int, fastMode bool, vibeScore bool) []analysisTask {
 	if fastMode {
 		return []analysisTask{
 			{
@@ -365,6 +375,30 @@ Return ONLY the JSON object below.`,
 		})
 	}
 
+	if vibeScore {
+		// Legacy scoring: the LLM picks a single holistic 1-100 importance score.
+		// Kept behind --vibe-score / DOWNLINK_VIBE_SCORE / config.vibe_score as a
+		// fallback to the rubric-based dimensions below.
+		tasks = append(tasks, analysisTask{
+			name: "importance",
+			instruction: `You are a cybersecurity analyst. Score how important this article is for a security professional to read, using this scale:
+91–100: Must read — reports a specific, breaking or high-impact event: active exploitation in the wild, major breach, critical patch for widely-deployed software, named threat actor operation
+76–90:  Should read — reports a specific event or finding with broad relevance, even if not immediately urgent
+61–75:  May read — covers a specific but narrow or low-urgency event, or solid technical analysis grounded in named, concrete cases
+≤60:    Low priority — generic concepts, opinion, trend pieces, evergreen educational content, best-practice guides, webinars or event promotions, or low-novelty reporting
+
+Generic or evergreen articles — those that discuss broad concepts, trends, or best practices without reporting a specific recent event — must score ≤60 regardless of how relevant or well-written they are. Example: "How AI hallucination creates security risks" is ≤60 even if insightful, because it describes no concrete incident.
+
+If the article is itself a digest, roundup/recap, or weekly/monthly summary — i.e. a curated collection of multiple unrelated items rather than coverage of a single event — always set the score to exactly 40 and justify it as an aggregator/summary piece.
+
+Provide a score (integer 1–100) and a concise justification of 1–3 sentences.
+Return ONLY the JSON object below.`,
+			schema: `{"importance_score": <integer 1-100>, "justification": "<1-3 sentences>"}`,
+		})
+
+		return tasks
+	}
+
 	tasks = append(tasks, analysisTask{
 		name: "rubric",
 		instruction: `You are a cybersecurity analyst. Rate this article on six independent dimensions, each on an integer scale of 0 to 4. Do NOT compute an overall score — only rate each dimension; the overall importance is computed downstream from your ratings.
@@ -438,7 +472,7 @@ func (s *LLMsServer) buildAnalysisPromptForRequest(req *protos.AnalyzeArticleWit
 		return "", err
 	}
 
-	tasks := getAnalysisTasks(actx.contentLen, req.FastMode)
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore))
 	var allInstructions, allSchemas []string
 	for i, t := range tasks {
 		allInstructions = append(allInstructions, fmt.Sprintf("%d. %s", i+1, t.instruction))
@@ -674,7 +708,7 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 
 	// Run analysis tasks sequentially using a single ChatModel conversation.
 	// The article is sent once in the first message; subsequent tasks only send the instruction.
-	tasks := getAnalysisTasks(actx.contentLen, req.FastMode)
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore))
 	totalTasks := len(tasks)
 	assembled := make(map[string]interface{})
 	assembled["id"] = actx.articleId

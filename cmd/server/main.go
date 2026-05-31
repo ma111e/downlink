@@ -200,6 +200,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&traceDir, "trace-dir", "", "Directory for content-level debug traces (LLM prompt/response, raw feed/scrape bodies); only active at --log-level trace. Default: /tmp/downlink-trace-<timestamp>")
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentLLMRequests, "max-concurrent-llm-requests", 1, "Maximum number of concurrent LLM analysis requests (default: 1)")
 	rootCmd.PersistentFlags().Bool("auto-analyze", false, "Automatically enqueue articles for analysis after each feed refresh [overrides config]")
+	rootCmd.PersistentFlags().Bool("vibe-score", false, "Use the legacy single-number LLM importance prompt instead of the rubric scoring system [overrides config]")
 	//rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./excuses-client.yml)")
 
 	rootCmd.PersistentFlags().Bool("gh-pages-enabled", false, "Enable GitHub Pages publishing [overrides config]")
@@ -261,6 +262,12 @@ func applyAnalysisFlagOverrides(cmd *cobra.Command) {
 		a.AutoAnalyze = v
 	} else if viper.IsSet("auto-analyze") {
 		a.AutoAnalyze = viper.GetBool("auto-analyze")
+	}
+	if cmd.Flags().Changed("vibe-score") {
+		v, _ := cmd.Flags().GetBool("vibe-score")
+		a.VibeScore = v
+	} else if viper.IsSet("vibe-score") {
+		a.VibeScore = viper.GetBool("vibe-score")
 	}
 }
 
