@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"downlink/pkg/scoring"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -21,26 +23,28 @@ type ReferencedReport struct {
 
 // ArticleAnalysis represents an analysis result from an LLM provider for an article
 type ArticleAnalysis struct {
-	Id                     string             `gorm:"primaryKey" json:"id"`
-	ArticleId              string             `gorm:"index" json:"article_id"`
-	ProviderType           string             `json:"provider_type"`
-	ModelName              string             `json:"model_name"`
-	ImportanceScore        int                `json:"importance_score"`
-	KeyPointsJson          string             `gorm:"column:key_points;type:text" json:"-"`
-	InsightsJson           string             `gorm:"column:insights;type:text" json:"-"`
-	ReferencedReportsJson  string             `gorm:"column:referenced_reports;type:text" json:"-"`
-	KeyPoints              []string           `gorm:"-" json:"key_points"`
-	Insights               []string           `gorm:"-" json:"insights"`
-	ReferencedReports      []ReferencedReport `gorm:"-" json:"referenced_reports"`
-	Tldr                   string             `gorm:"type:text" json:"tldr"`
-	Justification          string             `gorm:"type:text" json:"justification"`
-	BriefOverview          string             `gorm:"type:text" json:"brief_overview"`
-	StandardSynthesis      string             `gorm:"type:text" json:"standard_synthesis"`
-	ComprehensiveSynthesis string             `gorm:"type:text" json:"comprehensive_synthesis"`
-	ThinkingProcess        string             `gorm:"type:text" json:"thinking_process,omitempty"`
-	RawResponse            string             `gorm:"type:text" json:"raw_response"`
-	CreatedAt              time.Time          `gorm:"index" json:"created_at"`
-	Article                *Article           `gorm:"foreignKey:ArticleId;references:Id" json:"-"`
+	Id                     string              `gorm:"primaryKey" json:"id"`
+	ArticleId              string              `gorm:"index" json:"article_id"`
+	ProviderType           string              `json:"provider_type"`
+	ModelName              string              `json:"model_name"`
+	ImportanceScore        int                 `json:"importance_score"`
+	ScoreDimensionsJson    string              `gorm:"column:score_dimensions;type:text" json:"-"`
+	ScoreDimensions        *scoring.Dimensions `gorm:"-" json:"score_dimensions,omitempty"`
+	KeyPointsJson          string              `gorm:"column:key_points;type:text" json:"-"`
+	InsightsJson           string              `gorm:"column:insights;type:text" json:"-"`
+	ReferencedReportsJson  string              `gorm:"column:referenced_reports;type:text" json:"-"`
+	KeyPoints              []string            `gorm:"-" json:"key_points"`
+	Insights               []string            `gorm:"-" json:"insights"`
+	ReferencedReports      []ReferencedReport  `gorm:"-" json:"referenced_reports"`
+	Tldr                   string              `gorm:"type:text" json:"tldr"`
+	Justification          string              `gorm:"type:text" json:"justification"`
+	BriefOverview          string              `gorm:"type:text" json:"brief_overview"`
+	StandardSynthesis      string              `gorm:"type:text" json:"standard_synthesis"`
+	ComprehensiveSynthesis string              `gorm:"type:text" json:"comprehensive_synthesis"`
+	ThinkingProcess        string              `gorm:"type:text" json:"thinking_process,omitempty"`
+	RawResponse            string              `gorm:"type:text" json:"raw_response"`
+	CreatedAt              time.Time           `gorm:"index" json:"created_at"`
+	Article                *Article            `gorm:"foreignKey:ArticleId;references:Id" json:"-"`
 }
 
 // TableName specifies the table name for ArticleAnalysis
@@ -79,6 +83,14 @@ func (a *ArticleAnalysis) BeforeCreate(tx *gorm.DB) error {
 		a.ReferencedReportsJson = string(referencedReportsBytes)
 	}
 
+	if a.ScoreDimensions != nil {
+		scoreDimensionsBytes, err := json.Marshal(a.ScoreDimensions)
+		if err != nil {
+			return err
+		}
+		a.ScoreDimensionsJson = string(scoreDimensionsBytes)
+	}
+
 	return nil
 }
 
@@ -101,6 +113,14 @@ func (a *ArticleAnalysis) AfterFind(tx *gorm.DB) error {
 		if err := json.Unmarshal([]byte(a.ReferencedReportsJson), &a.ReferencedReports); err != nil {
 			return err
 		}
+	}
+
+	if a.ScoreDimensionsJson != "" {
+		var dims scoring.Dimensions
+		if err := json.Unmarshal([]byte(a.ScoreDimensionsJson), &dims); err != nil {
+			return err
+		}
+		a.ScoreDimensions = &dims
 	}
 
 	return nil

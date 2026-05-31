@@ -91,6 +91,100 @@ func (x *ReferencedReport) GetContext() string {
 	return ""
 }
 
+// ScoreDimensions are the rubric sub-scores (0-4 each) the importance score is
+// computed from. See pkg/scoring.
+type ScoreDimensions struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Specificity   int32                  `protobuf:"varint,1,opt,name=specificity,proto3" json:"specificity,omitempty"`
+	Severity      int32                  `protobuf:"varint,2,opt,name=severity,proto3" json:"severity,omitempty"`
+	Breadth       int32                  `protobuf:"varint,3,opt,name=breadth,proto3" json:"breadth,omitempty"`
+	Novelty       int32                  `protobuf:"varint,4,opt,name=novelty,proto3" json:"novelty,omitempty"`
+	Actionability int32                  `protobuf:"varint,5,opt,name=actionability,proto3" json:"actionability,omitempty"`
+	Credibility   int32                  `protobuf:"varint,6,opt,name=credibility,proto3" json:"credibility,omitempty"`
+	IsAggregator  bool                   `protobuf:"varint,7,opt,name=is_aggregator,json=isAggregator,proto3" json:"is_aggregator,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScoreDimensions) Reset() {
+	*x = ScoreDimensions{}
+	mi := &file_analysis_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScoreDimensions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScoreDimensions) ProtoMessage() {}
+
+func (x *ScoreDimensions) ProtoReflect() protoreflect.Message {
+	mi := &file_analysis_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScoreDimensions.ProtoReflect.Descriptor instead.
+func (*ScoreDimensions) Descriptor() ([]byte, []int) {
+	return file_analysis_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ScoreDimensions) GetSpecificity() int32 {
+	if x != nil {
+		return x.Specificity
+	}
+	return 0
+}
+
+func (x *ScoreDimensions) GetSeverity() int32 {
+	if x != nil {
+		return x.Severity
+	}
+	return 0
+}
+
+func (x *ScoreDimensions) GetBreadth() int32 {
+	if x != nil {
+		return x.Breadth
+	}
+	return 0
+}
+
+func (x *ScoreDimensions) GetNovelty() int32 {
+	if x != nil {
+		return x.Novelty
+	}
+	return 0
+}
+
+func (x *ScoreDimensions) GetActionability() int32 {
+	if x != nil {
+		return x.Actionability
+	}
+	return 0
+}
+
+func (x *ScoreDimensions) GetCredibility() int32 {
+	if x != nil {
+		return x.Credibility
+	}
+	return 0
+}
+
+func (x *ScoreDimensions) GetIsAggregator() bool {
+	if x != nil {
+		return x.IsAggregator
+	}
+	return false
+}
+
 type ArticleAnalysis struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
 	Id                     string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -113,13 +207,14 @@ type ArticleAnalysis struct {
 	Article                *Article               `protobuf:"bytes,17,opt,name=article,proto3,oneof" json:"article,omitempty"`
 	ReferencedReports      []*ReferencedReport    `protobuf:"bytes,19,rep,name=referenced_reports,json=referencedReports,proto3" json:"referenced_reports,omitempty"`
 	ReferencedReportsJson  string                 `protobuf:"bytes,20,opt,name=referenced_reports_json,json=referencedReportsJson,proto3" json:"referenced_reports_json,omitempty"`
+	ScoreDimensions        *ScoreDimensions       `protobuf:"bytes,21,opt,name=score_dimensions,json=scoreDimensions,proto3,oneof" json:"score_dimensions,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ArticleAnalysis) Reset() {
 	*x = ArticleAnalysis{}
-	mi := &file_analysis_proto_msgTypes[1]
+	mi := &file_analysis_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -131,7 +226,7 @@ func (x *ArticleAnalysis) String() string {
 func (*ArticleAnalysis) ProtoMessage() {}
 
 func (x *ArticleAnalysis) ProtoReflect() protoreflect.Message {
-	mi := &file_analysis_proto_msgTypes[1]
+	mi := &file_analysis_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -144,7 +239,7 @@ func (x *ArticleAnalysis) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArticleAnalysis.ProtoReflect.Descriptor instead.
 func (*ArticleAnalysis) Descriptor() ([]byte, []int) {
-	return file_analysis_proto_rawDescGZIP(), []int{1}
+	return file_analysis_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ArticleAnalysis) GetId() string {
@@ -287,6 +382,13 @@ func (x *ArticleAnalysis) GetReferencedReportsJson() string {
 	return ""
 }
 
+func (x *ArticleAnalysis) GetScoreDimensions() *ScoreDimensions {
+	if x != nil {
+		return x.ScoreDimensions
+	}
+	return nil
+}
+
 // GetAllArticleAnalysesRequest represents a request to retrieve all analysis results for a specific article
 type GetAllArticleAnalysesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -297,7 +399,7 @@ type GetAllArticleAnalysesRequest struct {
 
 func (x *GetAllArticleAnalysesRequest) Reset() {
 	*x = GetAllArticleAnalysesRequest{}
-	mi := &file_analysis_proto_msgTypes[2]
+	mi := &file_analysis_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -309,7 +411,7 @@ func (x *GetAllArticleAnalysesRequest) String() string {
 func (*GetAllArticleAnalysesRequest) ProtoMessage() {}
 
 func (x *GetAllArticleAnalysesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_analysis_proto_msgTypes[2]
+	mi := &file_analysis_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -322,7 +424,7 @@ func (x *GetAllArticleAnalysesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAllArticleAnalysesRequest.ProtoReflect.Descriptor instead.
 func (*GetAllArticleAnalysesRequest) Descriptor() ([]byte, []int) {
-	return file_analysis_proto_rawDescGZIP(), []int{2}
+	return file_analysis_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetAllArticleAnalysesRequest) GetArticleId() string {
@@ -342,7 +444,7 @@ type GetAllArticleAnalysesResponse struct {
 
 func (x *GetAllArticleAnalysesResponse) Reset() {
 	*x = GetAllArticleAnalysesResponse{}
-	mi := &file_analysis_proto_msgTypes[3]
+	mi := &file_analysis_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -354,7 +456,7 @@ func (x *GetAllArticleAnalysesResponse) String() string {
 func (*GetAllArticleAnalysesResponse) ProtoMessage() {}
 
 func (x *GetAllArticleAnalysesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_analysis_proto_msgTypes[3]
+	mi := &file_analysis_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -367,7 +469,7 @@ func (x *GetAllArticleAnalysesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAllArticleAnalysesResponse.ProtoReflect.Descriptor instead.
 func (*GetAllArticleAnalysesResponse) Descriptor() ([]byte, []int) {
-	return file_analysis_proto_rawDescGZIP(), []int{3}
+	return file_analysis_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetAllArticleAnalysesResponse) GetAnalyses() []*ArticleAnalysis {
@@ -386,7 +488,7 @@ type GetAnalysisRequest struct {
 
 func (x *GetAnalysisRequest) Reset() {
 	*x = GetAnalysisRequest{}
-	mi := &file_analysis_proto_msgTypes[4]
+	mi := &file_analysis_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -398,7 +500,7 @@ func (x *GetAnalysisRequest) String() string {
 func (*GetAnalysisRequest) ProtoMessage() {}
 
 func (x *GetAnalysisRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_analysis_proto_msgTypes[4]
+	mi := &file_analysis_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -411,7 +513,7 @@ func (x *GetAnalysisRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAnalysisRequest.ProtoReflect.Descriptor instead.
 func (*GetAnalysisRequest) Descriptor() ([]byte, []int) {
-	return file_analysis_proto_rawDescGZIP(), []int{4}
+	return file_analysis_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetAnalysisRequest) GetArticleId() string {
@@ -430,7 +532,15 @@ const file_analysis_proto_rawDesc = "" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x1c\n" +
 	"\tpublisher\x18\x03 \x01(\tR\tpublisher\x12\x18\n" +
-	"\acontext\x18\x04 \x01(\tR\acontext\"\xca\x06\n" +
+	"\acontext\x18\x04 \x01(\tR\acontext\"\xf0\x01\n" +
+	"\x0fScoreDimensions\x12 \n" +
+	"\vspecificity\x18\x01 \x01(\x05R\vspecificity\x12\x1a\n" +
+	"\bseverity\x18\x02 \x01(\x05R\bseverity\x12\x18\n" +
+	"\abreadth\x18\x03 \x01(\x05R\abreadth\x12\x18\n" +
+	"\anovelty\x18\x04 \x01(\x05R\anovelty\x12$\n" +
+	"\ractionability\x18\x05 \x01(\x05R\ractionability\x12 \n" +
+	"\vcredibility\x18\x06 \x01(\x05R\vcredibility\x12#\n" +
+	"\ris_aggregator\x18\a \x01(\bR\fisAggregator\"\xaa\a\n" +
 	"\x0fArticleAnalysis\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -456,9 +566,11 @@ const file_analysis_proto_rawDesc = "" +
 	"\rinsights_json\x18\x10 \x01(\tR\finsightsJson\x120\n" +
 	"\aarticle\x18\x11 \x01(\v2\x11.downlink.ArticleH\x00R\aarticle\x88\x01\x01\x12I\n" +
 	"\x12referenced_reports\x18\x13 \x03(\v2\x1a.downlink.ReferencedReportR\x11referencedReports\x126\n" +
-	"\x17referenced_reports_json\x18\x14 \x01(\tR\x15referencedReportsJsonB\n" +
+	"\x17referenced_reports_json\x18\x14 \x01(\tR\x15referencedReportsJson\x12I\n" +
+	"\x10score_dimensions\x18\x15 \x01(\v2\x19.downlink.ScoreDimensionsH\x01R\x0fscoreDimensions\x88\x01\x01B\n" +
 	"\n" +
-	"\b_article\"=\n" +
+	"\b_articleB\x13\n" +
+	"\x11_score_dimensions\"=\n" +
 	"\x1cGetAllArticleAnalysesRequest\x12\x1d\n" +
 	"\n" +
 	"article_id\x18\x01 \x01(\tR\tarticleId\"V\n" +
@@ -483,30 +595,32 @@ func file_analysis_proto_rawDescGZIP() []byte {
 	return file_analysis_proto_rawDescData
 }
 
-var file_analysis_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_analysis_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_analysis_proto_goTypes = []any{
 	(*ReferencedReport)(nil),              // 0: downlink.ReferencedReport
-	(*ArticleAnalysis)(nil),               // 1: downlink.ArticleAnalysis
-	(*GetAllArticleAnalysesRequest)(nil),  // 2: downlink.GetAllArticleAnalysesRequest
-	(*GetAllArticleAnalysesResponse)(nil), // 3: downlink.GetAllArticleAnalysesResponse
-	(*GetAnalysisRequest)(nil),            // 4: downlink.GetAnalysisRequest
-	(*timestamppb.Timestamp)(nil),         // 5: google.protobuf.Timestamp
-	(*Article)(nil),                       // 6: downlink.Article
+	(*ScoreDimensions)(nil),               // 1: downlink.ScoreDimensions
+	(*ArticleAnalysis)(nil),               // 2: downlink.ArticleAnalysis
+	(*GetAllArticleAnalysesRequest)(nil),  // 3: downlink.GetAllArticleAnalysesRequest
+	(*GetAllArticleAnalysesResponse)(nil), // 4: downlink.GetAllArticleAnalysesResponse
+	(*GetAnalysisRequest)(nil),            // 5: downlink.GetAnalysisRequest
+	(*timestamppb.Timestamp)(nil),         // 6: google.protobuf.Timestamp
+	(*Article)(nil),                       // 7: downlink.Article
 }
 var file_analysis_proto_depIdxs = []int32{
-	5, // 0: downlink.ArticleAnalysis.created_at:type_name -> google.protobuf.Timestamp
-	6, // 1: downlink.ArticleAnalysis.article:type_name -> downlink.Article
+	6, // 0: downlink.ArticleAnalysis.created_at:type_name -> google.protobuf.Timestamp
+	7, // 1: downlink.ArticleAnalysis.article:type_name -> downlink.Article
 	0, // 2: downlink.ArticleAnalysis.referenced_reports:type_name -> downlink.ReferencedReport
-	1, // 3: downlink.GetAllArticleAnalysesResponse.analyses:type_name -> downlink.ArticleAnalysis
-	2, // 4: downlink.AnalysisService.GetAllArticleAnalyses:input_type -> downlink.GetAllArticleAnalysesRequest
-	4, // 5: downlink.AnalysisService.GetAnalysis:input_type -> downlink.GetAnalysisRequest
-	3, // 6: downlink.AnalysisService.GetAllArticleAnalyses:output_type -> downlink.GetAllArticleAnalysesResponse
-	1, // 7: downlink.AnalysisService.GetAnalysis:output_type -> downlink.ArticleAnalysis
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1, // 3: downlink.ArticleAnalysis.score_dimensions:type_name -> downlink.ScoreDimensions
+	2, // 4: downlink.GetAllArticleAnalysesResponse.analyses:type_name -> downlink.ArticleAnalysis
+	3, // 5: downlink.AnalysisService.GetAllArticleAnalyses:input_type -> downlink.GetAllArticleAnalysesRequest
+	5, // 6: downlink.AnalysisService.GetAnalysis:input_type -> downlink.GetAnalysisRequest
+	4, // 7: downlink.AnalysisService.GetAllArticleAnalyses:output_type -> downlink.GetAllArticleAnalysesResponse
+	2, // 8: downlink.AnalysisService.GetAnalysis:output_type -> downlink.ArticleAnalysis
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_analysis_proto_init() }
@@ -515,14 +629,14 @@ func file_analysis_proto_init() {
 		return
 	}
 	file_articles_proto_init()
-	file_analysis_proto_msgTypes[1].OneofWrappers = []any{}
+	file_analysis_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_analysis_proto_rawDesc), len(file_analysis_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"downlink/pkg/models"
+	"downlink/pkg/scoring"
 )
 
 // ManifestFilename is the basename of the manifest checked into the Pages branch.
@@ -228,16 +229,7 @@ func digestPriorityCounts(d models.Digest) (must, should, may, opt int) {
 }
 
 func priorityKeyForScore(score int) string {
-	switch {
-	case score >= 90:
-		return "must"
-	case score >= 75:
-		return "should"
-	case score >= 60:
-		return "may"
-	default:
-		return "opt"
-	}
+	return scoring.PriorityKey(score)
 }
 
 func digestHeadlines(d models.Digest, limit int) []string {

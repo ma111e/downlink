@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"downlink/pkg/digestthemes"
 	"downlink/pkg/models"
+	"downlink/pkg/scoring"
 	"fmt"
 	"html"
 	"html/template"
@@ -73,20 +74,9 @@ type ArticleEntry struct {
 	Analysis            *RenderedAnalysis
 }
 
-// readTag returns a priority label based on a 1-100 importance score, matching the UI thresholds.
+// readTag returns a priority label based on a 0-100 importance score, matching the UI thresholds.
 func readTag(score int) string {
-	switch {
-	case score >= 90:
-		return "Must Read"
-	case score >= 75:
-		return "Should Read"
-	case score >= 60:
-		return "May Read"
-	case score > 0:
-		return "Optional"
-	default:
-		return "Unscored"
-	}
+	return scoring.ReadTier(score)
 }
 
 // tagOrder defines the display order of read-tag groups in the TOC.
@@ -615,7 +605,7 @@ func highlightSegments(htmlStr string, re *regexp.Regexp) string {
 		b.WriteString(re.ReplaceAllString(text, `<mark class="tag-hl">$0</mark>`))
 	}
 	for _, loc := range tags {
-		wrap(htmlStr[last:loc[0]]) // text before this tag
+		wrap(htmlStr[last:loc[0]])            // text before this tag
 		b.WriteString(htmlStr[loc[0]:loc[1]]) // the tag itself, untouched
 		last = loc[1]
 	}

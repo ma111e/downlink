@@ -3,9 +3,40 @@ package mappers
 import (
 	"downlink/pkg/models"
 	"downlink/pkg/protos"
+	"downlink/pkg/scoring"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func ScoreDimensionsToProto(d *scoring.Dimensions) *protos.ScoreDimensions {
+	if d == nil {
+		return nil
+	}
+	return &protos.ScoreDimensions{
+		Specificity:   int32(d.Specificity),
+		Severity:      int32(d.Severity),
+		Breadth:       int32(d.Breadth),
+		Novelty:       int32(d.Novelty),
+		Actionability: int32(d.Actionability),
+		Credibility:   int32(d.Credibility),
+		IsAggregator:  d.IsAggregator,
+	}
+}
+
+func ScoreDimensionsToModel(d *protos.ScoreDimensions) *scoring.Dimensions {
+	if d == nil {
+		return nil
+	}
+	return &scoring.Dimensions{
+		Specificity:   int(d.Specificity),
+		Severity:      int(d.Severity),
+		Breadth:       int(d.Breadth),
+		Novelty:       int(d.Novelty),
+		Actionability: int(d.Actionability),
+		Credibility:   int(d.Credibility),
+		IsAggregator:  d.IsAggregator,
+	}
+}
 
 func ReferencedReportToProto(report models.ReferencedReport) *protos.ReferencedReport {
 	return &protos.ReferencedReport{
@@ -72,6 +103,7 @@ func ArticleAnalysisToProto(analysis *models.ArticleAnalysis) *protos.ArticleAna
 		KeyPointsJson:          analysis.KeyPointsJson,
 		InsightsJson:           analysis.InsightsJson,
 		ReferencedReportsJson:  analysis.ReferencedReportsJson,
+		ScoreDimensions:        ScoreDimensionsToProto(analysis.ScoreDimensions),
 	}
 
 	return protoAnalysis
@@ -102,6 +134,7 @@ func ArticleAnalysisToModel(analysis *protos.ArticleAnalysis) *models.ArticleAna
 		ThinkingProcess:        analysis.ThinkingProcess,
 		RawResponse:            analysis.RawResponse,
 		CreatedAt:              analysis.CreatedAt.AsTime(),
+		ScoreDimensions:        ScoreDimensionsToModel(analysis.ScoreDimensions),
 	}
 
 	return modelAnalysis

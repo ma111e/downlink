@@ -10,6 +10,7 @@ import (
 	"downlink/pkg/mappers"
 	"downlink/pkg/models"
 	"downlink/pkg/protos"
+	"downlink/pkg/scoring"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -365,20 +366,52 @@ Return ONLY the JSON object below.`,
 	}
 
 	tasks = append(tasks, analysisTask{
-		name: "importance",
-		instruction: `You are a cybersecurity analyst. Score how important this article is for a security professional to read, using this scale:
-91–100: Must read — reports a specific, breaking or high-impact event: active exploitation in the wild, major breach, critical patch for widely-deployed software, named threat actor operation
-76–90:  Should read — reports a specific event or finding with broad relevance, even if not immediately urgent
-61–75:  May read — covers a specific but narrow or low-urgency event, or solid technical analysis grounded in named, concrete cases
-≤60:    Low priority — generic concepts, opinion, trend pieces, evergreen educational content, best-practice guides, webinars or event promotions, or low-novelty reporting
+		name: "rubric",
+		instruction: `You are a cybersecurity analyst. Rate this article on six independent dimensions, each on an integer scale of 0 to 4. Do NOT compute an overall score — only rate each dimension; the overall importance is computed downstream from your ratings.
 
-Generic or evergreen articles — those that discuss broad concepts, trends, or best practices without reporting a specific recent event — must score ≤60 regardless of how relevant or well-written they are. Example: "How AI hallucination creates security risks" is ≤60 even if insightful, because it describes no concrete incident.
+For each dimension, anchors for 0 / 2 / 4 are given. Pick the closest integer.
 
-If the article is itself a digest, roundup/recap, or weekly/monthly summary — i.e. a curated collection of multiple unrelated items rather than coverage of a single event — always set the score to exactly 40 and justify it as an aggregator/summary piece.
+specificity — how concrete and event-driven the article is:
+  0: generic/evergreen concept, trend piece, or best-practice guide with no specific recent event
+  2: discusses a real situation but loosely, or mixes general commentary with some concrete detail
+  4: reports a single concrete, recent, named event (a specific breach, CVE, campaign, or patch)
 
-Provide a score (integer 1–100) and a concise justification of 1–3 sentences.
+severity — the security impact of what is reported:
+  0: informational, no real-world risk
+  2: moderate risk, limited or conditional impact
+  4: active exploitation in the wild, major breach, or critical patch for widely-deployed software
+
+breadth — how many people or systems are affected:
+  0: niche product or a single small organization
+  2: a notable vendor, product line, or industry segment
+  4: ubiquitous software, a whole sector, or the general public
+
+novelty — how new the information is:
+  0: rehash or restatement of already widely-known facts
+  2: incremental update or new angle on a known story
+  4: genuinely new disclosure, original research, or first report of an incident
+
+actionability — what a defender can do with it:
+  0: nothing concrete to act on
+  2: general guidance or awareness
+  4: clear, immediate defensive action (patch now, specific IOCs, detection rules)
+
+credibility — the strength of sourcing:
+  0: unsourced, rumor, or low-quality blogspam
+  2: ordinary news reporting citing secondary sources
+  4: primary source — vendor/CERT advisory, named researcher, or original technical writeup
+
+is_aggregator — true ONLY if the article is itself a roundup, recap, link digest, or weekly/monthly summary of multiple unrelated items rather than coverage of a single topic; otherwise false.
+
+Calibration examples (ratings only, for reference):
+- "Active exploitation of a critical RCE in a widely-used VPN, CISA adds it to KEV, patch available": specificity 4, severity 4, breadth 4, novelty 3, actionability 4, credibility 4, is_aggregator false.
+- "Vendor advisory: medium-severity privilege-escalation bug in a niche admin tool, fix released": specificity 4, severity 2, breadth 1, novelty 3, actionability 3, credibility 4, is_aggregator false.
+- "Opinion: why zero-trust matters for modern enterprises" (no specific event): specificity 0, severity 0, breadth 2, novelty 1, actionability 1, credibility 2, is_aggregator false.
+- "This week in security: 12 stories you may have missed": specificity 1, severity 1, breadth 2, novelty 1, actionability 1, credibility 2, is_aggregator true.
+
+Also provide a concise justification of 1–3 sentences explaining the ratings.
 Return ONLY the JSON object below.`,
-		schema: `{"importance_score": <integer 1-100>, "justification": "<1-3 sentences>"}`,
+		schema: `{"specificity": <0-4>, "severity": <0-4>, "breadth": <0-4>, "novelty": <0-4>, "actionability": <0-4>, "credibility": <0-4>, "is_aggregator": <true|false>, "justification": "<1-3 sentences>"}`,
 	})
 
 	return tasks
@@ -1006,6 +1039,20 @@ func boolFromObject(obj map[string]interface{}, key string) bool {
 	return value
 }
 
+// intFromObject extracts an integer from a parsed JSON map, tolerating both
+// numeric (float64) and string-encoded values.
+func intFromObject(obj map[string]interface{}, key string) int {
+	switch v := obj[key].(type) {
+	case float64:
+		return int(v)
+	case string:
+		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+			return n
+		}
+	}
+	return 0
+}
+
 // storeAnalysisFromResult takes an assembled result map and persists it as an ArticleAnalysis.
 func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProviderModelRequest, result map[string]interface{}, rawResponse string, thinkingProcess string) (*protos.AnalyzeArticleWithProviderModelResponse, error) {
 	analysis := &models.ArticleAnalysis{
@@ -1017,12 +1064,31 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 		CreatedAt:       time.Now(),
 	}
 
-	if score, ok := result["importance_score"].(float64); ok {
-		analysis.ImportanceScore = int(score)
-	} else if scoreStr, ok := result["importance_score"].(string); ok {
-		if score, err := strconv.Atoi(scoreStr); err == nil {
-			analysis.ImportanceScore = score
+	if _, ok := result["importance_score"]; ok {
+		// Backwards compatibility: a provider may still emit a single importance_score.
+		if score, ok := result["importance_score"].(float64); ok {
+			analysis.ImportanceScore = int(score)
+		} else if scoreStr, ok := result["importance_score"].(string); ok {
+			if score, err := strconv.Atoi(scoreStr); err == nil {
+				analysis.ImportanceScore = score
+			}
 		}
+	}
+
+	// Rubric dimensions: when present, they are the source of truth and the
+	// importance score is computed deterministically from them.
+	if _, ok := result["specificity"]; ok {
+		dims := &scoring.Dimensions{
+			Specificity:   intFromObject(result, "specificity"),
+			Severity:      intFromObject(result, "severity"),
+			Breadth:       intFromObject(result, "breadth"),
+			Novelty:       intFromObject(result, "novelty"),
+			Actionability: intFromObject(result, "actionability"),
+			Credibility:   intFromObject(result, "credibility"),
+			IsAggregator:  boolFromObject(result, "is_aggregator"),
+		}
+		analysis.ScoreDimensions = dims
+		analysis.ImportanceScore = scoring.Compute(*dims)
 	}
 
 	if tldr, ok := result["tldr"].(string); ok {
