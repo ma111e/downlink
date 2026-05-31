@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="DOWNLINK · Triage — 1 day digest">
+<meta property="og:type" content="article">
+<meta property="og:title" content="WP Maps Pro CVE-2026-8732 Exploitation and Dutch Asocks Botnet Takedown — DOWNLINK Triage">
+<meta property="og:description" content="Swipe-triage the 1 day intelligence digest.">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+  }
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; overflow-x: hidden; }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; flex: 1; min-height: 0; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--accept); border-color: var(--accept); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--cyan);   border-color: var(--cyan); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .kp-list li { display: flex; gap: 0.6rem; font-size: 13px; line-height: 1.6; color: var(--text2); }
+  .kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); }
+  .report-title a { color: var(--text); text-decoration: none; }
+  .report-title a:hover { color: var(--cyan); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+window.__DL_ARTICLES = [{"n":1,"title":"WP Maps Pro bug exploited to create admin accounts on WordPress sites","source":"bleepingcomputer.com","sourceColor":"#38bdf8","link":"https://www.bleepingcomputer.com/news/security/wp-maps-pro-bug-exploited-to-create-admin-accounts-on-wordpress-sites/","time":"14:06","priority":"MUST READ","score":94,"tldr":"Hackers are actively exploiting a critical flaw in WP Maps Pro versions 6.1.0 and older to create rogue WordPress administrator accounts without logging in, giving them full control of vulnerable sites. Site owners should update to WP Maps Pro 6.1.1 immediately and check for unauthorized admin users.","briefOverview":"\u003cp\u003eHackers are targeting WordPress sites that use vulnerable versions of the premium WP Maps Pro plugin to create unauthorized administrator accounts without authentication. The flaw, tracked as CVE-2026-8732, affects version 6.1.0 and older and has a critical severity rating. Researchers said attackers are already attempting to exploit it in the wild.\u003c/p\u003e\n\n\u003cp\u003eThe vulnerability stems from a temporary access feature meant to let vendor support staff troubleshoot customer sites. According to the article, the associated AJAX endpoint was reachable by unauthenticated users and depended only on a publicly exposed nonce check in frontend JavaScript. Successful exploitation creates a new admin user, generates a passwordless login URL, and allows the attacker to log in automatically.\u003c/p\u003e\n\n\u003cp\u003eWordfence researchers reported blocking more than 3,600 exploit attempts in a 24-hour period. With administrator access, attackers can install malicious plugins, deploy web shells, change content, access private data, and fully take over affected sites. WP Maps Pro 6.1.1 was released on May 20 to fix the issue, and administrators are advised to update immediately.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eHackers are actively targeting WordPress websites running vulnerable versions of the WP Maps Pro plugin, exploiting a critical flaw that allows the creation of rogue administrator accounts without authentication. The vulnerability is tracked as CVE-2026-8732 and affects WP Maps Pro versions 6.1.0 and older. The plugin is a premium tool used to build interactive maps and store locators, and it has more than 15,800 sales on Envato Market.\u003c/p\u003e\n\n\u003cp\u003eThe article says the flaw was discovered and reported by security researcher David Brown. WP Maps Pro is commonly used by businesses, real estate websites, travel sites, directories, and organizations that need to display multiple locations on maps. Because of that usage, successful exploitation could affect a wide range of WordPress sites.\u003c/p\u003e\n\n\u003cp\u003eTechnically, the issue is tied to a temporary access feature intended to let vendor support staff access customer sites for troubleshooting. Brown found that the AJAX endpoint for this feature was accessible to unauthenticated users and relied only on a nonce check that was publicly exposed in frontend JavaScript. The article states that this made the protection ineffective.\u003c/p\u003e\n\n\u003cp\u003eAn attacker can send a specially crafted request that triggers code to create a new WordPress user with the administrator role, assign it a randomly generated username, and use the hardcoded email address support@flippercode.com. The vulnerable function then generates a magic login URL, stores it as user meta, and returns it in the response. When the attacker visits that URL, they are automatically logged in to the new administrator account without a password or other verification.\u003c/p\u003e\n\n\u003cp\u003eWordfence researchers at Defiant observed active exploitation attempts and said they blocked more than 3,600 attempts in the previous 24 hours. The article notes that administrator-level access enables attackers to install malicious plugins, inject persistent backdoors, deploy web shells, modify content, access private data, and take over the website. This makes the flaw particularly dangerous because it grants immediate full control.\u003c/p\u003e\n\n\u003cp\u003eBrown reported the flaw to Wordfence on March 24, and the vendor was notified on May 16 after the exploit was validated. WP Maps Pro version 6.1.1 was released on May 20 to address CVE-2026-8732. Website administrators are urged to update as soon as possible because malicious activity has already been observed.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"overview\"\u003eOverview\u003c/h1\u003e\n\n\u003cp\u003eHackers are targeting WordPress websites that run vulnerable versions of the WP Maps Pro plugin. The issue allows attackers to create rogue administrator accounts without authentication, giving them full administrative access to affected sites.\u003c/p\u003e\n\n\u003cp\u003eThe vulnerability is tracked as CVE-2026-8732 and is described in the article as having a critical severity rating. It affects WP Maps Pro versions 6.1.0 and older. WP Maps Pro is a premium plugin for creating interactive and customizable maps and store locators, with support for providers such as Google Maps and OpenStreetMap.\u003c/p\u003e\n\n\u003ch1 id=\"plugin-context-and-exposure\"\u003ePlugin Context and Exposure\u003c/h1\u003e\n\n\u003cp\u003eThe article says WP Maps Pro is commonly used by:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eBusinesses\u003c/li\u003e\n\u003cli\u003eReal estate websites\u003c/li\u003e\n\u003cli\u003eTravel sites\u003c/li\u003e\n\u003cli\u003eDirectories\u003c/li\u003e\n\u003cli\u003eOrganizations displaying multiple locations on a map\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eIt also notes that the plugin has over 15,800 sales on the Envato Market. That gives a sense of the potential footprint of the vulnerable software.\u003c/p\u003e\n\n\u003ch1 id=\"discovery-and-reporting-timeline\"\u003eDiscovery and Reporting Timeline\u003c/h1\u003e\n\n\u003cp\u003eAccording to the article:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eSecurity researcher David Brown discovered and reported the flaw.\u003c/li\u003e\n\u003cli\u003eBrown reported it to Wordfence on March 24.\u003c/li\u003e\n\u003cli\u003eAfter validating the exploit, the vendor was notified on May 16.\u003c/li\u003e\n\u003cli\u003eWP Maps Pro 6.1.1 was released on May 20 with a fix.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article recommends that website administrators update their plugin as soon as possible because malicious activity has already been observed.\u003c/p\u003e\n\n\u003ch1 id=\"technical-details-of-the-vulnerability\"\u003eTechnical Details of the Vulnerability\u003c/h1\u003e\n\n\u003cp\u003eThe flaw is caused by a “temporary access” feature in the plugin. This feature was intended to allow vendor support staff to access customer websites for troubleshooting.\u003c/p\u003e\n\n\u003cp\u003eBrown found that the AJAX endpoint for this feature was accessible to unauthenticated users. The endpoint relied solely on a nonce check that was publicly exposed in frontend JavaScript, which the article says rendered the protection ineffective.\u003c/p\u003e\n\n\u003cp\u003eThe article explains that a specially crafted request can trigger code that:\u003c/p\u003e\n\n\u003col\u003e\n\u003cli\u003eCreates a new WordPress user.\u003c/li\u003e\n\u003cli\u003eAssigns that user the administrator role.\u003c/li\u003e\n\u003cli\u003eGenerates a passwordless login URL.\u003c/li\u003e\n\u003cli\u003eSends that URL to a remote system.\u003c/li\u003e\n\u003c/ol\u003e\n\n\u003cp\u003eWordfence researchers further explain that when the request is made with a \u003ccode\u003echeck_temp\u003c/code\u003e parameter set to \u003ccode\u003efalse\u003c/code\u003e, the function calls \u003ccode\u003ewp_insert_user()\u003c/code\u003e to create a new user with:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eA hardcoded administrator role\u003c/li\u003e\n\u003cli\u003eA randomly generated username\u003c/li\u003e\n\u003cli\u003eThe hardcoded email address \u003ccode\u003esupport@flippercode.com\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe function then generates a “magic login URL” using \u003ccode\u003egenerate_login_link()\u003c/code\u003e, stores it as user meta, and returns it in the response body.\u003c/p\u003e\n\n\u003ch1 id=\"exploitation-flow-and-access-gained\"\u003eExploitation Flow and Access Gained\u003c/h1\u003e\n\n\u003cp\u003eThe article states that once the attacker visits the generated login URL, they are automatically authenticated to the newly created administrator account. No password or other verification is required.\u003c/p\u003e\n\n\u003cp\u003eThis makes the vulnerability especially dangerous because it does not merely create an account; it also provides a direct way to log in to that account immediately.\u003c/p\u003e\n\n\u003ch1 id=\"active-exploitation\"\u003eActive Exploitation\u003c/h1\u003e\n\n\u003cp\u003eResearchers at Defiant, the company behind Wordfence, observed threat actors attempting to exploit the vulnerability. The article says they blocked more than 3,600 attempts over a 24-hour period.\u003c/p\u003e\n\n\u003cp\u003eThis indicates that the vulnerability is already being targeted in real-world attacks.\u003c/p\u003e\n\n\u003ch1 id=\"potential-impact\"\u003ePotential Impact\u003c/h1\u003e\n\n\u003cp\u003eThe article highlights that administrator-level access can enable attackers to:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eInject persistent backdoors\u003c/li\u003e\n\u003cli\u003eModify website content\u003c/li\u003e\n\u003cli\u003eAccess private data\u003c/li\u003e\n\u003cli\u003eDeploy web shells\u003c/li\u003e\n\u003cli\u003eInstall malicious plugins\u003c/li\u003e\n\u003cli\u003eTake over the website\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eBecause the exploit grants administrator privileges, the resulting impact can extend across the entire WordPress instance.\u003c/p\u003e\n\n\u003ch1 id=\"vendor-response-and-recommended-action\"\u003eVendor Response and Recommended Action\u003c/h1\u003e\n\n\u003cp\u003eWP Maps Pro version 6.1.1 was released on May 20 to fix CVE-2026-8732. The article advises website administrators to update immediately.\u003c/p\u003e\n\n\u003cp\u003eGiven that malicious activity has already been observed, the article frames patching as urgent rather than precautionary.\u003c/p\u003e\n\n\u003ch1 id=\"key-takeaways\"\u003eKey Takeaways\u003c/h1\u003e\n\n\u003cul\u003e\n\u003cli\u003eA critical unauthenticated vulnerability in WP Maps Pro allows attackers to create administrator accounts.\u003c/li\u003e\n\u003cli\u003eThe issue affects versions 6.1.0 and older.\u003c/li\u003e\n\u003cli\u003eThe flaw stems from a temporary support-access feature exposed through an AJAX endpoint.\u003c/li\u003e\n\u003cli\u003eA publicly exposed frontend nonce was the only protection, and it was ineffective.\u003c/li\u003e\n\u003cli\u003eAttackers can create an admin account and receive a passwordless magic login URL.\u003c/li\u003e\n\u003cli\u003eWordfence blocked more than 3,600 exploitation attempts in 24 hours.\u003c/li\u003e\n\u003cli\u003eWP Maps Pro 6.1.1 fixes the issue, and administrators should update as soon as possible.\u003c/li\u003e\n\u003c/ul\u003e\n","keyPoints":["Hackers are targeting WordPress websites running WP Maps Pro versions 6.1.0 and older through a critical vulnerability tracked as CVE-2026-8732.","The flaw is caused by a temporary access feature whose AJAX endpoint was accessible to unauthenticated users and relied only on a publicly exposed nonce check in frontend JavaScript.","Exploitation can create a new WordPress administrator account, generate a passwordless login URL, and automatically authenticate the attacker to the new admin account.","Wordfence researchers said they blocked more than 3,600 exploitation attempts in the past 24 hours, indicating the vulnerability is being actively abused.","WP Maps Pro version 6.1.1 was released on May 20 to fix CVE-2026-8732, and administrators are urged to update as soon as possible."],"insights":["The plugin’s temporary support-access mechanism could be abused by unauthenticated users because its protection depended on a nonce exposed in frontend JavaScript, making the safeguard ineffective.","The exploit chain goes beyond creating an administrator account by also generating a magic login URL, allowing attackers to access the new admin account without needing a password or additional verification.","Attackers can gain full site control through a feature intended for troubleshooting support, which the article says can then be used to install malicious plugins, deploy web shells, modify content, and access private data.","Defiant observed and blocked more than 3,600 exploitation attempts in 24 hours, showing that attackers moved quickly to abuse the flaw after it became known."],"referencedReports":[{"title":"15,000+ WordPress Sites Affected by Administrator Account Creation Vulnerability in WP Maps Pro WordPress Plugin","url":"http://www.wordfence.com/blog/2026/05/15000-wordpress-sites-affected-by-administrator-account-creation-vulnerability-in-wp-maps-pro-wordpress-plugin/","publisher":"Wordfence","context":"The article cites Wordfence researchers’ technical explanation of how the vulnerable function creates a rogue administrator account and returns a magic login URL.","category":"research","primary":true}],"body":"\u003cp\u003eHackers are targeting WordPress sites that use vulnerable versions of the premium WP Maps Pro plugin to create unauthorized administrator accounts without authentication. The flaw, tracked as CVE-2026-8732, affects version 6.1.0 and older and has a critical severity rating. Researchers said attackers are already attempting to exploit it in the wild.\u003c/p\u003e\n\n\u003cp\u003eThe vulnerability stems from a temporary access feature meant to let vendor support staff troubleshoot customer sites. According to the article, the associated AJAX endpoint was reachable by unauthenticated users and depended only on a publicly exposed nonce check in frontend JavaScript. Successful exploitation creates a new admin user, generates a passwordless login URL, and allows the attacker to log in automatically.\u003c/p\u003e\n\n\u003cp\u003eWordfence researchers reported blocking more than 3,600 exploit attempts in a 24-hour period. With administrator access, attackers can install malicious plugins, deploy web shells, change content, access private data, and fully take over affected sites. WP Maps Pro 6.1.1 was released on May 20 to fix the issue, and administrators are advised to update immediately.\u003c/p\u003e\n"},{"n":2,"title":"Dutch Authorities Dismantle Botnet Linked to 17 Million Infected Devices","source":"thehackernews.com","sourceColor":"#fb923c","link":"https://thehackernews.com/2026/05/dutch-authorities-dismantle-botnet.html","time":"12:22","priority":"SHOULD READ","score":82,"tldr":"Dutch authorities disrupted a massive botnet tied to at least 17 million infected devices by seizing servers in the Netherlands, with reports linking the infrastructure to residential proxy service Asocks. The key takeaway is that compromised everyday devices are being abused at huge scale for cybercrime, making basic security hygiene like updates, strong passwords, and trusted apps critical.","briefOverview":"\u003cp\u003eDutch authorities announced the takedown of a botnet that had infected at least 17 million devices, including computers, tablets, smartphones, and IoT devices. According to the Dutch Politie and the National Cyber Security Center (NCSC), more than 200 servers in the Netherlands functioned as the backend infrastructure for the network. Police seized some of these servers from a hosting provider, and the provider then took the botnet offline after its criminal use was identified.\u003c/p\u003e\n\n\u003cp\u003eThe article says the botnet name was not explicitly disclosed, but local outlet NL Times reported that the service was Asocks, a platform offering residential proxies. The article also notes prior reporting on a campaign called PROXYLIB, in which HUMAN\u0026rsquo;s Satori Threat Intelligence team identified infected Android devices carrying proxyware from LumiApps and Asocks. Dutch authorities emphasized that compromised devices can be remotely controlled for cybercriminal activities and advised users to reduce risk through updates, stronger authentication, trusted apps, and improved router and Wi-Fi security.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eDutch authorities have dismantled a large botnet that reportedly consisted of at least 17 million infected devices. The infected systems included computers, tablets, smartphones, and IoT devices, showing that the botnet drew from a broad range of consumer and connected hardware. The Dutch Politie and the National Cyber Security Center (NCSC) said more than 200 servers in the Netherlands formed the backend infrastructure used to support the network.\u003c/p\u003e\n\n\u003cp\u003eAccording to the NCSC, police officials seized a portion of those servers from a hosting provider. After authorities identified the infrastructure\u0026rsquo;s criminal use, the provider took the botnet offline. The article presents this as a joint action between law enforcement and the NCSC to disrupt the service operating through Dutch-based systems.\u003c/p\u003e\n\n\u003cp\u003eThe article says the botnet was not explicitly named by authorities. However, NL Times reported that the disrupted service was Asocks, a company that offers residential proxies. Asocks\u0026rsquo; website, as described in the article, advertises corporate, residential, and mobile proxies through monthly subscriptions priced between \u003cspan class=\"math inline\"\u003e\\(5 and \\)\u003c/span\u003e15, with discounts for larger purchases.\u003c/p\u003e\n\n\u003cp\u003eThe article places the takedown in the wider context of the residential proxy ecosystem. It notes that residential proxies have legitimate uses and privacy benefits, such as enabling access to geographically restricted web resources. At the same time, it states that the ecosystem is shadowy and that many providers serve bad actors who buy access to compromised devices in order to route malicious traffic and conduct cyberattacks.\u003c/p\u003e\n\n\u003cp\u003eThe report also connects the development to earlier threat research. It references a campaign dubbed PROXYLIB that HUMAN\u0026rsquo;s Satori Threat Intelligence team identified in April 2024, involving infected Android devices carrying proxyware from LumiApps and Asocks. This prior finding is used in the article to support the reported link between compromised devices and proxy infrastructure.\u003c/p\u003e\n\n\u003cp\u003eTo address the threat of botnet malware, the NCSC advised a range of defensive measures. These include keeping operating systems up to date, maintaining visibility into edge devices such as routers, using strong passwords, enabling two-factor authentication where possible, installing apps only from trusted sources, changing default passwords, and securing Wi-Fi with WPA2 or WPA3. The article frames these measures as practical ways to reduce the risk of devices being enrolled into botnets.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"overview\"\u003eOverview\u003c/h1\u003e\n\n\u003cp\u003eDutch authorities announced the takedown of a botnet that had compromised millions of devices and used infrastructure located in the Netherlands. The operation was described by the Dutch Politie and the National Cyber Security Center (NCSC), which said the bot network included at least 17 million infected devices. Those infected systems reportedly spanned computers, tablets, smartphones, and IoT devices.\u003c/p\u003e\n\n\u003cp\u003eThe article states that more than 200 servers in the Netherlands acted as the botnet\u0026rsquo;s backend infrastructure. Police seized a subset of those servers from a hosting provider, and the provider then took the botnet offline once its criminal use was identified. The takedown is presented as a joint effort between public-sector authorities and infrastructure operators.\u003c/p\u003e\n\n\u003ch1 id=\"scale-and-infrastructure\"\u003eScale and Infrastructure\u003c/h1\u003e\n\n\u003cp\u003eThe most prominent detail in the article is the scale of the botnet. Authorities said the network consisted of at least 17 million infected devices, indicating a very large pool of compromised endpoints available for malicious use. The infected population was not limited to traditional computers, but also included tablets, smartphones, and IoT devices.\u003c/p\u003e\n\n\u003cp\u003eThe backend was also significant in size. According to the Dutch Politie and the NCSC, more than 200 servers located in the Netherlands served as the supporting infrastructure for the platform. These servers functioned as the backend through which the botnet operated.\u003c/p\u003e\n\n\u003ch1 id=\"law-enforcement-and-provider-action\"\u003eLaw Enforcement and Provider Action\u003c/h1\u003e\n\n\u003cp\u003eThe NCSC said police officials seized a subset of the backend servers from a hosting provider. Following that seizure and the identification of criminal activity, the hosting provider took the botnet offline. The article therefore describes the disruption as involving both direct law enforcement action and cooperation from the provider hosting the infrastructure.\u003c/p\u003e\n\n\u003cp\u003eThis sequence is one of the key operational details disclosed in the piece:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eAuthorities identified backend infrastructure in the Netherlands.\u003c/li\u003e\n\u003cli\u003ePolice seized some of the relevant servers.\u003c/li\u003e\n\u003cli\u003eThe hosting provider subsequently took the service offline.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch1 id=\"reported-link-to-asocks\"\u003eReported Link to Asocks\u003c/h1\u003e\n\n\u003cp\u003eThe article notes that authorities did not explicitly name the botnet. However, it says local news outlet NL Times reported that the disrupted service was Asocks. Asocks is described as a company offering residential proxies.\u003c/p\u003e\n\n\u003cp\u003eDetails cited from Asocks\u0026rsquo; website indicate that the platform advertises several proxy types:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eCorporate proxies\u003c/li\u003e\n\u003cli\u003eResidential proxies\u003c/li\u003e\n\u003cli\u003eMobile proxies\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article adds that these offerings were sold on monthly subscriptions ranging from \u003cspan class=\"math inline\"\u003e\\(5 to \\)\u003c/span\u003e15, with 5% to 15% discounts for bulk purchases of 10 to 100 proxies.\u003c/p\u003e\n\n\u003ch1 id=\"relation-to-prior-reporting-on-proxylib\"\u003eRelation to Prior Reporting on PROXYLIB\u003c/h1\u003e\n\n\u003cp\u003eThe article connects the reported Asocks link to previous reporting from April 2024. It references HUMAN\u0026rsquo;s Satori Threat Intelligence team, which identified a campaign called PROXYLIB. According to the article, that campaign involved infected Android devices containing proxyware from LumiApps and Asocks.\u003c/p\u003e\n\n\u003cp\u003eThis prior campaign is used in the article as relevant background because it similarly involved compromised devices being turned into proxy resources. The reference supports the article\u0026rsquo;s description of how infected endpoints can become monetized or operationalized through proxy infrastructure.\u003c/p\u003e\n\n\u003ch1 id=\"residential-proxies-legitimate-use-and-abuse\"\u003eResidential Proxies: Legitimate Use and Abuse\u003c/h1\u003e\n\n\u003cp\u003eA major theme in the article is the dual-use nature of residential proxies. It explicitly states that residential proxies can have legitimate uses and privacy benefits, including helping users access geographically restricted web resources. At the same time, it characterizes the broader ecosystem as shadowy.\u003c/p\u003e\n\n\u003cp\u003eThe article says many providers in this market cater to bad actors. These actors are described as purchasing access to compromised devices that have been enrolled in proxy networks. Once access is acquired, those devices can be used to route malicious traffic and support cyberattacks.\u003c/p\u003e\n\n\u003cp\u003eThis framing is important because the article does not portray all proxy use as malicious. Instead, it distinguishes between legitimate proxy use cases and criminal use of compromised devices within proxy networks.\u003c/p\u003e\n\n\u003ch1 id=\"how-devices-become-part-of-the-botnet\"\u003eHow Devices Become Part of the Botnet\u003c/h1\u003e\n\n\u003cp\u003eThe NCSC provided a concise explanation of the botnet enrollment process. It said devices can become part of a botnet when they are accessible to malicious actors. After obtaining access, attackers can install malware that enables remote control of the device.\u003c/p\u003e\n\n\u003cp\u003eThat remote control allows the compromised system to be incorporated into a broader network used for cybercriminal activity. In the context of the article, this applies not only to computers but also to routers, smartphones, tablets, and IoT devices.\u003c/p\u003e\n\n\u003ch1 id=\"affected-device-types\"\u003eAffected Device Types\u003c/h1\u003e\n\n\u003cp\u003eThe article explicitly lists a wide range of device classes that were part of the botnet:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eComputers\u003c/li\u003e\n\u003cli\u003eTablets\u003c/li\u003e\n\u003cli\u003eSmartphones\u003c/li\u003e\n\u003cli\u003eIoT devices\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThis range reinforces the article\u0026rsquo;s warning that botnet participation is not confined to conventional desktop or enterprise systems. Consumer mobile devices and connected household or edge devices are also described as susceptible.\u003c/p\u003e\n\n\u003ch1 id=\"defensive-guidance-from-the-ncsc\"\u003eDefensive Guidance from the NCSC\u003c/h1\u003e\n\n\u003cp\u003eTo reduce the risk posed by botnet malware, the article lists several security recommendations from the NCSC. These recommendations focus on both endpoint and network hygiene:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eKeep operating systems up to date.\u003c/li\u003e\n\u003cli\u003eMaintain visibility of edge devices such as routers.\u003c/li\u003e\n\u003cli\u003eUse strong passwords.\u003c/li\u003e\n\u003cli\u003eEnable two-factor authentication wherever possible.\u003c/li\u003e\n\u003cli\u003eInstall apps only from trusted sources.\u003c/li\u003e\n\u003cli\u003eChange default passwords.\u003c/li\u003e\n\u003cli\u003eSecure Wi-Fi networks with WPA2 or WPA3.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe guidance reflects the article\u0026rsquo;s emphasis on the diversity of exposed devices. Because the botnet included smartphones, IoT devices, and routers or edge systems, the recommended mitigations extend beyond simple desktop patching.\u003c/p\u003e\n\n\u003ch1 id=\"key-takeaways-from-the-article\"\u003eKey Takeaways from the Article\u003c/h1\u003e\n\n\u003cp\u003eSeveral central points emerge directly from the article:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eDutch authorities disrupted a very large botnet involving at least 17 million infected devices.\u003c/li\u003e\n\u003cli\u003eMore than 200 servers in the Netherlands reportedly served as backend infrastructure for the operation.\u003c/li\u003e\n\u003cli\u003ePolice seized some of those servers, after which the hosting provider took the botnet offline.\u003c/li\u003e\n\u003cli\u003eAuthorities did not publicly name the botnet, but NL Times reported that the service was Asocks.\u003c/li\u003e\n\u003cli\u003eThe article links the story to earlier reporting on the PROXYLIB campaign involving proxyware from LumiApps and Asocks on infected Android devices.\u003c/li\u003e\n\u003cli\u003eThe NCSC warned that compromised devices can be remotely controlled for cybercriminal purposes and issued practical defensive recommendations.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch1 id=\"conclusion\"\u003eConclusion\u003c/h1\u003e\n\n\u003cp\u003eThe article presents the takedown as a large-scale disruption of infrastructure supporting a botnet built from millions of compromised consumer and connected devices. It also highlights the connection between such botnets and the residential proxy ecosystem, which the article says includes both legitimate uses and criminal abuse. The response described combined server seizures, hosting provider cooperation, and public guidance aimed at preventing additional devices from being recruited into similar networks.\u003c/p\u003e\n","keyPoints":["Dutch authorities announced the takedown of a botnet that had infected at least 17 million devices, including computers, tablets, smartphones, and IoT devices.","The Dutch Politie and the National Cyber Security Center said more than 200 servers in the Netherlands served as the botnet’s backend infrastructure.","Police seized some of the servers from a hosting provider, and the provider then took the botnet offline after its criminal use was identified.","Local outlet NL Times reported that the disrupted service was Asocks, a company that offers residential, corporate, and mobile proxies.","The NCSC advised users to reduce botnet risk by keeping systems updated, securing routers and Wi-Fi, using strong passwords and two-factor authentication, changing default passwords, and installing apps only from trusted sources."],"insights":["The article highlights that a botnet can be built not just from PCs but also from smartphones, tablets, and IoT devices, showing how broadly consumer technology can be repurposed for cybercriminal activity.","The backend infrastructure for this global botnet included more than 200 servers located in the Netherlands, indicating that large-scale abuse can depend on concentrated server infrastructure even when victim devices are widely distributed.","The reported link to a residential proxy provider underscores how services marketed for legitimate uses such as accessing geographically restricted content can also be used to route malicious traffic through compromised devices.","The takedown involved both law enforcement seizure of some servers and action by the hosting provider to take the platform offline, showing that disrupting this type of operation may require cooperation beyond direct police intervention.","The defensive guidance in the article goes beyond endpoint patching by specifically calling out routers, default passwords, app source trust, and Wi-Fi security, reflecting that edge and home-network weaknesses are part of the botnet risk surface."],"referencedReports":[{"title":"Gezamenlijke actie politie en NCSC legt groot botnetwerk plat","url":"https://www.ncsc.nl/nieuws/gezamenlijke-actie-politie-en-ncsc-legt-groot-botnetwerk-plat","publisher":"National Cyber Security Center (NCSC)","context":"The article cites this NCSC statement as the source for details about the botnet takedown, including server seizures and the provider taking the infrastructure offline.","category":"advisory","primary":true},{"title":"Malicious Apps Caught Secretly Turning Android Devices Into Residential Proxies","url":"https://thehackernews.com/2024/04/malicious-apps-caught-secretly-turning.html","publisher":"The Hacker News","context":"The article references this write-up to note that HUMAN's Satori Threat Intelligence team previously identified the PROXYLIB campaign involving Asocks and LumiApps proxyware on infected Android devices.","category":"news","primary":false},{"title":"Residential proxies en hun grote impact op de digitale veiligheid in Nederland","url":"https://www.ncsc.nl/expertblogs/residential-proxies-en-hun-grote-impact-op-de-digitale-veiligheid-in-nederland","publisher":"National Cyber Security Center (NCSC)","context":"The article links to this NCSC expert blog when mentioning residential proxies and their impact on digital security.","category":"opinion","primary":false},{"title":"Unveiling the Depths of Residential Proxies Providers","url":"https://blog.sekoia.io/unveiling-the-depths-of-residential-proxies-providers/","publisher":"SEKOIA","context":"The article uses this linked analysis in the sentence discussing legitimate uses and privacy benefits of residential proxies.","category":"research","primary":false}],"body":"\u003cp\u003eDutch authorities announced the takedown of a botnet that had infected at least 17 million devices, including computers, tablets, smartphones, and IoT devices. According to the Dutch Politie and the National Cyber Security Center (NCSC), more than 200 servers in the Netherlands functioned as the backend infrastructure for the network. Police seized some of these servers from a hosting provider, and the provider then took the botnet offline after its criminal use was identified.\u003c/p\u003e\n\n\u003cp\u003eThe article says the botnet name was not explicitly disclosed, but local outlet NL Times reported that the service was Asocks, a platform offering residential proxies. The article also notes prior reporting on a campaign called PROXYLIB, in which HUMAN\u0026rsquo;s Satori Threat Intelligence team identified infected Android devices carrying proxyware from LumiApps and Asocks. Dutch authorities emphasized that compromised devices can be remotely controlled for cybercriminal activities and advised users to reduce risk through updates, stronger authentication, trusted apps, and improved router and Wi-Fi security.\u003c/p\u003e\n"}];
+window.__DL_DIGEST   = "downlink-digest-2026-05-31_0000.html";
+window.__DL_WINDOW   = "1 day";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", padding:24 }}>
+        <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, padding:"40px 32px", maxWidth:480, textAlign:"center" }}>
+          <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:11, color:"var(--discard)", letterSpacing:"0.18em", marginBottom:12 }}>// RENDER ERROR</div>
+          <p style={{ color:"var(--text2)", fontSize:13 }}>{String(this.state.error)}</p>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+function pointList(items) {
+  return (
+    <ul className="kp-list">
+      {(items || []).map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            <a href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => <div className="prose">{article.tldr}</div> });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Full", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  if (article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => pointList(article.keyPoints) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => pointList(article.insights) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  const initialTab = tabs[0] ? tabs[0].id : "source";
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  const rightTabIds = new Set(["keypoints", "insights", "reports"]);
+  const leftTabs  = tabs.filter(t => !rightTabIds.has(t.id));
+  const rightTabs = tabs.filter(t =>  rightTabIds.has(t.id));
+  const renderTabBtn = tab => (
+    <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+      {tab.label}
+    </button>
+  );
+  return (
+    <>
+      <div className="tabs">
+        {leftTabs.map(renderTabBtn)}
+        {rightTabs.length > 0 && <span style={{ flex: 1 }} />}
+        {rightTabs.map(renderTabBtn)}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <nav style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--cyan)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      <div style={{
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+        border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+      }}>
+        {Math.min(index + 1, total)} / {total}
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+              {article.source}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 22, lineHeight: 1.3, color: "var(--text)", letterSpacing: "-0.005em" }}>
+          {article.title}
+        </h2>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text2)", fontSize: 14, lineHeight: 1.65, fontWeight: 400 }}>{article.tldr}</p>
+        {article.keyPoints && article.keyPoints.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+            <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+              {article.keyPoints.map((kp, i) => (
+                <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: priorityC, marginTop: 3, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const srcColor  = article.sourceColor;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.35, color: "var(--text)", marginBottom: 12 }}>
+          {article.title}
+        </h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor }}>{article.source}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Front continues off to the right and fades out, then the detail view fades in.
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.32s cubic-bezier(.4,0,.6,1), opacity 0.32s";
+          el.style.transform = `translate(140%, ${dy * 1.4}px) rotate(18deg)`;
+          el.style.opacity = "0";
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.style.opacity = "0";
+            el2.getBoundingClientRect();
+            el2.style.transition = "opacity 0.22s ease";
+            el2.style.opacity = "1";
+            setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 240);
+          }
+        }, 320);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{ opacity: 0 }}>DONE</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 24px 16px", minHeight: 0 }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 16px", width: "100%", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 16, flexShrink: 0 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 12, textAlign: "center", flexShrink: 0 }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ErrorBoundary><App /></ErrorBoundary>
+);
+</script>
+</body>
+</html>
