@@ -360,7 +360,6 @@ type AnalyzeArticleWithProviderModelRequest struct {
 	ProviderType   string                 `protobuf:"bytes,2,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
 	ModelName      string                 `protobuf:"bytes,3,opt,name=model_name,json=modelName,proto3" json:"model_name,omitempty"`
 	FastMode       bool                   `protobuf:"varint,4,opt,name=fast_mode,json=fastMode,proto3" json:"fast_mode,omitempty"`                   // If true, only extract key points
-	SkipCategorize bool                   `protobuf:"varint,5,opt,name=skip_categorize,json=skipCategorize,proto3" json:"skip_categorize,omitempty"` // If true, skip the categorize (category + tags) task
 	ProviderName   string                 `protobuf:"bytes,6,opt,name=provider_name,json=providerName,proto3" json:"provider_name,omitempty"`        // Named profile from config.providers; takes precedence over provider_type/model_name
 	SkipReferences bool                   `protobuf:"varint,7,opt,name=skip_references,json=skipReferences,proto3" json:"skip_references,omitempty"` // If true, skip the referenced_reports task
 	unknownFields  protoimpl.UnknownFields
@@ -421,13 +420,6 @@ func (x *AnalyzeArticleWithProviderModelRequest) GetModelName() string {
 func (x *AnalyzeArticleWithProviderModelRequest) GetFastMode() bool {
 	if x != nil {
 		return x.FastMode
-	}
-	return false
-}
-
-func (x *AnalyzeArticleWithProviderModelRequest) GetSkipCategorize() bool {
-	if x != nil {
-		return x.SkipCategorize
 	}
 	return false
 }
@@ -2003,17 +1995,16 @@ const file_llms_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12#\n" +
-	"\rprovider_type\x18\x05 \x01(\tR\fproviderType\"\x9f\x02\n" +
+	"\rprovider_type\x18\x05 \x01(\tR\fproviderType\"\xfc\x01\n" +
 	"&AnalyzeArticleWithProviderModelRequest\x12\x1d\n" +
 	"\n" +
 	"article_id\x18\x01 \x01(\tR\tarticleId\x12#\n" +
 	"\rprovider_type\x18\x02 \x01(\tR\fproviderType\x12\x1d\n" +
 	"\n" +
 	"model_name\x18\x03 \x01(\tR\tmodelName\x12\x1b\n" +
-	"\tfast_mode\x18\x04 \x01(\bR\bfastMode\x12'\n" +
-	"\x0fskip_categorize\x18\x05 \x01(\bR\x0eskipCategorize\x12#\n" +
+	"\tfast_mode\x18\x04 \x01(\bR\bfastMode\x12#\n" +
 	"\rprovider_name\x18\x06 \x01(\tR\fproviderName\x12'\n" +
-	"\x0fskip_references\x18\a \x01(\bR\x0eskipReferences\"`\n" +
+	"\x0fskip_references\x18\a \x01(\bR\x0eskipReferencesJ\x04\b\x05\x10\x06\"`\n" +
 	"'AnalyzeArticleWithProviderModelResponse\x125\n" +
 	"\banalysis\x18\x01 \x01(\v2\x19.downlink.ArticleAnalysisR\banalysis\"S\n" +
 	"\x15AnalyzeArticleRequest\x12\x1d\n" +

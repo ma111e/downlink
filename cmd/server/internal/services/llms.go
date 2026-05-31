@@ -268,7 +268,7 @@ func normalizeReportCategory(category string) string {
 	return ""
 }
 
-func getAnalysisTasks(contentLen int, skipCategorize bool, fastMode bool) []analysisTask {
+func getAnalysisTasks(contentLen int, fastMode bool) []analysisTask {
 	if fastMode {
 		return []analysisTask{
 			{
@@ -283,10 +283,9 @@ Return ONLY the JSON object below.`,
 	}
 
 	var tasks []analysisTask
-	if !skipCategorize {
-		tasks = append(tasks, analysisTask{
-			name: "categorize",
-			instruction: `You are a cybersecurity analyst. Assign exactly one category and between 3 and 15 tags to the article.
+	tasks = append(tasks, analysisTask{
+		name: "categorize",
+		instruction: `You are a cybersecurity analyst. Assign exactly one category and between 3 and 15 tags to the article.
 
 Category — choose exactly ONE of these values (lowercase, no other value allowed):
 - news: reporting on a specific incident or event
@@ -309,9 +308,8 @@ Always add the country/geography as a tag when the article mentions one (e.g. no
 If covering all entities would exceed 15 tags, drop the lowest-priority ones first.
 Tags must be lowercase kebab-case with no leading # or other prefix (e.g. lazarus, cobalt-strike, spearphishing, north-korea, defense-sector).
 Return ONLY the JSON object. Make your decision quickly: one pass through the article is sufficient. Be very careful about looping, don't loop.`,
-			schema: `{"category": "<news|research|advisory|opinion|guide>", "tags": ["tag1", "tag2"]}`,
-		})
-	}
+		schema: `{"category": "<news|research|advisory|opinion|guide>", "tags": ["tag1", "tag2"]}`,
+	})
 
 	tasks = append(tasks,
 		analysisTask{
@@ -407,7 +405,7 @@ func (s *LLMsServer) buildAnalysisPromptForRequest(req *protos.AnalyzeArticleWit
 		return "", err
 	}
 
-	tasks := getAnalysisTasks(actx.contentLen, req.SkipCategorize, req.FastMode)
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode)
 	var allInstructions, allSchemas []string
 	for i, t := range tasks {
 		allInstructions = append(allInstructions, fmt.Sprintf("%d. %s", i+1, t.instruction))
@@ -643,7 +641,7 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 
 	// Run analysis tasks sequentially using a single ChatModel conversation.
 	// The article is sent once in the first message; subsequent tasks only send the instruction.
-	tasks := getAnalysisTasks(actx.contentLen, req.SkipCategorize, req.FastMode)
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode)
 	totalTasks := len(tasks)
 	assembled := make(map[string]interface{})
 	assembled["id"] = actx.articleId
