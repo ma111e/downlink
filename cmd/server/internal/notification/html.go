@@ -21,6 +21,7 @@ import (
 type TOCEntry struct {
 	Id                  string
 	Title               string
+	Category            string // article category (one of the fixed set), empty if unset
 	ImportanceScore     int
 	ReadTag             string
 	DuplicateGroup      string
@@ -232,6 +233,7 @@ type digestTemplateData struct {
 	OverviewSections []OverviewSection
 	TOCGroups        []TOCGroup
 	ArticleEntries   []ArticleEntry
+	Categories       []string // categories present among articles, for the TOC category filter
 }
 
 // RenderDigestHTML generates a self-contained HTML file for the given digest.
@@ -265,19 +267,21 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 
 		tag := readTag(importanceScore)
 
+		var category string
+		if art.CategoryName != nil {
+			category = *art.CategoryName
+		}
+
 		tocEntries = append(tocEntries, TOCEntry{
 			Id:                  art.Id,
 			Title:               articleTitle(art.Title),
+			Category:            category,
 			ImportanceScore:     importanceScore,
 			ReadTag:             tag,
 			DuplicateGroup:      da.DuplicateGroup,
 			IsMostComprehensive: da.IsMostComprehensive,
 		})
 
-		var category string
-		if art.CategoryName != nil {
-			category = *art.CategoryName
-		}
 		tags := make([]string, 0, len(art.Tags))
 		for _, t := range art.Tags {
 			tags = append(tags, t.Name)
@@ -319,6 +323,20 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 	}
 
 	articleCount := len(articleEntries)
+
+	// Collect the categories present among articles, in canonical order, for the TOC filter.
+	presentCategories := make(map[string]bool, len(articleEntries))
+	for _, e := range articleEntries {
+		if e.Category != "" {
+			presentCategories[e.Category] = true
+		}
+	}
+	var categories []string
+	for _, c := range []string{"news", "research", "advisory", "opinion", "guide"} {
+		if presentCategories[c] {
+			categories = append(categories, c)
+		}
+	}
 
 	// Sort TOC by importance score descending before grouping.
 	sort.Slice(tocEntries, func(i, j int) bool {
@@ -372,6 +390,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		OverviewSections: parseOverviewSections(digest.DigestSummary),
 		TOCGroups:        tocGroups,
 		ArticleEntries:   articleEntries,
+		Categories:       categories,
 		ThemeOverride:    themeOverride,
 	}
 
