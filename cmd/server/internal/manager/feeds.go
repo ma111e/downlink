@@ -12,6 +12,7 @@ import (
 	"downlink/cmd/server/internal/config"
 	"downlink/cmd/server/internal/scrapers"
 	"downlink/pkg/models"
+	"downlink/pkg/trace"
 
 	"github.com/PuerkitoBio/goquery"
 	log "github.com/sirupsen/logrus"
@@ -185,6 +186,9 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 									feedSelectors = nil
 								}
 							}
+						}
+						if trace.Enabled() {
+							trace.Scrape(article.Id, article.Link, scrapeResult.State, scrapeResult.HTML)
 						}
 						doc, perr := goquery.NewDocumentFromReader(strings.NewReader(scrapeResult.HTML))
 						if perr != nil {

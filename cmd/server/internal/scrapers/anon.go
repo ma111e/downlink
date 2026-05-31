@@ -1,15 +1,19 @@
 package scrapers
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"downlink/pkg/trace"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/playwright-community/playwright-go"
@@ -155,7 +159,22 @@ func (t *anonRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 		}
 	}
 
-	return t.base.RoundTrip(r)
+	start := time.Now()
+	resp, err := t.base.RoundTrip(r)
+
+	// When tracing is on, tee the raw (already-decompressed) response body to
+	// disk so non-UTF-8 / malformed feed payloads can be inspected verbatim.
+	// Guarded by Enabled() so the normal path never buffers the body.
+	if err == nil && resp != nil && trace.Enabled() && req.Method == http.MethodGet {
+		body, readErr := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if readErr == nil {
+			trace.HTTP(req.Method, req.URL.String(), resp.StatusCode, resp.Header.Get("Content-Type"), body, time.Since(start))
+		}
+		resp.Body = io.NopCloser(bytes.NewReader(body))
+	}
+
+	return resp, err
 }
 
 // anonymizeRequest applies header spoofing, rotates the User-Agent, and adds a random delay.

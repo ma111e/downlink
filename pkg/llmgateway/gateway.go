@@ -15,10 +15,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"downlink/pkg/llmprovider"
+	"downlink/pkg/trace"
 
 	"github.com/cloudwego/eino/schema"
 	log "github.com/sirupsen/logrus"
@@ -139,7 +141,11 @@ func (g *Gateway) Generate(
 	defer g.release(cfg.label, callStart)
 
 	g.totalCalls.Add(1)
-	return p.Generate(ctx, prompt)
+	resp, err := p.Generate(ctx, prompt)
+	if trace.Enabled() {
+		trace.LLM(cfg.label, prompt, resp, time.Since(callStart), err, nil)
+	}
+	return resp, err
 }
 
 // Stream opens a streaming LLM call through the gateway, drains the reader,
@@ -155,16 +161,29 @@ func (g *Gateway) Stream(
 	messages []*schema.Message,
 	onChunk func(chunk *schema.Message) error,
 	opts ...CallOption,
-) (string, error) {
+) (resp string, err error) {
 	cfg := resolveConfig(opts)
 
-	if err := g.acquire(ctx, cfg.label); err != nil {
-		return "", fmt.Errorf("llm gateway acquire: %w", err)
+	if acqErr := g.acquire(ctx, cfg.label); acqErr != nil {
+		return "", fmt.Errorf("llm gateway acquire: %w", acqErr)
 	}
 	callStart := time.Now()
 	defer g.release(cfg.label, callStart)
 
 	g.totalCalls.Add(1)
+
+	// Accumulated streamed content; declared before the trace defer so the
+	// closure can capture partial output on error/cancel paths too.
+	var sb []byte
+	defer func() {
+		if trace.Enabled() {
+			out := resp
+			if out == "" {
+				out = string(sb)
+			}
+			trace.LLM(cfg.label, renderMessages(messages), out, time.Since(callStart), err, nil)
+		}
+	}()
 
 	reader, err := p.ChatModel().Stream(ctx, messages)
 	if err != nil {
@@ -172,7 +191,6 @@ func (g *Gateway) Stream(
 	}
 	defer reader.Close()
 
-	var sb []byte
 	for {
 		if err := ctx.Err(); err != nil {
 			return "", err
@@ -195,4 +213,22 @@ func (g *Gateway) Stream(
 	}
 
 	return string(sb), nil
+}
+
+// renderMessages flattens a chat message slice into a single human-readable
+// prompt string for tracing (role: content, blank line between messages).
+func renderMessages(messages []*schema.Message) string {
+	var b strings.Builder
+	for i, m := range messages {
+		if m == nil {
+			continue
+		}
+		if i > 0 {
+			b.WriteString("\n\n")
+		}
+		b.WriteString(string(m.Role))
+		b.WriteString(": ")
+		b.WriteString(m.Content)
+	}
+	return b.String()
 }

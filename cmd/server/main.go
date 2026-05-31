@@ -12,6 +12,7 @@ import (
 	"downlink/pkg/llmgateway"
 	"downlink/pkg/models"
 	"downlink/pkg/protos"
+	"downlink/pkg/trace"
 	"fmt"
 	"net"
 	"os"
@@ -51,6 +52,7 @@ func main() {
 	var autoStartSolimen bool
 	var solimenAddr string
 	var logLevel string
+	var traceDir string
 	var maxConcurrentLLMRequests int
 
 	rootCmd := &cobra.Command{
@@ -82,6 +84,7 @@ func main() {
 			autoStartSolimen = viper.GetBool("auto-start-solimen")
 			solimenAddr = viper.GetString("solimen-addr")
 			logLevel = viper.GetString("log-level")
+			traceDir = viper.GetString("trace-dir")
 			maxConcurrentLLMRequests = viper.GetInt("max-concurrent-llm-requests")
 
 			if lvl, err := log.ParseLevel(logLevel); err == nil {
@@ -89,6 +92,11 @@ func main() {
 			} else {
 				log.WithField("value", logLevel).Warn("Invalid --log-level, defaulting to info")
 			}
+
+			// Content-level debug tracing: active only at the `trace` log level.
+			// trace.Init resolves the dir (default /tmp/downlink-trace-<ts>) and
+			// logs where content is written.
+			_ = trace.Init(traceDir, log.IsLevelEnabled(log.TraceLevel))
 
 			err := config.Init()
 			if err != nil {
@@ -189,6 +197,7 @@ func main() {
 	rootCmd.PersistentFlags().BoolVar(&autoStartSolimen, "auto-start-solimen", false, "Automatically start the Solimen Docker container if not running (skip interactive prompt)")
 	rootCmd.PersistentFlags().StringVar(&solimenAddr, "solimen-addr", "http://localhost:5011", "Solimen service address for full_browser scraping (e.g. http://localhost:5011)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (trace, debug, info, warn, error)")
+	rootCmd.PersistentFlags().StringVar(&traceDir, "trace-dir", "", "Directory for content-level debug traces (LLM prompt/response, raw feed/scrape bodies); only active at --log-level trace. Default: /tmp/downlink-trace-<timestamp>")
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentLLMRequests, "max-concurrent-llm-requests", 1, "Maximum number of concurrent LLM analysis requests (default: 1)")
 	rootCmd.PersistentFlags().Bool("auto-analyze", false, "Automatically enqueue articles for analysis after each feed refresh [overrides config]")
 	//rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./excuses-client.yml)")
