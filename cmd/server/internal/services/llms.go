@@ -304,10 +304,12 @@ Tags identify the ecosystem of the event. Extract them in this priority order (h
 5. All stakeholders of the event (victim organizations, vendors, government agencies, other affected parties)
 6. Other relevant named entities (CVEs, affected products) as relevant
 
+Tags must be SPECIFIC named entities. Do NOT use broad or generic umbrella terms such as vpn, exploitation, vulnerability, attack, malware, ransomware, breach, or cybersecurity — always prefer the concrete entity (e.g. globalprotect not vpn, cve-2026-0257 not vulnerability, spearphishing not attack or exploitation).
+Always add the country/geography as a tag when the article mentions one (e.g. north-korea, ukraine, united-states).
 If covering all entities would exceed 15 tags, drop the lowest-priority ones first.
-Tags must be lowercase kebab-case prefixed with # (e.g. #lazarus, #cobalt-strike, #spearphishing, #north-korea, #defense-sector).
+Tags must be lowercase kebab-case with no leading # or other prefix (e.g. lazarus, cobalt-strike, spearphishing, north-korea, defense-sector).
 Return ONLY the JSON object. Make your decision quickly: one pass through the article is sufficient. Be very careful about looping, don't loop.`,
-			schema: `{"category": "<news|research|advisory|opinion|guide>", "tags": ["#tag1", "#tag2"]}`,
+			schema: `{"category": "<news|research|advisory|opinion|guide>", "tags": ["tag1", "tag2"]}`,
 		})
 	}
 
