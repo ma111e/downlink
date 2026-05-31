@@ -237,6 +237,20 @@ type digestTemplateData struct {
 	Tags             []string // distinct tags present among articles, for the TOC tag filter cloud
 }
 
+// digestCategoryOrder is the fixed set of article categories surfaced in the digest,
+// in display order. Stale/free-form categories outside this set are ignored at render
+// time (no label, excluded from the filter). Keep in sync with the LLM categorize
+// task's allowed set (services.allowedCategories).
+var digestCategoryOrder = []string{"news", "research", "advisory", "opinion", "guide"}
+
+var digestCategorySet = map[string]bool{}
+
+func init() {
+	for _, c := range digestCategoryOrder {
+		digestCategorySet[c] = true
+	}
+}
+
 // RenderDigestHTML generates a self-contained HTML file for the given digest.
 // The digest must have Articles, DigestAnalyses (with Analysis preloaded), and ProviderResults populated.
 // theme selects the visual style; an empty string or "dark" uses the default dark theme.
@@ -270,7 +284,10 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 
 		var category string
 		if art.CategoryName != nil {
-			category = *art.CategoryName
+			category = strings.ToLower(strings.TrimSpace(*art.CategoryName))
+		}
+		if !digestCategorySet[category] {
+			category = "" // ignore stale/non-conforming categories (LLM enforces the set going forward)
 		}
 
 		tocEntries = append(tocEntries, TOCEntry{
@@ -333,7 +350,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		}
 	}
 	var categories []string
-	for _, c := range []string{"news", "research", "advisory", "opinion", "guide"} {
+	for _, c := range digestCategoryOrder {
 		if presentCategories[c] {
 			categories = append(categories, c)
 		}
