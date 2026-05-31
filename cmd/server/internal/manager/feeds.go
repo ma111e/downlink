@@ -230,6 +230,9 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 		if !utf8.ValidString(article.Content) {
 			log.WithField("article", article.Id).Error("Article content is not valid UTF-8, skipping")
 			result.Errors = append(result.Errors, fmt.Sprintf("%s: invalid UTF-8 content", item.Title))
+			if trace.Enabled() {
+				trace.Content(article.Id, article.Link, "invalid-utf8", article.Content)
+			}
 			continue
 		}
 

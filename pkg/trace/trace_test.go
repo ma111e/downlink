@@ -74,6 +74,41 @@ func TestLLMAndScrapeWriteFiles(t *testing.T) {
 	globOne(t, filepath.Join(dir, "scrape", "*.meta.json"))
 }
 
+func TestInitPreCreatesSubdirs(t *testing.T) {
+	reset()
+	dir := t.TempDir()
+	if err := Init(dir, true); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	for _, kind := range []string{"llm", "fetch", "scrape", "content"} {
+		info, err := os.Stat(filepath.Join(dir, kind))
+		if err != nil || !info.IsDir() {
+			t.Fatalf("expected subdir %q to exist after Init, err=%v", kind, err)
+		}
+	}
+}
+
+func TestContentPreservesInvalidUTF8(t *testing.T) {
+	reset()
+	dir := t.TempDir()
+	if err := Init(dir, true); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	// A mostly-text payload with an invalid UTF-8 byte (0xff) in the middle.
+	bad := "before\xffafter"
+	Content("article-9", "https://x/y", "invalid-utf8", bad)
+
+	f := globOne(t, filepath.Join(dir, "content", "*-invalid-utf8.txt"))
+	got, err := os.ReadFile(f)
+	if err != nil {
+		t.Fatalf("read content file: %v", err)
+	}
+	if string(got) != bad {
+		t.Fatalf("content not preserved byte-for-byte: got % x want % x", got, bad)
+	}
+	globOne(t, filepath.Join(dir, "content", "*-invalid-utf8.meta.json"))
+}
+
 func TestDefaultDirUnderTemp(t *testing.T) {
 	reset()
 	if err := Init("", true); err != nil {

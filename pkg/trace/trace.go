@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -47,6 +48,13 @@ func Init(dir string, on bool) error {
 		// Tracing is best-effort: warn and stay disabled rather than fail startup.
 		log.WithError(err).WithField("dir", root).Warn("trace: failed to create trace dir; tracing disabled")
 		return err
+	}
+	// Pre-create the per-type subfolders so the structure is visible the moment
+	// tracing is on, regardless of which code paths actually fire.
+	for _, kind := range []string{"llm", "fetch", "scrape", "content"} {
+		if err := os.MkdirAll(filepath.Join(root, kind), 0o755); err != nil {
+			log.WithError(err).WithField("dir", filepath.Join(root, kind)).Warn("trace: failed to create trace subdir")
+		}
 	}
 	baseDir = root
 	enabled = true
@@ -188,6 +196,29 @@ func Scrape(articleID, rawURL, state, html string) {
 			"url":        rawURL,
 			"state":      state,
 			"bytes":      len(html),
+		})
+	}
+}
+
+// Content records article content that was rejected/notable for a given reason
+// (e.g. "invalid-utf8") as its own byte-exact file plus a metadata sidecar, so
+// the offending bytes — which would otherwise be dropped — stay inspectable.
+func Content(articleID, rawURL, reason, content string) {
+	if !enabled {
+		return
+	}
+	base := fmt.Sprintf("%s-%s-%s", prefix(), sanitize(articleID), sanitize(reason))
+	if path, ok := subPath("content", base+".txt"); ok {
+		writeFile(path, []byte(content))
+	}
+	if path, ok := subPath("content", base+".meta.json"); ok {
+		writeJSON(path, map[string]any{
+			"time":       time.Now().Format(time.RFC3339Nano),
+			"article_id": articleID,
+			"url":        rawURL,
+			"reason":     reason,
+			"bytes":      len(content),
+			"valid_utf8": utf8.ValidString(content),
 		})
 	}
 }
