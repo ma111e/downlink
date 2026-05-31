@@ -487,18 +487,22 @@ a:hover { text-decoration: underline; }
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--border);
-  /* fade the right edge so overflowing tags hint they scroll */
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
-  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  /* Right-edge fade hinting horizontal scroll, driven by scroll position: the mask is
+     applied only while the row is scrollable (the scroll timeline is inactive when it
+     isn't, so no fade on short rows) and collapses as it reaches the end, so the last
+     tag is never clipped. */
+  animation-name: tag-scroll-fade;
+  animation-fill-mode: both;
+  animation-timing-function: linear;
+  animation-timeline: scroll(self inline);
+}
+@keyframes tag-scroll-fade {
+  0%, 90% { mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%); }
+  100%    { mask-image: linear-gradient(to right, #000 100%,              transparent 100%); }
 }
 /* on main rows: pull left to align TAGS with the article number (32px = toc-num 20 + gap 12);
    extend right to flush with the block edge (8px = toc-row-inner padding-right); member rows have no number */
 .toc-row-inner .toc-row-tags { margin-left: -32px; width: calc(100% + 32px + 8px); }
-/* hide the right-fade when the tag line is scrolled all the way to the end */
-.toc-row-tags.at-end {
-  -webkit-mask-image: none;
-  mask-image: none;
-}
 .toc-row-tags::-webkit-scrollbar { display: none; } /* WebKit/Blink: hide scrollbar */
 .toc-tags-label {
   align-self: center;
@@ -736,7 +740,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
 
 /* ── responsive ──────────────────────────────────── */
 @media (max-width: 700px) {
-  #nav { padding: 10px 16px; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+  #nav { margin: 0 16px; padding: 10px 0; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
   .nav-center { display: none; }
   .nav-window { display: none; }
   .nav-right { display: contents; }
@@ -748,7 +752,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
   .overview-cell-border-r { border-right: none; border-top: 1px solid var(--border); }
   .overview-cell-full { grid-column: auto; }
   #back-top { bottom: 1rem; right: 0.75rem; }
-  #digest-title { padding: 12px 16px; }
+  #digest-title { margin: 0 16px; padding: 12px 16px; }
   .digest-title-text { font-size: 18px; }
 }
 #digest-title {
@@ -1145,17 +1149,6 @@ function setCategoryFilter(btn) {
   document.querySelector('.must-count').textContent   = counts.must;
   document.querySelector('.should-count').textContent = counts.should;
   document.querySelector('.may-count').textContent    = counts.may;
-})();
-
-// hide the right-fade on tag lines when scrolled flush to the right edge
-(function() {
-  function updateTagFade(el) {
-    el.classList.toggle('at-end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
-  }
-  document.querySelectorAll('.toc-row-tags').forEach(function(el) {
-    updateTagFade(el);
-    el.addEventListener('scroll', function() { updateTagFade(el); }, { passive: true });
-  });
 })();
 
 // keyboard: 'e' expand all, 'c' collapse all
