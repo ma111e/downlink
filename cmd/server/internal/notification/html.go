@@ -414,6 +414,14 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		return tags[i].Name < tags[j].Name
 	})
 
+	// Highlight the digest-level executive summary against the same tag set that builds the
+	// header filter cloud, so every highlighted word maps to a real filter pill.
+	summaryTagNames := make([]string, 0, len(tags))
+	for _, t := range tags {
+		summaryTagNames = append(summaryTagNames, t.Name)
+	}
+	summaryTagRe := compileTagRegexp(summaryTagNames)
+
 	var themeOverride template.CSS
 	if t, ok := digestthemes.Get(theme); ok && t.Vars != nil {
 		var sb strings.Builder
@@ -436,7 +444,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		SwipeFilename:    SwipeHTMLFilename(digest),
 		DigestTitle:      digest.Title,
 		DigestSummary:    markdownToHTML(digest.DigestSummary),
-		OverviewSections: parseOverviewSections(digest.DigestSummary),
+		OverviewSections: parseOverviewSections(digest.DigestSummary, summaryTagRe),
 		TOCGroups:        tocGroups,
 		ArticleEntries:   articleEntries,
 		Categories:       categories,
@@ -495,7 +503,7 @@ func DigestHTMLFilename(digest models.Digest) string {
 // It splits on level-2 headings (## Heading). The content before the first heading
 // (if any) becomes the EXEC section. Each subsequent ## heading produces a numbered
 // section (01, 02, …). If there are no ## headings the entire text becomes one EXEC cell.
-func parseOverviewSections(md string) []OverviewSection {
+func parseOverviewSections(md string, re *regexp.Regexp) []OverviewSection {
 	if strings.TrimSpace(md) == "" {
 		return nil
 	}
@@ -544,7 +552,7 @@ func parseOverviewSections(md string) []OverviewSection {
 		result = append(result, OverviewSection{
 			Tag:   tag,
 			Title: s.title,
-			Body:  markdownToHTML(body),
+			Body:  highlightHTMLFragment(markdownToHTML(body), re),
 		})
 	}
 	return result
