@@ -4,6 +4,9 @@ import (
 	"downlink/cmd/server/internal/config"
 	"downlink/pkg/models"
 	"fmt"
+	golog "log"
+	"os"
+	"time"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -32,8 +35,17 @@ func Init() error {
 // New creates a new GormStore instance
 func New(path string) (*GormStore, error) {
 	// Configure GORM to use SQLite
+	gormLogger := logger.New(
+		golog.New(os.Stderr, "\r\n", golog.LstdFlags),
+		logger.Config{
+			SlowThreshold:             200 * time.Millisecond,
+			LogLevel:                  logger.Warn,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		},
+	)
 	storeConfig := &gorm.Config{
-		Logger:                                   logger.Default.LogMode(logger.Warn),
+		Logger:                                   gormLogger,
 		DisableForeignKeyConstraintWhenMigrating: true,
 	}
 
