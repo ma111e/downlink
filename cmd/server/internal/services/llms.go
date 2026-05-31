@@ -370,7 +370,7 @@ Return ONLY the JSON object below.`,
 91–100: Must read — reports a specific, breaking or high-impact event: active exploitation in the wild, major breach, critical patch for widely-deployed software, named threat actor operation
 76–90:  Should read — reports a specific event or finding with broad relevance, even if not immediately urgent
 61–75:  May read — covers a specific but narrow or low-urgency event, or solid technical analysis grounded in named, concrete cases
-≤60:    Low priority — generic concepts, opinion, trend pieces, evergreen educational content, best-practice guides, or low-novelty reporting
+≤60:    Low priority — generic concepts, opinion, trend pieces, evergreen educational content, best-practice guides, webinars or event promotions, or low-novelty reporting
 
 Generic or evergreen articles — those that discuss broad concepts, trends, or best practices without reporting a specific recent event — must score ≤60 regardless of how relevant or well-written they are. Example: "How AI hallucination creates security risks" is ≤60 even if insightful, because it describes no concrete incident.
 
