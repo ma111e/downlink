@@ -395,6 +395,10 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 	// show how many rows each tag matches. Ordered by count desc, name asc.
 	tagCounts := make(map[string]int)
 	for gi := range tocGroups {
+		label := tocGroups[gi].Label
+		if label != "Must Read" && label != "Should Read" {
+			continue
+		}
 		for ri := range tocGroups[gi].Rows {
 			row := &tocGroups[gi].Rows[ri]
 			detail := row.Detail
@@ -459,6 +463,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		"sourceColorVal":     sourceColorVal,
 		"dupGroupLetter":     dupGroupLetter,
 		"tocBadgeClass":      tocBadgeClass,
+		"tocGroupTooltip":    tocGroupTooltip,
 		"tocNumClass":        tocNumClass,
 		"priorityRowClass":   priorityRowClass,
 		"priorityBadgeClass": priorityBadgeClass,
@@ -732,6 +737,24 @@ func tocBadgeClass(label string) string {
 		return "priority-badge badge-may"
 	default:
 		return "priority-badge badge-opt"
+	}
+}
+
+// tocGroupTooltip returns the scoring criteria description for a TOC group label.
+func tocGroupTooltip(label string) string {
+	switch label {
+	case "Must Read":
+		return "Score 91–100: breaking or high-impact event — active exploitation in the wild, major breach, critical patch, or named threat actor operation."
+	case "Should Read":
+		return "Score 76–90: specific event or finding with broad relevance, even if not immediately urgent."
+	case "May Read":
+		return "Score 61–75: specific but narrow or low-urgency event, or solid technical analysis grounded in named concrete cases. Tags from this group are excluded from the tag filter."
+	case "Optional":
+		return "Score ≤60: generic concepts, opinion, trend pieces, evergreen educational content, or low-novelty reporting. Tags from this group are excluded from the tag filter."
+	case "Unscored":
+		return "No importance score assigned (article was not analyzed)."
+	default:
+		return ""
 	}
 }
 
