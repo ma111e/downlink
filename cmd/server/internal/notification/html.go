@@ -233,8 +233,15 @@ type digestTemplateData struct {
 	OverviewSections []OverviewSection
 	TOCGroups        []TOCGroup
 	ArticleEntries   []ArticleEntry
-	Categories       []string // categories present among articles, for the TOC category filter
-	Tags             []string // distinct tags present among articles, for the TOC tag filter cloud
+	Categories       []string   // categories present among articles, for the TOC category filter
+	Tags             []TagCount // distinct tags present among TOC rows (with match counts), for the tag filter cloud
+}
+
+// TagCount is a tag and the number of TOC rows that carry it (matching the row-level
+// tag filter), used to render per-tag match counts in the filter cloud.
+type TagCount struct {
+	Name  string
+	Count int
 }
 
 // digestCategoryOrder is the fixed set of article categories surfaced in the digest,
@@ -356,25 +363,6 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		}
 	}
 
-	// Collect distinct tags present among articles, ordered by frequency (most-used
-	// first, name ascending as tiebreak), for the TOC tag filter cloud.
-	tagCounts := make(map[string]int)
-	for _, e := range articleEntries {
-		for _, t := range e.Tags {
-			tagCounts[t]++
-		}
-	}
-	tags := make([]string, 0, len(tagCounts))
-	for t := range tagCounts {
-		tags = append(tags, t)
-	}
-	sort.Slice(tags, func(i, j int) bool {
-		if tagCounts[tags[i]] != tagCounts[tags[j]] {
-			return tagCounts[tags[i]] > tagCounts[tags[j]]
-		}
-		return tags[i] < tags[j]
-	})
-
 	// Sort TOC by importance score descending before grouping.
 	sort.Slice(tocEntries, func(i, j int) bool {
 		return tocEntries[i].ImportanceScore > tocEntries[j].ImportanceScore
@@ -401,6 +389,36 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 			}
 		}
 	}
+
+	// Count tag occurrences per TOC row — matching the row-level tag filter, where a
+	// cluster row carries only its canonical article's tags — so the filter cloud can
+	// show how many rows each tag matches. Ordered by count desc, name asc.
+	tagCounts := make(map[string]int)
+	for gi := range tocGroups {
+		for ri := range tocGroups[gi].Rows {
+			row := &tocGroups[gi].Rows[ri]
+			detail := row.Detail
+			if row.IsCluster {
+				detail = row.CanonDetail
+			}
+			if detail == nil {
+				continue
+			}
+			for _, t := range detail.Tags {
+				tagCounts[t]++
+			}
+		}
+	}
+	tags := make([]TagCount, 0, len(tagCounts))
+	for t, c := range tagCounts {
+		tags = append(tags, TagCount{Name: t, Count: c})
+	}
+	sort.Slice(tags, func(i, j int) bool {
+		if tags[i].Count != tags[j].Count {
+			return tags[i].Count > tags[j].Count
+		}
+		return tags[i].Name < tags[j].Name
+	})
 
 	var themeOverride template.CSS
 	if t, ok := digestthemes.Get(theme); ok && t.Vars != nil {
