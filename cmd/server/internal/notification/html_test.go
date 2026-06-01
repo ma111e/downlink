@@ -96,6 +96,27 @@ func TestRenderDigestHTMLDoesNotIncludeManifestSwitcher(t *testing.T) {
 	}
 }
 
+func TestRenderDigestHTMLShowsScoreTooltip(t *testing.T) {
+	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
+	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML() error = %v", err)
+	}
+	html := string(htmlBytes)
+
+	// article-b has rubric dimensions → the score bar is wrapped in a hover tooltip.
+	for _, want := range []string{`class="score-tip"`, "Severity 4/4", "Specificity 4/4", "Credibility 3/4"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("RenderDigestHTML() missing score tooltip fragment %q", want)
+		}
+	}
+
+	// article-a has no dimensions → its score bar must not be wrapped (no empty tooltip).
+	if strings.Contains(html, `data-tip=""`) {
+		t.Fatal("RenderDigestHTML() rendered an empty score tooltip for an article without dimensions")
+	}
+}
+
 func TestRenderSwipeHTMLInjectsDigestAndArticles(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 	htmlBytes, err := RenderSwipeHTML(digest, "downlink-digest-2026-04-24_1200.html")

@@ -24,6 +24,7 @@ type TOCEntry struct {
 	Title               string
 	Category            string // article category (one of the fixed set), empty if unset
 	ImportanceScore     int
+	ScoreTip            string // rubric dimension breakdown shown on hover, empty if no dimensions
 	ReadTag             string
 	DuplicateGroup      string
 	IsMostComprehensive bool
@@ -287,11 +288,17 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 			category = "" // ignore stale/non-conforming categories (LLM enforces the set going forward)
 		}
 
+		var scoreTip string
+		if analysis != nil {
+			scoreTip = scoreTooltip(analysis.ScoreDimensions)
+		}
+
 		tocEntries = append(tocEntries, TOCEntry{
 			Id:                  art.Id,
 			Title:               articleTitle(art.Title),
 			Category:            category,
 			ImportanceScore:     importanceScore,
+			ScoreTip:            scoreTip,
 			ReadTag:             tag,
 			DuplicateGroup:      da.DuplicateGroup,
 			IsMostComprehensive: da.IsMostComprehensive,
@@ -468,6 +475,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		"priorityShort":      priorityShort,
 		"priorityKey":        priorityKey,
 		"scoreBar":           scoreBarHTML,
+		"scoreBarTip":        scoreBarTipHTML,
 		// overview grid helpers
 		// evenIndex: i=0 is EXEC (full-width); i=2,4,6… are left-column cells → get border-right
 		"evenIndex": func(i int) bool { return i%2 == 0 },
@@ -841,6 +849,41 @@ func scoreBarHTML(score int) template.HTML {
 		`<div class="score-bar"><div class="score-track"><div class="%s" style="width:%d%%"></div></div><span class="%s">%d</span></div>`,
 		fillClass, score, numClass, score,
 	))
+}
+
+// scoreBarTipHTML renders the score bar, wrapping it in a hover tooltip element
+// that reveals the rubric dimension breakdown when tip is non-empty.
+func scoreBarTipHTML(score int, tip string) template.HTML {
+	bar := scoreBarHTML(score)
+	if tip == "" {
+		return bar
+	}
+	return template.HTML(fmt.Sprintf( //nolint:gosec
+		`<span class="score-tip" data-tip="%s">%s</span>`,
+		html.EscapeString(tip), bar,
+	))
+}
+
+// scoreTooltip builds a one-line rubric breakdown (ordered by scoring weight) from
+// the analysis dimensions. Returns "" when no dimensions are available (e.g. legacy
+// vibe-score analyses or unanalyzed articles).
+func scoreTooltip(d *scoring.Dimensions) string {
+	if d == nil {
+		return ""
+	}
+	parts := []string{
+		fmt.Sprintf("Severity %d/4", d.Severity),
+		fmt.Sprintf("Specificity %d/4", d.Specificity),
+		fmt.Sprintf("Breadth %d/4", d.Breadth),
+		fmt.Sprintf("Actionability %d/4", d.Actionability),
+		fmt.Sprintf("Novelty %d/4", d.Novelty),
+		fmt.Sprintf("Credibility %d/4", d.Credibility),
+	}
+	tip := strings.Join(parts, " · ")
+	if d.IsAggregator {
+		tip += " · Aggregator (score capped)"
+	}
+	return tip
 }
 
 func articleTitle(t string) string {

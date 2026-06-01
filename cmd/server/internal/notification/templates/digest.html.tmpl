@@ -32,6 +32,11 @@
   --mono:    'IBM Plex Mono', 'SF Mono', 'Fira Code', Consolas, monospace;
   --sans:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --radius:  4px;
+  --cat-research: oklch(74% 0.14 196);
+  --cat-advisory: oklch(74% 0.18 44);
+  --cat-news:     oklch(72% 0.15 220);
+  --cat-opinion:  oklch(70% 0.17 350);
+  --cat-guide:    oklch(76% 0.15 130);
 }
 {{if .ThemeOverride}}:root{ {{.ThemeOverride}} }{{end}}
 
@@ -282,6 +287,29 @@ a:hover { text-decoration: underline; }
   pointer-events: none;
 }
 .info-tip:hover::after { display: block; }
+/* ── score hover tooltip (rubric dimension breakdown) ── */
+.score-tip { position: relative; cursor: help; }
+.score-tip::after {
+  content: attr(data-tip);
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4em);
+  width: max-content;
+  max-width: 22em;
+  background: var(--bg-secondary, #1e1e2e);
+  color: var(--fg, #cdd6f4);
+  border: 1px solid var(--border, #45475a);
+  border-radius: 6px;
+  padding: 0.5em 0.75em;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  z-index: 100;
+  white-space: normal;
+  pointer-events: none;
+}
+.score-tip:hover::after { display: block; }
 .toc-num {
   font-family: var(--mono);
   font-size: 10px;
@@ -505,6 +533,11 @@ a:hover { text-decoration: underline; }
   background: currentColor;
   flex-shrink: 0;
 }
+.toc-row-wrap[data-category="research"] .toc-cat-label { color: var(--cat-research); }
+.toc-row-wrap[data-category="advisory"] .toc-cat-label { color: var(--cat-advisory); }
+.toc-row-wrap[data-category="news"]     .toc-cat-label { color: var(--cat-news); }
+.toc-row-wrap[data-category="opinion"]  .toc-cat-label { color: var(--cat-opinion); }
+.toc-row-wrap[data-category="guide"]    .toc-cat-label { color: var(--cat-guide); }
 /* tags on their own line below the meta line — scrolls horizontally instead of wrapping */
 .toc-row-tags {
   display: flex;
@@ -671,11 +704,11 @@ mark.tag-hl:hover {
   color: color-mix(in oklch, var(--c) 55%, var(--text2));
 }
 .report-cat::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c); flex-shrink: 0; }
-.report-cat-research { --c: var(--cyan); }
-.report-cat-advisory { --c: var(--should); }
-.report-cat-news     { --c: var(--may); }
-.report-cat-opinion  { --c: oklch(70% 0.16 310); }
-.report-cat-guide    { --c: oklch(74% 0.13 110); }
+.report-cat-research { --c: var(--cat-research); }
+.report-cat-advisory { --c: var(--cat-advisory); }
+.report-cat-news     { --c: var(--cat-news); }
+.report-cat-opinion  { --c: var(--cat-opinion); }
+.report-cat-guide    { --c: var(--cat-guide); }
 .report-meta { margin-top: 0.25rem; font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
 .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
 
@@ -724,6 +757,36 @@ mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 8%, transparent);
 }
 .summary-body .tab-panel { padding: 0; }
+.open-source-btn {
+  margin-left: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in oklch, var(--cyan) 30%, transparent);
+  border-radius: 2px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+.open-source-btn:hover { border-color: var(--cyan); text-decoration: none; }
+.panel-collapse-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 0 0 4px;
+  line-height: 1;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.panel-collapse-btn.collapsed { transform: rotate(-90deg); }
+.report-list.collapsed { display: none; }
 
 /* ── dup cluster in toc ──────────────────────────── */
 .toc-cluster { border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
@@ -890,7 +953,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                   <span class="meta-time">{{$row.CanonDetail.PublishedAt}}</span>
                 </div>{{if $row.CanonDetail.Tags}}<div class="toc-row-tags"><span class="toc-tags-label">TAGS</span>{{range $row.CanonDetail.Tags}}<span class="meta-tag" data-tag="{{.}}" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">{{.}}</span>{{end}}</div>{{end}}{{end}}
               </div>
-              {{if gt $row.Canonical.ImportanceScore 0}}{{scoreBar $row.Canonical.ImportanceScore}}{{end}}
+              {{if gt $row.Canonical.ImportanceScore 0}}{{scoreBarTip $row.Canonical.ImportanceScore $row.Canonical.ScoreTip}}{{end}}
               <span class="toc-row-chevron" id="chevron-{{$row.Canonical.Id}}">⌄</span>
             </summary>
             <ul class="toc-cluster-members">
@@ -922,6 +985,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                           <button class="tab-btn" onclick="switchTab(this,'comprehensive-{{$other.Id}}')">Full</button>
                           {{if $od.Analysis.Insights}}<button class="tab-btn" onclick="switchTab(this,'insights-{{$other.Id}}')">Insights</button>{{end}}
                         </div>
+                        <a href="{{$od.Link}}" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
                       </div>
                       <div class="summary-body">
                         {{if $od.Analysis.Tldr}}<div id="tldr-{{$other.Id}}" class="tab-panel active"><div class="prose">{{$od.Analysis.Tldr}}</div></div>{{end}}
@@ -932,12 +996,11 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                       </div>
                     </div>
                     {{if $od.Analysis.KeyPoints}}<div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list">{{range $od.Analysis.KeyPoints}}<li><span class="kp-text">{{.}}</span></li>{{end}}</ul></div>{{end}}
-                    {{if $od.Analysis.ReferencedReports}}<div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list">{{range $od.Analysis.ReferencedReports}}<li class="report-item">
+                    {{if $od.Analysis.ReferencedReports}}<div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list">{{range $od.Analysis.ReferencedReports}}<li class="report-item">
                       <div class="report-title">{{if .Primary}}<span class="report-primary">PRIMARY</span>{{end}}<a class="report-link" href="{{.URL}}" target="_blank" rel="noopener">{{if .Title}}{{.Title}}{{else}}{{.URL}}{{end}}</a>{{if .Category}}<span class="report-cat report-cat-{{.Category}}">{{.Category}}</span>{{end}}</div>
                       {{if .Publisher}}<div class="report-meta">{{.Publisher}}</div>{{end}}
                       {{if .Context}}<div class="report-context">{{.Context}}</div>{{end}}
                     </li>{{end}}</ul></div>{{end}}
-                    <div style="padding:0.5rem 1.4rem"><a href="{{$od.Link}}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
                     {{else}}<div class="tab-panel active" style="padding:0.5rem 1.4rem">
                       <p style="font-family:var(--mono);font-size:11px;color:var(--must);margin:0 0 0.75rem">⚠ Analysis failed{{if $od.AnalysisError}} — {{$od.AnalysisError}}{{else}} — this article could not be scored or summarized{{end}}.</p>
                       <a href="{{$od.Link}}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a>
@@ -964,6 +1027,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-{{$row.Canonical.Id}}')">Full</button>
                   {{if $row.CanonDetail.Analysis.Insights}}<button class="tab-btn" onclick="switchTab(this,'insights-{{$row.Canonical.Id}}')">Insights</button>{{end}}
                 </div>
+                <a href="{{$row.CanonDetail.Link}}" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 {{if $row.CanonDetail.Analysis.Tldr}}<div id="tldr-{{$row.Canonical.Id}}" class="tab-panel active"><div class="prose">{{$row.CanonDetail.Analysis.Tldr}}</div></div>{{end}}
@@ -974,12 +1038,11 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               </div>
             </div>
             {{if $row.CanonDetail.Analysis.KeyPoints}}<div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list">{{range $row.CanonDetail.Analysis.KeyPoints}}<li><span class="kp-text">{{.}}</span></li>{{end}}</ul></div>{{end}}
-            {{if $row.CanonDetail.Analysis.ReferencedReports}}<div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list">{{range $row.CanonDetail.Analysis.ReferencedReports}}<li class="report-item">
+            {{if $row.CanonDetail.Analysis.ReferencedReports}}<div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list">{{range $row.CanonDetail.Analysis.ReferencedReports}}<li class="report-item">
               <div class="report-title">{{if .Primary}}<span class="report-primary">PRIMARY</span>{{end}}<a class="report-link" href="{{.URL}}" target="_blank" rel="noopener">{{if .Title}}{{.Title}}{{else}}{{.URL}}{{end}}</a>{{if .Category}}<span class="report-cat report-cat-{{.Category}}">{{.Category}}</span>{{end}}</div>
               {{if .Publisher}}<div class="report-meta">{{.Publisher}}</div>{{end}}
               {{if .Context}}<div class="report-context">{{.Context}}</div>{{end}}
             </li>{{end}}</ul></div>{{end}}
-            <div style="padding:0.5rem 1.4rem"><a href="{{$row.CanonDetail.Link}}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             {{else}}<div class="tab-panel active" style="padding:0.5rem 1.4rem">
               <p style="font-family:var(--mono);font-size:11px;color:var(--must);margin:0 0 0.75rem">⚠ Analysis failed{{if $row.CanonDetail.AnalysisError}} — {{$row.CanonDetail.AnalysisError}}{{else}} — this article could not be scored or summarized{{end}}.</p>
               <a href="{{$row.CanonDetail.Link}}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a>
@@ -1000,7 +1063,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                 <span class="meta-time">{{$row.Detail.PublishedAt}}</span>
               </div>{{if $row.Detail.Tags}}<div class="toc-row-tags"><span class="toc-tags-label">TAGS</span>{{range $row.Detail.Tags}}<span class="meta-tag" data-tag="{{.}}" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">{{.}}</span>{{end}}</div>{{end}}{{end}}
             </div>
-            {{if gt $row.Entry.ImportanceScore 0}}{{scoreBar $row.Entry.ImportanceScore}}{{end}}
+            {{if gt $row.Entry.ImportanceScore 0}}{{scoreBarTip $row.Entry.ImportanceScore $row.Entry.ScoreTip}}{{end}}
             <span class="toc-row-chevron">⌄</span>
           </div>
           {{if $row.Detail}}<div class="toc-row-body">
@@ -1019,6 +1082,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-{{$row.Entry.Id}}')">Full</button>
                   {{if $row.Detail.Analysis.Insights}}<button class="tab-btn" onclick="switchTab(this,'insights-{{$row.Entry.Id}}')">Insights</button>{{end}}
                 </div>
+                <a href="{{$row.Detail.Link}}" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 {{if $row.Detail.Analysis.Tldr}}<div id="tldr-{{$row.Entry.Id}}" class="tab-panel active"><div class="prose">{{$row.Detail.Analysis.Tldr}}</div></div>{{end}}
@@ -1029,12 +1093,11 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               </div>
             </div>
             {{if $row.Detail.Analysis.KeyPoints}}<div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list">{{range $row.Detail.Analysis.KeyPoints}}<li><span class="kp-text">{{.}}</span></li>{{end}}</ul></div>{{end}}
-            {{if $row.Detail.Analysis.ReferencedReports}}<div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list">{{range $row.Detail.Analysis.ReferencedReports}}<li class="report-item">
+            {{if $row.Detail.Analysis.ReferencedReports}}<div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list">{{range $row.Detail.Analysis.ReferencedReports}}<li class="report-item">
               <div class="report-title">{{if .Primary}}<span class="report-primary">PRIMARY</span>{{end}}<a class="report-link" href="{{.URL}}" target="_blank" rel="noopener">{{if .Title}}{{.Title}}{{else}}{{.URL}}{{end}}</a>{{if .Category}}<span class="report-cat report-cat-{{.Category}}">{{.Category}}</span>{{end}}</div>
               {{if .Publisher}}<div class="report-meta">{{.Publisher}}</div>{{end}}
               {{if .Context}}<div class="report-context">{{.Context}}</div>{{end}}
             </li>{{end}}</ul></div>{{end}}
-            <div style="padding:1.25rem 1.4rem"><a href="{{$row.Detail.Link}}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             {{else}}<div class="tab-panel active" style="padding:1.25rem 1.4rem">
               <p style="font-family:var(--mono);font-size:11px;color:var(--must);margin:0 0 0.75rem">⚠ Analysis failed{{if $row.Detail.AnalysisError}} — {{$row.Detail.AnalysisError}}{{else}} — this article could not be scored or summarized{{end}}.</p>
               <a href="{{$row.Detail.Link}}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a>
@@ -1106,6 +1169,14 @@ function toggleTocMember(titleEl, bodyId) {
   var body = document.getElementById(bodyId);
   if (!body) return;
   body.classList.toggle('open');
+}
+
+function toggleReportsSection(btn) {
+  var section = btn.closest('.panel-section');
+  var list = section.querySelector('.report-list');
+  var isOpen = !list.classList.contains('collapsed');
+  list.classList.toggle('collapsed', isOpen);
+  btn.classList.toggle('collapsed', isOpen);
 }
 
 function toggleOverview(btn) {

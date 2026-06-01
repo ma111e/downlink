@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"downlink/pkg/models"
+	"downlink/pkg/scoring"
 
 	gogit "gopkg.in/src-d/go-git.v4"
 )
@@ -175,6 +176,7 @@ func sampleDigest(id string, createdAt time.Time) models.Digest {
 					ProviderType:           "openai",
 					ModelName:              "gpt-test",
 					ImportanceScore:        95,
+					ScoreDimensions:        &scoring.Dimensions{Specificity: 4, Severity: 4, Breadth: 4, Novelty: 3, Actionability: 4, Credibility: 3},
 					Tldr:                   "Article B tldr.",
 					BriefOverview:          "Article B brief overview.",
 					StandardSynthesis:      "Article B standard synthesis.",
