@@ -769,20 +769,21 @@ mark.tag-hl:hover {
   z-index: 2;
 }
 .open-source-btn:hover { border-color: var(--cyan); text-decoration: none; }
-.panel-collapse-btn {
-  background: none;
-  border: none;
-  color: var(--text3);
+.report-show-more {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 4px 12px;
+  border-radius: 3px;
+  color: var(--cyan);
+  background: var(--surface2);
+  border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
   cursor: pointer;
-  font-size: 13px;
-  padding: 0 0 0 4px;
-  line-height: 1;
-  transition: transform 0.2s;
-  flex-shrink: 0;
-  margin-left: auto;
+  margin-top: 0.5rem;
+  display: block;
+  width: fit-content;
 }
-.panel-collapse-btn.collapsed { transform: rotate(-90deg); }
-.report-list.collapsed { display: none; }
+.report-show-more:hover { background: color-mix(in oklch, var(--cyan) 10%, transparent); }
 
  
 .toc-cluster { border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
@@ -997,7 +998,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The npm threat landscape has shifted from isolated typosquatting incidents to systematic, self-replicating supply chain attacks that automatically compromise and redistribute malicious packages.</span></li><li><span class="kp-text">Compromised packages execute malicious code during installation through preinstall lifecycle hooks, harvesting GitHub tokens, npm tokens, and cloud credentials from developer environments.</span></li><li><span class="kp-text">The malware propagates by backdooring every npm package a victim can publish and uses GitHub&#39;s public commit search API as a covert command and control channel.</span></li><li><span class="kp-text">Effective mitigations include disabling lifecycle scripts with ignore-scripts=true, pinning dependencies using lockfiles, and routing all package downloads through private registries.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://checkmarx.com/blog/checkmarx-security-update-april-22/" target="_blank" rel="noopener">Checkmarx Security Update: April 22, 2026</a></div>
               <div class="report-meta">Checkmarx</div>
               <div class="report-context">Cited as the official security update detailing the broader supply-chain campaign that compromised multiple Checkmarx distribution channels.</div>
@@ -1084,7 +1085,7 @@ A phishing page hosted on Cloudflare Pages mimics a legitimate Microsoft login i
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">ConsentFix v3 automates OAuth phishing attacks against Microsoft Azure by tricking users into pasting or dragging a localhost URL containing an authorization code back into a fake login page.</span></li><li><span class="kp-text">The technique uses Pipedream as an automation engine to instantly exchange captured codes for refresh tokens and collect them in real time.</span></li><li><span class="kp-text">Attackers gather employee details and utilize multiple third-party services to host phishing pages, generate personalized emails, and exfiltrate data.</span></li><li><span class="kp-text">Compromised tokens bypass multi-factor authentication and allow attackers to access Microsoft resources through Specter Portal.</span></li><li><span class="kp-text">Mitigation is complicated by architectural trust in first-party apps, but administrators can apply token binding, behavioral detection rules, and app authentication restrictions.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://github.com/secureworks/family-of-client-ids-research" target="_blank" rel="noopener">Family of Client IDs (FOCI) Research</a></div>
               <div class="report-meta">SecureWorks</div>
               <div class="report-context">Referenced as a technical analysis explaining how Microsoft applications that share permissions and refresh tokens can be leveraged to mitigate the attack.</div>
@@ -1574,14 +1575,6 @@ function toggleTocMember(titleEl, bodyId) {
   body.classList.toggle('open');
 }
 
-function toggleReportsSection(btn) {
-  var section = btn.closest('.panel-section');
-  var list = section.querySelector('.report-list');
-  var isOpen = !list.classList.contains('collapsed');
-  list.classList.toggle('collapsed', isOpen);
-  btn.classList.toggle('collapsed', isOpen);
-}
-
 function toggleOverview(btn) {
   var grid = document.getElementById('overview-grid');
   var chev = btn.querySelector('.overview-chevron');
@@ -1621,7 +1614,7 @@ function applyFilters() {
 
 function setFilter(btn) {
   var f = btn.dataset.filter;
-  document.querySelectorAll('.filter-btn').forEach(function(b){
+  document.querySelectorAll('.filter-btn[data-filter]').forEach(function(b){
     b.className = 'filter-btn';
     if (b.dataset.filter === f) {
       if (f === 'all') b.classList.add('active-all');
@@ -1696,14 +1689,34 @@ document.addEventListener('keydown', function(e) {
 });
 
 document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.report-list').forEach(function(list) {
+    var items = Array.from(list.querySelectorAll('.report-item'));
+    var primaries = items.filter(function(i) { return i.querySelector('.report-primary'); });
+    if (!primaries.length) return;
+    var nonPrimary = items.filter(function(i) { return !i.querySelector('.report-primary'); });
+    if (!nonPrimary.length) return;
+    nonPrimary.forEach(function(i) { i.style.display = 'none'; });
+    var btn = document.createElement('button');
+    btn.className = 'report-show-more';
+    var expandLabel = '+' + nonPrimary.length + ' more';
+    var collapseLabel = '↑ collapse';
+    btn.textContent = expandLabel;
+    btn.onclick = function() {
+      var expanded = btn.textContent === collapseLabel;
+      nonPrimary.forEach(function(i) { i.style.display = expanded ? 'none' : ''; });
+      btn.textContent = expanded ? expandLabel : collapseLabel;
+    };
+    list.appendChild(btn);
+  });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
   var cloud = document.querySelector('.toc-tag-cloud');
   if (!cloud) return;
   var pills = Array.from(cloud.querySelectorAll('.tag-pill'));
-  if (pills.length < 2) return;
-  var rowH = pills[0].offsetHeight;
-  var threshold = rowH + 5; 
-  var hidden = pills.filter(function(p) { return p.offsetTop > threshold; });
-  if (!hidden.length) return;
+  var max = 25;
+  if (pills.length <= max) return;
+  var hidden = pills.slice(max);
   hidden.forEach(function(p) { p.style.display = 'none'; });
   var btn = document.createElement('button');
   btn.className = 'tag-pill tag-show-more';

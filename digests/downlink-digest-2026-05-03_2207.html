@@ -769,20 +769,21 @@ mark.tag-hl:hover {
   z-index: 2;
 }
 .open-source-btn:hover { border-color: var(--cyan); text-decoration: none; }
-.panel-collapse-btn {
-  background: none;
-  border: none;
-  color: var(--text3);
+.report-show-more {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 4px 12px;
+  border-radius: 3px;
+  color: var(--cyan);
+  background: var(--surface2);
+  border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
   cursor: pointer;
-  font-size: 13px;
-  padding: 0 0 0 4px;
-  line-height: 1;
-  transition: transform 0.2s;
-  flex-shrink: 0;
-  margin-left: auto;
+  margin-top: 0.5rem;
+  display: block;
+  width: fit-content;
 }
-.panel-collapse-btn.collapsed { transform: rotate(-90deg); }
-.report-list.collapsed { display: none; }
+.report-show-more:hover { background: color-mix(in oklch, var(--cyan) 10%, transparent); }
 
  
 .toc-cluster { border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
@@ -996,7 +997,7 @@ These measures provide a temporary defense until kernel patches in versions 6.18
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">CISA added the Linux kernel privilege escalation vulnerability CVE-2026-31431, also known as Copy Fail, to its Known Exploited Vulnerabilities catalog due to evidence of active exploitation.</span></li><li><span class="kp-text">The flaw permits unprivileged local users to gain root access by corrupting the kernel&#39;s in-memory page cache of readable files, creating a serious risk for containerized environments such as Docker and Kubernetes.</span></li><li><span class="kp-text">A fully working proof-of-concept exploit is available, prompting CISA to advise federal agencies to apply kernel updates by May 15, 2026, or disable the affected cryptographic template if patching is not immediately possible.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://www.cisa.gov/news-events/alerts/2026/05/01/cisa-adds-one-known-exploited-vulnerability-catalog" target="_blank" rel="noopener">CISA Adds One Known Exploited Vulnerability to Catalog</a></div>
               <div class="report-meta">CISA</div>
               <div class="report-context">The article references this official advisory as the notification adding CVE-2026-31431 to the KEV catalog due to evidence of active exploitation.</div>
@@ -1092,7 +1093,7 @@ These measures provide a temporary defense until kernel patches in versions 6.18
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The FEMITBOT platform leverages Telegram Mini Apps to host cryptocurrency scams and impersonate well-known brands such as Apple, NVIDIA, and Disney directly within the messaging application.</span></li><li><span class="kp-text">Threat actors utilize a shared backend infrastructure to deploy multiple phishing campaigns that display fake financial dashboards and prompt users to deposit funds or complete referral tasks.</span></li><li><span class="kp-text">Malicious Mini Apps run inside Telegram&#39;s built-in WebView to distribute Android malware disguised as legitimate applications, with APK files hosted on the same domain to avoid browser security warnings.</span></li><li><span class="kp-text">The operation employs tracking scripts from Meta and TikTok to monitor user activity, measure conversions, and optimize the effectiveness of the fraudulent campaigns.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://www.ctm360.com/reports/femitbot-telegram-mini-apps-fraud-campaigns" target="_blank" rel="noopener">FEMITBOT Telegram Mini Apps Fraud Campaigns</a></div>
               <div class="report-meta">CTM360</div>
               <div class="report-context">The article cites this report to detail how the FEMITBOT platform leverages Telegram Mini Apps to conduct cryptocurrency scams, impersonate well-known brands, and distribute Android malware.</div>
@@ -1168,14 +1169,6 @@ function toggleTocMember(titleEl, bodyId) {
   body.classList.toggle('open');
 }
 
-function toggleReportsSection(btn) {
-  var section = btn.closest('.panel-section');
-  var list = section.querySelector('.report-list');
-  var isOpen = !list.classList.contains('collapsed');
-  list.classList.toggle('collapsed', isOpen);
-  btn.classList.toggle('collapsed', isOpen);
-}
-
 function toggleOverview(btn) {
   var grid = document.getElementById('overview-grid');
   var chev = btn.querySelector('.overview-chevron');
@@ -1215,7 +1208,7 @@ function applyFilters() {
 
 function setFilter(btn) {
   var f = btn.dataset.filter;
-  document.querySelectorAll('.filter-btn').forEach(function(b){
+  document.querySelectorAll('.filter-btn[data-filter]').forEach(function(b){
     b.className = 'filter-btn';
     if (b.dataset.filter === f) {
       if (f === 'all') b.classList.add('active-all');
@@ -1290,14 +1283,34 @@ document.addEventListener('keydown', function(e) {
 });
 
 document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.report-list').forEach(function(list) {
+    var items = Array.from(list.querySelectorAll('.report-item'));
+    var primaries = items.filter(function(i) { return i.querySelector('.report-primary'); });
+    if (!primaries.length) return;
+    var nonPrimary = items.filter(function(i) { return !i.querySelector('.report-primary'); });
+    if (!nonPrimary.length) return;
+    nonPrimary.forEach(function(i) { i.style.display = 'none'; });
+    var btn = document.createElement('button');
+    btn.className = 'report-show-more';
+    var expandLabel = '+' + nonPrimary.length + ' more';
+    var collapseLabel = '↑ collapse';
+    btn.textContent = expandLabel;
+    btn.onclick = function() {
+      var expanded = btn.textContent === collapseLabel;
+      nonPrimary.forEach(function(i) { i.style.display = expanded ? 'none' : ''; });
+      btn.textContent = expanded ? expandLabel : collapseLabel;
+    };
+    list.appendChild(btn);
+  });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
   var cloud = document.querySelector('.toc-tag-cloud');
   if (!cloud) return;
   var pills = Array.from(cloud.querySelectorAll('.tag-pill'));
-  if (pills.length < 2) return;
-  var rowH = pills[0].offsetHeight;
-  var threshold = rowH + 5; 
-  var hidden = pills.filter(function(p) { return p.offsetTop > threshold; });
-  if (!hidden.length) return;
+  var max = 25;
+  if (pills.length <= max) return;
+  var hidden = pills.slice(max);
   hidden.forEach(function(p) { p.style.display = 'none'; });
   var btn = document.createElement('button');
   btn.className = 'tag-pill tag-show-more';

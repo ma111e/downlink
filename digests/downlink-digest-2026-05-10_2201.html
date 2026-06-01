@@ -769,20 +769,21 @@ mark.tag-hl:hover {
   z-index: 2;
 }
 .open-source-btn:hover { border-color: var(--cyan); text-decoration: none; }
-.panel-collapse-btn {
-  background: none;
-  border: none;
-  color: var(--text3);
+.report-show-more {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 4px 12px;
+  border-radius: 3px;
+  color: var(--cyan);
+  background: var(--surface2);
+  border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
   cursor: pointer;
-  font-size: 13px;
-  padding: 0 0 0 4px;
-  line-height: 1;
-  transition: transform 0.2s;
-  flex-shrink: 0;
-  margin-left: auto;
+  margin-top: 0.5rem;
+  display: block;
+  width: fit-content;
 }
-.panel-collapse-btn.collapsed { transform: rotate(-90deg); }
-.report-list.collapsed { display: none; }
+.report-show-more:hover { background: color-mix(in oklch, var(--cyan) 10%, transparent); }
 
  
 .toc-cluster { border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
@@ -1001,7 +1002,7 @@ The Windows vulnerabilities affect versions 0.12.10 through 0.17.5, with researc
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Ollama versions prior to 0.17.1 contain a critical out-of-bounds read vulnerability (CVE-2026-7482) that allows unauthenticated attackers to leak sensitive process memory, including API keys and conversation data, through crafted GGUF files.</span></li><li><span class="kp-text">Two unpatched vulnerabilities (CVE-2026-42248 and CVE-2026-42249) in Ollama&#39;s Windows update mechanism combine path traversal and missing signature verification to enable persistent remote code execution at the user privilege level.</span></li><li><span class="kp-text">The Windows update flaws affect versions 0.12.10 through 0.17.5, and researchers recommend disabling automatic updates and removing the Ollama shortcut from the Windows Startup folder as interim mitigations.</span></li><li><span class="kp-text">Security guidance for all instances includes applying the latest patches, limiting network exposure, isolating servers behind firewalls, and deploying authentication proxies since the REST API does not provide authentication out of the box.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://www.cyera.com/research/bleeding-llama-critical-unauthenticated-memory-leak-in-ollama" target="_blank" rel="noopener">Bleeding Llama: Critical Unauthenticated Memory Leak in Ollama</a></div>
               <div class="report-meta">Cyera</div>
               <div class="report-context">Cited as the entity that codenamed the vulnerability and provided the official CVE description.</div>
@@ -1264,14 +1265,6 @@ function toggleTocMember(titleEl, bodyId) {
   body.classList.toggle('open');
 }
 
-function toggleReportsSection(btn) {
-  var section = btn.closest('.panel-section');
-  var list = section.querySelector('.report-list');
-  var isOpen = !list.classList.contains('collapsed');
-  list.classList.toggle('collapsed', isOpen);
-  btn.classList.toggle('collapsed', isOpen);
-}
-
 function toggleOverview(btn) {
   var grid = document.getElementById('overview-grid');
   var chev = btn.querySelector('.overview-chevron');
@@ -1311,7 +1304,7 @@ function applyFilters() {
 
 function setFilter(btn) {
   var f = btn.dataset.filter;
-  document.querySelectorAll('.filter-btn').forEach(function(b){
+  document.querySelectorAll('.filter-btn[data-filter]').forEach(function(b){
     b.className = 'filter-btn';
     if (b.dataset.filter === f) {
       if (f === 'all') b.classList.add('active-all');
@@ -1386,14 +1379,34 @@ document.addEventListener('keydown', function(e) {
 });
 
 document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.report-list').forEach(function(list) {
+    var items = Array.from(list.querySelectorAll('.report-item'));
+    var primaries = items.filter(function(i) { return i.querySelector('.report-primary'); });
+    if (!primaries.length) return;
+    var nonPrimary = items.filter(function(i) { return !i.querySelector('.report-primary'); });
+    if (!nonPrimary.length) return;
+    nonPrimary.forEach(function(i) { i.style.display = 'none'; });
+    var btn = document.createElement('button');
+    btn.className = 'report-show-more';
+    var expandLabel = '+' + nonPrimary.length + ' more';
+    var collapseLabel = '↑ collapse';
+    btn.textContent = expandLabel;
+    btn.onclick = function() {
+      var expanded = btn.textContent === collapseLabel;
+      nonPrimary.forEach(function(i) { i.style.display = expanded ? 'none' : ''; });
+      btn.textContent = expanded ? expandLabel : collapseLabel;
+    };
+    list.appendChild(btn);
+  });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
   var cloud = document.querySelector('.toc-tag-cloud');
   if (!cloud) return;
   var pills = Array.from(cloud.querySelectorAll('.tag-pill'));
-  if (pills.length < 2) return;
-  var rowH = pills[0].offsetHeight;
-  var threshold = rowH + 5; 
-  var hidden = pills.filter(function(p) { return p.offsetTop > threshold; });
-  if (!hidden.length) return;
+  var max = 25;
+  if (pills.length <= max) return;
+  var hidden = pills.slice(max);
   hidden.forEach(function(p) { p.style.display = 'none'; });
   var btn = document.createElement('button');
   btn.className = 'tag-pill tag-show-more';
