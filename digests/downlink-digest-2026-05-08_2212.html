@@ -32,6 +32,11 @@
   --mono:    'IBM Plex Mono', 'SF Mono', 'Fira Code', Consolas, monospace;
   --sans:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --radius:  4px;
+  --cat-research: oklch(74% 0.14 196);
+  --cat-advisory: oklch(74% 0.18 44);
+  --cat-news:     oklch(72% 0.15 220);
+  --cat-opinion:  oklch(70% 0.17 350);
+  --cat-guide:    oklch(76% 0.15 130);
 }
 
 
@@ -252,6 +257,59 @@ a:hover { text-decoration: underline; }
   white-space: nowrap;
 }
 .toc-group-count { font-family: var(--mono); font-size: 9px; color: var(--text3); }
+.info-tip {
+  cursor: help;
+  font-style: normal;
+  font-size: 0.7rem;
+  opacity: 0.45;
+  position: relative;
+  user-select: none;
+  line-height: 1;
+}
+.info-tip:hover { opacity: 1; }
+.info-tip::after {
+  content: attr(data-tip);
+  display: none;
+  position: absolute;
+  left: 1.4em;
+  top: -0.3em;
+  width: 22em;
+  background: var(--bg-secondary, #1e1e2e);
+  color: var(--fg, #cdd6f4);
+  border: 1px solid var(--border, #45475a);
+  border-radius: 6px;
+  padding: 0.5em 0.75em;
+  font-size: 0.75rem;
+  font-family: inherit;
+  line-height: 1.4;
+  z-index: 100;
+  white-space: normal;
+  pointer-events: none;
+}
+.info-tip:hover::after { display: block; }
+ 
+.score-tip { position: relative; cursor: help; }
+.score-tip::after {
+  content: attr(data-tip);
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4em);
+  width: max-content;
+  max-width: 22em;
+  background: var(--bg-secondary, #1e1e2e);
+  color: var(--fg, #cdd6f4);
+  border: 1px solid var(--border, #45475a);
+  border-radius: 6px;
+  padding: 0.5em 0.75em;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  z-index: 100;
+  white-space: normal;
+  pointer-events: none;
+}
+.score-tip:hover::after { display: block; }
 .toc-num {
   font-family: var(--mono);
   font-size: 10px;
@@ -264,7 +322,6 @@ a:hover { text-decoration: underline; }
 .toc-num-may    { color: var(--may); }
 .toc-num-opt    { color: var(--text3); }
 .toc-title-link { color: var(--text); font-size: 13px; flex: 1; line-height: 1.5; cursor: pointer; }
-.toc-title-link:hover { color: var(--text2); text-decoration: none; }
 .toc-child-indent { color: var(--text3); font-size: 10px; margin-top: 2px; flex-shrink: 0; }
 .toc-child-title  { color: var(--text2); font-size: 12px; flex: 1; line-height: 1.5; }
 .toc-child-title:hover { color: var(--text); text-decoration: none; }
@@ -389,9 +446,20 @@ a:hover { text-decoration: underline; }
 .overview-body a { color: var(--cyan); }
 
  
-.toc-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.toc-filters { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.filter-row { display: flex; align-items: flex-start; gap: 12px; }
+.filter-label {
+  flex-shrink: 0;
+  min-width: 64px;
+  padding-top: 5px;             
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text3);
+}
  
-.toc-tag-cloud { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; width: 100%; }
+.toc-tag-cloud { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; flex: 1; }
 .tag-pill {
   font-family: var(--mono);
   font-size: 9.5px;
@@ -409,7 +477,9 @@ a:hover { text-decoration: underline; }
   border-color: var(--cyan);
   background: color-mix(in oklch, var(--cyan) 18%, transparent);
 }
-.filter-bar { display: flex; gap: 2px; }
+.tag-show-more { color: var(--cyan); border-color: var(--cyan); }
+.tag-show-more:hover { background: color-mix(in oklch, var(--cyan) 10%, transparent); }
+.filter-bar { display: flex; flex-wrap: wrap; gap: 2px; }
 .filter-btn {
   background: none;
   border: 1px solid transparent;
@@ -463,6 +533,11 @@ a:hover { text-decoration: underline; }
   background: currentColor;
   flex-shrink: 0;
 }
+.toc-row-wrap[data-category="research"] .toc-cat-label { color: var(--cat-research); }
+.toc-row-wrap[data-category="advisory"] .toc-cat-label { color: var(--cat-advisory); }
+.toc-row-wrap[data-category="news"]     .toc-cat-label { color: var(--cat-news); }
+.toc-row-wrap[data-category="opinion"]  .toc-cat-label { color: var(--cat-opinion); }
+.toc-row-wrap[data-category="guide"]    .toc-cat-label { color: var(--cat-guide); }
  
 .toc-row-tags {
   display: flex;
@@ -477,11 +552,17 @@ a:hover { text-decoration: underline; }
   padding-top: 8px;
   border-top: 1px solid var(--border);
    
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
-  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  animation-name: tag-scroll-fade;
+  animation-fill-mode: both;
+  animation-timing-function: linear;
+  animation-timeline: scroll(self inline);
+}
+@keyframes tag-scroll-fade {
+  0%, 90% { mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%); }
+  100%    { mask-image: linear-gradient(to right, #000 100%,              transparent 100%); }
 }
  
-.toc-row-inner .toc-row-tags { margin-left: -32px; width: calc(100% + 32px); }
+.toc-row-inner .toc-row-tags { margin-left: -32px; width: calc(100% + 32px + 8px); }
 .toc-row-tags::-webkit-scrollbar { display: none; }  
 .toc-tags-label {
   align-self: center;
@@ -573,6 +654,14 @@ mark.tag-hl {
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
+  cursor: pointer;
+  position: relative;  
+  z-index: 2;
+  transition: background .15s;
+}
+mark.tag-hl:hover {
+  background: color-mix(in oklch, var(--cyan) 28%, transparent);
+  text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -611,11 +700,11 @@ mark.tag-hl {
   color: color-mix(in oklch, var(--c) 55%, var(--text2));
 }
 .report-cat::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c); flex-shrink: 0; }
-.report-cat-research { --c: var(--cyan); }
-.report-cat-advisory { --c: var(--should); }
-.report-cat-news     { --c: var(--may); }
-.report-cat-opinion  { --c: oklch(70% 0.16 310); }
-.report-cat-guide    { --c: oklch(74% 0.13 110); }
+.report-cat-research { --c: var(--cat-research); }
+.report-cat-advisory { --c: var(--cat-advisory); }
+.report-cat-news     { --c: var(--cat-news); }
+.report-cat-opinion  { --c: var(--cat-opinion); }
+.report-cat-guide    { --c: var(--cat-guide); }
 .report-meta { margin-top: 0.25rem; font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
 .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
 
@@ -664,6 +753,36 @@ mark.tag-hl {
   background: color-mix(in oklch, var(--cyan) 8%, transparent);
 }
 .summary-body .tab-panel { padding: 0; }
+.open-source-btn {
+  margin-left: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in oklch, var(--cyan) 30%, transparent);
+  border-radius: 2px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+.open-source-btn:hover { border-color: var(--cyan); text-decoration: none; }
+.panel-collapse-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 0 0 4px;
+  line-height: 1;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.panel-collapse-btn.collapsed { transform: rotate(-90deg); }
+.report-list.collapsed { display: none; }
 
  
 .toc-cluster { border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
@@ -718,7 +837,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
 
  
 @media (max-width: 700px) {
-  #nav { padding: 10px 16px; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+  #nav { margin: 0 16px; padding: 10px 0; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
   .nav-center { display: none; }
   .nav-window { display: none; }
   .nav-right { display: contents; }
@@ -730,7 +849,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
   .overview-cell-border-r { border-right: none; border-top: 1px solid var(--border); }
   .overview-cell-full { grid-column: auto; }
   #back-top { bottom: 1rem; right: 0.75rem; }
-  #digest-title { padding: 12px 16px; }
+  #digest-title { margin: 0 16px; padding: 12px 16px; }
   .digest-title-text { font-size: 18px; }
 }
 #digest-title {
@@ -783,14 +902,16 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
 <section id="toc">
   <div class="toc-card">
     <div class="toc-header" style="display:flex;align-items:center;justify-content:space-between">
-      <span class="section-label">READING LIST</span>
       <div class="toc-filters">
         
-        <div class="filter-bar">
-          <button class="filter-btn active-all" data-filter="all" onclick="setFilter(this)">ALL <span class="filter-count">16</span></button>
-          <button class="filter-btn" data-filter="must" onclick="setFilter(this)">MUST <span class="filter-count must-count"></span></button>
-          <button class="filter-btn" data-filter="should" onclick="setFilter(this)">SHOULD <span class="filter-count should-count"></span></button>
-          <button class="filter-btn" data-filter="may" onclick="setFilter(this)">MAY <span class="filter-count may-count"></span></button>
+        <div class="filter-row">
+          <span class="filter-label">PRIORITY</span>
+          <div class="filter-bar">
+            <button class="filter-btn active-all" data-filter="all" onclick="setFilter(this)">ALL <span class="filter-count">16</span></button>
+            <button class="filter-btn" data-filter="must" onclick="setFilter(this)">MUST <span class="filter-count must-count"></span></button>
+            <button class="filter-btn" data-filter="should" onclick="setFilter(this)">SHOULD <span class="filter-count should-count"></span></button>
+            <button class="filter-btn" data-filter="may" onclick="setFilter(this)">MAY <span class="filter-count may-count"></span></button>
+          </div>
         </div>
         
       </div>
@@ -798,7 +919,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
     <div class="toc-body">
       <div class="toc-group">
         <div class="toc-group-head">
-          <span class="toc-group-label priority-badge badge-must">Must Read</span>
+          <span class="toc-group-label priority-badge badge-must">Must Read</span><span class="info-tip" data-tip="Score 91–100: breaking or high-impact event - active exploitation in the wild, major breach, critical patch, or named threat actor operation.">ⓘ</span>
           <span class="toc-group-count">4 items</span>
         </div>
         <div class="toc-row-wrap must-row" data-priority="must" data-category="" data-tags="">
@@ -836,6 +957,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:71d27177a05d8820')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:71d27177a05d8820')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/security/cisa-gives-feds-four-days-to-patch-ivanti-flaw-exploited-as-zero-day/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:71d27177a05d8820" class="tab-panel active"><div class="prose">CISA has mandated that US federal agencies patch the actively exploited Ivanti EPMM zero-day vulnerability within four days, and Ivanti has released updated software versions to address the flaw.</div></div>
@@ -863,7 +985,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">CISA has mandated that U.S. federal agencies patch the actively exploited Ivanti EPMM zero-day vulnerability, CVE-2026-6973, by midnight Sunday, May 10.</span></li><li><span class="kp-text">Ivanti has released updated software versions for on-premises EPMM appliances and advised administrators to review and rotate credentials with administrative privileges.</span></li><li><span class="kp-text">The vulnerability allows attackers with administrative access to execute arbitrary code remotely on systems running EPMM version 12.8.0.0 and earlier.</span></li><li><span class="kp-text">Shadowserver currently tracks over 800 Ivanti EPMM appliances exposed online, though the number of patched systems remains unknown.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://hub.ivanti.com/s/article/May-2026-Security-Advisory-Ivanti-Endpoint-Manager-Mobile-EPMM-Multiple-CVEs?language=en_US" target="_blank" rel="noopener">May 2026 Security Advisory</a></div>
               <div class="report-meta">Ivanti</div>
               <div class="report-context">The article references this document as the Thursday security advisory where Ivanti outlined patching instructions and confirmed limited exploitation.</div>
@@ -872,7 +994,6 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               <div class="report-meta">CISA</div>
               <div class="report-context">The article cites this alert as the official notice where CISA added the flaw to its Known Exploited Vulnerabilities catalog and mandated federal remediation.</div>
             </li></ul></div>
-            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/cisa-gives-feds-four-days-to-patch-ivanti-flaw-exploited-as-zero-day/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="" data-tags="">
@@ -910,6 +1031,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:99fd63caf972aae2')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:99fd63caf972aae2')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/security/new-linux-dirty-frag-zero-day-with-poc-exploit-gives-root-privileges/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:99fd63caf972aae2" class="tab-panel active"><div class="prose">The newly disclosed Dirty Frag Linux zero-day allows local attackers to reliably escalate to root privileges across major distributions by chaining two kernel flaws, with no official patch available and only a temporary mitigation that breaks IPsec VPNs.</div></div>
@@ -941,7 +1063,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The Dirty Frag Linux zero-day allows local attackers to gain root privileges on major distributions by chaining the xfrm-ESP and RxRPC Page-Cache Write kernel flaws.</span></li><li><span class="kp-text">This deterministic logic bug exploits a different kernel data structure than Dirty Pipe or Copy Fail and does not require a race condition to achieve high success rates.</span></li><li><span class="kp-text">No official patch or CVE-ID exists yet, leaving Ubuntu, Red Hat Enterprise Linux, CentOS Stream, AlmaLinux, openSUSE Tumbleweed, and Fedora currently unpatched.</span></li><li><span class="kp-text">A temporary mitigation involves removing the esp4, esp6, and rxrpc kernel modules, though this workaround will break IPsec VPNs and AFS distributed network file systems.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://www.cisa.gov/news-events/alerts/2026/05/01/cisa-adds-one-known-exploited-vulnerability-catalog/" target="_blank" rel="noopener">CISA Alert: Adds One Known Exploited Vulnerability to Catalog</a></div>
               <div class="report-meta">CISA</div>
               <div class="report-context">The article references this advisory to note that CISA added the Copy Fail vulnerability to its KEV Catalog and ordered federal agencies to patch their Linux systems within two weeks.</div>
@@ -950,7 +1072,6 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               <div class="report-meta">Openwall</div>
               <div class="report-context">The article cites this security advisory as the official channel where researcher Hyunwoo Kim disclosed the Dirty Frag flaw and published the proof-of-concept exploit.</div>
             </li></ul></div>
-            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/new-linux-dirty-frag-zero-day-with-poc-exploit-gives-root-privileges/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="" data-tags="">
@@ -1003,6 +1124,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                           <button class="tab-btn" onclick="switchTab(this,'comprehensive-6428692e07ece4bc06cc6bdf93ea96b2:075d16ade110befd')">Full</button>
                           <button class="tab-btn" onclick="switchTab(this,'insights-6428692e07ece4bc06cc6bdf93ea96b2:075d16ade110befd')">Insights</button>
                         </div>
+                        <a href="https://therecord.media/universities-forced-to-reschedule-exams-canvas-incident" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
                       </div>
                       <div class="summary-body">
                         <div id="tldr-6428692e07ece4bc06cc6bdf93ea96b2:075d16ade110befd" class="tab-panel active"><div class="prose">A second cyberattack by the ShinyHunters group on the Canvas education platform forced dozens of U.S. universities to reschedule final exams and temporarily shut down the system, though no new data was stolen and the platform has since been restored.</div></div>
@@ -1033,7 +1155,6 @@ The outage disrupted academic operations at major institutions, including Baylor
                     </div>
                     <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The ShinyHunters cybercriminal group defaced the Canvas platform with a ransom demand, prompting Instructure to temporarily take the system offline and shut down Free-For-Teacher accounts.</span></li><li><span class="kp-text">Dozens of U.S. universities and K-12 districts were forced to reschedule final exams and warn students about the outage and potential phishing risks.</span></li><li><span class="kp-text">Instructure confirmed the attack exploited vulnerabilities in Free-For-Teacher accounts and stated that no new data was stolen during this incident.</span></li><li><span class="kp-text">This incident follows a previous breach by the same group last week that compromised data from over 9,000 schools and resulted in the theft of 3.6 TB of information.</span></li></ul></div>
                     
-                    <div style="padding:0.5rem 1.4rem"><a href="https://therecord.media/universities-forced-to-reschedule-exams-canvas-incident" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
                     
                   </div>
                 </div>
@@ -1058,6 +1179,7 @@ The outage disrupted academic operations at major institutions, including Baylor
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:8df2331ef442bb74')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:8df2331ef442bb74')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/security/canvas-login-portals-hacked-in-mass-shinyhunters-extortion-campaign/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:8df2331ef442bb74" class="tab-panel active"><div class="prose">The ShinyHunters extortion gang breached Instructure&#39;s Canvas platform, defacing login portals for hundreds of educational institutions and threatening to leak stolen student and staff data unless a ransom is paid by May 12, 2026.</div></div>
@@ -1111,7 +1233,6 @@ The outage disrupted academic operations at major institutions, including Baylor
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The ShinyHunters extortion gang breached Instructure&#39;s Canvas platform and defaced login portals for approximately 330 educational institutions.</span></li><li><span class="kp-text">The attackers issued a ransom ultimatum threatening to leak stolen student and staff data unless payment is negotiated by May 12, 2026.</span></li><li><span class="kp-text">This incident follows a prior breach claim in which the group stated they exfiltrated 280 million records from nearly 8,800 schools and universities.</span></li><li><span class="kp-text">Instructure confirmed that data was stolen during the attack but has not yet communicated with affected students and staff about the breach.</span></li></ul></div>
             
-            <div style="padding:0.5rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/canvas-login-portals-hacked-in-mass-shinyhunters-extortion-campaign/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="" data-tags="">
@@ -1149,6 +1270,7 @@ The outage disrupted academic operations at major institutions, including Baylor
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:918c2a145a658bee')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:918c2a145a658bee')">Insights</button>
                 </div>
+                <a href="https://thehackernews.com/2026/05/quasar-linux-rat-steals-developer.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:918c2a145a658bee" class="tab-panel active"><div class="prose">Quasar Linux RAT (QLNX) is a stealthy malware implant targeting developers and DevOps environments to harvest sensitive credentials and compromise the software supply chain through advanced rootkit techniques and fileless execution.</div></div>
@@ -1189,18 +1311,17 @@ The outage disrupted academic operations at major institutions, including Baylor
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Quasar Linux RAT (QLNX) is a fileless malware implant that targets developer and DevOps systems to harvest sensitive credentials from high-value configuration files.</span></li><li><span class="kp-text">The malware masquerades as a kernel thread and employs a two-tiered rootkit architecture using LD_PRELOAD and eBPF to hide its processes and artifacts from standard system tools.</span></li><li><span class="kp-text">QLNX utilizes a PAM inline-hook backdoor and a dynamically loaded credentials logger to intercept and exfiltrate plaintext authentication data to an attacker-controlled server.</span></li><li><span class="kp-text">The implant supports 58 distinct commands and establishes persistence through multiple methods, including systemd, crontab, and shell injection, while maintaining communication with its command-and-control infrastructure.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://www.trendmicro.com/en_us/research/26/e/quasar-linux-qlnx-a-silent-foothold-in-the-software-supply-chain.html" target="_blank" rel="noopener">Quasar Linux QLNX: A Silent Foothold in the Software Supply Chain</a></div>
               <div class="report-meta">Trend Micro</div>
               <div class="report-context">The article cites this document as a technical analysis by Trend Micro researchers Aliakbar Zahravi and Ahmed Mohamed Ibrahim.</div>
             </li></ul></div>
-            <div style="padding:1.25rem 1.4rem"><a href="https://thehackernews.com/2026/05/quasar-linux-rat-steals-developer.html" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div>
       </div><div class="toc-group">
         <div class="toc-group-head">
-          <span class="toc-group-label priority-badge badge-should">Should Read</span>
+          <span class="toc-group-label priority-badge badge-should">Should Read</span><span class="info-tip" data-tip="Score 76–90: specific event or finding with broad relevance, even if not immediately urgent.">ⓘ</span>
           <span class="toc-group-count">9 items</span>
         </div>
         <div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -1238,6 +1359,7 @@ The outage disrupted academic operations at major institutions, including Baylor
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:66b7b017fa4ebbb1')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:66b7b017fa4ebbb1')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/security/why-more-analysts-wont-solve-your-socs-alert-problem/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:66b7b017fa4ebbb1" class="tab-panel active"><div class="prose">Security teams cannot hire their way out of modern alert overload because the underlying operating model is broken; adopting AI automation for routine investigations is the only viable path to clear backlogs, reduce costs, and free human analysts for complex, context-driven threats.</div></div>
@@ -1297,7 +1419,7 @@ When AI handles routine investigations, the audit trail becomes a complete chain
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Security spending has roughly doubled in six years, but detection and containment timelines have not improved because SOCs rely on an outdated human-driven triage model.</span></li><li><span class="kp-text">Post-tiering alert volumes consistently exceed human investigation capacity, meaning hiring more analysts cannot resolve backlog-driven security gaps.</span></li><li><span class="kp-text">AI investigation platforms process alerts at machine speed, returning hundreds of analyst hours daily and reducing SIEM costs by eliminating unnecessary telemetry ingestion.</span></li><li><span class="kp-text">CISOs typically fund AI SOC platforms by offsetting unapproved headcount budgets, capturing SIEM storage savings, or displacing existing SOAR tools.</span></li><li><span class="kp-text">Human analysts must still lead investigations involving insider threats with non-technical context, novel attack techniques, and environments with strict data residency rules.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://cloud.google.com/blog/topics/threat-intelligence/m-trends-2026" target="_blank" rel="noopener">M-Trends 2026</a></div>
               <div class="report-meta">Google Cloud / Mandiant</div>
               <div class="report-context">Cited to provide statistics on global median dwell time and the collapsing hand-off window between initial access and secondary threat group transfer.</div>
@@ -1306,7 +1428,6 @@ When AI handles routine investigations, the audit trail becomes a complete chain
               <div class="report-meta">IBM</div>
               <div class="report-context">Referenced for data on the average time to identify and contain breaches, as well as the associated financial costs.</div>
             </li></ul></div>
-            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/why-more-analysts-wont-solve-your-socs-alert-problem/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -1344,6 +1465,7 @@ When AI handles routine investigations, the audit trail becomes a complete chain
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-6e33eb1fef6411b71e4ffc38695960f9:edd72a7aca72ea44')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-6e33eb1fef6411b71e4ffc38695960f9:edd72a7aca72ea44')">Insights</button>
                 </div>
+                <a href="https://securelist.com/cve-2025-68670/119742/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-6e33eb1fef6411b71e4ffc38695960f9:edd72a7aca72ea44" class="tab-panel active"><div class="prose">Kaspersky researchers discovered a pre-authentication remote code execution vulnerability in the xrdp server caused by a stack buffer overflow in domain name processing, which was promptly patched by project maintainers following responsible disclosure.</div></div>
@@ -1409,12 +1531,11 @@ The disclosure timeline demonstrates a rapid response from the xrdp project main
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Kaspersky researchers discovered a pre-authentication remote code execution vulnerability in the xrdp server during a security audit of the Kaspersky USB Redirector module.</span></li><li><span class="kp-text">The flaw exists in the xrdp_wm_parse_domain_information function, where a crafted domain name exceeding 256 bytes causes a stack buffer overflow that overwrites the return address.</span></li><li><span class="kp-text">Exploitation allows attackers to execute arbitrary code within the xrdp server process without requiring valid client credentials.</span></li><li><span class="kp-text">The xrdp maintainers promptly patched the vulnerability in version 0.10.5 and backported the fix to versions 0.9.27 and 0.10.4.1.</span></li><li><span class="kp-text">Although stack canaries mitigate trivial exploitation, the maintainers warn that they are not a complete defense against this vulnerability.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://github.com/neutrinolabs/xrdp/security/advisories/GHSA-rwvg-gp87-gh6f" target="_blank" rel="noopener">Security Advisory GHSA-rwvg-gp87-gh6f</a></div>
               <div class="report-meta">xrdp project maintainers</div>
               <div class="report-context">The article references this as the official security bulletin issued by the xrdp maintainers that details the vulnerability and provides risk mitigation options.</div>
             </li></ul></div>
-            <div style="padding:1.25rem 1.4rem"><a href="https://securelist.com/cve-2025-68670/119742/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -1452,6 +1573,7 @@ The disclosure timeline demonstrates a rapid response from the xrdp project main
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:1ccfd25fa426e2b0')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:1ccfd25fa426e2b0')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/security/new-tclbanker-malware-self-spreads-over-whatsapp-and-outlook/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:1ccfd25fa426e2b0" class="tab-panel active"><div class="prose">The new TCLBanker banking trojan autonomously spreads through WhatsApp and Outlook worm modules to infect new victims while using advanced evasion techniques to steal credentials from targeted financial platforms.</div></div>
@@ -1522,12 +1644,11 @@ While TCLBanker currently enforces geographic restrictions by checking timezone,
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The TCLBanker trojan targets 59 financial platforms and delivers infection through a trojanized MSI installer for the Logitech AI Prompt Builder application.</span></li><li><span class="kp-text">The malware includes autonomous worm modules that propagate via WhatsApp by hijacking authenticated web sessions and through Outlook by using COM automation to send phishing emails.</span></li><li><span class="kp-text">TCLBanker employs robust evasion techniques, including DLL side-loading, environment-dependent decryption, and a watchdog thread that hunts for debugging tools like x64dbg and Ghidra.</span></li><li><span class="kp-text">The banking module monitors browser activity to establish WebSocket connections with command-and-control servers, enabling operators to perform remote actions such as screen streaming and fake overlay injection.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://www.elastic.co/security-labs/tclbanker-brazilian-banking-trojan" target="_blank" rel="noopener">TCLBanker Brazilian Banking Trojan</a></div>
               <div class="report-meta">Elastic Security Labs</div>
               <div class="report-context">The article cites this research as the source that discovered the trojan and provided the technical analysis of its capabilities and evolution.</div>
             </li></ul></div>
-            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/new-tclbanker-malware-self-spreads-over-whatsapp-and-outlook/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -1565,6 +1686,7 @@ While TCLBanker currently enforces geographic restrictions by checking timezone,
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:a2b1c3790e325325')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:a2b1c3790e325325')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/security/former-govt-contractor-convicted-for-wiping-dozens-of-federal-databases/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:a2b1c3790e325325" class="tab-panel active"><div class="prose">Former federal contractor twin brothers were convicted for retaliating after termination by wiping nearly 100 government databases and attempting to cover their tracks, facing up to 45 years in prison for destroying sensitive federal records.</div></div>
@@ -1600,7 +1722,6 @@ While TCLBanker currently enforces geographic restrictions by checking timezone,
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Twin brothers Sohaib and Muneeb Akhter were convicted for conspiring to destroy dozens of federal government databases after being terminated as government contractors.</span></li><li><span class="kp-text">The brothers wiped approximately 96 government databases within hours in February 2025, including sensitive investigative documents and Freedom of Information Act records.</span></li><li><span class="kp-text">Following the database deletions, the brothers allegedly used an AI assistant to learn how to clear system logs and destroyed evidence by wiping their home and company laptops.</span></li><li><span class="kp-text">Both men face significant prison sentences, with Sohaib Akhter facing a maximum of 21 years and Muneeb Akhter facing a maximum of 45 years for computer fraud and record destruction charges.</span></li><li><span class="kp-text">Federal officials highlighted the brothers&#39; deliberate destruction of sensitive government data and their attempts to conceal the criminal activity as a severe breach of federal system security.</span></li></ul></div>
             
-            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/former-govt-contractor-convicted-for-wiping-dozens-of-federal-databases/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -1638,6 +1759,7 @@ While TCLBanker currently enforces geographic restrictions by checking timezone,
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:e3478b80dc616123')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:e3478b80dc616123')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/security/zara-data-breach-exposed-personal-information-of-197-000-people/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:e3478b80dc616123" class="tab-panel active"><div class="prose">The ShinyHunters extortion gang breached Zara by exploiting compromised Anodot authentication tokens, exposing customer emails, locations, and purchase history for approximately 197,400 people.</div></div>
@@ -1691,7 +1813,6 @@ While TCLBanker currently enforces geographic restrictions by checking timezone,
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The ShinyHunters extortion gang claimed responsibility for a data breach at Zara that exposed customer data for approximately 197,400 individuals.</span></li><li><span class="kp-text">The attackers gained access to databases hosted by a former technology provider by compromising Anodot authentication tokens.</span></li><li><span class="kp-text">The stolen data includes unique email addresses, geographic locations, product SKUs, order IDs, and support tickets, but does not contain payment information or sensitive personal identifiers like names or addresses.</span></li><li><span class="kp-text">Inditex, Zara&#39;s parent company, confirmed the unauthorized access to its former tech provider&#39;s systems and has notified relevant authorities while its core operations remain unaffected.</span></li></ul></div>
             
-            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/zara-data-breach-exposed-personal-information-of-197-000-people/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -1729,6 +1850,7 @@ While TCLBanker currently enforces geographic restrictions by checking timezone,
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:222f76c94d005ace')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:222f76c94d005ace')">Insights</button>
                 </div>
+                <a href="https://thehackernews.com/2026/05/fake-call-history-apps-stole-payments.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:222f76c94d005ace" class="tab-panel active"><div class="prose">Cybersecurity researchers uncovered the CallPhantom campaign, where 28 fake Google Play apps tricked users into paying for fabricated call history data, resulting in over 7.3 million downloads and widespread financial losses across Asia.</div></div>
@@ -1785,12 +1907,11 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Twenty-eight fraudulent Android apps on the Google Play Store, collectively named CallPhantom, tricked users into paying for fabricated call history data after accumulating over 7.3 million downloads.</span></li><li><span class="kp-text">The apps falsely promised access to call logs, SMS records, and WhatsApp data for any phone number but only delivered randomly generated information after users purchased subscriptions ranging from $6 to $80.</span></li><li><span class="kp-text">Payments were processed through Google Play billing, third-party UPI applications, or direct credit card forms, with Google only able to refund purchases made through its official billing system.</span></li><li><span class="kp-text">One app impersonated the official Indian government domain &#34;gov.in&#34; to gain user trust, while the malicious applications required no sensitive permissions and contained no actual functionality to retrieve real call data.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://www.welivesecurity.com/en/eset-research/fake-call-logs-real-payments-how-callphantom-tricks-android-users/" target="_blank" rel="noopener">Fake call logs, real payments: how CallPhantom tricks Android users</a></div>
               <div class="report-meta">ESET</div>
               <div class="report-context">The article cites this report as the source for the researcher Lukáš Štefanko&#39;s statements regarding the CallPhantom campaign.</div>
             </li></ul></div>
-            <div style="padding:1.25rem 1.4rem"><a href="https://thehackernews.com/2026/05/fake-call-history-apps-stole-payments.html" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -1828,6 +1949,7 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:36f87d5021386c77')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:36f87d5021386c77')">Insights</button>
                 </div>
+                <a href="https://thehackernews.com/2026/05/one-missed-threat-per-week-what-25m.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:36f87d5021386c77" class="tab-panel active"><div class="prose">Traditional security operations ignore low-severity alerts due to analyst volume constraints, causing roughly one missed enterprise breach per week, but AI-driven full-coverage investigation resolves this by analyzing every alert regardless of its severity label.</div></div>
@@ -1892,12 +2014,11 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Nearly 1% of confirmed incidents originate from low-severity or informational alerts, translating to roughly one missed breach per week at average enterprise scale.</span></li><li><span class="kp-text">Over 51% of confirmed endpoint compromises were already marked as mitigated by EDR vendors, indicating that automated remediation cannot be trusted without forensic memory scans.</span></li><li><span class="kp-text">Attackers bypass email gateways by routing malicious links through trusted platforms like OneDrive and PayPal while hiding payloads in SVG files, PDF metadata, and DOCX documents.</span></li><li><span class="kp-text">Cloud telemetry shows threat actors favoring long-term persistence and defense evasion tactics, frequently exploiting low-severity AWS S3 misconfigurations to establish footholds.</span></li><li><span class="kp-text">Traditional security operations cannot investigate all alerts due to human capacity limits, but AI-driven triage enables full coverage and continuously improves detection rules through forensic analysis.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://intezer.com/2026-ai-soc-report-for-cisos/" target="_blank" rel="noopener">2026 AI SOC Report for CISOs</a></div>
               <div class="report-meta">Intezer</div>
               <div class="report-context">The article directs readers to this document to explore the full report and research findings that underpin the analysis of 25 million security alerts.</div>
             </li></ul></div>
-            <div style="padding:1.25rem 1.4rem"><a href="https://thehackernews.com/2026/05/one-missed-threat-per-week-what-25m.html" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -1935,6 +2056,7 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-6428692e07ece4bc06cc6bdf93ea96b2:648ce6c5beac15c7')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-6428692e07ece4bc06cc6bdf93ea96b2:648ce6c5beac15c7')">Insights</button>
                 </div>
+                <a href="https://therecord.media/ukraine-bo-team-head-mare-hacktivists-team-up-kaspersky" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-6428692e07ece4bc06cc6bdf93ea96b2:648ce6c5beac15c7" class="tab-panel active"><div class="prose">Researchers have identified overlapping infrastructure and tools used by pro-Ukraine hacktivist groups BO Team and Head Mare, indicating they are coordinating cyber attacks against Russian organizations.</div></div>
@@ -1962,7 +2084,7 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Researchers at Kaspersky identified overlapping infrastructure and shared command-and-control systems used by pro-Ukraine hacktivist groups BO Team and Head Mare, indicating operational coordination against Russian targets.</span></li><li><span class="kp-text">BO Team has shifted its operational focus from destructive attacks to covert cyber espionage, targeting organizations in the manufacturing, telecommunications, and oil and gas sectors.</span></li><li><span class="kp-text">The groups utilize distinct malware tools, with BO Team deploying backdoors like BrockenDoor and Head Mare employing custom malware such as PhantomDL and PhantomCore.</span></li><li><span class="kp-text">A potential cooperation model involves Head Mare gaining initial network access through phishing, followed by BO Team deploying additional malware to expand access and conduct further operations.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://securelist.ru/tr/boteam-campaign-zeronetkit-headmare/115429/" target="_blank" rel="noopener">BO Team Campaign: ZeronetKit &amp; Head Mare</a></div>
               <div class="report-meta">Kaspersky Securelist</div>
               <div class="report-context">Kaspersky researchers cite this report to detail overlapping infrastructure and tools used by BO Team and Head Mare.</div>
@@ -1975,7 +2097,6 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
               <div class="report-meta">Kaspersky Securelist</div>
               <div class="report-context">The article cites this research to provide background on Head Mare&#39;s emergence and use of custom malware.</div>
             </li></ul></div>
-            <div style="padding:1.25rem 1.4rem"><a href="https://therecord.media/ukraine-bo-team-head-mare-hacktivists-team-up-kaspersky" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -2013,6 +2134,7 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:b0769a6b144533ed')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:b0769a6b144533ed')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/security/trellix-source-code-breach-claimed-by-ransomhouse-hackers/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:b0769a6b144533ed" class="tab-panel active"><div class="prose">RansomHouse claims responsibility for breaching Trellix&#39;s source code repository, which the company confirmed but stated shows no evidence of exploitation.</div></div>
@@ -2058,13 +2180,12 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">RansomHouse claims responsibility for breaching Trellix&#39;s source code repository and has published screenshots as proof of access.</span></li><li><span class="kp-text">Trellix confirmed unauthorized access to a portion of its source code repository and is investigating the incident with forensic experts.</span></li><li><span class="kp-text">The company stated there is no evidence that its source code distribution process was affected or that the code has been exploited.</span></li><li><span class="kp-text">The alleged intrusion occurred on April 17 and resulted in data encryption, though the authenticity of the leaked data has not been verified.</span></li></ul></div>
             
-            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/trellix-source-code-breach-claimed-by-ransomhouse-hackers/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div>
       </div><div class="toc-group">
         <div class="toc-group-head">
-          <span class="toc-group-label priority-badge badge-may">May Read</span>
+          <span class="toc-group-label priority-badge badge-may">May Read</span><span class="info-tip" data-tip="Score 61–75: specific but narrow or low-urgency event, or solid technical analysis grounded in named concrete cases. Tags excluded from filter.">ⓘ</span>
           <span class="toc-group-count">2 items</span>
         </div>
         <div class="toc-row-wrap may-row" data-priority="may" data-category="" data-tags="">
@@ -2102,6 +2223,7 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:97572ef8a97f1a91')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:97572ef8a97f1a91')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/security/nvidia-confirms-geforce-now-data-breach-affecting-armenian-users/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:97572ef8a97f1a91" class="tab-panel active"><div class="prose">NVIDIA confirmed a data breach affecting GeForce NOW users in Armenia was caused by a third-party regional partner&#39;s infrastructure compromise, exposing personal details but not passwords or NVIDIA&#39;s core network.</div></div>
@@ -2140,7 +2262,6 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">NVIDIA confirmed that a data breach exposed GeForce NOW user information in Armenia due to a compromise of a third-party regional partner&#39;s infrastructure.</span></li><li><span class="kp-text">The breach affected systems operated by GFN.am between March 20 and 26, exposing personal details such as names, emails, and usernames while leaving account passwords secure.</span></li><li><span class="kp-text">A threat actor using the nickname ShinyHunters claimed to have stolen millions of user records and attempted to sell the database for cryptocurrency.</span></li></ul></div>
             
-            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/nvidia-confirms-geforce-now-data-breach-affecting-armenian-users/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap may-row" data-priority="may" data-category="" data-tags="">
@@ -2178,6 +2299,7 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:7131751416cdf923')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:7131751416cdf923')">Insights</button>
                 </div>
+                <a href="https://thehackernews.com/2026/05/one-click-total-shutdown-patient-zero.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:7131751416cdf923" class="tab-panel active"><div class="prose">This webinar teaches you how to instantly isolate and recover from the first compromised device to prevent AI-driven phishing attacks from escalating into a catastrophic network-wide breach.</div></div>
@@ -2221,7 +2343,6 @@ Both the third-party UPI and direct card methods violate Google&rsquo;s develope
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Every major breach usually starts with one employee clicking a clever email, creating a &#34;Patient Zero&#34; device that attackers quickly use to find data and passwords.</span></li><li><span class="kp-text">Hackers are now using generative AI to make phishing emails nearly impossible to spot and bypass current security filters.</span></li><li><span class="kp-text">The webinar covers a technical deep dive into isolating infected devices through Zero Trust principles and executing a recovery blueprint within the critical first five minutes.</span></li><li><span class="kp-text">Traditional security tools struggle with stealthy attacks, so organizations need a defense strategy that assumes a bad link will be clicked and prevents it from costing millions.</span></li></ul></div>
             
-            <div style="padding:1.25rem 1.4rem"><a href="https://thehackernews.com/2026/05/one-click-total-shutdown-patient-zero.html" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div>
@@ -2299,6 +2420,14 @@ function toggleTocMember(titleEl, bodyId) {
   body.classList.toggle('open');
 }
 
+function toggleReportsSection(btn) {
+  var section = btn.closest('.panel-section');
+  var list = section.querySelector('.report-list');
+  var isOpen = !list.classList.contains('collapsed');
+  list.classList.toggle('collapsed', isOpen);
+  btn.classList.toggle('collapsed', isOpen);
+}
+
 function toggleOverview(btn) {
   var grid = document.getElementById('overview-grid');
   var chev = btn.querySelector('.overview-chevron');
@@ -2363,6 +2492,16 @@ function toggleTag(tag) {
   applyFilters();
 }
 
+
+
+
+document.addEventListener('click', function(e){
+  var m = e.target.closest('mark.tag-hl');
+  if (!m) return;
+  e.stopPropagation(); 
+  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+});
+
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
   curCategory = btn.dataset.cat;   
@@ -2400,6 +2539,26 @@ document.addEventListener('keydown', function(e) {
       if (body) { body.classList.remove('open'); row.classList.remove('open'); if (chevron) chevron.style.transform = ''; }
     });
   }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  var cloud = document.querySelector('.toc-tag-cloud');
+  if (!cloud) return;
+  var pills = Array.from(cloud.querySelectorAll('.tag-pill'));
+  if (pills.length < 2) return;
+  var rowH = pills[0].offsetHeight;
+  var threshold = rowH + 5; 
+  var hidden = pills.filter(function(p) { return p.offsetTop > threshold; });
+  if (!hidden.length) return;
+  hidden.forEach(function(p) { p.style.display = 'none'; });
+  var btn = document.createElement('button');
+  btn.className = 'tag-pill tag-show-more';
+  btn.textContent = '+' + hidden.length + ' more';
+  btn.onclick = function() {
+    hidden.forEach(function(p) { p.style.display = ''; });
+    btn.remove();
+  };
+  cloud.appendChild(btn);
 });
 
 </script>

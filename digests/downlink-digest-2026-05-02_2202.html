@@ -32,6 +32,11 @@
   --mono:    'IBM Plex Mono', 'SF Mono', 'Fira Code', Consolas, monospace;
   --sans:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --radius:  4px;
+  --cat-research: oklch(74% 0.14 196);
+  --cat-advisory: oklch(74% 0.18 44);
+  --cat-news:     oklch(72% 0.15 220);
+  --cat-opinion:  oklch(70% 0.17 350);
+  --cat-guide:    oklch(76% 0.15 130);
 }
 
 
@@ -252,6 +257,59 @@ a:hover { text-decoration: underline; }
   white-space: nowrap;
 }
 .toc-group-count { font-family: var(--mono); font-size: 9px; color: var(--text3); }
+.info-tip {
+  cursor: help;
+  font-style: normal;
+  font-size: 0.7rem;
+  opacity: 0.45;
+  position: relative;
+  user-select: none;
+  line-height: 1;
+}
+.info-tip:hover { opacity: 1; }
+.info-tip::after {
+  content: attr(data-tip);
+  display: none;
+  position: absolute;
+  left: 1.4em;
+  top: -0.3em;
+  width: 22em;
+  background: var(--bg-secondary, #1e1e2e);
+  color: var(--fg, #cdd6f4);
+  border: 1px solid var(--border, #45475a);
+  border-radius: 6px;
+  padding: 0.5em 0.75em;
+  font-size: 0.75rem;
+  font-family: inherit;
+  line-height: 1.4;
+  z-index: 100;
+  white-space: normal;
+  pointer-events: none;
+}
+.info-tip:hover::after { display: block; }
+ 
+.score-tip { position: relative; cursor: help; }
+.score-tip::after {
+  content: attr(data-tip);
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4em);
+  width: max-content;
+  max-width: 22em;
+  background: var(--bg-secondary, #1e1e2e);
+  color: var(--fg, #cdd6f4);
+  border: 1px solid var(--border, #45475a);
+  border-radius: 6px;
+  padding: 0.5em 0.75em;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  z-index: 100;
+  white-space: normal;
+  pointer-events: none;
+}
+.score-tip:hover::after { display: block; }
 .toc-num {
   font-family: var(--mono);
   font-size: 10px;
@@ -264,7 +322,6 @@ a:hover { text-decoration: underline; }
 .toc-num-may    { color: var(--may); }
 .toc-num-opt    { color: var(--text3); }
 .toc-title-link { color: var(--text); font-size: 13px; flex: 1; line-height: 1.5; cursor: pointer; }
-.toc-title-link:hover { color: var(--text2); text-decoration: none; }
 .toc-child-indent { color: var(--text3); font-size: 10px; margin-top: 2px; flex-shrink: 0; }
 .toc-child-title  { color: var(--text2); font-size: 12px; flex: 1; line-height: 1.5; }
 .toc-child-title:hover { color: var(--text); text-decoration: none; }
@@ -389,9 +446,20 @@ a:hover { text-decoration: underline; }
 .overview-body a { color: var(--cyan); }
 
  
-.toc-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.toc-filters { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.filter-row { display: flex; align-items: flex-start; gap: 12px; }
+.filter-label {
+  flex-shrink: 0;
+  min-width: 64px;
+  padding-top: 5px;             
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text3);
+}
  
-.toc-tag-cloud { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; width: 100%; }
+.toc-tag-cloud { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; flex: 1; }
 .tag-pill {
   font-family: var(--mono);
   font-size: 9.5px;
@@ -409,7 +477,9 @@ a:hover { text-decoration: underline; }
   border-color: var(--cyan);
   background: color-mix(in oklch, var(--cyan) 18%, transparent);
 }
-.filter-bar { display: flex; gap: 2px; }
+.tag-show-more { color: var(--cyan); border-color: var(--cyan); }
+.tag-show-more:hover { background: color-mix(in oklch, var(--cyan) 10%, transparent); }
+.filter-bar { display: flex; flex-wrap: wrap; gap: 2px; }
 .filter-btn {
   background: none;
   border: 1px solid transparent;
@@ -463,6 +533,11 @@ a:hover { text-decoration: underline; }
   background: currentColor;
   flex-shrink: 0;
 }
+.toc-row-wrap[data-category="research"] .toc-cat-label { color: var(--cat-research); }
+.toc-row-wrap[data-category="advisory"] .toc-cat-label { color: var(--cat-advisory); }
+.toc-row-wrap[data-category="news"]     .toc-cat-label { color: var(--cat-news); }
+.toc-row-wrap[data-category="opinion"]  .toc-cat-label { color: var(--cat-opinion); }
+.toc-row-wrap[data-category="guide"]    .toc-cat-label { color: var(--cat-guide); }
  
 .toc-row-tags {
   display: flex;
@@ -477,11 +552,17 @@ a:hover { text-decoration: underline; }
   padding-top: 8px;
   border-top: 1px solid var(--border);
    
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
-  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  animation-name: tag-scroll-fade;
+  animation-fill-mode: both;
+  animation-timing-function: linear;
+  animation-timeline: scroll(self inline);
+}
+@keyframes tag-scroll-fade {
+  0%, 90% { mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%); }
+  100%    { mask-image: linear-gradient(to right, #000 100%,              transparent 100%); }
 }
  
-.toc-row-inner .toc-row-tags { margin-left: -32px; width: calc(100% + 32px); }
+.toc-row-inner .toc-row-tags { margin-left: -32px; width: calc(100% + 32px + 8px); }
 .toc-row-tags::-webkit-scrollbar { display: none; }  
 .toc-tags-label {
   align-self: center;
@@ -573,6 +654,14 @@ mark.tag-hl {
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
+  cursor: pointer;
+  position: relative;  
+  z-index: 2;
+  transition: background .15s;
+}
+mark.tag-hl:hover {
+  background: color-mix(in oklch, var(--cyan) 28%, transparent);
+  text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -611,11 +700,11 @@ mark.tag-hl {
   color: color-mix(in oklch, var(--c) 55%, var(--text2));
 }
 .report-cat::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c); flex-shrink: 0; }
-.report-cat-research { --c: var(--cyan); }
-.report-cat-advisory { --c: var(--should); }
-.report-cat-news     { --c: var(--may); }
-.report-cat-opinion  { --c: oklch(70% 0.16 310); }
-.report-cat-guide    { --c: oklch(74% 0.13 110); }
+.report-cat-research { --c: var(--cat-research); }
+.report-cat-advisory { --c: var(--cat-advisory); }
+.report-cat-news     { --c: var(--cat-news); }
+.report-cat-opinion  { --c: var(--cat-opinion); }
+.report-cat-guide    { --c: var(--cat-guide); }
 .report-meta { margin-top: 0.25rem; font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
 .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
 
@@ -664,6 +753,36 @@ mark.tag-hl {
   background: color-mix(in oklch, var(--cyan) 8%, transparent);
 }
 .summary-body .tab-panel { padding: 0; }
+.open-source-btn {
+  margin-left: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in oklch, var(--cyan) 30%, transparent);
+  border-radius: 2px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+.open-source-btn:hover { border-color: var(--cyan); text-decoration: none; }
+.panel-collapse-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 0 0 4px;
+  line-height: 1;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.panel-collapse-btn.collapsed { transform: rotate(-90deg); }
+.report-list.collapsed { display: none; }
 
  
 .toc-cluster { border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
@@ -718,7 +837,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
 
  
 @media (max-width: 700px) {
-  #nav { padding: 10px 16px; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+  #nav { margin: 0 16px; padding: 10px 0; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
   .nav-center { display: none; }
   .nav-window { display: none; }
   .nav-right { display: contents; }
@@ -730,7 +849,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
   .overview-cell-border-r { border-right: none; border-top: 1px solid var(--border); }
   .overview-cell-full { grid-column: auto; }
   #back-top { bottom: 1rem; right: 0.75rem; }
-  #digest-title { padding: 12px 16px; }
+  #digest-title { margin: 0 16px; padding: 12px 16px; }
   .digest-title-text { font-size: 18px; }
 }
 #digest-title {
@@ -783,14 +902,16 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
 <section id="toc">
   <div class="toc-card">
     <div class="toc-header" style="display:flex;align-items:center;justify-content:space-between">
-      <span class="section-label">READING LIST</span>
       <div class="toc-filters">
         
-        <div class="filter-bar">
-          <button class="filter-btn active-all" data-filter="all" onclick="setFilter(this)">ALL <span class="filter-count">6</span></button>
-          <button class="filter-btn" data-filter="must" onclick="setFilter(this)">MUST <span class="filter-count must-count"></span></button>
-          <button class="filter-btn" data-filter="should" onclick="setFilter(this)">SHOULD <span class="filter-count should-count"></span></button>
-          <button class="filter-btn" data-filter="may" onclick="setFilter(this)">MAY <span class="filter-count may-count"></span></button>
+        <div class="filter-row">
+          <span class="filter-label">PRIORITY</span>
+          <div class="filter-bar">
+            <button class="filter-btn active-all" data-filter="all" onclick="setFilter(this)">ALL <span class="filter-count">6</span></button>
+            <button class="filter-btn" data-filter="must" onclick="setFilter(this)">MUST <span class="filter-count must-count"></span></button>
+            <button class="filter-btn" data-filter="should" onclick="setFilter(this)">SHOULD <span class="filter-count should-count"></span></button>
+            <button class="filter-btn" data-filter="may" onclick="setFilter(this)">MAY <span class="filter-count may-count"></span></button>
+          </div>
         </div>
         
       </div>
@@ -798,7 +919,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
     <div class="toc-body">
       <div class="toc-group">
         <div class="toc-group-head">
-          <span class="toc-group-label priority-badge badge-must">Must Read</span>
+          <span class="toc-group-label priority-badge badge-must">Must Read</span><span class="info-tip" data-tip="Score 91–100: breaking or high-impact event - active exploitation in the wild, major breach, critical patch, or named threat actor operation.">ⓘ</span>
           <span class="toc-group-count">1 items</span>
         </div>
         <div class="toc-row-wrap must-row" data-priority="must" data-category="" data-tags="">
@@ -836,6 +957,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-0f42f37bffcc9f165b753780c481f5ef:1983720efe5f23de')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-0f42f37bffcc9f165b753780c481f5ef:1983720efe5f23de')">Insights</button>
                 </div>
+                <a href="https://unit42.paloaltonetworks.com/monitoring-npm-supply-chain-attacks/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-0f42f37bffcc9f165b753780c481f5ef:1983720efe5f23de" class="tab-panel active"><div class="prose">The npm ecosystem has shifted to a new baseline of sophisticated, self-replicating supply chain attacks that automatically compromise and redistribute malicious packages to harvest credentials and propagate across developer environments. Organizations must immediately disable lifecycle scripts, rotate exposed credentials, and enforce strict registry controls to mitigate these worm-like threats.</div></div>
@@ -875,7 +997,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The npm threat landscape has shifted from isolated typosquatting incidents to systematic, self-replicating supply chain attacks that automatically compromise and redistribute malicious packages.</span></li><li><span class="kp-text">Compromised packages execute malicious code during installation through preinstall lifecycle hooks, harvesting GitHub tokens, npm tokens, and cloud credentials from developer environments.</span></li><li><span class="kp-text">The malware propagates by backdooring every npm package a victim can publish and uses GitHub&#39;s public commit search API as a covert command and control channel.</span></li><li><span class="kp-text">Effective mitigations include disabling lifecycle scripts with ignore-scripts=true, pinning dependencies using lockfiles, and routing all package downloads through private registries.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://checkmarx.com/blog/checkmarx-security-update-april-22/" target="_blank" rel="noopener">Checkmarx Security Update: April 22, 2026</a></div>
               <div class="report-meta">Checkmarx</div>
               <div class="report-context">Cited as the official security update detailing the broader supply-chain campaign that compromised multiple Checkmarx distribution channels.</div>
@@ -884,13 +1006,12 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
               <div class="report-meta">Socket</div>
               <div class="report-context">Referenced as an analysis detailing the threat actor&#39;s prior targeting of security tooling vendors like Checkmarx, Trivy, and LiteLLM.</div>
             </li></ul></div>
-            <div style="padding:1.25rem 1.4rem"><a href="https://unit42.paloaltonetworks.com/monitoring-npm-supply-chain-attacks/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div>
       </div><div class="toc-group">
         <div class="toc-group-head">
-          <span class="toc-group-label priority-badge badge-should">Should Read</span>
+          <span class="toc-group-label priority-badge badge-should">Should Read</span><span class="info-tip" data-tip="Score 76–90: specific event or finding with broad relevance, even if not immediately urgent.">ⓘ</span>
           <span class="toc-group-count">3 items</span>
         </div>
         <div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -928,6 +1049,7 @@ details[open] .toc-cluster-chevron { transform: rotate(90deg); }
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:47dd4a419866e0a3')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:47dd4a419866e0a3')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/security/consentfix-v3-attacks-target-azure-with-automated-oauth-abuse/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:47dd4a419866e0a3" class="tab-panel active"><div class="prose">ConsentFix v3 automates OAuth phishing to bypass MFA by tricking users into submitting authorization codes via fake Microsoft login pages, enabling attackers to hijack Azure accounts and access resources without passwords. Organizations should mitigate this by enforcing token binding, deploying behavioral detection rules, and restricting app authentication.</div></div>
@@ -962,7 +1084,7 @@ A phishing page hosted on Cloudflare Pages mimics a legitimate Microsoft login i
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">ConsentFix v3 automates OAuth phishing attacks against Microsoft Azure by tricking users into pasting or dragging a localhost URL containing an authorization code back into a fake login page.</span></li><li><span class="kp-text">The technique uses Pipedream as an automation engine to instantly exchange captured codes for refresh tokens and collect them in real time.</span></li><li><span class="kp-text">Attackers gather employee details and utilize multiple third-party services to host phishing pages, generate personalized emails, and exfiltrate data.</span></li><li><span class="kp-text">Compromised tokens bypass multi-factor authentication and allow attackers to access Microsoft resources through Specter Portal.</span></li><li><span class="kp-text">Mitigation is complicated by architectural trust in first-party apps, but administrators can apply token binding, behavioral detection rules, and app authentication restrictions.</span></li></ul></div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports<button class="panel-collapse-btn" onclick="toggleReportsSection(this)">⌄</button></div><ul class="report-list"><li class="report-item">
               <div class="report-title"><a class="report-link" href="https://github.com/secureworks/family-of-client-ids-research" target="_blank" rel="noopener">Family of Client IDs (FOCI) Research</a></div>
               <div class="report-meta">SecureWorks</div>
               <div class="report-context">Referenced as a technical analysis explaining how Microsoft applications that share permissions and refresh tokens can be leveraged to mitigate the attack.</div>
@@ -971,7 +1093,6 @@ A phishing page hosted on Cloudflare Pages mimics a legitimate Microsoft login i
               <div class="report-meta">Push Security</div>
               <div class="report-context">Cited as the original research presentation detailing how attackers hijack Microsoft accounts via Azure CLI using OAuth phishing flows.</div>
             </li></ul></div>
-            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/consentfix-v3-attacks-target-azure-with-automated-oauth-abuse/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -1009,6 +1130,7 @@ A phishing page hosted on Cloudflare Pages mimics a legitimate Microsoft login i
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-0f42f37bffcc9f165b753780c481f5ef:77ed669ee696f921')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-0f42f37bffcc9f165b753780c481f5ef:77ed669ee696f921')">Insights</button>
                 </div>
+                <a href="https://unit42.paloaltonetworks.com/detection-beyond-the-endpoint/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-0f42f37bffcc9f165b753780c481f5ef:77ed669ee696f921" class="tab-panel active"><div class="prose">Modern threat detection requires moving beyond endpoint-only monitoring by adopting a unified, AI-driven security platform that ingests and correlates telemetry across all IT zones to close visibility gaps and stop fast-moving attackers.</div></div>
@@ -1064,7 +1186,6 @@ This integration not only improves analyst efficiency but also provides manageme
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Threat actors are now moving four times faster to exfiltration and intentionally exploiting blind spots created by an over-reliance on endpoint data.</span></li><li><span class="kp-text">Critical evidence of initial intrusions was present in logs in 75% of investigated incidents but remained inaccessible due to complex, disjointed security systems.</span></li><li><span class="kp-text">Relying solely on endpoint detection and response creates gaps that attackers exploit through cloud-to-endpoint pivots, identity theft, and the use of unmanaged rogue assets.</span></li><li><span class="kp-text">Security operations centers must adopt a unified, AI-driven platform that consolidates telemetry from all IT zones to enable alert stitching, machine learning-based incident scoring, and user behavior analytics.</span></li><li><span class="kp-text">A single-pane-of-glass strategy ensures all security logs live in one repository and all alerts are processed in a centralized workbench to eliminate data silos and reduce analyst fatigue.</span></li></ul></div>
             
-            <div style="padding:1.25rem 1.4rem"><a href="https://unit42.paloaltonetworks.com/detection-beyond-the-endpoint/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="" data-tags="">
@@ -1102,6 +1223,7 @@ This integration not only improves analyst efficiency but also provides manageme
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:13a1459ed51f1d5a')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:13a1459ed51f1d5a')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/security/edu-tech-firm-instructure-discloses-cyber-incident-probes-impact/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:13a1459ed51f1d5a" class="tab-panel active"><div class="prose">Instructure, the developer behind the Canvas learning platform, has disclosed a recent cybersecurity incident and is actively investigating the threat actor&#39;s impact while implementing mitigation measures. The company warns that some services may experience disruptions as it secures its systems and protects sensitive educational data.</div></div>
@@ -1149,13 +1271,12 @@ This integration not only improves analyst efficiency but also provides manageme
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Instructure, the developer of the Canvas learning management system, disclosed a recent cybersecurity incident caused by a criminal threat actor.</span></li><li><span class="kp-text">The company is actively investigating the breach with external forensics experts and taking steps to minimize its impact.</span></li><li><span class="kp-text">Since May 1, certain Instructure services have been under maintenance, with customers warned about potential issues related to API keys.</span></li><li><span class="kp-text">Threat actors are increasingly targeting education technology firms due to the large volumes of personal student and teacher data they hold.</span></li></ul></div>
             
-            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/security/edu-tech-firm-instructure-discloses-cyber-incident-probes-impact/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div>
       </div><div class="toc-group">
         <div class="toc-group-head">
-          <span class="toc-group-label priority-badge badge-may">May Read</span>
+          <span class="toc-group-label priority-badge badge-may">May Read</span><span class="info-tip" data-tip="Score 61–75: specific but narrow or low-urgency event, or solid technical analysis grounded in named concrete cases. Tags excluded from filter.">ⓘ</span>
           <span class="toc-group-count">1 items</span>
         </div>
         <div class="toc-row-wrap may-row" data-priority="may" data-category="" data-tags="">
@@ -1193,6 +1314,7 @@ This integration not only improves analyst efficiency but also provides manageme
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:5093bc6354427b14')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:5093bc6354427b14')">Insights</button>
                 </div>
+                <a href="https://thehackernews.com/2026/05/trellix-confirms-source-code-breach.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:5093bc6354427b14" class="tab-panel active"><div class="prose">Trellix confirmed a security breach that allowed unauthorized access to a portion of its source code repository, though the company reports no evidence of exploitation or compromise to its distribution processes.</div></div>
@@ -1223,13 +1345,12 @@ The Hacker News has reached out to Trellix for comment and will update the story
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Trellix announced a security breach that enabled unauthorized access to a portion of its source code repository.</span></li><li><span class="kp-text">The company is working with forensic experts and law enforcement to investigate and resolve the incident.</span></li><li><span class="kp-text">Trellix stated there is no evidence that its source code has been exploited or that its distribution process was affected.</span></li><li><span class="kp-text">The company has not disclosed the identity of the attackers or the duration of the unauthorized access.</span></li><li><span class="kp-text">Trellix was founded in January 2022 following the merger of McAfee Enterprise and FireEye.</span></li></ul></div>
             
-            <div style="padding:1.25rem 1.4rem"><a href="https://thehackernews.com/2026/05/trellix-confirms-source-code-breach.html" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div>
       </div><div class="toc-group">
         <div class="toc-group-head">
-          <span class="toc-group-label priority-badge badge-opt">Optional</span>
+          <span class="toc-group-label priority-badge badge-opt">Optional</span><span class="info-tip" data-tip="Score ≤60: generic concepts, opinion, trend pieces, evergreen educational content, or low-novelty reporting. Tags excluded from filter.">ⓘ</span>
           <span class="toc-group-count">1 items</span>
         </div>
         <div class="toc-row-wrap " data-priority="opt" data-category="" data-tags="">
@@ -1267,6 +1388,7 @@ The Hacker News has reached out to Trellix for comment and will update the story
                   <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:bd3e4eaac1a84f28')">Full</button>
                   <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:bd3e4eaac1a84f28')">Insights</button>
                 </div>
+                <a href="https://www.bleepingcomputer.com/news/microsoft/microsoft-tests-modern-windows-run-says-its-faster-than-legacy-dialog/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
               </div>
               <div class="summary-body">
                 <div id="tldr-9b0668029ed36930305fba71c3bfe542:bd3e4eaac1a84f28" class="tab-panel active"><div class="prose">Microsoft is rolling out a faster, modernized Windows Run dialog with dark mode support in Windows 11, which is currently optional and available in a preview build.</div></div>
@@ -1375,7 +1497,6 @@ The Hacker News has reached out to Trellix for comment and will update the story
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft is testing a modernized Windows Run dialog in preview build 26300.8346 that supports dark mode and aligns with Fluent Design.</span></li><li><span class="kp-text">The updated dialog operates faster than the legacy version, with a median time-to-show of 94 milliseconds compared to 103 milliseconds.</span></li><li><span class="kp-text">Microsoft removed the &#34;Browse&#34; button from the new interface because usage data showed it was utilized by less than 0.0038% of users.</span></li><li><span class="kp-text">The modern Run feature is optional and requires manual activation in Windows Advanced Settings rather than enabling automatically.</span></li></ul></div>
             
-            <div style="padding:1.25rem 1.4rem"><a href="https://www.bleepingcomputer.com/news/microsoft/microsoft-tests-modern-windows-run-says-its-faster-than-legacy-dialog/" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:0.06em;padding:4px 10px;border:1px solid color-mix(in oklch, var(--cyan) 30%, transparent);border-radius:2px">OPEN SOURCE ↗</a></div>
             
           </div>
         </div>
@@ -1453,6 +1574,14 @@ function toggleTocMember(titleEl, bodyId) {
   body.classList.toggle('open');
 }
 
+function toggleReportsSection(btn) {
+  var section = btn.closest('.panel-section');
+  var list = section.querySelector('.report-list');
+  var isOpen = !list.classList.contains('collapsed');
+  list.classList.toggle('collapsed', isOpen);
+  btn.classList.toggle('collapsed', isOpen);
+}
+
 function toggleOverview(btn) {
   var grid = document.getElementById('overview-grid');
   var chev = btn.querySelector('.overview-chevron');
@@ -1517,6 +1646,16 @@ function toggleTag(tag) {
   applyFilters();
 }
 
+
+
+
+document.addEventListener('click', function(e){
+  var m = e.target.closest('mark.tag-hl');
+  if (!m) return;
+  e.stopPropagation(); 
+  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+});
+
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
   curCategory = btn.dataset.cat;   
@@ -1554,6 +1693,26 @@ document.addEventListener('keydown', function(e) {
       if (body) { body.classList.remove('open'); row.classList.remove('open'); if (chevron) chevron.style.transform = ''; }
     });
   }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  var cloud = document.querySelector('.toc-tag-cloud');
+  if (!cloud) return;
+  var pills = Array.from(cloud.querySelectorAll('.tag-pill'));
+  if (pills.length < 2) return;
+  var rowH = pills[0].offsetHeight;
+  var threshold = rowH + 5; 
+  var hidden = pills.filter(function(p) { return p.offsetTop > threshold; });
+  if (!hidden.length) return;
+  hidden.forEach(function(p) { p.style.display = 'none'; });
+  var btn = document.createElement('button');
+  btn.className = 'tag-pill tag-show-more';
+  btn.textContent = '+' + hidden.length + ' more';
+  btn.onclick = function() {
+    hidden.forEach(function(p) { p.style.display = ''; });
+    btn.remove();
+  };
+  cloud.appendChild(btn);
 });
 
 </script>
