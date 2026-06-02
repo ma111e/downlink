@@ -1,0 +1,140 @@
+syntax = "proto3";
+package downlink;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "protos/";
+
+// Category represents an article category
+message Category {
+  string name = 1;
+  string color = 2;
+  string icon = 3;
+  repeated Article articles = 4;
+}
+
+// Tag represents an article tag
+message Tag {
+  string id = 1;
+  string name = 2;
+  string color = 3;
+  int32 use_count = 4;
+  repeated Article articles = 5;
+}
+
+// RelatedArticle represents a relationship between two articles
+message RelatedArticle {
+  string article_id = 1;
+  string related_article_id = 2;
+  string relation_type = 3;
+  double similarity_score = 4;
+}
+
+// Article represents an article from a feed
+message Article {
+  string id = 1;
+  string feed_id = 2;
+  string title = 3;
+  string content = 4;
+  string link = 5;
+  google.protobuf.Timestamp published_at = 6;
+  google.protobuf.Timestamp fetched_at = 7;
+  optional bool read = 8;
+  repeated Tag tags = 9;
+  optional string category_name = 10;
+  Category category = 11;
+  string hero_image = 12;
+  optional bool bookmarked = 13;
+  repeated RelatedArticle related_articles = 14;
+  // Latest analysis importance score (0-100). Populated by ListArticles for list rendering;
+  // unset (or 0) when no analysis exists. Not stored on the article record itself.
+  optional int32 latest_importance_score = 15;
+}
+
+// ArticleUpdate represents fields that can be updated for an article
+message ArticleUpdate {
+  optional bool read = 1;
+  repeated string tag_ids = 2;
+  optional string category_name = 3;
+  optional string hero_image = 4;
+  optional bool bookmarked = 5;
+  repeated RelatedArticle related_articles = 6;
+}
+
+// ArticleFilter represents filtering options for listing articles
+message ArticleFilter {
+  bool unread_only = 1;
+  string category_name = 2;
+  string tag_id = 3;
+  bool bookmarked_only = 4;
+  string related_to_id = 5;
+  google.protobuf.Timestamp start_date = 6;
+  google.protobuf.Timestamp end_date = 7;
+  string feed_id = 8;
+  uint32 offset = 9;
+  bool exclude_digested = 10;
+  uint32 limit = 11;
+  string query = 12;
+}
+
+// ListArticlesResponse represents the response with a list of articles
+message ListArticlesResponse {
+  repeated Article articles = 1;
+}
+
+// ArticleCountsResponse represents exact sidebar counts for the current query scope.
+message ArticleCountsResponse {
+  int32 all_unread_count = 1;
+  int32 bookmarked_count = 2;
+  map<string, int32> unread_by_feed = 3;
+}
+
+// GetArticleRequest represents a request to retrieve a single article by Id
+message GetArticleRequest {
+  string id = 1;
+}
+
+// UpdateArticleRequest represents a request to update an article
+message UpdateArticleRequest {
+  string id = 1;
+  ArticleUpdate update = 2;
+}
+
+message MarkFeedReadRequest {
+  string feed_id = 1;
+}
+
+// GetOrCreateCategoryRequest represents a request to retrieve or create a category by name
+message GetOrCreateCategoryRequest {
+  string name = 1;
+}
+
+// GetOrCreateCategoryResponse represents the response with a category
+message GetOrCreateCategoryResponse {
+  Category category = 1;
+}
+
+// CategoriesService provides methods for working with categories
+service CategoriesService {
+  // GetOrCreateCategory returns a category by name, creating it if it doesn't exist
+  rpc GetOrCreateCategory(GetOrCreateCategoryRequest) returns (GetOrCreateCategoryResponse) {}
+}
+
+// ArticleService provides methods for working with articles
+service ArticleService {
+  // ListArticles returns a list of articles based on the provided filter
+  rpc ListArticles(ArticleFilter) returns (ListArticlesResponse) {}
+
+  // GetArticleCounts returns exact counts for the current query scope.
+  rpc GetArticleCounts(ArticleFilter) returns (ArticleCountsResponse) {}
+
+  // GetArticle returns a single article by Id
+  rpc GetArticle(GetArticleRequest) returns (Article) {}
+
+  // UpdateArticle updates an article's properties
+  rpc UpdateArticle(UpdateArticleRequest) returns (google.protobuf.Empty) {}
+
+  // MarkFeedArticlesRead marks every article in a feed as read.
+  rpc MarkFeedArticlesRead(MarkFeedReadRequest) returns (google.protobuf.Empty) {}
+}
