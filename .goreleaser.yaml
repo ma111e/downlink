@@ -1,0 +1,82 @@
+version: 2
+
+project_name: downlink
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  # The server links SQLite (mattn/go-sqlite3) and therefore needs CGO.
+  # We build it natively for linux/amd64 on the CI runner. The Docker image
+  # (see release.yml) covers containerized server deployment.
+  - id: server
+    main: ./cmd/server
+    binary: server
+    env:
+      - CGO_ENABLED=1
+    goos: [linux]
+    goarch: [amd64]
+    ldflags:
+      - -s -w
+      - -X github.com/ma111e/downlink/pkg/version.Version={{ .Version }}
+      - -X github.com/ma111e/downlink/pkg/version.Commit={{ .ShortCommit }}
+      - -X github.com/ma111e/downlink/pkg/version.Date={{ .Date }}
+
+  # The CLI is a pure-Go gRPC client (no SQLite), so it cross-compiles freely.
+  - id: dlk
+    main: ./cmd/dlk
+    binary: dlk
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/ma111e/downlink/pkg/version.Version={{ .Version }}
+      - -X github.com/ma111e/downlink/pkg/version.Commit={{ .ShortCommit }}
+      - -X github.com/ma111e/downlink/pkg/version.Date={{ .Date }}
+
+archives:
+  - id: server
+    ids: [server]
+    name_template: "downlink-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - config.example.json
+      - feeds.example.yml
+      - .env.example
+      - etc/downlink.service
+  - id: cli
+    ids: [dlk]
+    name_template: "downlink-cli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "merge conflict"
+
+release:
+  draft: false
+  prerelease: auto
