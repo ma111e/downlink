@@ -20,6 +20,15 @@ import (
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 )
 
+// PublishProgress receives coarse step updates during publish/republish so a
+// CLI front-end can render live progress. A nil PublishProgress disables
+// reporting (used by the automatic server publish path).
+type PublishProgress interface {
+	Start(step, label string)                   // begin a step (spinner row)
+	Update(step, label string)                  // relabel an in-flight step
+	Complete(step string, ok bool, note string) // finish a step (✓ / ✗)
+}
+
 // GitHubPagesPublisher publishes digest HTML files to a GitHub Pages repository.
 //
 // Each publish writes the new digest HTML and updates a manifest.json that
@@ -27,7 +36,32 @@ import (
 // page are static shells that read manifest.json in the browser, so old HTML
 // files are never rewritten on subsequent publishes.
 type GitHubPagesPublisher struct {
-	cfg models.GitHubPagesNotificationConfig
+	cfg      models.GitHubPagesNotificationConfig
+	progress PublishProgress
+}
+
+// SetProgress attaches a PublishProgress sink so callers can render live step
+// progress for publish/republish operations. Passing nil disables reporting.
+func (p *GitHubPagesPublisher) SetProgress(pr PublishProgress) {
+	p.progress = pr
+}
+
+func (p *GitHubPagesPublisher) pStart(step, label string) {
+	if p.progress != nil {
+		p.progress.Start(step, label)
+	}
+}
+
+func (p *GitHubPagesPublisher) pUpdate(step, label string) {
+	if p.progress != nil {
+		p.progress.Update(step, label)
+	}
+}
+
+func (p *GitHubPagesPublisher) pComplete(step string, ok bool, note string) {
+	if p.progress != nil {
+		p.progress.Complete(step, ok, note)
+	}
 }
 
 // NewGitHubPagesPublisher creates a new GitHubPagesPublisher.
@@ -50,11 +84,19 @@ func NewGitHubPagesPublisher(cfg models.GitHubPagesNotificationConfig) *GitHubPa
 // SendDigest renders the digest HTML, updates manifest.json, and pushes the
 // result to the GitHub Pages repo. Old digest pages are not touched.
 func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
+	_, err := p.sendDigest(digest)
+	return err
+}
+
+// sendDigest performs the work of SendDigest and additionally returns the SHA
+// of the pushed commit so callers (e.g. Republish) can wait for the
+// corresponding GitHub Pages build to deploy.
+func (p *GitHubPagesPublisher) sendDigest(digest models.Digest) (string, error) {
 	log.WithField("digestId", digest.Id).Info("Publishing digest to GitHub Pages")
 
 	outputDir, err := resolveGitHubPagesOutputDir(p.cfg.OutputDir)
 	if err != nil {
-		return fmt.Errorf("github pages: invalid output dir: %w", err)
+		return "", fmt.Errorf("github pages: invalid output dir: %w", err)
 	}
 
 	auth := &githttp.BasicAuth{
@@ -64,32 +106,32 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 
 	repo, err := p.ensureRepo(auth)
 	if err != nil {
-		return fmt.Errorf("github pages: failed to prepare local repo: %w", err)
+		return "", fmt.Errorf("github pages: failed to prepare local repo: %w", err)
 	}
 
 	wt, err := repo.Worktree()
 	if err != nil {
-		return fmt.Errorf("github pages: failed to get worktree: %w", err)
+		return "", fmt.Errorf("github pages: failed to get worktree: %w", err)
 	}
 
 	digestRelPath, err := p.renderAndStage(wt, digest, outputDir, "dark")
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if err := p.renderAndStageSwipe(wt, digest, outputDir); err != nil {
-		return err
+		return "", err
 	}
 
 	if err := p.writeAndStageManifest(wt, digest, outputDir); err != nil {
-		return err
+		return "", err
 	}
 	if err := p.ensureIndex(wt, outputDir); err != nil {
-		return err
+		return "", err
 	}
 
 	commitMsg := fmt.Sprintf("Publish digest %s (%s)", digest.Id, digest.CreatedAt.UTC().Format("2006-01-02"))
-	_, err = wt.Commit(commitMsg, &gogit.CommitOptions{
+	commitHash, err := wt.Commit(commitMsg, &gogit.CommitOptions{
 		Author: &object.Signature{
 			Name:  p.cfg.CommitAuthor,
 			Email: p.cfg.CommitEmail,
@@ -97,31 +139,11 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("github pages: failed to commit: %w", err)
+		return "", fmt.Errorf("github pages: failed to commit: %w", err)
 	}
 
-	pushOpts := &gogit.PushOptions{
-		RemoteName: "origin",
-		Auth:       auth,
-	}
-	if err := repo.Push(pushOpts); err != nil {
-		if isNonFastForward(err) {
-			log.Warn("GitHub Pages push rejected (non-fast-forward); pulling and retrying")
-			pullErr := wt.Pull(&gogit.PullOptions{
-				RemoteName:    "origin",
-				ReferenceName: plumbing.NewBranchReferenceName(p.cfg.Branch),
-				Auth:          auth,
-				Force:         true,
-			})
-			if pullErr != nil && pullErr != gogit.NoErrAlreadyUpToDate {
-				return fmt.Errorf("github pages: rebase pull failed: %w", pullErr)
-			}
-			if retryErr := repo.Push(pushOpts); retryErr != nil {
-				return fmt.Errorf("github pages: push retry failed: %w", retryErr)
-			}
-		} else {
-			return fmt.Errorf("github pages: push failed: %w", err)
-		}
+	if err := p.pushWithRetry(repo, wt, auth); err != nil {
+		return "", err
 	}
 
 	var pageURL string
@@ -143,7 +165,7 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 		}
 	}
 
-	return nil
+	return commitHash.String(), nil
 }
 
 // RemoveDigest removes the digest identified by title from the archive.
@@ -251,6 +273,36 @@ func (p *GitHubPagesPublisher) RemoveDigest(title string) (string, error) {
 
 	log.WithField("title", title).Info("Digest removed from GitHub Pages")
 	return commitHash.String(), nil
+}
+
+// Republish removes a single digest from the archive and re-publishes it with
+// the current templates (equivalent to remove followed by add). The removal is
+// always awaited before the re-add is pushed: GitHub cancels an in-flight Pages
+// build when a newer commit lands, so pushing the re-add immediately would skip
+// deploying the removal. The final deploy is only awaited when wait is true.
+func (p *GitHubPagesPublisher) Republish(digest models.Digest, wait bool) error {
+	p.pStart("remove", "Removing from archive")
+	removeSHA, err := p.RemoveDigest(digest.Title)
+	if err != nil {
+		p.pComplete("remove", false, "remove failed")
+		return fmt.Errorf("remove digest: %w", err)
+	}
+	p.pComplete("remove", true, "removed "+shortSHA(removeSHA))
+
+	// Best-effort: a wait failure must not leave the digest removed-but-not-re-added.
+	if err := p.waitForDeploy(removeSHA, "deploy-remove", "Waiting for removal to deploy", true); err != nil {
+		log.WithError(err).Warn("waiting for removal to deploy")
+	}
+
+	p.pStart("republish", "Re-rendering & pushing")
+	reAddSHA, err := p.sendDigest(digest)
+	if err != nil {
+		p.pComplete("republish", false, "publish failed")
+		return err
+	}
+	p.pComplete("republish", true, "pushed "+shortSHA(reAddSHA))
+
+	return p.waitForDeploy(reAddSHA, "deploy", "Waiting for GitHub Pages deploy", wait)
 }
 
 // ManifestTitles clones (or updates) the repo and returns the list of digest
@@ -553,8 +605,9 @@ func resolveGitHubPagesOutputDir(input string) (string, error) {
 // RepublishAll re-renders every digest with the current templates and pushes
 // the result as a single commit. The manifest is rebuilt from scratch so stale
 // entries are removed. Pass dryRun=true to render and stage locally without
-// committing or pushing.
-func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme string, dryRun bool) error {
+// committing or pushing. When wait is true (and not a dry run) it blocks until
+// the resulting GitHub Pages build deploys.
+func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme string, dryRun, wait bool) error {
 	if len(digests) == 0 {
 		log.Info("RepublishAll: no digests to republish")
 		return nil
@@ -572,15 +625,19 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 		Password: p.cfg.Token,
 	}
 
+	p.pStart("prepare", "Preparing Pages repo")
 	repo, err := p.ensureRepo(auth)
 	if err != nil {
+		p.pComplete("prepare", false, "clone/pull failed")
 		return fmt.Errorf("github pages: failed to prepare local repo: %w", err)
 	}
 
 	wt, err := repo.Worktree()
 	if err != nil {
+		p.pComplete("prepare", false, "worktree failed")
 		return fmt.Errorf("github pages: failed to get worktree: %w", err)
 	}
+	p.pComplete("prepare", true, "repo ready")
 
 	// Load existing manifest to get the set of already-published filenames,
 	// then rebuild Digests cleanly from only those digests.
@@ -620,6 +677,7 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 
 	workers := max(runtime.NumCPU()-1, 1)
 	log.WithFields(log.Fields{"count": len(toRender), "workers": workers}).Info("Rendering digests in parallel")
+	p.pStart("render", fmt.Sprintf("Rendering %d pages", len(toRender)))
 
 	g, _ := errgroup.WithContext(context.Background())
 	g.SetLimit(workers)
@@ -659,6 +717,7 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 		})
 	}
 	if err := g.Wait(); err != nil {
+		p.pComplete("render", false, "render failed")
 		return err
 	}
 
@@ -681,37 +740,48 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 	}
 
 	if err := p.ensureIndex(wt, outputDir); err != nil {
+		p.pComplete("render", false, "index render failed")
 		return err
 	}
+	p.pComplete("render", true, fmt.Sprintf("rendered %d pages", len(toRender)))
 
 	if dryRun {
 		log.WithField("count", len(toRender)).Info("Dry run complete — skipping commit and push")
+		p.pStart("commit", "Committing & pushing")
+		p.pComplete("commit", true, "dry run — not pushed")
 		return nil
 	}
 
+	p.pStart("commit", "Committing & pushing")
 	commitMsg := fmt.Sprintf("Republish %d digests (template migration)", len(toRender))
-	if _, err = wt.Commit(commitMsg, &gogit.CommitOptions{
+	commitHash, err := wt.Commit(commitMsg, &gogit.CommitOptions{
 		Author: &object.Signature{
 			Name:  p.cfg.CommitAuthor,
 			Email: p.cfg.CommitEmail,
 			When:  time.Now(),
 		},
-	}); err != nil {
+	})
+	if err != nil {
+		p.pComplete("commit", false, "commit failed")
 		return fmt.Errorf("github pages: failed to commit: %w", err)
 	}
 
 	if err := p.pushWithRetry(repo, wt, auth); err != nil {
+		p.pComplete("commit", false, "push failed")
 		return err
 	}
+	p.pComplete("commit", true, "pushed "+shortSHA(commitHash.String()))
 
 	log.WithField("count", len(toRender)).Info("Published digests republished to GitHub Pages")
-	return nil
+	return p.waitForDeploy(commitHash.String(), "deploy", "Waiting for GitHub Pages deploy", wait)
 }
 
 // RepublishIndex re-renders the archive index pages with the current templates
 // and pushes the result as a single commit. The manifest and digest HTML files
-// are not touched. Pass dryRun=true to write locally without committing.
-func (p *GitHubPagesPublisher) RepublishIndex(dryRun bool) error {
+// are not touched. Pass dryRun=true to write locally without committing. When
+// wait is true (and not a dry run) it blocks until the resulting GitHub Pages
+// build deploys.
+func (p *GitHubPagesPublisher) RepublishIndex(dryRun, wait bool) error {
 	outputDir, err := resolveGitHubPagesOutputDir(p.cfg.OutputDir)
 	if err != nil {
 		return fmt.Errorf("github pages: invalid output dir: %w", err)
@@ -722,22 +792,29 @@ func (p *GitHubPagesPublisher) RepublishIndex(dryRun bool) error {
 		Password: p.cfg.Token,
 	}
 
+	p.pStart("prepare", "Preparing Pages repo")
 	repo, err := p.ensureRepo(auth)
 	if err != nil {
+		p.pComplete("prepare", false, "clone/pull failed")
 		return fmt.Errorf("github pages: failed to prepare local repo: %w", err)
 	}
 
 	wt, err := repo.Worktree()
 	if err != nil {
+		p.pComplete("prepare", false, "worktree failed")
 		return fmt.Errorf("github pages: failed to get worktree: %w", err)
 	}
+	p.pComplete("prepare", true, "repo ready")
 
+	p.pStart("render", "Rendering index pages")
 	if err := p.ensureIndex(wt, outputDir); err != nil {
+		p.pComplete("render", false, "render failed")
 		return err
 	}
 
 	status, err := wt.Status()
 	if err != nil {
+		p.pComplete("render", false, "status failed")
 		return fmt.Errorf("github pages: failed to get worktree status: %w", err)
 	}
 	hasStaged := false
@@ -749,30 +826,39 @@ func (p *GitHubPagesPublisher) RepublishIndex(dryRun bool) error {
 	}
 	if !hasStaged {
 		log.Info("RepublishIndex: index pages already up to date — nothing to commit")
+		p.pComplete("render", true, "already up to date")
 		return nil
 	}
+	p.pComplete("render", true, "rendered index pages")
 
 	if dryRun {
 		log.Info("Dry run complete — skipping commit and push")
+		p.pStart("commit", "Committing & pushing")
+		p.pComplete("commit", true, "dry run — not pushed")
 		return nil
 	}
 
-	if _, err = wt.Commit("Republish index pages (template migration)", &gogit.CommitOptions{
+	p.pStart("commit", "Committing & pushing")
+	commitHash, err := wt.Commit("Republish index pages (template migration)", &gogit.CommitOptions{
 		Author: &object.Signature{
 			Name:  p.cfg.CommitAuthor,
 			Email: p.cfg.CommitEmail,
 			When:  time.Now(),
 		},
-	}); err != nil {
+	})
+	if err != nil {
+		p.pComplete("commit", false, "commit failed")
 		return fmt.Errorf("github pages: failed to commit: %w", err)
 	}
 
 	if err := p.pushWithRetry(repo, wt, auth); err != nil {
+		p.pComplete("commit", false, "push failed")
 		return err
 	}
+	p.pComplete("commit", true, "pushed "+shortSHA(commitHash.String()))
 
 	log.Info("Index pages republished to GitHub Pages")
-	return nil
+	return p.waitForDeploy(commitHash.String(), "deploy", "Waiting for GitHub Pages deploy", wait)
 }
 
 // pushWithRetry pushes and retries once after pulling on non-fast-forward rejection.

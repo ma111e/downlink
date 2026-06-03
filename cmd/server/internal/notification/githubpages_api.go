@@ -30,17 +30,38 @@ type githubPagesBuild struct {
 }
 
 // WaitForPagesBuild blocks until the GitHub Pages build for commitSHA has
-// finished deploying. GitHub serialises Pages builds and cancels an in-flight
-// build when a newer commit is pushed, so a flow that pushes twice in quick
-// succession (republish: remove then re-add) would otherwise only ever deploy
-// the second commit — the removal would never go live. Polling the builds API
-// until the removal commit is "built" lets the caller sequence the two pushes.
-//
-// Requires the token to have Pages read access. A timeout or an unavailable
-// builds endpoint (404) is logged and returned as nil so the caller can still
-// proceed rather than leave a digest removed-but-not-re-added.
+// finished deploying. It is a thin wrapper over waitForDeploy that does not
+// emit step progress; kept for callers that only need the sequencing behaviour.
 func (p *GitHubPagesPublisher) WaitForPagesBuild(commitSHA string) error {
+	return p.waitForDeploy(commitSHA, "deploy", "Waiting for GitHub Pages deploy", true)
+}
+
+func shortSHA(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
+}
+
+// waitForDeploy blocks until the GitHub Pages build for commitSHA has finished
+// deploying, reporting status transitions through the publisher's progress sink
+// under the given stepID. GitHub serialises Pages builds and cancels an
+// in-flight build when a newer commit is pushed, so a flow that pushes twice in
+// quick succession (republish: remove then re-add) would otherwise only ever
+// deploy the second commit — the removal would never go live. Polling the
+// builds API until the commit is "built" lets the caller sequence the two
+// pushes.
+//
+// When wait is false (or commitSHA is empty) the step is completed immediately
+// without polling. Requires the token to have Pages read access. A timeout or
+// an unavailable builds endpoint (404) is reported as a soft success so the
+// caller can still proceed rather than leave a digest removed-but-not-re-added.
+func (p *GitHubPagesPublisher) waitForDeploy(commitSHA, stepID, label string, wait bool) error {
 	if commitSHA == "" {
+		return nil
+	}
+	if !wait {
+		p.pComplete(stepID, true, "skipped (--no-wait)")
 		return nil
 	}
 	owner, repo, err := parseGitHubRepoURL(p.cfg.RepoURL)
@@ -51,18 +72,22 @@ func (p *GitHubPagesPublisher) WaitForPagesBuild(commitSHA string) error {
 		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo)
 
 	log.WithField("commit", commitSHA).Info("Waiting for GitHub Pages build to deploy")
+	p.pStart(stepID, label+" — queued")
 	deadline := time.Now().Add(githubPagesBuildPollTimeout)
 	for {
 		var build githubPagesBuild
 		status, body, err := p.doGitHubPagesRequest(http.MethodGet, apiURL, nil, &build)
 		if err != nil {
+			p.pComplete(stepID, false, "error checking deploy status")
 			return err
 		}
 		if status == http.StatusNotFound {
 			log.WithField("commit", commitSHA).Warn("GitHub Pages builds endpoint returned 404; skipping deployment wait")
+			p.pComplete(stepID, true, "deploy status unavailable")
 			return nil
 		}
 		if status != http.StatusOK {
+			p.pComplete(stepID, false, fmt.Sprintf("deploy status returned %d", status))
 			return fmt.Errorf("github pages: get latest build returned %d: %s", status, body)
 		}
 
@@ -70,10 +95,18 @@ func (p *GitHubPagesPublisher) WaitForPagesBuild(commitSHA string) error {
 			switch build.Status {
 			case "built":
 				log.WithField("commit", commitSHA).Info("GitHub Pages build deployed")
+				p.pComplete(stepID, true, "deployed "+shortSHA(commitSHA))
 				return nil
 			case "errored":
+				p.pComplete(stepID, false, "errored: "+build.Error.Message)
 				return fmt.Errorf("github pages: build for %s errored: %s", commitSHA, build.Error.Message)
+			case "building":
+				p.pUpdate(stepID, label+" — building")
+			default:
+				p.pUpdate(stepID, label+" — "+build.Status)
 			}
+		} else {
+			p.pUpdate(stepID, label+" — queued")
 		}
 
 		if time.Now().After(deadline) {
@@ -81,6 +114,7 @@ func (p *GitHubPagesPublisher) WaitForPagesBuild(commitSHA string) error {
 				"commit":  commitSHA,
 				"timeout": githubPagesBuildPollTimeout,
 			}).Warn("Timed out waiting for GitHub Pages build to deploy; proceeding")
+			p.pComplete(stepID, true, "timed out; not yet deployed")
 			return nil
 		}
 		time.Sleep(githubPagesBuildPollInterval)

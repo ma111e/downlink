@@ -293,7 +293,7 @@ This command requires a running downlink server (--address / --port).`,
 			}
 
 			publisher := notification.NewGitHubPagesPublisher(cfg)
-			return publisher.RepublishAll(digests, republishTheme, republishDryRun)
+			return publisher.RepublishAll(digests, republishTheme, republishDryRun, true)
 		},
 	}
 	republishAllCmd.Flags().StringVar(&republishTheme, "theme", "dark", "Theme to use when re-rendering digest pages")
@@ -319,7 +319,7 @@ This command does not require a running downlink server.`,
 				return err
 			}
 			publisher := notification.NewGitHubPagesPublisher(cfg)
-			return publisher.RepublishIndex(republishIndexDryRun)
+			return publisher.RepublishIndex(republishIndexDryRun, true)
 		},
 	}
 	republishIndexCmd.Flags().BoolVar(&republishIndexDryRun, "dry-run", false, "Write index files locally without committing or pushing")

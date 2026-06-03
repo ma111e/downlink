@@ -12,6 +12,10 @@ import (
 // types are identical and their methods are fully interchangeable.
 type GitHubPagesPublisher = internal.GitHubPagesPublisher
 
+// PublishProgress is a type alias for the internal progress sink so CLI callers
+// can implement it and pass it to (*GitHubPagesPublisher).SetProgress.
+type PublishProgress = internal.PublishProgress
+
 // NewGitHubPagesPublisher delegates to the internal constructor.
 func NewGitHubPagesPublisher(cfg models.GitHubPagesNotificationConfig) *GitHubPagesPublisher {
 	return internal.NewGitHubPagesPublisher(cfg)

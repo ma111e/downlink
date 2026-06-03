@@ -250,6 +250,7 @@ When no title is given, an interactive list is shown to pick from.`,
 
 	var republishTheme string
 	var republishDryRun bool
+	var republishNoWait bool
 
 	republishAllCmd := &cobra.Command{
 		Use:   "republish-all",
@@ -277,22 +278,26 @@ This command requires a running downlink server (--address / --port).`,
 				return nil
 			}
 
-			fmt.Fprintf(os.Stderr, "Fetching %d digests...\n", len(summaries))
-			digests := make([]models.Digest, 0, len(summaries))
-			for _, s := range summaries {
-				d, err := client.GetDigest(s.Id)
-				if err != nil {
-					return fmt.Errorf("fetch digest %s: %w", s.Id, err)
-				}
-				digests = append(digests, d)
-			}
-
 			publisher := notification.NewGitHubPagesPublisher(cfg)
-			return publisher.RepublishAll(digests, republishTheme, republishDryRun)
+			return runPublishWithProgress(publisher, func(prog notification.PublishProgress) error {
+				prog.Start("fetch", fmt.Sprintf("Fetching %d digests", len(summaries)))
+				digests := make([]models.Digest, 0, len(summaries))
+				for _, s := range summaries {
+					d, err := client.GetDigest(s.Id)
+					if err != nil {
+						prog.Complete("fetch", false, "fetch failed")
+						return fmt.Errorf("fetch digest %s: %w", s.Id, err)
+					}
+					digests = append(digests, d)
+				}
+				prog.Complete("fetch", true, fmt.Sprintf("fetched %d digests", len(digests)))
+				return publisher.RepublishAll(digests, republishTheme, republishDryRun, !republishNoWait)
+			})
 		},
 	}
 	republishAllCmd.Flags().StringVar(&republishTheme, "theme", "dark", "Theme to use when re-rendering digest pages")
 	republishAllCmd.Flags().BoolVar(&republishDryRun, "dry-run", false, "Render and stage locally without committing or pushing")
+	republishAllCmd.Flags().BoolVar(&republishNoWait, "no-wait", false, "Push and exit without waiting for the GitHub Pages deploy")
 
 	var republishIndexDryRun bool
 
@@ -312,10 +317,13 @@ This command does not require a running downlink server.`,
 				return err
 			}
 			publisher := notification.NewGitHubPagesPublisher(cfg)
-			return publisher.RepublishIndex(republishIndexDryRun)
+			return runPublishWithProgress(publisher, func(prog notification.PublishProgress) error {
+				return publisher.RepublishIndex(republishIndexDryRun, !republishNoWait)
+			})
 		},
 	}
 	republishIndexCmd.Flags().BoolVar(&republishIndexDryRun, "dry-run", false, "Write index files locally without committing or pushing")
+	republishIndexCmd.Flags().BoolVar(&republishNoWait, "no-wait", false, "Push and exit without waiting for the GitHub Pages deploy")
 
 	republishCmd := &cobra.Command{
 		Use:   "republish [digest-id-or-title]",
@@ -395,20 +403,12 @@ This command requires a running downlink server (--address / --port).`,
 				}
 			}
 
-			removeSHA, err := publisher.RemoveDigest(digest.Title)
-			if err != nil {
-				return fmt.Errorf("remove digest: %w", err)
-			}
-			// Wait for the removal to deploy before re-publishing: GitHub cancels
-			// an in-flight Pages build when a newer commit lands, so pushing the
-			// re-add immediately would skip deploying the removal. Best-effort —
-			// a wait failure must not leave the digest removed-but-not-re-added.
-			if err := publisher.WaitForPagesBuild(removeSHA); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: waiting for removal to deploy: %v\n", err)
-			}
-			return publisher.SendDigest(digest)
+			return runPublishWithProgress(publisher, func(prog notification.PublishProgress) error {
+				return publisher.Republish(digest, !republishNoWait)
+			})
 		},
 	}
+	republishCmd.Flags().BoolVar(&republishNoWait, "no-wait", false, "Push and exit without waiting for the GitHub Pages deploy")
 
 	cmd.AddCommand(initCmd, reinitCmd, addCmd, removeCmd, republishAllCmd, republishIndexCmd, republishCmd)
 	return cmd
