@@ -265,7 +265,7 @@ type TagCount struct {
 // in display order. Stale/free-form categories outside this set are ignored at render
 // time (no label, excluded from the filter). Keep in sync with the LLM categorize
 // task's allowed set (services.allowedCategories).
-var digestCategoryOrder = []string{"news", "research", "advisory", "opinion", "guide"}
+var digestCategoryOrder = []string{"news", "research", "advisory", "opinion", "guide", "commercial", "sponsored", "announcement"}
 
 var digestCategorySet = map[string]bool{}
 

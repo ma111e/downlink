@@ -241,11 +241,14 @@ func (s *LLMsServer) prepareArticleContext(articleId string) (*articleContext, e
 // Keep in sync with the category instruction in getAnalysisTasks and the frontend
 // CATEGORY_OPTIONS in ArticleList.vue.
 var allowedCategories = map[string]bool{
-	"news":     true,
-	"research": true,
-	"advisory": true,
-	"opinion":  true,
-	"guide":    true,
+	"news":         true,
+	"research":     true,
+	"advisory":     true,
+	"opinion":      true,
+	"guide":        true,
+	"commercial":   true,
+	"sponsored":    true,
+	"announcement": true,
 }
 
 // normalizeCategory coerces a model-produced category into the allowed set,
@@ -304,6 +307,9 @@ Category — choose exactly ONE of these values (lowercase, no other value allow
 - advisory: vendor/CERT advisory, patch, or coordinated disclosure
 - opinion: commentary, trend piece, or best-practice perspective
 - guide: tutorial, how-to, or educational material
+- commercial: product marketing or vendor promotion of a commercial offering
+- sponsored: sponsored, promoted, advertorial, or paid-placement content
+- announcement: company/product release, launch, or PR announcement, or notice of an organized or upcoming event (conference, webinar, CTF, etc.)
 If unsure, use "news".
 
 Tags identify the ecosystem of the event. Extract them in this priority order (high to low):
@@ -319,7 +325,7 @@ Always add the country/geography as a tag when the article mentions one (e.g. no
 If covering all entities would exceed 15 tags, drop the lowest-priority ones first.
 Tags must be lowercase kebab-case with no leading # or other prefix (e.g. lazarus, cobalt-strike, spearphishing, north-korea, defense-sector).
 Return ONLY the JSON object.`,
-		schema: `{"category": "<news|research|advisory|opinion|guide>", "tags": ["tag1", "tag2"]}`,
+		schema: `{"category": "<news|research|advisory|opinion|guide|commercial|sponsored|announcement>", "tags": ["tag1", "tag2"]}`,
 	})
 
 	tasks = append(tasks,
