@@ -157,6 +157,13 @@ Examples:
 				os.Exit(1)
 			}
 
+			// --test-digest-id implies --test: choosing a specific stored digest to send
+			// only makes sense in test mode, so passing the ID alone enables it rather
+			// than silently falling through to normal generation over the time window.
+			if digestTestID != "" {
+				digestTest = true
+			}
+
 			client := getNewDownlinkClient()
 
 			if digestTest {
@@ -444,7 +451,7 @@ Examples:
 	generateCmd.Flags().StringVarP(&digestModel, "model", "m", "", "Model override for this run. If given without --provider, the server finds the provider offering it (errors if ambiguous)")
 	generateCmd.Flags().BoolVar(&digestSelectModel, "select-model", false, "Interactively pick a model; lists every provider's models (or just --provider's when set)")
 	generateCmd.Flags().BoolVar(&digestTest, "test", false, "Send a stored test digest to configured notification channels without generating a new digest")
-	generateCmd.Flags().StringVar(&digestTestID, "test-digest-id", "", "Digest ID to use with --test (default: server-selected rich test digest)")
+	generateCmd.Flags().StringVar(&digestTestID, "test-digest-id", "", "Digest ID to send as a test (implies --test; default: server-selected rich test digest)")
 	generateCmd.Flags().BoolVar(&digestNoGHPages, "no-gh-pages", false, "Disable GitHub Pages publishing for this run (overrides server config)")
 	generateCmd.Flags().BoolVar(&digestGHPages, "gh-pages", false, "Enable GitHub Pages publishing for this run (overrides server config)")
 	generateCmd.Flags().BoolVar(&digestReanalyzeOnModelChange, "reanalyze-on-model-change", false, "Re-analyze articles whose existing analysis was produced by a different model than the one currently configured")
