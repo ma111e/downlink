@@ -1,7 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<script>
+// Set the theme before first paint to avoid a flash. Honors a saved choice,
+// else the visitor's OS preference. Shared key across digest/archive/swipe pages.
+(function(){
+  try {
+    var t = localStorage.getItem('downlink.theme');
+    if (t !== 'light' && t !== 'dark') {
+      t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+    document.documentElement.dataset.theme = t;
+  } catch(e){}
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
 <meta name="description" content="DOWNLINK · Triage — 1 day digest">
@@ -31,10 +44,29 @@
     --may:    oklch(65% 0.13 250);
     --discard: oklch(62% 0.20 22);
     --accept:  oklch(70% 0.16 155);
+    --dot: #ffffff08;
+  }
+  /* Light theme — toggled client-side via [data-theme="light"] on <html>. */
+  html[data-theme="light"] {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface2: #eceef2;
+    --border: #dfe2e8;
+    --border2: #c9cdd6;
+    --text: #1f2329;
+    --text2: #5a6172;
+    --text3: #9096a4;
+    --cyan: oklch(52% 0.12 200);
+    --must:    oklch(53% 0.18 32);
+    --should:  oklch(56% 0.13 66);
+    --may:     oklch(52% 0.16 256);
+    --discard: oklch(54% 0.21 25);
+    --accept:  oklch(52% 0.16 156);
+    --dot: rgba(0,0,0,.04);
   }
   html {
     background: var(--bg);
-    background-image: radial-gradient(circle, #ffffff08 1px, transparent 1px);
+    background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
     background-size: 24px 24px;
     color: var(--text);
     font-family: 'IBM Plex Sans', sans-serif;
@@ -288,10 +320,17 @@ function AnalysisTabs({ article }) {
 
 function Nav({ index, total }) {
   const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  const [theme, setTheme] = React.useState(() => document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
   React.useEffect(() => {
     const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
     return () => clearInterval(iv);
   }, []);
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('downlink.theme', next); } catch(e){}
+    setTheme(next);
+  };
   return (
     <nav style={{
       position: "sticky", top: 0, zIndex: 100,
@@ -309,11 +348,20 @@ function Nav({ index, total }) {
         }}>TRIAGE</span>
       </a>
       <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
-      <div style={{
-        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
-        border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
-      }}>
-        {Math.min(index + 1, total)} / {total}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+        }}>
+          {Math.min(index + 1, total)} / {total}
+        </div>
+        <button type="button" onClick={toggleTheme} title="Toggle light/dark theme" aria-label="Toggle light/dark theme" style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, lineHeight: 1, color: "var(--text2)",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 8px", borderRadius: 2,
+          cursor: "pointer", appearance: "none", WebkitAppearance: "none"
+        }}>
+          {theme === 'light' ? '☀' : '☾'}
+        </button>
       </div>
     </nav>
   );
