@@ -25,9 +25,22 @@ func (pc *DownlinkClient) GetDigest(id string) (models.Digest, error) {
 	return models.Digest{}, nil
 }
 
-// Method to list digests
+// Method to list digests. Returns lightweight summaries (id/title/date/article
+// count) — use ListDigestsFull when the full payload (summary, provider results,
+// analyses) is required.
 func (pc *DownlinkClient) ListDigests(limit int) ([]models.Digest, error) {
-	protoDigests, err := pc.digestClient.ListDigests(pc.ctx, &protos.ListDigestsRequest{Limit: uint32(limit)})
+	return pc.listDigests(limit, false)
+}
+
+// ListDigestsFull lists digests with their full payload (summary, provider
+// results, analyses). The response can be large; prefer ListDigests when only
+// summary fields are needed.
+func (pc *DownlinkClient) ListDigestsFull(limit int) ([]models.Digest, error) {
+	return pc.listDigests(limit, true)
+}
+
+func (pc *DownlinkClient) listDigests(limit int, full bool) ([]models.Digest, error) {
+	protoDigests, err := pc.digestClient.ListDigests(pc.ctx, &protos.ListDigestsRequest{Limit: uint32(limit), Full: full})
 	if err != nil {
 		return []models.Digest{}, err
 	}

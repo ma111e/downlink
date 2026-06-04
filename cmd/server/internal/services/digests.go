@@ -44,7 +44,7 @@ func NewDigestServer(gw *llmgateway.Gateway, llms *LLMsServer) *DigestServer {
 
 // ListDigests retrieves all digests
 func (s *DigestServer) ListDigests(ctx context.Context, req *protos.ListDigestsRequest) (*protos.ListDigestsResponse, error) {
-	digests, err := store.Db.ListDigests(int(req.Limit))
+	digests, err := store.Db.ListDigests(int(req.Limit), req.Full)
 	if err != nil {
 		return nil, err
 	}
@@ -414,7 +414,9 @@ func (s *DigestServer) resolveNotificationTestDigestID(requestedID string) (stri
 		return preferredNotificationTestDigestID, nil
 	}
 
-	digests, err := store.Db.ListDigests(0)
+	// Needs full payloads: notificationTestDigestScore reads DigestSummary,
+	// ProviderResults, and DigestAnalyses.
+	digests, err := store.Db.ListDigests(0, true)
 	if err != nil {
 		return "", fmt.Errorf("failed to list digests for notification test selection: %w", err)
 	}

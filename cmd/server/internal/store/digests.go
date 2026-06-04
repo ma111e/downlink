@@ -43,7 +43,7 @@ func (s *GormStore) GetDigest(id string) (models.Digest, error) {
 	return digest, nil
 }
 
-func (s *GormStore) ListDigests(limit int) ([]models.Digest, error) {
+func (s *GormStore) ListDigests(limit int, full bool) ([]models.Digest, error) {
 	var digests []models.Digest
 
 	// Apply limit and order by creation date
@@ -52,12 +52,23 @@ func (s *GormStore) ListDigests(limit int) ([]models.Digest, error) {
 		query = query.Limit(limit)
 	}
 
+	// Summary mode: select only the lightweight columns and skip the heavy
+	// per-digest associations below. Keeps the response small for callers that
+	// only need id/title/date/article count (the common case).
+	if !full {
+		query = query.Select("id, created_at, title, article_count, time_window")
+	}
+
 	result := query.Find(&digests)
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to list digests: %w", result.Error)
 	}
 
 	if len(digests) == 0 {
+		return digests, nil
+	}
+
+	if !full {
 		return digests, nil
 	}
 

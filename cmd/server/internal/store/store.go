@@ -25,7 +25,7 @@ type Store interface {
 
 	StoreDigest(digest models.Digest) error
 	GetDigest(id string) (models.Digest, error)
-	ListDigests(limit int) ([]models.Digest, error)
+	ListDigests(limit int, full bool) ([]models.Digest, error)
 	StoreDigestArticle(digestId string, articleId string) error
 	StoreDigestArticlesBatch(digestId string, articleIds []string) error
 	GetDigestArticles(digestId string) ([]models.Article, error)

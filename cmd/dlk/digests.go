@@ -52,7 +52,14 @@ func createDigestCommands() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
-			digests, err := client.ListDigests(digestLimit)
+			// --json dumps full digest data; the table view only needs summaries.
+			var digests []models.Digest
+			var err error
+			if jsonOutput {
+				digests, err = client.ListDigestsFull(digestLimit)
+			} else {
+				digests, err = client.ListDigests(digestLimit)
+			}
 			if err != nil {
 				fmt.Printf("Failed to list digests: %v\n", err)
 				return

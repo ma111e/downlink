@@ -636,6 +636,7 @@ func (x *DigestProgressEvent) GetArticleTitle() string {
 type ListDigestsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Limit         uint32                 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Full          bool                   `protobuf:"varint,2,opt,name=full,proto3" json:"full,omitempty"` // when false, return summary fields only (id/title/date/article count)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -675,6 +676,13 @@ func (x *ListDigestsRequest) GetLimit() uint32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListDigestsRequest) GetFull() bool {
+	if x != nil {
+		return x.Full
+	}
+	return false
 }
 
 // ListDigestsResponse represents the response with all digests
@@ -1151,9 +1159,10 @@ const file_digests_proto_rawDesc = "" +
 	" \x01(\rR\ttaskTotal\x12\x1d\n" +
 	"\n" +
 	"article_id\x18\v \x01(\tR\tarticleId\x12#\n" +
-	"\rarticle_title\x18\f \x01(\tR\farticleTitle\"*\n" +
+	"\rarticle_title\x18\f \x01(\tR\farticleTitle\">\n" +
 	"\x12ListDigestsRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\rR\x05limit\"A\n" +
+	"\x05limit\x18\x01 \x01(\rR\x05limit\x12\x12\n" +
+	"\x04full\x18\x02 \x01(\bR\x04full\"A\n" +
 	"\x13ListDigestsResponse\x12*\n" +
 	"\adigests\x18\x01 \x03(\v2\x10.downlink.DigestR\adigests\"\xca\x03\n" +
 	"\x14DigestProviderResult\x12\x0e\n" +
