@@ -59,7 +59,6 @@ func createArticleCommands() *cobra.Command {
 				return
 			}
 
-			// Format and display results
 			if jsonOutput {
 				out, err := json.MarshalIndent(articles, "", "  ")
 				if err != nil {
@@ -179,7 +178,6 @@ func createArticleCommands() *cobra.Command {
 				return
 			}
 
-			// Prepare update
 			update := models.ArticleUpdate{}
 
 			if markRead {

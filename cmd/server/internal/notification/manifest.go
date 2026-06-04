@@ -149,8 +149,8 @@ func ManifestEntryFromDigest(d models.Digest) ManifestEntry {
 	provider, model := digestProviderLabel(d)
 	must, should, may, opt := digestPriorityCounts(d)
 	headlines, headlinePriorities := digestHeadlinePreview(d, 0)
-	// CreatedAt is the window start (see GenerateDigest). period_start — the
-	// timestamp the archive index displays — is therefore CreatedAt directly,
+	// CreatedAt is the window start (see GenerateDigest). period_start (the
+	// timestamp the archive index displays) is therefore CreatedAt directly,
 	// and started_at (used for "last sync") is the window end, CreatedAt+window.
 	return ManifestEntry{
 		Filename:           DigestHTMLFilename(d),
@@ -345,7 +345,7 @@ func stripSummaryLeadHeader(parts []string) []string {
 	return parts
 }
 
-// sortDigestsNewestFirst sorts entries by filename desc — ISO timestamp prefix
+// sortDigestsNewestFirst sorts entries by filename desc. The ISO timestamp prefix
 // sorts lexicographically, matching newest-first chronological order.
 func sortDigestsNewestFirst(entries []ManifestEntry) {
 	sort.SliceStable(entries, func(i, j int) bool {

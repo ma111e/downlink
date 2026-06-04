@@ -1,4 +1,4 @@
-// Background service worker — runs in the extension's origin (chrome-extension://),
+// Background service worker, running in the extension's origin (chrome-extension://),
 // which is not subject to Chrome's Private Network Access restrictions.
 //
 // Architecture: maintains a persistent WebSocket connection to the Go server.
@@ -43,7 +43,7 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === 'keepalive') {
-    // No-op — waking up is sufficient to reset the suspension timer.
+    // No-op: waking up is sufficient to reset the suspension timer.
     // Optionally reconnect if the WS dropped while the SW was suspended.
     if (ws === null && port !== null) {
       console.log('[downlink:bg] keepalive alarm: WebSocket gone, reconnecting');
@@ -132,7 +132,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 });
 
 async function sendInitMessage(tabId, pending) {
-  // Atomically consume the pending entry — JS is single-threaded so this is safe.
+  // Atomically consume the pending entry; JS is single-threaded so this is safe.
   // Prevents double-init if both the onUpdated listener and the post-create check fire.
   if (!pendingTabs.has(tabId)) return;
   pendingTabs.delete(tabId);
@@ -162,7 +162,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     connected:   ws !== null && ws.readyState === WebSocket.OPEN,
     pendingTabs: pendingTabs.size,
   });
-  return false; // synchronous — do not keep the channel open
+  return false; // synchronous; do not keep the channel open
 });
 
 // ── DOM receipt ───────────────────────────────────────────────────────────────

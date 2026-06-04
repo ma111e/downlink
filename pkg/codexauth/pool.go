@@ -107,7 +107,7 @@ func (p *Pool) UpdateCredentials(creds []models.CodexCredential) {
 //
 // The mutex is released before any network I/O (token refresh) to avoid
 // blocking all concurrent callers. After the refresh we re-acquire and
-// re-verify before committing — a double-check latch.
+// re-verify before committing, a double-check latch.
 func (p *Pool) Acquire(ctx context.Context) (*Lease, error) {
 	p.mu.Lock()
 
@@ -125,7 +125,7 @@ func (p *Pool) Acquire(ctx context.Context) (*Lease, error) {
 		}
 
 		if !ExpiresWithin(c.AccessToken, refreshSkew) {
-			// Token is healthy — return immediately under lock.
+			// Token is healthy, so return immediately under lock.
 			lease := &Lease{
 				CredID:      c.Id,
 				AccessToken: c.AccessToken,

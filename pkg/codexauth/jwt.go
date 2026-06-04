@@ -17,7 +17,7 @@ type jwtClaims struct {
 }
 
 // decodeJWTPayload base64url-decodes the payload segment of a JWT and parses
-// it as JSON. It does NOT verify the signature — result is for display/expiry
+// it as JSON. It does NOT verify the signature; the result is for display/expiry
 // checks only.
 func decodeJWTPayload(token string) (*jwtClaims, error) {
 	parts := strings.Split(token, ".")

@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Method to get a digest by Id
+// GetDigest retrieves a digest by ID.
 func (pc *DownlinkClient) GetDigest(id string) (models.Digest, error) {
 	protoDigest, err := pc.digestClient.GetDigest(pc.ctx, &protos.GetDigestRequest{Id: id})
 	if err != nil {
@@ -25,9 +25,9 @@ func (pc *DownlinkClient) GetDigest(id string) (models.Digest, error) {
 	return models.Digest{}, nil
 }
 
-// Method to list digests. Returns lightweight summaries (id/title/date/article
-// count) — use ListDigestsFull when the full payload (summary, provider results,
-// analyses) is required.
+// ListDigests returns lightweight summaries (id/title/date/article count). Use
+// ListDigestsFull when the full payload (summary, provider results, analyses) is
+// required.
 func (pc *DownlinkClient) ListDigests(limit int) ([]models.Digest, error) {
 	return pc.listDigests(limit, false)
 }
@@ -48,7 +48,7 @@ func (pc *DownlinkClient) listDigests(limit int, full bool) ([]models.Digest, er
 	return mappers.AllDigestsToModels(protoDigests.Digests), nil
 }
 
-// Method to get articles for a digest
+// GetDigestArticles returns the articles belonging to a digest.
 func (pc *DownlinkClient) GetDigestArticles(digestId string) ([]models.Article, error) {
 	protoArticles, err := pc.digestClient.GetDigestArticles(pc.ctx, &protos.GetDigestArticlesRequest{DigestId: digestId})
 	if err != nil {
@@ -78,7 +78,7 @@ type GenerateDigestOptions struct {
 	OnEvent                func(*protos.DigestProgressEvent)
 }
 
-// Method to generate a new digest, streaming progress events to onEvent as they arrive.
+// GenerateDigest generates a new digest, streaming progress events to onEvent as they arrive.
 // Returns the final digest once the stream completes with a "done" event.
 // The provided ctx controls the stream lifetime: cancel it to abort generation on the server.
 func (pc *DownlinkClient) GenerateDigest(ctx context.Context, startTime time.Time, endTime time.Time, skipAnalysis bool, skipDuplicates bool, excludeDigested bool, skipSummary bool, theme string, onEvent func(*protos.DigestProgressEvent)) (models.Digest, error) {
@@ -137,7 +137,7 @@ func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options
 			}
 			return models.Digest{}, nil
 		case "cancelled":
-			// Server confirmed the cancellation — propagate as a context error so the
+			// Server confirmed the cancellation; propagate as a context error so the
 			// caller can distinguish it from a real failure.
 			return models.Digest{}, context.Canceled
 		case "error":

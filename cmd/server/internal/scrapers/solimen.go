@@ -78,7 +78,7 @@ func startSolimenDocker() error {
 		return waitForSolimen()
 	}
 
-	// Container doesn't exist — pull and run from hosted image
+	// Container doesn't exist, so pull and run from hosted image
 	log.Info("Creating new Solimen Docker container...")
 	runCmd := exec.Command("docker", "run", "-d", "--name", solimenDockerName, "-p", solimenPort+":"+solimenPort, solimenDockerImage)
 	output, err := runCmd.CombinedOutput()

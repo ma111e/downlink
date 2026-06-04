@@ -1,14 +1,14 @@
 // Package trace is an opt-in, content-level debug tracer. When enabled (the
 // server runs at the `trace` log level) it dumps the raw bytes flowing through
-// the system — LLM prompt/response chains, raw HTTP feed-fetch bodies, and
-// solimen-scraped HTML — to discrete files on disk so issues like non-UTF-8
+// the system (LLM prompt/response chains, raw HTTP feed-fetch bodies, and
+// solimen-scraped HTML) to discrete files on disk so issues like non-UTF-8
 // feed responses or a misbehaving prompt chain can be inspected directly.
 //
 // It is stdlib-only on purpose: keeping it free of project imports lets every
 // layer (llmgateway, scrapers, manager) call into it without import cycles.
 //
 // Every exported writer is a no-op when tracing is disabled and never returns
-// an error to its caller — a failed trace write is logged and ignored so the
+// an error to its caller; a failed trace write is logged and ignored so the
 // debug facility can never break the main flow.
 package trace
 
@@ -202,7 +202,7 @@ func Scrape(articleID, rawURL, state, html string) {
 
 // Content records article content that was rejected/notable for a given reason
 // (e.g. "invalid-utf8") as its own byte-exact file plus a metadata sidecar, so
-// the offending bytes — which would otherwise be dropped — stay inspectable.
+// the offending bytes, which would otherwise be dropped, stay inspectable.
 func Content(articleID, rawURL, reason, content string) {
 	if !enabled {
 		return

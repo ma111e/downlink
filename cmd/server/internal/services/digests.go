@@ -546,7 +546,7 @@ func (s *DigestServer) getRecentArticles(after time.Time, before *time.Time, exc
 // gateway enforces the global LLM-call cap, so this loop runs articles in
 // parallel via a bounded worker pool.
 //
-// onStart is called when an article's analysis begins — the CLI uses this to
+// onStart is called when an article's analysis begins; the CLI uses this to
 // register a new row and reserve screen space for concurrent work.
 // onTaskFactory returns a per-article task-progress callback so the emitted
 // events carry the article's id/title (parallel articles' events would
@@ -665,8 +665,8 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 				innerTaskCb = onTaskFactory(article.Id, article.Title)
 			}
 
-			// Defer the onStart signal until the first task actually begins
-			// — that is, after the gateway hands out a slot. This way the
+			// Defer the onStart signal until the first task actually begins,
+			// that is, after the gateway hands out a slot. This way the
 			// "in parallel" count on the UI tracks real LLM in-flight calls,
 			// not articles still parked on the gateway semaphore.
 			var startedOnce sync.Once

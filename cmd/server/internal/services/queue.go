@@ -27,7 +27,7 @@ type queueEntry struct {
 //
 // Concurrency model: the LLM-call cap lives in the Gateway (which llms uses
 // internally). QueueServer keeps its own `workerSem` only to bound how many
-// goroutines it spawns from a large backlog — not to bound LLM calls. That
+// goroutines it spawns from a large backlog, not to bound LLM calls. That
 // budget is auto-derived from maxConcurrentLLMRequests (4× with a floor of 4)
 // so a 10k-article backlog does not spawn 10k parked goroutines.
 type QueueServer struct {
@@ -48,7 +48,7 @@ type QueueServer struct {
 
 // NewQueueServer creates a new QueueServer with a reference to the LLMs
 // service. The optional maxConcurrentLLMRequests seeds the queue's worker
-// fan-out budget (not the LLM-call cap — that lives in the Gateway).
+// fan-out budget (not the LLM-call cap, which lives in the Gateway).
 func NewQueueServer(llms *LLMsServer, maxConcurrentLLMRequests int) *QueueServer {
 	workerBudget := 4 * maxConcurrentLLMRequests
 	if workerBudget < 4 {

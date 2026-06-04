@@ -13,7 +13,7 @@ import (
 var Mu sync.RWMutex
 
 // configFileLayout is the on-disk shape of config.json.
-// Feeds are excluded — they live in feeds.yml via models.ServerConfig.Save.
+// Feeds are excluded; they live in feeds.yml via models.ServerConfig.Save.
 type configFileLayout struct {
 	DbPath        string                     `json:"db_path"`
 	Providers     []models.ProviderConfig    `json:"providers"`

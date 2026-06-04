@@ -1,7 +1,7 @@
 // Package llmgateway is the single chokepoint through which every LLM call
 // in the process must pass. Its job is to bound provider concurrency
-// (--max-concurrent-llm-requests) across every code path — direct analysis,
-// queue-driven analysis, digest dedupe, digest summary — so the flag actually
+// (--max-concurrent-llm-requests) across every code path (direct analysis,
+// queue-driven analysis, digest dedupe, digest summary) so the flag actually
 // means what it says.
 //
 // A Gateway owns one semaphore (`chan struct{}`) sized at construction time.
@@ -152,7 +152,7 @@ func (g *Gateway) Generate(
 // and invokes onChunk for each message chunk as it arrives. The slot is held
 // for the entire duration of the stream (reader open → io.EOF / error / cancel).
 //
-// onChunk may be nil — in that case chunks are still accumulated and returned
+// onChunk may be nil; in that case chunks are still accumulated and returned
 // as the full response string, but no per-token callback is invoked.
 // Returning a non-nil error from onChunk aborts the stream and is returned.
 func (g *Gateway) Stream(

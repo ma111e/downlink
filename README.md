@@ -14,9 +14,9 @@ that it can publish to GitHub Pages and Discord.
 
 - **Multi-provider LLMs** Claude, ChatGPT Codex, Mistral, vLLM, Ollama, and llama.cpp
   (any OpenAI-compatible endpoint)
-- **Scoring** articles are either vibe scored by the LLM or based on six dimensions (specificity, severity,
-  breadth, novelty, actionability, credibility) rather than a single opaque number.
-  See [`pkg/scoring`](pkg/scoring).
+- **Scoring** articles are either vibe-scored by the LLM or scored across six dimensions
+  (specificity, severity, breadth, novelty, actionability, credibility) instead of a single
+  opaque number. See [`pkg/scoring`](pkg/scoring).
 - **Flexible scraping** plain RSS, dynamic scraping (Lightpanda), and full-browser
   scraping ([Solimen](https://github.com/ma111e/solimen)) with per-feed CSS selectors, triggers, blacklists, and headers.
 - **Digest generation** categorized, importance-ranked digests with deduplication.

@@ -2,7 +2,7 @@
 // LLM rates, the deterministic aggregation of those dimensions into a 0-100
 // score, and the tier thresholds used to bucket articles in digests.
 //
-// The LLM no longer chooses the final score directly — it rates a handful of
+// The LLM no longer chooses the final score directly. It rates a handful of
 // narrow, anchored sub-dimensions (0-4 each) and Compute combines them with
 // tunable weights here. Because the raw dimensions are persisted alongside the
 // computed score, the weights can be retuned later and scores recomputed in a
@@ -133,7 +133,7 @@ func ReadTier(score int) string {
 }
 
 // PriorityKey returns the short bucket key for a 0-100 score, used for digest
-// manifest priority tallies. Unlike ReadTier it has no "unscored" bucket —
+// manifest priority tallies. Unlike ReadTier it has no "unscored" bucket;
 // anything below TierMayRead falls into "opt".
 func PriorityKey(score int) string {
 	switch {

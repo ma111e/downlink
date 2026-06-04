@@ -81,7 +81,7 @@ func startLightpandaDocker() error {
 		return waitForLightpanda()
 	}
 
-	// Container doesn't exist — create and run it
+	// Container doesn't exist, so create and run it
 	log.Info("Creating new Lightpanda Docker container...")
 	portMapping := fmt.Sprintf("%s:%s:%s", lightpandaCDPHost, lightpandaCDPPort, lightpandaCDPPort)
 	runCmd := exec.Command("docker", "run", "-d", "--name", lightpandaDockerName, "-p", portMapping, "lightpanda/browser")

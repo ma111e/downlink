@@ -10,7 +10,7 @@ func CodexHeaders(accessToken string) http.Header {
 	h.Set("originator", "codex_cli_rs")
 
 	if id := ChatGPTAccountID(accessToken); id != "" {
-		// Canonical casing required — do not change.
+		// Canonical casing required; do not change.
 		h["ChatGPT-Account-ID"] = []string{id}
 	}
 	return h

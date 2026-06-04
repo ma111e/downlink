@@ -137,7 +137,7 @@ func ptrStr(s *string) string {
 }
 
 // printBody renders a multi-line text block under a section header.
-// Empty input is silently skipped — caller decides whether to call.
+// Empty input is silently skipped; the caller decides whether to call.
 func printBody(text string) {
 	text = strings.TrimSpace(text)
 	if text == "" {
@@ -310,7 +310,7 @@ func renderMarkdownWithGlow(markdown string) string {
 		return markdown
 	}
 
-	// Indent each line for nice display
+	// Indent each non-empty line
 	var result strings.Builder
 	lines := strings.Split(rendered, "\n")
 	for _, line := range lines {
@@ -335,7 +335,6 @@ func formatMarkdown(text string) string {
 		text = htmlToMarkdown(text)
 	}
 
-	// Render the markdown with styling
 	return renderMarkdownWithGlow(text)
 }
 

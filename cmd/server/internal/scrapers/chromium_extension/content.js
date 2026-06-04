@@ -1,4 +1,4 @@
-// Content script — injected into every page at document_idle.
+// Content script, injected into every page at document_idle.
 //
 // Waits for the background service worker to send an {type:'init'} message
 // containing the requestId and per-hostname triggers for this tab.

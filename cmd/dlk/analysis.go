@@ -60,7 +60,7 @@ func createAnalysisCommands() *cobra.Command {
 
 	configCmd.AddCommand(getConfigCmd)
 
-	// Analyze article(s) command — smart handling of single vs batch
+	// Analyze article(s) command: smart handling of single vs batch
 	var runFrom, runTo, runBetween string
 	var runDryRun, runKeyPointsOnly, runSelectModel, runAllTime bool
 	analyzeCmd := &cobra.Command{
@@ -267,7 +267,7 @@ Batch Analysis by Feed/Time:
 				filter.FeedId = feed.Id
 			}
 
-			// Fetch matching articles — page through all results when --all-time is set
+			// Fetch matching articles, paging through all results when --all-time is set
 			const pageSize = 100
 			var allArticles []models.Article
 			for {

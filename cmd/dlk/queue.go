@@ -14,7 +14,7 @@ func createQueueCommands() *cobra.Command {
 		Long:  `View and control the analysis queue.`,
 	}
 
-	// Queue status command — live TUI monitor
+	// Queue status command: live TUI monitor
 	queueStatusCmd := &cobra.Command{
 		Use:   "status",
 		Short: "Monitor queue progress",

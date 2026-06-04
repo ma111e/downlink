@@ -7,8 +7,8 @@ import "strings"
 // from a raw LLM response so the remaining text is ready for JSON parsing.
 //
 // Thinking blocks:
-//   - <think>...</think>  — both tags present; everything between is removed
-//   - ...</think>         — orphan closer; everything before it is removed too
+//   - <think>...</think>: both tags present; everything between is removed
+//   - ...</think>: orphan closer; everything before it is removed too
 //
 // Markdown fences: a leading ```lang\n and a trailing ``` are stripped if
 // present. This handles the common "```json\n{...}\n```" wrapping.

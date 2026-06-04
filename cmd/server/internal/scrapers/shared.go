@@ -24,7 +24,6 @@ func GetSharedAnonymizedScraper(domain string) *AnonymizedScraper {
 		defer sharedScraperMu.Unlock()
 
 		// Update the collector's allowed domains if needed
-		// This is safe because we're using a mutex to protect access
 		sharedScraper.Collector.AllowedDomains = append(
 			sharedScraper.Collector.AllowedDomains,
 			domain,

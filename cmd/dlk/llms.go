@@ -50,7 +50,7 @@ func createModelCommands() *cobra.Command {
 				}
 			}
 
-			// Build provider picker options: show name (type) — current model
+			// Build provider picker options: show "name (type): current model"
 			providerOpts := make([]huh.Option[int], len(providers))
 			for i, p := range providers {
 				label := p.Name
@@ -334,7 +334,6 @@ func createModelCommands() *cobra.Command {
 
 			fmt.Println("Successfully updated LLM provider configurations")
 
-			// Display updated configuration
 			if jsonOutput {
 				out, err := json.MarshalIndent(providers, "", "  ")
 				if err != nil {

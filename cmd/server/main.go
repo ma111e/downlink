@@ -125,9 +125,6 @@ func main() {
 
 			manager.InitFeedManager(store.Db)
 
-			// Initialize worker pool for analyzes
-			// workerpool.InitPool()
-			// log.WithField("max_workers", config.Config.Analysis.WorkerPool.MaxWorkers).Info("Analysis worker pool initialized")
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -363,7 +360,7 @@ func startServer(host string, port int, tls bool, certFile, keyFile string, maxC
 	// This is the only place --max-concurrent-llm-requests is actually enforced.
 	gw := llmgateway.New(maxConcurrentLLMRequests)
 
-	// Codex OAuth manager — wires the credential pool to config.json persistence.
+	// Codex OAuth manager: wires the credential pool to config.json persistence.
 	config.CodexManager = codexauth.NewManager(
 		func() *models.ServerConfig { return config.Config },
 		config.SaveConfig,

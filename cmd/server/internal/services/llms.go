@@ -723,7 +723,7 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 	var allThinking []string
 	succeededTasks := 0
 
-	// Build conversation history — persona as system message, then article + tasks
+	// Build conversation history: persona as system message, then article + tasks
 	var conversationHistory []*schema.Message
 	if persona := config.Config.Analysis.Persona; persona != "" {
 		conversationHistory = append(conversationHistory, &schema.Message{
@@ -1258,7 +1258,7 @@ func fetchProviderModels(providerType string, provider models.ProviderConfig) ([
 	apiKey := provider.APIKey
 	// Ollama and llama.cpp don't require an API key. The cloud providers
 	// (openai/anthropic/mistral) only need a key when a custom Base URL forces
-	// the live query path — the models.dev path (no Base URL) needs none.
+	// the live query path; the models.dev path (no Base URL) needs none.
 	if apiKey == "" && providerType != "ollama" && providerType != "llamacpp" && provider.BaseURL != "" {
 		return nil, fmt.Errorf("api key not found for %s", providerType)
 	}
@@ -1443,7 +1443,7 @@ func fetchProviderModels(providerType string, provider models.ProviderConfig) ([
 				return getFallbackAnthropicModels(), fmt.Errorf("failed to make API request: %w", err)
 			}
 
-			// Handle non-200 responses — close body explicitly (no defer inside loop)
+			// Handle non-200 responses: close body explicitly (no defer inside loop)
 			if resp.StatusCode != http.StatusOK {
 				body, _ := io.ReadAll(resp.Body)
 				resp.Body.Close()

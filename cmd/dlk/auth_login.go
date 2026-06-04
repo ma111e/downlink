@@ -19,7 +19,7 @@ func createAuthLoginCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := getNewDownlinkClient()
 
-			// Step 1: Provider type — positional arg or interactive selector
+			// Step 1: Provider type, from a positional arg or interactive selector
 			var providerType string
 			if len(args) > 0 {
 				providerType = args[0]
@@ -39,7 +39,7 @@ func createAuthLoginCommand() *cobra.Command {
 				}
 			}
 
-			// Step 2: Config entry name — flag or interactive input
+			// Step 2: Config entry name, from a flag or interactive input
 			if !cmd.Flags().Changed("provider-name") {
 				providerName = providerType + "-sub"
 				flushStdin()

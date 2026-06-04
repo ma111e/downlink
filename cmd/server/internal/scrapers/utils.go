@@ -52,8 +52,8 @@ func extractHeroImage(item *gofeed.Item) string {
 		}
 	}
 
-	// Check for Open Graph image or Twitter card in the content
-	// This is a simplified approach - for proper parsing, you might want to use a HTML parser
+	// Check for Open Graph image or Twitter card in the content.
+	// Regex-based extraction, not a full HTML parse.
 	content := item.Content
 	if content == "" {
 		content = item.Description

@@ -480,7 +480,7 @@ func (p *GitHubPagesPublisher) writeAndStageManifest(wt *gogit.Worktree, digest 
 // configures the GitHub Pages source via the API (when configure_pages is
 // true), clones the branch locally, and seeds the initial static files
 // (manifest.json and index pages). Files that already exist are not
-// overwritten — the operation is idempotent.
+// overwritten; the operation is idempotent.
 //
 // When reinit is true the remote branch and the local clone directory are
 // deleted before re-creating them from scratch.

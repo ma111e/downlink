@@ -229,7 +229,7 @@ func (s *AnonymizedScraper) initPlaywright() error {
 		return nil
 	}
 
-	// Initialize Playwright (no browser install needed — using Lightpanda via Docker)
+	// Initialize Playwright (no browser install needed, using Lightpanda via Docker)
 	pw, err := playwright.Run()
 	if err != nil {
 		log.Errorf("Failed to start playwright: %v", err)
@@ -347,7 +347,7 @@ func (s *AnonymizedScraper) ScrapeContentWithPlaywright(url string, customHeader
 	}
 
 	// Lightpanda closes its target after every page lifecycle, so always reconnect
-	// before each scrape. This is a cheap WebSocket reconnect — the pw process stays alive.
+	// before each scrape. This is a cheap WebSocket reconnect; the pw process stays alive.
 	if err := s.reconnectBrowser(); err != nil {
 		return nil, err
 	}

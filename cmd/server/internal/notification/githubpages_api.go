@@ -48,7 +48,7 @@ func shortSHA(sha string) string {
 // under the given stepID. GitHub serialises Pages builds and cancels an
 // in-flight build when a newer commit is pushed, so a flow that pushes twice in
 // quick succession (republish: remove then re-add) would otherwise only ever
-// deploy the second commit — the removal would never go live. Polling the
+// deploy the second commit, and the removal would never go live. Polling the
 // builds API until the commit is "built" lets the caller sequence the two
 // pushes.
 //

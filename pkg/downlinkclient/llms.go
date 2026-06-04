@@ -136,7 +136,7 @@ func (pc *DownlinkClient) StreamAnalyzeArticleWithProviderModel(articleId, provi
 // StreamAnalyzeArticleWithSelection streams analysis using the user-facing
 // --provider/--model selection. provider is an auto-detect token (a provider
 // type OR a config profile name); model may be empty. The server resolves the
-// matching provider — including finding the provider that offers a bare model.
+// matching provider, including finding the provider that offers a bare model.
 func (pc *DownlinkClient) StreamAnalyzeArticleWithSelection(articleId, provider, model string, fastMode bool, onEvent func(AnalysisProgressEvent)) (models.ArticleAnalysis, error) {
 	stream, err := pc.llmsClient.StreamAnalyzeArticle(pc.ctx, &protos.AnalyzeArticleWithProviderModelRequest{
 		ArticleId: articleId,

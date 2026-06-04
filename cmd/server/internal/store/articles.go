@@ -162,7 +162,7 @@ func (s *GormStore) ListArticles(filter models.ArticleFilter) ([]models.Article,
 	var articles []models.Article
 
 	// Start with a base query.
-	// Skip the (potentially huge) `content` column — list views only need metadata.
+	// Skip the (potentially huge) `content` column; list views only need metadata.
 	// The full content is fetched on demand via GetArticle.
 	listColumns := []string{
 		"id", "feed_id", "title", "link",

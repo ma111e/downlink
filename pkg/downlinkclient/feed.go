@@ -39,7 +39,7 @@ func (pc *DownlinkClient) RegisterFeed(feedConfig models.FeedConfig) error {
 }
 
 // RefreshAllFeeds triggers a refresh of all registered feeds.
-// onEvent is called for each streamed event — both STARTED and COMPLETED.
+// onEvent is called for each streamed event, both STARTED and COMPLETED.
 func (pc *DownlinkClient) RefreshAllFeeds(onEvent func(ev *protos.RefreshAllFeedsEvent)) error {
 	stream, err := pc.feedsClient.RefreshAllFeeds(pc.ctx, &protos.RefreshAllFeedsRequest{})
 	if err != nil {
