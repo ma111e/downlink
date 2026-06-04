@@ -508,6 +508,9 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 			errs = append(errs, err)
 		} else {
 			publisher := notification.NewGitHubPagesPublisher(ghCfg)
+			publisher.SetDigestLister(func(n int) ([]models.Digest, error) {
+				return store.Db.ListDigests(n, true)
+			})
 			if err := publisher.SendDigest(digest); err != nil {
 				log.WithError(err).Warn("Failed to publish digest to GitHub Pages")
 				errs = append(errs, fmt.Errorf("github pages: %w", err))

@@ -36,8 +36,24 @@ type PublishProgress interface {
 // page are static shells that read manifest.json in the browser, so old HTML
 // files are never rewritten on subsequent publishes.
 type GitHubPagesPublisher struct {
-	cfg      models.GitHubPagesNotificationConfig
-	progress PublishProgress
+	cfg         models.GitHubPagesNotificationConfig
+	progress    PublishProgress
+	listDigests DigestLister
+}
+
+// DigestLister returns up to limit newest digests with full payload (provider
+// results + analyses). It lets the publisher build the RSS/Atom feeds without
+// depending on the store: callers that have DB or client access supply it via
+// SetDigestLister. A nil lister disables feed generation.
+type DigestLister func(limit int) ([]models.Digest, error)
+
+// FeedDigestLimit caps how many recent digests appear in the RSS/Atom feeds.
+const FeedDigestLimit = 7
+
+// SetDigestLister attaches the lister used to fetch recent digests when building
+// the RSS/Atom feeds on each push. Passing nil disables feed generation.
+func (p *GitHubPagesPublisher) SetDigestLister(fn DigestLister) {
+	p.listDigests = fn
 }
 
 // SetProgress attaches a PublishProgress sink so callers can render live step
@@ -124,6 +140,11 @@ func (p *GitHubPagesPublisher) sendDigest(digest models.Digest) (string, error) 
 	}
 
 	if err := p.writeAndStageManifest(wt, digest, outputDir); err != nil {
+		return "", err
+	}
+	if feedDigests, err := p.recentFeedDigests(digest, FeedDigestLimit); err != nil {
+		log.WithError(err).Warn("github pages: skipping feed update — failed to list recent digests")
+	} else if err := p.writeAndStageFeeds(wt, outputDir, feedDigests); err != nil {
 		return "", err
 	}
 	if err := p.ensureIndex(wt, outputDir); err != nil {
@@ -737,6 +758,11 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 	}
 	if _, err := wt.Add(manifestRelPath); err != nil {
 		return fmt.Errorf("github pages: failed to stage manifest: %w", err)
+	}
+
+	if err := p.writeAndStageFeeds(wt, outputDir, mergeDigestsNewestFirst(toRender, FeedDigestLimit)); err != nil {
+		p.pComplete("render", false, "feed render failed")
+		return err
 	}
 
 	if err := p.ensureIndex(wt, outputDir); err != nil {

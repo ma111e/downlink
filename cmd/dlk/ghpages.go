@@ -204,6 +204,9 @@ This command requires a running downlink server (--address / --port).`,
 				return fmt.Errorf("fetch digest: %w", err)
 			}
 			publisher := notification.NewGitHubPagesPublisher(cfg)
+			publisher.SetDigestLister(func(n int) ([]models.Digest, error) {
+				return client.ListDigestsFull(n)
+			})
 			return publisher.SendDigest(digest)
 		},
 	}
