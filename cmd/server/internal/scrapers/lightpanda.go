@@ -57,7 +57,7 @@ func CheckLightpanda(autoStart bool) error {
 		return startLightpandaDocker()
 	}
 
-	log.Warn("Lightpanda not started — dynamic scraping will be unavailable")
+	log.Warn("Lightpanda not started; dynamic scraping will be unavailable")
 	return nil
 }
 

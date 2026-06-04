@@ -49,7 +49,7 @@ func selectOAuthProvider(client *downlinkclient.DownlinkClient) (string, error) 
 	}
 
 	if len(capable) == 0 {
-		return "", fmt.Errorf("no OAuth providers configured — run 'auth login' first")
+		return "", fmt.Errorf("no OAuth providers configured; run 'auth login' first")
 	}
 	if len(capable) == 1 {
 		return capable[0].name, nil

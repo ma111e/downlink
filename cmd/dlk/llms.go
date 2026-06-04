@@ -31,7 +31,7 @@ func createModelCommands() *cobra.Command {
 				return fmt.Errorf("fetch providers: %w", err)
 			}
 			if len(providers) == 0 {
-				return fmt.Errorf("no providers configured — use 'model add' first")
+				return fmt.Errorf("no providers configured; use 'model add' first")
 			}
 
 			// Show currently active provider/model and find its index for pre-selection
@@ -143,7 +143,7 @@ func createModelCommands() *cobra.Command {
 	setPersonaCmd := &cobra.Command{
 		Use:   "set-persona",
 		Short: "Set analysis persona prompt",
-		Long:  `Set or update the persona — a custom prompt prefix injected before analysis requests.`,
+		Long:  `Set or update the persona, a custom prompt prefix injected before analysis requests.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := getNewDownlinkClient()
 
@@ -157,7 +157,7 @@ func createModelCommands() *cobra.Command {
 			flushStdin()
 			if err := huh.NewText().
 				Title("Persona").
-				Description("Prompt prefix injected before every analysis request — leave blank to clear").
+				Description("Prompt prefix injected before every analysis request (leave blank to clear)").
 				Value(&persona).
 				Run(); err != nil {
 				return err

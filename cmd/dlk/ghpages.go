@@ -29,7 +29,7 @@ func createGHPagesCommands() *cobra.Command {
 		Short: "Manage the GitHub Pages publishing repository",
 		Long: `Set up or reset the GitHub Pages repository that downlink publishes digests to.
 
-These commands do not require a running downlink server — they connect to
+These commands do not require a running downlink server; they connect to
 GitHub directly using the provided token.`,
 	}
 
@@ -100,7 +100,7 @@ GitHub directly using the provided token.`,
 		Short: "Initialize the GitHub Pages repository (idempotent)",
 		Long: `Create the remote branch if absent, seed an initial manifest.json and
 index pages, then commit and push. Existing files are not overwritten.
-Run again safely — if nothing has changed it exits without committing.`,
+Run again safely; if nothing has changed it exits without committing.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := buildConfig()
 			if err != nil {

@@ -624,7 +624,7 @@ created or updated, and feeds no longer present are disabled (their articles are
 			}
 
 			if applyDryRun {
-				fmt.Println(styleWarn.Render("DRY RUN — no changes applied"))
+				fmt.Println(styleWarn.Render("DRY RUN: no changes applied"))
 			}
 			printFeedActionList("Created", res.Created)
 			printFeedActionList("Updated", res.Updated)
@@ -671,7 +671,7 @@ matching the title. Deleting a feed also removes its articles.`,
 			}
 
 			if deleteDryRun {
-				fmt.Println(styleWarn.Render("DRY RUN — would delete:"))
+				fmt.Println(styleWarn.Render("DRY RUN: would delete:"))
 				for _, l := range labels {
 					fmt.Printf("  - %s\n", l)
 				}

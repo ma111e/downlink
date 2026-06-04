@@ -441,7 +441,7 @@ Examples:
 	}
 
 	// Add flags for generate command
-	generateCmd.Flags().StringVar(&digestFrom, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '24h' — default: 24h)")
+	generateCmd.Flags().StringVar(&digestFrom, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '24h'; default: 24h)")
 	generateCmd.Flags().StringVar(&digestTo, "to", "", "End of time window (e.g., 'now', '2025-01-01', '1h')")
 	generateCmd.Flags().StringVar(&digestBetween, "between", "", "Filter articles between two dates/durations (e.g., '7d,1d', '2025-01-01,2025-01-07')")
 	generateCmd.Flags().StringVar(&digestDay, "day", "", "Select a single day, midnight-to-midnight UTC (YYYY-MM-DD, 'today', or 'yesterday'). Mutually exclusive with --from/--to/--between")

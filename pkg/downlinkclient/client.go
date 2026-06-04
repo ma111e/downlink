@@ -92,7 +92,7 @@ func (pc *DownlinkClient) watchConnection(ctx context.Context) {
 
 		// On reconnect, request a fresh queue status from the server.
 		if !wasConnected && isConnected {
-			log.Info("Reconnected to server — refreshing queue status")
+			log.Info("Reconnected to server; refreshing queue status")
 			status := pc.GetQueueStatus()
 			runtime.EventsEmit(pc.ctx, "queue:update", status)
 		}

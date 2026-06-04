@@ -132,12 +132,12 @@ func main() {
 
 			// Check if Lightpanda Docker container is running (needed for dynamic scraping)
 			if err := scrapers.CheckLightpanda(autoStartLightpanda); err != nil {
-				log.WithError(err).Warn("Lightpanda check failed — dynamic scraping may not work")
+				log.WithError(err).Warn("Lightpanda check failed; dynamic scraping may not work")
 			}
 
 			// Check if Solimen Docker container is running (needed for full_browser scraping)
 			if err := scrapers.CheckSolimen(autoStartSolimen); err != nil {
-				log.WithError(err).Warn("Solimen check failed — full_browser scraping may not work")
+				log.WithError(err).Warn("Solimen check failed; full_browser scraping may not work")
 			}
 
 			// Use the default selectors from the config
@@ -153,7 +153,7 @@ func main() {
 				manager.Manager.SetSolimenAddr(config.Config.SolimenAddr)
 				log.WithField("addr", config.Config.SolimenAddr).Info("Solimen scraping service configured")
 			} else {
-				log.Warn("No solimen address configured — full_browser scraping will not work")
+				log.Warn("No solimen address configured; full_browser scraping will not work")
 			}
 
 			sigCh := make(chan os.Signal, 1)
@@ -214,8 +214,8 @@ func main() {
 	rootCmd.PersistentFlags().String("gh-pages-clone-dir", "", "Local working clone directory [overrides config]")
 	rootCmd.PersistentFlags().String("gh-pages-discord-webhook", "", "Discord webhook URL to notify when a page is published [overrides config]")
 
-	rootCmd.PersistentFlags().Bool("init-gh-pages", false, "Initialize the GitHub Pages repository and exit — idempotent, existing files are not overwritten (use --reinit-gh-pages to wipe first)")
-	rootCmd.PersistentFlags().Bool("reinit-gh-pages", false, "Erase and reinitialize the GitHub Pages repository from scratch (destructive — prompts for confirmation)")
+	rootCmd.PersistentFlags().Bool("init-gh-pages", false, "Initialize the GitHub Pages repository and exit (idempotent, existing files are not overwritten; use --reinit-gh-pages to wipe first)")
+	rootCmd.PersistentFlags().Bool("reinit-gh-pages", false, "Erase and reinitialize the GitHub Pages repository from scratch (destructive, prompts for confirmation)")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

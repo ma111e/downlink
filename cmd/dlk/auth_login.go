@@ -92,7 +92,7 @@ func createAuthLoginCommand() *cobra.Command {
 					fmt.Print(".")
 					continue
 				case "expired":
-					return fmt.Errorf("login session expired — please try again")
+					return fmt.Errorf("login session expired, please try again")
 				case "error":
 					return fmt.Errorf("login failed: %s", poll.ErrorMessage)
 				}

@@ -55,7 +55,7 @@ func CheckSolimen(autoStart bool) error {
 		return startSolimenDocker()
 	}
 
-	log.Warn("Solimen not started — full_browser scraping will be unavailable")
+	log.Warn("Solimen not started; full_browser scraping will be unavailable")
 	return nil
 }
 

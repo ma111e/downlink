@@ -143,7 +143,7 @@ func (p *GitHubPagesPublisher) sendDigest(digest models.Digest) (string, error) 
 		return "", err
 	}
 	if feedDigests, err := p.recentFeedDigests(digest, FeedDigestLimit); err != nil {
-		log.WithError(err).Warn("github pages: skipping feed update — failed to list recent digests")
+		log.WithError(err).Warn("github pages: skipping feed update, failed to list recent digests")
 	} else if err := p.writeAndStageFeeds(wt, outputDir, feedDigests); err != nil {
 		return "", err
 	}
@@ -556,7 +556,7 @@ func (p *GitHubPagesPublisher) InitPages(reinit bool) error {
 		}
 	}
 	if !hasStaged {
-		log.Info("GitHub Pages: nothing to commit — repository already initialised")
+		log.Info("GitHub Pages: nothing to commit, repository already initialised")
 		if p.cfg.ConfigurePages {
 			if err := p.configureGitHubPagesSource(); err != nil {
 				return fmt.Errorf("github pages: configure source: %w", err)
@@ -679,7 +679,7 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 		}
 	}
 	if len(toRender) == 0 {
-		log.Info("RepublishAll: no server digests match the published manifest — nothing to do")
+		log.Info("RepublishAll: no server digests match the published manifest, nothing to do")
 		return nil
 	}
 	log.WithFields(log.Fields{"published": len(published), "matched": len(toRender)}).
@@ -772,9 +772,9 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 	p.pComplete("render", true, fmt.Sprintf("rendered %d pages", len(toRender)))
 
 	if dryRun {
-		log.WithField("count", len(toRender)).Info("Dry run complete — skipping commit and push")
+		log.WithField("count", len(toRender)).Info("Dry run complete, skipping commit and push")
 		p.pStart("commit", "Committing & pushing")
-		p.pComplete("commit", true, "dry run — not pushed")
+		p.pComplete("commit", true, "dry run, not pushed")
 		return nil
 	}
 
@@ -851,16 +851,16 @@ func (p *GitHubPagesPublisher) RepublishIndex(dryRun, wait bool) error {
 		}
 	}
 	if !hasStaged {
-		log.Info("RepublishIndex: index pages already up to date — nothing to commit")
+		log.Info("RepublishIndex: index pages already up to date, nothing to commit")
 		p.pComplete("render", true, "already up to date")
 		return nil
 	}
 	p.pComplete("render", true, "rendered index pages")
 
 	if dryRun {
-		log.Info("Dry run complete — skipping commit and push")
+		log.Info("Dry run complete, skipping commit and push")
 		p.pStart("commit", "Committing & pushing")
-		p.pComplete("commit", true, "dry run — not pushed")
+		p.pComplete("commit", true, "dry run, not pushed")
 		return nil
 	}
 
