@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"charm.land/huh/v2"
+	"github.com/ma111e/downlink/pkg/downlinkclient"
 	"github.com/spf13/cobra"
 )
 
@@ -59,6 +60,11 @@ func createAuthLoginCommand() *cobra.Command {
 				}
 			}
 
+			// Claude Code uses a browser PKCE paste flow, not device-code.
+			if providerType == "claude-code" {
+				return runClaudeLogin(client, providerName)
+			}
+
 			// OAuth device-code flow
 			resp, err := client.StartCodexLogin(providerName, "")
 			if err != nil {
@@ -105,4 +111,46 @@ func createAuthLoginCommand() *cobra.Command {
 		"Name of the provider config entry to create or reuse")
 
 	return cmd
+}
+
+// runClaudeLogin drives the Claude Code PKCE browser flow: the server returns an
+// authorization URL, the user authorizes in a browser and pastes the resulting
+// "<code>#<state>" string back, which the server exchanges for tokens.
+func runClaudeLogin(client *downlinkclient.DownlinkClient, providerName string) error {
+	resp, err := client.StartClaudeLogin(providerName, "")
+	if err != nil {
+		return fmt.Errorf("failed to start login: %w", err)
+	}
+
+	fmt.Printf("\nOpen this URL in your browser and authorize with your Claude Pro/Max account:\n\n  %s\n\n", resp.AuthorizeUrl)
+	fmt.Println("After authorizing you'll be shown a code. Paste it below (format: code#state).")
+
+	var code string
+	flushStdin()
+	if err := huh.NewInput().
+		Title("Authorization code").
+		Value(&code).
+		Validate(func(s string) error {
+			if strings.TrimSpace(s) == "" {
+				return fmt.Errorf("code is required")
+			}
+			return nil
+		}).
+		Run(); err != nil {
+		fmt.Println("Cancelled.")
+		return nil
+	}
+
+	poll, err := client.CompleteClaudeLogin(resp.SessionId, strings.TrimSpace(code))
+	if err != nil {
+		return fmt.Errorf("failed to complete login: %w", err)
+	}
+	switch poll.Status {
+	case "approved":
+		fmt.Printf("\nLogin approved!\n  Provider : %s\n  Account  : %s\n  ID       : %s\n\n",
+			providerName, poll.Label, poll.CredentialId)
+		return nil
+	default:
+		return fmt.Errorf("login failed: %s", poll.ErrorMessage)
+	}
 }

@@ -17,6 +17,20 @@ func (pc *DownlinkClient) PollCodexLogin(sessionID string) (*protos.PollCodexLog
 	})
 }
 
+func (pc *DownlinkClient) StartClaudeLogin(providerName, modelName string) (*protos.StartClaudeLoginResponse, error) {
+	return pc.authClient.StartClaudeLogin(pc.ctx, &protos.StartClaudeLoginRequest{
+		ProviderName: providerName,
+		ModelName:    modelName,
+	})
+}
+
+func (pc *DownlinkClient) CompleteClaudeLogin(sessionID, code string) (*protos.CompleteClaudeLoginResponse, error) {
+	return pc.authClient.CompleteClaudeLogin(pc.ctx, &protos.CompleteClaudeLoginRequest{
+		SessionId: sessionID,
+		Code:      code,
+	})
+}
+
 func (pc *DownlinkClient) ListCodexCredentials(providerName string) (*protos.ListCodexCredentialsResponse, error) {
 	return pc.authClient.ListCodexCredentials(pc.ctx, &protos.ListCodexCredentialsRequest{
 		ProviderName: providerName,

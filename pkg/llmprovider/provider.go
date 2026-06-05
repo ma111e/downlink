@@ -6,6 +6,7 @@ package llmprovider
 import (
 	"context"
 	"fmt"
+	"github.com/ma111e/downlink/pkg/claudeauth"
 	"github.com/ma111e/downlink/pkg/codexauth"
 	"net/http"
 	"strings"
@@ -36,16 +37,17 @@ type ChatModelProvider interface {
 
 // Config groups every knob the callers need to set.
 type Config struct {
-	ProviderType string
-	ProviderName string // name of the provider config entry; used by openai-codex to find its pool
-	ModelName    string
-	BaseURL      string  // required for llamacpp / ollama; ignored for cloud providers
-	APIKey       string  // optional for local providers
-	Temperature  float64 // 0 means the backend default
-	MaxTokens    int     // 0 means the backend default
-	MaxRetries   int
-	Timeout      time.Duration
-	CodexManager *codexauth.Manager // required for openai-codex provider type
+	ProviderType  string
+	ProviderName  string // name of the provider config entry; used by openai-codex to find its pool
+	ModelName     string
+	BaseURL       string  // required for llamacpp / ollama; ignored for cloud providers
+	APIKey        string  // optional for local providers
+	Temperature   float64 // 0 means the backend default
+	MaxTokens     int     // 0 means the backend default
+	MaxRetries    int
+	Timeout       time.Duration
+	CodexManager  *codexauth.Manager  // required for openai-codex provider type
+	ClaudeManager *claudeauth.Manager // required for claude-code provider type
 }
 
 // New builds the appropriate Provider for cfg.ProviderType.
@@ -66,6 +68,8 @@ func New(cfg Config) (ChatModelProvider, error) {
 		return newEinoOpenAICompat(cfg, "https://api.mistral.ai/v1")
 	case "openai-codex":
 		return newCodexFromConfig(cfg)
+	case "claude-code":
+		return newClaudeCodeFromConfig(cfg)
 	default:
 		return newEinoOpenAI(cfg)
 	}
@@ -80,6 +84,17 @@ func newCodexFromConfig(cfg Config) (*codexProvider, error) {
 	}
 	pool := cfg.CodexManager.EnsurePool(cfg.ProviderName)
 	return newCodexProviderFromPool(cfg.ModelName, cfg.BaseURL, pool, cfg.Timeout), nil
+}
+
+func newClaudeCodeFromConfig(cfg Config) (*claudeCodeProvider, error) {
+	if cfg.ClaudeManager == nil {
+		return nil, fmt.Errorf("claude-code provider requires ClaudeManager")
+	}
+	if cfg.ProviderName == "" {
+		return nil, fmt.Errorf("claude-code provider requires ProviderName")
+	}
+	pool := cfg.ClaudeManager.EnsurePool(cfg.ProviderName)
+	return newClaudeCodeProviderFromPool(cfg.ModelName, cfg.BaseURL, pool, cfg.MaxTokens, cfg.Timeout), nil
 }
 
 // ---------------------------------------------------------------------------

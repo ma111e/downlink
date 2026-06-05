@@ -24,6 +24,8 @@ const (
 	AuthService_ListCodexCredentials_FullMethodName       = "/downlink.AuthService/ListCodexCredentials"
 	AuthService_RemoveCodexCredential_FullMethodName      = "/downlink.AuthService/RemoveCodexCredential"
 	AuthService_SetCodexCredentialPriority_FullMethodName = "/downlink.AuthService/SetCodexCredentialPriority"
+	AuthService_StartClaudeLogin_FullMethodName           = "/downlink.AuthService/StartClaudeLogin"
+	AuthService_CompleteClaudeLogin_FullMethodName        = "/downlink.AuthService/CompleteClaudeLogin"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -42,6 +44,13 @@ type AuthServiceClient interface {
 	RemoveCodexCredential(ctx context.Context, in *RemoveCodexCredentialRequest, opts ...grpc.CallOption) (*RemoveCodexCredentialResponse, error)
 	// SetCodexCredentialPriority updates the priority of a credential.
 	SetCodexCredentialPriority(ctx context.Context, in *SetCodexCredentialPriorityRequest, opts ...grpc.CallOption) (*SetCodexCredentialPriorityResponse, error)
+	// StartClaudeLogin begins a PKCE authorization-code login flow for claude-code.
+	// Returns the browser URL the user must open; the server holds the PKCE
+	// verifier and state for the session.
+	StartClaudeLogin(ctx context.Context, in *StartClaudeLoginRequest, opts ...grpc.CallOption) (*StartClaudeLoginResponse, error)
+	// CompleteClaudeLogin finishes the flow with the "<code>#<state>" string the
+	// user pastes back, exchanging it for tokens and storing the credential.
+	CompleteClaudeLogin(ctx context.Context, in *CompleteClaudeLoginRequest, opts ...grpc.CallOption) (*CompleteClaudeLoginResponse, error)
 }
 
 type authServiceClient struct {
@@ -102,6 +111,26 @@ func (c *authServiceClient) SetCodexCredentialPriority(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *authServiceClient) StartClaudeLogin(ctx context.Context, in *StartClaudeLoginRequest, opts ...grpc.CallOption) (*StartClaudeLoginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StartClaudeLoginResponse)
+	err := c.cc.Invoke(ctx, AuthService_StartClaudeLogin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) CompleteClaudeLogin(ctx context.Context, in *CompleteClaudeLoginRequest, opts ...grpc.CallOption) (*CompleteClaudeLoginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CompleteClaudeLoginResponse)
+	err := c.cc.Invoke(ctx, AuthService_CompleteClaudeLogin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -118,6 +147,13 @@ type AuthServiceServer interface {
 	RemoveCodexCredential(context.Context, *RemoveCodexCredentialRequest) (*RemoveCodexCredentialResponse, error)
 	// SetCodexCredentialPriority updates the priority of a credential.
 	SetCodexCredentialPriority(context.Context, *SetCodexCredentialPriorityRequest) (*SetCodexCredentialPriorityResponse, error)
+	// StartClaudeLogin begins a PKCE authorization-code login flow for claude-code.
+	// Returns the browser URL the user must open; the server holds the PKCE
+	// verifier and state for the session.
+	StartClaudeLogin(context.Context, *StartClaudeLoginRequest) (*StartClaudeLoginResponse, error)
+	// CompleteClaudeLogin finishes the flow with the "<code>#<state>" string the
+	// user pastes back, exchanging it for tokens and storing the credential.
+	CompleteClaudeLogin(context.Context, *CompleteClaudeLoginRequest) (*CompleteClaudeLoginResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -142,6 +178,12 @@ func (UnimplementedAuthServiceServer) RemoveCodexCredential(context.Context, *Re
 }
 func (UnimplementedAuthServiceServer) SetCodexCredentialPriority(context.Context, *SetCodexCredentialPriorityRequest) (*SetCodexCredentialPriorityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetCodexCredentialPriority not implemented")
+}
+func (UnimplementedAuthServiceServer) StartClaudeLogin(context.Context, *StartClaudeLoginRequest) (*StartClaudeLoginResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method StartClaudeLogin not implemented")
+}
+func (UnimplementedAuthServiceServer) CompleteClaudeLogin(context.Context, *CompleteClaudeLoginRequest) (*CompleteClaudeLoginResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CompleteClaudeLogin not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -254,6 +296,42 @@ func _AuthService_SetCodexCredentialPriority_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_StartClaudeLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartClaudeLoginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).StartClaudeLogin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_StartClaudeLogin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).StartClaudeLogin(ctx, req.(*StartClaudeLoginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_CompleteClaudeLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompleteClaudeLoginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).CompleteClaudeLogin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_CompleteClaudeLogin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).CompleteClaudeLogin(ctx, req.(*CompleteClaudeLoginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -280,6 +358,14 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetCodexCredentialPriority",
 			Handler:    _AuthService_SetCodexCredentialPriority_Handler,
+		},
+		{
+			MethodName: "StartClaudeLogin",
+			Handler:    _AuthService_StartClaudeLogin_Handler,
+		},
+		{
+			MethodName: "CompleteClaudeLogin",
+			Handler:    _AuthService_CompleteClaudeLogin_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -12,8 +12,9 @@ type CodexCredential struct {
 	AccessToken      string     `json:"access_token"`
 	RefreshToken     string     `json:"refresh_token"`
 	LastRefresh      time.Time  `json:"last_refresh"`
-	AuthMode         string     `json:"auth_mode"`             // "chatgpt"
-	Source           string     `json:"source"`                // "manual:device_code"
+	AuthMode         string     `json:"auth_mode"`             // "chatgpt" | "claude"
+	Source           string     `json:"source"`                // "manual:device_code" | "manual:pkce"
+	ExpiresAt        *time.Time `json:"expires_at,omitempty"`  // OAuth absolute expiry (non-JWT tokens, e.g. claude-code)
 	LastStatus       string     `json:"last_status,omitempty"` // "ok" | "auth_failed" | "rate_limited"
 	LastStatusAt     *time.Time `json:"last_status_at,omitempty"`
 	LastErrorReason  string     `json:"last_error_reason,omitempty"`

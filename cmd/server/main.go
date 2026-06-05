@@ -9,6 +9,7 @@ import (
 	"github.com/ma111e/downlink/cmd/server/internal/notification"
 	"github.com/ma111e/downlink/cmd/server/internal/scrapers"
 	"github.com/ma111e/downlink/cmd/server/internal/store"
+	"github.com/ma111e/downlink/pkg/claudeauth"
 	"github.com/ma111e/downlink/pkg/codexauth"
 	"github.com/ma111e/downlink/pkg/llmgateway"
 	"github.com/ma111e/downlink/pkg/models"
@@ -366,6 +367,12 @@ func startServer(host string, port int, tls bool, certFile, keyFile string, maxC
 		config.SaveConfig,
 	)
 
+	// Claude Code OAuth manager: same wiring for claude-code subscription auth.
+	config.ClaudeManager = claudeauth.NewManager(
+		func() *models.ServerConfig { return config.Config },
+		config.SaveConfig,
+	)
+
 	llmsServer := services.NewLLMsServer(gw)
 	digestServer := services.NewDigestServer(gw, llmsServer)
 
@@ -378,7 +385,7 @@ func startServer(host string, port int, tls bool, certFile, keyFile string, maxC
 	protos.RegisterLLMsServiceServer(grpcServer, llmsServer)
 	protos.RegisterQueueServiceServer(grpcServer, queueServer)
 	protos.RegisterServerConfigServiceServer(grpcServer, services.NewServerConfigServer())
-	protos.RegisterAuthServiceServer(grpcServer, auth.NewService(config.CodexManager))
+	protos.RegisterAuthServiceServer(grpcServer, auth.NewService(config.CodexManager, config.ClaudeManager))
 
 	log.WithFields(log.Fields{
 		"host": host,

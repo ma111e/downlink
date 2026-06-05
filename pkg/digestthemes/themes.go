@@ -70,9 +70,40 @@ var themes = map[string]Theme{
 			"--shadow":     "0 1px 3px rgba(0,0,0,.45)",
 		},
 	},
+	"daltonian": {
+		Name:        "daltonian",
+		Description: "Light, colorblind-safe (Okabe-Ito)",
+		Vars: map[string]string{
+			// Light-theme neutrals, reused verbatim.
+			"--bg":       "#efeeea",
+			"--surface":  "#fafaf8",
+			"--surface2": "#e8e7e2",
+			"--border":   "#d3d2cc",
+			"--border2":  "#b8b7b0",
+			"--text":     "#0d0c0a",
+			"--text2":    "#273f4f",
+			"--text3":    "#5c6e78",
+			"--dot":      "rgba(0,0,0,.035)",
+			// Colorblind-safe accents (Okabe-Ito, darkened for AA on the cream bg).
+			"--cyan":             "#0072b2", // accent/links: Okabe blue
+			"--green":            "#1a7a4f", // bluish-green (no pure green)
+			"--violet":           "#7a4fa0", // purple
+			"--must":             "#c44601", // vermillion
+			"--should":           "#8a6d00", // dark gold
+			"--may":              "#2f79a5", // teal-blue
+			"--cat-research":     "#0072b2", // blue
+			"--cat-advisory":     "#c44601", // vermillion
+			"--cat-news":         "#2b6c8f", // dark sky
+			"--cat-opinion":      "#a23b7a", // reddish-purple
+			"--cat-guide":        "#1a7a4f", // bluish-green
+			"--cat-commercial":   "#8a6d00", // gold
+			"--cat-sponsored":    "#7a4fa0", // purple
+			"--cat-announcement": "#00786b", // teal
+		},
+	},
 }
 
-var order = []string{"dark", "light", "solarized", "nord"}
+var order = []string{"dark", "light", "solarized", "nord", "daltonian"}
 
 // All returns all available themes in display order.
 func All() []Theme {

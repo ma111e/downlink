@@ -696,6 +696,7 @@ type CodexCredentialProto struct {
 	LastStatus       string                 `protobuf:"bytes,9,opt,name=last_status,json=lastStatus,proto3" json:"last_status,omitempty"`
 	LastErrorReason  string                 `protobuf:"bytes,10,opt,name=last_error_reason,json=lastErrorReason,proto3" json:"last_error_reason,omitempty"`
 	LastErrorResetAt string                 `protobuf:"bytes,11,opt,name=last_error_reset_at,json=lastErrorResetAt,proto3" json:"last_error_reset_at,omitempty"` // RFC3339 UTC, empty when unset
+	ExpiresAt        string                 `protobuf:"bytes,12,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`                          // RFC3339 UTC, empty when unset (non-JWT OAuth, e.g. claude-code)
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -803,6 +804,13 @@ func (x *CodexCredentialProto) GetLastErrorReason() string {
 func (x *CodexCredentialProto) GetLastErrorResetAt() string {
 	if x != nil {
 		return x.LastErrorResetAt
+	}
+	return ""
+}
+
+func (x *CodexCredentialProto) GetExpiresAt() string {
+	if x != nil {
+		return x.ExpiresAt
 	}
 	return ""
 }
@@ -1040,7 +1048,7 @@ const file_config_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value:\x028\x01\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf4\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x93\x03\n" +
 	"\x14CodexCredentialProto\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n" +
@@ -1054,7 +1062,9 @@ const file_config_proto_rawDesc = "" +
 	"lastStatus\x12*\n" +
 	"\x11last_error_reason\x18\n" +
 	" \x01(\tR\x0flastErrorReason\x12-\n" +
-	"\x13last_error_reset_at\x18\v \x01(\tR\x10lastErrorResetAt\"\xa7\x03\n" +
+	"\x13last_error_reset_at\x18\v \x01(\tR\x10lastErrorResetAt\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\f \x01(\tR\texpiresAt\"\xa7\x03\n" +
 	"\x0eProviderConfig\x12\x12\n" +
 	"\x04name\x18\t \x01(\tR\x04name\x12#\n" +
 	"\rprovider_type\x18\x01 \x01(\tR\fproviderType\x12\x1d\n" +

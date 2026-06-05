@@ -654,6 +654,236 @@ func (x *SetCodexCredentialPriorityResponse) GetUpdated() bool {
 	return false
 }
 
+type StartClaudeLoginRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// provider_name is the name of the claude-code provider config entry.
+	// If it doesn't exist in config.json, it will be created on completion.
+	ProviderName string `protobuf:"bytes,1,opt,name=provider_name,json=providerName,proto3" json:"provider_name,omitempty"`
+	// model_name is only used when auto-creating the provider entry.
+	ModelName     string `protobuf:"bytes,2,opt,name=model_name,json=modelName,proto3" json:"model_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartClaudeLoginRequest) Reset() {
+	*x = StartClaudeLoginRequest{}
+	mi := &file_auth_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartClaudeLoginRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartClaudeLoginRequest) ProtoMessage() {}
+
+func (x *StartClaudeLoginRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartClaudeLoginRequest.ProtoReflect.Descriptor instead.
+func (*StartClaudeLoginRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *StartClaudeLoginRequest) GetProviderName() string {
+	if x != nil {
+		return x.ProviderName
+	}
+	return ""
+}
+
+func (x *StartClaudeLoginRequest) GetModelName() string {
+	if x != nil {
+		return x.ModelName
+	}
+	return ""
+}
+
+type StartClaudeLoginResponse struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// authorize_url is the URL the user opens in a browser to authorize.
+	AuthorizeUrl  string `protobuf:"bytes,2,opt,name=authorize_url,json=authorizeUrl,proto3" json:"authorize_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartClaudeLoginResponse) Reset() {
+	*x = StartClaudeLoginResponse{}
+	mi := &file_auth_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartClaudeLoginResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartClaudeLoginResponse) ProtoMessage() {}
+
+func (x *StartClaudeLoginResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartClaudeLoginResponse.ProtoReflect.Descriptor instead.
+func (*StartClaudeLoginResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *StartClaudeLoginResponse) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *StartClaudeLoginResponse) GetAuthorizeUrl() string {
+	if x != nil {
+		return x.AuthorizeUrl
+	}
+	return ""
+}
+
+type CompleteClaudeLoginRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// code is the "<code>#<state>" string the user pastes back from the browser.
+	Code          string `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompleteClaudeLoginRequest) Reset() {
+	*x = CompleteClaudeLoginRequest{}
+	mi := &file_auth_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompleteClaudeLoginRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompleteClaudeLoginRequest) ProtoMessage() {}
+
+func (x *CompleteClaudeLoginRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompleteClaudeLoginRequest.ProtoReflect.Descriptor instead.
+func (*CompleteClaudeLoginRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CompleteClaudeLoginRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *CompleteClaudeLoginRequest) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+type CompleteClaudeLoginResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// status is one of: "approved", "error".
+	Status        string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	ErrorMessage  string `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	CredentialId  string `protobuf:"bytes,3,opt,name=credential_id,json=credentialId,proto3" json:"credential_id,omitempty"`
+	Label         string `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompleteClaudeLoginResponse) Reset() {
+	*x = CompleteClaudeLoginResponse{}
+	mi := &file_auth_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompleteClaudeLoginResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompleteClaudeLoginResponse) ProtoMessage() {}
+
+func (x *CompleteClaudeLoginResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompleteClaudeLoginResponse.ProtoReflect.Descriptor instead.
+func (*CompleteClaudeLoginResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CompleteClaudeLoginResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *CompleteClaudeLoginResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *CompleteClaudeLoginResponse) GetCredentialId() string {
+	if x != nil {
+		return x.CredentialId
+	}
+	return ""
+}
+
+func (x *CompleteClaudeLoginResponse) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
 var File_auth_proto protoreflect.FileDescriptor
 
 const file_auth_proto_rawDesc = "" +
@@ -705,13 +935,32 @@ const file_auth_proto_rawDesc = "" +
 	"\rcredential_id\x18\x02 \x01(\tR\fcredentialId\x12\x1a\n" +
 	"\bpriority\x18\x03 \x01(\x05R\bpriority\">\n" +
 	"\"SetCodexCredentialPriorityResponse\x12\x18\n" +
-	"\aupdated\x18\x01 \x01(\bR\aupdated2\x8e\x04\n" +
+	"\aupdated\x18\x01 \x01(\bR\aupdated\"]\n" +
+	"\x17StartClaudeLoginRequest\x12#\n" +
+	"\rprovider_name\x18\x01 \x01(\tR\fproviderName\x12\x1d\n" +
+	"\n" +
+	"model_name\x18\x02 \x01(\tR\tmodelName\"^\n" +
+	"\x18StartClaudeLoginResponse\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12#\n" +
+	"\rauthorize_url\x18\x02 \x01(\tR\fauthorizeUrl\"O\n" +
+	"\x1aCompleteClaudeLoginRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\"\x95\x01\n" +
+	"\x1bCompleteClaudeLoginResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12#\n" +
+	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\x12#\n" +
+	"\rcredential_id\x18\x03 \x01(\tR\fcredentialId\x12\x14\n" +
+	"\x05label\x18\x04 \x01(\tR\x05label2\xd1\x05\n" +
 	"\vAuthService\x12X\n" +
 	"\x0fStartCodexLogin\x12 .downlink.StartCodexLoginRequest\x1a!.downlink.StartCodexLoginResponse\"\x00\x12U\n" +
 	"\x0ePollCodexLogin\x12\x1f.downlink.PollCodexLoginRequest\x1a .downlink.PollCodexLoginResponse\"\x00\x12g\n" +
 	"\x14ListCodexCredentials\x12%.downlink.ListCodexCredentialsRequest\x1a&.downlink.ListCodexCredentialsResponse\"\x00\x12j\n" +
 	"\x15RemoveCodexCredential\x12&.downlink.RemoveCodexCredentialRequest\x1a'.downlink.RemoveCodexCredentialResponse\"\x00\x12y\n" +
-	"\x1aSetCodexCredentialPriority\x12+.downlink.SetCodexCredentialPriorityRequest\x1a,.downlink.SetCodexCredentialPriorityResponse\"\x00B\tZ\aprotos/b\x06proto3"
+	"\x1aSetCodexCredentialPriority\x12+.downlink.SetCodexCredentialPriorityRequest\x1a,.downlink.SetCodexCredentialPriorityResponse\"\x00\x12[\n" +
+	"\x10StartClaudeLogin\x12!.downlink.StartClaudeLoginRequest\x1a\".downlink.StartClaudeLoginResponse\"\x00\x12d\n" +
+	"\x13CompleteClaudeLogin\x12$.downlink.CompleteClaudeLoginRequest\x1a%.downlink.CompleteClaudeLoginResponse\"\x00B\tZ\aprotos/b\x06proto3"
 
 var (
 	file_auth_proto_rawDescOnce sync.Once
@@ -725,7 +974,7 @@ func file_auth_proto_rawDescGZIP() []byte {
 	return file_auth_proto_rawDescData
 }
 
-var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_auth_proto_goTypes = []any{
 	(*StartCodexLoginRequest)(nil),             // 0: downlink.StartCodexLoginRequest
 	(*StartCodexLoginResponse)(nil),            // 1: downlink.StartCodexLoginResponse
@@ -738,6 +987,10 @@ var file_auth_proto_goTypes = []any{
 	(*RemoveCodexCredentialResponse)(nil),      // 8: downlink.RemoveCodexCredentialResponse
 	(*SetCodexCredentialPriorityRequest)(nil),  // 9: downlink.SetCodexCredentialPriorityRequest
 	(*SetCodexCredentialPriorityResponse)(nil), // 10: downlink.SetCodexCredentialPriorityResponse
+	(*StartClaudeLoginRequest)(nil),            // 11: downlink.StartClaudeLoginRequest
+	(*StartClaudeLoginResponse)(nil),           // 12: downlink.StartClaudeLoginResponse
+	(*CompleteClaudeLoginRequest)(nil),         // 13: downlink.CompleteClaudeLoginRequest
+	(*CompleteClaudeLoginResponse)(nil),        // 14: downlink.CompleteClaudeLoginResponse
 }
 var file_auth_proto_depIdxs = []int32{
 	5,  // 0: downlink.ListCodexCredentialsResponse.credentials:type_name -> downlink.CodexCredentialInfo
@@ -746,13 +999,17 @@ var file_auth_proto_depIdxs = []int32{
 	4,  // 3: downlink.AuthService.ListCodexCredentials:input_type -> downlink.ListCodexCredentialsRequest
 	7,  // 4: downlink.AuthService.RemoveCodexCredential:input_type -> downlink.RemoveCodexCredentialRequest
 	9,  // 5: downlink.AuthService.SetCodexCredentialPriority:input_type -> downlink.SetCodexCredentialPriorityRequest
-	1,  // 6: downlink.AuthService.StartCodexLogin:output_type -> downlink.StartCodexLoginResponse
-	3,  // 7: downlink.AuthService.PollCodexLogin:output_type -> downlink.PollCodexLoginResponse
-	6,  // 8: downlink.AuthService.ListCodexCredentials:output_type -> downlink.ListCodexCredentialsResponse
-	8,  // 9: downlink.AuthService.RemoveCodexCredential:output_type -> downlink.RemoveCodexCredentialResponse
-	10, // 10: downlink.AuthService.SetCodexCredentialPriority:output_type -> downlink.SetCodexCredentialPriorityResponse
-	6,  // [6:11] is the sub-list for method output_type
-	1,  // [1:6] is the sub-list for method input_type
+	11, // 6: downlink.AuthService.StartClaudeLogin:input_type -> downlink.StartClaudeLoginRequest
+	13, // 7: downlink.AuthService.CompleteClaudeLogin:input_type -> downlink.CompleteClaudeLoginRequest
+	1,  // 8: downlink.AuthService.StartCodexLogin:output_type -> downlink.StartCodexLoginResponse
+	3,  // 9: downlink.AuthService.PollCodexLogin:output_type -> downlink.PollCodexLoginResponse
+	6,  // 10: downlink.AuthService.ListCodexCredentials:output_type -> downlink.ListCodexCredentialsResponse
+	8,  // 11: downlink.AuthService.RemoveCodexCredential:output_type -> downlink.RemoveCodexCredentialResponse
+	10, // 12: downlink.AuthService.SetCodexCredentialPriority:output_type -> downlink.SetCodexCredentialPriorityResponse
+	12, // 13: downlink.AuthService.StartClaudeLogin:output_type -> downlink.StartClaudeLoginResponse
+	14, // 14: downlink.AuthService.CompleteClaudeLogin:output_type -> downlink.CompleteClaudeLoginResponse
+	8,  // [8:15] is the sub-list for method output_type
+	1,  // [1:8] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -769,7 +1026,7 @@ func file_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

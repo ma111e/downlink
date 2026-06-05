@@ -161,6 +161,9 @@ func codexCredentialToProto(c models.CodexCredential) *protos.CodexCredentialPro
 	if c.LastErrorResetAt != nil {
 		p.LastErrorResetAt = c.LastErrorResetAt.UTC().Format(time.RFC3339)
 	}
+	if c.ExpiresAt != nil {
+		p.ExpiresAt = c.ExpiresAt.UTC().Format(time.RFC3339)
+	}
 	return p
 }
 
@@ -182,6 +185,11 @@ func codexCredentialToModel(p *protos.CodexCredentialProto) models.CodexCredenti
 	if p.LastErrorResetAt != "" {
 		if t, err := time.Parse(time.RFC3339, p.LastErrorResetAt); err == nil {
 			c.LastErrorResetAt = &t
+		}
+	}
+	if p.ExpiresAt != "" {
+		if t, err := time.Parse(time.RFC3339, p.ExpiresAt); err == nil {
+			c.ExpiresAt = &t
 		}
 	}
 	return c

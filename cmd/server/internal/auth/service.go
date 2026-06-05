@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ma111e/downlink/cmd/server/internal/config"
+	"github.com/ma111e/downlink/pkg/claudeauth"
 	"github.com/ma111e/downlink/pkg/codexauth"
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/protos"
@@ -28,20 +29,35 @@ type loginSession struct {
 	expiresAt    time.Time
 }
 
+// claudeLoginSession tracks an in-progress Claude Code PKCE login. Unlike the
+// codex device-code flow, the user pastes the code back, so the session only
+// holds the PKCE verifier and CSRF state until CompleteClaudeLogin is called.
+type claudeLoginSession struct {
+	verifier     string
+	state        string
+	providerName string
+	modelName    string
+	expiresAt    time.Time
+}
+
 // Service implements protos.AuthServiceServer.
 type Service struct {
 	protos.UnimplementedAuthServiceServer
 
-	manager *codexauth.Manager
+	manager       *codexauth.Manager
+	claudeManager *claudeauth.Manager
 
-	mu       sync.Mutex
-	sessions map[string]*loginSession
+	mu             sync.Mutex
+	sessions       map[string]*loginSession
+	claudeSessions map[string]*claudeLoginSession
 }
 
-func NewService(manager *codexauth.Manager) *Service {
+func NewService(manager *codexauth.Manager, claudeManager *claudeauth.Manager) *Service {
 	s := &Service{
-		manager:  manager,
-		sessions: make(map[string]*loginSession),
+		manager:        manager,
+		claudeManager:  claudeManager,
+		sessions:       make(map[string]*loginSession),
+		claudeSessions: make(map[string]*claudeLoginSession),
 	}
 	go s.reapSessions()
 	return s
@@ -62,6 +78,11 @@ func (s *Service) reapSessions() {
 				if time.Now().After(sess.expiresAt.Add(5 * time.Minute)) {
 					delete(s.sessions, id)
 				}
+			}
+		}
+		for id, sess := range s.claudeSessions {
+			if time.Now().After(sess.expiresAt) {
+				delete(s.claudeSessions, id)
 			}
 		}
 		s.mu.Unlock()
@@ -238,8 +259,27 @@ func (s *Service) PollCodexLogin(_ context.Context, req *protos.PollCodexLoginRe
 	return resp, nil
 }
 
+// credPool is the subset of pool operations shared by the codex and claude
+// credential pools, so the list/remove/priority RPCs can serve either.
+type credPool interface {
+	Credentials() []models.CodexCredential
+	RemoveCredential(id string) error
+	SetPriority(id string, priority int) error
+}
+
+// findPool locates the credential pool for a provider name in either manager.
+func (s *Service) findPool(providerName string) (credPool, bool) {
+	if p, ok := s.manager.Pool(providerName); ok {
+		return p, true
+	}
+	if p, ok := s.claudeManager.Pool(providerName); ok {
+		return p, true
+	}
+	return nil, false
+}
+
 func (s *Service) ListCodexCredentials(_ context.Context, req *protos.ListCodexCredentialsRequest) (*protos.ListCodexCredentialsResponse, error) {
-	pool, ok := s.manager.Pool(req.ProviderName)
+	pool, ok := s.findPool(req.ProviderName)
 	if !ok {
 		return &protos.ListCodexCredentialsResponse{}, nil
 	}
@@ -260,7 +300,7 @@ func (s *Service) ListCodexCredentials(_ context.Context, req *protos.ListCodexC
 }
 
 func (s *Service) RemoveCodexCredential(_ context.Context, req *protos.RemoveCodexCredentialRequest) (*protos.RemoveCodexCredentialResponse, error) {
-	pool, ok := s.manager.Pool(req.ProviderName)
+	pool, ok := s.findPool(req.ProviderName)
 	if !ok {
 		return &protos.RemoveCodexCredentialResponse{Removed: false}, nil
 	}
@@ -271,7 +311,7 @@ func (s *Service) RemoveCodexCredential(_ context.Context, req *protos.RemoveCod
 }
 
 func (s *Service) SetCodexCredentialPriority(_ context.Context, req *protos.SetCodexCredentialPriorityRequest) (*protos.SetCodexCredentialPriorityResponse, error) {
-	pool, ok := s.manager.Pool(req.ProviderName)
+	pool, ok := s.findPool(req.ProviderName)
 	if !ok {
 		return &protos.SetCodexCredentialPriorityResponse{Updated: false}, nil
 	}
@@ -279,6 +319,138 @@ func (s *Service) SetCodexCredentialPriority(_ context.Context, req *protos.SetC
 		return &protos.SetCodexCredentialPriorityResponse{Updated: false}, nil
 	}
 	return &protos.SetCodexCredentialPriorityResponse{Updated: true}, nil
+}
+
+// claudeLoginTTL bounds how long a pending Claude PKCE session is kept.
+const claudeLoginTTL = 15 * time.Minute
+
+func (s *Service) StartClaudeLogin(_ context.Context, req *protos.StartClaudeLoginRequest) (*protos.StartClaudeLoginResponse, error) {
+	providerName := req.ProviderName
+	if providerName == "" {
+		providerName = "claude-code-sub"
+	}
+
+	verifier, challenge, err := claudeauth.GeneratePKCE()
+	if err != nil {
+		return nil, fmt.Errorf("claude: failed to generate PKCE: %w", err)
+	}
+	state, err := claudeauth.GenerateState()
+	if err != nil {
+		return nil, fmt.Errorf("claude: failed to generate state: %w", err)
+	}
+	sessionID, err := randomID()
+	if err != nil {
+		return nil, fmt.Errorf("claude: failed to generate session ID: %w", err)
+	}
+
+	s.mu.Lock()
+	s.claudeSessions[sessionID] = &claudeLoginSession{
+		verifier:     verifier,
+		state:        state,
+		providerName: providerName,
+		modelName:    req.ModelName,
+		expiresAt:    time.Now().Add(claudeLoginTTL),
+	}
+	s.mu.Unlock()
+
+	return &protos.StartClaudeLoginResponse{
+		SessionId:    sessionID,
+		AuthorizeUrl: claudeauth.BuildAuthorizeURL(challenge, state),
+	}, nil
+}
+
+func (s *Service) CompleteClaudeLogin(ctx context.Context, req *protos.CompleteClaudeLoginRequest) (*protos.CompleteClaudeLoginResponse, error) {
+	s.mu.Lock()
+	sess, ok := s.claudeSessions[req.SessionId]
+	s.mu.Unlock()
+	if !ok {
+		return &protos.CompleteClaudeLoginResponse{Status: "error", ErrorMessage: "login session expired or unknown"}, nil
+	}
+
+	code, receivedState := claudeauth.SplitCallbackCode(req.Code)
+	if code == "" {
+		return &protos.CompleteClaudeLoginResponse{Status: "error", ErrorMessage: "no authorization code provided"}, nil
+	}
+	// Validate state to prevent CSRF (RFC 6749 §10.12).
+	if receivedState != sess.state {
+		return &protos.CompleteClaudeLoginResponse{Status: "error", ErrorMessage: "oauth state mismatch"}, nil
+	}
+
+	pair, err := claudeauth.ExchangeCode(ctx, code, receivedState, sess.verifier)
+	if err != nil {
+		log.WithError(err).Error("claude: token exchange failed")
+		return &protos.CompleteClaudeLoginResponse{Status: "error", ErrorMessage: err.Error()}, nil
+	}
+
+	credID, err := randomID()
+	if err != nil {
+		return &protos.CompleteClaudeLoginResponse{Status: "error", ErrorMessage: "failed to generate credential ID"}, nil
+	}
+
+	expiresAt := pair.ExpiresAt
+	cred := models.CodexCredential{
+		Id:           credID,
+		Label:        fmt.Sprintf("claude-code-%s", credID[:4]),
+		Priority:     0,
+		AccessToken:  pair.AccessToken,
+		RefreshToken: pair.RefreshToken,
+		ExpiresAt:    &expiresAt,
+		LastRefresh:  time.Now().UTC(),
+		AuthMode:     "claude",
+		Source:       "manual:pkce",
+		LastStatus:   claudeauth.StatusOK,
+	}
+
+	// Ensure the provider config entry exists and persist it before the pool
+	// touches its credentials, mirroring the codex login worker.
+	config.Mu.Lock()
+	cfg := config.Config
+	found := false
+	for i := range cfg.Providers {
+		if cfg.Providers[i].Name == sess.providerName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		modelName := sess.modelName
+		if modelName == "" {
+			modelName = "claude-sonnet-4-6"
+		}
+		cfg.Providers = append(cfg.Providers, models.ProviderConfig{
+			Name:         sess.providerName,
+			ProviderType: claudeauth.ProviderType,
+			ModelName:    modelName,
+			Enabled:      true,
+		})
+		if saveErr := config.SaveConfig(cfg); saveErr != nil {
+			config.Mu.Unlock()
+			log.WithError(saveErr).Error("claude: failed to persist new provider entry")
+			return &protos.CompleteClaudeLoginResponse{Status: "error", ErrorMessage: "failed to save provider config: " + saveErr.Error()}, nil
+		}
+	}
+	config.Mu.Unlock()
+
+	pool := s.claudeManager.EnsurePool(sess.providerName)
+	if err := pool.AddCredential(cred); err != nil {
+		log.WithError(err).Error("claude: failed to persist new credential")
+		return &protos.CompleteClaudeLoginResponse{Status: "error", ErrorMessage: "failed to save credential: " + err.Error()}, nil
+	}
+
+	s.mu.Lock()
+	delete(s.claudeSessions, req.SessionId)
+	s.mu.Unlock()
+
+	log.WithFields(log.Fields{
+		"provider": sess.providerName,
+		"id":       credID,
+	}).Info("claude: credential registered")
+
+	return &protos.CompleteClaudeLoginResponse{
+		Status:       "approved",
+		CredentialId: credID,
+		Label:        cred.Label,
+	}, nil
 }
 
 // randomID generates a cryptographically random 8-byte hex string (16 chars).

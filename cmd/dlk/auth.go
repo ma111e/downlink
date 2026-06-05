@@ -10,7 +10,7 @@ import (
 
 // oauthProviderTypes lists provider types that support device-code OAuth login.
 // Extend this slice when adding new OAuth-capable providers.
-var oauthProviderTypes = []string{"openai-codex"}
+var oauthProviderTypes = []string{"openai-codex", "claude-code"}
 
 func createAuthCommands() *cobra.Command {
 	authCmd := &cobra.Command{

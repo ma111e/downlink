@@ -1408,6 +1408,11 @@ func fetchProviderModels(providerType string, provider models.ProviderConfig) ([
 			modelInfos = append(modelInfos, modelInfo)
 		}
 
+	case "claude-code":
+		// Claude Code subscription auth serves the same Claude models. There is
+		// no x-api-key, so use the keyless models.dev catalogue.
+		return getModelsDevModelList("anthropic")
+
 	case "anthropic":
 		if provider.BaseURL == "" {
 			return getModelsDevModelList(providerType)
