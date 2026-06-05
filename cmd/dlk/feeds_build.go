@@ -49,7 +49,91 @@ func createFeedBuildCommands() []*cobra.Command {
 		newTestSelectorCmd(),
 		newProbeModesCmd(),
 		newProbeHeadersCmd(),
+		newAutoBuildCmd(),
 	}
+}
+
+// ── autobuild ─────────────────────────────────────────────────────────────────
+
+func newAutoBuildCmd() *cobra.Command {
+	var headerFlags []string
+	var provider, model string
+	var maxSteps int
+	cmd := &cobra.Command{
+		Use:   "autobuild <rss-url>",
+		Short: "Let an LLM discover a feed's config on its own",
+		Long: `Run downlink's autonomous agent: the configured LLM probes the feed and its
+articles, ranks and tests article selectors, escalates the scraping mode and headers
+as needed, and prints a finished feed config — no interactive session required.
+
+The agent streams its steps as it works. The final YAML is printed for you to paste
+into your feeds.yml (nothing is registered or written automatically).`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			headers, err := parseHeaders(headerFlags)
+			if err != nil {
+				return err
+			}
+			client := getNewDownlinkClient()
+			req := &protos.AutoBuildFeedRequest{
+				Url:      args[0],
+				Headers:  headers,
+				Provider: provider,
+				Model:    model,
+				MaxSteps: int32(maxSteps),
+			}
+
+			var done *protos.AutoBuildFeedEvent
+			err = client.AutoBuildFeed(req, func(ev *protos.AutoBuildFeedEvent) {
+				switch ev.Kind {
+				case protos.AutoBuildEventKind_STEP:
+					if !jsonOutput {
+						fmt.Printf("  %s %s %s\n", styleDim.Render(fmt.Sprintf("%2d", ev.Step)),
+							styleKey.Render(ev.Tool), styleDim.Render(ev.Detail))
+					}
+				case protos.AutoBuildEventKind_DONE:
+					done = ev
+				case protos.AutoBuildEventKind_ERROR:
+					fmt.Printf("%s %s\n", styleErr.Render("✗"), ev.Detail)
+				}
+			})
+			if err != nil {
+				return fmt.Errorf("autobuild: %w", err)
+			}
+			if done == nil {
+				return fmt.Errorf("agent finished without producing a config")
+			}
+
+			if jsonOutput {
+				return printJSON(map[string]any{
+					"config_yaml": done.FeedConfigYaml,
+					"summary":     done.Summary,
+					"confidence":  done.Confidence,
+				})
+			}
+
+			confStyle := styleErr
+			switch {
+			case done.Confidence >= 0.8:
+				confStyle = styleOK
+			case done.Confidence >= 0.5:
+				confStyle = styleWarn
+			}
+			fmt.Printf("\n%s %s\n", styleBold.Render("Confidence:"), confStyle.Render(fmt.Sprintf("%.2f", done.Confidence)))
+			if done.Summary != "" {
+				fmt.Printf("%s %s\n", styleKey.Render("Rationale:"), done.Summary)
+			}
+			fmt.Println(styleSection.Render("── feed config ──"))
+			fmt.Println(done.FeedConfigYaml)
+			fmt.Printf("%s paste into your feeds.yml, then `dlk feeds apply <file>`\n", styleKey.Render("Next:"))
+			return nil
+		},
+	}
+	cmd.Flags().StringArrayVarP(&headerFlags, "header", "H", nil, "Seed HTTP header \"Key: Value\" (repeatable)")
+	cmd.Flags().StringVarP(&provider, "provider", "p", "", "LLM provider (type or configured profile name)")
+	cmd.Flags().StringVarP(&model, "model", "m", "", "LLM model override")
+	cmd.Flags().IntVar(&maxSteps, "max-steps", 0, "Cap on agent tool calls (0 = server default)")
+	return cmd
 }
 
 // ── inspect ───────────────────────────────────────────────────────────────────

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"github.com/ma111e/downlink/cmd/server/internal/config"
 	"github.com/ma111e/downlink/cmd/server/internal/manager"
+	"github.com/ma111e/downlink/pkg/llmgateway"
 	"github.com/ma111e/downlink/pkg/mappers"
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/protos"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -18,11 +20,13 @@ import (
 type FeedsServer struct {
 	protos.UnimplementedFeedsServiceServer
 	queue *QueueServer
+	gw    *llmgateway.Gateway // for the AutoBuildFeed agent; may be nil
 }
 
-// NewFeedsServer creates a new feeds server instance
-func NewFeedsServer(queue *QueueServer) *FeedsServer {
-	return &FeedsServer{queue: queue}
+// NewFeedsServer creates a new feeds server instance. gw powers AutoBuildFeed and may
+// be nil when no LLM gateway is available (autobuild will then error).
+func NewFeedsServer(queue *QueueServer, gw *llmgateway.Gateway) *FeedsServer {
+	return &FeedsServer{queue: queue, gw: gw}
 }
 
 // autoEnqueue submits newly stored articles to the analysis queue when auto_analyze is enabled.
@@ -192,6 +196,56 @@ func (s *FeedsServer) InspectArticle(_ context.Context, req *protos.InspectArtic
 	sel := mappers.SelectorsToModel(req.Selectors)
 	insp := manager.Manager.InspectArticle(req.Url, req.Mode, req.Headers, sel, int(req.HtmlLimit))
 	return mappers.ArticleInspectionToProto(insp), nil
+}
+
+// AutoBuildFeed runs the autonomous LLM agent that discovers a feed's selectors,
+// scraping mode, and headers, streaming each step then the final config.
+func (s *FeedsServer) AutoBuildFeed(req *protos.AutoBuildFeedRequest, stream protos.FeedsService_AutoBuildFeedServer) error {
+	ctx := stream.Context()
+	if s.gw == nil {
+		return fmt.Errorf("autobuild unavailable: no LLM gateway configured")
+	}
+	if strings.TrimSpace(req.Url) == "" {
+		return fmt.Errorf("url is required")
+	}
+
+	resolved, err := ResolveLLM(LLMRequest{Provider: req.Provider, ModelName: req.Model, MaxTokens: defaultMaxTokensLarge})
+	if err != nil {
+		_ = stream.Send(&protos.AutoBuildFeedEvent{Kind: protos.AutoBuildEventKind_ERROR, Detail: err.Error()})
+		return err
+	}
+	log.WithFields(log.Fields{"url": req.Url, "model": resolved.ModelName}).Info("AutoBuildFeed: starting agent")
+
+	gen := func(ctx context.Context, prompt string) (string, error) {
+		return s.gw.Generate(ctx, resolved.Provider, prompt, llmgateway.WithLabel("feed_autobuild"))
+	}
+
+	feedType := "rss"
+	if seed := manager.Manager.InspectFeedURL(req.Url, req.Headers, 1); seed.Diagnosis.FeedTypeGuess == "atom" {
+		feedType = "atom"
+	}
+
+	onStep := func(st autobuildStep) {
+		_ = stream.Send(&protos.AutoBuildFeedEvent{
+			Kind:   protos.AutoBuildEventKind_STEP,
+			Step:   int32(st.N),
+			Tool:   st.Tool,
+			Detail: st.Detail,
+		})
+	}
+
+	res, err := runAutoBuild(ctx, gen, managerTools{}, req.Url, feedType, int(req.MaxSteps), onStep)
+	if err != nil {
+		_ = stream.Send(&protos.AutoBuildFeedEvent{Kind: protos.AutoBuildEventKind_ERROR, Detail: err.Error()})
+		return err
+	}
+
+	return stream.Send(&protos.AutoBuildFeedEvent{
+		Kind:           protos.AutoBuildEventKind_DONE,
+		FeedConfigYaml: res.ConfigYAML,
+		Summary:        res.Summary,
+		Confidence:     res.Confidence,
+	})
 }
 
 func buildRefreshFeedResponse(feedId, feedTitle string, fr models.FetchResult, fetchErr error) *protos.RefreshFeedResponse {

@@ -373,7 +373,7 @@ func startServer(host string, port int, tls bool, certFile, keyFile string, maxC
 	protos.RegisterAnalysisServiceServer(grpcServer, services.NewAnalysisServer())
 	protos.RegisterCategoriesServiceServer(grpcServer, services.NewCategoriesServer())
 	queueServer := services.NewQueueServer(llmsServer, maxConcurrentLLMRequests)
-	protos.RegisterFeedsServiceServer(grpcServer, services.NewFeedsServer(queueServer))
+	protos.RegisterFeedsServiceServer(grpcServer, services.NewFeedsServer(queueServer, gw))
 	protos.RegisterDigestServiceServer(grpcServer, digestServer)
 	protos.RegisterLLMsServiceServer(grpcServer, llmsServer)
 	protos.RegisterQueueServiceServer(grpcServer, queueServer)

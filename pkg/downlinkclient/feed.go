@@ -179,6 +179,29 @@ func (pc *DownlinkClient) InspectArticle(url, mode string, headers map[string]st
 	})
 }
 
+// AutoBuildFeed runs the server-side autonomous agent that discovers a feed's
+// selectors/mode/headers. onEvent is called for each streamed event (STEP updates and
+// the final DONE carrying the config YAML).
+func (pc *DownlinkClient) AutoBuildFeed(req *protos.AutoBuildFeedRequest, onEvent func(ev *protos.AutoBuildFeedEvent)) error {
+	stream, err := pc.feedsClient.AutoBuildFeed(pc.ctx, req)
+	if err != nil {
+		return err
+	}
+	for {
+		ev, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		if onEvent != nil {
+			onEvent(ev)
+		}
+	}
+	return nil
+}
+
 // DiagnoseFeed runs a read-only diagnosis of a single feed: the server fetches and
 // parses the feed but stores nothing, returning a structured report of what came
 // back over the wire (HTTP status, content type, feed-type guess, parse error,
