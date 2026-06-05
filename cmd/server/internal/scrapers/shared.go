@@ -10,26 +10,14 @@ var (
 	sharedScraperMu   sync.Mutex
 )
 
-// GetSharedAnonymizedScraper returns a shared AnonymizedScraper instance.
-// If domain is provided, it updates the allowed domains.
-func GetSharedAnonymizedScraper(domain string) *AnonymizedScraper {
+// GetSharedAnonymizedScraper returns the process-wide AnonymizedScraper, which owns
+// the reused Playwright browser/context and the User-Agent pool. Per-call colly
+// collectors (see ScrapeContent) carry no shared state, so this needs no per-domain
+// configuration.
+func GetSharedAnonymizedScraper() *AnonymizedScraper {
 	sharedScraperOnce.Do(func() {
-		// Initialize with an empty domain (no restrictions)
-		sharedScraper = NewAnonymizedScraper("")
+		sharedScraper = NewAnonymizedScraper()
 	})
-
-	// If a specific domain is provided, ensure it's allowed
-	if domain != "" {
-		sharedScraperMu.Lock()
-		defer sharedScraperMu.Unlock()
-
-		// Update the collector's allowed domains if needed
-		sharedScraper.Collector.AllowedDomains = append(
-			sharedScraper.Collector.AllowedDomains,
-			domain,
-		)
-	}
-
 	return sharedScraper
 }
 

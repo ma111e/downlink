@@ -155,6 +155,30 @@ func (pc *DownlinkClient) RefreshFeedWithTimeWindow(feedId string, from *time.Ti
 	return pc.feedsClient.RefreshFeed(pc.ctx, req)
 }
 
+// InspectFeed probes a feed URL (read-only, pre-registration) and returns its
+// diagnosis, sample article links, and detected title — the scaffolding inputs for
+// building a feed config.
+func (pc *DownlinkClient) InspectFeed(url string, headers map[string]string, maxLinks int) (*protos.InspectFeedResponse, error) {
+	return pc.feedsClient.InspectFeed(pc.ctx, &protos.InspectFeedRequest{
+		Url:      url,
+		Headers:  headers,
+		MaxLinks: int32(maxLinks),
+	})
+}
+
+// InspectArticle scrapes a single article URL in the given mode ("" / static,
+// dynamic, full_browser). When selectors are supplied the response also carries the
+// extracted content, for testing a candidate selector.
+func (pc *DownlinkClient) InspectArticle(url, mode string, headers map[string]string, sel *protos.Selectors, htmlLimit int) (*protos.InspectArticleResponse, error) {
+	return pc.feedsClient.InspectArticle(pc.ctx, &protos.InspectArticleRequest{
+		Url:       url,
+		Mode:      mode,
+		Headers:   headers,
+		Selectors: sel,
+		HtmlLimit: int32(htmlLimit),
+	})
+}
+
 // DiagnoseFeed runs a read-only diagnosis of a single feed: the server fetches and
 // parses the feed but stores nothing, returning a structured report of what came
 // back over the wire (HTTP status, content type, feed-type guess, parse error,

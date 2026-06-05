@@ -25,6 +25,14 @@ service FeedsService {
   // RefreshFeed refreshes a specific feed with optional time window filtering
   rpc RefreshFeed(RefreshFeedRequest) returns (RefreshFeedResponse) {}
 
+  // InspectFeed fetches and parses a feed URL (read-only, pre-registration),
+  // returning a diagnosis plus sample article links for building a feed config.
+  rpc InspectFeed(InspectFeedRequest) returns (InspectFeedResponse) {}
+
+  // InspectArticle scrapes a single article URL in a given mode and, when
+  // selectors are supplied, returns the extracted content for selector testing.
+  rpc InspectArticle(InspectArticleRequest) returns (InspectArticleResponse) {}
+
   // DeleteFeed removes a feed from both the models and the database
   rpc DeleteFeed(DeleteFeedRequest) returns (google.protobuf.Empty) {}
 
@@ -106,6 +114,47 @@ message RefreshFeedRequest {
   bool restore = 5;                   // Optional: overwrite only articles with no content
   int32 last_n = 6;                   // Optional: keep only the N most-recently-published articles
   bool diagnose = 7;                  // Optional: read-only diagnose (fetch+parse only, no storage), returns diagnosis
+}
+
+// InspectFeedRequest probes a feed URL before it is registered. Headers are
+// optional custom HTTP headers; max_links caps the returned sample article links.
+message InspectFeedRequest {
+  string url = 1;
+  map<string, string> headers = 2;
+  int32 max_links = 3;
+}
+
+// InspectFeedResponse carries the feed diagnosis plus sample article links and
+// the detected feed title, used to scaffold a feed configuration.
+message InspectFeedResponse {
+  FeedDiagnosis diagnosis = 1;
+  repeated string sample_links = 2;
+  string detected_title = 3;
+}
+
+// InspectArticleRequest scrapes one article URL in the given mode
+// ("" / static, dynamic, full_browser). When selectors are set the response also
+// carries the extracted content. html_limit caps the returned page HTML (0 = default).
+message InspectArticleRequest {
+  string url = 1;
+  string mode = 2;
+  map<string, string> headers = 3;
+  Selectors selectors = 4;
+  int32 html_limit = 5;
+}
+
+// InspectArticleResponse reports the scrape outcome: the (capped) page HTML for
+// inspection plus, when selectors were supplied, the extracted markdown and stats.
+message InspectArticleResponse {
+  int32 http_status = 1;
+  string mode_used = 2;
+  int32 raw_html_len = 3;
+  string html = 4;            // page HTML, capped to html_limit, for selector inspection
+  string extracted = 5;       // extracted markdown when selectors were supplied
+  int32 extracted_len = 6;
+  bool selector_matched = 7;
+  string error = 8;
+  int64 duration_ms = 9;
 }
 
 // DeleteFeedRequest is the request for the DeleteFeed method

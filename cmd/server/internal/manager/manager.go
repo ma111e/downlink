@@ -13,11 +13,10 @@ import (
 
 // FeedManager manages feeds and articles
 type FeedManager struct {
-	store             store.Store
-	scrapers          map[string]scrapers.Scraper
-	mu                sync.RWMutex
-	anonymizedScraper *scrapers.AnonymizedScraper
-	solimenAddr       string
+	store       store.Store
+	scrapers    map[string]scrapers.Scraper
+	mu          sync.RWMutex
+	solimenAddr string
 }
 
 var (
@@ -30,13 +29,9 @@ func InitFeedManager(db store.Store) {
 
 // NewFeedManager creates a new FeedManager instance
 func NewFeedManager(db store.Store) *FeedManager {
-	// Create a general-purpose anonymized scraper (no domain restriction)
-	anonymizedScraper := scrapers.NewAnonymizedScraper("")
-
 	return &FeedManager{
-		store:             db,
-		scrapers:          make(map[string]scrapers.Scraper),
-		anonymizedScraper: anonymizedScraper,
+		store:    db,
+		scrapers: make(map[string]scrapers.Scraper),
 	}
 }
 

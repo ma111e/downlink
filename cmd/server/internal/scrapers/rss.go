@@ -5,7 +5,6 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/ma111e/downlink/pkg/models"
@@ -30,7 +29,7 @@ func NewRSSFeedScraper(configSelectors *models.Selectors) *RSSFeedScraper {
 	// User-Agent + spoofed browser headers) so WAFs don't reject the default
 	// Go-http-client User-Agent. The HTTP client follows redirects across hosts
 	// and imposes no domain allowlist, so feeds behind redirects keep working.
-	parser.Client = GetSharedAnonymizedScraper("").HTTPClient()
+	parser.Client = GetSharedAnonymizedScraper().HTTPClient()
 
 	return &RSSFeedScraper{
 		parser:          parser,
@@ -120,10 +119,8 @@ func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.Feed
 }
 
 func (s *RSSFeedScraper) ScrapeContent(url string, params map[string]any) (string, error) {
-	domain := strings.Split(strings.Split(url, "://")[1], "/")[0]
-
 	// Use the shared scraper defined in the scraper package
-	anonymizedScraper := GetSharedAnonymizedScraper(domain)
+	anonymizedScraper := GetSharedAnonymizedScraper()
 
 	var dom *goquery.Selection
 	var err error

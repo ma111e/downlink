@@ -48,7 +48,7 @@ func FetchRaw(feedURL string, headers map[string]string) (RawResponse, error) {
 		return raw, err
 	}
 
-	client := GetSharedAnonymizedScraper("").HTTPClient()
+	client := GetSharedAnonymizedScraper().HTTPClient()
 	start := time.Now()
 	resp, err := client.Do(req)
 	raw.Duration = time.Since(start)
@@ -71,32 +71,66 @@ func FetchRaw(feedURL string, headers map[string]string) (RawResponse, error) {
 	return raw, nil
 }
 
-// DiagnoseFeedURL fetches a feed URL, attempts to parse it, and returns a full
-// structured diagnosis. It is read-only: nothing is stored. The raw body is
-// always saved to disk (even when tracing is off) and its path recorded, so the
-// offending bytes are available for inspection.
-func DiagnoseFeedURL(feedURL string, headers map[string]string) models.FeedDiagnosis {
+// FeedInspection bundles a feed diagnosis with sample article links and the
+// detected feed title, for scaffolding a feed configuration.
+type FeedInspection struct {
+	Diagnosis   models.FeedDiagnosis
+	SampleLinks []string
+	Title       string
+}
+
+// defaultSampleLinks is the number of article links InspectFeedURL returns when
+// the caller does not specify a cap.
+const defaultSampleLinks = 5
+
+// InspectFeedURL fetches a feed URL, attempts to parse it, and returns a full
+// diagnosis plus up to maxLinks sample article links and the feed title (when the
+// feed parses). It is read-only: nothing is stored. The raw body is always saved
+// to disk (even when tracing is off) so the offending bytes stay inspectable.
+func InspectFeedURL(feedURL string, headers map[string]string, maxLinks int) FeedInspection {
 	raw, err := FetchRaw(feedURL, headers)
 	if err != nil {
 		// Network-level failure: there is no body to analyze.
-		return models.FeedDiagnosis{
+		return FeedInspection{Diagnosis: models.FeedDiagnosis{
 			URL:             feedURL,
 			FinalURL:        raw.FinalURL,
 			FetchDurationMs: raw.Duration.Milliseconds(),
 			ParseError:      err.Error(),
 			Verdict:         fmt.Sprintf("fetch failed: %v", err),
-		}
+		}}
 	}
 
+	if maxLinks <= 0 {
+		maxLinks = defaultSampleLinks
+	}
+
+	var insp FeedInspection
 	var itemCount int
 	feed, parseErr := gofeed.NewParser().Parse(bytes.NewReader(raw.Body))
 	if parseErr == nil && feed != nil {
 		itemCount = len(feed.Items)
+		insp.Title = feed.Title
+		for _, it := range feed.Items {
+			if it.Link == "" {
+				continue
+			}
+			insp.SampleLinks = append(insp.SampleLinks, it.Link)
+			if len(insp.SampleLinks) >= maxLinks {
+				break
+			}
+		}
 	}
 
 	diag := AnalyzeFeedBody(raw, parseErr, itemCount)
 	diag.RawBodyPath = trace.SaveDiagnostic(hostOf(feedURL), raw.Status, raw.ContentType, raw.Body)
-	return diag
+	insp.Diagnosis = diag
+	return insp
+}
+
+// DiagnoseFeedURL fetches a feed URL and returns a structured diagnosis. It is a
+// thin wrapper over InspectFeedURL for callers that only need the diagnosis.
+func DiagnoseFeedURL(feedURL string, headers map[string]string) models.FeedDiagnosis {
+	return InspectFeedURL(feedURL, headers, 0).Diagnosis
 }
 
 // AnalyzeFeedBody turns a raw response and its parse outcome into a structured

@@ -648,6 +648,319 @@ func (x *RefreshFeedRequest) GetDiagnose() bool {
 	return false
 }
 
+// InspectFeedRequest probes a feed URL before it is registered. Headers are
+// optional custom HTTP headers; max_links caps the returned sample article links.
+type InspectFeedRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Headers       map[string]string      `protobuf:"bytes,2,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	MaxLinks      int32                  `protobuf:"varint,3,opt,name=max_links,json=maxLinks,proto3" json:"max_links,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InspectFeedRequest) Reset() {
+	*x = InspectFeedRequest{}
+	mi := &file_feeds_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectFeedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectFeedRequest) ProtoMessage() {}
+
+func (x *InspectFeedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_feeds_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectFeedRequest.ProtoReflect.Descriptor instead.
+func (*InspectFeedRequest) Descriptor() ([]byte, []int) {
+	return file_feeds_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *InspectFeedRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *InspectFeedRequest) GetHeaders() map[string]string {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
+}
+
+func (x *InspectFeedRequest) GetMaxLinks() int32 {
+	if x != nil {
+		return x.MaxLinks
+	}
+	return 0
+}
+
+// InspectFeedResponse carries the feed diagnosis plus sample article links and
+// the detected feed title, used to scaffold a feed configuration.
+type InspectFeedResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Diagnosis     *FeedDiagnosis         `protobuf:"bytes,1,opt,name=diagnosis,proto3" json:"diagnosis,omitempty"`
+	SampleLinks   []string               `protobuf:"bytes,2,rep,name=sample_links,json=sampleLinks,proto3" json:"sample_links,omitempty"`
+	DetectedTitle string                 `protobuf:"bytes,3,opt,name=detected_title,json=detectedTitle,proto3" json:"detected_title,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InspectFeedResponse) Reset() {
+	*x = InspectFeedResponse{}
+	mi := &file_feeds_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectFeedResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectFeedResponse) ProtoMessage() {}
+
+func (x *InspectFeedResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_feeds_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectFeedResponse.ProtoReflect.Descriptor instead.
+func (*InspectFeedResponse) Descriptor() ([]byte, []int) {
+	return file_feeds_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *InspectFeedResponse) GetDiagnosis() *FeedDiagnosis {
+	if x != nil {
+		return x.Diagnosis
+	}
+	return nil
+}
+
+func (x *InspectFeedResponse) GetSampleLinks() []string {
+	if x != nil {
+		return x.SampleLinks
+	}
+	return nil
+}
+
+func (x *InspectFeedResponse) GetDetectedTitle() string {
+	if x != nil {
+		return x.DetectedTitle
+	}
+	return ""
+}
+
+// InspectArticleRequest scrapes one article URL in the given mode
+// ("" / static, dynamic, full_browser). When selectors are set the response also
+// carries the extracted content. html_limit caps the returned page HTML (0 = default).
+type InspectArticleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Mode          string                 `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	Headers       map[string]string      `protobuf:"bytes,3,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Selectors     *Selectors             `protobuf:"bytes,4,opt,name=selectors,proto3" json:"selectors,omitempty"`
+	HtmlLimit     int32                  `protobuf:"varint,5,opt,name=html_limit,json=htmlLimit,proto3" json:"html_limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InspectArticleRequest) Reset() {
+	*x = InspectArticleRequest{}
+	mi := &file_feeds_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectArticleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectArticleRequest) ProtoMessage() {}
+
+func (x *InspectArticleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_feeds_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectArticleRequest.ProtoReflect.Descriptor instead.
+func (*InspectArticleRequest) Descriptor() ([]byte, []int) {
+	return file_feeds_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *InspectArticleRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *InspectArticleRequest) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *InspectArticleRequest) GetHeaders() map[string]string {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
+}
+
+func (x *InspectArticleRequest) GetSelectors() *Selectors {
+	if x != nil {
+		return x.Selectors
+	}
+	return nil
+}
+
+func (x *InspectArticleRequest) GetHtmlLimit() int32 {
+	if x != nil {
+		return x.HtmlLimit
+	}
+	return 0
+}
+
+// InspectArticleResponse reports the scrape outcome: the (capped) page HTML for
+// inspection plus, when selectors were supplied, the extracted markdown and stats.
+type InspectArticleResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	HttpStatus      int32                  `protobuf:"varint,1,opt,name=http_status,json=httpStatus,proto3" json:"http_status,omitempty"`
+	ModeUsed        string                 `protobuf:"bytes,2,opt,name=mode_used,json=modeUsed,proto3" json:"mode_used,omitempty"`
+	RawHtmlLen      int32                  `protobuf:"varint,3,opt,name=raw_html_len,json=rawHtmlLen,proto3" json:"raw_html_len,omitempty"`
+	Html            string                 `protobuf:"bytes,4,opt,name=html,proto3" json:"html,omitempty"`           // page HTML, capped to html_limit, for selector inspection
+	Extracted       string                 `protobuf:"bytes,5,opt,name=extracted,proto3" json:"extracted,omitempty"` // extracted markdown when selectors were supplied
+	ExtractedLen    int32                  `protobuf:"varint,6,opt,name=extracted_len,json=extractedLen,proto3" json:"extracted_len,omitempty"`
+	SelectorMatched bool                   `protobuf:"varint,7,opt,name=selector_matched,json=selectorMatched,proto3" json:"selector_matched,omitempty"`
+	Error           string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	DurationMs      int64                  `protobuf:"varint,9,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *InspectArticleResponse) Reset() {
+	*x = InspectArticleResponse{}
+	mi := &file_feeds_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectArticleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectArticleResponse) ProtoMessage() {}
+
+func (x *InspectArticleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_feeds_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectArticleResponse.ProtoReflect.Descriptor instead.
+func (*InspectArticleResponse) Descriptor() ([]byte, []int) {
+	return file_feeds_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *InspectArticleResponse) GetHttpStatus() int32 {
+	if x != nil {
+		return x.HttpStatus
+	}
+	return 0
+}
+
+func (x *InspectArticleResponse) GetModeUsed() string {
+	if x != nil {
+		return x.ModeUsed
+	}
+	return ""
+}
+
+func (x *InspectArticleResponse) GetRawHtmlLen() int32 {
+	if x != nil {
+		return x.RawHtmlLen
+	}
+	return 0
+}
+
+func (x *InspectArticleResponse) GetHtml() string {
+	if x != nil {
+		return x.Html
+	}
+	return ""
+}
+
+func (x *InspectArticleResponse) GetExtracted() string {
+	if x != nil {
+		return x.Extracted
+	}
+	return ""
+}
+
+func (x *InspectArticleResponse) GetExtractedLen() int32 {
+	if x != nil {
+		return x.ExtractedLen
+	}
+	return 0
+}
+
+func (x *InspectArticleResponse) GetSelectorMatched() bool {
+	if x != nil {
+		return x.SelectorMatched
+	}
+	return false
+}
+
+func (x *InspectArticleResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *InspectArticleResponse) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
 // DeleteFeedRequest is the request for the DeleteFeed method
 type DeleteFeedRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -658,7 +971,7 @@ type DeleteFeedRequest struct {
 
 func (x *DeleteFeedRequest) Reset() {
 	*x = DeleteFeedRequest{}
-	mi := &file_feeds_proto_msgTypes[8]
+	mi := &file_feeds_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -670,7 +983,7 @@ func (x *DeleteFeedRequest) String() string {
 func (*DeleteFeedRequest) ProtoMessage() {}
 
 func (x *DeleteFeedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_feeds_proto_msgTypes[8]
+	mi := &file_feeds_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -683,7 +996,7 @@ func (x *DeleteFeedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFeedRequest.ProtoReflect.Descriptor instead.
 func (*DeleteFeedRequest) Descriptor() ([]byte, []int) {
-	return file_feeds_proto_rawDescGZIP(), []int{8}
+	return file_feeds_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeleteFeedRequest) GetFeedId() string {
@@ -705,7 +1018,7 @@ type ApplyFeedsRequest struct {
 
 func (x *ApplyFeedsRequest) Reset() {
 	*x = ApplyFeedsRequest{}
-	mi := &file_feeds_proto_msgTypes[9]
+	mi := &file_feeds_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -717,7 +1030,7 @@ func (x *ApplyFeedsRequest) String() string {
 func (*ApplyFeedsRequest) ProtoMessage() {}
 
 func (x *ApplyFeedsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_feeds_proto_msgTypes[9]
+	mi := &file_feeds_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -730,7 +1043,7 @@ func (x *ApplyFeedsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyFeedsRequest.ProtoReflect.Descriptor instead.
 func (*ApplyFeedsRequest) Descriptor() ([]byte, []int) {
-	return file_feeds_proto_rawDescGZIP(), []int{9}
+	return file_feeds_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ApplyFeedsRequest) GetFeeds() []*FeedConfig {
@@ -767,7 +1080,7 @@ type ApplyFeedsResponse struct {
 
 func (x *ApplyFeedsResponse) Reset() {
 	*x = ApplyFeedsResponse{}
-	mi := &file_feeds_proto_msgTypes[10]
+	mi := &file_feeds_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -779,7 +1092,7 @@ func (x *ApplyFeedsResponse) String() string {
 func (*ApplyFeedsResponse) ProtoMessage() {}
 
 func (x *ApplyFeedsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_feeds_proto_msgTypes[10]
+	mi := &file_feeds_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -792,7 +1105,7 @@ func (x *ApplyFeedsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyFeedsResponse.ProtoReflect.Descriptor instead.
 func (*ApplyFeedsResponse) Descriptor() ([]byte, []int) {
-	return file_feeds_proto_rawDescGZIP(), []int{10}
+	return file_feeds_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ApplyFeedsResponse) GetCreated() []string {
@@ -827,7 +1140,7 @@ type DeleteFeedsRequest struct {
 
 func (x *DeleteFeedsRequest) Reset() {
 	*x = DeleteFeedsRequest{}
-	mi := &file_feeds_proto_msgTypes[11]
+	mi := &file_feeds_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -839,7 +1152,7 @@ func (x *DeleteFeedsRequest) String() string {
 func (*DeleteFeedsRequest) ProtoMessage() {}
 
 func (x *DeleteFeedsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_feeds_proto_msgTypes[11]
+	mi := &file_feeds_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -852,7 +1165,7 @@ func (x *DeleteFeedsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFeedsRequest.ProtoReflect.Descriptor instead.
 func (*DeleteFeedsRequest) Descriptor() ([]byte, []int) {
-	return file_feeds_proto_rawDescGZIP(), []int{11}
+	return file_feeds_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DeleteFeedsRequest) GetFeedIds() []string {
@@ -880,7 +1193,7 @@ type DeleteFeedsResponse struct {
 
 func (x *DeleteFeedsResponse) Reset() {
 	*x = DeleteFeedsResponse{}
-	mi := &file_feeds_proto_msgTypes[12]
+	mi := &file_feeds_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -892,7 +1205,7 @@ func (x *DeleteFeedsResponse) String() string {
 func (*DeleteFeedsResponse) ProtoMessage() {}
 
 func (x *DeleteFeedsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_feeds_proto_msgTypes[12]
+	mi := &file_feeds_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -905,7 +1218,7 @@ func (x *DeleteFeedsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFeedsResponse.ProtoReflect.Descriptor instead.
 func (*DeleteFeedsResponse) Descriptor() ([]byte, []int) {
-	return file_feeds_proto_rawDescGZIP(), []int{12}
+	return file_feeds_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DeleteFeedsResponse) GetDeleted() []string {
@@ -936,7 +1249,7 @@ type FeedGroup struct {
 
 func (x *FeedGroup) Reset() {
 	*x = FeedGroup{}
-	mi := &file_feeds_proto_msgTypes[13]
+	mi := &file_feeds_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -948,7 +1261,7 @@ func (x *FeedGroup) String() string {
 func (*FeedGroup) ProtoMessage() {}
 
 func (x *FeedGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_feeds_proto_msgTypes[13]
+	mi := &file_feeds_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -961,7 +1274,7 @@ func (x *FeedGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FeedGroup.ProtoReflect.Descriptor instead.
 func (*FeedGroup) Descriptor() ([]byte, []int) {
-	return file_feeds_proto_rawDescGZIP(), []int{13}
+	return file_feeds_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *FeedGroup) GetId() string {
@@ -1017,7 +1330,7 @@ type Feed struct {
 
 func (x *Feed) Reset() {
 	*x = Feed{}
-	mi := &file_feeds_proto_msgTypes[14]
+	mi := &file_feeds_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1029,7 +1342,7 @@ func (x *Feed) String() string {
 func (*Feed) ProtoMessage() {}
 
 func (x *Feed) ProtoReflect() protoreflect.Message {
-	mi := &file_feeds_proto_msgTypes[14]
+	mi := &file_feeds_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1042,7 +1355,7 @@ func (x *Feed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Feed.ProtoReflect.Descriptor instead.
 func (*Feed) Descriptor() ([]byte, []int) {
-	return file_feeds_proto_rawDescGZIP(), []int{14}
+	return file_feeds_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Feed) GetId() string {
@@ -1125,7 +1438,7 @@ type FeedItem struct {
 
 func (x *FeedItem) Reset() {
 	*x = FeedItem{}
-	mi := &file_feeds_proto_msgTypes[15]
+	mi := &file_feeds_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1137,7 +1450,7 @@ func (x *FeedItem) String() string {
 func (*FeedItem) ProtoMessage() {}
 
 func (x *FeedItem) ProtoReflect() protoreflect.Message {
-	mi := &file_feeds_proto_msgTypes[15]
+	mi := &file_feeds_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1150,7 +1463,7 @@ func (x *FeedItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FeedItem.ProtoReflect.Descriptor instead.
 func (*FeedItem) Descriptor() ([]byte, []int) {
-	return file_feeds_proto_rawDescGZIP(), []int{15}
+	return file_feeds_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *FeedItem) GetId() string {
@@ -1221,7 +1534,7 @@ type FeedResult struct {
 
 func (x *FeedResult) Reset() {
 	*x = FeedResult{}
-	mi := &file_feeds_proto_msgTypes[16]
+	mi := &file_feeds_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1233,7 +1546,7 @@ func (x *FeedResult) String() string {
 func (*FeedResult) ProtoMessage() {}
 
 func (x *FeedResult) ProtoReflect() protoreflect.Message {
-	mi := &file_feeds_proto_msgTypes[16]
+	mi := &file_feeds_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1246,7 +1559,7 @@ func (x *FeedResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FeedResult.ProtoReflect.Descriptor instead.
 func (*FeedResult) Descriptor() ([]byte, []int) {
-	return file_feeds_proto_rawDescGZIP(), []int{16}
+	return file_feeds_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *FeedResult) GetFeed() *Feed {
@@ -1324,7 +1637,41 @@ const file_feeds_proto_rawDesc = "" +
 	"\toverwrite\x18\x04 \x01(\bR\toverwrite\x12\x18\n" +
 	"\arestore\x18\x05 \x01(\bR\arestore\x12\x15\n" +
 	"\x06last_n\x18\x06 \x01(\x05R\x05lastN\x12\x1a\n" +
-	"\bdiagnose\x18\a \x01(\bR\bdiagnose\",\n" +
+	"\bdiagnose\x18\a \x01(\bR\bdiagnose\"\xc4\x01\n" +
+	"\x12InspectFeedRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12C\n" +
+	"\aheaders\x18\x02 \x03(\v2).downlink.InspectFeedRequest.HeadersEntryR\aheaders\x12\x1b\n" +
+	"\tmax_links\x18\x03 \x01(\x05R\bmaxLinks\x1a:\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x96\x01\n" +
+	"\x13InspectFeedResponse\x125\n" +
+	"\tdiagnosis\x18\x01 \x01(\v2\x17.downlink.FeedDiagnosisR\tdiagnosis\x12!\n" +
+	"\fsample_links\x18\x02 \x03(\tR\vsampleLinks\x12%\n" +
+	"\x0edetected_title\x18\x03 \x01(\tR\rdetectedTitle\"\x93\x02\n" +
+	"\x15InspectArticleRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x12\n" +
+	"\x04mode\x18\x02 \x01(\tR\x04mode\x12F\n" +
+	"\aheaders\x18\x03 \x03(\v2,.downlink.InspectArticleRequest.HeadersEntryR\aheaders\x121\n" +
+	"\tselectors\x18\x04 \x01(\v2\x13.downlink.SelectorsR\tselectors\x12\x1d\n" +
+	"\n" +
+	"html_limit\x18\x05 \x01(\x05R\thtmlLimit\x1a:\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb1\x02\n" +
+	"\x16InspectArticleResponse\x12\x1f\n" +
+	"\vhttp_status\x18\x01 \x01(\x05R\n" +
+	"httpStatus\x12\x1b\n" +
+	"\tmode_used\x18\x02 \x01(\tR\bmodeUsed\x12 \n" +
+	"\fraw_html_len\x18\x03 \x01(\x05R\n" +
+	"rawHtmlLen\x12\x12\n" +
+	"\x04html\x18\x04 \x01(\tR\x04html\x12\x1c\n" +
+	"\textracted\x18\x05 \x01(\tR\textracted\x12#\n" +
+	"\rextracted_len\x18\x06 \x01(\x05R\fextractedLen\x12)\n" +
+	"\x10selector_matched\x18\a \x01(\bR\x0fselectorMatched\x12\x14\n" +
+	"\x05error\x18\b \x01(\tR\x05error\x12\x1f\n" +
+	"\vduration_ms\x18\t \x01(\x03R\n" +
+	"durationMs\",\n" +
 	"\x11DeleteFeedRequest\x12\x17\n" +
 	"\afeed_id\x18\x01 \x01(\tR\x06feedId\"\x9a\x01\n" +
 	"\x11ApplyFeedsRequest\x12*\n" +
@@ -1379,12 +1726,14 @@ const file_feeds_proto_rawDesc = "" +
 	"\x05error\x18\x03 \x01(\tR\x05error*.\n" +
 	"\x10RefreshEventType\x12\v\n" +
 	"\aSTARTED\x10\x00\x12\r\n" +
-	"\tCOMPLETED\x10\x012\xa4\x04\n" +
+	"\tCOMPLETED\x10\x012\xc9\x05\n" +
 	"\fFeedsService\x12F\n" +
 	"\tListFeeds\x12\x1a.downlink.ListFeedsRequest\x1a\x1b.downlink.ListFeedsResponse\"\x00\x12G\n" +
 	"\fRegisterFeed\x12\x1d.downlink.RegisterFeedRequest\x1a\x16.google.protobuf.Empty\"\x00\x12W\n" +
 	"\x0fRefreshAllFeeds\x12 .downlink.RefreshAllFeedsRequest\x1a\x1e.downlink.RefreshAllFeedsEvent\"\x000\x01\x12L\n" +
-	"\vRefreshFeed\x12\x1c.downlink.RefreshFeedRequest\x1a\x1d.downlink.RefreshFeedResponse\"\x00\x12C\n" +
+	"\vRefreshFeed\x12\x1c.downlink.RefreshFeedRequest\x1a\x1d.downlink.RefreshFeedResponse\"\x00\x12L\n" +
+	"\vInspectFeed\x12\x1c.downlink.InspectFeedRequest\x1a\x1d.downlink.InspectFeedResponse\"\x00\x12U\n" +
+	"\x0eInspectArticle\x12\x1f.downlink.InspectArticleRequest\x1a .downlink.InspectArticleResponse\"\x00\x12C\n" +
 	"\n" +
 	"DeleteFeed\x12\x1b.downlink.DeleteFeedRequest\x1a\x16.google.protobuf.Empty\"\x00\x12I\n" +
 	"\n" +
@@ -1404,7 +1753,7 @@ func file_feeds_proto_rawDescGZIP() []byte {
 }
 
 var file_feeds_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_feeds_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_feeds_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_feeds_proto_goTypes = []any{
 	(RefreshEventType)(0),          // 0: downlink.RefreshEventType
 	(*ListFeedsRequest)(nil),       // 1: downlink.ListFeedsRequest
@@ -1415,60 +1764,74 @@ var file_feeds_proto_goTypes = []any{
 	(*FeedDiagnosis)(nil),          // 6: downlink.FeedDiagnosis
 	(*RefreshAllFeedsEvent)(nil),   // 7: downlink.RefreshAllFeedsEvent
 	(*RefreshFeedRequest)(nil),     // 8: downlink.RefreshFeedRequest
-	(*DeleteFeedRequest)(nil),      // 9: downlink.DeleteFeedRequest
-	(*ApplyFeedsRequest)(nil),      // 10: downlink.ApplyFeedsRequest
-	(*ApplyFeedsResponse)(nil),     // 11: downlink.ApplyFeedsResponse
-	(*DeleteFeedsRequest)(nil),     // 12: downlink.DeleteFeedsRequest
-	(*DeleteFeedsResponse)(nil),    // 13: downlink.DeleteFeedsResponse
-	(*FeedGroup)(nil),              // 14: downlink.FeedGroup
-	(*Feed)(nil),                   // 15: downlink.Feed
-	(*FeedItem)(nil),               // 16: downlink.FeedItem
-	(*FeedResult)(nil),             // 17: downlink.FeedResult
-	nil,                            // 18: downlink.Feed.ScraperEntry
-	(*FeedConfig)(nil),             // 19: downlink.FeedConfig
-	(*timestamppb.Timestamp)(nil),  // 20: google.protobuf.Timestamp
-	(*Selectors)(nil),              // 21: downlink.Selectors
-	(*Article)(nil),                // 22: downlink.Article
-	(*anypb.Any)(nil),              // 23: google.protobuf.Any
-	(*emptypb.Empty)(nil),          // 24: google.protobuf.Empty
+	(*InspectFeedRequest)(nil),     // 9: downlink.InspectFeedRequest
+	(*InspectFeedResponse)(nil),    // 10: downlink.InspectFeedResponse
+	(*InspectArticleRequest)(nil),  // 11: downlink.InspectArticleRequest
+	(*InspectArticleResponse)(nil), // 12: downlink.InspectArticleResponse
+	(*DeleteFeedRequest)(nil),      // 13: downlink.DeleteFeedRequest
+	(*ApplyFeedsRequest)(nil),      // 14: downlink.ApplyFeedsRequest
+	(*ApplyFeedsResponse)(nil),     // 15: downlink.ApplyFeedsResponse
+	(*DeleteFeedsRequest)(nil),     // 16: downlink.DeleteFeedsRequest
+	(*DeleteFeedsResponse)(nil),    // 17: downlink.DeleteFeedsResponse
+	(*FeedGroup)(nil),              // 18: downlink.FeedGroup
+	(*Feed)(nil),                   // 19: downlink.Feed
+	(*FeedItem)(nil),               // 20: downlink.FeedItem
+	(*FeedResult)(nil),             // 21: downlink.FeedResult
+	nil,                            // 22: downlink.InspectFeedRequest.HeadersEntry
+	nil,                            // 23: downlink.InspectArticleRequest.HeadersEntry
+	nil,                            // 24: downlink.Feed.ScraperEntry
+	(*FeedConfig)(nil),             // 25: downlink.FeedConfig
+	(*timestamppb.Timestamp)(nil),  // 26: google.protobuf.Timestamp
+	(*Selectors)(nil),              // 27: downlink.Selectors
+	(*Article)(nil),                // 28: downlink.Article
+	(*anypb.Any)(nil),              // 29: google.protobuf.Any
+	(*emptypb.Empty)(nil),          // 30: google.protobuf.Empty
 }
 var file_feeds_proto_depIdxs = []int32{
-	15, // 0: downlink.ListFeedsResponse.feeds:type_name -> downlink.Feed
-	19, // 1: downlink.RegisterFeedRequest.feed_config:type_name -> downlink.FeedConfig
+	19, // 0: downlink.ListFeedsResponse.feeds:type_name -> downlink.Feed
+	25, // 1: downlink.RegisterFeedRequest.feed_config:type_name -> downlink.FeedConfig
 	6,  // 2: downlink.RefreshFeedResponse.diagnosis:type_name -> downlink.FeedDiagnosis
 	5,  // 3: downlink.RefreshAllFeedsEvent.result:type_name -> downlink.RefreshFeedResponse
 	0,  // 4: downlink.RefreshAllFeedsEvent.event_type:type_name -> downlink.RefreshEventType
-	20, // 5: downlink.RefreshFeedRequest.from:type_name -> google.protobuf.Timestamp
-	20, // 6: downlink.RefreshFeedRequest.to:type_name -> google.protobuf.Timestamp
-	19, // 7: downlink.ApplyFeedsRequest.feeds:type_name -> downlink.FeedConfig
-	21, // 8: downlink.ApplyFeedsRequest.default_selectors:type_name -> downlink.Selectors
-	15, // 9: downlink.FeedGroup.feeds:type_name -> downlink.Feed
-	20, // 10: downlink.Feed.last_fetch:type_name -> google.protobuf.Timestamp
-	18, // 11: downlink.Feed.scraper:type_name -> downlink.Feed.ScraperEntry
-	22, // 12: downlink.Feed.articles:type_name -> downlink.Article
-	20, // 13: downlink.FeedItem.published_at:type_name -> google.protobuf.Timestamp
-	15, // 14: downlink.FeedResult.feed:type_name -> downlink.Feed
-	16, // 15: downlink.FeedResult.items:type_name -> downlink.FeedItem
-	23, // 16: downlink.Feed.ScraperEntry.value:type_name -> google.protobuf.Any
-	1,  // 17: downlink.FeedsService.ListFeeds:input_type -> downlink.ListFeedsRequest
-	3,  // 18: downlink.FeedsService.RegisterFeed:input_type -> downlink.RegisterFeedRequest
-	4,  // 19: downlink.FeedsService.RefreshAllFeeds:input_type -> downlink.RefreshAllFeedsRequest
-	8,  // 20: downlink.FeedsService.RefreshFeed:input_type -> downlink.RefreshFeedRequest
-	9,  // 21: downlink.FeedsService.DeleteFeed:input_type -> downlink.DeleteFeedRequest
-	10, // 22: downlink.FeedsService.ApplyFeeds:input_type -> downlink.ApplyFeedsRequest
-	12, // 23: downlink.FeedsService.DeleteFeeds:input_type -> downlink.DeleteFeedsRequest
-	2,  // 24: downlink.FeedsService.ListFeeds:output_type -> downlink.ListFeedsResponse
-	24, // 25: downlink.FeedsService.RegisterFeed:output_type -> google.protobuf.Empty
-	7,  // 26: downlink.FeedsService.RefreshAllFeeds:output_type -> downlink.RefreshAllFeedsEvent
-	5,  // 27: downlink.FeedsService.RefreshFeed:output_type -> downlink.RefreshFeedResponse
-	24, // 28: downlink.FeedsService.DeleteFeed:output_type -> google.protobuf.Empty
-	11, // 29: downlink.FeedsService.ApplyFeeds:output_type -> downlink.ApplyFeedsResponse
-	13, // 30: downlink.FeedsService.DeleteFeeds:output_type -> downlink.DeleteFeedsResponse
-	24, // [24:31] is the sub-list for method output_type
-	17, // [17:24] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	26, // 5: downlink.RefreshFeedRequest.from:type_name -> google.protobuf.Timestamp
+	26, // 6: downlink.RefreshFeedRequest.to:type_name -> google.protobuf.Timestamp
+	22, // 7: downlink.InspectFeedRequest.headers:type_name -> downlink.InspectFeedRequest.HeadersEntry
+	6,  // 8: downlink.InspectFeedResponse.diagnosis:type_name -> downlink.FeedDiagnosis
+	23, // 9: downlink.InspectArticleRequest.headers:type_name -> downlink.InspectArticleRequest.HeadersEntry
+	27, // 10: downlink.InspectArticleRequest.selectors:type_name -> downlink.Selectors
+	25, // 11: downlink.ApplyFeedsRequest.feeds:type_name -> downlink.FeedConfig
+	27, // 12: downlink.ApplyFeedsRequest.default_selectors:type_name -> downlink.Selectors
+	19, // 13: downlink.FeedGroup.feeds:type_name -> downlink.Feed
+	26, // 14: downlink.Feed.last_fetch:type_name -> google.protobuf.Timestamp
+	24, // 15: downlink.Feed.scraper:type_name -> downlink.Feed.ScraperEntry
+	28, // 16: downlink.Feed.articles:type_name -> downlink.Article
+	26, // 17: downlink.FeedItem.published_at:type_name -> google.protobuf.Timestamp
+	19, // 18: downlink.FeedResult.feed:type_name -> downlink.Feed
+	20, // 19: downlink.FeedResult.items:type_name -> downlink.FeedItem
+	29, // 20: downlink.Feed.ScraperEntry.value:type_name -> google.protobuf.Any
+	1,  // 21: downlink.FeedsService.ListFeeds:input_type -> downlink.ListFeedsRequest
+	3,  // 22: downlink.FeedsService.RegisterFeed:input_type -> downlink.RegisterFeedRequest
+	4,  // 23: downlink.FeedsService.RefreshAllFeeds:input_type -> downlink.RefreshAllFeedsRequest
+	8,  // 24: downlink.FeedsService.RefreshFeed:input_type -> downlink.RefreshFeedRequest
+	9,  // 25: downlink.FeedsService.InspectFeed:input_type -> downlink.InspectFeedRequest
+	11, // 26: downlink.FeedsService.InspectArticle:input_type -> downlink.InspectArticleRequest
+	13, // 27: downlink.FeedsService.DeleteFeed:input_type -> downlink.DeleteFeedRequest
+	14, // 28: downlink.FeedsService.ApplyFeeds:input_type -> downlink.ApplyFeedsRequest
+	16, // 29: downlink.FeedsService.DeleteFeeds:input_type -> downlink.DeleteFeedsRequest
+	2,  // 30: downlink.FeedsService.ListFeeds:output_type -> downlink.ListFeedsResponse
+	30, // 31: downlink.FeedsService.RegisterFeed:output_type -> google.protobuf.Empty
+	7,  // 32: downlink.FeedsService.RefreshAllFeeds:output_type -> downlink.RefreshAllFeedsEvent
+	5,  // 33: downlink.FeedsService.RefreshFeed:output_type -> downlink.RefreshFeedResponse
+	10, // 34: downlink.FeedsService.InspectFeed:output_type -> downlink.InspectFeedResponse
+	12, // 35: downlink.FeedsService.InspectArticle:output_type -> downlink.InspectArticleResponse
+	30, // 36: downlink.FeedsService.DeleteFeed:output_type -> google.protobuf.Empty
+	15, // 37: downlink.FeedsService.ApplyFeeds:output_type -> downlink.ApplyFeedsResponse
+	17, // 38: downlink.FeedsService.DeleteFeeds:output_type -> downlink.DeleteFeedsResponse
+	30, // [30:39] is the sub-list for method output_type
+	21, // [21:30] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_feeds_proto_init() }
@@ -1484,7 +1847,7 @@ func file_feeds_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_feeds_proto_rawDesc), len(file_feeds_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   18,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

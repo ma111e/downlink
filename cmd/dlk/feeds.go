@@ -819,6 +819,7 @@ Examples:
 	diagnoseCmd.Flags().BoolVar(&diagnoseRaw, "raw", false, "Also print the saved raw body path and a preview")
 
 	cmd.AddCommand(listCmd, addCmd, refreshCmd, applyCmd, deleteCmd, exportCmd, diagnoseCmd)
+	cmd.AddCommand(createFeedBuildCommands()...)
 	return cmd
 }
 

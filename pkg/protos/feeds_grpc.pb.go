@@ -24,6 +24,8 @@ const (
 	FeedsService_RegisterFeed_FullMethodName    = "/downlink.FeedsService/RegisterFeed"
 	FeedsService_RefreshAllFeeds_FullMethodName = "/downlink.FeedsService/RefreshAllFeeds"
 	FeedsService_RefreshFeed_FullMethodName     = "/downlink.FeedsService/RefreshFeed"
+	FeedsService_InspectFeed_FullMethodName     = "/downlink.FeedsService/InspectFeed"
+	FeedsService_InspectArticle_FullMethodName  = "/downlink.FeedsService/InspectArticle"
 	FeedsService_DeleteFeed_FullMethodName      = "/downlink.FeedsService/DeleteFeed"
 	FeedsService_ApplyFeeds_FullMethodName      = "/downlink.FeedsService/ApplyFeeds"
 	FeedsService_DeleteFeeds_FullMethodName     = "/downlink.FeedsService/DeleteFeeds"
@@ -43,6 +45,12 @@ type FeedsServiceClient interface {
 	RefreshAllFeeds(ctx context.Context, in *RefreshAllFeedsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RefreshAllFeedsEvent], error)
 	// RefreshFeed refreshes a specific feed with optional time window filtering
 	RefreshFeed(ctx context.Context, in *RefreshFeedRequest, opts ...grpc.CallOption) (*RefreshFeedResponse, error)
+	// InspectFeed fetches and parses a feed URL (read-only, pre-registration),
+	// returning a diagnosis plus sample article links for building a feed config.
+	InspectFeed(ctx context.Context, in *InspectFeedRequest, opts ...grpc.CallOption) (*InspectFeedResponse, error)
+	// InspectArticle scrapes a single article URL in a given mode and, when
+	// selectors are supplied, returns the extracted content for selector testing.
+	InspectArticle(ctx context.Context, in *InspectArticleRequest, opts ...grpc.CallOption) (*InspectArticleResponse, error)
 	// DeleteFeed removes a feed from both the models and the database
 	DeleteFeed(ctx context.Context, in *DeleteFeedRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// ApplyFeeds reconciles the database to match the desired set of feeds:
@@ -109,6 +117,26 @@ func (c *feedsServiceClient) RefreshFeed(ctx context.Context, in *RefreshFeedReq
 	return out, nil
 }
 
+func (c *feedsServiceClient) InspectFeed(ctx context.Context, in *InspectFeedRequest, opts ...grpc.CallOption) (*InspectFeedResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InspectFeedResponse)
+	err := c.cc.Invoke(ctx, FeedsService_InspectFeed_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *feedsServiceClient) InspectArticle(ctx context.Context, in *InspectArticleRequest, opts ...grpc.CallOption) (*InspectArticleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InspectArticleResponse)
+	err := c.cc.Invoke(ctx, FeedsService_InspectArticle_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *feedsServiceClient) DeleteFeed(ctx context.Context, in *DeleteFeedRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
@@ -153,6 +181,12 @@ type FeedsServiceServer interface {
 	RefreshAllFeeds(*RefreshAllFeedsRequest, grpc.ServerStreamingServer[RefreshAllFeedsEvent]) error
 	// RefreshFeed refreshes a specific feed with optional time window filtering
 	RefreshFeed(context.Context, *RefreshFeedRequest) (*RefreshFeedResponse, error)
+	// InspectFeed fetches and parses a feed URL (read-only, pre-registration),
+	// returning a diagnosis plus sample article links for building a feed config.
+	InspectFeed(context.Context, *InspectFeedRequest) (*InspectFeedResponse, error)
+	// InspectArticle scrapes a single article URL in a given mode and, when
+	// selectors are supplied, returns the extracted content for selector testing.
+	InspectArticle(context.Context, *InspectArticleRequest) (*InspectArticleResponse, error)
 	// DeleteFeed removes a feed from both the models and the database
 	DeleteFeed(context.Context, *DeleteFeedRequest) (*emptypb.Empty, error)
 	// ApplyFeeds reconciles the database to match the desired set of feeds:
@@ -181,6 +215,12 @@ func (UnimplementedFeedsServiceServer) RefreshAllFeeds(*RefreshAllFeedsRequest, 
 }
 func (UnimplementedFeedsServiceServer) RefreshFeed(context.Context, *RefreshFeedRequest) (*RefreshFeedResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RefreshFeed not implemented")
+}
+func (UnimplementedFeedsServiceServer) InspectFeed(context.Context, *InspectFeedRequest) (*InspectFeedResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InspectFeed not implemented")
+}
+func (UnimplementedFeedsServiceServer) InspectArticle(context.Context, *InspectArticleRequest) (*InspectArticleResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InspectArticle not implemented")
 }
 func (UnimplementedFeedsServiceServer) DeleteFeed(context.Context, *DeleteFeedRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteFeed not implemented")
@@ -277,6 +317,42 @@ func _FeedsService_RefreshFeed_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FeedsService_InspectFeed_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InspectFeedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FeedsServiceServer).InspectFeed(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FeedsService_InspectFeed_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FeedsServiceServer).InspectFeed(ctx, req.(*InspectFeedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FeedsService_InspectArticle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InspectArticleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FeedsServiceServer).InspectArticle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FeedsService_InspectArticle_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FeedsServiceServer).InspectArticle(ctx, req.(*InspectArticleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _FeedsService_DeleteFeed_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteFeedRequest)
 	if err := dec(in); err != nil {
@@ -349,6 +425,14 @@ var FeedsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RefreshFeed",
 			Handler:    _FeedsService_RefreshFeed_Handler,
+		},
+		{
+			MethodName: "InspectFeed",
+			Handler:    _FeedsService_InspectFeed_Handler,
+		},
+		{
+			MethodName: "InspectArticle",
+			Handler:    _FeedsService_InspectArticle_Handler,
 		},
 		{
 			MethodName: "DeleteFeed",

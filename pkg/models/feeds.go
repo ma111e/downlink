@@ -91,6 +91,19 @@ type FetchResult struct {
 	StoredArticleIDs []string // IDs of articles successfully stored in this fetch
 }
 
+// ArticleInspection is the result of scraping a single article URL in a given
+// mode, used by the feed-config builder to inspect page HTML and test selectors.
+type ArticleInspection struct {
+	ModeUsed        string `json:"mode_used"`
+	RawHTMLLen      int    `json:"raw_html_len"`
+	HTML            string `json:"html"`             // page HTML (capped) for selector inspection
+	Extracted       string `json:"extracted"`        // extracted markdown when selectors supplied
+	ExtractedLen    int    `json:"extracted_len"`    // rune count of Extracted
+	SelectorMatched bool   `json:"selector_matched"` // the article selector matched an element
+	Error           string `json:"error"`
+	DurationMs      int64  `json:"duration_ms"`
+}
+
 // FeedDiagnosis is the structured result of inspecting a single feed's raw HTTP
 // response. It captures what actually came back over the wire so the two common
 // failure modes — an unrecognizable body ("Failed to detect feed type") and raw

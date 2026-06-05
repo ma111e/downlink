@@ -173,6 +173,27 @@ func (s *FeedsServer) RefreshFeed(ctx context.Context, req *protos.RefreshFeedRe
 	return buildRefreshFeedResponse(req.FeedId, feed.Title, fetchResult, nil), nil
 }
 
+// InspectFeed probes a feed URL (read-only, pre-registration) and returns its
+// diagnosis plus sample article links for building a feed config.
+func (s *FeedsServer) InspectFeed(_ context.Context, req *protos.InspectFeedRequest) (*protos.InspectFeedResponse, error) {
+	log.WithField("url", req.Url).Info("Inspecting feed URL")
+	insp := manager.Manager.InspectFeedURL(req.Url, req.Headers, int(req.MaxLinks))
+	return &protos.InspectFeedResponse{
+		Diagnosis:     mappers.FeedDiagnosisToProto(insp.Diagnosis),
+		SampleLinks:   insp.SampleLinks,
+		DetectedTitle: insp.Title,
+	}, nil
+}
+
+// InspectArticle scrapes a single article URL in the requested mode and, when
+// selectors are supplied, returns the extracted content for selector testing.
+func (s *FeedsServer) InspectArticle(_ context.Context, req *protos.InspectArticleRequest) (*protos.InspectArticleResponse, error) {
+	log.WithFields(log.Fields{"url": req.Url, "mode": req.Mode}).Info("Inspecting article URL")
+	sel := mappers.SelectorsToModel(req.Selectors)
+	insp := manager.Manager.InspectArticle(req.Url, req.Mode, req.Headers, sel, int(req.HtmlLimit))
+	return mappers.ArticleInspectionToProto(insp), nil
+}
+
 func buildRefreshFeedResponse(feedId, feedTitle string, fr models.FetchResult, fetchErr error) *protos.RefreshFeedResponse {
 	resp := &protos.RefreshFeedResponse{
 		FeedId:       feedId,

@@ -308,6 +308,33 @@ func FeedDiagnosisToProto(d models.FeedDiagnosis) *protos.FeedDiagnosis {
 	}
 }
 
+// SelectorsToModel converts a protobuf Selectors to its model form (nil-safe).
+func SelectorsToModel(s *protos.Selectors) *models.Selectors {
+	if s == nil {
+		return nil
+	}
+	return &models.Selectors{
+		Article:   s.Article,
+		Cutoff:    s.Cutoff,
+		Blacklist: s.Blacklist,
+	}
+}
+
+// ArticleInspectionToProto converts an article inspection result to its protobuf
+// response form.
+func ArticleInspectionToProto(a models.ArticleInspection) *protos.InspectArticleResponse {
+	return &protos.InspectArticleResponse{
+		ModeUsed:        a.ModeUsed,
+		RawHtmlLen:      int32(a.RawHTMLLen),
+		Html:            a.HTML,
+		Extracted:       a.Extracted,
+		ExtractedLen:    int32(a.ExtractedLen),
+		SelectorMatched: a.SelectorMatched,
+		Error:           a.Error,
+		DurationMs:      a.DurationMs,
+	}
+}
+
 // FeedDiagnosisToModel converts a protobuf diagnosis back to its model form,
 // decoding the -1 InvalidUtf8At sentinel back to a nil pointer.
 func FeedDiagnosisToModel(d *protos.FeedDiagnosis) *models.FeedDiagnosis {

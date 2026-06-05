@@ -23,9 +23,11 @@ import (
 	"github.com/gocolly/colly/v2"
 )
 
-// AnonymizedScraper wraps a Colly collector and implements anonymization on each request.
+// AnonymizedScraper owns the shared, expensive-to-build scraping state (the reused
+// Playwright browser/context and the User-Agent pool) and applies anonymization to
+// each request. Colly collectors are NOT held here: ScrapeContent builds a fresh,
+// request-scoped collector per call so concurrent scrapes never share mutable state.
 type AnonymizedScraper struct {
-	Collector  *colly.Collector
 	userAgents []string
 	// Playwright related fields
 	pw             *playwright.Playwright
@@ -48,22 +50,9 @@ func newAnonTransport() *http.Transport {
 	}
 }
 
-// NewAnonymizedScraper creates a new instance of AnonymizedScraper for the given domain.
-func NewAnonymizedScraper(domain string) *AnonymizedScraper {
-	// Create a new collector with the allowed domain
-	c := colly.NewCollector(
-		colly.AllowedDomains(domain),
-	)
-
-	// Setup a custom HTTP client with advanced configurations
-	client := &http.Client{
-		Transport: newAnonTransport(),
-		Timeout:   60 * time.Second,
-	}
-	c.SetClient(client)
-
-	scraper := &AnonymizedScraper{
-		Collector: c,
+// NewAnonymizedScraper creates a new AnonymizedScraper.
+func NewAnonymizedScraper() *AnonymizedScraper {
+	return &AnonymizedScraper{
 		userAgents: []string{
 			"Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0",
 			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.3",
@@ -72,10 +61,23 @@ func NewAnonymizedScraper(domain string) *AnonymizedScraper {
 		},
 		playwrightInit: false,
 	}
+}
 
-	// Attach the anonymization logic to every request
+// newCollector builds a fresh colly collector for a single ScrapeContent call. Each
+// call gets its own collector — and thus its own visited-set, handler list, and HTTP
+// client — so repeated and concurrent scrapes can neither dedup-skip each other nor
+// race on shared callbacks. No AllowedDomains is set: like the HTTPClient path, a
+// one-shot caller-driven fetch should follow redirects across hosts.
+func (s *AnonymizedScraper) newCollector() *colly.Collector {
+	c := colly.NewCollector()
+	c.SetClient(&http.Client{
+		Transport: newAnonTransport(),
+		Timeout:   60 * time.Second,
+	})
+
+	// Apply the anon profile to every request.
 	c.OnRequest(func(r *colly.Request) {
-		scraper.anonymizeRequest(r)
+		s.anonymizeRequest(r)
 	})
 
 	// Overlay per-request custom headers (carried in colly.Context) after the
@@ -88,7 +90,7 @@ func NewAnonymizedScraper(domain string) *AnonymizedScraper {
 		}
 	})
 
-	return scraper
+	return c
 }
 
 // HTTPClient returns an *http.Client that carries this scraper's anon profile
@@ -203,19 +205,21 @@ func (s *AnonymizedScraper) anonymizeRequest(r *colly.Request) {
 // content block. Custom headers, when provided, are carried via colly.Context and
 // overlaid after the anon profile so they take precedence (custom headers win).
 func (s *AnonymizedScraper) ScrapeContent(url string, headers map[string]string) (dom *goquery.Selection, err error) {
-	// Process the HTML content once the body is received
-	s.Collector.OnHTML("body", func(e *colly.HTMLElement) {
+	// A fresh collector per call: the OnHTML handler and resulting dom are scoped to
+	// this invocation, so concurrent scrapes never overwrite each other's result.
+	c := s.newCollector()
+	c.OnHTML("body", func(e *colly.HTMLElement) {
 		dom = e.DOM
 	})
 
 	// Carry custom headers out-of-band so the overlay handler can apply them after
-	// anonymizeRequest. Same GET/redirect/allow-list semantics as Visit.
+	// anonymizeRequest.
 	ctx := colly.NewContext()
 	if len(headers) > 0 {
 		ctx.Put(customHeadersKey, headers)
 	}
 
-	if err := s.Collector.Request(http.MethodGet, url, nil, ctx, nil); err != nil {
+	if err := c.Request(http.MethodGet, url, nil, ctx, nil); err != nil {
 		log.Printf("Failed to visit %s: %v", url, err)
 		return nil, err
 	}
