@@ -90,3 +90,26 @@ type FetchResult struct {
 	Errors           []string
 	StoredArticleIDs []string // IDs of articles successfully stored in this fetch
 }
+
+// FeedDiagnosis is the structured result of inspecting a single feed's raw HTTP
+// response. It captures what actually came back over the wire so the two common
+// failure modes — an unrecognizable body ("Failed to detect feed type") and raw
+// non-UTF-8 bytes ("invalid utf-8 syntax") — can be diagnosed without re-running
+// the server at trace log level.
+type FeedDiagnosis struct {
+	URL             string `json:"url"`
+	FinalURL        string `json:"final_url"`         // after redirects
+	HTTPStatus      int    `json:"http_status"`       // 0 when the request never completed
+	ContentType     string `json:"content_type"`      // raw Content-Type header
+	ContentLength   int    `json:"content_length"`    // bytes actually read
+	FeedTypeGuess   string `json:"feed_type_guess"`   // rss | atom | json-feed | html | empty | unknown
+	DeclaredCharset string `json:"declared_charset"`  // from XML prolog or Content-Type, when present
+	ItemCount       int    `json:"item_count"`        // parsed items when the feed is valid
+	ParseError      string `json:"parse_error"`       // gofeed parse error, empty when valid
+	InvalidUTF8At   *int   `json:"invalid_utf8_at"`   // byte offset of first invalid UTF-8 byte, nil when valid
+	Verdict         string `json:"verdict"`           // one-line human summary
+	BodySnippet     string `json:"body_snippet"`      // first printable bytes of the body
+	HexDump         string `json:"hex_dump"`          // bytes around InvalidUTF8At, when relevant
+	RawBodyPath     string `json:"raw_body_path"`     // on-disk path to the saved raw body
+	FetchDurationMs int64  `json:"fetch_duration_ms"` // wall time of the fetch
+}

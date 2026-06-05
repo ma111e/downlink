@@ -281,3 +281,59 @@ func FeedResultToModel(result *protos.FeedResult) (*models.FeedResult, error) {
 
 	return modelResult, nil
 }
+
+// FeedDiagnosisToProto converts a diagnosis model to its protobuf form. The model's
+// optional InvalidUTF8At pointer is encoded as -1 (proto has no optional int).
+func FeedDiagnosisToProto(d models.FeedDiagnosis) *protos.FeedDiagnosis {
+	invalidAt := int32(-1)
+	if d.InvalidUTF8At != nil {
+		invalidAt = int32(*d.InvalidUTF8At)
+	}
+	return &protos.FeedDiagnosis{
+		Url:             d.URL,
+		FinalUrl:        d.FinalURL,
+		HttpStatus:      int32(d.HTTPStatus),
+		ContentType:     d.ContentType,
+		ContentLength:   int32(d.ContentLength),
+		FeedTypeGuess:   d.FeedTypeGuess,
+		DeclaredCharset: d.DeclaredCharset,
+		ItemCount:       int32(d.ItemCount),
+		ParseError:      d.ParseError,
+		InvalidUtf8At:   invalidAt,
+		Verdict:         d.Verdict,
+		BodySnippet:     d.BodySnippet,
+		HexDump:         d.HexDump,
+		RawBodyPath:     d.RawBodyPath,
+		FetchDurationMs: d.FetchDurationMs,
+	}
+}
+
+// FeedDiagnosisToModel converts a protobuf diagnosis back to its model form,
+// decoding the -1 InvalidUtf8At sentinel back to a nil pointer.
+func FeedDiagnosisToModel(d *protos.FeedDiagnosis) *models.FeedDiagnosis {
+	if d == nil {
+		return nil
+	}
+	var invalidAt *int
+	if d.InvalidUtf8At >= 0 {
+		v := int(d.InvalidUtf8At)
+		invalidAt = &v
+	}
+	return &models.FeedDiagnosis{
+		URL:             d.Url,
+		FinalURL:        d.FinalUrl,
+		HTTPStatus:      int(d.HttpStatus),
+		ContentType:     d.ContentType,
+		ContentLength:   int(d.ContentLength),
+		FeedTypeGuess:   d.FeedTypeGuess,
+		DeclaredCharset: d.DeclaredCharset,
+		ItemCount:       int(d.ItemCount),
+		ParseError:      d.ParseError,
+		InvalidUTF8At:   invalidAt,
+		Verdict:         d.Verdict,
+		BodySnippet:     d.BodySnippet,
+		HexDump:         d.HexDump,
+		RawBodyPath:     d.RawBodyPath,
+		FetchDurationMs: d.FetchDurationMs,
+	}
+}

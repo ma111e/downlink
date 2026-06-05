@@ -154,3 +154,18 @@ func (pc *DownlinkClient) RefreshFeedWithTimeWindow(feedId string, from *time.Ti
 
 	return pc.feedsClient.RefreshFeed(pc.ctx, req)
 }
+
+// DiagnoseFeed runs a read-only diagnosis of a single feed: the server fetches and
+// parses the feed but stores nothing, returning a structured report of what came
+// back over the wire (HTTP status, content type, feed-type guess, parse error,
+// UTF-8 problems, and the on-disk path to the saved raw body).
+func (pc *DownlinkClient) DiagnoseFeed(feedId string) (*protos.FeedDiagnosis, error) {
+	resp, err := pc.feedsClient.RefreshFeed(pc.ctx, &protos.RefreshFeedRequest{
+		FeedId:   feedId,
+		Diagnose: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Diagnosis, nil
+}

@@ -223,6 +223,35 @@ func Content(articleID, rawURL, reason, content string) {
 	}
 }
 
+// SaveDiagnostic writes a raw feed body to disk regardless of whether tracing is
+// enabled, and returns the absolute path it wrote (empty on failure). It backs the
+// on-demand `feeds diagnose` command and the parse-failure breadcrumb: those need
+// the offending bytes even when the server is not running at trace log level.
+//
+// When tracing is on the file lands under the active trace dir's fetch/ folder so
+// it sits alongside the rest of the run; otherwise it goes to a stable, lazily
+// created os.TempDir()/downlink-diagnose folder. Like every other writer here it
+// never returns an error to its caller.
+func SaveDiagnostic(host string, status int, contentType string, body []byte) string {
+	var dir string
+	if enabled && baseDir != "" {
+		dir = filepath.Join(baseDir, "fetch")
+	} else {
+		dir = filepath.Join(os.TempDir(), "downlink-diagnose")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		log.WithError(err).WithField("dir", dir).Warn("trace: failed to create diagnose dir")
+		return ""
+	}
+	name := fmt.Sprintf("%s-%s-%d%s", prefix(), sanitize(host), status, extForContentType(contentType))
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, body, 0o644); err != nil {
+		log.WithError(err).WithField("path", path).Warn("trace: failed to write diagnose file")
+		return ""
+	}
+	return path
+}
+
 func extForContentType(ct string) string {
 	ct = strings.ToLower(ct)
 	switch {

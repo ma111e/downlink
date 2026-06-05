@@ -60,6 +60,28 @@ message RefreshFeedResponse {
   int32 stored = 4;
   int32 skipped = 5;
   repeated string errors = 6;
+  FeedDiagnosis diagnosis = 7; // populated only when the request set diagnose=true
+}
+
+// FeedDiagnosis is the structured result of inspecting a feed's raw HTTP response,
+// returned by RefreshFeed when diagnose=true. It surfaces what actually came back
+// over the wire so feed parse failures can be debugged without trace-level logging.
+message FeedDiagnosis {
+  string url = 1;
+  string final_url = 2;          // after redirects
+  int32 http_status = 3;         // 0 when the request never completed
+  string content_type = 4;
+  int32 content_length = 5;      // bytes read
+  string feed_type_guess = 6;    // rss | atom | json-feed | html | empty | unknown
+  string declared_charset = 7;   // from XML prolog or Content-Type, when present
+  int32 item_count = 8;          // parsed items when the feed is valid
+  string parse_error = 9;        // gofeed parse error, empty when valid
+  int32 invalid_utf8_at = 10;    // byte offset of first invalid UTF-8 byte; -1 when valid
+  string verdict = 11;           // one-line human summary
+  string body_snippet = 12;      // first printable bytes of the body
+  string hex_dump = 13;          // bytes around invalid_utf8_at, when relevant
+  string raw_body_path = 14;     // on-disk path to the saved raw body
+  int64 fetch_duration_ms = 15;
 }
 
 enum RefreshEventType {
@@ -83,6 +105,7 @@ message RefreshFeedRequest {
   bool overwrite = 4;                 // Optional: overwrite existing articles
   bool restore = 5;                   // Optional: overwrite only articles with no content
   int32 last_n = 6;                   // Optional: keep only the N most-recently-published articles
+  bool diagnose = 7;                  // Optional: read-only diagnose (fetch+parse only, no storage), returns diagnosis
 }
 
 // DeleteFeedRequest is the request for the DeleteFeed method

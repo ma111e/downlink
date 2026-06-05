@@ -303,6 +303,18 @@ func (m *FeedManager) RefreshFeed(id string) (models.FetchResult, error) {
 	return m.FetchFeed(feed, nil, nil, false, false, 0)
 }
 
+// DiagnoseFeed fetches a feed's raw HTTP response and returns a structured
+// diagnosis of what came back. It is read-only: nothing is stored and the feed's
+// last-fetch time is left untouched. This backs the `feeds diagnose` command.
+func (m *FeedManager) DiagnoseFeed(id string) (models.FeedDiagnosis, error) {
+	feed, err := m.GetFeed(id)
+	if err != nil {
+		return models.FeedDiagnosis{}, err
+	}
+	headers := scrapers.HeadersFromParams(feed.Scraper)
+	return scrapers.DiagnoseFeedURL(feed.URL, headers), nil
+}
+
 // RefreshFeedWithTimeWindow refreshes a feed by Id with optional time window filtering
 // from and to can be nil to disable filtering
 func (m *FeedManager) RefreshFeedWithTimeWindow(id string, from *time.Time, to *time.Time, overwrite bool, restore bool, lastN int) (models.FetchResult, error) {

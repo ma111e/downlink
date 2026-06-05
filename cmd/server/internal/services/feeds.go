@@ -122,6 +122,23 @@ func (s *FeedsServer) RefreshAllFeeds(req *protos.RefreshAllFeedsRequest, stream
 }
 
 func (s *FeedsServer) RefreshFeed(ctx context.Context, req *protos.RefreshFeedRequest) (*protos.RefreshFeedResponse, error) {
+	// Diagnose mode is read-only: fetch and parse the feed, report what came back,
+	// and store nothing (no articles, no last-fetch bump).
+	if req.Diagnose {
+		log.WithField("feed_id", req.FeedId).Info("Diagnosing feed")
+		diag, err := manager.Manager.DiagnoseFeed(req.FeedId)
+		if err != nil {
+			log.WithError(err).WithField("feed_id", req.FeedId).Error("Failed to diagnose feed")
+			return nil, err
+		}
+		feed, _ := manager.Manager.GetFeed(req.FeedId)
+		return &protos.RefreshFeedResponse{
+			FeedId:    req.FeedId,
+			FeedTitle: feed.Title,
+			Diagnosis: mappers.FeedDiagnosisToProto(diag),
+		}, nil
+	}
+
 	logFields := log.Fields{"feed_id": req.FeedId}
 
 	// Convert proto timestamps to Go time.Time pointers

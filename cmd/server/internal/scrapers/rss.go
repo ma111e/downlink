@@ -1,7 +1,7 @@
 package scrapers
 
 import (
-	"context"
+	"bytes"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ma111e/downlink/pkg/models"
+	"github.com/ma111e/downlink/pkg/trace"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/mmcdole/gofeed"
@@ -41,17 +42,23 @@ func NewRSSFeedScraper(configSelectors *models.Selectors) *RSSFeedScraper {
 func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.FeedItem, error) {
 	log.WithField("url", url).Debug("Fetching RSS feed")
 
-	// Parse the feed through the anon HTTP client. Any per-feed custom headers are
-	// carried via the request context so the transport overlays them after the anon
-	// profile (custom headers win).
-	var feed *gofeed.Feed
-	var err error
-	if headers := HeadersFromParams(params); len(headers) > 0 {
-		feed, err = s.parser.ParseURLWithContext(url, contextWithHeaders(context.Background(), headers))
-	} else {
-		feed, err = s.parser.ParseURL(url)
-	}
+	// Fetch the raw body first, then parse it. Splitting fetch from parse (rather
+	// than calling gofeed's ParseURL, which discards the body on failure) keeps the
+	// exact bytes that caused a parse error so they can be saved and inspected. Any
+	// per-feed custom headers are overlaid after the anon profile (custom win).
+	raw, err := FetchRaw(url, HeadersFromParams(params))
 	if err != nil {
+		return nil, fmt.Errorf("failed to fetch feed: %w", err)
+	}
+
+	feed, err := s.parser.Parse(bytes.NewReader(raw.Body))
+	if err != nil {
+		// Save the raw body so the offending bytes stay inspectable even when the
+		// server is not running at trace log level, and point the error at it. This
+		// is the always-on breadcrumb behind the `feeds diagnose` command.
+		if path := trace.SaveDiagnostic(hostOf(url), raw.Status, raw.ContentType, raw.Body); path != "" {
+			return nil, fmt.Errorf("failed to parse feed: %w (raw body saved to %s)", err, path)
+		}
 		return nil, fmt.Errorf("failed to parse feed: %w", err)
 	}
 

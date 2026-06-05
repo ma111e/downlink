@@ -228,6 +228,9 @@ var (
 	// export flags
 	exportOutput      string
 	exportEnabledOnly bool
+
+	// diagnose flags
+	diagnoseRaw bool
 )
 
 // Feed commands
@@ -758,8 +761,143 @@ matching the title. Deleting a feed also removes its articles.`,
 	exportCmd.Flags().StringVarP(&exportOutput, "output", "o", "", "Write to file instead of stdout (\"-\" for stdout)")
 	exportCmd.Flags().BoolVar(&exportEnabledOnly, "enabled-only", false, "Only export enabled feeds")
 
-	cmd.AddCommand(listCmd, addCmd, refreshCmd, applyCmd, deleteCmd, exportCmd)
+	// Diagnose feed command
+	diagnoseCmd := &cobra.Command{
+		Use:   "diagnose [feed-id-or-name]",
+		Short: "Diagnose why a feed fails to fetch or parse",
+		Long: `Fetch a single feed and report what actually came back over the wire.
+
+This is a read-only probe: it stores no articles and does not update the feed's
+last-fetch time. Use it to debug feeds that error during "feeds refresh all" with
+messages like "Failed to detect feed type" or "invalid utf-8 syntax".
+
+It reports the HTTP status, content type, a guess at what the body is (RSS / Atom /
+JSON feed / HTML / empty), any parse error, the exact byte offset of invalid UTF-8
+(with a hex dump), and the on-disk path to the saved raw body.
+
+Examples:
+  downlink-cli feeds diagnose "HYAS Blog"
+  downlink-cli feeds diagnose hyas-blog --raw   # also print the saved raw body path/bytes`,
+		Args: cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			client := getNewDownlinkClient()
+
+			feed, feeds, err := findFeedByIDOrNormalizedName(client, args[0])
+			if err != nil && feeds == nil {
+				fmt.Printf("Failed to list feeds: %v\n", err)
+				return
+			}
+			if err != nil {
+				fmt.Println(err)
+				printAvailableFeeds(feeds)
+				return
+			}
+
+			diag, err := client.DiagnoseFeed(feed.Id)
+			if err != nil {
+				fmt.Printf("%s Diagnose failed: %v\n", styleErr.Render("✗"), err)
+				return
+			}
+			if diag == nil {
+				fmt.Println("No diagnosis returned by server.")
+				return
+			}
+
+			if jsonOutput {
+				out, err := json.MarshalIndent(diag, "", "  ")
+				if err != nil {
+					fmt.Printf("Error marshalling to JSON: %v\n", err)
+					return
+				}
+				fmt.Println(string(out))
+				return
+			}
+
+			printDiagnosis(feed.Title, diag, diagnoseRaw)
+		},
+	}
+	diagnoseCmd.Flags().BoolVar(&diagnoseRaw, "raw", false, "Also print the saved raw body path and a preview")
+
+	cmd.AddCommand(listCmd, addCmd, refreshCmd, applyCmd, deleteCmd, exportCmd, diagnoseCmd)
 	return cmd
+}
+
+// printDiagnosis renders a FeedDiagnosis as a human-readable verdict block.
+func printDiagnosis(title string, d *protos.FeedDiagnosis, showRaw bool) {
+	// The verdict is the headline: green when the feed is valid, red/amber otherwise.
+	verdictStyle := styleErr
+	switch {
+	case d.ParseError == "" && d.HttpStatus < 400 && d.FeedTypeGuess != "html" && d.FeedTypeGuess != "empty":
+		verdictStyle = styleOK
+	case d.FeedTypeGuess == "html", d.FeedTypeGuess == "empty":
+		verdictStyle = styleWarn
+	}
+
+	fmt.Printf("\n%s %s\n", styleBold.Render("Diagnosis:"), title)
+	fmt.Printf("  %s %s\n", styleKey.Render("Verdict "), verdictStyle.Render(d.Verdict))
+
+	row := func(k, v string) {
+		if v == "" {
+			return
+		}
+		fmt.Printf("  %s %s\n", styleKey.Render(k), v)
+	}
+	row("URL     ", d.Url)
+	if d.FinalUrl != "" && d.FinalUrl != d.Url {
+		row("Final   ", d.FinalUrl+styleDim.Render("  (redirected)"))
+	}
+	status := fmt.Sprintf("%d", d.HttpStatus)
+	if d.HttpStatus == 0 {
+		status = styleDim.Render("(no response)")
+	}
+	row("HTTP    ", status)
+	row("Type    ", fmt.Sprintf("%s  %s", d.ContentType, styleDim.Render(fmt.Sprintf("(looks like: %s)", d.FeedTypeGuess))))
+	row("Size    ", fmt.Sprintf("%d bytes  %s", d.ContentLength, styleDim.Render(fmt.Sprintf("in %dms", d.FetchDurationMs))))
+	if d.DeclaredCharset != "" {
+		row("Charset ", d.DeclaredCharset)
+	}
+	if d.ItemCount > 0 {
+		row("Items   ", fmt.Sprintf("%d", d.ItemCount))
+	}
+	if d.ParseError != "" {
+		row("Parse   ", styleErr.Render(d.ParseError))
+	}
+	if d.InvalidUtf8At >= 0 {
+		row("UTF-8   ", styleErr.Render(fmt.Sprintf("first invalid byte at offset %d", d.InvalidUtf8At)))
+		if d.HexDump != "" {
+			fmt.Printf("%s\n", styleDim.Render(indent(d.HexDump, "    ")))
+		}
+	}
+	if d.BodySnippet != "" {
+		row("Body    ", styleDim.Render(truncate(d.BodySnippet, 120)))
+	}
+	if d.RawBodyPath != "" {
+		row("Raw body", d.RawBodyPath)
+		if showRaw {
+			if data, err := os.ReadFile(d.RawBodyPath); err == nil {
+				fmt.Printf("\n%s\n", styleSection.Render("── raw body preview ──"))
+				fmt.Println(string(truncateBytes(data, 2000)))
+			}
+		}
+	}
+	fmt.Println()
+}
+
+// indent prefixes every line of s with pad.
+func indent(s, pad string) string {
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = pad + l
+	}
+	return strings.Join(lines, "\n")
+}
+
+// truncateBytes returns the first n bytes of b, appending a notice when cut.
+func truncateBytes(b []byte, n int) []byte {
+	if len(b) <= n {
+		return b
+	}
+	return append(b[:n:n], []byte("\n… (truncated)")...)
 }
 
 // loadFeedsFile reads and parses a feeds YAML file (same format as feeds.yml).
