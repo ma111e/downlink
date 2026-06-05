@@ -44,7 +44,7 @@ func parseHeaders(raw []string) (map[string]string, error) {
 // to a working, selector-complete feed configuration.
 func createFeedBuildCommands() []*cobra.Command {
 	return []*cobra.Command{
-		newGenerateCmd(),
+		newInspectCmd(),
 		newFetchArticleCmd(),
 		newTestSelectorCmd(),
 		newProbeModesCmd(),
@@ -52,15 +52,15 @@ func createFeedBuildCommands() []*cobra.Command {
 	}
 }
 
-// ── generate ──────────────────────────────────────────────────────────────────
+// ── inspect ───────────────────────────────────────────────────────────────────
 
-func newGenerateCmd() *cobra.Command {
+func newInspectCmd() *cobra.Command {
 	var headerFlags []string
 	cmd := &cobra.Command{
-		Use:   "generate <rss-url>",
-		Short: "Scaffold a feed config from an RSS/Atom URL",
-		Long: `Fetch and inspect a feed URL, then print a starter feed configuration plus the
-sample article links to use when finding the article selector.
+		Use:   "inspect <rss-url>",
+		Short: "Inspect a feed URL and scaffold a starter config",
+		Long: `Fetch and inspect a feed URL, then print what came back — diagnosis, sample
+article links, and a starter feed configuration to build on.
 
 This is the entry point for building a feed config. It does not register or write
 anything — it prints YAML you refine (typically via the feed-config-builder skill)

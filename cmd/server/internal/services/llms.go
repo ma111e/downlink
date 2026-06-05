@@ -307,7 +307,7 @@ Category — choose exactly ONE of these values (lowercase, no other value allow
 - advisory: vendor/CERT advisory, patch, or coordinated disclosure
 - opinion: commentary, trend piece, or best-practice perspective
 - guide: tutorial, how-to, or educational material
-- commercial: product marketing or vendor promotion of a commercial offering
+- commercial: product marketing or vendor promotion of a commercial offering (use only when the article's primary purpose is promotion; ignore trailing self-promotional sections in otherwise substantive articles)
 - sponsored: sponsored, promoted, advertorial, or paid-placement content
 - announcement: company/product release, launch, or PR announcement, or notice of an organized or upcoming event (conference, webinar, CTF, etc.)
 If unsure, use "news".

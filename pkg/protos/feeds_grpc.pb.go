@@ -26,6 +26,7 @@ const (
 	FeedsService_RefreshFeed_FullMethodName     = "/downlink.FeedsService/RefreshFeed"
 	FeedsService_InspectFeed_FullMethodName     = "/downlink.FeedsService/InspectFeed"
 	FeedsService_InspectArticle_FullMethodName  = "/downlink.FeedsService/InspectArticle"
+	FeedsService_AutoBuildFeed_FullMethodName   = "/downlink.FeedsService/AutoBuildFeed"
 	FeedsService_DeleteFeed_FullMethodName      = "/downlink.FeedsService/DeleteFeed"
 	FeedsService_ApplyFeeds_FullMethodName      = "/downlink.FeedsService/ApplyFeeds"
 	FeedsService_DeleteFeeds_FullMethodName     = "/downlink.FeedsService/DeleteFeeds"
@@ -51,6 +52,9 @@ type FeedsServiceClient interface {
 	// InspectArticle scrapes a single article URL in a given mode and, when
 	// selectors are supplied, returns the extracted content for selector testing.
 	InspectArticle(ctx context.Context, in *InspectArticleRequest, opts ...grpc.CallOption) (*InspectArticleResponse, error)
+	// AutoBuildFeed runs the server-side LLM agent that discovers a feed's selectors,
+	// scraping mode, and headers on its own, streaming progress then the final config.
+	AutoBuildFeed(ctx context.Context, in *AutoBuildFeedRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AutoBuildFeedEvent], error)
 	// DeleteFeed removes a feed from both the models and the database
 	DeleteFeed(ctx context.Context, in *DeleteFeedRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// ApplyFeeds reconciles the database to match the desired set of feeds:
@@ -137,6 +141,25 @@ func (c *feedsServiceClient) InspectArticle(ctx context.Context, in *InspectArti
 	return out, nil
 }
 
+func (c *feedsServiceClient) AutoBuildFeed(ctx context.Context, in *AutoBuildFeedRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AutoBuildFeedEvent], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &FeedsService_ServiceDesc.Streams[1], FeedsService_AutoBuildFeed_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[AutoBuildFeedRequest, AutoBuildFeedEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type FeedsService_AutoBuildFeedClient = grpc.ServerStreamingClient[AutoBuildFeedEvent]
+
 func (c *feedsServiceClient) DeleteFeed(ctx context.Context, in *DeleteFeedRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
@@ -187,6 +210,9 @@ type FeedsServiceServer interface {
 	// InspectArticle scrapes a single article URL in a given mode and, when
 	// selectors are supplied, returns the extracted content for selector testing.
 	InspectArticle(context.Context, *InspectArticleRequest) (*InspectArticleResponse, error)
+	// AutoBuildFeed runs the server-side LLM agent that discovers a feed's selectors,
+	// scraping mode, and headers on its own, streaming progress then the final config.
+	AutoBuildFeed(*AutoBuildFeedRequest, grpc.ServerStreamingServer[AutoBuildFeedEvent]) error
 	// DeleteFeed removes a feed from both the models and the database
 	DeleteFeed(context.Context, *DeleteFeedRequest) (*emptypb.Empty, error)
 	// ApplyFeeds reconciles the database to match the desired set of feeds:
@@ -221,6 +247,9 @@ func (UnimplementedFeedsServiceServer) InspectFeed(context.Context, *InspectFeed
 }
 func (UnimplementedFeedsServiceServer) InspectArticle(context.Context, *InspectArticleRequest) (*InspectArticleResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InspectArticle not implemented")
+}
+func (UnimplementedFeedsServiceServer) AutoBuildFeed(*AutoBuildFeedRequest, grpc.ServerStreamingServer[AutoBuildFeedEvent]) error {
+	return status.Error(codes.Unimplemented, "method AutoBuildFeed not implemented")
 }
 func (UnimplementedFeedsServiceServer) DeleteFeed(context.Context, *DeleteFeedRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteFeed not implemented")
@@ -353,6 +382,17 @@ func _FeedsService_InspectArticle_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FeedsService_AutoBuildFeed_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(AutoBuildFeedRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(FeedsServiceServer).AutoBuildFeed(m, &grpc.GenericServerStream[AutoBuildFeedRequest, AutoBuildFeedEvent]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type FeedsService_AutoBuildFeedServer = grpc.ServerStreamingServer[AutoBuildFeedEvent]
+
 func _FeedsService_DeleteFeed_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteFeedRequest)
 	if err := dec(in); err != nil {
@@ -451,6 +491,11 @@ var FeedsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "RefreshAllFeeds",
 			Handler:       _FeedsService_RefreshAllFeeds_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "AutoBuildFeed",
+			Handler:       _FeedsService_AutoBuildFeed_Handler,
 			ServerStreams: true,
 		},
 	},

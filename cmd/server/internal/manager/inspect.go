@@ -72,6 +72,27 @@ func (m *FeedManager) InspectArticle(rawURL, mode string, headers map[string]str
 	return insp
 }
 
+// SuggestSelectors scrapes an article page in the given mode and returns ranked
+// candidate article-content selectors (by text length, penalized by link density).
+// Read-only; backs the autobuild agent's selector discovery.
+func (m *FeedManager) SuggestSelectors(rawURL, mode string, headers map[string]string, max int) ([]models.SelectorCandidate, error) {
+	dom, err := m.scrapeArticleDOM(rawURL, mode, headers)
+	if err != nil {
+		return nil, err
+	}
+	ranked := scrapers.SuggestSelectors(dom, max)
+	out := make([]models.SelectorCandidate, len(ranked))
+	for i, c := range ranked {
+		out[i] = models.SelectorCandidate{
+			Selector:    c.Selector,
+			Chars:       c.Chars,
+			LinkDensity: c.LinkDensity,
+			Snippet:     c.Snippet,
+		}
+	}
+	return out, nil
+}
+
 // scrapeArticleDOM fetches an article page in the given mode and returns its DOM.
 // It centralizes the static/dynamic/full_browser dispatch so both FetchFeed-style
 // scraping and the inspect path share one definition of each mode.

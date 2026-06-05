@@ -91,6 +91,15 @@ type FetchResult struct {
 	StoredArticleIDs []string // IDs of articles successfully stored in this fetch
 }
 
+// SelectorCandidate is a ranked guess at the CSS selector wrapping an article body,
+// produced by inspecting a scraped page. Mirrors scrapers.SelectorCandidate.
+type SelectorCandidate struct {
+	Selector    string  `json:"selector"`
+	Chars       int     `json:"chars"`
+	LinkDensity float64 `json:"link_density"`
+	Snippet     string  `json:"snippet"`
+}
+
 // ArticleInspection is the result of scraping a single article URL in a given
 // mode, used by the feed-config builder to inspect page HTML and test selectors.
 type ArticleInspection struct {
