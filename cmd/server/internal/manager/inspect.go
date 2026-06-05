@@ -103,7 +103,7 @@ func (m *FeedManager) scrapeArticleDOM(rawURL, mode string, headers map[string]s
 	case "static":
 		return anon.ScrapeContent(rawURL, headers)
 	case "dynamic":
-		return anon.ScrapeContentWithPlaywright(rawURL, headers)
+		return anon.ScrapeContentDynamic(rawURL, headers)
 	case "full_browser":
 		if m.solimenAddr == "" {
 			return nil, fmt.Errorf("full_browser mode requires a configured solimen address")

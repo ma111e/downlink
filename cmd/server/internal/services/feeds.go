@@ -198,12 +198,13 @@ func (s *FeedsServer) InspectArticle(_ context.Context, req *protos.InspectArtic
 	return mappers.ArticleInspectionToProto(insp), nil
 }
 
-// AutoBuildFeed runs the autonomous LLM agent that discovers a feed's selectors,
-// scraping mode, and headers, streaming each step then the final config.
-func (s *FeedsServer) AutoBuildFeed(req *protos.AutoBuildFeedRequest, stream protos.FeedsService_AutoBuildFeedServer) error {
+// AutoConfigFeed runs the autonomous LLM agent that discovers a feed's selectors
+// (after probing and locking the scraping mode + headers), streaming each step then
+// the final config.
+func (s *FeedsServer) AutoConfigFeed(req *protos.AutoConfigFeedRequest, stream protos.FeedsService_AutoConfigFeedServer) error {
 	ctx := stream.Context()
 	if s.gw == nil {
-		return fmt.Errorf("autobuild unavailable: no LLM gateway configured")
+		return fmt.Errorf("autoconfig unavailable: no LLM gateway configured")
 	}
 	if strings.TrimSpace(req.Url) == "" {
 		return fmt.Errorf("url is required")
@@ -211,13 +212,13 @@ func (s *FeedsServer) AutoBuildFeed(req *protos.AutoBuildFeedRequest, stream pro
 
 	resolved, err := ResolveLLM(LLMRequest{Provider: req.Provider, ModelName: req.Model, MaxTokens: defaultMaxTokensLarge})
 	if err != nil {
-		_ = stream.Send(&protos.AutoBuildFeedEvent{Kind: protos.AutoBuildEventKind_ERROR, Detail: err.Error()})
+		_ = stream.Send(&protos.AutoConfigFeedEvent{Kind: protos.AutoConfigEventKind_ERROR, Detail: err.Error()})
 		return err
 	}
-	log.WithFields(log.Fields{"url": req.Url, "model": resolved.ModelName}).Info("AutoBuildFeed: starting agent")
+	log.WithFields(log.Fields{"url": req.Url, "model": resolved.ModelName}).Info("AutoConfigFeed: starting agent")
 
 	gen := func(ctx context.Context, prompt string) (string, error) {
-		return s.gw.Generate(ctx, resolved.Provider, prompt, llmgateway.WithLabel("feed_autobuild"))
+		return s.gw.Generate(ctx, resolved.Provider, prompt, llmgateway.WithLabel("feed_autoconfig"))
 	}
 
 	feedType := "rss"
@@ -225,23 +226,23 @@ func (s *FeedsServer) AutoBuildFeed(req *protos.AutoBuildFeedRequest, stream pro
 		feedType = "atom"
 	}
 
-	onStep := func(st autobuildStep) {
-		_ = stream.Send(&protos.AutoBuildFeedEvent{
-			Kind:   protos.AutoBuildEventKind_STEP,
+	onStep := func(st autoconfigStep) {
+		_ = stream.Send(&protos.AutoConfigFeedEvent{
+			Kind:   protos.AutoConfigEventKind_STEP,
 			Step:   int32(st.N),
 			Tool:   st.Tool,
 			Detail: st.Detail,
 		})
 	}
 
-	res, err := runAutoBuild(ctx, gen, managerTools{}, req.Url, feedType, int(req.MaxSteps), onStep)
+	res, err := runAutoConfig(ctx, gen, managerTools{}, req.Url, feedType, req.Headers, int(req.MaxSteps), onStep)
 	if err != nil {
-		_ = stream.Send(&protos.AutoBuildFeedEvent{Kind: protos.AutoBuildEventKind_ERROR, Detail: err.Error()})
+		_ = stream.Send(&protos.AutoConfigFeedEvent{Kind: protos.AutoConfigEventKind_ERROR, Detail: err.Error()})
 		return err
 	}
 
-	return stream.Send(&protos.AutoBuildFeedEvent{
-		Kind:           protos.AutoBuildEventKind_DONE,
+	return stream.Send(&protos.AutoConfigFeedEvent{
+		Kind:           protos.AutoConfigEventKind_DONE,
 		FeedConfigYaml: res.ConfigYAML,
 		Summary:        res.Summary,
 		Confidence:     res.Confidence,

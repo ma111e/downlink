@@ -132,8 +132,8 @@ func (s *RSSFeedScraper) ScrapeContent(url string, params map[string]any) (strin
 		log.WithFields(log.Fields{
 			"url":    url,
 			"method": "dynamic",
-		}).Debug("Using dynamic scraping (Playwright)")
-		dom, err = anonymizedScraper.ScrapeContentWithPlaywright(url, headers)
+		}).Debug("Using dynamic scraping (Lightpanda via CDP)")
+		dom, err = anonymizedScraper.ScrapeContentDynamic(url, headers)
 	} else {
 		log.WithFields(log.Fields{
 			"url":    url,

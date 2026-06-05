@@ -179,11 +179,11 @@ func (pc *DownlinkClient) InspectArticle(url, mode string, headers map[string]st
 	})
 }
 
-// AutoBuildFeed runs the server-side autonomous agent that discovers a feed's
-// selectors/mode/headers. onEvent is called for each streamed event (STEP updates and
-// the final DONE carrying the config YAML).
-func (pc *DownlinkClient) AutoBuildFeed(req *protos.AutoBuildFeedRequest, onEvent func(ev *protos.AutoBuildFeedEvent)) error {
-	stream, err := pc.feedsClient.AutoBuildFeed(pc.ctx, req)
+// AutoConfigFeed runs the server-side autonomous agent that discovers a feed's
+// selectors (after locking the scraping mode/headers). onEvent is called for each
+// streamed event (STEP updates and the final DONE carrying the config YAML).
+func (pc *DownlinkClient) AutoConfigFeed(req *protos.AutoConfigFeedRequest, onEvent func(ev *protos.AutoConfigFeedEvent)) error {
+	stream, err := pc.feedsClient.AutoConfigFeed(pc.ctx, req)
 	if err != nil {
 		return err
 	}

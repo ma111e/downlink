@@ -7,8 +7,9 @@
 // else the visitor's OS preference. Shared key across digest/archive/swipe pages.
 (function(){
   try {
+    var valid = { dark: 1, light: 1, contrast: 1, mono: 1 };
     var t = localStorage.getItem('downlink.theme');
-    if (t !== 'light' && t !== 'dark') {
+    if (!valid[t]) {
       t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
     }
     document.documentElement.dataset.theme = t;
@@ -63,6 +64,42 @@
     --discard: #cc2538;
     --accept:  #1d8b3d;
     --dot: rgba(0,0,0,.035);
+  }
+  /* Contrast theme: pure black, max-legibility whites, vivid accents. */
+  html[data-theme="contrast"] {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface2: #111111;
+    --border: #2a2a2a;
+    --border2: #3a3a3a;
+    --text: #ffffff;
+    --text2: #c7c7c7;
+    --text3: #888888;
+    --cyan: #00ffd1;
+    --must:   #ff5050;
+    --should: #ffd24a;
+    --may:    #00ffd1;
+    --discard: #ff5050;
+    --accept:  #00ff95;
+    --dot: rgba(255,255,255,.08);
+  }
+  /* Mono theme: grayscale, no chroma. */
+  html[data-theme="mono"] {
+    --bg: #0c0c0c;
+    --surface: #131313;
+    --surface2: #181818;
+    --border: #242424;
+    --border2: #333333;
+    --text: #e6e6e6;
+    --text2: #9a9a9a;
+    --text3: #5e5e5e;
+    --cyan: #e6e6e6;
+    --must:   #f0f0f0;
+    --should: #c8c8c8;
+    --may:    #9a9a9a;
+    --discard: #cfcfcf;
+    --accept:  #cfcfcf;
+    --dot: rgba(255,255,255,.04);
   }
   html {
     background: var(--bg);
@@ -323,17 +360,18 @@ function AnalysisTabs({ article }) {
 
 function Nav({ index, total }) {
   const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
-  const [theme, setTheme] = React.useState(() => document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+  const [theme, setTheme] = React.useState(() => document.documentElement.dataset.theme || 'dark');
   React.useEffect(() => {
     const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
     return () => clearInterval(iv);
   }, []);
-  const toggleTheme = () => {
-    const next = theme === 'light' ? 'dark' : 'light';
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem('downlink.theme', next); } catch(e){}
-    setTheme(next);
+  const applyTheme = (t) => {
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('downlink.theme', t); } catch(e){}
+    setTheme(t);
   };
+  // quick flip between light/dark; the picker covers contrast/mono
+  const toggleTheme = () => applyTheme(theme === 'light' ? 'dark' : 'light');
   return (
     <nav style={{
       position: "sticky", top: 0, zIndex: 100,
@@ -358,6 +396,18 @@ function Nav({ index, total }) {
         }}>
           {Math.min(index + 1, total)} / {total}
         </div>
+        <select value={theme} onChange={(e) => applyTheme(e.target.value)} title="Select theme" aria-label="Select theme" style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "var(--text2)",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "4px 20px 4px 8px", borderRadius: 2,
+          cursor: "pointer", textTransform: "uppercase", appearance: "none", WebkitAppearance: "none",
+          backgroundImage: "linear-gradient(45deg, transparent 50%, var(--text3) 50%), linear-gradient(135deg, var(--text3) 50%, transparent 50%)",
+          backgroundPosition: "calc(100% - 10px) 50%, calc(100% - 6px) 50%", backgroundSize: "4px 4px, 4px 4px", backgroundRepeat: "no-repeat"
+        }}>
+          <option value="dark">DARK</option>
+          <option value="light">LIGHT</option>
+          <option value="contrast">CONTRAST</option>
+          <option value="mono">MONO</option>
+        </select>
         <button type="button" onClick={toggleTheme} title="Toggle light/dark theme" aria-label="Toggle light/dark theme" style={{
           fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, lineHeight: 1, color: "var(--text2)",
           border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 8px", borderRadius: 2,

@@ -70,52 +70,52 @@ func (RefreshEventType) EnumDescriptor() ([]byte, []int) {
 	return file_feeds_proto_rawDescGZIP(), []int{0}
 }
 
-type AutoBuildEventKind int32
+type AutoConfigEventKind int32
 
 const (
-	AutoBuildEventKind_STEP  AutoBuildEventKind = 0
-	AutoBuildEventKind_DONE  AutoBuildEventKind = 1
-	AutoBuildEventKind_ERROR AutoBuildEventKind = 2
+	AutoConfigEventKind_STEP  AutoConfigEventKind = 0
+	AutoConfigEventKind_DONE  AutoConfigEventKind = 1
+	AutoConfigEventKind_ERROR AutoConfigEventKind = 2
 )
 
-// Enum value maps for AutoBuildEventKind.
+// Enum value maps for AutoConfigEventKind.
 var (
-	AutoBuildEventKind_name = map[int32]string{
+	AutoConfigEventKind_name = map[int32]string{
 		0: "STEP",
 		1: "DONE",
 		2: "ERROR",
 	}
-	AutoBuildEventKind_value = map[string]int32{
+	AutoConfigEventKind_value = map[string]int32{
 		"STEP":  0,
 		"DONE":  1,
 		"ERROR": 2,
 	}
 )
 
-func (x AutoBuildEventKind) Enum() *AutoBuildEventKind {
-	p := new(AutoBuildEventKind)
+func (x AutoConfigEventKind) Enum() *AutoConfigEventKind {
+	p := new(AutoConfigEventKind)
 	*p = x
 	return p
 }
 
-func (x AutoBuildEventKind) String() string {
+func (x AutoConfigEventKind) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (AutoBuildEventKind) Descriptor() protoreflect.EnumDescriptor {
+func (AutoConfigEventKind) Descriptor() protoreflect.EnumDescriptor {
 	return file_feeds_proto_enumTypes[1].Descriptor()
 }
 
-func (AutoBuildEventKind) Type() protoreflect.EnumType {
+func (AutoConfigEventKind) Type() protoreflect.EnumType {
 	return &file_feeds_proto_enumTypes[1]
 }
 
-func (x AutoBuildEventKind) Number() protoreflect.EnumNumber {
+func (x AutoConfigEventKind) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use AutoBuildEventKind.Descriptor instead.
-func (AutoBuildEventKind) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use AutoConfigEventKind.Descriptor instead.
+func (AutoConfigEventKind) EnumDescriptor() ([]byte, []int) {
 	return file_feeds_proto_rawDescGZIP(), []int{1}
 }
 
@@ -1010,8 +1010,8 @@ func (x *InspectArticleResponse) GetDurationMs() int64 {
 	return 0
 }
 
-// AutoBuildFeedRequest drives the autonomous feed-config agent for one feed URL.
-type AutoBuildFeedRequest struct {
+// AutoConfigFeedRequest drives the autonomous feed-config agent for one feed URL.
+type AutoConfigFeedRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
 	Headers       map[string]string      `protobuf:"bytes,2,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // optional seed headers
@@ -1022,20 +1022,20 @@ type AutoBuildFeedRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AutoBuildFeedRequest) Reset() {
-	*x = AutoBuildFeedRequest{}
+func (x *AutoConfigFeedRequest) Reset() {
+	*x = AutoConfigFeedRequest{}
 	mi := &file_feeds_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AutoBuildFeedRequest) String() string {
+func (x *AutoConfigFeedRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AutoBuildFeedRequest) ProtoMessage() {}
+func (*AutoConfigFeedRequest) ProtoMessage() {}
 
-func (x *AutoBuildFeedRequest) ProtoReflect() protoreflect.Message {
+func (x *AutoConfigFeedRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_feeds_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1047,51 +1047,51 @@ func (x *AutoBuildFeedRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AutoBuildFeedRequest.ProtoReflect.Descriptor instead.
-func (*AutoBuildFeedRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use AutoConfigFeedRequest.ProtoReflect.Descriptor instead.
+func (*AutoConfigFeedRequest) Descriptor() ([]byte, []int) {
 	return file_feeds_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *AutoBuildFeedRequest) GetUrl() string {
+func (x *AutoConfigFeedRequest) GetUrl() string {
 	if x != nil {
 		return x.Url
 	}
 	return ""
 }
 
-func (x *AutoBuildFeedRequest) GetHeaders() map[string]string {
+func (x *AutoConfigFeedRequest) GetHeaders() map[string]string {
 	if x != nil {
 		return x.Headers
 	}
 	return nil
 }
 
-func (x *AutoBuildFeedRequest) GetProvider() string {
+func (x *AutoConfigFeedRequest) GetProvider() string {
 	if x != nil {
 		return x.Provider
 	}
 	return ""
 }
 
-func (x *AutoBuildFeedRequest) GetModel() string {
+func (x *AutoConfigFeedRequest) GetModel() string {
 	if x != nil {
 		return x.Model
 	}
 	return ""
 }
 
-func (x *AutoBuildFeedRequest) GetMaxSteps() int32 {
+func (x *AutoConfigFeedRequest) GetMaxSteps() int32 {
 	if x != nil {
 		return x.MaxSteps
 	}
 	return 0
 }
 
-// AutoBuildFeedEvent is streamed as the agent works: STEP events narrate each tool
+// AutoConfigFeedEvent is streamed as the agent works: STEP events narrate each tool
 // call, DONE carries the final config, ERROR reports a failure.
-type AutoBuildFeedEvent struct {
+type AutoConfigFeedEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	Kind           AutoBuildEventKind     `protobuf:"varint,1,opt,name=kind,proto3,enum=downlink.AutoBuildEventKind" json:"kind,omitempty"`
+	Kind           AutoConfigEventKind    `protobuf:"varint,1,opt,name=kind,proto3,enum=downlink.AutoConfigEventKind" json:"kind,omitempty"`
 	Step           int32                  `protobuf:"varint,2,opt,name=step,proto3" json:"step,omitempty"`                                            // 1-based step index for STEP events
 	Tool           string                 `protobuf:"bytes,3,opt,name=tool,proto3" json:"tool,omitempty"`                                             // tool the agent invoked (STEP events)
 	Detail         string                 `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`                                         // one-line human description of the step / error
@@ -1102,20 +1102,20 @@ type AutoBuildFeedEvent struct {
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *AutoBuildFeedEvent) Reset() {
-	*x = AutoBuildFeedEvent{}
+func (x *AutoConfigFeedEvent) Reset() {
+	*x = AutoConfigFeedEvent{}
 	mi := &file_feeds_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AutoBuildFeedEvent) String() string {
+func (x *AutoConfigFeedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AutoBuildFeedEvent) ProtoMessage() {}
+func (*AutoConfigFeedEvent) ProtoMessage() {}
 
-func (x *AutoBuildFeedEvent) ProtoReflect() protoreflect.Message {
+func (x *AutoConfigFeedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_feeds_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1127,54 +1127,54 @@ func (x *AutoBuildFeedEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AutoBuildFeedEvent.ProtoReflect.Descriptor instead.
-func (*AutoBuildFeedEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use AutoConfigFeedEvent.ProtoReflect.Descriptor instead.
+func (*AutoConfigFeedEvent) Descriptor() ([]byte, []int) {
 	return file_feeds_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *AutoBuildFeedEvent) GetKind() AutoBuildEventKind {
+func (x *AutoConfigFeedEvent) GetKind() AutoConfigEventKind {
 	if x != nil {
 		return x.Kind
 	}
-	return AutoBuildEventKind_STEP
+	return AutoConfigEventKind_STEP
 }
 
-func (x *AutoBuildFeedEvent) GetStep() int32 {
+func (x *AutoConfigFeedEvent) GetStep() int32 {
 	if x != nil {
 		return x.Step
 	}
 	return 0
 }
 
-func (x *AutoBuildFeedEvent) GetTool() string {
+func (x *AutoConfigFeedEvent) GetTool() string {
 	if x != nil {
 		return x.Tool
 	}
 	return ""
 }
 
-func (x *AutoBuildFeedEvent) GetDetail() string {
+func (x *AutoConfigFeedEvent) GetDetail() string {
 	if x != nil {
 		return x.Detail
 	}
 	return ""
 }
 
-func (x *AutoBuildFeedEvent) GetFeedConfigYaml() string {
+func (x *AutoConfigFeedEvent) GetFeedConfigYaml() string {
 	if x != nil {
 		return x.FeedConfigYaml
 	}
 	return ""
 }
 
-func (x *AutoBuildFeedEvent) GetSummary() string {
+func (x *AutoConfigFeedEvent) GetSummary() string {
 	if x != nil {
 		return x.Summary
 	}
 	return ""
 }
 
-func (x *AutoBuildFeedEvent) GetConfidence() float64 {
+func (x *AutoConfigFeedEvent) GetConfidence() float64 {
 	if x != nil {
 		return x.Confidence
 	}
@@ -1891,18 +1891,18 @@ const file_feeds_proto_rawDesc = "" +
 	"\x10selector_matched\x18\a \x01(\bR\x0fselectorMatched\x12\x14\n" +
 	"\x05error\x18\b \x01(\tR\x05error\x12\x1f\n" +
 	"\vduration_ms\x18\t \x01(\x03R\n" +
-	"durationMs\"\xfa\x01\n" +
-	"\x14AutoBuildFeedRequest\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\x12E\n" +
-	"\aheaders\x18\x02 \x03(\v2+.downlink.AutoBuildFeedRequest.HeadersEntryR\aheaders\x12\x1a\n" +
+	"durationMs\"\xfc\x01\n" +
+	"\x15AutoConfigFeedRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12F\n" +
+	"\aheaders\x18\x02 \x03(\v2,.downlink.AutoConfigFeedRequest.HeadersEntryR\aheaders\x12\x1a\n" +
 	"\bprovider\x18\x03 \x01(\tR\bprovider\x12\x14\n" +
 	"\x05model\x18\x04 \x01(\tR\x05model\x12\x1b\n" +
 	"\tmax_steps\x18\x05 \x01(\x05R\bmaxSteps\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xea\x01\n" +
-	"\x12AutoBuildFeedEvent\x120\n" +
-	"\x04kind\x18\x01 \x01(\x0e2\x1c.downlink.AutoBuildEventKindR\x04kind\x12\x12\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xec\x01\n" +
+	"\x13AutoConfigFeedEvent\x121\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x1d.downlink.AutoConfigEventKindR\x04kind\x12\x12\n" +
 	"\x04step\x18\x02 \x01(\x05R\x04step\x12\x12\n" +
 	"\x04tool\x18\x03 \x01(\tR\x04tool\x12\x16\n" +
 	"\x06detail\x18\x04 \x01(\tR\x06detail\x12(\n" +
@@ -1965,19 +1965,19 @@ const file_feeds_proto_rawDesc = "" +
 	"\x05error\x18\x03 \x01(\tR\x05error*.\n" +
 	"\x10RefreshEventType\x12\v\n" +
 	"\aSTARTED\x10\x00\x12\r\n" +
-	"\tCOMPLETED\x10\x01*3\n" +
-	"\x12AutoBuildEventKind\x12\b\n" +
+	"\tCOMPLETED\x10\x01*4\n" +
+	"\x13AutoConfigEventKind\x12\b\n" +
 	"\x04STEP\x10\x00\x12\b\n" +
 	"\x04DONE\x10\x01\x12\t\n" +
-	"\x05ERROR\x10\x022\x9c\x06\n" +
+	"\x05ERROR\x10\x022\x9f\x06\n" +
 	"\fFeedsService\x12F\n" +
 	"\tListFeeds\x12\x1a.downlink.ListFeedsRequest\x1a\x1b.downlink.ListFeedsResponse\"\x00\x12G\n" +
 	"\fRegisterFeed\x12\x1d.downlink.RegisterFeedRequest\x1a\x16.google.protobuf.Empty\"\x00\x12W\n" +
 	"\x0fRefreshAllFeeds\x12 .downlink.RefreshAllFeedsRequest\x1a\x1e.downlink.RefreshAllFeedsEvent\"\x000\x01\x12L\n" +
 	"\vRefreshFeed\x12\x1c.downlink.RefreshFeedRequest\x1a\x1d.downlink.RefreshFeedResponse\"\x00\x12L\n" +
 	"\vInspectFeed\x12\x1c.downlink.InspectFeedRequest\x1a\x1d.downlink.InspectFeedResponse\"\x00\x12U\n" +
-	"\x0eInspectArticle\x12\x1f.downlink.InspectArticleRequest\x1a .downlink.InspectArticleResponse\"\x00\x12Q\n" +
-	"\rAutoBuildFeed\x12\x1e.downlink.AutoBuildFeedRequest\x1a\x1c.downlink.AutoBuildFeedEvent\"\x000\x01\x12C\n" +
+	"\x0eInspectArticle\x12\x1f.downlink.InspectArticleRequest\x1a .downlink.InspectArticleResponse\"\x00\x12T\n" +
+	"\x0eAutoConfigFeed\x12\x1f.downlink.AutoConfigFeedRequest\x1a\x1d.downlink.AutoConfigFeedEvent\"\x000\x01\x12C\n" +
 	"\n" +
 	"DeleteFeed\x12\x1b.downlink.DeleteFeedRequest\x1a\x16.google.protobuf.Empty\"\x00\x12I\n" +
 	"\n" +
@@ -2000,7 +2000,7 @@ var file_feeds_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_feeds_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_feeds_proto_goTypes = []any{
 	(RefreshEventType)(0),          // 0: downlink.RefreshEventType
-	(AutoBuildEventKind)(0),        // 1: downlink.AutoBuildEventKind
+	(AutoConfigEventKind)(0),       // 1: downlink.AutoConfigEventKind
 	(*ListFeedsRequest)(nil),       // 2: downlink.ListFeedsRequest
 	(*ListFeedsResponse)(nil),      // 3: downlink.ListFeedsResponse
 	(*RegisterFeedRequest)(nil),    // 4: downlink.RegisterFeedRequest
@@ -2013,8 +2013,8 @@ var file_feeds_proto_goTypes = []any{
 	(*InspectFeedResponse)(nil),    // 11: downlink.InspectFeedResponse
 	(*InspectArticleRequest)(nil),  // 12: downlink.InspectArticleRequest
 	(*InspectArticleResponse)(nil), // 13: downlink.InspectArticleResponse
-	(*AutoBuildFeedRequest)(nil),   // 14: downlink.AutoBuildFeedRequest
-	(*AutoBuildFeedEvent)(nil),     // 15: downlink.AutoBuildFeedEvent
+	(*AutoConfigFeedRequest)(nil),  // 14: downlink.AutoConfigFeedRequest
+	(*AutoConfigFeedEvent)(nil),    // 15: downlink.AutoConfigFeedEvent
 	(*DeleteFeedRequest)(nil),      // 16: downlink.DeleteFeedRequest
 	(*ApplyFeedsRequest)(nil),      // 17: downlink.ApplyFeedsRequest
 	(*ApplyFeedsResponse)(nil),     // 18: downlink.ApplyFeedsResponse
@@ -2026,7 +2026,7 @@ var file_feeds_proto_goTypes = []any{
 	(*FeedResult)(nil),             // 24: downlink.FeedResult
 	nil,                            // 25: downlink.InspectFeedRequest.HeadersEntry
 	nil,                            // 26: downlink.InspectArticleRequest.HeadersEntry
-	nil,                            // 27: downlink.AutoBuildFeedRequest.HeadersEntry
+	nil,                            // 27: downlink.AutoConfigFeedRequest.HeadersEntry
 	nil,                            // 28: downlink.Feed.ScraperEntry
 	(*FeedConfig)(nil),             // 29: downlink.FeedConfig
 	(*timestamppb.Timestamp)(nil),  // 30: google.protobuf.Timestamp
@@ -2047,8 +2047,8 @@ var file_feeds_proto_depIdxs = []int32{
 	7,  // 8: downlink.InspectFeedResponse.diagnosis:type_name -> downlink.FeedDiagnosis
 	26, // 9: downlink.InspectArticleRequest.headers:type_name -> downlink.InspectArticleRequest.HeadersEntry
 	31, // 10: downlink.InspectArticleRequest.selectors:type_name -> downlink.Selectors
-	27, // 11: downlink.AutoBuildFeedRequest.headers:type_name -> downlink.AutoBuildFeedRequest.HeadersEntry
-	1,  // 12: downlink.AutoBuildFeedEvent.kind:type_name -> downlink.AutoBuildEventKind
+	27, // 11: downlink.AutoConfigFeedRequest.headers:type_name -> downlink.AutoConfigFeedRequest.HeadersEntry
+	1,  // 12: downlink.AutoConfigFeedEvent.kind:type_name -> downlink.AutoConfigEventKind
 	29, // 13: downlink.ApplyFeedsRequest.feeds:type_name -> downlink.FeedConfig
 	31, // 14: downlink.ApplyFeedsRequest.default_selectors:type_name -> downlink.Selectors
 	22, // 15: downlink.FeedGroup.feeds:type_name -> downlink.Feed
@@ -2065,7 +2065,7 @@ var file_feeds_proto_depIdxs = []int32{
 	9,  // 26: downlink.FeedsService.RefreshFeed:input_type -> downlink.RefreshFeedRequest
 	10, // 27: downlink.FeedsService.InspectFeed:input_type -> downlink.InspectFeedRequest
 	12, // 28: downlink.FeedsService.InspectArticle:input_type -> downlink.InspectArticleRequest
-	14, // 29: downlink.FeedsService.AutoBuildFeed:input_type -> downlink.AutoBuildFeedRequest
+	14, // 29: downlink.FeedsService.AutoConfigFeed:input_type -> downlink.AutoConfigFeedRequest
 	16, // 30: downlink.FeedsService.DeleteFeed:input_type -> downlink.DeleteFeedRequest
 	17, // 31: downlink.FeedsService.ApplyFeeds:input_type -> downlink.ApplyFeedsRequest
 	19, // 32: downlink.FeedsService.DeleteFeeds:input_type -> downlink.DeleteFeedsRequest
@@ -2075,7 +2075,7 @@ var file_feeds_proto_depIdxs = []int32{
 	6,  // 36: downlink.FeedsService.RefreshFeed:output_type -> downlink.RefreshFeedResponse
 	11, // 37: downlink.FeedsService.InspectFeed:output_type -> downlink.InspectFeedResponse
 	13, // 38: downlink.FeedsService.InspectArticle:output_type -> downlink.InspectArticleResponse
-	15, // 39: downlink.FeedsService.AutoBuildFeed:output_type -> downlink.AutoBuildFeedEvent
+	15, // 39: downlink.FeedsService.AutoConfigFeed:output_type -> downlink.AutoConfigFeedEvent
 	34, // 40: downlink.FeedsService.DeleteFeed:output_type -> google.protobuf.Empty
 	18, // 41: downlink.FeedsService.ApplyFeeds:output_type -> downlink.ApplyFeedsResponse
 	20, // 42: downlink.FeedsService.DeleteFeeds:output_type -> downlink.DeleteFeedsResponse

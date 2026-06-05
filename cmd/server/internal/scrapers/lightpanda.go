@@ -39,7 +39,7 @@ func CheckLightpanda(autoStart bool) error {
 	// Interactive prompt
 	fmt.Println()
 	fmt.Println("⚠  Lightpanda browser is not running.")
-	fmt.Println("   Dynamic scraping (Playwright) requires Lightpanda in Docker on port 9222.")
+	fmt.Println("   Dynamic scraping (Lightpanda via CDP) requires Lightpanda in Docker on port 9222.")
 	fmt.Println()
 	fmt.Println("   Start it with:")
 	fmt.Printf("   %s\n", lightpandaDockerCmd)

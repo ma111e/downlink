@@ -49,22 +49,22 @@ func createFeedBuildCommands() []*cobra.Command {
 		newTestSelectorCmd(),
 		newProbeModesCmd(),
 		newProbeHeadersCmd(),
-		newAutoBuildCmd(),
+		newAutoConfigCmd(),
 	}
 }
 
-// ── autobuild ─────────────────────────────────────────────────────────────────
+// ── autoconfig ────────────────────────────────────────────────────────────────
 
-func newAutoBuildCmd() *cobra.Command {
+func newAutoConfigCmd() *cobra.Command {
 	var headerFlags []string
 	var provider, model string
 	var maxSteps int
 	cmd := &cobra.Command{
-		Use:   "autobuild <rss-url>",
+		Use:   "autoconfig <rss-url>",
 		Short: "Let an LLM discover a feed's config on its own",
-		Long: `Run downlink's autonomous agent: the configured LLM probes the feed and its
-articles, ranks and tests article selectors, escalates the scraping mode and headers
-as needed, and prints a finished feed config — no interactive session required.
+		Long: `Run downlink's autonomous agent: it probes and locks the scraping mode and
+headers, then the configured LLM ranks and tests article selectors in that locked mode
+and prints a finished feed config — no interactive session required.
 
 The agent streams its steps as it works. The final YAML is printed for you to paste
 into your feeds.yml (nothing is registered or written automatically).`,
@@ -75,7 +75,7 @@ into your feeds.yml (nothing is registered or written automatically).`,
 				return err
 			}
 			client := getNewDownlinkClient()
-			req := &protos.AutoBuildFeedRequest{
+			req := &protos.AutoConfigFeedRequest{
 				Url:      args[0],
 				Headers:  headers,
 				Provider: provider,
@@ -83,22 +83,22 @@ into your feeds.yml (nothing is registered or written automatically).`,
 				MaxSteps: int32(maxSteps),
 			}
 
-			var done *protos.AutoBuildFeedEvent
-			err = client.AutoBuildFeed(req, func(ev *protos.AutoBuildFeedEvent) {
+			var done *protos.AutoConfigFeedEvent
+			err = client.AutoConfigFeed(req, func(ev *protos.AutoConfigFeedEvent) {
 				switch ev.Kind {
-				case protos.AutoBuildEventKind_STEP:
+				case protos.AutoConfigEventKind_STEP:
 					if !jsonOutput {
 						fmt.Printf("  %s %s %s\n", styleDim.Render(fmt.Sprintf("%2d", ev.Step)),
 							styleKey.Render(ev.Tool), styleDim.Render(ev.Detail))
 					}
-				case protos.AutoBuildEventKind_DONE:
+				case protos.AutoConfigEventKind_DONE:
 					done = ev
-				case protos.AutoBuildEventKind_ERROR:
+				case protos.AutoConfigEventKind_ERROR:
 					fmt.Printf("%s %s\n", styleErr.Render("✗"), ev.Detail)
 				}
 			})
 			if err != nil {
-				return fmt.Errorf("autobuild: %w", err)
+				return fmt.Errorf("autoconfig: %w", err)
 			}
 			if done == nil {
 				return fmt.Errorf("agent finished without producing a config")
