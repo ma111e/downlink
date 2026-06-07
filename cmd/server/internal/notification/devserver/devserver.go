@@ -58,7 +58,7 @@ func Run(opts Options) error {
 			http.NotFound(w, r)
 			return
 		}
-		serveHTML(w, notification.RenderDigestIndex)
+		serveHTML(w, func() ([]byte, error) { return notification.RenderDigestIndex("") })
 	}
 	mux.HandleFunc("/", archiveIndex)
 	mux.HandleFunc("/index.html", archiveIndex)
@@ -75,7 +75,7 @@ func Run(opts Options) error {
 		})
 		mux.HandleFunc("/"+notification.SwipeHTMLFilename(d), func(w http.ResponseWriter, r *http.Request) {
 			serveHTML(w, func() ([]byte, error) {
-				return notification.RenderSwipeHTML(d, digestFilename)
+				return notification.RenderSwipeHTML(d, digestFilename, "")
 			})
 		})
 	}

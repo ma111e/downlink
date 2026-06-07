@@ -79,7 +79,7 @@ func TestGitHubPagesPublisherWritesDefaultDigestFolderLayout(t *testing.T) {
 	if err := publisher.writeAndStageManifest(wt, digest, outputDir); err != nil {
 		t.Fatalf("writeAndStageManifest() error = %v", err)
 	}
-	if err := publisher.ensureIndex(wt, outputDir); err != nil {
+	if err := publisher.ensureIndex(wt, outputDir, "dark"); err != nil {
 		t.Fatalf("ensureIndex() error = %v", err)
 	}
 
@@ -131,7 +131,7 @@ func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
 	if err := publisher.writeAndStageManifest(wt, digest, outputDir); err != nil {
 		t.Fatalf("writeAndStageManifest() error = %v", err)
 	}
-	if err := publisher.ensureIndex(wt, outputDir); err != nil {
+	if err := publisher.ensureIndex(wt, outputDir, "dark"); err != nil {
 		t.Fatalf("ensureIndex() error = %v", err)
 	}
 

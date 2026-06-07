@@ -43,7 +43,7 @@ func TestHighlightTagsInSectionText(t *testing.T) {
 }
 
 func TestRenderDigestIndexUsesManifest(t *testing.T) {
-	htmlBytes, err := RenderDigestIndex()
+	htmlBytes, err := RenderDigestIndex("dark")
 	if err != nil {
 		t.Fatalf("RenderDigestIndex() error = %v", err)
 	}
@@ -85,6 +85,10 @@ func TestRenderDigestHTMLDoesNotIncludeManifestSwitcher(t *testing.T) {
 	}
 	html := string(htmlBytes)
 
+	if !strings.Contains(html, `data-theme="dark"`) {
+		t.Fatalf("RenderDigestHTML() did not bake the data-theme attribute")
+	}
+
 	for _, old := range []string{
 		`id="digest-switcher"`,
 		`data-digest-id=`,
@@ -95,6 +99,27 @@ func TestRenderDigestHTMLDoesNotIncludeManifestSwitcher(t *testing.T) {
 		if strings.Contains(html, old) {
 			t.Fatalf("RenderDigestHTML() still contains switcher fragment %q", old)
 		}
+	}
+}
+
+func TestRenderDigestHTMLBakesTheme(t *testing.T) {
+	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
+
+	htmlBytes, err := RenderDigestHTML(digest, "mono")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML() error = %v", err)
+	}
+	if !strings.Contains(string(htmlBytes), `data-theme="mono"`) {
+		t.Fatalf("RenderDigestHTML() did not bake data-theme=\"mono\"")
+	}
+
+	// An unknown theme falls back to the dark default.
+	htmlBytes, err = RenderDigestHTML(digest, "bogus")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML() error = %v", err)
+	}
+	if !strings.Contains(string(htmlBytes), `data-theme="dark"`) {
+		t.Fatalf("RenderDigestHTML() did not fall back to data-theme=\"dark\"")
 	}
 }
 
@@ -213,7 +238,7 @@ func TestRenderDigestHTMLPreCollapsesReportsAtBuildTime(t *testing.T) {
 
 func TestRenderSwipeHTMLInjectsDigestAndArticles(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	htmlBytes, err := RenderSwipeHTML(digest, "downlink-digest-2026-04-24_1200.html")
+	htmlBytes, err := RenderSwipeHTML(digest, "downlink-digest-2026-04-24_1200.html", "dark")
 	if err != nil {
 		t.Fatalf("RenderSwipeHTML() error = %v", err)
 	}

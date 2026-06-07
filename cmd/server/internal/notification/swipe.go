@@ -36,6 +36,7 @@ type swipeTemplateData struct {
 	TimeWindow     string
 	ArticlesJSON   string
 	PaletteCSS     string // per-theme --pN source-color custom properties
+	Theme          string // resolved data-theme attribute value
 }
 
 var swipePriorityRank = map[string]int{
@@ -57,7 +58,7 @@ func swipePriorityLabel(tag string) string {
 
 // RenderSwipeHTML generates the self-contained Tinder-style triage page for a digest.
 // digestFilename is the filename of the companion list-view page (used for the back link).
-func RenderSwipeHTML(digest models.Digest, digestFilename string) ([]byte, error) {
+func RenderSwipeHTML(digest models.Digest, digestFilename string, theme string) ([]byte, error) {
 	daByArticle := make(map[string]models.DigestAnalysis, len(digest.DigestAnalyses))
 	for _, da := range digest.DigestAnalyses {
 		daByArticle[da.ArticleId] = da
@@ -144,6 +145,7 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string) ([]byte, error
 		TimeWindow:     formatDuration(digest.TimeWindow),
 		ArticlesJSON:   string(articlesJSON),
 		PaletteCSS:     string(paletteCSS()),
+		Theme:          normalizeTheme(theme),
 	}
 
 	templateText, err := loadNotificationTemplate("swipe.html.tmpl")

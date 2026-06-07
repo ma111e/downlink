@@ -243,7 +243,7 @@ type digestTemplateData struct {
 	TimeWindow       string
 	SwipeFilename    string
 	DigestTitle      string
-	ThemeOverride    template.CSS
+	Theme            string       // resolved data-theme attribute value
 	PaletteCSS       template.CSS // per-theme --pN source-color custom properties
 	DigestSummary    template.HTML // kept for backwards compat; OverviewSections is used for rendering
 	OverviewSections []OverviewSection
@@ -476,18 +476,6 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 	}
 	summaryTagRe := compileTagRegexp(summaryTagNames)
 
-	var themeOverride template.CSS
-	if t, ok := digestthemes.Get(theme); ok && t.Vars != nil {
-		var sb strings.Builder
-		for k, v := range t.Vars {
-			sb.WriteString(k)
-			sb.WriteString(": ")
-			sb.WriteString(v)
-			sb.WriteString("; ")
-		}
-		themeOverride = template.CSS(sb.String()) //nolint:gosec // values come from our own hardcoded theme map
-	}
-
 	data := digestTemplateData{
 		// CreatedAt is the article-selection window start; show it directly so the
 		// digest page matches the archive index's period_start (see ManifestEntryFromDigest).
@@ -505,7 +493,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		CategoryCounts:   categoryCounts,
 		PriorityCounts:   priorityCounts,
 		Tags:             tags,
-		ThemeOverride:    themeOverride,
+		Theme:            normalizeTheme(theme),
 		PaletteCSS:       paletteCSS(),
 		Commit:           version.Commit,
 	}
@@ -798,6 +786,15 @@ var monoPalette = []string{
 	"#f0f0f0",
 }
 
+// normalizeTheme returns theme if it is a known theme, else "dark". Used to fill
+// the <html data-theme> attribute so the server-rendered default is always valid.
+func normalizeTheme(theme string) string {
+	if digestthemes.Valid(theme) {
+		return theme
+	}
+	return "dark"
+}
+
 // paletteIndex hashes a string to a stable index into any of the theme palettes.
 func paletteIndex(s string) int {
 	var h uint32
@@ -1019,16 +1016,17 @@ type digestIndexTemplateData struct {
 	ManifestURL   string
 	DigestBaseURL string
 	Commit        string
+	Theme         string // resolved data-theme attribute value
 }
 
 // RenderDigestIndex generates the index HTML shell. The digest list is
 // populated client-side by fetching manifest.json, so the rendered bytes are
 // constant for a given template.
-func RenderDigestIndex() ([]byte, error) {
-	return renderDigestIndexWithPaths("manifest.json", "")
+func RenderDigestIndex(theme string) ([]byte, error) {
+	return renderDigestIndexWithPaths("manifest.json", "", theme)
 }
 
-func renderDigestIndexWithPaths(manifestURL, digestBaseURL string) ([]byte, error) {
+func renderDigestIndexWithPaths(manifestURL, digestBaseURL, theme string) ([]byte, error) {
 	templateText, err := loadNotificationTemplate("archive-index.html.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load index template: %w", err)
@@ -1043,6 +1041,7 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL string) ([]byte, erro
 		ManifestURL:   manifestURL,
 		DigestBaseURL: digestBaseURL,
 		Commit:        version.Commit,
+		Theme:         normalizeTheme(theme),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render digest index: %w", err)
 	}
