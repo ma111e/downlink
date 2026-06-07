@@ -14,9 +14,10 @@ var themes = map[string]Theme{
 	"contrast":   {Name: "contrast", Description: "Maximum-contrast black & white"},
 	"mono":       {Name: "mono", Description: "Grayscale, no chroma"},
 	"colorblind": {Name: "colorblind", Description: "Light, colorblind-safe (Okabe-Ito)"},
+	"pastel":     {Name: "pastel", Description: "Soft pastel cream/mint/coral, dark text"},
 }
 
-var order = []string{"dark", "light", "contrast", "mono", "colorblind"}
+var order = []string{"dark", "light", "contrast", "mono", "colorblind", "pastel"}
 
 // All returns all available themes in display order.
 func All() []Theme {

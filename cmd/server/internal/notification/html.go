@@ -786,6 +786,22 @@ var monoPalette = []string{
 	"#f0f0f0",
 }
 
+// pastelPalette is the palette for the soft "pastel" theme's cream background. Medium-depth,
+// slightly dusty tones (same hue order as colorPalette) so source dots stay legible on #faf6e6.
+var pastelPalette = []string{
+	"#e0655c", // coral
+	"#e08a2e", // orange
+	"#2f9e63", // green
+	"#1f9d8f", // teal
+	"#4a90d9", // blue
+	"#8c6dd0", // purple
+	"#de6b94", // pink
+	"#a05fc0", // violet
+	"#2faa8e", // emerald
+	"#3f8fd0", // sky
+	"#c267c0", // fuchsia
+}
+
 // normalizeTheme returns theme if it is a known theme, else "dark". Used to fill
 // the <html data-theme> attribute so the server-rendered default is always valid.
 func normalizeTheme(theme string) string {
@@ -812,7 +828,7 @@ func paletteVar(s string) template.CSS {
 }
 
 // paletteCSS emits the per-theme --p0..--pN custom properties from the palettes above.
-// Dark/contrast inherit the :root (dark) palette; light, colorblind, and mono override it.
+// Dark/contrast inherit the :root (dark) palette; light, colorblind, mono, and pastel override it.
 func paletteCSS() template.CSS {
 	var b strings.Builder
 	writeVars := func(selector string, palette []string) {
@@ -827,6 +843,7 @@ func paletteCSS() template.CSS {
 	writeVars(`html[data-theme="light"]`, lightColorPalette)
 	writeVars(`html[data-theme="colorblind"]`, colorblindPalette)
 	writeVars(`html[data-theme="mono"]`, monoPalette)
+	writeVars(`html[data-theme="pastel"]`, pastelPalette)
 	return template.CSS(b.String()) //nolint:gosec // values come from our own hardcoded palettes
 }
 
