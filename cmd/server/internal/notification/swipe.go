@@ -35,8 +35,9 @@ type swipeTemplateData struct {
 	DigestTitle    string
 	TimeWindow     string
 	ArticlesJSON   string
-	PaletteCSS     string // per-theme --pN source-color custom properties
-	Theme          string // resolved data-theme attribute value
+	PaletteCSS     string        // per-theme --pN source-color custom properties
+	Theme          string        // resolved data-theme attribute value
+	Themes         []themeOption // all known themes, for the picker + pre-paint allowlist
 }
 
 var swipePriorityRank = map[string]int{
@@ -146,6 +147,7 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string, theme string) 
 		ArticlesJSON:   string(articlesJSON),
 		PaletteCSS:     string(paletteCSS()),
 		Theme:          normalizeTheme(theme),
+		Themes:         themeOptions(),
 	}
 
 	templateText, err := loadNotificationTemplate("swipe.html.tmpl")

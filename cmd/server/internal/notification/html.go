@@ -243,8 +243,9 @@ type digestTemplateData struct {
 	TimeWindow       string
 	SwipeFilename    string
 	DigestTitle      string
-	Theme            string       // resolved data-theme attribute value
-	PaletteCSS       template.CSS // per-theme --pN source-color custom properties
+	Theme            string        // resolved data-theme attribute value
+	Themes           []themeOption // all known themes, for the picker + pre-paint allowlist
+	PaletteCSS       template.CSS  // per-theme --pN source-color custom properties
 	DigestSummary    template.HTML // kept for backwards compat; OverviewSections is used for rendering
 	OverviewSections []OverviewSection
 	TOCGroups        []TOCGroup
@@ -494,6 +495,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		PriorityCounts:   priorityCounts,
 		Tags:             tags,
 		Theme:            normalizeTheme(theme),
+		Themes:           themeOptions(),
 		PaletteCSS:       paletteCSS(),
 		Commit:           version.Commit,
 	}
@@ -802,6 +804,24 @@ var pastelPalette = []string{
 	"#c267c0", // fuchsia
 }
 
+// themeOption is a registry theme shaped for the in-page picker and the pre-paint
+// allowlist. Both are rendered from themeOptions() so a theme added to digestthemes
+// shows up in every page without editing the templates' option/allowlist lists.
+type themeOption struct {
+	Value string // data-theme value
+	Label string // uppercased display label
+}
+
+// themeOptions returns every known theme in display order, for the theme picker.
+func themeOptions() []themeOption {
+	all := digestthemes.All()
+	opts := make([]themeOption, len(all))
+	for i, t := range all {
+		opts[i] = themeOption{Value: t.Name, Label: strings.ToUpper(t.Name)}
+	}
+	return opts
+}
+
 // normalizeTheme returns theme if it is a known theme, else "dark". Used to fill
 // the <html data-theme> attribute so the server-rendered default is always valid.
 func normalizeTheme(theme string) string {
@@ -1033,7 +1053,8 @@ type digestIndexTemplateData struct {
 	ManifestURL   string
 	DigestBaseURL string
 	Commit        string
-	Theme         string // resolved data-theme attribute value
+	Theme         string        // resolved data-theme attribute value
+	Themes        []themeOption // all known themes, for the picker + pre-paint allowlist
 }
 
 // RenderDigestIndex generates the index HTML shell. The digest list is
@@ -1059,6 +1080,7 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, theme string) ([]byt
 		DigestBaseURL: digestBaseURL,
 		Commit:        version.Commit,
 		Theme:         normalizeTheme(theme),
+		Themes:        themeOptions(),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render digest index: %w", err)
 	}
