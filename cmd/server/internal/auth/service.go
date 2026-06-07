@@ -179,9 +179,10 @@ func (s *Service) runLoginWorker(sessionID string, sess *loginSession) {
 		LastStatus:   codexauth.StatusOK,
 	}
 
-	// Ensure the provider config entry exists and persist it atomically.
-	// Fix #3: hold config.Mu while reading and modifying config.Config.
-	// Fix #5: persist the new provider entry before adding the credential.
+	// Ensure the provider config entry exists and persist it before adding the
+	// credential. SaveConfig takes config.Mu itself, so it must be called WITHOUT
+	// the lock held (config.Mu is a non-reentrant RWMutex — locking it twice in
+	// one goroutine deadlocks).
 	config.Mu.Lock()
 	cfg := config.Config
 	found := false
@@ -202,9 +203,12 @@ func (s *Service) runLoginWorker(sessionID string, sess *loginSession) {
 			ModelName:    modelName,
 			Enabled:      true,
 		})
+	}
+	config.Mu.Unlock()
+
+	if !found {
 		// Persist the new provider entry before AddCredential touches its pool.
 		if saveErr := config.SaveConfig(cfg); saveErr != nil {
-			config.Mu.Unlock()
 			log.WithError(saveErr).Error("codex: failed to persist new provider entry")
 			s.mu.Lock()
 			sess.status = "error"
@@ -213,7 +217,6 @@ func (s *Service) runLoginWorker(sessionID string, sess *loginSession) {
 			return
 		}
 	}
-	config.Mu.Unlock()
 
 	pool := s.manager.EnsurePool(sess.providerName)
 	if err := pool.AddCredential(cred); err != nil {
@@ -402,7 +405,9 @@ func (s *Service) CompleteClaudeLogin(ctx context.Context, req *protos.CompleteC
 	}
 
 	// Ensure the provider config entry exists and persist it before the pool
-	// touches its credentials, mirroring the codex login worker.
+	// touches its credentials. SaveConfig takes config.Mu itself, so it must be
+	// called WITHOUT the lock held (config.Mu is a non-reentrant RWMutex —
+	// locking it twice in one goroutine deadlocks).
 	config.Mu.Lock()
 	cfg := config.Config
 	found := false
@@ -423,13 +428,15 @@ func (s *Service) CompleteClaudeLogin(ctx context.Context, req *protos.CompleteC
 			ModelName:    modelName,
 			Enabled:      true,
 		})
+	}
+	config.Mu.Unlock()
+
+	if !found {
 		if saveErr := config.SaveConfig(cfg); saveErr != nil {
-			config.Mu.Unlock()
 			log.WithError(saveErr).Error("claude: failed to persist new provider entry")
 			return &protos.CompleteClaudeLoginResponse{Status: "error", ErrorMessage: "failed to save provider config: " + saveErr.Error()}, nil
 		}
 	}
-	config.Mu.Unlock()
 
 	pool := s.claudeManager.EnsurePool(sess.providerName)
 	if err := pool.AddCredential(cred); err != nil {

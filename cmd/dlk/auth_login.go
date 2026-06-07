@@ -141,6 +141,7 @@ func runClaudeLogin(client *downlinkclient.DownlinkClient, providerName string) 
 		return nil
 	}
 
+	fmt.Println("\nCompleting login...")
 	poll, err := client.CompleteClaudeLogin(resp.SessionId, strings.TrimSpace(code))
 	if err != nil {
 		return fmt.Errorf("failed to complete login: %w", err)

@@ -501,10 +501,27 @@ a:hover { text-decoration: underline; }
 /* ── toc expandable row ──────────────────────────── */
 .toc-row-wrap {
   position: relative;
-  border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
-  transition: background 0.12s;
+  /* keep a full 1px border reserved at all times (transparent sides), so opening only
+     recolors it — no 1px layout jump from the top/side borders appearing */
+  border: 1px solid transparent;
+  border-bottom-color: color-mix(in oklch, var(--border) 50%, transparent);
+  /* Fluent-style decelerate easing: the card eases out of the list instead of snapping */
+  transition: margin 0.25s cubic-bezier(0.1, 0.9, 0.2, 1),
+              border-radius 0.25s cubic-bezier(0.1, 0.9, 0.2, 1),
+              border-color 0.2s ease,
+              box-shadow 0.25s cubic-bezier(0.1, 0.9, 0.2, 1),
+              background 0.2s ease;
 }
-.toc-row-wrap:last-child { border-bottom: none; }
+.toc-row-wrap:last-child { border-bottom-color: transparent; }
+/* open row "pops out" of the flush list: a self-contained, gapped, elevated panel */
+.toc-row-wrap.open {
+  margin: 10px 0;
+  border-color: var(--border);   /* recolor the already-reserved border; no size change */
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface2);   /* raised surface contrasts the --surface card behind it */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25), 0 6px 16px rgba(0,0,0,0.18);
+}
 .toc-row-wrap::before {
   content: "";
   position: absolute; left: 0; top: 0; bottom: 0;
@@ -583,8 +600,19 @@ a:hover { text-decoration: underline; }
     d: path("M4 9.5 L8 5.5 L12 9.5");
   }
 }
-.toc-row-body { display: none; border-top: 1px solid var(--border); }
-.toc-row-body.open { display: block; padding: 0 12px;}
+.toc-row-body { height: 0; overflow: hidden; border-top: 1px solid transparent; }
+.toc-row-body.open { height: auto; padding: 0 12px; border-top-color: var(--border); }
+/* smooth Fluent-style height reveal where the browser can animate to auto height
+   (Chromium 129+). Elsewhere the body still toggles instantly — no regression. */
+@supports (interpolate-size: allow-keywords) {
+  :root { interpolate-size: allow-keywords; }
+  .toc-row-body, .article-body {
+    transition: height 0.26s cubic-bezier(0.1, 0.9, 0.2, 1),
+                border-top-color 0.26s cubic-bezier(0.1, 0.9, 0.2, 1);
+  }
+  .toc-row-body.open, .article-body.open { animation: tocBodyReveal 0.3s cubic-bezier(0.1, 0.9, 0.2, 1); }
+  @keyframes tocBodyReveal { from { opacity: 0; } to { opacity: 1; } }
+}
 /* end-of-transmission marker closing off an expanded row */
 .toc-disconnect {
   display: flex;
@@ -850,8 +878,8 @@ a:hover { text-decoration: underline; }
 }
 
 /* ── article expanded body ───────────────────────── */
-.article-body { display: none; border-top: 1px solid var(--border); }
-.article-body.open { display: block; }
+.article-body { height: 0; overflow: hidden; border-top: 1px solid transparent; }
+.article-body.open { height: auto; border-top-color: var(--border); }
 
 /* ── WHY justification: collapsed disclosure ─────── */
 .why-block {
@@ -1470,6 +1498,7 @@ function handleClusterClick(event, summary) {
   var details = summary.closest('details');
   var isOpen = canonBody.classList.contains('open');
   canonBody.classList.toggle('open', !isOpen);
+  row.classList.toggle('open', !isOpen);   // pop the card out with the body
   if (chevron) chevron.classList.toggle('open', !isOpen);
   // Also toggle the cluster members <details> together with the body.
   if (details) details.open = !isOpen;
