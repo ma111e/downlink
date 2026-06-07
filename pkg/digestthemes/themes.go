@@ -70,8 +70,8 @@ var themes = map[string]Theme{
 			"--shadow":     "0 1px 3px rgba(0,0,0,.45)",
 		},
 	},
-	"daltonian": {
-		Name:        "daltonian",
+	"colorblind": {
+		Name:        "colorblind",
 		Description: "Light, colorblind-safe (Okabe-Ito)",
 		Vars: map[string]string{
 			// Light-theme neutrals, reused verbatim.
@@ -103,7 +103,7 @@ var themes = map[string]Theme{
 	},
 }
 
-var order = []string{"dark", "light", "solarized", "nord", "daltonian"}
+var order = []string{"dark", "light", "solarized", "nord", "colorblind"}
 
 // All returns all available themes in display order.
 func All() []Theme {

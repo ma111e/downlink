@@ -15,7 +15,7 @@ type swipeArticle struct {
 	N                      int                       `json:"n"`
 	Title                  string                    `json:"title"`
 	Source                 string                    `json:"source"`
-	SourceColor            string                    `json:"sourceColor"`
+	SourceColorIdx         int                       `json:"sourceColorIdx"`
 	Link                   string                    `json:"link"`
 	Time                   string                    `json:"time"`
 	Priority               string                    `json:"priority"`
@@ -35,6 +35,7 @@ type swipeTemplateData struct {
 	DigestTitle    string
 	TimeWindow     string
 	ArticlesJSON   string
+	PaletteCSS     string // per-theme --pN source-color custom properties
 }
 
 var swipePriorityRank = map[string]int{
@@ -107,7 +108,7 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string) ([]byte, error
 			N:                      i + 1,
 			Title:                  articleTitle(art.Title),
 			Source:                 srcDomain,
-			SourceColor:            paletteColor(srcDomain),
+			SourceColorIdx:         paletteIndex(srcDomain),
 			Link:                   art.Link,
 			Time:                   art.PublishedAt.Format("15:04"),
 			Priority:               swipePriorityLabel(tag),
@@ -142,6 +143,7 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string) ([]byte, error
 		DigestTitle:    digest.Title,
 		TimeWindow:     formatDuration(digest.TimeWindow),
 		ArticlesJSON:   string(articlesJSON),
+		PaletteCSS:     string(paletteCSS()),
 	}
 
 	templateText, err := loadNotificationTemplate("swipe.html.tmpl")

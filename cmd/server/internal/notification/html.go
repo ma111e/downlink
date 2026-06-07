@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/gomarkdown/markdown"
@@ -243,6 +244,7 @@ type digestTemplateData struct {
 	SwipeFilename    string
 	DigestTitle      string
 	ThemeOverride    template.CSS
+	PaletteCSS       template.CSS // per-theme --pN source-color custom properties
 	DigestSummary    template.HTML // kept for backwards compat; OverviewSections is used for rendering
 	OverviewSections []OverviewSection
 	TOCGroups        []TOCGroup
@@ -504,6 +506,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		PriorityCounts:   priorityCounts,
 		Tags:             tags,
 		ThemeOverride:    themeOverride,
+		PaletteCSS:       paletteCSS(),
 		Commit:           version.Commit,
 	}
 
@@ -511,9 +514,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		"add":                func(a, b int) int { return a + b },
 		"slugify":            func(s string) string { return strings.ReplaceAll(s, " ", "-") },
 		"joinTags":           func(t []string) string { return strings.Join(t, " ") },
-		"dupColor":           dupGroupColor,
-		"sourceColor":        sourceColor,
-		"sourceColorVal":     sourceColorVal,
+		"paletteVar":         paletteVar,
 		"dupGroupLetter":     dupGroupLetter,
 		"tocBadgeClass":      tocBadgeClass,
 		"tocGroupTooltip":    tocGroupTooltip,
@@ -729,7 +730,11 @@ func renderReports(reports []models.ReferencedReport, re *regexp.Regexp) []Rende
 	return out
 }
 
-// colorPalette is a set of visually distinct colors used for source and duplicate group dots.
+// paletteSize is the number of source/duplicate-group colors. Every theme palette below has
+// exactly this many entries so a hashed index is valid no matter which theme is active.
+const paletteSize = 11
+
+// colorPalette is the palette for dark backgrounds (dark / contrast / mono themes).
 var colorPalette = []string{
 	"#f87171", // red
 	"#fb923c", // orange
@@ -744,28 +749,71 @@ var colorPalette = []string{
 	"#e879f9", // fuchsia
 }
 
-// paletteColor hashes a string to a consistent color from colorPalette.
-func paletteColor(s string) string {
+// lightColorPalette is the palette for the cream "light" theme background. Same hues as
+// colorPalette but darker and more saturated so they stay legible on a light surface.
+var lightColorPalette = []string{
+	"#dc2626", // red
+	"#ea580c", // orange
+	"#16a34a", // green
+	"#0d9488", // teal
+	"#2563eb", // blue
+	"#9333ea", // purple
+	"#db2777", // pink
+	"#7c3aed", // violet
+	"#059669", // emerald
+	"#0284c7", // sky
+	"#c026d3", // fuchsia
+}
+
+// colorblindPalette is the palette for the colorblind-safe "colorblind" theme. Built from the
+// AA-adjusted Okabe-Ito colors the theme already uses, so source dots stay distinct under
+// protan/deutan/tritan vision on the cream background.
+var colorblindPalette = []string{
+	"#0072b2", // blue
+	"#c44601", // vermillion
+	"#1a7a4f", // bluish green
+	"#7a4fa0", // purple
+	"#8a6d00", // dark gold
+	"#2f79a5", // teal-blue
+	"#a23b7a", // reddish purple
+	"#00786b", // teal
+	"#2b6c8f", // dark sky
+	"#b35900", // dark orange
+	"#5c6e78", // slate
+}
+
+// paletteIndex hashes a string to a stable index into any of the theme palettes.
+func paletteIndex(s string) int {
 	var h uint32
 	for _, c := range s {
 		h = h*31 + uint32(c)
 	}
-	return colorPalette[h%uint32(len(colorPalette))]
+	return int(h % uint32(paletteSize))
 }
 
-// dupGroupColor returns an inline CSS background style for a duplicate group dot.
-func dupGroupColor(group string) template.CSS {
-	return template.CSS(fmt.Sprintf("background:%s", paletteColor(group)))
+// paletteVar returns a theme-aware CSS variable reference (var(--pN)) for a source string.
+// The --pN custom properties are defined per theme by paletteCSS, so the rendered color
+// follows whatever data-theme is active.
+func paletteVar(s string) template.CSS {
+	return template.CSS("var(--p" + strconv.Itoa(paletteIndex(s)) + ")") //nolint:gosec // index is a small integer we control
 }
 
-// sourceColor returns an inline CSS background style for a source dot.
-func sourceColor(source string) template.CSS {
-	return template.CSS(fmt.Sprintf("background:%s", paletteColor(source)))
-}
-
-// sourceColorVal returns just the color value string (no "background:" prefix).
-func sourceColorVal(source string) string {
-	return paletteColor(source)
+// paletteCSS emits the per-theme --p0..--pN custom properties from the palettes above.
+// Dark/contrast/mono inherit the :root (dark) palette; light and colorblind override it.
+func paletteCSS() template.CSS {
+	var b strings.Builder
+	writeVars := func(selector string, palette []string) {
+		b.WriteString(selector)
+		b.WriteByte('{')
+		for i, c := range palette {
+			fmt.Fprintf(&b, "--p%d:%s;", i, c)
+		}
+		b.WriteByte('}')
+	}
+	writeVars(":root", colorPalette)
+	writeVars(`html[data-theme="light"]`, lightColorPalette)
+	writeVars(`html[data-theme="colorblind"]`, colorblindPalette)
+	return template.CSS(b.String()) //nolint:gosec // values come from our own hardcoded palettes
 }
 
 // dupGroupLetter returns a short letter label for a duplicate group key.
