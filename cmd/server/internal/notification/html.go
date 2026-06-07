@@ -734,7 +734,7 @@ func renderReports(reports []models.ReferencedReport, re *regexp.Regexp) []Rende
 // exactly this many entries so a hashed index is valid no matter which theme is active.
 const paletteSize = 11
 
-// colorPalette is the palette for dark backgrounds (dark / contrast / mono themes).
+// colorPalette is the palette for dark backgrounds (dark / contrast themes).
 var colorPalette = []string{
 	"#f87171", // red
 	"#fb923c", // orange
@@ -782,6 +782,22 @@ var colorblindPalette = []string{
 	"#5c6e78", // slate
 }
 
+// monoPalette is the palette for the grayscale "mono" theme. Eleven evenly-spaced
+// lightness steps from #7a (≥4.5:1 on the #0c0c0c bg) to #f0, no chroma.
+var monoPalette = []string{
+	"#7a7a7a",
+	"#868686",
+	"#929292",
+	"#9e9e9e",
+	"#aaaaaa",
+	"#b6b6b6",
+	"#c2c2c2",
+	"#cecece",
+	"#dadada",
+	"#e6e6e6",
+	"#f0f0f0",
+}
+
 // paletteIndex hashes a string to a stable index into any of the theme palettes.
 func paletteIndex(s string) int {
 	var h uint32
@@ -799,7 +815,7 @@ func paletteVar(s string) template.CSS {
 }
 
 // paletteCSS emits the per-theme --p0..--pN custom properties from the palettes above.
-// Dark/contrast/mono inherit the :root (dark) palette; light and colorblind override it.
+// Dark/contrast inherit the :root (dark) palette; light, colorblind, and mono override it.
 func paletteCSS() template.CSS {
 	var b strings.Builder
 	writeVars := func(selector string, palette []string) {
@@ -813,6 +829,7 @@ func paletteCSS() template.CSS {
 	writeVars(":root", colorPalette)
 	writeVars(`html[data-theme="light"]`, lightColorPalette)
 	writeVars(`html[data-theme="colorblind"]`, colorblindPalette)
+	writeVars(`html[data-theme="mono"]`, monoPalette)
 	return template.CSS(b.String()) //nolint:gosec // values come from our own hardcoded palettes
 }
 
