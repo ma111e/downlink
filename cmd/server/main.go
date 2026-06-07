@@ -218,6 +218,8 @@ func main() {
 	rootCmd.PersistentFlags().Bool("init-gh-pages", false, "Initialize the GitHub Pages repository and exit (idempotent, existing files are not overwritten; use --reinit-gh-pages to wipe first)")
 	rootCmd.PersistentFlags().Bool("reinit-gh-pages", false, "Erase and reinitialize the GitHub Pages repository from scratch (destructive, prompts for confirmation)")
 
+	rootCmd.AddCommand(newDevCommand())
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

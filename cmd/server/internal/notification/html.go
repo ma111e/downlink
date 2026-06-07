@@ -733,7 +733,6 @@ func renderReports(reports []models.ReferencedReport, re *regexp.Regexp) []Rende
 var colorPalette = []string{
 	"#f87171", // red
 	"#fb923c", // orange
-	"#ca9a04", // yellow
 	"#4ade80", // green
 	"#2dd4bf", // teal
 	"#60a5fa", // blue

@@ -21,6 +21,13 @@ import (
 // The Anthropic Messages API requires max_tokens on every request.
 const defaultClaudeMaxTokens = 8192
 
+// maxClaudeOutputTokens caps the requested max_tokens. Anthropic's max_tokens is
+// an output-token ceiling (well below the context window); callers such as the
+// digest/analysis paths pass defaultMaxTokensLarge (200000), which the API would
+// reject with HTTP 400. 32000 is safe across current Opus/Sonnet/Haiku models
+// without output-extension betas and is ample for digest/analysis output.
+const maxClaudeOutputTokens = 32000
+
 // claudeCodeProvider calls the Anthropic Messages API with a Claude Code
 // subscription OAuth token, using a claudeauth.Pool for token management and
 // credential rotation.
@@ -41,6 +48,9 @@ func newClaudeCodeProviderFromPool(modelName, baseURL string, pool *claudeauth.P
 	}
 	if maxTokens <= 0 {
 		maxTokens = defaultClaudeMaxTokens
+	}
+	if maxTokens > maxClaudeOutputTokens {
+		maxTokens = maxClaudeOutputTokens
 	}
 	return &claudeCodeProvider{
 		modelName: modelName,

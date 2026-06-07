@@ -1,4 +1,4 @@
-.PHONY: docs server cli
+.PHONY: docs server cli dev-digest
 
 default: help
 
@@ -20,6 +20,11 @@ cli:
 server:
 	go build -ldflags "$(LDFLAGS)" ./cmd/server
 
+## dev-digest : Live-reload preview of the digest templates (needs air: go install github.com/air-verse/air@latest)
+dev-digest:
+	@command -v air >/dev/null 2>&1 || { echo "air not found. Install with: go install github.com/air-verse/air@latest"; exit 1; }
+	@( sleep 2 && xdg-open http://localhost:8099 >/dev/null 2>&1 & )
+	air -c .air.toml
 
 ## help : Shows this help
 help: Makefile

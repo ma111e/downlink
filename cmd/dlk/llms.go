@@ -403,6 +403,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 			huh.NewOption("ollama", "ollama"),
 			huh.NewOption("llamacpp", "llamacpp"),
 			huh.NewOption("openai-codex", "openai-codex"),
+			huh.NewOption("claude-code", "claude-code"),
 		).
 		Value(&providerType).
 		Run(); err != nil {
@@ -436,6 +437,10 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 	// Step 3: API key or base URL (conditional on provider type)
 	var apiKey, baseURL string
 	switch providerType {
+	case "claude-code":
+		// claude-code authenticates via OAuth, not an API key. The credential is
+		// attached separately by the login flow; tie it to this entry's name.
+		fmt.Printf("\nclaude-code uses OAuth — no API key needed here.\nAfter adding, run: dlk model auth login claude-code --provider-name %s\n\n", name)
 	case "openai", "anthropic", "mistral", "openai-codex":
 		flushStdin()
 		if err := huh.NewInput().
@@ -585,6 +590,18 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 	fmt.Printf("✓ Provider %q added.\n", name)
 }
 
+// claudeCodeModelIDs returns the known Claude model IDs offered by the
+// claude-code subscription, newest first. Used by the add-provider wizard, which
+// runs before any OAuth credential exists to fetch a live list. Users can always
+// pick "Custom..." for a model not listed here.
+func claudeCodeModelIDs() []string {
+	return []string{
+		"claude-opus-4-8",
+		"claude-sonnet-4-6",
+		"claude-haiku-4-5",
+	}
+}
+
 // resolveModelInteractive fetches available models for the provider and lets the user pick one.
 // Falls back to a free-text input if the fetch fails or returns no results.
 func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName, providerType, baseURL string) string {
@@ -592,8 +609,11 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 
 	var modelList []string
 
-	// Special handling for OpenAI Codex: fetch models using stored credentials
-	if strings.EqualFold(providerType, "openai-codex") {
+	// claude-code: offer the known Claude model IDs. The entry is usually created
+	// before any OAuth credential exists, so we cannot fetch a live list here.
+	if strings.EqualFold(providerType, "claude-code") {
+		modelList = claudeCodeModelIDs()
+	} else if strings.EqualFold(providerType, "openai-codex") {
 		// Fetch provider configs to get stored credentials
 		providers, err := client.GetLLMProviders()
 		if err != nil {
