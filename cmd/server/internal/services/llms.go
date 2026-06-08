@@ -71,6 +71,19 @@ func (s *LLMsServer) SaveLLMProviders(_ context.Context, req *protos.SaveLLMProv
 	return &emptypb.Empty{}, nil
 }
 
+// ResolveLLM resolves a provider/model selection to the concrete provider type
+// and model name a run would use, via the same path the actual calls take.
+func (s *LLMsServer) ResolveLLM(_ context.Context, req *protos.ResolveLLMRequest) (*protos.ResolveLLMResponse, error) {
+	resolved, err := ResolveLLM(LLMRequest{Provider: req.Provider, ModelName: req.Model, MaxTokens: defaultMaxTokensLarge})
+	if err != nil {
+		return nil, err
+	}
+	return &protos.ResolveLLMResponse{
+		ProviderType: resolved.ProviderType,
+		ModelName:    resolved.ModelName,
+	}, nil
+}
+
 // GetAvailableModels fetches available models from all configured providers concurrently.
 func (s *LLMsServer) GetAvailableModels(_ context.Context, req *protos.GetAvailableModelsRequest) (*protos.ModelsResponse, error) {
 	// Deduplicate by provider type + base URL

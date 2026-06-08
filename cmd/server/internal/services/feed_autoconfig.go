@@ -25,6 +25,10 @@ const (
 	// autoconfigUsableChars mirrors scrapers' usable-content threshold: a candidate
 	// shorter than this is treated as a stub, not an article body.
 	autoconfigUsableChars = 500
+	// feedContentModeThreshold is the fraction of sampled entries that must already
+	// carry a full body before autoconfig short-circuits to scraping: none. Mirrors
+	// SelectorScore.Reliable so "good enough" means the same thing across the agent.
+	feedContentModeThreshold = 0.8
 	// desktopUA is the User-Agent tried during header probing.
 	desktopUA = "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0"
 )
@@ -44,11 +48,12 @@ type autoconfigTools interface {
 }
 
 type feedObs struct {
-	ParseOK     bool     `json:"parse_ok"`
-	FeedType    string   `json:"feed_type"`
-	Title       string   `json:"title"`
-	Verdict     string   `json:"verdict"`
-	SampleLinks []string `json:"sample_links"`
+	ParseOK            bool     `json:"parse_ok"`
+	FeedType           string   `json:"feed_type"`
+	Title              string   `json:"title"`
+	Verdict            string   `json:"verdict"`
+	SampleLinks        []string `json:"sample_links"`
+	SampleContentChars []int    `json:"sample_content_chars,omitempty"`
 }
 
 type suggestObs struct {
@@ -113,6 +118,7 @@ func runAutoConfig(
 	seedHeaders map[string]string,
 	maxSteps int,
 	onStep func(autoconfigStep),
+	onLLM func(turn int, prompt, response string),
 ) (AutoConfigResult, error) {
 	if maxSteps <= 0 {
 		maxSteps = defaultAutoconfigSteps
@@ -121,14 +127,28 @@ func runAutoConfig(
 	next := func() int { step++; return step }
 
 	// ── Pre-step 1: lock headers (probe only if the feed is blocked) ──
-	lockedHeaders, samples, err := lockHeaders(tools, feedURL, seedHeaders, func(tool, detail string) {
+	lockedHeaders, feed, err := lockHeaders(tools, feedURL, seedHeaders, func(tool, detail string) {
 		emitStep(onStep, next(), tool, detail)
 	})
 	if err != nil {
 		return AutoConfigResult{}, err
 	}
+	samples := feed.SampleLinks
 	if len(samples) == 0 {
 		return AutoConfigResult{}, fmt.Errorf("feed has no sample article links to inspect")
+	}
+
+	// ── Pre-step 1b: feed-content short-circuit ──
+	// If the entries already carry full article bodies, no page scraping or LLM
+	// selector discovery is needed — emit a scraping: none config and stop.
+	if score := feedContentScore(feed.SampleContentChars); score >= feedContentModeThreshold {
+		emitStep(onStep, next(), "feed_content", fmt.Sprintf("entries carry full content (score %.2f)", score))
+		res, ferr := finishFeedContent(feedURL, feedType, lockedHeaders, score)
+		if ferr != nil {
+			return AutoConfigResult{}, ferr
+		}
+		emitStep(onStep, next(), "finish", fmt.Sprintf("scraping: none, confidence %.2f", res.Confidence))
+		return res, nil
 	}
 
 	// ── Pre-step 2: lock the scraping mode ──
@@ -149,6 +169,7 @@ func runAutoConfig(
 
 		prompt := autoconfigSystemPrompt + "\n\n" + transcript.String() + "\nRespond with the next single JSON action."
 		raw, err := gen(ctx, prompt)
+		emitLLM(onLLM, step, prompt, raw)
 		if err != nil {
 			return AutoConfigResult{}, fmt.Errorf("llm call: %w", err)
 		}
@@ -218,11 +239,12 @@ func runAutoConfig(
 }
 
 // lockHeaders inspects the feed and, if it is blocked, probes a small fixed set of
-// header combinations once, returning the working headers and the feed's sample links.
-func lockHeaders(tools autoconfigTools, feedURL string, seed map[string]string, emit func(tool, detail string)) (map[string]string, []string, error) {
+// header combinations once, returning the working headers and the feed observation
+// (sample links, per-entry content lengths) from the parse that succeeded.
+func lockHeaders(tools autoconfigTools, feedURL string, seed map[string]string, emit func(tool, detail string)) (map[string]string, feedObs, error) {
 	obs := tools.inspectFeed(feedURL, seed)
 	if obs.ParseOK {
-		return seed, obs.SampleLinks, nil
+		return seed, obs, nil
 	}
 
 	origin := originOf(feedURL)
@@ -235,10 +257,10 @@ func lockHeaders(tools autoconfigTools, feedURL string, seed map[string]string, 
 		emit("probe_headers", strings.Join(sortedKeys(c), "+"))
 		obs = tools.inspectFeed(feedURL, h)
 		if obs.ParseOK {
-			return h, obs.SampleLinks, nil
+			return h, obs, nil
 		}
 	}
-	return nil, nil, fmt.Errorf("feed is blocked and no tried header set unblocked it (last verdict: %s)", obs.Verdict)
+	return nil, feedObs{}, fmt.Errorf("feed is blocked and no tried header set unblocked it (last verdict: %s)", obs.Verdict)
 }
 
 // lockMode probes the scraping modes in priority order against one sample article and
@@ -316,15 +338,62 @@ func finishAutoConfig(action agentAction, feedURL, feedType, mode string, header
 			Blacklist: sel.Blacklist,
 		},
 	}
-	out, err := yaml.Marshal(models.FeedsFile{Feeds: []models.FeedConfig{cfg}})
+	yamlStr, err := renderConfig(cfg)
 	if err != nil {
-		return AutoConfigResult{}, fmt.Errorf("marshal config: %w", err)
+		return AutoConfigResult{}, err
 	}
 	return AutoConfigResult{
-		ConfigYAML: string(out),
+		ConfigYAML: yamlStr,
 		Summary:    strings.TrimSpace(action.Thought),
 		Confidence: confidence,
 	}, nil
+}
+
+// finishFeedContent renders a scraping: none config for feeds that already ship
+// full article bodies in their entries — no selectors, no page fetch. confidence
+// is the fraction of sampled entries that carried a usable body.
+func finishFeedContent(feedURL, feedType string, headers map[string]string, confidence float64) (AutoConfigResult, error) {
+	cfg := models.FeedConfig{
+		URL:      feedURL,
+		Type:     feedType,
+		Enabled:  true,
+		Scraping: "none",
+		Headers:  headers,
+	}
+	yamlStr, err := renderConfig(cfg)
+	if err != nil {
+		return AutoConfigResult{}, err
+	}
+	return AutoConfigResult{
+		ConfigYAML: yamlStr,
+		Summary:    "feed entries already contain full article content; using scraping: none (no page fetch)",
+		Confidence: confidence,
+	}, nil
+}
+
+// renderConfig marshals a single feed config to the feeds-file YAML shape.
+func renderConfig(cfg models.FeedConfig) (string, error) {
+	out, err := yaml.Marshal(models.FeedsFile{Feeds: []models.FeedConfig{cfg}})
+	if err != nil {
+		return "", fmt.Errorf("marshal config: %w", err)
+	}
+	return string(out), nil
+}
+
+// feedContentScore is the fraction of sampled entries whose feed content is
+// already a usable full body (>= autoconfigUsableChars), mirroring the selector
+// "usable" bar so "good enough" means the same thing across the agent.
+func feedContentScore(chars []int) float64 {
+	if len(chars) == 0 {
+		return 0
+	}
+	usable := 0
+	for _, c := range chars {
+		if c >= autoconfigUsableChars {
+			usable++
+		}
+	}
+	return float64(usable) / float64(len(chars))
 }
 
 // scrapingValue maps an internal mode name to the FeedConfig.Scraping value
@@ -339,6 +408,13 @@ func scrapingValue(mode string) string {
 func emitStep(onStep func(autoconfigStep), n int, tool, detail string) {
 	if onStep != nil {
 		onStep(autoconfigStep{N: n, Tool: tool, Detail: detail})
+	}
+}
+
+// emitLLM reports one turn's raw LLM prompt and response when a verbose sink is set.
+func emitLLM(onLLM func(turn int, prompt, response string), turn int, prompt, response string) {
+	if onLLM != nil {
+		onLLM(turn, prompt, response)
 	}
 }
 
@@ -457,11 +533,12 @@ type managerTools struct{}
 func (managerTools) inspectFeed(url string, headers map[string]string) feedObs {
 	insp := manager.Manager.InspectFeedURL(url, headers, 5)
 	return feedObs{
-		ParseOK:     insp.Diagnosis.ParseError == "",
-		FeedType:    insp.Diagnosis.FeedTypeGuess,
-		Title:       insp.Title,
-		Verdict:     insp.Diagnosis.Verdict,
-		SampleLinks: insp.SampleLinks,
+		ParseOK:            insp.Diagnosis.ParseError == "",
+		FeedType:           insp.Diagnosis.FeedTypeGuess,
+		Title:              insp.Title,
+		Verdict:            insp.Diagnosis.Verdict,
+		SampleLinks:        insp.SampleLinks,
+		SampleContentChars: insp.SampleContentChars,
 	}
 }
 

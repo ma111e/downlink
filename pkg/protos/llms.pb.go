@@ -276,6 +276,112 @@ func (x *GetAvailableModelsRequest) GetProviderName() string {
 	return ""
 }
 
+// ResolveLLMRequest carries the user-facing provider/model selection to resolve.
+type ResolveLLMRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"` // provider type or config profile name; empty = default
+	Model         string                 `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"`       // model override; empty = provider default
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveLLMRequest) Reset() {
+	*x = ResolveLLMRequest{}
+	mi := &file_llms_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveLLMRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveLLMRequest) ProtoMessage() {}
+
+func (x *ResolveLLMRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_llms_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveLLMRequest.ProtoReflect.Descriptor instead.
+func (*ResolveLLMRequest) Descriptor() ([]byte, []int) {
+	return file_llms_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ResolveLLMRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *ResolveLLMRequest) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+// ResolveLLMResponse reports the concrete provider type and model that resolution picked.
+type ResolveLLMResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderType  string                 `protobuf:"bytes,1,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
+	ModelName     string                 `protobuf:"bytes,2,opt,name=model_name,json=modelName,proto3" json:"model_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveLLMResponse) Reset() {
+	*x = ResolveLLMResponse{}
+	mi := &file_llms_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveLLMResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveLLMResponse) ProtoMessage() {}
+
+func (x *ResolveLLMResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_llms_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveLLMResponse.ProtoReflect.Descriptor instead.
+func (*ResolveLLMResponse) Descriptor() ([]byte, []int) {
+	return file_llms_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ResolveLLMResponse) GetProviderType() string {
+	if x != nil {
+		return x.ProviderType
+	}
+	return ""
+}
+
+func (x *ResolveLLMResponse) GetModelName() string {
+	if x != nil {
+		return x.ModelName
+	}
+	return ""
+}
+
 // ModelInfo represents generic model information
 type ModelInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -290,7 +396,7 @@ type ModelInfo struct {
 
 func (x *ModelInfo) Reset() {
 	*x = ModelInfo{}
-	mi := &file_llms_proto_msgTypes[6]
+	mi := &file_llms_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -302,7 +408,7 @@ func (x *ModelInfo) String() string {
 func (*ModelInfo) ProtoMessage() {}
 
 func (x *ModelInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[6]
+	mi := &file_llms_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -315,7 +421,7 @@ func (x *ModelInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelInfo.ProtoReflect.Descriptor instead.
 func (*ModelInfo) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{6}
+	return file_llms_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ModelInfo) GetId() string {
@@ -370,7 +476,7 @@ type AnalyzeArticleWithProviderModelRequest struct {
 
 func (x *AnalyzeArticleWithProviderModelRequest) Reset() {
 	*x = AnalyzeArticleWithProviderModelRequest{}
-	mi := &file_llms_proto_msgTypes[7]
+	mi := &file_llms_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -382,7 +488,7 @@ func (x *AnalyzeArticleWithProviderModelRequest) String() string {
 func (*AnalyzeArticleWithProviderModelRequest) ProtoMessage() {}
 
 func (x *AnalyzeArticleWithProviderModelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[7]
+	mi := &file_llms_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,7 +501,7 @@ func (x *AnalyzeArticleWithProviderModelRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use AnalyzeArticleWithProviderModelRequest.ProtoReflect.Descriptor instead.
 func (*AnalyzeArticleWithProviderModelRequest) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{7}
+	return file_llms_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AnalyzeArticleWithProviderModelRequest) GetArticleId() string {
@@ -464,7 +570,7 @@ type AnalyzeArticleWithProviderModelResponse struct {
 
 func (x *AnalyzeArticleWithProviderModelResponse) Reset() {
 	*x = AnalyzeArticleWithProviderModelResponse{}
-	mi := &file_llms_proto_msgTypes[8]
+	mi := &file_llms_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +582,7 @@ func (x *AnalyzeArticleWithProviderModelResponse) String() string {
 func (*AnalyzeArticleWithProviderModelResponse) ProtoMessage() {}
 
 func (x *AnalyzeArticleWithProviderModelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[8]
+	mi := &file_llms_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +595,7 @@ func (x *AnalyzeArticleWithProviderModelResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use AnalyzeArticleWithProviderModelResponse.ProtoReflect.Descriptor instead.
 func (*AnalyzeArticleWithProviderModelResponse) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{8}
+	return file_llms_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AnalyzeArticleWithProviderModelResponse) GetAnalysis() *ArticleAnalysis {
@@ -510,7 +616,7 @@ type AnalyzeArticleRequest struct {
 
 func (x *AnalyzeArticleRequest) Reset() {
 	*x = AnalyzeArticleRequest{}
-	mi := &file_llms_proto_msgTypes[9]
+	mi := &file_llms_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -522,7 +628,7 @@ func (x *AnalyzeArticleRequest) String() string {
 func (*AnalyzeArticleRequest) ProtoMessage() {}
 
 func (x *AnalyzeArticleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[9]
+	mi := &file_llms_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -535,7 +641,7 @@ func (x *AnalyzeArticleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeArticleRequest.ProtoReflect.Descriptor instead.
 func (*AnalyzeArticleRequest) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{9}
+	return file_llms_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AnalyzeArticleRequest) GetArticleId() string {
@@ -562,7 +668,7 @@ type AnalyzeArticleResponse struct {
 
 func (x *AnalyzeArticleResponse) Reset() {
 	*x = AnalyzeArticleResponse{}
-	mi := &file_llms_proto_msgTypes[10]
+	mi := &file_llms_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -574,7 +680,7 @@ func (x *AnalyzeArticleResponse) String() string {
 func (*AnalyzeArticleResponse) ProtoMessage() {}
 
 func (x *AnalyzeArticleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[10]
+	mi := &file_llms_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -587,7 +693,7 @@ func (x *AnalyzeArticleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeArticleResponse.ProtoReflect.Descriptor instead.
 func (*AnalyzeArticleResponse) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{10}
+	return file_llms_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AnalyzeArticleResponse) GetAnalysis() *ArticleAnalysis {
@@ -609,7 +715,7 @@ type PreviewAnalysisPromptRequest struct {
 
 func (x *PreviewAnalysisPromptRequest) Reset() {
 	*x = PreviewAnalysisPromptRequest{}
-	mi := &file_llms_proto_msgTypes[11]
+	mi := &file_llms_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -621,7 +727,7 @@ func (x *PreviewAnalysisPromptRequest) String() string {
 func (*PreviewAnalysisPromptRequest) ProtoMessage() {}
 
 func (x *PreviewAnalysisPromptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[11]
+	mi := &file_llms_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -634,7 +740,7 @@ func (x *PreviewAnalysisPromptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewAnalysisPromptRequest.ProtoReflect.Descriptor instead.
 func (*PreviewAnalysisPromptRequest) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{11}
+	return file_llms_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *PreviewAnalysisPromptRequest) GetArticleId() string {
@@ -668,7 +774,7 @@ type PreviewAnalysisPromptResponse struct {
 
 func (x *PreviewAnalysisPromptResponse) Reset() {
 	*x = PreviewAnalysisPromptResponse{}
-	mi := &file_llms_proto_msgTypes[12]
+	mi := &file_llms_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -680,7 +786,7 @@ func (x *PreviewAnalysisPromptResponse) String() string {
 func (*PreviewAnalysisPromptResponse) ProtoMessage() {}
 
 func (x *PreviewAnalysisPromptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[12]
+	mi := &file_llms_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -693,7 +799,7 @@ func (x *PreviewAnalysisPromptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewAnalysisPromptResponse.ProtoReflect.Descriptor instead.
 func (*PreviewAnalysisPromptResponse) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{12}
+	return file_llms_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *PreviewAnalysisPromptResponse) GetPrompt() string {
@@ -728,7 +834,7 @@ type AnalysisProgressEvent struct {
 
 func (x *AnalysisProgressEvent) Reset() {
 	*x = AnalysisProgressEvent{}
-	mi := &file_llms_proto_msgTypes[13]
+	mi := &file_llms_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -740,7 +846,7 @@ func (x *AnalysisProgressEvent) String() string {
 func (*AnalysisProgressEvent) ProtoMessage() {}
 
 func (x *AnalysisProgressEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[13]
+	mi := &file_llms_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -753,7 +859,7 @@ func (x *AnalysisProgressEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalysisProgressEvent.ProtoReflect.Descriptor instead.
 func (*AnalysisProgressEvent) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{13}
+	return file_llms_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *AnalysisProgressEvent) GetTaskName() string {
@@ -826,7 +932,7 @@ type GenericLLMRequest struct {
 
 func (x *GenericLLMRequest) Reset() {
 	*x = GenericLLMRequest{}
-	mi := &file_llms_proto_msgTypes[14]
+	mi := &file_llms_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -838,7 +944,7 @@ func (x *GenericLLMRequest) String() string {
 func (*GenericLLMRequest) ProtoMessage() {}
 
 func (x *GenericLLMRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[14]
+	mi := &file_llms_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -851,7 +957,7 @@ func (x *GenericLLMRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenericLLMRequest.ProtoReflect.Descriptor instead.
 func (*GenericLLMRequest) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{14}
+	return file_llms_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GenericLLMRequest) GetModel() string {
@@ -900,7 +1006,7 @@ type Message struct {
 
 func (x *Message) Reset() {
 	*x = Message{}
-	mi := &file_llms_proto_msgTypes[15]
+	mi := &file_llms_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -912,7 +1018,7 @@ func (x *Message) String() string {
 func (*Message) ProtoMessage() {}
 
 func (x *Message) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[15]
+	mi := &file_llms_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -925,7 +1031,7 @@ func (x *Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Message.ProtoReflect.Descriptor instead.
 func (*Message) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{15}
+	return file_llms_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *Message) GetRole() string {
@@ -954,7 +1060,7 @@ type OllamaRequest struct {
 
 func (x *OllamaRequest) Reset() {
 	*x = OllamaRequest{}
-	mi := &file_llms_proto_msgTypes[16]
+	mi := &file_llms_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -966,7 +1072,7 @@ func (x *OllamaRequest) String() string {
 func (*OllamaRequest) ProtoMessage() {}
 
 func (x *OllamaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[16]
+	mi := &file_llms_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -979,7 +1085,7 @@ func (x *OllamaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OllamaRequest.ProtoReflect.Descriptor instead.
 func (*OllamaRequest) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{16}
+	return file_llms_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *OllamaRequest) GetModel() string {
@@ -1015,7 +1121,7 @@ type OllamaResponse struct {
 
 func (x *OllamaResponse) Reset() {
 	*x = OllamaResponse{}
-	mi := &file_llms_proto_msgTypes[17]
+	mi := &file_llms_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1027,7 +1133,7 @@ func (x *OllamaResponse) String() string {
 func (*OllamaResponse) ProtoMessage() {}
 
 func (x *OllamaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[17]
+	mi := &file_llms_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1040,7 +1146,7 @@ func (x *OllamaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OllamaResponse.ProtoReflect.Descriptor instead.
 func (*OllamaResponse) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{17}
+	return file_llms_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *OllamaResponse) GetModel() string {
@@ -1077,7 +1183,7 @@ type OpenAIRequest struct {
 
 func (x *OpenAIRequest) Reset() {
 	*x = OpenAIRequest{}
-	mi := &file_llms_proto_msgTypes[18]
+	mi := &file_llms_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1089,7 +1195,7 @@ func (x *OpenAIRequest) String() string {
 func (*OpenAIRequest) ProtoMessage() {}
 
 func (x *OpenAIRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[18]
+	mi := &file_llms_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1102,7 +1208,7 @@ func (x *OpenAIRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenAIRequest.ProtoReflect.Descriptor instead.
 func (*OpenAIRequest) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{18}
+	return file_llms_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *OpenAIRequest) GetModel() string {
@@ -1145,7 +1251,7 @@ type OpenAIChoice struct {
 
 func (x *OpenAIChoice) Reset() {
 	*x = OpenAIChoice{}
-	mi := &file_llms_proto_msgTypes[19]
+	mi := &file_llms_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1157,7 +1263,7 @@ func (x *OpenAIChoice) String() string {
 func (*OpenAIChoice) ProtoMessage() {}
 
 func (x *OpenAIChoice) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[19]
+	mi := &file_llms_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1170,7 +1276,7 @@ func (x *OpenAIChoice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenAIChoice.ProtoReflect.Descriptor instead.
 func (*OpenAIChoice) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{19}
+	return file_llms_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *OpenAIChoice) GetIndex() int32 {
@@ -1208,7 +1314,7 @@ type OpenAIResponse struct {
 
 func (x *OpenAIResponse) Reset() {
 	*x = OpenAIResponse{}
-	mi := &file_llms_proto_msgTypes[20]
+	mi := &file_llms_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1220,7 +1326,7 @@ func (x *OpenAIResponse) String() string {
 func (*OpenAIResponse) ProtoMessage() {}
 
 func (x *OpenAIResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[20]
+	mi := &file_llms_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1233,7 +1339,7 @@ func (x *OpenAIResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenAIResponse.ProtoReflect.Descriptor instead.
 func (*OpenAIResponse) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{20}
+	return file_llms_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *OpenAIResponse) GetId() string {
@@ -1284,7 +1390,7 @@ type AnthropicRequest struct {
 
 func (x *AnthropicRequest) Reset() {
 	*x = AnthropicRequest{}
-	mi := &file_llms_proto_msgTypes[21]
+	mi := &file_llms_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1296,7 +1402,7 @@ func (x *AnthropicRequest) String() string {
 func (*AnthropicRequest) ProtoMessage() {}
 
 func (x *AnthropicRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[21]
+	mi := &file_llms_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1309,7 +1415,7 @@ func (x *AnthropicRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnthropicRequest.ProtoReflect.Descriptor instead.
 func (*AnthropicRequest) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{21}
+	return file_llms_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *AnthropicRequest) GetModel() string {
@@ -1351,7 +1457,7 @@ type AnthropicContentItem struct {
 
 func (x *AnthropicContentItem) Reset() {
 	*x = AnthropicContentItem{}
-	mi := &file_llms_proto_msgTypes[22]
+	mi := &file_llms_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1363,7 +1469,7 @@ func (x *AnthropicContentItem) String() string {
 func (*AnthropicContentItem) ProtoMessage() {}
 
 func (x *AnthropicContentItem) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[22]
+	mi := &file_llms_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1376,7 +1482,7 @@ func (x *AnthropicContentItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnthropicContentItem.ProtoReflect.Descriptor instead.
 func (*AnthropicContentItem) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{22}
+	return file_llms_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *AnthropicContentItem) GetType() string {
@@ -1406,7 +1512,7 @@ type AnthropicResponse struct {
 
 func (x *AnthropicResponse) Reset() {
 	*x = AnthropicResponse{}
-	mi := &file_llms_proto_msgTypes[23]
+	mi := &file_llms_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1418,7 +1524,7 @@ func (x *AnthropicResponse) String() string {
 func (*AnthropicResponse) ProtoMessage() {}
 
 func (x *AnthropicResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[23]
+	mi := &file_llms_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1431,7 +1537,7 @@ func (x *AnthropicResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnthropicResponse.ProtoReflect.Descriptor instead.
 func (*AnthropicResponse) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{23}
+	return file_llms_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *AnthropicResponse) GetId() string {
@@ -1473,7 +1579,7 @@ type ModelsResponse struct {
 
 func (x *ModelsResponse) Reset() {
 	*x = ModelsResponse{}
-	mi := &file_llms_proto_msgTypes[24]
+	mi := &file_llms_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1485,7 +1591,7 @@ func (x *ModelsResponse) String() string {
 func (*ModelsResponse) ProtoMessage() {}
 
 func (x *ModelsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[24]
+	mi := &file_llms_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1498,7 +1604,7 @@ func (x *ModelsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelsResponse.ProtoReflect.Descriptor instead.
 func (*ModelsResponse) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{24}
+	return file_llms_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ModelsResponse) GetModels() []*ModelInfo {
@@ -1528,7 +1634,7 @@ type OpenAIModelData struct {
 
 func (x *OpenAIModelData) Reset() {
 	*x = OpenAIModelData{}
-	mi := &file_llms_proto_msgTypes[25]
+	mi := &file_llms_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1540,7 +1646,7 @@ func (x *OpenAIModelData) String() string {
 func (*OpenAIModelData) ProtoMessage() {}
 
 func (x *OpenAIModelData) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[25]
+	mi := &file_llms_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1553,7 +1659,7 @@ func (x *OpenAIModelData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenAIModelData.ProtoReflect.Descriptor instead.
 func (*OpenAIModelData) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{25}
+	return file_llms_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *OpenAIModelData) GetId() string {
@@ -1595,7 +1701,7 @@ type OpenAIModelsResponse struct {
 
 func (x *OpenAIModelsResponse) Reset() {
 	*x = OpenAIModelsResponse{}
-	mi := &file_llms_proto_msgTypes[26]
+	mi := &file_llms_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1607,7 +1713,7 @@ func (x *OpenAIModelsResponse) String() string {
 func (*OpenAIModelsResponse) ProtoMessage() {}
 
 func (x *OpenAIModelsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[26]
+	mi := &file_llms_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1620,7 +1726,7 @@ func (x *OpenAIModelsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenAIModelsResponse.ProtoReflect.Descriptor instead.
 func (*OpenAIModelsResponse) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{26}
+	return file_llms_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *OpenAIModelsResponse) GetObject() string {
@@ -1650,7 +1756,7 @@ type AnthropicModelData struct {
 
 func (x *AnthropicModelData) Reset() {
 	*x = AnthropicModelData{}
-	mi := &file_llms_proto_msgTypes[27]
+	mi := &file_llms_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1662,7 +1768,7 @@ func (x *AnthropicModelData) String() string {
 func (*AnthropicModelData) ProtoMessage() {}
 
 func (x *AnthropicModelData) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[27]
+	mi := &file_llms_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1675,7 +1781,7 @@ func (x *AnthropicModelData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnthropicModelData.ProtoReflect.Descriptor instead.
 func (*AnthropicModelData) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{27}
+	return file_llms_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *AnthropicModelData) GetType() string {
@@ -1719,7 +1825,7 @@ type AnthropicModelsResponse struct {
 
 func (x *AnthropicModelsResponse) Reset() {
 	*x = AnthropicModelsResponse{}
-	mi := &file_llms_proto_msgTypes[28]
+	mi := &file_llms_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1731,7 +1837,7 @@ func (x *AnthropicModelsResponse) String() string {
 func (*AnthropicModelsResponse) ProtoMessage() {}
 
 func (x *AnthropicModelsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[28]
+	mi := &file_llms_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1744,7 +1850,7 @@ func (x *AnthropicModelsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnthropicModelsResponse.ProtoReflect.Descriptor instead.
 func (*AnthropicModelsResponse) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{28}
+	return file_llms_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *AnthropicModelsResponse) GetData() []*AnthropicModelData {
@@ -1790,7 +1896,7 @@ type OllamaModelDetails struct {
 
 func (x *OllamaModelDetails) Reset() {
 	*x = OllamaModelDetails{}
-	mi := &file_llms_proto_msgTypes[29]
+	mi := &file_llms_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1802,7 +1908,7 @@ func (x *OllamaModelDetails) String() string {
 func (*OllamaModelDetails) ProtoMessage() {}
 
 func (x *OllamaModelDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[29]
+	mi := &file_llms_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1815,7 +1921,7 @@ func (x *OllamaModelDetails) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OllamaModelDetails.ProtoReflect.Descriptor instead.
 func (*OllamaModelDetails) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{29}
+	return file_llms_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *OllamaModelDetails) GetParentModel() string {
@@ -1875,7 +1981,7 @@ type OllamaModelData struct {
 
 func (x *OllamaModelData) Reset() {
 	*x = OllamaModelData{}
-	mi := &file_llms_proto_msgTypes[30]
+	mi := &file_llms_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1887,7 +1993,7 @@ func (x *OllamaModelData) String() string {
 func (*OllamaModelData) ProtoMessage() {}
 
 func (x *OllamaModelData) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[30]
+	mi := &file_llms_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1900,7 +2006,7 @@ func (x *OllamaModelData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OllamaModelData.ProtoReflect.Descriptor instead.
 func (*OllamaModelData) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{30}
+	return file_llms_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *OllamaModelData) GetName() string {
@@ -1955,7 +2061,7 @@ type OllamaModelsResponse struct {
 
 func (x *OllamaModelsResponse) Reset() {
 	*x = OllamaModelsResponse{}
-	mi := &file_llms_proto_msgTypes[31]
+	mi := &file_llms_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1967,7 +2073,7 @@ func (x *OllamaModelsResponse) String() string {
 func (*OllamaModelsResponse) ProtoMessage() {}
 
 func (x *OllamaModelsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_llms_proto_msgTypes[31]
+	mi := &file_llms_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1980,7 +2086,7 @@ func (x *OllamaModelsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OllamaModelsResponse.ProtoReflect.Descriptor instead.
 func (*OllamaModelsResponse) Descriptor() ([]byte, []int) {
-	return file_llms_proto_rawDescGZIP(), []int{31}
+	return file_llms_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *OllamaModelsResponse) GetModels() []*OllamaModelData {
@@ -2005,7 +2111,14 @@ const file_llms_proto_rawDesc = "" +
 	"\x17SaveLLMProvidersRequest\x126\n" +
 	"\tproviders\x18\x01 \x03(\v2\x18.downlink.ProviderConfigR\tproviders\"@\n" +
 	"\x19GetAvailableModelsRequest\x12#\n" +
-	"\rprovider_name\x18\x01 \x01(\tR\fproviderName\"\x99\x01\n" +
+	"\rprovider_name\x18\x01 \x01(\tR\fproviderName\"E\n" +
+	"\x11ResolveLLMRequest\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x14\n" +
+	"\x05model\x18\x02 \x01(\tR\x05model\"X\n" +
+	"\x12ResolveLLMResponse\x12#\n" +
+	"\rprovider_type\x18\x01 \x01(\tR\fproviderType\x12\x1d\n" +
+	"\n" +
+	"model_name\x18\x02 \x01(\tR\tmodelName\"\x99\x01\n" +
 	"\tModelInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
@@ -2141,11 +2254,13 @@ const file_llms_proto_rawDesc = "" +
 	"\x06digest\x18\x05 \x01(\tR\x06digest\x126\n" +
 	"\adetails\x18\x06 \x01(\v2\x1c.downlink.OllamaModelDetailsR\adetails\"I\n" +
 	"\x14OllamaModelsResponse\x121\n" +
-	"\x06models\x18\x01 \x03(\v2\x19.downlink.OllamaModelDataR\x06models2\xac\x06\n" +
+	"\x06models\x18\x01 \x03(\v2\x19.downlink.OllamaModelDataR\x06models2\xf7\x06\n" +
 	"\vLLMsService\x12X\n" +
 	"\x0fGetLLMProviders\x12 .downlink.GetLLMProvidersRequest\x1a!.downlink.GetLLMProvidersResponse\"\x00\x12O\n" +
 	"\x10SaveLLMProviders\x12!.downlink.SaveLLMProvidersRequest\x1a\x16.google.protobuf.Empty\"\x00\x12U\n" +
-	"\x12GetAvailableModels\x12#.downlink.GetAvailableModelsRequest\x1a\x18.downlink.ModelsResponse\"\x00\x12\x88\x01\n" +
+	"\x12GetAvailableModels\x12#.downlink.GetAvailableModelsRequest\x1a\x18.downlink.ModelsResponse\"\x00\x12I\n" +
+	"\n" +
+	"ResolveLLM\x12\x1b.downlink.ResolveLLMRequest\x1a\x1c.downlink.ResolveLLMResponse\"\x00\x12\x88\x01\n" +
 	"\x1fAnalyzeArticleWithProviderModel\x120.downlink.AnalyzeArticleWithProviderModelRequest\x1a1.downlink.AnalyzeArticleWithProviderModelResponse\"\x00\x12U\n" +
 	"\x0eAnalyzeArticle\x12\x1f.downlink.AnalyzeArticleRequest\x1a .downlink.AnalyzeArticleResponse\"\x00\x12^\n" +
 	"\x11GetAnalysisConfig\x12\".downlink.GetAnalysisConfigRequest\x1a#.downlink.GetAnalysisConfigResponse\"\x00\x12j\n" +
@@ -2164,7 +2279,7 @@ func file_llms_proto_rawDescGZIP() []byte {
 	return file_llms_proto_rawDescData
 }
 
-var file_llms_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_llms_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_llms_proto_goTypes = []any{
 	(*GetAnalysisConfigRequest)(nil),                // 0: downlink.GetAnalysisConfigRequest
 	(*GetAnalysisConfigResponse)(nil),               // 1: downlink.GetAnalysisConfigResponse
@@ -2172,73 +2287,77 @@ var file_llms_proto_goTypes = []any{
 	(*GetLLMProvidersResponse)(nil),                 // 3: downlink.GetLLMProvidersResponse
 	(*SaveLLMProvidersRequest)(nil),                 // 4: downlink.SaveLLMProvidersRequest
 	(*GetAvailableModelsRequest)(nil),               // 5: downlink.GetAvailableModelsRequest
-	(*ModelInfo)(nil),                               // 6: downlink.ModelInfo
-	(*AnalyzeArticleWithProviderModelRequest)(nil),  // 7: downlink.AnalyzeArticleWithProviderModelRequest
-	(*AnalyzeArticleWithProviderModelResponse)(nil), // 8: downlink.AnalyzeArticleWithProviderModelResponse
-	(*AnalyzeArticleRequest)(nil),                   // 9: downlink.AnalyzeArticleRequest
-	(*AnalyzeArticleResponse)(nil),                  // 10: downlink.AnalyzeArticleResponse
-	(*PreviewAnalysisPromptRequest)(nil),            // 11: downlink.PreviewAnalysisPromptRequest
-	(*PreviewAnalysisPromptResponse)(nil),           // 12: downlink.PreviewAnalysisPromptResponse
-	(*AnalysisProgressEvent)(nil),                   // 13: downlink.AnalysisProgressEvent
-	(*GenericLLMRequest)(nil),                       // 14: downlink.GenericLLMRequest
-	(*Message)(nil),                                 // 15: downlink.Message
-	(*OllamaRequest)(nil),                           // 16: downlink.OllamaRequest
-	(*OllamaResponse)(nil),                          // 17: downlink.OllamaResponse
-	(*OpenAIRequest)(nil),                           // 18: downlink.OpenAIRequest
-	(*OpenAIChoice)(nil),                            // 19: downlink.OpenAIChoice
-	(*OpenAIResponse)(nil),                          // 20: downlink.OpenAIResponse
-	(*AnthropicRequest)(nil),                        // 21: downlink.AnthropicRequest
-	(*AnthropicContentItem)(nil),                    // 22: downlink.AnthropicContentItem
-	(*AnthropicResponse)(nil),                       // 23: downlink.AnthropicResponse
-	(*ModelsResponse)(nil),                          // 24: downlink.ModelsResponse
-	(*OpenAIModelData)(nil),                         // 25: downlink.OpenAIModelData
-	(*OpenAIModelsResponse)(nil),                    // 26: downlink.OpenAIModelsResponse
-	(*AnthropicModelData)(nil),                      // 27: downlink.AnthropicModelData
-	(*AnthropicModelsResponse)(nil),                 // 28: downlink.AnthropicModelsResponse
-	(*OllamaModelDetails)(nil),                      // 29: downlink.OllamaModelDetails
-	(*OllamaModelData)(nil),                         // 30: downlink.OllamaModelData
-	(*OllamaModelsResponse)(nil),                    // 31: downlink.OllamaModelsResponse
-	(*AnalysisConfig)(nil),                          // 32: downlink.AnalysisConfig
-	(*ProviderConfig)(nil),                          // 33: downlink.ProviderConfig
-	(*ArticleAnalysis)(nil),                         // 34: downlink.ArticleAnalysis
-	(*emptypb.Empty)(nil),                           // 35: google.protobuf.Empty
+	(*ResolveLLMRequest)(nil),                       // 6: downlink.ResolveLLMRequest
+	(*ResolveLLMResponse)(nil),                      // 7: downlink.ResolveLLMResponse
+	(*ModelInfo)(nil),                               // 8: downlink.ModelInfo
+	(*AnalyzeArticleWithProviderModelRequest)(nil),  // 9: downlink.AnalyzeArticleWithProviderModelRequest
+	(*AnalyzeArticleWithProviderModelResponse)(nil), // 10: downlink.AnalyzeArticleWithProviderModelResponse
+	(*AnalyzeArticleRequest)(nil),                   // 11: downlink.AnalyzeArticleRequest
+	(*AnalyzeArticleResponse)(nil),                  // 12: downlink.AnalyzeArticleResponse
+	(*PreviewAnalysisPromptRequest)(nil),            // 13: downlink.PreviewAnalysisPromptRequest
+	(*PreviewAnalysisPromptResponse)(nil),           // 14: downlink.PreviewAnalysisPromptResponse
+	(*AnalysisProgressEvent)(nil),                   // 15: downlink.AnalysisProgressEvent
+	(*GenericLLMRequest)(nil),                       // 16: downlink.GenericLLMRequest
+	(*Message)(nil),                                 // 17: downlink.Message
+	(*OllamaRequest)(nil),                           // 18: downlink.OllamaRequest
+	(*OllamaResponse)(nil),                          // 19: downlink.OllamaResponse
+	(*OpenAIRequest)(nil),                           // 20: downlink.OpenAIRequest
+	(*OpenAIChoice)(nil),                            // 21: downlink.OpenAIChoice
+	(*OpenAIResponse)(nil),                          // 22: downlink.OpenAIResponse
+	(*AnthropicRequest)(nil),                        // 23: downlink.AnthropicRequest
+	(*AnthropicContentItem)(nil),                    // 24: downlink.AnthropicContentItem
+	(*AnthropicResponse)(nil),                       // 25: downlink.AnthropicResponse
+	(*ModelsResponse)(nil),                          // 26: downlink.ModelsResponse
+	(*OpenAIModelData)(nil),                         // 27: downlink.OpenAIModelData
+	(*OpenAIModelsResponse)(nil),                    // 28: downlink.OpenAIModelsResponse
+	(*AnthropicModelData)(nil),                      // 29: downlink.AnthropicModelData
+	(*AnthropicModelsResponse)(nil),                 // 30: downlink.AnthropicModelsResponse
+	(*OllamaModelDetails)(nil),                      // 31: downlink.OllamaModelDetails
+	(*OllamaModelData)(nil),                         // 32: downlink.OllamaModelData
+	(*OllamaModelsResponse)(nil),                    // 33: downlink.OllamaModelsResponse
+	(*AnalysisConfig)(nil),                          // 34: downlink.AnalysisConfig
+	(*ProviderConfig)(nil),                          // 35: downlink.ProviderConfig
+	(*ArticleAnalysis)(nil),                         // 36: downlink.ArticleAnalysis
+	(*emptypb.Empty)(nil),                           // 37: google.protobuf.Empty
 }
 var file_llms_proto_depIdxs = []int32{
-	32, // 0: downlink.GetAnalysisConfigResponse.analysis_config:type_name -> downlink.AnalysisConfig
-	33, // 1: downlink.GetLLMProvidersResponse.providers:type_name -> downlink.ProviderConfig
-	33, // 2: downlink.SaveLLMProvidersRequest.providers:type_name -> downlink.ProviderConfig
-	34, // 3: downlink.AnalyzeArticleWithProviderModelResponse.analysis:type_name -> downlink.ArticleAnalysis
-	34, // 4: downlink.AnalyzeArticleResponse.analysis:type_name -> downlink.ArticleAnalysis
-	34, // 5: downlink.AnalysisProgressEvent.analysis:type_name -> downlink.ArticleAnalysis
-	15, // 6: downlink.GenericLLMRequest.messages:type_name -> downlink.Message
-	15, // 7: downlink.OpenAIRequest.messages:type_name -> downlink.Message
-	15, // 8: downlink.OpenAIChoice.message:type_name -> downlink.Message
-	19, // 9: downlink.OpenAIResponse.choices:type_name -> downlink.OpenAIChoice
-	15, // 10: downlink.AnthropicRequest.messages:type_name -> downlink.Message
-	22, // 11: downlink.AnthropicResponse.content:type_name -> downlink.AnthropicContentItem
-	6,  // 12: downlink.ModelsResponse.models:type_name -> downlink.ModelInfo
-	25, // 13: downlink.OpenAIModelsResponse.data:type_name -> downlink.OpenAIModelData
-	27, // 14: downlink.AnthropicModelsResponse.data:type_name -> downlink.AnthropicModelData
-	29, // 15: downlink.OllamaModelData.details:type_name -> downlink.OllamaModelDetails
-	30, // 16: downlink.OllamaModelsResponse.models:type_name -> downlink.OllamaModelData
+	34, // 0: downlink.GetAnalysisConfigResponse.analysis_config:type_name -> downlink.AnalysisConfig
+	35, // 1: downlink.GetLLMProvidersResponse.providers:type_name -> downlink.ProviderConfig
+	35, // 2: downlink.SaveLLMProvidersRequest.providers:type_name -> downlink.ProviderConfig
+	36, // 3: downlink.AnalyzeArticleWithProviderModelResponse.analysis:type_name -> downlink.ArticleAnalysis
+	36, // 4: downlink.AnalyzeArticleResponse.analysis:type_name -> downlink.ArticleAnalysis
+	36, // 5: downlink.AnalysisProgressEvent.analysis:type_name -> downlink.ArticleAnalysis
+	17, // 6: downlink.GenericLLMRequest.messages:type_name -> downlink.Message
+	17, // 7: downlink.OpenAIRequest.messages:type_name -> downlink.Message
+	17, // 8: downlink.OpenAIChoice.message:type_name -> downlink.Message
+	21, // 9: downlink.OpenAIResponse.choices:type_name -> downlink.OpenAIChoice
+	17, // 10: downlink.AnthropicRequest.messages:type_name -> downlink.Message
+	24, // 11: downlink.AnthropicResponse.content:type_name -> downlink.AnthropicContentItem
+	8,  // 12: downlink.ModelsResponse.models:type_name -> downlink.ModelInfo
+	27, // 13: downlink.OpenAIModelsResponse.data:type_name -> downlink.OpenAIModelData
+	29, // 14: downlink.AnthropicModelsResponse.data:type_name -> downlink.AnthropicModelData
+	31, // 15: downlink.OllamaModelData.details:type_name -> downlink.OllamaModelDetails
+	32, // 16: downlink.OllamaModelsResponse.models:type_name -> downlink.OllamaModelData
 	2,  // 17: downlink.LLMsService.GetLLMProviders:input_type -> downlink.GetLLMProvidersRequest
 	4,  // 18: downlink.LLMsService.SaveLLMProviders:input_type -> downlink.SaveLLMProvidersRequest
 	5,  // 19: downlink.LLMsService.GetAvailableModels:input_type -> downlink.GetAvailableModelsRequest
-	7,  // 20: downlink.LLMsService.AnalyzeArticleWithProviderModel:input_type -> downlink.AnalyzeArticleWithProviderModelRequest
-	9,  // 21: downlink.LLMsService.AnalyzeArticle:input_type -> downlink.AnalyzeArticleRequest
-	0,  // 22: downlink.LLMsService.GetAnalysisConfig:input_type -> downlink.GetAnalysisConfigRequest
-	11, // 23: downlink.LLMsService.PreviewAnalysisPrompt:input_type -> downlink.PreviewAnalysisPromptRequest
-	7,  // 24: downlink.LLMsService.StreamAnalyzeArticle:input_type -> downlink.AnalyzeArticleWithProviderModelRequest
-	3,  // 25: downlink.LLMsService.GetLLMProviders:output_type -> downlink.GetLLMProvidersResponse
-	35, // 26: downlink.LLMsService.SaveLLMProviders:output_type -> google.protobuf.Empty
-	24, // 27: downlink.LLMsService.GetAvailableModels:output_type -> downlink.ModelsResponse
-	8,  // 28: downlink.LLMsService.AnalyzeArticleWithProviderModel:output_type -> downlink.AnalyzeArticleWithProviderModelResponse
-	10, // 29: downlink.LLMsService.AnalyzeArticle:output_type -> downlink.AnalyzeArticleResponse
-	1,  // 30: downlink.LLMsService.GetAnalysisConfig:output_type -> downlink.GetAnalysisConfigResponse
-	12, // 31: downlink.LLMsService.PreviewAnalysisPrompt:output_type -> downlink.PreviewAnalysisPromptResponse
-	13, // 32: downlink.LLMsService.StreamAnalyzeArticle:output_type -> downlink.AnalysisProgressEvent
-	25, // [25:33] is the sub-list for method output_type
-	17, // [17:25] is the sub-list for method input_type
+	6,  // 20: downlink.LLMsService.ResolveLLM:input_type -> downlink.ResolveLLMRequest
+	9,  // 21: downlink.LLMsService.AnalyzeArticleWithProviderModel:input_type -> downlink.AnalyzeArticleWithProviderModelRequest
+	11, // 22: downlink.LLMsService.AnalyzeArticle:input_type -> downlink.AnalyzeArticleRequest
+	0,  // 23: downlink.LLMsService.GetAnalysisConfig:input_type -> downlink.GetAnalysisConfigRequest
+	13, // 24: downlink.LLMsService.PreviewAnalysisPrompt:input_type -> downlink.PreviewAnalysisPromptRequest
+	9,  // 25: downlink.LLMsService.StreamAnalyzeArticle:input_type -> downlink.AnalyzeArticleWithProviderModelRequest
+	3,  // 26: downlink.LLMsService.GetLLMProviders:output_type -> downlink.GetLLMProvidersResponse
+	37, // 27: downlink.LLMsService.SaveLLMProviders:output_type -> google.protobuf.Empty
+	26, // 28: downlink.LLMsService.GetAvailableModels:output_type -> downlink.ModelsResponse
+	7,  // 29: downlink.LLMsService.ResolveLLM:output_type -> downlink.ResolveLLMResponse
+	10, // 30: downlink.LLMsService.AnalyzeArticleWithProviderModel:output_type -> downlink.AnalyzeArticleWithProviderModelResponse
+	12, // 31: downlink.LLMsService.AnalyzeArticle:output_type -> downlink.AnalyzeArticleResponse
+	1,  // 32: downlink.LLMsService.GetAnalysisConfig:output_type -> downlink.GetAnalysisConfigResponse
+	14, // 33: downlink.LLMsService.PreviewAnalysisPrompt:output_type -> downlink.PreviewAnalysisPromptResponse
+	15, // 34: downlink.LLMsService.StreamAnalyzeArticle:output_type -> downlink.AnalysisProgressEvent
+	26, // [26:35] is the sub-list for method output_type
+	17, // [17:26] is the sub-list for method input_type
 	17, // [17:17] is the sub-list for extension type_name
 	17, // [17:17] is the sub-list for extension extendee
 	0,  // [0:17] is the sub-list for field type_name
@@ -2251,14 +2370,14 @@ func file_llms_proto_init() {
 	}
 	file_config_proto_init()
 	file_analysis_proto_init()
-	file_llms_proto_msgTypes[7].OneofWrappers = []any{}
+	file_llms_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_llms_proto_rawDesc), len(file_llms_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   32,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

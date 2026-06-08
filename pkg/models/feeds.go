@@ -28,7 +28,7 @@ type FeedConfig struct {
 	Type      string            `json:"type" yaml:"type"`
 	Enabled   bool              `json:"enabled" yaml:"enabled"`
 	Scraper   map[string]any    `json:"scraper,omitempty" yaml:"scraper,omitempty"`
-	Scraping  string            `json:"scraping,omitempty" yaml:"scraping,omitempty"` // "dynamic", "full_browser", or "" (static)
+	Scraping  string            `json:"scraping,omitempty" yaml:"scraping,omitempty"` // "dynamic", "full_browser", "none" (use feed content, no fetch), or "" (static)
 	Selectors *Selectors        `json:"selectors,omitempty" yaml:"selectors,omitempty"`
 	Headers   map[string]string `json:"headers,omitempty" yaml:"headers,omitempty"` // custom HTTP headers applied to all requests for this feed
 }

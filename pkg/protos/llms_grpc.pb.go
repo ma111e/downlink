@@ -23,6 +23,7 @@ const (
 	LLMsService_GetLLMProviders_FullMethodName                 = "/downlink.LLMsService/GetLLMProviders"
 	LLMsService_SaveLLMProviders_FullMethodName                = "/downlink.LLMsService/SaveLLMProviders"
 	LLMsService_GetAvailableModels_FullMethodName              = "/downlink.LLMsService/GetAvailableModels"
+	LLMsService_ResolveLLM_FullMethodName                      = "/downlink.LLMsService/ResolveLLM"
 	LLMsService_AnalyzeArticleWithProviderModel_FullMethodName = "/downlink.LLMsService/AnalyzeArticleWithProviderModel"
 	LLMsService_AnalyzeArticle_FullMethodName                  = "/downlink.LLMsService/AnalyzeArticle"
 	LLMsService_GetAnalysisConfig_FullMethodName               = "/downlink.LLMsService/GetAnalysisConfig"
@@ -42,6 +43,8 @@ type LLMsServiceClient interface {
 	SaveLLMProviders(ctx context.Context, in *SaveLLMProvidersRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// GetAvailableModels fetches available models from configured providers
 	GetAvailableModels(ctx context.Context, in *GetAvailableModelsRequest, opts ...grpc.CallOption) (*ModelsResponse, error)
+	// ResolveLLM resolves a provider/model selection to the concrete provider type and model name a run would use
+	ResolveLLM(ctx context.Context, in *ResolveLLMRequest, opts ...grpc.CallOption) (*ResolveLLMResponse, error)
 	// AnalyzeArticleWithProviderModel analyzes an article using a provider model
 	AnalyzeArticleWithProviderModel(ctx context.Context, in *AnalyzeArticleWithProviderModelRequest, opts ...grpc.CallOption) (*AnalyzeArticleWithProviderModelResponse, error)
 	// AnalyzeArticle analyzes an article using the default model
@@ -86,6 +89,16 @@ func (c *lLMsServiceClient) GetAvailableModels(ctx context.Context, in *GetAvail
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ModelsResponse)
 	err := c.cc.Invoke(ctx, LLMsService_GetAvailableModels_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lLMsServiceClient) ResolveLLM(ctx context.Context, in *ResolveLLMRequest, opts ...grpc.CallOption) (*ResolveLLMResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResolveLLMResponse)
+	err := c.cc.Invoke(ctx, LLMsService_ResolveLLM_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -163,6 +176,8 @@ type LLMsServiceServer interface {
 	SaveLLMProviders(context.Context, *SaveLLMProvidersRequest) (*emptypb.Empty, error)
 	// GetAvailableModels fetches available models from configured providers
 	GetAvailableModels(context.Context, *GetAvailableModelsRequest) (*ModelsResponse, error)
+	// ResolveLLM resolves a provider/model selection to the concrete provider type and model name a run would use
+	ResolveLLM(context.Context, *ResolveLLMRequest) (*ResolveLLMResponse, error)
 	// AnalyzeArticleWithProviderModel analyzes an article using a provider model
 	AnalyzeArticleWithProviderModel(context.Context, *AnalyzeArticleWithProviderModelRequest) (*AnalyzeArticleWithProviderModelResponse, error)
 	// AnalyzeArticle analyzes an article using the default model
@@ -191,6 +206,9 @@ func (UnimplementedLLMsServiceServer) SaveLLMProviders(context.Context, *SaveLLM
 }
 func (UnimplementedLLMsServiceServer) GetAvailableModels(context.Context, *GetAvailableModelsRequest) (*ModelsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAvailableModels not implemented")
+}
+func (UnimplementedLLMsServiceServer) ResolveLLM(context.Context, *ResolveLLMRequest) (*ResolveLLMResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResolveLLM not implemented")
 }
 func (UnimplementedLLMsServiceServer) AnalyzeArticleWithProviderModel(context.Context, *AnalyzeArticleWithProviderModelRequest) (*AnalyzeArticleWithProviderModelResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AnalyzeArticleWithProviderModel not implemented")
@@ -278,6 +296,24 @@ func _LLMsService_GetAvailableModels_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LLMsServiceServer).GetAvailableModels(ctx, req.(*GetAvailableModelsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LLMsService_ResolveLLM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResolveLLMRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LLMsServiceServer).ResolveLLM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LLMsService_ResolveLLM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LLMsServiceServer).ResolveLLM(ctx, req.(*ResolveLLMRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -383,6 +419,10 @@ var LLMsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAvailableModels",
 			Handler:    _LLMsService_GetAvailableModels_Handler,
+		},
+		{
+			MethodName: "ResolveLLM",
+			Handler:    _LLMsService_ResolveLLM_Handler,
 		},
 		{
 			MethodName: "AnalyzeArticleWithProviderModel",

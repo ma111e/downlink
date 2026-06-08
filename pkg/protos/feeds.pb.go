@@ -73,9 +73,10 @@ func (RefreshEventType) EnumDescriptor() ([]byte, []int) {
 type AutoConfigEventKind int32
 
 const (
-	AutoConfigEventKind_STEP  AutoConfigEventKind = 0
-	AutoConfigEventKind_DONE  AutoConfigEventKind = 1
-	AutoConfigEventKind_ERROR AutoConfigEventKind = 2
+	AutoConfigEventKind_STEP   AutoConfigEventKind = 0
+	AutoConfigEventKind_DONE   AutoConfigEventKind = 1
+	AutoConfigEventKind_ERROR  AutoConfigEventKind = 2
+	AutoConfigEventKind_LLM_IO AutoConfigEventKind = 3
 )
 
 // Enum value maps for AutoConfigEventKind.
@@ -84,11 +85,13 @@ var (
 		0: "STEP",
 		1: "DONE",
 		2: "ERROR",
+		3: "LLM_IO",
 	}
 	AutoConfigEventKind_value = map[string]int32{
-		"STEP":  0,
-		"DONE":  1,
-		"ERROR": 2,
+		"STEP":   0,
+		"DONE":   1,
+		"ERROR":  2,
+		"LLM_IO": 3,
 	}
 )
 
@@ -1018,6 +1021,7 @@ type AutoConfigFeedRequest struct {
 	Provider      string                 `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`                                                                         // optional --provider (type or profile name)
 	Model         string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`                                                                               // optional --model
 	MaxSteps      int32                  `protobuf:"varint,5,opt,name=max_steps,json=maxSteps,proto3" json:"max_steps,omitempty"`                                                        // optional cap on agent tool calls (0 = default)
+	Verbose       bool                   `protobuf:"varint,6,opt,name=verbose,proto3" json:"verbose,omitempty"`                                                                          // when true, stream LLM_IO events (prompt + response per turn)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1087,17 +1091,26 @@ func (x *AutoConfigFeedRequest) GetMaxSteps() int32 {
 	return 0
 }
 
+func (x *AutoConfigFeedRequest) GetVerbose() bool {
+	if x != nil {
+		return x.Verbose
+	}
+	return false
+}
+
 // AutoConfigFeedEvent is streamed as the agent works: STEP events narrate each tool
 // call, DONE carries the final config, ERROR reports a failure.
 type AutoConfigFeedEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Kind           AutoConfigEventKind    `protobuf:"varint,1,opt,name=kind,proto3,enum=downlink.AutoConfigEventKind" json:"kind,omitempty"`
-	Step           int32                  `protobuf:"varint,2,opt,name=step,proto3" json:"step,omitempty"`                                            // 1-based step index for STEP events
+	Step           int32                  `protobuf:"varint,2,opt,name=step,proto3" json:"step,omitempty"`                                            // 1-based step index for STEP events (turn index for LLM_IO)
 	Tool           string                 `protobuf:"bytes,3,opt,name=tool,proto3" json:"tool,omitempty"`                                             // tool the agent invoked (STEP events)
 	Detail         string                 `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`                                         // one-line human description of the step / error
 	FeedConfigYaml string                 `protobuf:"bytes,5,opt,name=feed_config_yaml,json=feedConfigYaml,proto3" json:"feed_config_yaml,omitempty"` // populated on DONE: the final feed config as YAML
 	Summary        string                 `protobuf:"bytes,6,opt,name=summary,proto3" json:"summary,omitempty"`                                       // populated on DONE: the agent's rationale
 	Confidence     float64                `protobuf:"fixed64,7,opt,name=confidence,proto3" json:"confidence,omitempty"`                               // populated on DONE: selector score 0..1
+	LlmPrompt      string                 `protobuf:"bytes,8,opt,name=llm_prompt,json=llmPrompt,proto3" json:"llm_prompt,omitempty"`                  // populated on LLM_IO: the full prompt sent that turn
+	LlmResponse    string                 `protobuf:"bytes,9,opt,name=llm_response,json=llmResponse,proto3" json:"llm_response,omitempty"`            // populated on LLM_IO: the raw model reply that turn
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1179,6 +1192,20 @@ func (x *AutoConfigFeedEvent) GetConfidence() float64 {
 		return x.Confidence
 	}
 	return 0
+}
+
+func (x *AutoConfigFeedEvent) GetLlmPrompt() string {
+	if x != nil {
+		return x.LlmPrompt
+	}
+	return ""
+}
+
+func (x *AutoConfigFeedEvent) GetLlmResponse() string {
+	if x != nil {
+		return x.LlmResponse
+	}
+	return ""
 }
 
 // DeleteFeedRequest is the request for the DeleteFeed method
@@ -1891,16 +1918,17 @@ const file_feeds_proto_rawDesc = "" +
 	"\x10selector_matched\x18\a \x01(\bR\x0fselectorMatched\x12\x14\n" +
 	"\x05error\x18\b \x01(\tR\x05error\x12\x1f\n" +
 	"\vduration_ms\x18\t \x01(\x03R\n" +
-	"durationMs\"\xfc\x01\n" +
+	"durationMs\"\x96\x02\n" +
 	"\x15AutoConfigFeedRequest\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12F\n" +
 	"\aheaders\x18\x02 \x03(\v2,.downlink.AutoConfigFeedRequest.HeadersEntryR\aheaders\x12\x1a\n" +
 	"\bprovider\x18\x03 \x01(\tR\bprovider\x12\x14\n" +
 	"\x05model\x18\x04 \x01(\tR\x05model\x12\x1b\n" +
-	"\tmax_steps\x18\x05 \x01(\x05R\bmaxSteps\x1a:\n" +
+	"\tmax_steps\x18\x05 \x01(\x05R\bmaxSteps\x12\x18\n" +
+	"\averbose\x18\x06 \x01(\bR\averbose\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xec\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xae\x02\n" +
 	"\x13AutoConfigFeedEvent\x121\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1d.downlink.AutoConfigEventKindR\x04kind\x12\x12\n" +
 	"\x04step\x18\x02 \x01(\x05R\x04step\x12\x12\n" +
@@ -1910,7 +1938,10 @@ const file_feeds_proto_rawDesc = "" +
 	"\asummary\x18\x06 \x01(\tR\asummary\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\a \x01(\x01R\n" +
-	"confidence\",\n" +
+	"confidence\x12\x1d\n" +
+	"\n" +
+	"llm_prompt\x18\b \x01(\tR\tllmPrompt\x12!\n" +
+	"\fllm_response\x18\t \x01(\tR\vllmResponse\",\n" +
 	"\x11DeleteFeedRequest\x12\x17\n" +
 	"\afeed_id\x18\x01 \x01(\tR\x06feedId\"\x9a\x01\n" +
 	"\x11ApplyFeedsRequest\x12*\n" +
@@ -1965,11 +1996,13 @@ const file_feeds_proto_rawDesc = "" +
 	"\x05error\x18\x03 \x01(\tR\x05error*.\n" +
 	"\x10RefreshEventType\x12\v\n" +
 	"\aSTARTED\x10\x00\x12\r\n" +
-	"\tCOMPLETED\x10\x01*4\n" +
+	"\tCOMPLETED\x10\x01*@\n" +
 	"\x13AutoConfigEventKind\x12\b\n" +
 	"\x04STEP\x10\x00\x12\b\n" +
 	"\x04DONE\x10\x01\x12\t\n" +
-	"\x05ERROR\x10\x022\x9f\x06\n" +
+	"\x05ERROR\x10\x02\x12\n" +
+	"\n" +
+	"\x06LLM_IO\x10\x032\x9f\x06\n" +
 	"\fFeedsService\x12F\n" +
 	"\tListFeeds\x12\x1a.downlink.ListFeedsRequest\x1a\x1b.downlink.ListFeedsResponse\"\x00\x12G\n" +
 	"\fRegisterFeed\x12\x1d.downlink.RegisterFeedRequest\x1a\x16.google.protobuf.Empty\"\x00\x12W\n" +

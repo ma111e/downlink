@@ -315,7 +315,7 @@ func createFeedCommands() *cobra.Command {
 	addCmd.Flags().StringVar(&feedURL, "url", "", "Feed URL (required)")
 	addCmd.Flags().StringVar(&feedName, "name", "", "Feed name (optional, will be auto-detected if empty)")
 	addCmd.Flags().StringVar(&feedCategory, "type", "rss", "Feed type (e.g. rss)")
-	addCmd.Flags().StringVar(&feedScraping, "scraping", "", `Scraping mode: "dynamic" or "full_browser" (default: static)`)
+	addCmd.Flags().StringVar(&feedScraping, "scraping", "", `Scraping mode: "dynamic", "full_browser", or "none" (use feed content, no fetch) (default: static)`)
 	addCmd.Flags().StringVar(&feedArticleSelector, "selector-article", "", "CSS selector for article content")
 	addCmd.Flags().StringVar(&feedCutoffSelector, "selector-cutoff", "", "CSS selector where extraction stops")
 	addCmd.Flags().StringVar(&feedBlacklistSelector, "selector-blacklist", "", "CSS selector for elements to exclude")
@@ -1041,6 +1041,7 @@ func runAddFeedInteractive(client *downlinkclient.DownlinkClient) {
 			huh.NewOption("Static (default)", ""),
 			huh.NewOption("Dynamic (headless JS)", "dynamic"),
 			huh.NewOption("Full browser", "full_browser"),
+			huh.NewOption("None (use feed content, no fetch)", "none"),
 		).
 		Value(&scraping).
 		Run(); err != nil {

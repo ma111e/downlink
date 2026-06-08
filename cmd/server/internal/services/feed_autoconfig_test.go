@@ -15,6 +15,7 @@ type fakeTools struct {
 	modeCalls   []string // modes passed to suggestSelectors
 	usableModes map[string]bool
 	blocked     bool // when true, inspectFeed only parses once a Referer header is supplied
+	fullContent bool // when true, every sampled entry already carries a full body
 }
 
 func (f *fakeTools) inspectFeed(url string, headers map[string]string) feedObs {
@@ -22,13 +23,17 @@ func (f *fakeTools) inspectFeed(url string, headers map[string]string) feedObs {
 	if f.blocked && headers["Referer"] == "" {
 		return feedObs{ParseOK: false, Verdict: "HTTP 403"}
 	}
-	return feedObs{
+	obs := feedObs{
 		ParseOK:     true,
 		FeedType:    "rss",
 		Title:       "Example Blog",
 		Verdict:     "valid rss feed, 3 items",
 		SampleLinks: []string{"https://e.com/a", "https://e.com/b", "https://e.com/c"},
 	}
+	if f.fullContent {
+		obs.SampleContentChars = []int{4200, 3800, 5100}
+	}
+	return obs
 }
 
 func (f *fakeTools) suggestSelectors(url, mode string, headers map[string]string) suggestObs {
@@ -71,7 +76,7 @@ func TestRunAutoConfig_ProbesLocksThenDiscovers(t *testing.T) {
 	}
 	var steps []autoconfigStep
 	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10,
-		func(st autoconfigStep) { steps = append(steps, st) })
+		func(st autoconfigStep) { steps = append(steps, st) }, nil)
 	if err != nil {
 		t.Fatalf("runAutoConfig: %v", err)
 	}
@@ -92,6 +97,35 @@ func TestRunAutoConfig_ProbesLocksThenDiscovers(t *testing.T) {
 	}
 }
 
+func TestRunAutoConfig_DetectsFullContentInDescription(t *testing.T) {
+	// Every entry already carries a full body → short-circuit to scraping: none,
+	// with no mode probing and no LLM call.
+	tools := &fakeTools{fullContent: true, usableModes: map[string]bool{"static": true}}
+	gen := func(ctx context.Context, prompt string) (string, error) {
+		t.Fatalf("LLM must not be called when feed content is full")
+		return "", nil
+	}
+	var steps []autoconfigStep
+	res, err := runAutoConfig(context.Background(), gen, tools, "https://e.com/feed", "rss", nil, 10,
+		func(st autoconfigStep) { steps = append(steps, st) }, nil)
+	if err != nil {
+		t.Fatalf("runAutoConfig: %v", err)
+	}
+
+	if len(tools.modeCalls) != 0 {
+		t.Errorf("mode probe = %v, want none (content already full)", tools.modeCalls)
+	}
+	if !strings.Contains(res.ConfigYAML, "scraping: none") {
+		t.Errorf("expected scraping: none in YAML:\n%s", res.ConfigYAML)
+	}
+	if strings.Contains(res.ConfigYAML, "selectors:") {
+		t.Errorf("scraping: none config must omit selectors:\n%s", res.ConfigYAML)
+	}
+	if res.Confidence != 1.0 {
+		t.Errorf("confidence = %.2f, want 1.0", res.Confidence)
+	}
+}
+
 func TestRunAutoConfig_EscalatesModeWhenStaticFails(t *testing.T) {
 	// Only full_browser yields content → probe must escalate static→dynamic→full_browser.
 	tools := &fakeTools{usableModes: map[string]bool{"full_browser": true}}
@@ -99,7 +133,7 @@ func TestRunAutoConfig_EscalatesModeWhenStaticFails(t *testing.T) {
 		`{"action":"test_selector","args":{"article":"article.post"}}`,
 		`{"action":"finish","config":{"selectors":{"article":"article.post"}}}`,
 	}
-	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, nil)
+	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, nil, nil)
 	if err != nil {
 		t.Fatalf("runAutoConfig: %v", err)
 	}
@@ -117,7 +151,7 @@ func TestRunAutoConfig_ProbesHeadersWhenBlocked(t *testing.T) {
 	replies := []string{
 		`{"action":"finish","config":{"selectors":{"article":"article.post"}}}`,
 	}
-	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, nil)
+	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, nil, nil)
 	if err != nil {
 		t.Fatalf("runAutoConfig: %v", err)
 	}
@@ -135,7 +169,7 @@ func TestRunAutoConfig_DuplicateCallGuard(t *testing.T) {
 		`{"action":"test_selector","args":{"article":"div.x"}}`,
 		`{"action":"finish","config":{"selectors":{"article":"article.post"}}}`,
 	}
-	_, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, nil)
+	_, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, nil, nil)
 	if err != nil {
 		t.Fatalf("runAutoConfig: %v", err)
 	}
@@ -152,12 +186,46 @@ func TestRunAutoConfig_DuplicateCallGuard(t *testing.T) {
 	}
 }
 
+func TestRunAutoConfig_EmitsLLMIO(t *testing.T) {
+	tools := &fakeTools{usableModes: map[string]bool{"static": true}}
+	replies := []string{
+		`{"action":"test_selector","args":{"article":"article.post"}}`,
+		`{"action":"finish","config":{"selectors":{"article":"article.post"}}}`,
+	}
+	type io struct {
+		turn     int
+		prompt   string
+		response string
+	}
+	var ios []io
+	onLLM := func(turn int, prompt, response string) {
+		ios = append(ios, io{turn, prompt, response})
+	}
+	_, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, nil, onLLM)
+	if err != nil {
+		t.Fatalf("runAutoConfig: %v", err)
+	}
+
+	// One LLM_IO per turn, in order, carrying the system prompt and the scripted reply.
+	if len(ios) != len(replies) {
+		t.Fatalf("onLLM calls = %d, want %d", len(ios), len(replies))
+	}
+	for i, got := range ios {
+		if !strings.Contains(got.prompt, "autonomous feed-configuration agent") {
+			t.Errorf("turn %d prompt missing system prompt:\n%s", i, got.prompt)
+		}
+		if got.response != replies[i] {
+			t.Errorf("turn %d response = %q, want %q", i, got.response, replies[i])
+		}
+	}
+}
+
 func TestRunAutoConfig_BudgetExhausted(t *testing.T) {
 	tools := &fakeTools{usableModes: map[string]bool{"static": true}}
 	gen := func(ctx context.Context, prompt string) (string, error) {
 		return `{"action":"suggest_selectors","args":{"article_url":"https://e.com/a"}}`, nil
 	}
-	_, err := runAutoConfig(context.Background(), gen, tools, "https://e.com/feed", "rss", nil, 3, nil)
+	_, err := runAutoConfig(context.Background(), gen, tools, "https://e.com/feed", "rss", nil, 3, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "did not converge") {
 		t.Fatalf("expected non-convergence error, got %v", err)
 	}

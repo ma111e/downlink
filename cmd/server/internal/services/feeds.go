@@ -235,7 +235,20 @@ func (s *FeedsServer) AutoConfigFeed(req *protos.AutoConfigFeedRequest, stream p
 		})
 	}
 
-	res, err := runAutoConfig(ctx, gen, managerTools{}, req.Url, feedType, req.Headers, int(req.MaxSteps), onStep)
+	// Only stream the (large) LLM prompt/response when the caller asked for it.
+	var onLLM func(turn int, prompt, response string)
+	if req.Verbose {
+		onLLM = func(turn int, prompt, response string) {
+			_ = stream.Send(&protos.AutoConfigFeedEvent{
+				Kind:        protos.AutoConfigEventKind_LLM_IO,
+				Step:        int32(turn),
+				LlmPrompt:   prompt,
+				LlmResponse: response,
+			})
+		}
+	}
+
+	res, err := runAutoConfig(ctx, gen, managerTools{}, req.Url, feedType, req.Headers, int(req.MaxSteps), onStep, onLLM)
 	if err != nil {
 		_ = stream.Send(&protos.AutoConfigFeedEvent{Kind: protos.AutoConfigEventKind_ERROR, Detail: err.Error()})
 		return err

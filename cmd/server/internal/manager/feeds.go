@@ -143,11 +143,11 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 			HeroImage:    item.HeroImage,
 		}
 
-		// run scraper.ScrapeContent if content is <1000 chars as we guess it's not the full article
+		// Skip fetching entirely when the feed is configured to use its own content
+		// ("none"). Otherwise fetch only when the feed body looks truncated (<1500 chars).
 		scrapeFailed := false
-		if len(article.Content) < 1000 {
-			scrapingMode, _ := feed.Scraper["scraping"].(string)
-
+		scrapingMode, _ := feed.Scraper["scraping"].(string)
+		if scrapingMode != "none" && len(article.Content) < 1500 {
 			log.WithFields(log.Fields{
 				"url":        article.Link,
 				"scraping":   scrapingMode,

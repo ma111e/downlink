@@ -29,6 +29,19 @@ func (pc *DownlinkClient) GetLLMProviders() ([]models.ProviderConfig, error) {
 	return mappers.AllProviderConfigsToModels(res.Providers), nil
 }
 
+// ResolveLLM resolves a provider/model selection to the concrete provider type
+// and model name a run would use. Either argument may be empty (use defaults).
+func (pc *DownlinkClient) ResolveLLM(provider, model string) (providerType, modelName string, err error) {
+	res, err := pc.llmsClient.ResolveLLM(pc.ctx, &protos.ResolveLLMRequest{
+		Provider: provider,
+		Model:    model,
+	})
+	if err != nil {
+		return "", "", err
+	}
+	return res.ProviderType, res.ModelName, nil
+}
+
 // SaveLLMProviders updates the LLM provider configurations
 func (pc *DownlinkClient) SaveLLMProviders(providers []models.ProviderConfig) error {
 	_, err := pc.llmsClient.SaveLLMProviders(pc.ctx, &protos.SaveLLMProvidersRequest{

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -9,6 +10,7 @@ import (
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/protos"
 
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -59,6 +61,7 @@ func newAutoConfigCmd() *cobra.Command {
 	var headerFlags []string
 	var provider, model string
 	var maxSteps int
+	var yes, verbose bool
 	cmd := &cobra.Command{
 		Use:   "autoconfig <rss-url>",
 		Short: "Let an LLM discover a feed's config on its own",
@@ -75,12 +78,52 @@ into your feeds.yml (nothing is registered or written automatically).`,
 				return err
 			}
 			client := getNewDownlinkClient()
+
+			// Resolve server-side so the confirmation shows the model the run uses.
+			// Same resolution AutoConfigFeed does, so failing here fails fast.
+			providerType, modelName, err := client.ResolveLLM(provider, model)
+			if err != nil {
+				return fmt.Errorf("resolve model: %w", err)
+			}
+
+			if !jsonOutput {
+				stepsLabel := "server default (16)"
+				if maxSteps > 0 {
+					stepsLabel = fmt.Sprintf("%d", maxSteps)
+				}
+				headerLabel := "(none)"
+				if len(headers) > 0 {
+					headerLabel = strings.Join(sortedKeys(headers), ", ")
+				}
+				fmt.Println(styleSection.Render("── autoconfig run ──"))
+				fmt.Printf("  %s %s\n", styleKey.Render("Feed:    "), args[0])
+				fmt.Printf("  %s %s\n", styleKey.Render("Provider:"), providerType)
+				fmt.Printf("  %s %s\n", styleKey.Render("Model:   "), modelName)
+				fmt.Printf("  %s %s\n", styleKey.Render("Headers: "), styleDim.Render(headerLabel))
+				fmt.Printf("  %s %s\n", styleKey.Render("Steps:   "), styleDim.Render(stepsLabel))
+			}
+
+			if !yes && !jsonOutput {
+				confirm := true
+				flushStdin()
+				if err := huh.NewConfirm().
+					Title("Run autoconfig with these settings?").
+					Affirmative("Yes, run").
+					Negative("Cancel").
+					Value(&confirm).
+					Run(); err != nil || !confirm {
+					fmt.Println("Cancelled.")
+					return nil
+				}
+			}
+
 			req := &protos.AutoConfigFeedRequest{
 				Url:      args[0],
 				Headers:  headers,
 				Provider: provider,
 				Model:    model,
 				MaxSteps: int32(maxSteps),
+				Verbose:  verbose,
 			}
 
 			var done *protos.AutoConfigFeedEvent
@@ -90,6 +133,10 @@ into your feeds.yml (nothing is registered or written automatically).`,
 					if !jsonOutput {
 						fmt.Printf("  %s %s %s\n", styleDim.Render(fmt.Sprintf("%2d", ev.Step)),
 							styleKey.Render(ev.Tool), styleDim.Render(ev.Detail))
+					}
+				case protos.AutoConfigEventKind_LLM_IO:
+					if !jsonOutput {
+						printLLMIO(int(ev.Step), ev.LlmPrompt, ev.LlmResponse)
 					}
 				case protos.AutoConfigEventKind_DONE:
 					done = ev
@@ -133,7 +180,25 @@ into your feeds.yml (nothing is registered or written automatically).`,
 	cmd.Flags().StringVarP(&provider, "provider", "p", "", "LLM provider (type or configured profile name)")
 	cmd.Flags().StringVarP(&model, "model", "m", "", "LLM model override")
 	cmd.Flags().IntVar(&maxSteps, "max-steps", 0, "Cap on agent tool calls (0 = server default)")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip the confirmation prompt")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Stream the raw LLM prompt and response for each agent turn")
 	return cmd
+}
+
+// printLLMIO renders one agent turn's raw LLM prompt and response. The response is
+// pretty-printed as JSON when it parses (the model replies with a JSON action),
+// otherwise shown raw.
+func printLLMIO(turn int, prompt, response string) {
+	fmt.Printf("\n%s\n", styleSection.Render(fmt.Sprintf("── LLM turn %d ──", turn)))
+	fmt.Println(styleKey.Render("input:"))
+	fmt.Println(styleDim.Render(strings.TrimSpace(prompt)))
+	fmt.Println(styleKey.Render("output:"))
+	var buf bytes.Buffer
+	if json.Indent(&buf, []byte(strings.TrimSpace(response)), "", "  ") == nil {
+		fmt.Println(buf.String())
+	} else {
+		fmt.Println(strings.TrimSpace(response))
+	}
 }
 
 // ── inspect ───────────────────────────────────────────────────────────────────

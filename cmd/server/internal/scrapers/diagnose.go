@@ -17,6 +17,7 @@ import (
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/trace"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/mmcdole/gofeed"
 )
 
@@ -76,7 +77,11 @@ func FetchRaw(feedURL string, headers map[string]string) (RawResponse, error) {
 type FeedInspection struct {
 	Diagnosis   models.FeedDiagnosis
 	SampleLinks []string
-	Title       string
+	// SampleContentChars holds the plain-text length of each sampled entry's feed
+	// content (content:encoded, falling back to description), aligned 1:1 with
+	// SampleLinks. It lets a caller tell whether the feed already ships full bodies.
+	SampleContentChars []int
+	Title              string
 }
 
 // defaultSampleLinks is the number of article links InspectFeedURL returns when
@@ -115,6 +120,7 @@ func InspectFeedURL(feedURL string, headers map[string]string, maxLinks int) Fee
 				continue
 			}
 			insp.SampleLinks = append(insp.SampleLinks, it.Link)
+			insp.SampleContentChars = append(insp.SampleContentChars, feedItemTextLen(it))
 			if len(insp.SampleLinks) >= maxLinks {
 				break
 			}
@@ -125,6 +131,24 @@ func InspectFeedURL(feedURL string, headers map[string]string, maxLinks int) Fee
 	diag.RawBodyPath = trace.SaveDiagnostic(hostOf(feedURL), raw.Status, raw.ContentType, raw.Body)
 	insp.Diagnosis = diag
 	return insp
+}
+
+// feedItemTextLen returns the plain-text rune length of an item's feed content,
+// preferring content:encoded over description (the same precedence the real fetch
+// uses). HTML is stripped so tag soup doesn't inflate a short stub past the bar.
+func feedItemTextLen(item *gofeed.Item) int {
+	html := item.Content
+	if html == "" {
+		html = item.Description
+	}
+	if html == "" {
+		return 0
+	}
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return len([]rune(html))
+	}
+	return len([]rune(strings.TrimSpace(doc.Text())))
 }
 
 // DiagnoseFeedURL fetches a feed URL and returns a structured diagnosis. It is a
