@@ -692,7 +692,7 @@ matching the title. Deleting a feed also removes its articles.`,
 				Affirmative("Yes, delete").
 				Negative("No, keep them").
 				Value(&confirm).
-				Run(); err != nil || !confirm {
+				WithTheme(dlkPromptTheme).Run(); err != nil || !confirm {
 				fmt.Println("Cancelled.")
 				return
 			}
@@ -1006,7 +1006,7 @@ func runAddFeedInteractive(client *downlinkclient.DownlinkClient) {
 			}
 			return nil
 		}).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -1016,7 +1016,7 @@ func runAddFeedInteractive(client *downlinkclient.DownlinkClient) {
 		Title("Feed name").
 		Description("Leave empty to auto-detect from the feed").
 		Value(&name).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -1029,7 +1029,7 @@ func runAddFeedInteractive(client *downlinkclient.DownlinkClient) {
 			huh.NewOption("Atom", "atom"),
 		).
 		Value(&feedType).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -1044,7 +1044,7 @@ func runAddFeedInteractive(client *downlinkclient.DownlinkClient) {
 			huh.NewOption("None (use feed content, no fetch)", "none"),
 		).
 		Value(&scraping).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}

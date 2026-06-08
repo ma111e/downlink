@@ -67,7 +67,7 @@ func createAuthPriorityCommand() *cobra.Command {
 						}
 						return nil
 					}).
-					Run(); err != nil {
+					WithTheme(dlkPromptTheme).Run(); err != nil {
 					fmt.Println("Cancelled.")
 					return nil
 				}
@@ -80,7 +80,7 @@ func createAuthPriorityCommand() *cobra.Command {
 			if err := huh.NewConfirm().
 				Title(fmt.Sprintf("Set priority for credential %s to %d?", credentialID, priority)).
 				Value(&confirm).
-				Run(); err != nil || !confirm {
+				WithTheme(dlkPromptTheme).Run(); err != nil || !confirm {
 				fmt.Println("Cancelled.")
 				return nil
 			}

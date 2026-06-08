@@ -190,7 +190,7 @@ func selectModelInteractive(client *downlinkclient.DownlinkClient, providerFilte
 		Title(title).
 		Options(opts...).
 		Value(&choice).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		return "", "", nil // treated as cancel by callers
 	}
 
@@ -225,7 +225,7 @@ func selectFeed(client *downlinkclient.DownlinkClient) (models.Feed, error) {
 		Title("Select feed").
 		Options(opts...).
 		Value(&id).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		return models.Feed{}, nil
 	}
 	for _, f := range feeds {
@@ -261,7 +261,7 @@ func selectArticle(client *downlinkclient.DownlinkClient, filter models.ArticleF
 		Title("Select article").
 		Options(opts...).
 		Value(&id).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		return models.Article{}, nil
 	}
 	for _, a := range articles {
@@ -305,7 +305,7 @@ func selectDigest(client *downlinkclient.DownlinkClient) (models.Digest, error) 
 		Title("Select digest").
 		Options(opts...).
 		Value(&id).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		return models.Digest{}, nil
 	}
 	for _, d := range digests {

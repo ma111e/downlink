@@ -157,6 +157,12 @@ articles with your LLM provider, then assembles the ranked digest:
 `./dlk feed export -f feeds.yml` does the reverse of step 5: it writes the feeds
 currently in the database back out to a YAML file.
 
+## Documentation
+
+Full guides live in [docs/](docs/README.md): getting started, the configuration and CLI
+references, feeds and scraping, analysis and scoring, LLM providers, digests, publishing,
+and deployment.
+
 ## Configuration
 
 Downlink reads configuration from three sources. Copy the bundled examples and

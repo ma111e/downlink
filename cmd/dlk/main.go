@@ -25,9 +25,11 @@ func main() {
 	cobra.EnableTraverseRunHooks = true
 
 	rootCmd := &cobra.Command{
-		Use:     "dlk",
-		Short:   "DOWNLINK CLI",
-		Version: version.String(),
+		Use:           "dlk",
+		Short:         "DOWNLINK CLI",
+		Version:       version.String(),
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := gotenv.Load(".env"); err != nil && !os.IsNotExist(err) {
 				log.WithError(err).Warn("Failed to load .env file")

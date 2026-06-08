@@ -134,7 +134,7 @@ the branch will be lost. Prompts for confirmation before proceeding.`,
 				Affirmative("Yes, reinitialise").
 				Negative("No, abort").
 				Value(&confirm).
-				Run(); err != nil || !confirm {
+				WithTheme(dlkPromptTheme).Run(); err != nil || !confirm {
 				fmt.Fprintln(os.Stderr, "Aborted.")
 				return nil
 			}
@@ -189,7 +189,7 @@ This command requires a running downlink server (--address / --port).`,
 					Title("Select a digest to publish").
 					Options(options...).
 					Value(&digestID).
-					Run(); err != nil {
+					WithTheme(dlkPromptTheme).Run(); err != nil {
 					return err
 				}
 			}
@@ -241,7 +241,7 @@ When no title is given, an interactive list is shown to pick from.`,
 					Title("Select a digest to remove").
 					Options(options...).
 					Value(&title).
-					Run(); err != nil {
+					WithTheme(dlkPromptTheme).Run(); err != nil {
 					return err
 				}
 			}
@@ -400,7 +400,7 @@ This command requires a running downlink server (--address / --port).`,
 					Title("Select a digest to republish").
 					Options(options...).
 					Value(&digestID).
-					Run(); err != nil {
+					WithTheme(dlkPromptTheme).Run(); err != nil {
 					return err
 				}
 				digest, err = client.GetDigest(digestID)

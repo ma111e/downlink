@@ -111,7 +111,7 @@ into your feeds.yml (nothing is registered or written automatically).`,
 					Affirmative("Yes, run").
 					Negative("Cancel").
 					Value(&confirm).
-					Run(); err != nil || !confirm {
+					WithTheme(dlkPromptTheme).Run(); err != nil || !confirm {
 					fmt.Println("Cancelled.")
 					return nil
 				}

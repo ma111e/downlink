@@ -66,7 +66,7 @@ func selectOAuthProvider(client *downlinkclient.DownlinkClient) (string, error) 
 		Title("Select provider").
 		Options(opts...).
 		Value(&selected).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		return "", nil
 	}
 	return selected, nil
@@ -102,7 +102,7 @@ func selectCredential(client *downlinkclient.DownlinkClient, providerName string
 		Title("Select credential").
 		Options(opts...).
 		Value(&selected).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		return "", nil
 	}
 	return selected, nil

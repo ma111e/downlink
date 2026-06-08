@@ -52,7 +52,7 @@ func createAuthRemoveCommand() *cobra.Command {
 				Affirmative("Yes, remove").
 				Negative("No, keep it").
 				Value(&confirm).
-				Run(); err != nil || !confirm {
+				WithTheme(dlkPromptTheme).Run(); err != nil || !confirm {
 				fmt.Println("Cancelled.")
 				return nil
 			}

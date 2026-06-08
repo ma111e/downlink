@@ -34,7 +34,7 @@ func createAuthLoginCommand() *cobra.Command {
 					Title("Provider type").
 					Options(opts...).
 					Value(&providerType).
-					Run(); err != nil {
+					WithTheme(dlkPromptTheme).Run(); err != nil {
 					fmt.Println("Cancelled.")
 					return nil
 				}
@@ -54,7 +54,7 @@ func createAuthLoginCommand() *cobra.Command {
 						}
 						return nil
 					}).
-					Run(); err != nil {
+					WithTheme(dlkPromptTheme).Run(); err != nil {
 					fmt.Println("Cancelled.")
 					return nil
 				}
@@ -136,7 +136,7 @@ func runClaudeLogin(client *downlinkclient.DownlinkClient, providerName string) 
 			}
 			return nil
 		}).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return nil
 	}

@@ -67,7 +67,7 @@ func createModelCommands() *cobra.Command {
 				Title("Select LLM provider").
 				Options(providerOpts...).
 				Value(&selectedIdx).
-				Run(); err != nil {
+				WithTheme(dlkPromptTheme).Run(); err != nil {
 				return nil
 			}
 
@@ -159,7 +159,7 @@ func createModelCommands() *cobra.Command {
 				Title("Persona").
 				Description("Prompt prefix injected before every analysis request (leave blank to clear)").
 				Value(&persona).
-				Run(); err != nil {
+				WithTheme(dlkPromptTheme).Run(); err != nil {
 				return err
 			}
 
@@ -406,7 +406,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 			huh.NewOption("claude-code", "claude-code"),
 		).
 		Value(&providerType).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -429,7 +429,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 			}
 			return nil
 		}).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -453,7 +453,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 				}
 				return nil
 			}).
-			Run(); err != nil {
+			WithTheme(dlkPromptTheme).Run(); err != nil {
 			fmt.Println("Cancelled.")
 			return
 		}
@@ -463,7 +463,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 			Description("Leave empty to use the provider's default endpoint").
 			Placeholder("e.g. https://api.openai.com/v1").
 			Value(&baseURL).
-			Run(); err != nil {
+			WithTheme(dlkPromptTheme).Run(); err != nil {
 			fmt.Println("Cancelled.")
 			return
 		}
@@ -474,7 +474,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 		if err := huh.NewInput().
 			Title("Base URL").
 			Value(&baseURL).
-			Run(); err != nil {
+			WithTheme(dlkPromptTheme).Run(); err != nil {
 			fmt.Println("Cancelled.")
 			return
 		}
@@ -489,7 +489,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 				}
 				return nil
 			}).
-			Run(); err != nil {
+			WithTheme(dlkPromptTheme).Run(); err != nil {
 			fmt.Println("Cancelled.")
 			return
 		}
@@ -520,7 +520,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 			}
 			return nil
 		}).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -536,7 +536,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 	if err := huh.NewConfirm().
 		Title("Enable this provider?").
 		Value(&enabled).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -568,7 +568,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 	if err := huh.NewConfirm().
 		Title("Add this provider?").
 		Value(&confirm).
-		Run(); err != nil || !confirm {
+		WithTheme(dlkPromptTheme).Run(); err != nil || !confirm {
 		fmt.Println("Aborted.")
 		return
 	}
@@ -630,7 +630,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 					}
 					return nil
 				}).
-				Run()
+				WithTheme(dlkPromptTheme).Run()
 			return strings.TrimSpace(modelName)
 		}
 
@@ -657,7 +657,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 					}
 					return nil
 				}).
-				Run()
+				WithTheme(dlkPromptTheme).Run()
 			return strings.TrimSpace(modelName)
 		}
 
@@ -682,7 +682,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 					}
 					return nil
 				}).
-				Run()
+				WithTheme(dlkPromptTheme).Run()
 			return strings.TrimSpace(modelName)
 		}
 
@@ -710,7 +710,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 		Title("Model").
 		Options(options...).
 		Value(&modelChoice).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		return ""
 	}
 
@@ -729,7 +729,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 			}
 			return nil
 		}).
-		Run()
+		WithTheme(dlkPromptTheme).Run()
 	return strings.TrimSpace(customModel)
 }
 
@@ -760,7 +760,7 @@ func runUpdateProviderInteractive(client *downlinkclient.DownlinkClient) {
 		Title("Select provider to update").
 		Options(options...).
 		Value(&selectedIdx).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -779,7 +779,7 @@ func runUpdateProviderInteractive(client *downlinkclient.DownlinkClient) {
 			}
 			return nil
 		}).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -792,7 +792,7 @@ func runUpdateProviderInteractive(client *downlinkclient.DownlinkClient) {
 		Description("Leave empty to keep the current key").
 		EchoMode(huh.EchoModePassword).
 		Value(&apiKey).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -804,7 +804,7 @@ func runUpdateProviderInteractive(client *downlinkclient.DownlinkClient) {
 		Title("Base URL").
 		Description("Leave empty to keep the current value (blank = provider default)").
 		Value(&baseURL).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -815,7 +815,7 @@ func runUpdateProviderInteractive(client *downlinkclient.DownlinkClient) {
 	if err := huh.NewConfirm().
 		Title("Enable this provider?").
 		Value(&enabled).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -863,7 +863,7 @@ func runRemoveProvider(cmd *cobra.Command, args []string) {
 		Title("Select provider to remove").
 		Options(options...).
 		Value(&selectedIdx).
-		Run(); err != nil {
+		WithTheme(dlkPromptTheme).Run(); err != nil {
 		fmt.Println("Cancelled.")
 		return
 	}
@@ -878,7 +878,7 @@ func runRemoveProvider(cmd *cobra.Command, args []string) {
 		Affirmative("Yes, remove").
 		Negative("No, keep it").
 		Value(&confirm).
-		Run(); err != nil || !confirm {
+		WithTheme(dlkPromptTheme).Run(); err != nil || !confirm {
 		fmt.Println("Cancelled.")
 		return
 	}
