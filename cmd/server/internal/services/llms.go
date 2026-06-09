@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ma111e/downlink/cmd/server/internal/config"
 	"github.com/ma111e/downlink/cmd/server/internal/store"
@@ -140,10 +141,11 @@ func (s *LLMsServer) GetAvailableModels(_ context.Context, req *protos.GetAvaila
 
 // analysisTask defines a single step in the sequential analysis pipeline.
 type analysisTask struct {
-	name        string
-	instruction string
-	outputKey   string // top-level key in the assembled result (empty = merge root)
-	schema      string // expected JSON output format hint
+	name         string
+	instruction  string
+	outputKey    string   // top-level key in the assembled result (empty = merge root)
+	schema       string   // expected JSON output format hint
+	requiredKeys []string // top-level keys the parsed result must contain
 }
 
 // articleContext holds the prepared article data shared across all tasks.
@@ -314,7 +316,8 @@ func getAnalysisTasks(contentLen int, fastMode bool, vibeScore bool, beginner bo
 Each point must be a complete, self-contained sentence grounded strictly in the article's content.
 Do not infer, speculate, or add context not present in the article.
 Return ONLY the JSON object below.`,
-				schema: `{"key_points": ["<point 1>", "<point 2>"]}`,
+				schema:       `{"key_points": ["<point 1>", "<point 2>"]}`,
+				requiredKeys: []string{"key_points"},
 			},
 		}
 	}
@@ -348,7 +351,8 @@ Always add the country/geography as a tag when the article mentions one (e.g. no
 If covering all entities would exceed 15 tags, drop the lowest-priority ones first.
 Tags must be lowercase kebab-case with no leading # or other prefix (e.g. lazarus, cobalt-strike, spearphishing, north-korea, defense-sector).
 Return ONLY the JSON object.`,
-		schema: `{"category": "<news|research|advisory|opinion|guide|commercial|sponsored|announcement>", "tags": ["tag1", "tag2"]}`,
+		schema:       `{"category": "<news|research|advisory|opinion|guide|commercial|sponsored|announcement>", "tags": ["tag1", "tag2"]}`,
+		requiredKeys: []string{"category", "tags"},
 	})
 
 	tasks = append(tasks,
@@ -356,7 +360,8 @@ Return ONLY the JSON object.`,
 			name: "tldr",
 			instruction: `You are a cybersecurity analyst. Write a TL;DR for this article in 1–2 plain sentences. Capture the single most important takeaway. Do not use bullet points or markdown.
 Return ONLY the JSON object below.`,
-			schema: `{"tldr": "<1-2 sentence summary>"}`,
+			schema:       `{"tldr": "<1-2 sentence summary>"}`,
+			requiredKeys: []string{"tldr"},
 		},
 		analysisTask{
 			name: "key_points",
@@ -364,7 +369,8 @@ Return ONLY the JSON object below.`,
 Each point must be a complete, self-contained sentence grounded strictly in the article's content.
 Do not infer, speculate, or add context not present in the article.
 Return ONLY the JSON object below.`,
-			schema: `{"key_points": ["<point 1>", "<point 2>"]}`,
+			schema:       `{"key_points": ["<point 1>", "<point 2>"]}`,
+			requiredKeys: []string{"key_points"},
 		},
 		analysisTask{
 			name: "insights",
@@ -372,7 +378,8 @@ Return ONLY the JSON object below.`,
 An insight must be non-obvious, surprising, or particularly actionable — not a restatement of a key point.
 Ground every insight strictly in the article's content; do not speculate.
 Return ONLY the JSON object below.`,
-			schema: `{"insights": ["<insight 1>", "<insight 2>"]}`,
+			schema:       `{"insights": ["<insight 1>", "<insight 2>"]}`,
+			requiredKeys: []string{"insights"},
 		},
 		analysisTask{
 			name: "referenced_reports",
@@ -386,7 +393,8 @@ Category — choose exactly ONE of: news, research, advisory, opinion, guide (sa
 primary — true if the article is based on, heavily relies on, or builds upon this report (a foundational source); otherwise false.
 If none are present, return an empty referenced_reports array.
 Return ONLY the JSON object below.`,
-			schema: `{"referenced_reports": [{"title": "<report title>", "url": "<absolute URL>", "publisher": "<publisher/entity>", "context": "<short context>", "category": "<news|research|advisory|opinion|guide>", "primary": <true|false>}]}`,
+			schema:       `{"referenced_reports": [{"title": "<report title>", "url": "<absolute URL>", "publisher": "<publisher/entity>", "context": "<short context>", "category": "<news|research|advisory|opinion|guide>", "primary": <true|false>}]}`,
+			requiredKeys: []string{"referenced_reports"},
 		},
 	)
 
@@ -400,7 +408,8 @@ standard_synthesis: 4–6 markdown paragraphs (blank line between each), 3–5 s
 comprehensive_synthesis: Unlimited length. A thorough, structured analysis using markdown headings, paragraphs, and bullet points where helpful.
 
 Return ONLY the JSON object below.`,
-			schema: `{"summaries": {"brief_overview": "<text>", "standard_synthesis": "<text>", "comprehensive_synthesis": "<text>"}}`,
+			schema:       `{"summaries": {"brief_overview": "<text>", "standard_synthesis": "<text>", "comprehensive_synthesis": "<text>"}}`,
+			requiredKeys: []string{"summaries"},
 		})
 	}
 
@@ -413,7 +422,8 @@ explanation: 2–4 plain sentences describing what the article is about and why 
 glossary: the technical terms, acronyms, tools, and named entities the article uses that a beginner would not know (e.g. CVE, RCE, lateral movement, named malware or threat actors). For each, give the term as written and a single plain-language sentence defining it. Include 0 to 12 entries; if the article uses no jargon, return an empty array.
 
 Return ONLY the JSON object below.`,
-			schema: `{"beginner": {"explanation": "<2-4 plain sentences>", "glossary": [{"term": "<term>", "definition": "<one plain sentence>"}]}}`,
+			schema:       `{"beginner": {"explanation": "<2-4 plain sentences>", "glossary": [{"term": "<term>", "definition": "<one plain sentence>"}]}}`,
+			requiredKeys: []string{"beginner"},
 		})
 	}
 
@@ -435,7 +445,8 @@ If the article is itself a digest, roundup/recap, or weekly/monthly summary — 
 
 Provide a score (integer 1–100) and a concise justification of 1–3 sentences.
 Return ONLY the JSON object below.`,
-			schema: `{"importance_score": <integer 1-100>, "justification": "<1-3 sentences>"}`,
+			schema:       `{"importance_score": <integer 1-100>, "justification": "<1-3 sentences>"}`,
+			requiredKeys: []string{"importance_score"},
 		})
 
 		return tasks
@@ -487,7 +498,8 @@ Calibration examples (ratings only, for reference):
 
 Also provide a concise justification of 1–3 sentences explaining the ratings.
 Return ONLY the JSON object below.`,
-		schema: `{"specificity": <0-4>, "severity": <0-4>, "breadth": <0-4>, "novelty": <0-4>, "actionability": <0-4>, "credibility": <0-4>, "is_aggregator": <true|false>, "justification": "<1-3 sentences>"}`,
+		schema:       `{"specificity": <0-4>, "severity": <0-4>, "breadth": <0-4>, "novelty": <0-4>, "actionability": <0-4>, "credibility": <0-4>, "is_aggregator": <true|false>, "justification": "<1-3 sentences>"}`,
+		requiredKeys: []string{"specificity", "severity", "breadth", "novelty", "actionability", "credibility", "is_aggregator"},
 	})
 
 	return tasks
@@ -595,21 +607,60 @@ func sleepBeforeRetry(ctx context.Context, delay time.Duration) error {
 	}
 }
 
-func parseAnalysisTaskResult(taskName string, response string) (map[string]any, string, error) {
-	if response == "" {
-		return nil, "", fmt.Errorf("model returned empty response for task %s", taskName)
+// Bad-response sentinels let the retry loop recognize a recoverable bad response
+// and tailor the corrective re-prompt. They are wrapped with task/provider detail
+// but remain detectable via errors.Is.
+var (
+	errEmptyResponse        = errors.New("model returned empty response")
+	errUnparseableResponse  = errors.New("response was not valid JSON")
+	errMissingRequiredField = errors.New("response missing required field(s)")
+)
+
+func parseAnalysisTaskResult(taskName string, requiredKeys []string, response string) (map[string]any, string, error) {
+	if strings.TrimSpace(response) == "" {
+		return nil, "", fmt.Errorf("%w for task %s", errEmptyResponse, taskName)
 	}
 
 	cleaned := llmutil.CleanLLMResponse(response)
 	var taskResult map[string]any
 	if err := json.Unmarshal([]byte(cleaned), &taskResult); err != nil {
 		if err2 := json.Unmarshal([]byte(llmutil.ExtractJSON(cleaned)), &taskResult); err2 != nil {
-			return nil, "", fmt.Errorf("failed to parse response as JSON for task %s: %w", taskName, err)
+			return nil, "", fmt.Errorf("%w for task %s: %v", errUnparseableResponse, taskName, err)
 		}
+	}
+
+	var missing []string
+	for _, key := range requiredKeys {
+		if _, ok := taskResult[key]; !ok {
+			missing = append(missing, key)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, "", fmt.Errorf("%w for task %s: %s", errMissingRequiredField, taskName, strings.Join(missing, ", "))
 	}
 
 	taskResultJSON, _ := json.Marshal(taskResult)
 	return taskResult, string(taskResultJSON), nil
+}
+
+// correctiveNudge returns an extra user message instructing the model to fix a
+// bad response, and whether one applies. It applies only to response-quality
+// failures (empty / unparseable / missing fields); transport or transient
+// errors get an identical retry instead.
+func correctiveNudge(task analysisTask, lastErr error) (string, bool) {
+	var reason string
+	switch {
+	case errors.Is(lastErr, errEmptyResponse):
+		reason = "was empty"
+	case errors.Is(lastErr, errUnparseableResponse):
+		reason = "was not valid JSON"
+	case errors.Is(lastErr, errMissingRequiredField):
+		reason = "was missing required fields"
+	default:
+		return "", false
+	}
+	return fmt.Sprintf(`Your previous response %s. Respond again with ONLY a single JSON object matching this exact format, with no markdown, code fences, or any text before or after it:
+%s`, reason, task.schema), true
 }
 
 func (s *LLMsServer) runAnalysisTaskAttempt(
@@ -633,7 +684,7 @@ func (s *LLMsServer) runAnalysisTaskAttempt(
 		return analysisTaskAttemptResult{}, fmt.Errorf("model error during task %s (%s): %w", task.name, resolved.ProviderType, err)
 	}
 
-	taskResult, taskResultJSON, err := parseAnalysisTaskResult(task.name, response)
+	taskResult, taskResultJSON, err := parseAnalysisTaskResult(task.name, task.requiredKeys, response)
 	if err != nil {
 		return analysisTaskAttemptResult{}, fmt.Errorf("%w (%s)", err, resolved.ProviderType)
 	}
@@ -667,12 +718,24 @@ func (s *LLMsServer) runAnalysisTaskWithRetry(
 			return analysisTaskAttemptResult{}, err
 		}
 
-		attemptMessages := make([]*schema.Message, 0, len(conversationHistory)+1)
+		attemptMessages := make([]*schema.Message, 0, len(conversationHistory)+2)
 		attemptMessages = append(attemptMessages, conversationHistory...)
 		attemptMessages = append(attemptMessages, &schema.Message{
 			Role:    schema.User,
 			Content: userMessage,
 		})
+		// On a retry following a bad-response failure, append a corrective
+		// re-prompt so we don't just re-send the identical (deterministically
+		// failing) prompt. Only added to this attempt's messages; the shared
+		// conversationHistory is never mutated.
+		if attempt > 1 {
+			if nudge, ok := correctiveNudge(task, lastErr); ok {
+				attemptMessages = append(attemptMessages, &schema.Message{
+					Role:    schema.User,
+					Content: nudge,
+				})
+			}
+		}
 
 		result, err := s.runAnalysisTaskAttempt(ctx, resolved, task, attemptMessages, onChunk)
 		if err == nil {

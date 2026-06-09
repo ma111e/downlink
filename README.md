@@ -20,6 +20,8 @@ that it can publish to GitHub Pages and Discord.
 - **Flexible scraping** plain RSS, dynamic scraping (Lightpanda), and full-browser
   scraping ([Solimen](https://github.com/ma111e/solimen)) with per-feed CSS selectors, triggers, blacklists, and headers.
 - **Digest generation** categorized, importance-ranked digests with deduplication.
+- **Beginner mode** optional plain-language explanations and a jargon glossary per article,
+  toggled on the digest page.
 - **Publishing** push static digests to GitHub Pages and notify a Discord webhook.
 - **Interfaces** gRPC API (default `:50051`), an Atom feed export (`:65261`), and the
   `dlk` command-line client.
