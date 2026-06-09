@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/ma111e/downlink/pkg/llmgateway"
 	"github.com/ma111e/downlink/pkg/llmprovider"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ type fakeLLMGateway struct {
 	onStream        func(call int)
 	calls           int
 	messageLens     []int
+	lastMessages    [][]*schema.Message
 }
 
 func (g *fakeLLMGateway) Generate(_ context.Context, _ llmprovider.Provider, _ string, _ ...llmgateway.CallOption) (string, error) {
@@ -27,6 +29,7 @@ func (g *fakeLLMGateway) Stream(_ context.Context, _ llmprovider.ChatModelProvid
 	call := g.calls
 	g.calls++
 	g.messageLens = append(g.messageLens, len(messages))
+	g.lastMessages = append(g.lastMessages, messages)
 	if g.onStream != nil {
 		g.onStream(call)
 	}
@@ -191,9 +194,59 @@ func TestRunAnalysisTaskWithRetryDoesNotMutateConversationHistoryAcrossAttempts(
 	if len(gw.messageLens) != 2 {
 		t.Fatalf("messageLens len = %d, want 2", len(gw.messageLens))
 	}
-	for i, got := range gw.messageLens {
-		if got != 2 {
-			t.Fatalf("messageLens[%d] = %d, want 2", i, got)
-		}
+	// First attempt: history (1) + user message (1). Second attempt adds a
+	// corrective nudge after the parse failure: history (1) + user (1) + nudge (1).
+	if gw.messageLens[0] != 2 || gw.messageLens[1] != 3 {
+		t.Fatalf("messageLens = %v, want [2 3]", gw.messageLens)
+	}
+}
+
+func TestRunAnalysisTaskWithRetryRetriesMissingRequiredField(t *testing.T) {
+	withNoRetryBackoff(t)
+	gw := &fakeLLMGateway{
+		streamResponses: []string{`{"foo":1}`, `{"key_points":["ok"]}`},
+	}
+	server := &LLMsServer{gw: gw}
+	task := analysisTask{name: "key_points", requiredKeys: []string{"key_points"}}
+
+	result, err := server.runAnalysisTaskWithRetry(context.Background(), testArticleContext(), testResolvedLLM(2), task, 1, 1, nil, "prompt", nil)
+	if err != nil {
+		t.Fatalf("runAnalysisTaskWithRetry returned error: %v", err)
+	}
+	if gw.calls != 2 {
+		t.Fatalf("calls = %d, want 2", gw.calls)
+	}
+	if got := result.taskResultJSON; got != `{"key_points":["ok"]}` {
+		t.Fatalf("taskResultJSON = %s", got)
+	}
+}
+
+func TestRunAnalysisTaskWithRetryAddsCorrectiveNudge(t *testing.T) {
+	withNoRetryBackoff(t)
+	gw := &fakeLLMGateway{
+		streamResponses: []string{"", `{"key_points":["ok"]}`},
+	}
+	server := &LLMsServer{gw: gw}
+	task := analysisTask{
+		name:         "key_points",
+		schema:       `{"key_points": ["<point>"]}`,
+		requiredKeys: []string{"key_points"},
+	}
+
+	_, err := server.runAnalysisTaskWithRetry(context.Background(), testArticleContext(), testResolvedLLM(2), task, 1, 1, nil, "prompt", nil)
+	if err != nil {
+		t.Fatalf("runAnalysisTaskWithRetry returned error: %v", err)
+	}
+	if gw.calls != 2 {
+		t.Fatalf("calls = %d, want 2", gw.calls)
+	}
+	// The retry attempt must carry a corrective nudge as a trailing user message.
+	retryMsgs := gw.lastMessages[1]
+	if len(retryMsgs) != 2 {
+		t.Fatalf("retry attempt messages = %d, want 2", len(retryMsgs))
+	}
+	nudge := retryMsgs[len(retryMsgs)-1].Content
+	if !strings.Contains(nudge, "was empty") || !strings.Contains(nudge, task.schema) {
+		t.Fatalf("corrective nudge missing expected content: %q", nudge)
 	}
 }
