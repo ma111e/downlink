@@ -695,10 +695,11 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 	// Ensure the pipeline has at least 60 minutes total (tasks run sequentially;
 	// each individual Stream call gets its own provider-configured sub-deadline below).
 	const pipelineTimeout = 60 * time.Minute
+	const deadlineSlack = 1 * time.Minute // absorb elapsed time / equal-deadline callers
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
 		log.Infof("Context deadline: %v (remaining: %v)", deadline, remaining)
-		if remaining < pipelineTimeout {
+		if remaining < pipelineTimeout-deadlineSlack {
 			log.Warnf("Context deadline shorter than preferred pipeline timeout (%v < %v); preserving caller cancellation", remaining, pipelineTimeout)
 		}
 	} else {
@@ -875,10 +876,11 @@ func (s *LLMsServer) AnalyzeArticleWithProgress(ctx context.Context, req *protos
 
 func (s *LLMsServer) AnalyzeArticleOneShot(ctx context.Context, req *protos.AnalyzeArticleWithProviderModelRequest, onTask func(taskName, status string, taskIndex, totalTasks int, err error)) (*protos.AnalyzeArticleWithProviderModelResponse, error) {
 	const oneShotTimeout = 60 * time.Minute
+	const deadlineSlack = 1 * time.Minute // absorb elapsed time / equal-deadline callers
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
 		log.Infof("Context deadline: %v (remaining: %v)", deadline, remaining)
-		if remaining < oneShotTimeout {
+		if remaining < oneShotTimeout-deadlineSlack {
 			log.Warnf("Context deadline shorter than preferred one-shot timeout (%v < %v); preserving caller cancellation", remaining, oneShotTimeout)
 		}
 	} else {

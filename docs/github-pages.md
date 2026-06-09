@@ -171,7 +171,7 @@ Each entry in `digests`:
 
 ## 7. Discord publish notification
 
-The `discord_webhook_url` field is distinct from the main `notifications.discord.webhook_url`. It is designed to post a lightweight one-line message when a page goes live:
+The `discord_webhook_url` field is distinct from the main `notifications.discord.webhook_url`. It posts a one-line message when a page goes live:
 
 ```
 📰 New digest published to GitHub Pages: https://you.github.io/digests/downlink-digest-2026-04-24_1200.html
