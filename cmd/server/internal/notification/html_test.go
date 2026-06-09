@@ -236,6 +236,77 @@ func TestRenderDigestHTMLPreCollapsesReportsAtBuildTime(t *testing.T) {
 	}
 }
 
+func TestRenderDigestHTMLBeginnerMode(t *testing.T) {
+	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+	category := "news"
+	digest := models.Digest{
+		Id:         "digest-beginner",
+		CreatedAt:  createdAt,
+		TimeWindow: 24 * time.Hour,
+		Articles: []models.Article{
+			{Id: "article-b", Title: "Beginner Article", Link: "https://example.com/b", PublishedAt: createdAt, CategoryName: &category},
+		},
+		DigestAnalyses: []models.DigestAnalysis{
+			{
+				ArticleId: "article-b",
+				Analysis: &models.ArticleAnalysis{
+					ArticleId:           "article-b",
+					ProviderType:        "openai",
+					ModelName:           "gpt-test",
+					ImportanceScore:     95,
+					BriefOverview:       "Brief.",
+					BeginnerExplanation: "A flaw lets attackers run code on a server.",
+					BeginnerGlossary: []models.GlossaryTerm{
+						{Term: "RCE", Definition: "Running your own commands on someone else's computer."},
+					},
+				},
+			},
+		},
+	}
+
+	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML() error = %v", err)
+	}
+	html := string(htmlBytes)
+
+	for _, want := range []string{
+		// Nav switch + persistence plumbing appear when beginner content exists.
+		`id="nav-beginner-toggle"`,
+		`onclick="toggleBeginner()"`,
+		`downlink.beginner`,
+		`data-beginner`,
+		// The per-article beginner block with explanation + glossary.
+		`class="panel-section beginner-block"`,
+		`A flaw lets attackers run code on a server.`,
+		`<dt class="glossary-term">RCE</dt>`,
+		`Running your own commands on someone else&#39;s computer.`,
+		// Hidden by default, revealed by the switch.
+		`.beginner-block { display: none; }`,
+		`html[data-beginner="on"] .beginner-block { display: block; }`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("RenderDigestHTML() missing beginner fragment %q:\n%s", want, html)
+		}
+	}
+}
+
+func TestRenderDigestHTMLNoBeginnerToggleWhenAbsent(t *testing.T) {
+	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
+	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML() error = %v", err)
+	}
+	html := string(htmlBytes)
+
+	if strings.Contains(html, `id="nav-beginner-toggle"`) {
+		t.Fatal("RenderDigestHTML() rendered the beginner toggle for a digest with no beginner content")
+	}
+	if strings.Contains(html, `class="panel-section beginner-block"`) {
+		t.Fatal("RenderDigestHTML() rendered a beginner block for a digest with no beginner content")
+	}
+}
+
 func TestRenderSwipeHTMLInjectsDigestAndArticles(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 	htmlBytes, err := RenderSwipeHTML(digest, "downlink-digest-2026-04-24_1200.html", "dark")

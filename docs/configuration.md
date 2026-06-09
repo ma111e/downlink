@@ -70,6 +70,7 @@ See [llm-providers.md](llm-providers.md) for which fields each provider type nee
 | `provider` | string | / | `name` of the provider entry used for analysis and digest summaries. |
 | `auto_analyze` | bool | `false` | Enqueue articles for analysis automatically after each feed refresh. |
 | `vibe_score` | bool | `false` | Use the legacy single-number importance prompt instead of the rubric. See [analysis-and-scoring.md](analysis-and-scoring.md). |
+| `beginner` | bool | `false` | Run an extra analysis task that generates a plain-language explanation and a jargon glossary per article. Surfaced on the digest page behind a "Beginner" nav switch. Adds one LLM round-trip per article; existing articles need re-analysis to populate it. |
 | `persona` | string | / | Prompt prefix injected before every analysis request. |
 | `writing_style` | string | / | Style guide injected into the digest summary prompt. |
 

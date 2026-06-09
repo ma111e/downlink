@@ -21,6 +21,14 @@ type ReferencedReport struct {
 	Primary   bool   `json:"primary"`
 }
 
+// GlossaryTerm is a single jargon term and its plain-language definition, produced
+// by the beginner-mode analysis task to help newcomers familiarize themselves with
+// the terminology used in an article.
+type GlossaryTerm struct {
+	Term       string `json:"term"`
+	Definition string `json:"definition"`
+}
+
 // ArticleAnalysis represents an analysis result from an LLM provider for an article
 type ArticleAnalysis struct {
 	Id                     string              `gorm:"primaryKey" json:"id"`
@@ -41,6 +49,9 @@ type ArticleAnalysis struct {
 	BriefOverview          string              `gorm:"type:text" json:"brief_overview"`
 	StandardSynthesis      string              `gorm:"type:text" json:"standard_synthesis"`
 	ComprehensiveSynthesis string              `gorm:"type:text" json:"comprehensive_synthesis"`
+	BeginnerExplanation    string              `gorm:"type:text" json:"beginner_explanation"`
+	BeginnerGlossaryJson   string              `gorm:"column:beginner_glossary;type:text" json:"-"`
+	BeginnerGlossary       []GlossaryTerm      `gorm:"-" json:"beginner_glossary"`
 	ThinkingProcess        string              `gorm:"type:text" json:"thinking_process,omitempty"`
 	RawResponse            string              `gorm:"type:text" json:"raw_response"`
 	CreatedAt              time.Time           `gorm:"index" json:"created_at"`
@@ -91,6 +102,14 @@ func (a *ArticleAnalysis) BeforeCreate(tx *gorm.DB) error {
 		a.ScoreDimensionsJson = string(scoreDimensionsBytes)
 	}
 
+	if len(a.BeginnerGlossary) > 0 {
+		beginnerGlossaryBytes, err := json.Marshal(a.BeginnerGlossary)
+		if err != nil {
+			return err
+		}
+		a.BeginnerGlossaryJson = string(beginnerGlossaryBytes)
+	}
+
 	return nil
 }
 
@@ -121,6 +140,12 @@ func (a *ArticleAnalysis) AfterFind(tx *gorm.DB) error {
 			return err
 		}
 		a.ScoreDimensions = &dims
+	}
+
+	if a.BeginnerGlossaryJson != "" {
+		if err := json.Unmarshal([]byte(a.BeginnerGlossaryJson), &a.BeginnerGlossary); err != nil {
+			return err
+		}
 	}
 
 	return nil
