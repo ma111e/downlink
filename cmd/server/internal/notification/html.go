@@ -46,6 +46,15 @@ type RenderedAnalysis struct {
 	KeyPoints              []template.HTML
 	Insights               []template.HTML
 	ReferencedReports      []RenderedReport
+	BeginnerExplanation    template.HTML
+	BeginnerGlossary       []RenderedGlossaryTerm
+}
+
+// RenderedGlossaryTerm is a beginner-mode jargon term prepared for the template, with
+// its definition tag-highlighted.
+type RenderedGlossaryTerm struct {
+	Term       string
+	Definition template.HTML
 }
 
 // RenderedReport is a referenced report prepared for the digest template, with its
@@ -254,6 +263,7 @@ type digestTemplateData struct {
 	CategoryCounts   map[string]int // TOC rows per category, for the category filter badges
 	PriorityCounts   map[string]int // TOC rows per priority key (must/should/may), for the priority filter badges
 	Tags             []TagCount     // distinct tags present among TOC rows (with match counts), for the tag filter cloud
+	HasBeginner      bool           // true when any article has beginner-mode content, gating the nav switch
 	Commit           string
 }
 
@@ -352,6 +362,8 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 				KeyPoints:              highlightPlainSlice(analysis.KeyPoints, tagRe),
 				Insights:               highlightPlainSlice(analysis.Insights, tagRe),
 				ReferencedReports:      renderReports(analysis.ReferencedReports, tagRe),
+				BeginnerExplanation:    highlightHTMLFragment(markdownToHTML(analysis.BeginnerExplanation), tagRe),
+				BeginnerGlossary:       renderGlossary(analysis.BeginnerGlossary, tagRe),
 			}
 		}
 
@@ -477,6 +489,14 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 	}
 	summaryTagRe := compileTagRegexp(summaryTagNames)
 
+	hasBeginner := false
+	for _, e := range articleEntries {
+		if e.Analysis != nil && e.Analysis.BeginnerExplanation != "" {
+			hasBeginner = true
+			break
+		}
+	}
+
 	data := digestTemplateData{
 		// CreatedAt is the article-selection window start; show it directly so the
 		// digest page matches the archive index's period_start (see ManifestEntryFromDigest).
@@ -497,6 +517,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		Theme:            normalizeTheme(theme),
 		Themes:           themeOptions(),
 		PaletteCSS:       paletteCSS(),
+		HasBeginner:      hasBeginner,
 		Commit:           version.Commit,
 	}
 
@@ -715,6 +736,22 @@ func renderReports(reports []models.ReferencedReport, re *regexp.Regexp) []Rende
 			Category:  r.Category,
 			Primary:   r.Primary,
 			Context:   highlightPlain(r.Context, re),
+		}
+	}
+	return out
+}
+
+// renderGlossary prepares beginner-mode glossary terms for the template, tag-highlighting
+// each definition while leaving the term itself plain-escaped by the template.
+func renderGlossary(terms []models.GlossaryTerm, re *regexp.Regexp) []RenderedGlossaryTerm {
+	if len(terms) == 0 {
+		return nil
+	}
+	out := make([]RenderedGlossaryTerm, len(terms))
+	for i, t := range terms {
+		out[i] = RenderedGlossaryTerm{
+			Term:       t.Term,
+			Definition: highlightPlain(t.Definition, re),
 		}
 	}
 	return out

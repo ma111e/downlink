@@ -11,6 +11,7 @@
     var valid = { {{range .Themes}}"{{.Value}}": 1, {{end}} };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
+    if (localStorage.getItem('downlink.beginner') === 'on') document.documentElement.dataset.beginner = 'on';
   } catch(e){}
 })();
 </script>
@@ -360,6 +361,26 @@ a:hover { text-decoration: underline; }
 }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
+/* beginner mode: reveals plain-language explanations + a jargon glossary site-wide */
+.nav-beginner-toggle {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 4px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.nav-beginner-toggle:hover { border-color: var(--should); color: var(--text); }
+.nav-beginner-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-beginner-toggle[aria-pressed="true"] {
+  color: var(--should);
+  border-color: color-mix(in oklch, var(--should) 45%, transparent);
+  background: color-mix(in oklch, var(--should) 10%, transparent);
+}
 
 /* ── provider/model switcher ─────────────────────── */
 .nav-switcher {
@@ -1079,9 +1100,24 @@ mark.tag-hl:hover {
 .panel-subhead--summary   { --panel-c: var(--cyan); }
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
+.panel-subhead--beginner  { --panel-c: var(--should); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
-.panel-subhead--reports { color: var(--panel-c); }
+.panel-subhead--reports,
+.panel-subhead--beginner { color: var(--panel-c); }
+/* beginner block: hidden until the nav switch sets html[data-beginner="on"] */
+.beginner-block { display: none; }
+html[data-beginner="on"] .beginner-block { display: block; }
+.glossary-list { margin: 0.7rem 0 0; padding: 0; }
+.glossary-term {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--should);
+  margin-top: 0.6rem;
+}
+.glossary-def { margin: 0.15rem 0 0; padding: 0; color: var(--text2); }
 .summary-switch { display: flex; flex-wrap: wrap; gap: 2px; margin-left: auto; }
 .summary-switch .tab-btn {
   margin-bottom: 0;
@@ -1271,6 +1307,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
     <select class="nav-theme-select" id="nav-theme-select" onchange="applyTheme(this.value)" title="Select theme" aria-label="Select theme">
       {{range .Themes}}<option value="{{.Value}}">{{.Label}}</option>
       {{end}}</select>
+    {{if .HasBeginner}}<button class="nav-beginner-toggle" id="nav-beginner-toggle" type="button" onclick="toggleBeginner()" aria-pressed="false" title="Show beginner-friendly explanations and a jargon glossary">Beginner</button>{{end}}
   </div>
 </nav>
 
@@ -1347,6 +1384,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                   {{if index $row.OtherDetails $oi}}<div class="article-body" id="member-body-{{$other.Id}}">
                     {{$od := index $row.OtherDetails $oi}}
                     {{if $od.HasAnalysis}}
+                    {{template "beginnerBlock" $od.Analysis}}
                     <div class="panel-section">
                       <div class="panel-subhead panel-subhead--summary">Summary
                         <div class="summary-switch">
@@ -1381,6 +1419,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </details>
           {{if $row.CanonDetail}}<div class="toc-row-body" id="canon-body-{{$row.Canonical.Id}}">
             {{if $row.CanonDetail.HasAnalysis}}
+            {{template "beginnerBlock" $row.CanonDetail.Analysis}}
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
@@ -1429,6 +1468,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
           {{if $row.Detail}}<div class="toc-row-body">
             {{if $row.Detail.HasAnalysis}}
+            {{template "beginnerBlock" $row.Detail.Analysis}}
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
@@ -1497,6 +1537,16 @@ function applyTheme(t) {
 }
 // sync the picker with the theme chosen before first paint
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
+
+function toggleBeginner() {
+  var on = document.documentElement.dataset.beginner === 'on';
+  if (on) { delete document.documentElement.dataset.beginner; } else { document.documentElement.dataset.beginner = 'on'; }
+  try { localStorage.setItem('downlink.beginner', on ? 'off' : 'on'); } catch(e){}
+  var btn = document.getElementById('nav-beginner-toggle');
+  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+}
+// sync the beginner toggle with the state chosen before first paint
+(function(){ var btn = document.getElementById('nav-beginner-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.beginner === 'on' ? 'true' : 'false'); })();
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1680,3 +1730,9 @@ function showMoreTags(btn) {
   {{if .Publisher}}<div class="report-meta">{{.Publisher}}</div>{{end}}
   {{if .Context}}<div class="report-context">{{.Context}}</div>{{end}}
 </li>{{end}}{{if and $hasPrimary (gt $n 0)}}<button class="report-show-more" data-more="+{{$n}} more" onclick="toggleReports(this)">+{{$n}} more</button>{{end}}</ul></div>{{end}}
+
+{{define "beginnerBlock"}}{{if .BeginnerExplanation}}<div class="panel-section beginner-block">
+  <div class="panel-subhead panel-subhead--beginner">For Beginners</div>
+  <div class="prose">{{.BeginnerExplanation}}</div>
+  {{if .BeginnerGlossary}}<dl class="glossary-list">{{range .BeginnerGlossary}}<dt class="glossary-term">{{.Term}}</dt><dd class="glossary-def">{{.Definition}}</dd>{{end}}</dl>{{end}}
+</div>{{end}}{{end}}
