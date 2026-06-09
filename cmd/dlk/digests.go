@@ -144,7 +144,7 @@ func createDigestCommands() *cobra.Command {
 	// Generate digest command
 	var digestFrom, digestTo, digestBetween, digestDay, digestTheme, digestTestID string
 	var digestProvider, digestModel string
-	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages, digestReanalyzeOnModelChange, digestReanalyze, digestVibeScore, digestSelectModel bool
+	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages, digestReanalyzeOnModelChange, digestReanalyze, digestVibeScore, digestBeginner, digestSelectModel bool
 	generateCmd := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate a new digest",
@@ -400,6 +400,12 @@ Examples:
 				vibeScore = &digestVibeScore
 			}
 
+			// Tri-state override for beginner mode, same semantics as vibe_score.
+			var beginner *bool
+			if cmd.Flags().Changed("beginner") {
+				beginner = &digestBeginner
+			}
+
 			handler := newDigestProgressHandler(prog)
 			digest, err := client.GenerateDigestWithOptions(ctx, downlinkclient.GenerateDigestOptions{
 				StartTime:              *fromTime,
@@ -414,6 +420,7 @@ Examples:
 				ReanalyzeOnModelChange: digestReanalyzeOnModelChange,
 				Reanalyze:              digestReanalyze,
 				VibeScore:              vibeScore,
+				Beginner:               beginner,
 				Provider:               digestProvider,
 				Model:                  digestModel,
 				OnEvent:                handler,
@@ -464,6 +471,7 @@ Examples:
 	generateCmd.Flags().BoolVar(&digestReanalyzeOnModelChange, "reanalyze-on-model-change", false, "Re-analyze articles whose existing analysis was produced by a different model than the one currently configured")
 	generateCmd.Flags().BoolVar(&digestReanalyze, "reanalyze", false, "Re-analyze every article in the window, even if it already has an analysis")
 	generateCmd.Flags().BoolVar(&digestVibeScore, "vibe-score", false, "Use the legacy single-number LLM importance prompt instead of the rubric scoring system for this run [overrides server config; use --vibe-score=false to force the rubric]")
+	generateCmd.Flags().BoolVar(&digestBeginner, "beginner", false, "Generate beginner-mode content (plain-language explanation + jargon glossary) for this run [overrides server config; use --beginner=false to force off]")
 
 	// Get digest articles command
 	articlesCmd := &cobra.Command{

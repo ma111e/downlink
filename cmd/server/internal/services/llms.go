@@ -295,9 +295,13 @@ func vibeScoreEnabled(reqVibe *bool) bool {
 	return config.Config.Analysis.VibeScore
 }
 
-// beginnerEnabled reports whether the beginner-mode analysis task should run,
-// driven solely by the analysis config (no per-request override).
-func beginnerEnabled() bool {
+// beginnerEnabled resolves whether the beginner-mode analysis task should run.
+// A per-request override (non-nil) wins; otherwise the server's analysis config
+// default applies.
+func beginnerEnabled(reqBeginner *bool) bool {
+	if reqBeginner != nil {
+		return *reqBeginner
+	}
 	return config.Config.Analysis.Beginner
 }
 
@@ -510,7 +514,7 @@ func (s *LLMsServer) buildAnalysisPromptForRequest(req *protos.AnalyzeArticleWit
 		return "", err
 	}
 
-	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), beginnerEnabled())
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), beginnerEnabled(req.Beginner))
 	var allInstructions, allSchemas []string
 	for i, t := range tasks {
 		allInstructions = append(allInstructions, fmt.Sprintf("%d. %s", i+1, t.instruction))
@@ -748,7 +752,7 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 
 	// Run analysis tasks sequentially using a single ChatModel conversation.
 	// The article is sent once in the first message; subsequent tasks only send the instruction.
-	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), beginnerEnabled())
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), beginnerEnabled(req.Beginner))
 	totalTasks := len(tasks)
 	assembled := make(map[string]interface{})
 	assembled["id"] = actx.articleId
