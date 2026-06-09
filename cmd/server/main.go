@@ -201,6 +201,7 @@ func main() {
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentLLMRequests, "max-concurrent-llm-requests", 1, "Maximum number of concurrent LLM analysis requests (default: 1)")
 	rootCmd.PersistentFlags().Bool("auto-analyze", false, "Automatically enqueue articles for analysis after each feed refresh [overrides config]")
 	rootCmd.PersistentFlags().Bool("vibe-score", false, "Use the legacy single-number LLM importance prompt instead of the rubric scoring system [overrides config]")
+	rootCmd.PersistentFlags().Bool("beginner", false, "Generate beginner-mode content (plain-language explanation + jargon glossary) per article [overrides config]")
 	//rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./excuses-client.yml)")
 
 	rootCmd.PersistentFlags().Bool("gh-pages-enabled", false, "Enable GitHub Pages publishing [overrides config]")
@@ -270,6 +271,12 @@ func applyAnalysisFlagOverrides(cmd *cobra.Command) {
 		a.VibeScore = v
 	} else if viper.IsSet("vibe-score") {
 		a.VibeScore = viper.GetBool("vibe-score")
+	}
+	if cmd.Flags().Changed("beginner") {
+		v, _ := cmd.Flags().GetBool("beginner")
+		a.Beginner = v
+	} else if viper.IsSet("beginner") {
+		a.Beginner = viper.GetBool("beginner")
 	}
 }
 

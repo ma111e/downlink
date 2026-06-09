@@ -73,6 +73,7 @@ type GenerateDigestOptions struct {
 	ReanalyzeOnModelChange bool
 	Reanalyze              bool
 	VibeScore              *bool  // When non-nil, overrides the server's vibe_score config for this run
+	Beginner               *bool  // When non-nil, overrides the server's beginner config for this run
 	Provider               string // Provider override (type or profile name, auto-detected by the server)
 	Model                  string // Model override; with empty Provider the server resolves the matching provider
 	OnEvent                func(*protos.DigestProgressEvent)
@@ -110,6 +111,7 @@ func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options
 		ReanalyzeOnModelChange: options.ReanalyzeOnModelChange,
 		Reanalyze:              options.Reanalyze,
 		VibeScore:              options.VibeScore,
+		Beginner:               options.Beginner,
 		Provider:               options.Provider,
 		Model:                  options.Model,
 	})
