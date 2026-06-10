@@ -4,8 +4,8 @@ Downlink is a feed aggregator and content-analysis platform for security news. I
 RSS/Atom feeds, scrapes full article content, scores and summarizes each article with an
 LLM, and assembles ranked digests it can publish to GitHub Pages and Discord.
 
-New here? Start with [getting-started.md](getting-started.md). The project
-[README](../README.md) has the high-level overview and install instructions.
+Start with [getting-started.md](getting-started.md). The project
+[README](../README.md) covers the overview and install.
 
 ## Guides
 

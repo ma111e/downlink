@@ -1,7 +1,6 @@
 # Getting started
 
-This walks through a first run from a clean checkout. The project README has the same path
-in condensed form; this page adds the details it skips.
+A first run from a clean checkout: install, configure, fetch, and produce a digest.
 
 ## Install
 
