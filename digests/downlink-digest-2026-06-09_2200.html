@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<script>
+
+
+
+(function(){
+  try {
+    var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
+    var t = localStorage.getItem('downlink.theme');
+    if (valid[t]) document.documentElement.dataset.theme = t;
+    if (localStorage.getItem('downlink.beginner') === 'on') document.documentElement.dataset.beginner = 'on';
+  } catch(e){}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Ivanti Sentry CVE-2026-10520 RCE and Microsoft Defender RoguePlanet Zero-Day — 2 articles · 4 hours intelligence window">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Ivanti Sentry CVE-2026-10520 RCE and Microsoft Defender RoguePlanet Zero-Day — DOWNLINK">
+<meta property="og:description" content="2 articles curated from a 4 hours window.">
+<title>Ivanti Sentry CVE-2026-10520 RCE and Microsoft Defender RoguePlanet Zero-Day — DOWNLINK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+ 
+@view-transition { navigation: auto; }
+@keyframes vt-slide-fade-out {
+  to { opacity: 0; transform: translateX(-24px); }
+}
+@keyframes vt-slide-fade-in {
+  from { opacity: 0; transform: translateX(24px); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: vt-slide-fade-out 220ms cubic-bezier(0.4, 0, 1, 1) both;
+  }
+  ::view-transition-new(root) {
+    animation: vt-slide-fade-in 320ms cubic-bezier(0, 0, 0.2, 1) 120ms both;
+  }
+}
+
+:root {
+  --bg:      #0b0b0e;
+  --surface: #111116;
+  --surface2:#15151c;
+  --surface-raised: #1c1c26;    
+  --border:  #1c1c25;
+  --border2: #252530;
+  --text:    #dddde8;
+  --text2:   #a8a8be;
+  --text3:   #4a4a60;
+  --cyan:    oklch(74% 0.14 196);
+  --green:   oklch(74% 0.16 150);
+  --violet:  oklch(70% 0.16 295);
+  --must:    oklch(66% 0.15 38);
+  --should:  oklch(73% 0.16 60);
+  --may:     oklch(65% 0.13 250);
+  --mono:    'IBM Plex Mono', 'SF Mono', 'Fira Code', Consolas, monospace;
+  --sans:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius:  4px;
+  --cat-research: oklch(72% 0.19 320);
+  --cat-advisory: oklch(74% 0.18 44);
+  --cat-news:     oklch(72% 0.15 220);
+  --cat-opinion:  oklch(70% 0.17 350);
+  --cat-guide:    oklch(76% 0.15 130);
+  --cat-commercial:   oklch(80% 0.15 85);
+  --cat-sponsored:    oklch(72% 0.16 300);
+  --cat-announcement: oklch(75% 0.14 160);
+  --dot:     #ffffff08;
+}
+
+ 
+html[data-theme="light"] {
+  --bg:      #efeeea;   
+  --surface: #fafaf8;   
+  --surface2:#e8e7e2;   
+  --surface-raised: #ffffff;   
+  --border:  #d3d2cc;   
+  --border2: #b8b7b0;   
+  --text:    #0d0c0a;   
+  --text2:   #273f4f;   
+  --text3:   #5c6e78;   
+   
+  --cyan:    oklch(58% 0.13 45);    
+  --green:   oklch(58% 0.13 150);
+  --violet:  oklch(58% 0.13 300);
+  --must:    oklch(58% 0.13 25);
+  --should:  oklch(58% 0.13 67);
+  --may:     oklch(58% 0.13 250);
+  --cat-research:     oklch(58% 0.13 328);
+  --cat-advisory:     oklch(58% 0.13 40);
+  --cat-news:         oklch(58% 0.13 236);
+  --cat-opinion:      oklch(58% 0.13 358);
+  --cat-guide:        oklch(58% 0.13 150);
+  --cat-commercial:   oklch(58% 0.13 78);
+  --cat-sponsored:    oklch(58% 0.13 300);
+  --cat-announcement: oklch(58% 0.13 168);
+  --dot:     rgba(0,0,0,.035);
+}
+
+ 
+html[data-theme="contrast"] {
+  --bg:      #000000;
+  --surface: #0a0a0a;
+  --surface2:#111111;
+  --surface-raised: #181818;    
+  --border:  #2a2a2a;
+  --border2: #3a3a3a;
+  --text:    #ffffff;
+  --text2:   #c7c7c7;
+  --text3:   #888888;
+  --cyan:    #00ffd1;
+  --green:   #00ff95;
+  --violet:  #c08cff;
+  --must:    #ff5050;
+  --should:  #ffd24a;
+  --may:     #00ffd1;
+  --cat-research:     #00ffd1;
+  --cat-advisory:     #ff8a3a;
+  --cat-news:         #4ab8ff;
+  --cat-opinion:      #ff6ec7;
+  --cat-guide:        #5dff8f;
+  --cat-commercial:   #ffd24a;
+  --cat-sponsored:    #c08cff;
+  --cat-announcement: #3affc0;
+  --dot:     rgba(255,255,255,.08);
+}
+
+ 
+html[data-theme="mono"] {
+  --bg:      #0c0c0c;
+  --surface: #131313;
+  --surface2:#181818;
+  --surface-raised: #1f1f1f;    
+  --border:  #242424;
+  --border2: #333333;
+  --text:    #e6e6e6;
+  --text2:   #9a9a9a;
+  --text3:   #5e5e5e;
+  --cyan:    #e6e6e6;
+  --green:   #cfcfcf;
+  --violet:  #bdbdbd;
+  --must:    #f0f0f0;
+  --should:  #c8c8c8;
+  --may:     #9a9a9a;
+  --cat-research:     #e6e6e6;
+  --cat-advisory:     #cfcfcf;
+  --cat-news:         #bdbdbd;
+  --cat-opinion:      #d6d6d6;
+  --cat-guide:        #c8c8c8;
+  --cat-commercial:   #b0b0b0;
+  --cat-sponsored:    #a8a8a8;
+  --cat-announcement: #bcbcbc;
+  --dot:     rgba(255,255,255,.04);
+}
+
+ 
+html[data-theme="colorblind"] {
+  --bg:      #efeeea;   
+  --surface: #fafaf8;
+  --surface2:#e8e7e2;
+  --surface-raised: #ffffff;   
+  --border:  #d3d2cc;
+  --border2: #b8b7b0;
+  --text:    #0d0c0a;
+  --text2:   #273f4f;
+  --text3:   #5c6e78;
+  --cyan:    #0072b2;   
+  --green:   #1a7a4f;   
+  --violet:  #7a4fa0;   
+  --must:    #c44601;   
+  --should:  #8a6d00;   
+  --may:     #2f79a5;   
+  --cat-research:     #2e7d32;   
+  --cat-advisory:     #c44601;   
+  --cat-news:         #0072b2;   
+  --cat-opinion:      #a23b7a;   
+  --cat-guide:        #1a7a4f;   
+  --cat-commercial:   #8a6d00;   
+  --cat-sponsored:    #7a4fa0;   
+  --cat-announcement: #00786b;   
+  --dot:     rgba(0,0,0,.035);
+}
+
+ 
+html[data-theme="pastel"] {
+  --bg:      #faf6e6;   
+  --surface: #fffdf4;   
+  --surface2:#f1ead2;   
+  --surface-raised: #ffffff;   
+  --border:  #e6dcbf;   
+  --border2: #d2c5a2;   
+  --text:    #3a3137;   
+  --text2:   #6c5560;   
+  --text3:   #9c8a86;   
+  --cyan:    #1f9d8f;   
+  --green:   #2f9e63;   
+  --violet:  #8257c2;   
+  --must:    #d9534f;   
+  --should:  #e08a2e;   
+  --may:     #4a90d9;   
+  --cat-research: #a05fc0;   
+  --cat-advisory: #e0655c;   
+  --cat-news:     #3f8fd0;   
+  --cat-opinion:  #de6b94;   
+  --cat-guide:    #2faa8e;   
+  --cat-commercial:   #d99a2b;   
+  --cat-sponsored:    #8c6dd0;   
+  --cat-announcement: #2ba88f;   
+  --dot:     rgba(0,0,0,.03);
+}
+
+ 
+:root{--p0:#f87171;--p1:#fb923c;--p2:#4ade80;--p3:#2dd4bf;--p4:#60a5fa;--p5:#c084fc;--p6:#f472b6;--p7:#a78bfa;--p8:#34d399;--p9:#38bdf8;--p10:#e879f9;}html[data-theme="light"]{--p0:#dc2626;--p1:#ea580c;--p2:#16a34a;--p3:#0d9488;--p4:#2563eb;--p5:#9333ea;--p6:#db2777;--p7:#7c3aed;--p8:#059669;--p9:#0284c7;--p10:#c026d3;}html[data-theme="colorblind"]{--p0:#0072b2;--p1:#c44601;--p2:#1a7a4f;--p3:#7a4fa0;--p4:#8a6d00;--p5:#2f79a5;--p6:#a23b7a;--p7:#00786b;--p8:#2b6c8f;--p9:#b35900;--p10:#5c6e78;}html[data-theme="mono"]{--p0:#7a7a7a;--p1:#868686;--p2:#929292;--p3:#9e9e9e;--p4:#aaaaaa;--p5:#b6b6b6;--p6:#c2c2c2;--p7:#cecece;--p8:#dadada;--p9:#e6e6e6;--p10:#f0f0f0;}html[data-theme="pastel"]{--p0:#e0655c;--p1:#e08a2e;--p2:#2f9e63;--p3:#1f9d8f;--p4:#4a90d9;--p5:#8c6dd0;--p6:#de6b94;--p7:#a05fc0;--p8:#2faa8e;--p9:#3f8fd0;--p10:#c267c0;}
+
+html {
+  background: var(--bg);
+  background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  scroll-behavior: smooth;
+}
+body { min-height: 100vh; max-width: 900px; margin: 0 auto; }
+::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+ 
+@keyframes target-pulse {
+  0%,100% { border-color: var(--cyan); }
+  50%      { border-color: var(--border); }
+}
+
+ 
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text3);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-label::before { content: "//"; opacity: 0.5; font-size: 11px; }
+
+ 
+#nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: color-mix(in oklch, var(--bg) 90%, transparent);
+  backdrop-filter: blur(16px);
+  margin: 0 40px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  text-decoration: none;
+}
+.nav-logo:hover { text-decoration: none; }
+.nav-logo-down { font-family: var(--mono); font-weight: 600; font-size: 16px; letter-spacing: 0.14em; color: var(--text); }
+.nav-logo-link { font-family: var(--mono); font-weight: 600; font-size: 16px; letter-spacing: 0.14em; color: var(--cyan); margin-right: 12px; }
+.nav-logo-ver {
+  margin-left: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--cyan);
+  letter-spacing: 0.1em;
+  border: 1px solid color-mix(in oklch, var(--cyan) 30%, transparent);
+  background: color-mix(in oklch, var(--cyan) 7%, transparent);
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+.nav-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-date  { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; }
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.nav-window { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; }
+.nav-swipe {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--cyan);
+  border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
+  background: color-mix(in oklch, var(--cyan) 8%, transparent);
+  padding: 3px 10px;
+  border-radius: 2px;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.nav-swipe:hover { border-color: var(--cyan); color: var(--text); text-decoration: none; }
+.nav-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  letter-spacing: 0.08em;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  padding: 3px 10px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.nav-count-dot { color: var(--should); }
+ 
+.nav-theme-select {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 4px 22px 4px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text3) 50%),
+                    linear-gradient(135deg, var(--text3) 50%, transparent 50%);
+  background-position: calc(100% - 10px) 50%, calc(100% - 6px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+.nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
+.nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
+ 
+.nav-beginner-toggle {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 4px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.nav-beginner-toggle:hover { border-color: var(--should); color: var(--text); }
+.nav-beginner-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-beginner-toggle[aria-pressed="true"] {
+  color: var(--should);
+  border-color: color-mix(in oklch, var(--should) 45%, transparent);
+  background: color-mix(in oklch, var(--should) 10%, transparent);
+}
+
+ 
+.nav-switcher {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  white-space: nowrap;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text3) 50%),
+                    linear-gradient(135deg, var(--text3) 50%, transparent 50%);
+  background-position: calc(100% - 10px) 50%, calc(100% - 6px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  padding-right: 22px;
+}
+.nav-switcher:hover { border-color: var(--cyan); color: var(--text); }
+.nav-switcher:focus { outline: 1px solid var(--cyan); outline-offset: 1px; }
+
+ 
+.priority-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-must   { color: var(--must);   border: 1px solid color-mix(in oklch, var(--must)   45%, transparent); background: color-mix(in oklch, var(--must)   12%, transparent); }
+.badge-should { color: var(--should); border: 1px solid color-mix(in oklch, var(--should) 45%, transparent); background: color-mix(in oklch, var(--should) 12%, transparent); }
+.badge-may    { color: var(--may);    border: 1px solid color-mix(in oklch, var(--may)    45%, transparent); background: color-mix(in oklch, var(--may)    12%, transparent); }
+.badge-opt    { color: var(--text3);  border: 1px solid var(--border2); background: transparent; }
+
+ 
+.score-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 60px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.score-track {
+  width: 32px; height: 3px;
+  background: var(--border2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.score-fill { height: 100%; border-radius: 2px; }
+.score-fill-high   { background: var(--must); }
+.score-fill-mid    { background: var(--should); }
+.score-fill-low    { background: var(--text3); }
+.score-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  min-width: 20px;
+  text-align: right;
+}
+.score-num-high { color: var(--must); }
+.score-num-mid  { color: var(--should); }
+.score-num-low  { color: var(--text3); }
+
+ 
+#toc {
+  padding: 0 40px;
+}
+.toc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.toc-header {
+  padding: 13px 20px;
+}
+ 
+#toc .toc-card + .toc-card { margin-top: 20px; }
+.toc-body { padding: 8px 20px 16px; }
+.toc-group { margin-bottom: 4px; }
+.toc-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.toc-group-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  padding: 2px 7px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.toc-group-count { margin-left: auto; font-family: var(--mono); font-size: 9px; color: var(--text3); }
+.info-tip {
+  cursor: help;
+  font-style: normal;
+  font-size: 0.7rem;
+  opacity: 0.45;
+  position: relative;
+  user-select: none;
+  line-height: 1;
+}
+.info-tip:hover { opacity: 1; }
+.info-tip::after {
+  content: attr(data-tip);
+  display: none;
+  position: absolute;
+  left: 1.4em;
+  top: -0.3em;
+  width: 22em;
+  background: var(--bg-secondary, #1e1e2e);
+  color: var(--fg, #cdd6f4);
+  border: 1px solid var(--border, #45475a);
+  border-radius: 6px;
+  padding: 0.5em 0.75em;
+  font-size: 0.75rem;
+  font-family: inherit;
+  line-height: 1.4;
+  z-index: 100;
+  white-space: normal;
+  pointer-events: none;
+}
+.info-tip:hover::after { display: block; }
+ 
+.score-tip { position: relative; cursor: help; }
+.score-tip::after {
+  content: attr(data-tip);
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4em);
+  width: max-content;
+  max-width: 22em;
+  background: var(--bg-secondary, #1e1e2e);
+  color: var(--fg, #cdd6f4);
+  border: 1px solid var(--border, #45475a);
+  border-radius: 6px;
+  padding: 0.5em 0.75em;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  z-index: 100;
+  white-space: normal;
+  pointer-events: none;
+}
+.score-tip:hover::after { display: block; }
+.toc-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  min-width: 20px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.toc-num-must   { color: var(--must); }
+.toc-num-should { color: var(--should); }
+.toc-num-may    { color: var(--may); }
+.toc-num-opt    { color: var(--text3); }
+.toc-title-link { color: var(--text); font-size: 13px; flex: 1; line-height: 1.5; cursor: pointer; }
+.toc-child-indent { color: var(--text3); font-size: 10px; margin-top: 2px; flex-shrink: 0; }
+.toc-child-title  { color: var(--text2); font-size: 12px; flex: 1; line-height: 1.5; }
+.toc-child-title:hover { color: var(--text); text-decoration: none; }
+
+ 
+.toc-row-wrap {
+  position: relative;
+   
+  border: 1px solid transparent;
+  border-bottom-color: color-mix(in oklch, var(--border) 50%, transparent);
+   
+  transition: margin 0.25s cubic-bezier(0.1, 0.9, 0.2, 1),
+              border-radius 0.25s cubic-bezier(0.1, 0.9, 0.2, 1),
+              border-color 0.2s ease,
+              box-shadow 0.25s cubic-bezier(0.1, 0.9, 0.2, 1),
+              background 0.2s ease;
+}
+.toc-row-wrap:last-child { border-bottom-color: transparent; }
+ 
+.toc-row-wrap.open {
+  margin: 10px 0;
+  border-color: var(--border);    
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-raised);    
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25), 0 6px 16px rgba(0,0,0,0.18);
+}
+.toc-row-wrap::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.toc-row-wrap.must-row::before   { background: var(--must); }
+.toc-row-wrap.should-row::before { background: var(--should); }
+.toc-row-wrap.may-row::before    { background: var(--may); }
+.toc-row-inner {
+  display: flex;
+  gap: 12px;
+  padding: 9px 8px 9px 12px;
+  align-items: flex-start;
+  cursor: pointer;
+  user-select: none;
+}
+.toc-row-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.meta-provider {
+  margin-left: auto;         
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text3);
+}
+ 
+.toc-row-inner .toc-row-meta { width: calc(100% + 72px); }
+.toc-row-chevron {
+  color: var(--text3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-left: 8px;
+  align-self: center;
+}
+.toc-row-chevron svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  overflow: visible;
+}
+.toc-row-chevron svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: 8px 8px;
+   
+  transition: transform 0.28s cubic-bezier(.34, 1.4, .5, 1), stroke 0.15s;
+}
+.toc-row-wrap:hover .toc-row-chevron { color: var(--text2); }
+.toc-row-chevron.open svg path { transform: rotate(180deg); }
+ 
+@supports (d: path("M0 0")) {
+  .toc-row-chevron svg path {
+    transition: d 0.28s cubic-bezier(.34, 1.4, .5, 1), stroke 0.15s;
+  }
+  .toc-row-chevron.open svg path {
+    transform: none;
+    d: path("M4 9.5 L8 5.5 L12 9.5");
+  }
+}
+.toc-row-body { height: 0; overflow: hidden; border-top: 1px solid transparent; }
+.toc-row-body.open { height: auto; margin: 0 12px; border-top-color: var(--border); margin-bottom: 20px}
+ 
+@supports (interpolate-size: allow-keywords) {
+  :root { interpolate-size: allow-keywords; }
+  .toc-row-body, .article-body {
+    transition: height 0.26s cubic-bezier(0.1, 0.9, 0.2, 1),
+                border-top-color 0.26s cubic-bezier(0.1, 0.9, 0.2, 1);
+  }
+}
+ 
+.toc-row-body.open > *,
+.article-body.open > * {
+  animation: tocContentIn 0.34s cubic-bezier(0.1, 0.9, 0.2, 1) both;
+}
+@keyframes tocContentIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+ 
+.toc-row-body.open > :nth-child(2), .article-body.open > :nth-child(2) { animation-delay: 0.04s; }
+.toc-row-body.open > :nth-child(3), .article-body.open > :nth-child(3) { animation-delay: 0.08s; }
+.toc-row-body.open > :nth-child(n+4), .article-body.open > :nth-child(n+4) { animation-delay: 0.11s; }
+@media (prefers-reduced-motion: reduce) {
+  .toc-row-body.open > *, .article-body.open > * { animation: none; }
+  .toc-row-body, .article-body { transition: none; }
+}
+ 
+#overview {
+  padding: 20px 40px 0;
+}
+.overview-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.overview-toggle {
+  all: unset;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 24px;
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+.overview-chevron {
+  color: var(--text3);
+  font-size: 14px;
+  transition: transform 0.2s;
+}
+.overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.overview-cell {
+  padding: 20px 24px;
+}
+.overview-cell-full { grid-column: 1 / -1; }
+.overview-cell-border-r { border-right: 1px solid var(--border); }
+.overview-cell-border-b { border-bottom: 1px solid var(--border); }
+.overview-cell-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.overview-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  padding: 1px 5px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.overview-tag-exec {
+  color: var(--cyan);
+  border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
+  background: color-mix(in oklch, var(--cyan) 8%, transparent);
+}
+.overview-tag-num {
+  color: var(--text3);
+  border: 1px solid var(--border2);
+  background: transparent;
+}
+.overview-title { font-family: var(--sans); font-weight: 600; font-size: 13px; color: var(--text); letter-spacing: 0.01em; }
+.overview-body  { color: var(--text2); font-size: 13px; line-height: 1.75; font-weight: 400; }
+.overview-body p { margin-bottom: 0.6rem; }
+.overview-body p:last-child { margin-bottom: 0; }
+.overview-body ul, .overview-body ol { padding-left: 1.4rem; margin: 0.5rem 0; }
+.overview-body li { margin-bottom: 0.25rem; }
+.overview-body strong { color: var(--text); }
+.overview-body a { color: var(--cyan); }
+
+ 
+.toc-filters { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.filter-row { display: flex; align-items: flex-start; gap: 12px; }
+.filter-label {
+  flex-shrink: 0;
+  min-width: 64px;
+  padding-top: 5px;             
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text3);
+}
+ 
+.toc-tag-cloud { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; flex: 1; }
+.tag-pill {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 3px;
+  color: var(--text2);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  cursor: pointer;
+}
+.tag-pill:hover { border-color: var(--cyan); color: var(--text); }
+.tag-pill.active {
+  color: var(--text);
+  border-color: var(--cyan);
+  background: color-mix(in oklch, var(--cyan) 18%, transparent);
+}
+.tag-pill.tag-hidden { display: none; }
+.tag-show-more { color: var(--cyan); border-color: var(--cyan); }
+.tag-show-more:hover { background: color-mix(in oklch, var(--cyan) 10%, transparent); }
+.filter-bar { display: flex; flex-wrap: wrap; gap: 2px; }
+.filter-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 400;
+  color: var(--text3);
+  padding: 4px 10px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.filter-btn.active-all    { color: var(--text2);  background: color-mix(in oklch, var(--text2)  10%, transparent); border-color: color-mix(in oklch, var(--text2)  35%, transparent); font-weight: 600; }
+.filter-btn.active-must   { color: var(--must);   background: color-mix(in oklch, var(--must)   10%, transparent); border-color: color-mix(in oklch, var(--must)   35%, transparent); font-weight: 600; }
+.filter-btn.active-should { color: var(--should); background: color-mix(in oklch, var(--should) 10%, transparent); border-color: color-mix(in oklch, var(--should) 35%, transparent); font-weight: 600; }
+.filter-btn.active-may    { color: var(--may);    background: color-mix(in oklch, var(--may)    10%, transparent); border-color: color-mix(in oklch, var(--may)    35%, transparent); font-weight: 600; }
+.cat-btn { text-transform: uppercase; }    
+ 
+.cat-btn[data-cat="research"] { --cat-c: var(--cat-research); }
+.cat-btn[data-cat="advisory"] { --cat-c: var(--cat-advisory); }
+.cat-btn[data-cat="news"]     { --cat-c: var(--cat-news); }
+.cat-btn[data-cat="opinion"]  { --cat-c: var(--cat-opinion); }
+.cat-btn[data-cat="guide"]    { --cat-c: var(--cat-guide); }
+.cat-btn[data-cat="commercial"]   { --cat-c: var(--cat-commercial); }
+.cat-btn[data-cat="sponsored"]    { --cat-c: var(--cat-sponsored); }
+.cat-btn[data-cat="announcement"] { --cat-c: var(--cat-announcement); }
+.cat-btn.active { color: var(--cat-c, var(--cyan)); background: color-mix(in oklch, var(--cat-c, var(--cyan)) 10%, transparent); border-color: color-mix(in oklch, var(--cat-c, var(--cyan)) 35%, transparent); font-weight: 600; }
+.filter-count { opacity: 0.6; }
+.source-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.source-name { font-family: var(--mono); font-size: 10px; }
+.meta-sep    { color: var(--text3); font-family: var(--mono); font-size: 10px; }
+.meta-time   { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+ 
+.toc-cat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.toc-cat-label::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.toc-row-wrap[data-category="research"] .toc-cat-label { color: var(--cat-research); }
+.toc-row-wrap[data-category="advisory"] .toc-cat-label { color: var(--cat-advisory); }
+.toc-row-wrap[data-category="news"]     .toc-cat-label { color: var(--cat-news); }
+.toc-row-wrap[data-category="opinion"]  .toc-cat-label { color: var(--cat-opinion); }
+.toc-row-wrap[data-category="guide"]    .toc-cat-label { color: var(--cat-guide); }
+.toc-row-wrap[data-category="commercial"]   .toc-cat-label { color: var(--cat-commercial); }
+.toc-row-wrap[data-category="sponsored"]    .toc-cat-label { color: var(--cat-sponsored); }
+.toc-row-wrap[data-category="announcement"] .toc-cat-label { color: var(--cat-announcement); }
+ 
+.toc-cluster-member[data-category="research"] .toc-cat-label { color: var(--cat-research); }
+.toc-cluster-member[data-category="advisory"] .toc-cat-label { color: var(--cat-advisory); }
+.toc-cluster-member[data-category="news"]     .toc-cat-label { color: var(--cat-news); }
+.toc-cluster-member[data-category="opinion"]  .toc-cat-label { color: var(--cat-opinion); }
+.toc-cluster-member[data-category="guide"]    .toc-cat-label { color: var(--cat-guide); }
+.toc-cluster-member[data-category="commercial"]   .toc-cat-label { color: var(--cat-commercial); }
+.toc-cluster-member[data-category="sponsored"]    .toc-cat-label { color: var(--cat-sponsored); }
+.toc-cluster-member[data-category="announcement"] .toc-cat-label { color: var(--cat-announcement); }
+ 
+.toc-row-tags {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;        
+  -ms-overflow-style: none;     
+  align-items: center;
+  gap: 6px;
+   
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+   
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+ 
+.toc-row-tags.at-end {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+ 
+.toc-row-inner .toc-row-tags { margin-left: -32px; width: calc(100% + 32px + 8px); }
+.toc-row-tags::-webkit-scrollbar { display: none; }  
+.toc-tags-label {
+  align-self: center;
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text3);
+  margin-right: 2px;
+}
+.meta-tag {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 3px;
+  color: var(--text2);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+}
+.meta-tag[data-tag] { cursor: pointer; }
+.meta-tag[data-tag]:hover { border-color: var(--cyan); color: var(--text); }
+.meta-tag.active {
+  color: var(--text);
+  border-color: var(--cyan);
+  background: color-mix(in oklch, var(--cyan) 18%, transparent);
+}
+
+ 
+.article-body { height: 0; overflow: hidden; border-top: 1px solid transparent; }
+.article-body.open { height: auto; border-top-color: var(--border); }
+
+ 
+.why-block {
+  margin-top: 1.1rem;           
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border);
+}
+.why-label {
+  display: inline-flex;         
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--text3);          
+  transition: color .15s;
+}
+.why-label:hover { color: var(--text2); }
+.why-caret {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  transform: rotate(-90deg);    
+  transition: transform .15s;
+}
+.why-caret svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.why-label.open .why-caret { transform: rotate(0deg); }   
+.why-body {
+  display: none;
+  margin-top: 0.7rem;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--text2);
+}
+.why-body.open { display: block; }
+.why-body p { margin: 0 0 0.55rem; }
+.why-body p:last-child { margin: 0; }
+
+.tabs {
+  display: flex;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.tab-btn {
+  padding: 0.55rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text3);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+  margin-bottom: -1px;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.tab-panel { display: none; padding: 1.25rem 1.4rem; }
+.tab-panel.active { display: block; }
+
+ 
+.prose { line-height: 1.8; color: var(--text2); font-size: 13.5px; }
+.prose p { margin-bottom: 0.75rem; }
+.prose p:last-child { margin-bottom: 0; }
+.prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1.1rem 0 0.4rem; font-size: 0.9rem; letter-spacing: 0.02em; }
+.prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+.prose li { margin-bottom: 0.3rem; }
+.prose strong { color: var(--text); font-weight: 600; }
+.prose em { color: var(--text3); font-style: italic; }
+.prose code { background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 0.1rem 0.35rem; font-family: var(--mono); font-size: 12px; color: var(--text); }
+.prose blockquote { border-left: 2px solid color-mix(in oklch, var(--cyan) 30%, transparent); padding-left: 1rem; color: var(--text3); margin: 0.75rem 0; }
+.prose a { color: var(--cyan); }
+
+ 
+mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+  cursor: pointer;
+  position: relative;  
+  z-index: 2;
+  transition: background .15s;
+}
+mark.tag-hl:hover {
+  background: color-mix(in oklch, var(--cyan) 28%, transparent);
+  text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+.kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+.kp-list li { display: flex; gap: 0.6rem; font-size: 13.5px; line-height: 1.6; color: var(--text2); }
+.kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+.kp-list li .kp-text { min-width: 0; }  
+
+.report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+.report-item {
+  position: relative;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.85rem;
+}
+.report-item:hover { border-color: color-mix(in oklch, var(--cyan) 40%, var(--border)); }
+.report-title { font-size: 13.5px; font-weight: 600; line-height: 1.45; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.report-link { flex: 1 1 auto; min-width: 0; color: var(--text); }
+ 
+.report-link::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.report-item:hover .report-link { color: var(--cyan); }
+.report-primary {
+  flex-shrink: 0;
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 1px 6px; border-radius: 2px;
+  --c: oklch(72% 0.16 150);
+  color: var(--c);
+  border: 1px solid color-mix(in oklch, var(--c) 45%, transparent);
+  background: color-mix(in oklch, var(--c) 12%, transparent);
+}
+.report-cat {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--c);
+}
+.report-cat::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c); flex-shrink: 0; }
+.report-cat-research { --c: var(--cat-research); }
+.report-cat-advisory { --c: var(--cat-advisory); }
+.report-cat-news     { --c: var(--cat-news); }
+.report-cat-opinion  { --c: var(--cat-opinion); }
+.report-cat-guide    { --c: var(--cat-guide); }
+.report-cat-commercial   { --c: var(--cat-commercial); }
+.report-cat-sponsored    { --c: var(--cat-sponsored); }
+.report-cat-announcement { --c: var(--cat-announcement); }
+.report-meta { margin-top: 0.25rem; font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+.report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+
+ 
+.panel-section { margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+.panel-section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.panel-subhead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 0.7rem;
+  margin-top: 0.7rem;
+}
+.panel-subhead::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 1px;
+  background: var(--panel-c, var(--cyan));
+  flex-shrink: 0;
+}
+ 
+.panel-subhead--summary   { --panel-c: var(--cyan); }
+.panel-subhead--keypoints { --panel-c: var(--green); }
+.panel-subhead--reports   { --panel-c: var(--violet); }
+.panel-subhead--beginner  { --panel-c: var(--should); }
+.panel-subhead--summary,
+.panel-subhead--keypoints,
+.panel-subhead--reports,
+.panel-subhead--beginner { color: var(--panel-c); }
+ 
+.beginner-block { display: none; }
+html[data-beginner="on"] .beginner-block { display: block; }
+.glossary-list { margin: 0.7rem 0 0; padding: 0; }
+.glossary-term {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--should);
+  margin-top: 0.6rem;
+}
+.glossary-def { margin: 0.15rem 0 0; padding: 0; color: var(--text2); }
+.summary-switch { display: flex; flex-wrap: wrap; gap: 2px; margin-left: auto; }
+.summary-switch .tab-btn {
+  margin-bottom: 0;
+  padding: 2px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  border: 1px solid transparent;
+  border-radius: 2px;
+}
+.summary-switch .tab-btn.active {
+  color: var(--cyan);
+  border-color: color-mix(in oklch, var(--cyan) 35%, transparent);
+  background: color-mix(in oklch, var(--cyan) 8%, transparent);
+}
+.summary-body .tab-panel { padding: 0; }
+.open-source-btn {
+  display: inline-block;
+  margin-top: 1rem;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in oklch, var(--cyan) 30%, transparent);
+  border-radius: 2px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+.open-source-btn:hover { border-color: var(--cyan); text-decoration: none; }
+.report-show-more {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 4px 12px;
+  border-radius: 3px;
+  color: var(--cyan);
+  background: var(--surface2);
+  border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
+  cursor: pointer;
+  margin-top: 0.5rem;
+  display: block;
+  width: fit-content;
+}
+.report-show-more:hover { background: color-mix(in oklch, var(--cyan) 10%, transparent); }
+.report-item.report-hidden { display: none; }
+
+ 
+.toc-cluster { border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
+.toc-cluster:last-child { border-bottom: none; }
+.toc-cluster summary {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 7px 0; cursor: pointer; list-style: none; user-select: none;
+}
+.toc-cluster summary::-webkit-details-marker { display: none; }
+.toc-cluster summary:hover .toc-title-link { color: var(--text2); }
+.toc-cluster-chevron { color: var(--text3); margin-top: 3px; flex-shrink: 0; width: 1rem; height: 1rem; display: inline-flex; align-items: center; justify-content: center; }
+.toc-cluster-chevron svg { width: 12px; height: 12px; display: block; overflow: visible; }
+.toc-cluster-chevron svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: 8px 8px;
+   
+  transition: transform 0.28s cubic-bezier(.34, 1.4, .5, 1);
+}
+details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
+ 
+@supports (d: path("M0 0")) {
+  .toc-cluster-chevron svg path { transition: d 0.28s cubic-bezier(.34, 1.4, .5, 1); }
+  details[open] .toc-cluster-chevron svg path { transform: none; d: path("M4 6.5 L8 10.5 L12 6.5"); }
+}
+ 
+.toc-cluster-members { list-style: none; padding-left: 72px; }
+.toc-cluster-member {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 4px 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+}
+.toc-cluster-member:last-child { border-bottom: none; }
+
+ 
+#footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.footer-left, .footer-right {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.06em;
+}
+
+ 
+#back-top {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  color: var(--text3);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  transition: color .15s, border-color .15s;
+}
+#back-top:hover { color: var(--cyan); border-color: var(--cyan); text-decoration: none; }
+
+ 
+.toc-title {
+  padding: 16px 20px;
+  
+}
+.digest-title-text {
+  font-family: var(--sans);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.3;
+  display: block;
+}
+
+ 
+@media (max-width: 700px) {
+  #nav { margin: 0 16px; padding: 10px 0; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+  .nav-center { display: none; }
+  .nav-window { display: none; }
+  .nav-right { display: contents; }
+  .nav-swipe { order: 1; margin-left: auto; }
+  .nav-count { order: 2; width: 100%; white-space: normal; flex-wrap: wrap; }
+  #toc, #overview { padding-left: 16px; padding-right: 16px; }
+  #footer { padding: 12px 16px; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .overview-grid { grid-template-columns: 1fr; }
+  .overview-cell-border-r { border-right: none; border-top: 1px solid var(--border); }
+  .overview-cell-full { grid-column: auto; }
+  #back-top { bottom: 1rem; right: 0.75rem; }
+  .toc-title { padding: 12px 16px; }
+  .digest-title-text { font-size: 18px; }
+   
+  .panel-subhead--summary { flex-wrap: wrap; }
+  .panel-subhead--summary .summary-switch {
+    margin-left: 0;         
+    margin-top: 0.45rem;
+    width: 100%;            
+  }
+   
+  .filter-btn { min-height: 34px; padding: 6px 11px; }
+  .summary-switch .tab-btn { min-height: 30px; display: inline-flex; align-items: center; }
+  .tag-pill, .meta-tag { padding: 5px 9px; }
+  .nav-swipe { padding: 7px 12px; }
+  .nav-count { padding: 6px 11px; }
+  .nav-theme-select { padding: 7px 24px 7px 10px; }
+   
+  .toc-tag-cloud:has(.tag-show-more):not(.tags-expanded) .tag-pill:nth-of-type(n+13):not(.tag-show-more) { display: none; }
+}
+</style>
+</head>
+<body>
+
+
+<nav id="nav">
+  <a class="nav-logo" href="index.html">
+    <span class="nav-logo-down">DOWN</span><span class="nav-logo-link">LINK</span>
+  </a>
+  <div class="nav-center">
+    <span class="nav-date">2026-06-09 22:00 UTC</span>
+  </div>
+  <div class="nav-right">
+    <span class="nav-window">4 hours window</span>
+    <a class="nav-swipe" href="downlink-swipe-2026-06-09_2200.html">Triage</a>
+    <div class="nav-count">
+      <span class="nav-count-dot">■</span>
+      <span>2 articles</span>
+      <span style="color:var(--text3)">·</span><span>gpt-5.5</span>
+    </div>
+    <select class="nav-theme-select" id="nav-theme-select" onchange="applyTheme(this.value)" title="Select theme" aria-label="Select theme">
+      <option value="dark">DARK</option>
+      <option value="light">LIGHT</option>
+      <option value="contrast">CONTRAST</option>
+      <option value="mono">MONO</option>
+      <option value="colorblind">COLORBLIND</option>
+      <option value="pastel">PASTEL</option>
+      </select>
+    
+  </div>
+</nav>
+
+
+<section id="toc">
+  <div class="toc-card">
+    <div class="toc-title"><span class="digest-title-text">Ivanti Sentry CVE-2026-10520 RCE and Microsoft Defender RoguePlanet Zero-Day</span></div>
+    <div class="toc-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div class="toc-filters">
+        <div class="filter-row">
+          <span class="filter-label">CATEGORY</span>
+          <div class="filter-bar cat-bar">
+            <button class="filter-btn cat-btn active" data-cat="all" onclick="setCategoryFilter(this)">ALL <span class="filter-count">2</span></button>
+            <button class="filter-btn cat-btn" data-cat="news" onclick="setCategoryFilter(this)">news <span class="filter-count">1</span></button><button class="filter-btn cat-btn" data-cat="research" onclick="setCategoryFilter(this)">research <span class="filter-count">1</span></button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">PRIORITY</span>
+          <div class="filter-bar">
+            <button class="filter-btn active-all" data-filter="all" onclick="setFilter(this)">ALL <span class="filter-count">2</span></button>
+            <button class="filter-btn" data-filter="must" onclick="setFilter(this)">MUST <span class="filter-count">1</span></button>
+            <button class="filter-btn" data-filter="should" onclick="setFilter(this)">SHOULD <span class="filter-count">1</span></button>
+            <button class="filter-btn" data-filter="may" onclick="setFilter(this)">MAY <span class="filter-count">0</span></button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">TAGS</span>
+          <div class="toc-tag-cloud"><button class="tag-pill" data-tag="remote-code-execution" onclick="toggleTag(this.dataset.tag)">remote-code-execution <span class="filter-count">2</span></button><button class="tag-pill" data-tag="apache-tomcat" onclick="toggleTag(this.dataset.tag)">apache-tomcat <span class="filter-count">1</span></button><button class="tag-pill" data-tag="authentication-bypass" onclick="toggleTag(this.dataset.tag)">authentication-bypass <span class="filter-count">1</span></button><button class="tag-pill" data-tag="bluehammer" onclick="toggleTag(this.dataset.tag)">bluehammer <span class="filter-count">1</span></button><button class="tag-pill" data-tag="cve-2026-10520" onclick="toggleTag(this.dataset.tag)">cve-2026-10520 <span class="filter-count">1</span></button><button class="tag-pill" data-tag="cve-2026-10523" onclick="toggleTag(this.dataset.tag)">cve-2026-10523 <span class="filter-count">1</span></button><button class="tag-pill" data-tag="greenplasma" onclick="toggleTag(this.dataset.tag)">greenplasma <span class="filter-count">1</span></button><button class="tag-pill" data-tag="ivanti" onclick="toggleTag(this.dataset.tag)">ivanti <span class="filter-count">1</span></button><button class="tag-pill" data-tag="ivanti-epmm" onclick="toggleTag(this.dataset.tag)">ivanti-epmm <span class="filter-count">1</span></button><button class="tag-pill" data-tag="ivanti-sentry" onclick="toggleTag(this.dataset.tag)">ivanti-sentry <span class="filter-count">1</span></button><button class="tag-pill" data-tag="local-privilege-escalation" onclick="toggleTag(this.dataset.tag)">local-privilege-escalation <span class="filter-count">1</span></button><button class="tag-pill" data-tag="microsoft" onclick="toggleTag(this.dataset.tag)">microsoft <span class="filter-count">1</span></button><button class="tag-pill" data-tag="microsoft-defender" onclick="toggleTag(this.dataset.tag)">microsoft-defender <span class="filter-count">1</span></button><button class="tag-pill" data-tag="microsoft-exchange" onclick="toggleTag(this.dataset.tag)">microsoft-exchange <span class="filter-count">1</span></button><button class="tag-pill" data-tag="mobileiron-sentry" onclick="toggleTag(this.dataset.tag)">mobileiron-sentry <span class="filter-count">1</span></button><button class="tag-pill" data-tag="nightmare-eclipse" onclick="toggleTag(this.dataset.tag)">nightmare-eclipse <span class="filter-count">1</span></button><button class="tag-pill" data-tag="os-command-injection" onclick="toggleTag(this.dataset.tag)">os-command-injection <span class="filter-count">1</span></button><button class="tag-pill" data-tag="race-condition" onclick="toggleTag(this.dataset.tag)">race-condition <span class="filter-count">1</span></button><button class="tag-pill" data-tag="redsun" onclick="toggleTag(this.dataset.tag)">redsun <span class="filter-count">1</span></button><button class="tag-pill" data-tag="rogueplanet" onclick="toggleTag(this.dataset.tag)">rogueplanet <span class="filter-count">1</span></button><button class="tag-pill" data-tag="smb" onclick="toggleTag(this.dataset.tag)">smb <span class="filter-count">1</span></button><button class="tag-pill" data-tag="spring-boot" onclick="toggleTag(this.dataset.tag)">spring-boot <span class="filter-count">1</span></button><button class="tag-pill" data-tag="threatlocker" onclick="toggleTag(this.dataset.tag)">threatlocker <span class="filter-count">1</span></button><button class="tag-pill" data-tag="watchtowr-labs" onclick="toggleTag(this.dataset.tag)">watchtowr-labs <span class="filter-count">1</span></button><button class="tag-pill" data-tag="windows-10" onclick="toggleTag(this.dataset.tag)">windows-10 <span class="filter-count">1</span></button><button class="tag-pill tag-hidden" data-tag="windows-11" onclick="toggleTag(this.dataset.tag)">windows-11 <span class="filter-count">1</span></button><button class="tag-pill tag-hidden" data-tag="yellowkey" onclick="toggleTag(this.dataset.tag)">yellowkey <span class="filter-count">1</span></button><button class="tag-pill tag-show-more" onclick="showMoreTags(this)">+2 more</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="toc-card">
+    <div class="toc-body">
+      <div class="toc-group">
+        <div class="toc-group-head">
+          <span class="toc-group-label priority-badge badge-must">Must Read</span><span class="info-tip" data-tip="Score 91–100: breaking or high-impact event - active exploitation in the wild, major breach, critical patch, or named threat actor operation.">ⓘ</span>
+          <span class="toc-group-count">1 items</span>
+        </div>
+        <div class="toc-row-wrap must-row" data-priority="must" data-category="research" data-tags="apache-tomcat authentication-bypass cve-2026-10520 cve-2026-10523 ivanti ivanti-epmm ivanti-sentry microsoft-exchange mobileiron-sentry os-command-injection remote-code-execution spring-boot watchtowr-labs">
+          <div class="toc-row-inner" onclick="toggleTocRow(this)">
+            <span class="toc-num toc-num-must">01</span>
+            <div style="flex:1;min-width:0">
+              <div class="toc-cat-label">research</div>
+              <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
+                <span class="toc-title-link">More Evidence That Words Don&#39;t Mean What We Thought They Meant (Ivanti Sentry Pre-Auth OS Command Injection CVE-2026-10520)</span>
+              </div>
+              <div class="toc-row-meta">
+                <span class="source-dot" style="background:var(--p8)"></span>
+                <span class="source-name" style="color:var(--p8)">labs.watchtowr.com</span>
+                <span class="meta-sep">·</span>
+                <span class="meta-time">2026-06-10 00:52</span>
+                <span class="meta-provider">openai-codex / gpt-5.5</span>
+              </div><div class="toc-row-tags"><span class="toc-tags-label">TAGS</span><span class="meta-tag" data-tag="apache-tomcat" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">apache-tomcat</span><span class="meta-tag" data-tag="authentication-bypass" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">authentication-bypass</span><span class="meta-tag" data-tag="cve-2026-10520" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">cve-2026-10520</span><span class="meta-tag" data-tag="cve-2026-10523" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">cve-2026-10523</span><span class="meta-tag" data-tag="ivanti" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">ivanti</span><span class="meta-tag" data-tag="ivanti-epmm" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">ivanti-epmm</span><span class="meta-tag" data-tag="ivanti-sentry" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">ivanti-sentry</span><span class="meta-tag" data-tag="microsoft-exchange" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">microsoft-exchange</span><span class="meta-tag" data-tag="mobileiron-sentry" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">mobileiron-sentry</span><span class="meta-tag" data-tag="os-command-injection" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">os-command-injection</span><span class="meta-tag" data-tag="remote-code-execution" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">remote-code-execution</span><span class="meta-tag" data-tag="spring-boot" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">spring-boot</span><span class="meta-tag" data-tag="watchtowr-labs" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">watchtowr-labs</span></div>
+            </div>
+            <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:94%"></div></div><span class="score-num score-num-high">94</span></div>
+            <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
+          </div>
+          <div class="toc-row-body">
+            
+            
+            <div class="panel-section">
+              <div class="panel-subhead panel-subhead--summary">Summary
+                <div class="summary-switch">
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-918440726b33206f3d5e689dd4ebfd88:03deecc0aecff5da')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-918440726b33206f3d5e689dd4ebfd88:03deecc0aecff5da')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-918440726b33206f3d5e689dd4ebfd88:03deecc0aecff5da')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-918440726b33206f3d5e689dd4ebfd88:03deecc0aecff5da')">Full</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-918440726b33206f3d5e689dd4ebfd88:03deecc0aecff5da')">Insights</button>
+                </div>
+              </div>
+              <div class="summary-body">
+                <div id="tldr-918440726b33206f3d5e689dd4ebfd88:03deecc0aecff5da" class="tab-panel active"><div class="prose">Researchers showed that <mark class="tag-hl">CVE-2026-10520</mark> in <mark class="tag-hl">Ivanti Sentry</mark> is a pre-authenticated <mark class="tag-hl">OS command injection</mark> that lets unauthenticated attackers execute root-level commands via the /mics API. <mark class="tag-hl">Ivanti</mark>’s patch removes attacker control of the vulnerable message input and adds access controls blocking the endpoint.</div></div>
+                <div id="brief-918440726b33206f3d5e689dd4ebfd88:03deecc0aecff5da" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Ivanti</mark> published an advisory for two <mark class="tag-hl">Ivanti Sentry</mark> vulnerabilities: <mark class="tag-hl">CVE-2026-10520</mark> and <mark class="tag-hl">CVE-2026-10523</mark>. <mark class="tag-hl">CVE-2026-10520</mark> is described as an <mark class="tag-hl">OS command injection</mark> affecting <mark class="tag-hl">Ivanti Sentry</mark> before R10.5.2, R10.6.2, and R10.7.1, allowing remote unauthenticated root-level <mark class="tag-hl">remote code execution</mark>. <mark class="tag-hl">CVE-2026-10523</mark> is described as an <mark class="tag-hl">authentication bypass</mark> that can allow a remote unauthenticated attacker to create arbitrary administrative accounts and obtain full administrative access.</p>
+
+<p>The article focuses on <mark class="tag-hl">CVE-2026-10520</mark> and traces it to the <code>/mics/api/v2/sentry/mics-config/handleMessage</code> endpoint in the Sentry application. Researchers diffed vulnerable and patched versions and found that the relevant change was in <code>mics-core</code> within <code>ConfigServiceController.java</code>. The vulnerable implementation accepted a user-supplied <code>message</code> parameter and passed it into backend configuration handling logic.</p>
+
+<p>The technical analysis shows that the <code>message</code> value was parsed into a MICS configuration command, including fields such as command, module, XPath, and XML body. The <code>execute</code> command path could reach <code>executeNativeCommand()</code>, where backend native methods were invoked through reflection. The patched implementation hardcodes a benign command and adds Apache configuration rules that block unauthenticated access to the vulnerable endpoint by redirecting requests to the login page.</p>
+</div></div>
+                <div id="standard-918440726b33206f3d5e689dd4ebfd88:03deecc0aecff5da" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Ivanti</mark> published an advisory covering two vulnerabilities in <mark class="tag-hl">Ivanti Sentry</mark>: <mark class="tag-hl">CVE-2026-10520</mark> and <mark class="tag-hl">CVE-2026-10523</mark>. <mark class="tag-hl">CVE-2026-10520</mark> is an <mark class="tag-hl">OS command injection</mark> vulnerability in <mark class="tag-hl">Ivanti Sentry</mark> before versions R10.5.2, R10.6.2, and R10.7.1 that allows remote unauthenticated root-level <mark class="tag-hl">remote code execution</mark>. <mark class="tag-hl">CVE-2026-10523</mark> is an <mark class="tag-hl">authentication bypass</mark> vulnerability affecting the same version ranges that allows a remote unauthenticated attacker to create arbitrary administrative accounts and obtain full administrative access.</p>
+
+<p>The article centers on <mark class="tag-hl">CVE-2026-10520</mark> because it carries a CVSS score of <sup>10</sup>&frasl;<sub>10</sub> and provides pre-authenticated command execution. The researchers analyzed <mark class="tag-hl">Ivanti</mark>/<mark class="tag-hl">MobileIron Sentry</mark> 10.5.1 as the vulnerable version and <mark class="tag-hl">Ivanti</mark>/<mark class="tag-hl">MobileIron Sentry</mark> 10.5.2 as the different, patched version. They note that <mark class="tag-hl">Ivanti Sentry</mark>, formerly <mark class="tag-hl">MobileIron Sentry</mark>, is an in-line gateway that manages, encrypts, and secures traffic between mobile devices and backend enterprise systems.</p>
+
+<p>The researchers began by examining the Sentry web application under <code>/mics</code>, specifically the <code>mics.war</code> file. A diff showed that only one JAR had changed between the vulnerable and patched versions: <code>mics-core-10.5.1-R10.5.1.jar</code> versus <code>mics-core-10.5.2-R10.5.2.jar</code>. The changed code was located in <code>com/mi/middleware/rest/controller/ConfigServiceController.java</code>, where a method mapped to <code>/api/v2/sentry/mics-config/handleMessage</code> accepted a <code>message</code> parameter.</p>
+
+<p>In the vulnerable version, the controller passed the user-supplied <code>message</code> value directly to <code>configService.handleMessage()</code>. The backend parsed the message into a command, module, XPath, and value, and the <code>execute</code> command path routed execution to <code>reqProcessor.handleExecute(xpath, value)</code>. That path eventually reached <code>CommonUtilities.executeNativeCommand()</code>, which used reflection to invoke native module methods based on fields in the parsed XML object.</p>
+
+<p>The article demonstrates reproduction of <mark class="tag-hl">CVE-2026-10520</mark> by sending a POST request to <code>/mics/api/v2/sentry/mics-config/handleMessage</code> with a <code>commandexec</code> XML block and <code>uname -a</code> in the <code>reqandres</code> field. The response returned the Linux command output inside a JSON response, confirming pre-authenticated OS command execution. The patched version no longer uses the user-supplied message and instead sends a hardcoded <code>/bin/cat /sys/devices/virtual/dmi/id/product_name</code> command to the backend.</p>
+</div></div>
+                <div id="comprehensive-918440726b33206f3d5e689dd4ebfd88:03deecc0aecff5da" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+
+<p><mark class="tag-hl">Ivanti</mark> published an advisory for two vulnerabilities affecting <mark class="tag-hl">Ivanti Sentry</mark>: <mark class="tag-hl">CVE-2026-10520</mark> and <mark class="tag-hl">CVE-2026-10523</mark>. The article focuses primarily on <mark class="tag-hl">CVE-2026-10520</mark>, which <mark class="tag-hl">Ivanti</mark> described as an <mark class="tag-hl">OS command injection</mark> vulnerability in <mark class="tag-hl">Ivanti Sentry</mark> before versions R10.5.2, R10.6.2, and R10.7.1. According to the advisory text quoted in the article, <mark class="tag-hl">CVE-2026-10520</mark> allows a remote unauthenticated user to achieve root-level <mark class="tag-hl">remote code execution</mark>.</p>
+
+<p>The advisory also covers <mark class="tag-hl">CVE-2026-10523</mark>, an <mark class="tag-hl">authentication bypass</mark> vulnerability in <mark class="tag-hl">Ivanti Sentry</mark> before versions R10.5.2, R10.6.2, and R10.7.1. The article states that this issue allows a remote unauthenticated attacker to create arbitrary administrative accounts and obtain full administrative access. Credit for <mark class="tag-hl">CVE-2026-10523</mark> is given to Bryan Lam, while <mark class="tag-hl">CVE-2026-10520</mark> is credited to an unknown party.</p>
+
+<h2 id="product-context">Product context</h2>
+
+<p>The article describes <mark class="tag-hl">Ivanti Sentry</mark>, formerly <mark class="tag-hl">MobileIron Sentry</mark>, as an in-line gateway that manages, encrypts, and secures traffic between mobile devices and backend enterprise systems. It commonly sits between corporate mobile fleets and resources such as <mark class="tag-hl">Microsoft Exchange</mark>, controlling ActiveSync email traffic and application data. Sentry works alongside <mark class="tag-hl">Ivanti</mark> Endpoint Manager Mobile and enforces device-level access decisions so that only compliant, registered devices can reach internal services.</p>
+
+<p>The researchers note that the application is exposed under the <code>/mics</code> context path, while <mark class="tag-hl">Ivanti EPMM</mark> is exposed under <code>/mifs</code>. They identify the visible Sentry application login path as <code>/mics/login.jsp</code>. Their analysis compares <mark class="tag-hl">Ivanti</mark>/<mark class="tag-hl">MobileIron Sentry</mark> 10.5.1, described as vulnerable, against <mark class="tag-hl">Ivanti</mark>/<mark class="tag-hl">MobileIron Sentry</mark> 10.5.2, described as different.</p>
+
+<h2 id="diffing-and-vulnerable-endpoint-identification">Diffing and vulnerable endpoint identification</h2>
+
+<p>The researchers examined <code>mics.war</code> and found that only one JAR changed between the vulnerable and patched versions:</p>
+
+<ul>
+<li><code>mics-core-10.5.1-R10.5.1.jar</code>, described as vulnerable.</li>
+<li><code>mics-core-10.5.2-R10.5.2.jar</code>, described as different.</li>
+</ul>
+
+<p>The change was located in <code>mics-core/com/mi/middleware/rest/controller/ConfigServiceController.java</code>. The controller had a parent mapping of <code>/api/v2/sentry/mics-config</code>, and the changed method used a <code>@PostMapping</code> of <code>/handleMessage</code>. Combining these mappings with the <code>/mics</code> application context produced the target path <code>/mics/api/v2/sentry/mics-config/handleMessage</code>.</p>
+
+<h2 id="vulnerable-controller-behavior">Vulnerable controller behavior</h2>
+
+<p>In the vulnerable implementation, the <code>handleMessage</code> controller method accepted a <code>message</code> string. If the value was not null or empty, it passed that user-supplied value directly to <code>this.configService.handleMessage(message)</code>. The method returned a success response if the result was non-null and did not contain an error, otherwise it returned a bad request response.</p>
+
+<p>This meant that the endpoint did not treat the <code>message</code> parameter as a passive string. Instead, it passed the value into the backend MICS configuration-processing system. The article follows that execution flow into <code>ConfigServiceHandler.java</code>.</p>
+
+<h2 id="backend-command-parsing">Backend command parsing</h2>
+
+<p>Inside <code>ConfigServiceHandler.handleMessage(String msg)</code>, the user-controlled message was parsed with a <code>StringTokenizer</code>. The first token became <code>command</code>, the second became <code>module</code>, and the third became <code>xpath</code>. Remaining tokens were assembled into a <code>value</code> string for commands including <code>set</code>, <code>delete</code>, <code>get</code>, <code>add</code>, <code>modify</code>, <code>import</code>, <code>export</code>, <code>test</code>, <code>copy</code>, <code>execute</code>, <code>query</code>, and <code>migratepasswordhash</code>.</p>
+
+<p>The parsed values were then passed into another <code>handleMessage</code> method with the signature <code>handleMessage(String module, String xpath, String command, String value)</code>. That method created a <code>ConfigRequestProcessor</code>, optionally set a module handler, and switched on the parsed command value. The <code>EXECUTE</code> case routed execution to <code>reqProcessor.handleExecute(xpath, value)</code>.</p>
+
+<h2 id="execution-path-and-reflection">Execution path and reflection</h2>
+
+<p>The article traces the <code>EXECUTE</code> path into <code>ConfigRequestProcessor.handleExecute()</code>. That method validated the XPath, read the XML configuration file, set handler configuration, selected XML objects for the supplied XPath and value, and then called <code>CommonUtilities.executeNativeCommand(this.handler.getNativeModule(), tmpObjType, &quot;Execute&quot;)</code>. The method returned a success response containing the native command response.</p>
+
+<p>The analysis then follows execution into <code>CommonUtilities.executeNativeCommand()</code>. That method derived method and class information from the XML object, retrieved methods such as <code>getExecutemethod</code>, <code>getClassname</code>, and <code>getBeanclass</code>, and invoked a module method through <code>ReflectionUtilities.excuteModuleMethod()</code>. The article characterizes this as a path where the parsed XML object identifies which native method should handle the request and invokes that method via reflection.</p>
+
+<h2 id="patch-clue-and-proof-of-reproduction">Patch clue and proof of reproduction</h2>
+
+<p>The patched version of the controller stopped using the user-supplied <code>message</code> value. Instead, it hardcoded a command string:</p>
+
+<p><code>execute system /configuration/system/commandexec &lt;commandexec&gt;\n&lt;index&gt;1&lt;/index&gt;\n&lt;reqandres&gt;/bin/cat /sys/devices/virtual/dmi/id/product_name&lt;/reqandres&gt;\n&lt;/commandexec&gt;</code></p>
+
+<p>The article treats this hardcoded <code>commandexec</code> XML block and <code>reqandres</code> field as a strong indicator of the expected command structure. Using that structure, the researchers sent a POST request to <code>/mics/api/v2/sentry/mics-config/handleMessage</code> on a vulnerable instance. They replaced the benign <code>/bin/cat</code> command with <code>uname -a</code> in the <code>reqandres</code> field.</p>
+
+<p>The response returned HTTP 200 and included the Linux <code>uname -a</code> output inside the JSON <code>data</code> field. The article states that this reproduced <mark class="tag-hl">CVE-2026-10520</mark> as a pre-authenticated <mark class="tag-hl">OS command injection</mark> in <mark class="tag-hl">Ivanti Sentry</mark>.</p>
+
+<h2 id="patch-and-additional-defensive-changes">Patch and additional defensive changes</h2>
+
+<p>The article shows the patched implementation of <code>ConfigServiceController</code>, where <code>handleMessage(String message)</code> still receives a <code>message</code> parameter but does not use it. Instead, it always calls <code>configService.handleMessage()</code> with the hardcoded <code>/bin/cat /sys/devices/virtual/dmi/id/product_name</code> command. The article notes that the underlying functionality was not removed; rather, attacker control over the input passed into the command string was removed.</p>
+
+<p>The researchers also found additional defensive changes outside the Java code. The bundled Apache configuration now contains regex-based rules that block access to the vulnerable endpoint entirely. According to the article, unauthenticated requests are redirected to the login page with a <code>302</code> response.</p>
+
+<h2 id="detection-artifact">Detection artifact</h2>
+
+<p>The article states that the researchers are providing a Detection Artefact Generator to help teams determine whether their environment is vulnerable. The linked GitHub repository is described as <code>watchTowr-vs-<mark class="tag-hl">Ivanti-Sentry</mark>-RCE-<mark class="tag-hl">CVE-2026-10520</mark>-<mark class="tag-hl">CVE-2026-10523</mark></code>. The article presents it as a way for teams to check exposure to the <mark class="tag-hl">Ivanti Sentry</mark> issues discussed.</p>
+</div></div>
+                <div id="insights-918440726b33206f3d5e689dd4ebfd88:03deecc0aecff5da" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The patch indicates that the vulnerable endpoint was not removed; instead, <mark class="tag-hl">Ivanti</mark> eliminated user control over the command string and added Apache-level blocking for unauthenticated access to the endpoint.</span></li><li><span class="kp-text">A single changed JAR, mics-core-10.5.2-R10.5.2.jar, and a single changed controller method were sufficient for the researchers to trace the vulnerable code path.</span></li><li><span class="kp-text">The patched hardcoded command revealed the exact commandexec XML structure needed to reproduce the vulnerability on a vulnerable instance.</span></li><li><span class="kp-text">The endpoint treated the message parameter as an internal MICS configuration command rather than ordinary user input, allowing access to system-level configuration actions through the EXECUTE path.</span></li></ul></div>
+              </div>
+            </div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Ivanti</mark> published an advisory for <mark class="tag-hl">CVE-2026-10520</mark>, an <mark class="tag-hl">OS command injection</mark> vulnerability in <mark class="tag-hl">Ivanti Sentry</mark> before versions R10.5.2, R10.6.2, and R10.7.1 that allows a remote unauthenticated user to achieve root-level <mark class="tag-hl">remote code execution</mark>.</span></li><li><span class="kp-text">The article identifies the vulnerable endpoint as /mics/api/v2/sentry/mics-config/handleMessage, where a user-supplied message parameter is passed into the backend configuration handling logic.</span></li><li><span class="kp-text">The message value is parsed as a MICS configuration command into fields such as command, module, XPath, and XML body, and the EXECUTE path can reach executeNativeCommand through reflection-based backend handling.</span></li><li><span class="kp-text">The researchers reproduced <mark class="tag-hl">CVE-2026-10520</mark> by sending a POST request containing a commandexec XML block with uname -a in the reqandres field and received the command output in the HTTP response.</span></li><li><span class="kp-text">The patched implementation hardcodes the command passed to handleMessage and includes Apache configuration rules that block access to the vulnerable endpoint, redirecting unauthenticated requests to the login page.</span></li></ul></div>
+            <a href="https://labs.watchtowr.com/more-evidence-that-words-dont-mean-what-we-thought-they-meant-ivanti-sentry-pre-auth-os-command-injection-cve-2026-10520/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read for security professionals because it analyzes a critical pre-authenticated root-level RCE in <mark class="tag-hl">Ivanti Sentry</mark>, an edge-facing enterprise appliance, with affected versions and patch behavior clearly identified. The article includes concrete technical details and a working reproduction path for <mark class="tag-hl">CVE-2026-10520</mark>, making it highly actionable for defenders assessing exposure and remediation.</p>
+</div></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
+  <div class="report-title"><span class="report-primary">PRIMARY</span><a class="report-link" href="https://hub.ivanti.com/s/article/Security-Advisory-Ivanti-Sentry-CVE-2026-10520-CVE-2026-10523?language=en_US&amp;ref=labs.watchtowr.com" target="_blank" rel="noopener">Security Advisory Ivanti Sentry CVE-2026-10520 CVE-2026-10523</a><span class="report-cat report-cat-advisory">advisory</span></div>
+  <div class="report-meta">Ivanti</div>
+  <div class="report-context">The article opens by citing <mark class="tag-hl">Ivanti</mark>’s advisory for <mark class="tag-hl">CVE-2026-10520</mark> and <mark class="tag-hl">CVE-2026-10523</mark> as the basis for investigating the vulnerabilities in <mark class="tag-hl">Ivanti Sentry</mark>.</div>
+</li></ul></div>
+            
+          </div>
+        </div>
+      </div><div class="toc-group">
+        <div class="toc-group-head">
+          <span class="toc-group-label priority-badge badge-should">Should Read</span><span class="info-tip" data-tip="Score 76–90: specific event or finding with broad relevance, even if not immediately urgent.">ⓘ</span>
+          <span class="toc-group-count">1 items</span>
+        </div>
+        <div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="bluehammer greenplasma local-privilege-escalation microsoft microsoft-defender nightmare-eclipse race-condition redsun remote-code-execution rogueplanet smb threatlocker windows-10 windows-11 yellowkey">
+          <div class="toc-row-inner" onclick="toggleTocRow(this)">
+            <span class="toc-num toc-num-should">01</span>
+            <div style="flex:1;min-width:0">
+              <div class="toc-cat-label">news</div>
+              <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
+                <span class="toc-title-link">Microsoft Defender &#39;RoguePlanet&#39; zero-day grants SYSTEM privileges</span>
+              </div>
+              <div class="toc-row-meta">
+                <span class="source-dot" style="background:var(--p10)"></span>
+                <span class="source-name" style="color:var(--p10)">bleepingcomputer.com</span>
+                <span class="meta-sep">·</span>
+                <span class="meta-time">2026-06-09 23:11</span>
+                <span class="meta-provider">openai-codex / gpt-5.5</span>
+              </div><div class="toc-row-tags"><span class="toc-tags-label">TAGS</span><span class="meta-tag" data-tag="bluehammer" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">bluehammer</span><span class="meta-tag" data-tag="greenplasma" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">greenplasma</span><span class="meta-tag" data-tag="local-privilege-escalation" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">local-privilege-escalation</span><span class="meta-tag" data-tag="microsoft" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">microsoft</span><span class="meta-tag" data-tag="microsoft-defender" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">microsoft-defender</span><span class="meta-tag" data-tag="nightmare-eclipse" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">nightmare-eclipse</span><span class="meta-tag" data-tag="race-condition" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">race-condition</span><span class="meta-tag" data-tag="redsun" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">redsun</span><span class="meta-tag" data-tag="remote-code-execution" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">remote-code-execution</span><span class="meta-tag" data-tag="rogueplanet" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">rogueplanet</span><span class="meta-tag" data-tag="smb" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">smb</span><span class="meta-tag" data-tag="threatlocker" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">threatlocker</span><span class="meta-tag" data-tag="windows-10" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">windows-10</span><span class="meta-tag" data-tag="windows-11" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">windows-11</span><span class="meta-tag" data-tag="yellowkey" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">yellowkey</span></div>
+            </div>
+            <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:88%"></div></div><span class="score-num score-num-mid">88</span></div>
+            <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
+          </div>
+          <div class="toc-row-body">
+            
+            
+            <div class="panel-section">
+              <div class="panel-subhead panel-subhead--summary">Summary
+                <div class="summary-switch">
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:2e20fb8b2cf8f509')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:2e20fb8b2cf8f509')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:2e20fb8b2cf8f509')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:2e20fb8b2cf8f509')">Full</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:2e20fb8b2cf8f509')">Insights</button>
+                </div>
+              </div>
+              <div class="summary-body">
+                <div id="tldr-9b0668029ed36930305fba71c3bfe542:2e20fb8b2cf8f509" class="tab-panel active"><div class="prose">A researcher released a <mark class="tag-hl">Microsoft Defender</mark> zero-day exploit called <mark class="tag-hl">RoguePlanet</mark> that can give attackers SYSTEM privileges on fully patched <mark class="tag-hl">Windows 10</mark> and 11 systems via a <mark class="tag-hl">race condition</mark>. <mark class="tag-hl">ThreatLocker</mark> says it reproduced the exploit, while <mark class="tag-hl">Microsoft</mark> has not yet issued a public response or fix.</div></div>
+                <div id="brief-9b0668029ed36930305fba71c3bfe542:2e20fb8b2cf8f509" class="tab-panel"><div class="prose"><p>Security researcher <mark class="tag-hl">Nightmare Eclipse</mark> released a new <mark class="tag-hl">Microsoft Defender</mark> zero-day exploit named <strong><mark class="tag-hl">RoguePlanet</mark></strong> shortly after <mark class="tag-hl">Microsoft</mark> fixed two previously disclosed flaws in the June 2026 Patch Tuesday updates. The researcher says the vulnerability affects fully patched <mark class="tag-hl">Windows 10</mark> and <mark class="tag-hl">Windows 11</mark> devices. When successful, the exploit can spawn a Windows command prompt with SYSTEM privileges.</p>
+
+<p><mark class="tag-hl">Nightmare Eclipse</mark> described <mark class="tag-hl">RoguePlanet</mark> as a <mark class="tag-hl">Microsoft Defender</mark> <mark class="tag-hl">race condition</mark> and said its reliability varies by machine. The flaw was reportedly tested against <mark class="tag-hl">Windows 11</mark> Official and Canary builds, as well as <mark class="tag-hl">Windows 10</mark> systems with June 2026 security updates installed. <mark class="tag-hl">ThreatLocker</mark> told BleepingComputer it reproduced the exploit on fully patched <mark class="tag-hl">Windows 11</mark> systems with KB5094126 installed.</p>
+
+<p>The researcher said <mark class="tag-hl">RoguePlanet</mark> was originally developed as a <mark class="tag-hl">remote code execution</mark> issue involving <mark class="tag-hl">Microsoft Defender</mark> handling files on remote <mark class="tag-hl">SMB</mark> shares. However, they claimed <mark class="tag-hl">Microsoft</mark> silently hardened Defender in mid-May by patching the <code>mpengine!SysIO*</code> API, blocking junction attacks. The release is part of an ongoing dispute between <mark class="tag-hl">Nightmare Eclipse</mark> and <mark class="tag-hl">Microsoft</mark> over vulnerability disclosure and bug bounty practices.</p>
+</div></div>
+                <div id="standard-9b0668029ed36930305fba71c3bfe542:2e20fb8b2cf8f509" class="tab-panel"><div class="prose"><p>A security researcher known as <mark class="tag-hl">Nightmare Eclipse</mark> released a <mark class="tag-hl">Microsoft Defender</mark> zero-day exploit named <strong><mark class="tag-hl">RoguePlanet</mark></strong> after <mark class="tag-hl">Microsoft</mark>’s June 2026 Patch Tuesday updates. The release came only hours after <mark class="tag-hl">Microsoft</mark> fixed two previously disclosed flaws. The article says the new exploit can allow attackers to obtain SYSTEM privileges on fully patched <mark class="tag-hl">Windows 10</mark> and <mark class="tag-hl">Windows 11</mark> devices.</p>
+
+<p><mark class="tag-hl">RoguePlanet</mark> is described by the researcher as a <mark class="tag-hl">race condition</mark> vulnerability in <mark class="tag-hl">Microsoft Defender</mark>. <mark class="tag-hl">Nightmare Eclipse</mark> said the exploit is “hit or miss,” with 100% success on some machines and poor reliability on others. When exploitation succeeds, a Windows command prompt is spawned with SYSTEM privileges.</p>
+
+<p>The flaw was reportedly tested against <mark class="tag-hl">Windows 11</mark> Official and Canary builds, along with <mark class="tag-hl">Windows 10</mark> systems that had the June 2026 security updates installed. <mark class="tag-hl">ThreatLocker</mark> told BleepingComputer that it successfully reproduced the flaw and confirmed it worked on fully patched <mark class="tag-hl">Windows 11</mark> systems with KB5094126 installed. <mark class="tag-hl">ThreatLocker</mark> also said organizations using application allowlisting can prevent the exploit from executing.</p>
+
+<p>According to <mark class="tag-hl">Nightmare Eclipse</mark>, <mark class="tag-hl">RoguePlanet</mark> was originally developed as a <mark class="tag-hl">remote code execution</mark> vulnerability tied to <mark class="tag-hl">Microsoft Defender</mark>’s handling of files hosted on remote <mark class="tag-hl">SMB</mark> shares. The researcher said the original scenario required coercing a victim to open a <code>.vhd(x)</code> file on a remote <mark class="tag-hl">SMB</mark> server, which could result in Defender overwriting its own files and producing <mark class="tag-hl">remote code execution</mark>. The researcher also described another possible scenario involving <mark class="tag-hl">SMB</mark> shares and symlink evaluation settings.</p>
+
+<p><mark class="tag-hl">Nightmare Eclipse</mark> claimed <mark class="tag-hl">Microsoft</mark> silently hardened Defender in mid-May by patching the <code>mpengine!SysIO*</code> API, which blocked junction attacks. The researcher said that after rewriting <mark class="tag-hl">RoguePlanet</mark>, the current public version remains focused on <mark class="tag-hl">local privilege escalation</mark> and it is unclear whether it can still be turned into <mark class="tag-hl">remote code execution</mark>. BleepingComputer contacted <mark class="tag-hl">Microsoft</mark> about the new zero-day and said it would update the story if it received a statement.</p>
+
+<p>The article places the release within an ongoing dispute between <mark class="tag-hl">Nightmare Eclipse</mark> and <mark class="tag-hl">Microsoft</mark> over vulnerability disclosure and bug bounty practices. Over recent months, the researcher has publicly released several Windows zero-days, including <mark class="tag-hl">BlueHammer</mark>, <mark class="tag-hl">RedSun</mark>, <mark class="tag-hl">GreenPlasma</mark>, and <mark class="tag-hl">YellowKey</mark>. <mark class="tag-hl">Microsoft</mark> fixed the <mark class="tag-hl">GreenPlasma</mark> and <mark class="tag-hl">YellowKey</mark> flaws in the June 2026 Patch Tuesday updates, while <mark class="tag-hl">Nightmare Eclipse</mark> claimed <mark class="tag-hl">Microsoft</mark> previously removed repositories hosting their exploits from GitHub and GitLab.</p>
+</div></div>
+                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:2e20fb8b2cf8f509" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+
+<p>Security researcher <mark class="tag-hl">Nightmare Eclipse</mark> released a new <mark class="tag-hl">Microsoft Defender</mark> zero-day exploit called <strong><mark class="tag-hl">RoguePlanet</mark></strong>. The release occurred just hours after <mark class="tag-hl">Microsoft</mark> fixed two previously disclosed flaws during the June 2026 Patch Tuesday updates. The article reports that the new vulnerability affects fully patched <mark class="tag-hl">Windows 10</mark> and <mark class="tag-hl">Windows 11</mark> systems.</p>
+
+<p>The exploit is described as capable of spawning a Windows command prompt with SYSTEM privileges. <mark class="tag-hl">Nightmare Eclipse</mark> published the proof-of-concept exploit on a self-hosted Git repository after saying that GitHub and GitLab repositories hosting their exploits had previously been removed by <mark class="tag-hl">Microsoft</mark>.</p>
+
+<h2 id="core-technical-issue">Core technical issue</h2>
+
+<p><mark class="tag-hl">RoguePlanet</mark> is described by <mark class="tag-hl">Nightmare Eclipse</mark> as a <mark class="tag-hl">Microsoft Defender</mark> <mark class="tag-hl">race condition</mark> vulnerability. The researcher said the exploit is not uniformly reliable across systems, writing that it achieved a 100% success rate on some machines while struggling on others.</p>
+
+<p>When exploitation succeeds, the result is a command prompt running with SYSTEM privileges. The article says the flaw was reportedly tested against:</p>
+
+<ul>
+<li><mark class="tag-hl">Windows 11</mark> Official builds</li>
+<li><mark class="tag-hl">Windows 11</mark> Canary builds</li>
+<li><mark class="tag-hl">Windows 10</mark> systems with the June 2026 security updates installed</li>
+</ul>
+
+<h2 id="third-party-reproduction">Third-party reproduction</h2>
+
+<p>Cybersecurity firm <mark class="tag-hl">ThreatLocker</mark> told BleepingComputer that it successfully reproduced the flaw in testing. <mark class="tag-hl">ThreatLocker</mark> said it confirmed that the exploit worked against fully patched <mark class="tag-hl">Windows 11</mark> systems with KB5094126 installed. The company also shared a video demonstrating the exploit.</p>
+
+<p>Danny Jenkins, CEO of <mark class="tag-hl">ThreatLocker</mark>, told BleepingComputer that the company’s initial analysis confirmed the <mark class="tag-hl">RoguePlanet</mark> exploit is viable and performs as described. He also said that organizations using application allowlisting can prevent the exploit from executing, which he described as an effective layer of protection against the attack.</p>
+
+<h2 id="original-remote-code-execution-scenario">Original <mark class="tag-hl">remote code execution</mark> scenario</h2>
+
+<p><mark class="tag-hl">Nightmare Eclipse</mark> said <mark class="tag-hl">RoguePlanet</mark> was originally developed as a <mark class="tag-hl">remote code execution</mark> vulnerability. According to the researcher, the original issue exploited <mark class="tag-hl">Microsoft Defender</mark>’s handling of files hosted on remote <mark class="tag-hl">SMB</mark> shares.</p>
+
+<p>The researcher said the original exploitation path required an attacker to coerce a victim into opening a <code>.vhd(x)</code> file on a remote <mark class="tag-hl">SMB</mark> server. Successful exploitation reportedly caused Defender to overwrite its own files, resulting in <mark class="tag-hl">remote code execution</mark>.</p>
+
+<p><mark class="tag-hl">Nightmare Eclipse</mark> also described another possible scenario involving <mark class="tag-hl">remote code execution</mark> by coercing a victim into opening an <mark class="tag-hl">SMB</mark> share if symlink evaluation settings were enabled. The article does not state that this scenario was completed or demonstrated in the current public release.</p>
+
+<h2 id="reported-microsoft-hardening">Reported <mark class="tag-hl">Microsoft</mark> hardening</h2>
+
+<p><mark class="tag-hl">Nightmare Eclipse</mark> claimed <mark class="tag-hl">Microsoft</mark> silently hardened Defender in mid-May by patching the <code>mpengine!SysIO*</code> API. The researcher said this blocked junction attacks.</p>
+
+<p>The researcher wrote that rewriting <mark class="tag-hl">RoguePlanet</mark> to make it functional again was difficult and that they could not complete the other scenarios. As a result, the article says it remains unclear whether <mark class="tag-hl">RoguePlanet</mark> is limited to <mark class="tag-hl">local privilege escalation</mark> or whether there is still a way to turn it into <mark class="tag-hl">remote code execution</mark>.</p>
+
+<h2 id="disclosure-dispute-context">Disclosure dispute context</h2>
+
+<p>The release is part of an ongoing dispute between <mark class="tag-hl">Nightmare Eclipse</mark> and <mark class="tag-hl">Microsoft</mark> over vulnerability disclosure and bug bounty practices. The article says the researcher has publicly released multiple Windows zero-days over the past several months.</p>
+
+<p>The previously released flaws named in the article include:</p>
+
+<ul>
+<li><strong><mark class="tag-hl">BlueHammer</mark></strong></li>
+<li><strong><mark class="tag-hl">RedSun</mark></strong></li>
+<li><strong><mark class="tag-hl">GreenPlasma</mark></strong></li>
+<li><strong><mark class="tag-hl">YellowKey</mark></strong></li>
+</ul>
+
+<p>Some of those zero-days targeted <mark class="tag-hl">Microsoft Defender</mark>, while others targeted BitLocker and Windows components. <mark class="tag-hl">Microsoft</mark> fixed the <mark class="tag-hl">GreenPlasma</mark> and <mark class="tag-hl">YellowKey</mark> flaws as part of the June 2026 Patch Tuesday updates.</p>
+
+<h2 id="repository-removals-and-microsoft-response">Repository removals and <mark class="tag-hl">Microsoft</mark> response</h2>
+
+<p><mark class="tag-hl">Nightmare Eclipse</mark> claimed <mark class="tag-hl">Microsoft</mark> repeatedly targeted and removed previous exploit repositories hosted on GitHub and GitLab. The researcher said this prompted the creation of a self-hosted code platform at <code>projectnightcrawler.dev</code>.</p>
+
+<p>The article also notes that <mark class="tag-hl">Microsoft</mark> previously responded to the disclosures with warnings that it would work with law enforcement when people engage in “malicious activity causing real harm to our customers.” BleepingComputer said this led many in the cybersecurity community to think <mark class="tag-hl">Microsoft</mark> was threatening the researcher.</p>
+
+<h2 id="current-status">Current status</h2>
+
+<p>At the time of the article, BleepingComputer had contacted <mark class="tag-hl">Microsoft</mark> about the new <mark class="tag-hl">RoguePlanet</mark> zero-day. The article states that BleepingComputer would update the story if it received a statement from <mark class="tag-hl">Microsoft</mark>.</p>
+
+<p>The article presents <mark class="tag-hl">RoguePlanet</mark> as a newly released <mark class="tag-hl">Microsoft Defender</mark> zero-day proof of concept that can grant SYSTEM privileges on fully patched Windows systems, with third-party confirmation from <mark class="tag-hl">ThreatLocker</mark> and no <mark class="tag-hl">Microsoft</mark> statement included at publication time.</p>
+</div></div>
+                <div id="insights-9b0668029ed36930305fba71c3bfe542:2e20fb8b2cf8f509" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Fully patched <mark class="tag-hl">Windows 10</mark> and <mark class="tag-hl">Windows 11</mark> systems may still be exposed, as the exploit was reportedly tested against systems with the June 2026 security updates installed and reproduced on <mark class="tag-hl">Windows 11</mark> with KB5094126.</span></li><li><span class="kp-text">Application allowlisting is an immediately actionable mitigation layer, as <mark class="tag-hl">ThreatLocker</mark> said organizations using it can prevent the <mark class="tag-hl">RoguePlanet</mark> exploit from executing.</span></li><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark>’s reported mid-May hardening of Defender’s mpengine!SysIO* API appears to have blocked the researcher’s earlier junction-based scenarios, leaving the current public exploit focused on <mark class="tag-hl">local privilege escalation</mark> rather than confirmed <mark class="tag-hl">remote code execution</mark>.</span></li><li><span class="kp-text">The exploit’s effectiveness may vary significantly by machine, since the researcher described the <mark class="tag-hl">race condition</mark> as hit-or-miss despite reaching 100% success on some systems.</span></li></ul></div>
+              </div>
+            </div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Security researcher <mark class="tag-hl">Nightmare Eclipse</mark> released a <mark class="tag-hl">Microsoft Defender</mark> zero-day exploit named <mark class="tag-hl">RoguePlanet</mark> that can spawn a command prompt with SYSTEM privileges on fully patched <mark class="tag-hl">Windows 10</mark> and <mark class="tag-hl">Windows 11</mark> devices.</span></li><li><span class="kp-text"><mark class="tag-hl">Nightmare Eclipse</mark> described <mark class="tag-hl">RoguePlanet</mark> as a <mark class="tag-hl">race condition</mark> with variable reliability, saying it achieved 100% success on some machines but struggled on others.</span></li><li><span class="kp-text"><mark class="tag-hl">ThreatLocker</mark> told BleepingComputer it reproduced the exploit on fully patched <mark class="tag-hl">Windows 11</mark> systems with KB5094126 installed and confirmed that the exploit worked as described.</span></li><li><span class="kp-text"><mark class="tag-hl">Nightmare Eclipse</mark> said <mark class="tag-hl">RoguePlanet</mark> was originally developed as a <mark class="tag-hl">remote code execution</mark> vulnerability involving <mark class="tag-hl">Microsoft Defender</mark> handling files on remote <mark class="tag-hl">SMB</mark> shares, but claimed <mark class="tag-hl">Microsoft</mark> silently hardened Defender in mid-May to block junction attacks.</span></li><li><span class="kp-text">The <mark class="tag-hl">RoguePlanet</mark> release is part of an ongoing dispute between <mark class="tag-hl">Nightmare Eclipse</mark> and <mark class="tag-hl">Microsoft</mark> over vulnerability disclosure and bug bounty practices, following prior releases of <mark class="tag-hl">BlueHammer</mark>, <mark class="tag-hl">RedSun</mark>, <mark class="tag-hl">GreenPlasma</mark>, and <mark class="tag-hl">YellowKey</mark> zero-days.</span></li></ul></div>
+            <a href="https://www.bleepingcomputer.com/news/microsoft/microsoft-defender-rogueplanet-zero-day-grants-system-privileges/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, breaking report about a publicly released <mark class="tag-hl">Microsoft Defender</mark> zero-day exploit affecting fully patched <mark class="tag-hl">Windows 10</mark> and <mark class="tag-hl">Windows 11</mark> systems and granting SYSTEM privileges. There is no reported active exploitation in the wild or <mark class="tag-hl">Microsoft</mark> fix yet, but the affected software is widely deployed and the exploit was reportedly reproduced by a third party.</p>
+</div></div>
+            
+            
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section id="overview">
+  <div class="overview-card">
+    <button class="overview-toggle" onclick="toggleOverview(this)">
+      <span class="section-label">INTELLIGENCE BRIEF</span>
+      <span class="overview-chevron" style="transform:rotate(180deg)">⌄</span>
+    </button>
+    <div class="overview-grid" id="overview-grid">
+      <div class="overview-cell overview-cell-full">
+        <div class="overview-cell-head">
+          <span class="overview-tag overview-tag-exec">EXEC</span>
+          <span class="overview-title">Executive Overview</span>
+        </div>
+        <div class="overview-body prose"><p>This digest centers on two high-impact vulnerability disclosures affecting widely deployed enterprise security technologies: <mark class="tag-hl">Ivanti Sentry</mark> and <mark class="tag-hl">Microsoft Defender</mark>. The reporting highlights a pre-authentication root-level <mark class="tag-hl">remote code execution</mark> path in <mark class="tag-hl">Ivanti Sentry</mark> and a publicly released <mark class="tag-hl">Microsoft Defender</mark> <mark class="tag-hl">local privilege escalation</mark> exploit capable of spawning SYSTEM shells on fully patched Windows systems.</p>
+</div>
+      </div><div class="overview-cell">
+        <div class="overview-cell-head">
+          <span class="overview-tag overview-tag-num">01</span>
+          <span class="overview-title">High-Impact Vulnerability Research and Exploit Releases</span>
+        </div>
+        <div class="overview-body prose"><p><mark class="tag-hl">WatchTowr Labs</mark> published technical analysis of <mark class="tag-hl">CVE-2026-10520</mark>, an <mark class="tag-hl">OS command injection</mark> vulnerability in <mark class="tag-hl">Ivanti Sentry</mark> versions before R10.5.2, R10.6.2, and R10.7.1. According to the analysis, the vulnerable unauthenticated endpoint is <code>/mics/api/v2/sentry/mics-config/handleMessage</code>, where a user-controlled <code>message</code> parameter is passed into backend configuration handling logic. The issue can allow a remote unauthenticated attacker to achieve root-level <mark class="tag-hl">remote code execution</mark>.</p>
+
+<p>The researchers described how the <code>message</code> value is parsed as a MICS configuration command into fields including command, module, XPath, and XML body. They found that the <code>EXECUTE</code> path could reach <code>executeNativeCommand</code> through reflection-based backend handling, and reproduced the vulnerability by sending a POST request containing a <code>commandexec</code> XML block with <code>uname -a</code> in the <code>reqandres</code> field. The HTTP response returned command output, demonstrating practical exploitation of the flaw.</p>
+
+<p>The patched <mark class="tag-hl">Ivanti</mark> implementation reportedly hardcodes the command passed to <code>handleMessage</code> and adds Apache configuration rules that block access to the vulnerable endpoint, redirecting unauthenticated requests to the login page. The analysis is notable because it provides endpoint-level and execution-path detail for a vulnerability that sits on an exposed management/security product boundary, where unauthenticated reachability materially increases operational risk.</p>
+
+<p>BleepingComputer reported on <mark class="tag-hl">RoguePlanet</mark>, a <mark class="tag-hl">Microsoft Defender</mark> zero-day exploit released by researcher <mark class="tag-hl">Nightmare Eclipse</mark>. The exploit is described as a <mark class="tag-hl">race condition</mark> that can spawn a command prompt with SYSTEM privileges on fully patched <mark class="tag-hl">Windows 10</mark> and <mark class="tag-hl">Windows 11</mark> devices, though its reliability varies by system. <mark class="tag-hl">ThreatLocker</mark> told BleepingComputer it reproduced the exploit on fully patched <mark class="tag-hl">Windows 11</mark> systems with KB5094126 installed and confirmed it worked as described.</p>
+
+<p><mark class="tag-hl">Nightmare Eclipse</mark> said <mark class="tag-hl">RoguePlanet</mark> was originally developed as a <mark class="tag-hl">remote code execution</mark> vulnerability involving <mark class="tag-hl">Microsoft Defender</mark>’s handling of files on remote <mark class="tag-hl">SMB</mark> shares. The researcher claimed <mark class="tag-hl">Microsoft</mark> silently hardened Defender in mid-May to block junction attacks, changing the exploit’s practical impact from the originally described RCE scenario to a <mark class="tag-hl">local privilege escalation</mark> path. The release also forms part of an ongoing public dispute between <mark class="tag-hl">Nightmare Eclipse</mark> and <mark class="tag-hl">Microsoft</mark> over vulnerability disclosure and bug bounty practices, following previous releases named <mark class="tag-hl">BlueHammer</mark>, <mark class="tag-hl">RedSun</mark>, <mark class="tag-hl">GreenPlasma</mark>, and <mark class="tag-hl">YellowKey</mark>.</p>
+
+<p>Together, these disclosures underscore continued scrutiny of defensive and mobile infrastructure products as high-value exploit targets. One case involves unauthenticated command execution in an enterprise gateway product, while the other concerns privilege escalation in a default Windows security component, creating distinct but operationally significant exposure patterns for defenders tracking exploit development and public proof-of-concept activity.</p>
+</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
+
+<footer id="footer">
+  <span class="footer-left">DOWNLINK · 2026-06-09 22:00 UTC · 4 hours window</span>
+  <span class="footer-right">2 articles · 6d47a33</span>
+</footer>
+
+<script>
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('downlink.theme', t); } catch(e){}
+  var sel = document.getElementById('nav-theme-select');
+  if (sel && sel.value !== t) sel.value = t;
+}
+
+(function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
+
+function toggleBeginner() {
+  var on = document.documentElement.dataset.beginner === 'on';
+  if (on) { delete document.documentElement.dataset.beginner; } else { document.documentElement.dataset.beginner = 'on'; }
+  try { localStorage.setItem('downlink.beginner', on ? 'off' : 'on'); } catch(e){}
+  var btn = document.getElementById('nav-beginner-toggle');
+  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+}
+
+(function(){ var btn = document.getElementById('nav-beginner-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.beginner === 'on' ? 'true' : 'false'); })();
+
+function toggleTocRow(inner) {
+  var row = inner.closest('.toc-row-wrap');
+  var body = row.querySelector('.toc-row-body');
+  var chevron = row.querySelector('.toc-row-chevron');
+  if (!body) return;
+  var isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  row.classList.toggle('open', !isOpen);
+  if (chevron) chevron.classList.toggle('open', !isOpen);
+}
+
+
+function handleClusterClick(event, summary) {
+  var row = summary.closest('.toc-row-wrap');
+  var canonBody = row.querySelector('.toc-row-body');
+  var chevron = row.querySelector('.toc-row-chevron');
+  if (!canonBody) return;
+  
+  if (event.target.closest('.toc-cluster-chevron')) return;
+  event.preventDefault();
+  var details = summary.closest('details');
+  var isOpen = canonBody.classList.contains('open');
+  canonBody.classList.toggle('open', !isOpen);
+  row.classList.toggle('open', !isOpen);   
+  if (chevron) chevron.classList.toggle('open', !isOpen);
+  
+  if (details) details.open = !isOpen;
+}
+
+
+function toggleTocMember(titleEl, bodyId) {
+  var body = document.getElementById(bodyId);
+  if (!body) return;
+  body.classList.toggle('open');
+}
+
+
+function toggleWhy(label) {
+  var body = label.nextElementSibling;
+  if (!body) return;
+  var isOpen = body.classList.toggle('open');
+  label.classList.toggle('open', isOpen);
+}
+
+function toggleOverview(btn) {
+  var grid = document.getElementById('overview-grid');
+  var chev = btn.querySelector('.overview-chevron');
+  var hidden = grid.style.display === 'none';
+  grid.style.display = hidden ? '' : 'none';
+  chev.style.transform = hidden ? 'rotate(180deg)' : '';
+}
+
+function switchTab(btn, panelId) {
+  var container = btn.closest('.toc-row-body') || btn.closest('.article-body');
+  if (!container) return;
+  container.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  container.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  btn.classList.add('active');
+  var panel = document.getElementById(panelId);
+  if (panel) panel.classList.add('active');
+}
+
+var curPriority = 'all', curCategory = 'all', curTags = [];
+
+function applyFilters() {
+  document.querySelectorAll('.toc-row-wrap').forEach(function(row){
+    var okP = curPriority === 'all' || row.dataset.priority === curPriority;
+    var okC = curCategory === 'all' || row.dataset.category === curCategory;
+    var rowTags = (row.dataset.tags || '').split(' ');
+    var okT = curTags.length === 0 || curTags.some(function(t){ return rowTags.indexOf(t) >= 0; });
+    row.style.display = (okP && okC && okT) ? '' : 'none';
+  });
+  
+  document.querySelectorAll('.toc-group').forEach(function(g){
+    var any = Array.prototype.some.call(g.querySelectorAll('.toc-row-wrap'), function(r){
+      return r.style.display !== 'none';
+    });
+    g.style.display = any ? '' : 'none';
+  });
+}
+
+function setFilter(btn) {
+  var f = btn.dataset.filter;
+  document.querySelectorAll('.filter-btn[data-filter]').forEach(function(b){
+    b.className = 'filter-btn';
+    if (b.dataset.filter === f) {
+      if (f === 'all') b.classList.add('active-all');
+      else if (f === 'must') b.classList.add('active-must');
+      else if (f === 'should') b.classList.add('active-should');
+      else if (f === 'may') b.classList.add('active-may');
+    }
+  });
+  curPriority = f;
+  applyFilters();
+}
+
+function syncTagUI() {
+  document.querySelectorAll('.tag-pill, .meta-tag[data-tag]').forEach(function(el){
+    el.classList.toggle('active', curTags.indexOf(el.dataset.tag) >= 0);
+  });
+}
+function toggleTag(tag) {
+  var i = curTags.indexOf(tag);
+  if (i >= 0) curTags.splice(i, 1); else curTags.push(tag);
+  syncTagUI();
+  applyFilters();
+}
+
+
+
+
+document.addEventListener('click', function(e){
+  var m = e.target.closest('mark.tag-hl');
+  if (!m) return;
+  e.stopPropagation(); 
+  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+});
+
+function setCategoryFilter(btn) {
+  document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
+  curCategory = btn.dataset.cat;   
+  applyFilters();
+}
+
+
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  var t = e.target;
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return;
+  if (e.key === 'e') {
+    document.querySelectorAll('.toc-row-wrap:not(.open)').forEach(function(row){
+      var body = row.querySelector('.toc-row-body');
+      var chevron = row.querySelector('.toc-row-chevron');
+      if (body) { body.classList.add('open'); row.classList.add('open'); if (chevron) chevron.classList.add('open'); }
+    });
+  }
+  if (e.key === 'c') {
+    document.querySelectorAll('.toc-row-wrap.open').forEach(function(row){
+      var body = row.querySelector('.toc-row-body');
+      var chevron = row.querySelector('.toc-row-chevron');
+      if (body) { body.classList.remove('open'); row.classList.remove('open'); if (chevron) chevron.classList.remove('open'); }
+    });
+  }
+});
+
+
+
+function toggleReports(btn) {
+  var collapsed = btn.textContent.charAt(0) === '+';
+  btn.closest('.report-list').querySelectorAll('.report-item').forEach(function(i){
+    if (!i.querySelector('.report-primary')) i.classList.toggle('report-hidden', !collapsed);
+  });
+  btn.textContent = collapsed ? '↑ collapse' : btn.dataset.more;
+}
+
+
+(function() {
+  function updateTagFade(el) {
+    el.classList.toggle('at-end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
+  }
+  document.querySelectorAll('.toc-row-tags').forEach(function(el) {
+    updateTagFade(el);
+    el.addEventListener('scroll', function() { updateTagFade(el); }, { passive: true });
+  });
+})();
+
+function showMoreTags(btn) {
+  var cloud = btn.closest('.toc-tag-cloud');
+  cloud.classList.add('tags-expanded');    
+  cloud.querySelectorAll('.tag-pill.tag-hidden')
+     .forEach(function(p) { p.classList.remove('tag-hidden'); });
+  btn.remove();
+}
+
+</script>
+</body>
+</html>
+
+
+
