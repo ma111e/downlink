@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<script>
+// Set the theme before first paint to avoid a flash. A saved choice wins;
+// otherwise the server-rendered data-theme (the configured default) is kept.
+// Shared key across digest/archive/swipe pages.
+(function(){
+  try {
+    var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
+    var t = localStorage.getItem('downlink.theme');
+    if (valid[t]) document.documentElement.dataset.theme = t;
+  } catch(e){}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="DOWNLINK · Triage — 4 hours digest">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Arch AUR Malware, Coupang Fine, 23andMe Settlement, and Conti Guilty Plea — DOWNLINK Triage">
+<meta property="og:description" content="Swipe-triage the 4 hours intelligence digest.">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+    --dot: #ffffff08;
+  }
+  /* Light theme: palette anchored on #EFEEEA / #FE7743 / #273F4F. */
+  html[data-theme="light"] {
+    --bg: #efeeea;
+    --surface: #fafaf8;
+    --surface2: #e8e7e2;
+    --border: #d3d2cc;
+    --border2: #b8b7b0;
+    --text: #0d0c0a;
+    --text2: #273f4f;
+    --text3: #5c6e78;
+    /* Toned, homogeneous accents: uniform OKLCH L 58% / C 0.13, hue only varies. */
+    --cyan:    oklch(58% 0.13 45);   /* brand orange */
+    --must:    oklch(58% 0.13 25);
+    --should:  oklch(58% 0.13 67);
+    --may:     oklch(58% 0.13 250);
+    --discard: oklch(58% 0.13 25);
+    --accept:  oklch(58% 0.13 150);
+    --dot: rgba(0,0,0,.035);
+  }
+  /* Contrast theme: pure black, max-legibility whites, vivid accents. */
+  html[data-theme="contrast"] {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface2: #111111;
+    --border: #2a2a2a;
+    --border2: #3a3a3a;
+    --text: #ffffff;
+    --text2: #c7c7c7;
+    --text3: #888888;
+    --cyan: #00ffd1;
+    --must:   #ff5050;
+    --should: #ffd24a;
+    --may:    #00ffd1;
+    --discard: #ff5050;
+    --accept:  #00ff95;
+    --dot: rgba(255,255,255,.08);
+  }
+  /* Mono theme: grayscale, no chroma. */
+  html[data-theme="mono"] {
+    --bg: #0c0c0c;
+    --surface: #131313;
+    --surface2: #181818;
+    --border: #242424;
+    --border2: #333333;
+    --text: #e6e6e6;
+    --text2: #9a9a9a;
+    --text3: #5e5e5e;
+    --cyan: #e6e6e6;
+    --must:   #f0f0f0;
+    --should: #c8c8c8;
+    --may:    #9a9a9a;
+    --discard: #cfcfcf;
+    --accept:  #cfcfcf;
+    --dot: rgba(255,255,255,.04);
+  }
+  /* Colorblind theme: light base, colorblind-safe Okabe-Ito accents. Crucially
+     discard/accept become vermillion/blue so the triage actions are no longer a
+     red/green pair (the worst case for protan/deutan vision). */
+  html[data-theme="colorblind"] {
+    --bg: #efeeea;
+    --surface: #fafaf8;
+    --surface2: #e8e7e2;
+    --border: #d3d2cc;
+    --border2: #b8b7b0;
+    --text: #0d0c0a;
+    --text2: #273f4f;
+    --text3: #5c6e78;
+    --cyan:    #0072b2;  /* Okabe blue */
+    --must:    #c44601;  /* vermillion */
+    --should:  #8a6d00;  /* dark gold */
+    --may:     #2f79a5;  /* teal-blue */
+    --discard: #c44601;  /* vermillion (was red) */
+    --accept:  #0072b2;  /* blue (was green) */
+    --dot: rgba(0,0,0,.035);
+  }
+  /* Pastel theme: soft cream base (#FAF6E6), deepened mint/coral accents, deep plum text. */
+  html[data-theme="pastel"] {
+    --bg: #faf6e6;
+    --surface: #fffdf4;
+    --surface2: #f1ead2;
+    --border: #e6dcbf;
+    --border2: #d2c5a2;
+    --text: #3a3137;
+    --text2: #6c5560;
+    --text3: #9c8a86;
+    --cyan:    #1f9d8f;  /* mint-teal primary */
+    --must:    #d9534f;  /* coral-red */
+    --should:  #e08a2e;  /* peach-amber */
+    --may:     #4a90d9;  /* soft blue */
+    --discard: #d9534f;  /* coral-red */
+    --accept:  #2f9e63;  /* green */
+    --dot: rgba(0,0,0,.03);
+  }
+  /* Per-theme source-color palette (--p0..--pN), generated server-side. */
+  :root{--p0:#f87171;--p1:#fb923c;--p2:#4ade80;--p3:#2dd4bf;--p4:#60a5fa;--p5:#c084fc;--p6:#f472b6;--p7:#a78bfa;--p8:#34d399;--p9:#38bdf8;--p10:#e879f9;}html[data-theme="light"]{--p0:#dc2626;--p1:#ea580c;--p2:#16a34a;--p3:#0d9488;--p4:#2563eb;--p5:#9333ea;--p6:#db2777;--p7:#7c3aed;--p8:#059669;--p9:#0284c7;--p10:#c026d3;}html[data-theme="colorblind"]{--p0:#0072b2;--p1:#c44601;--p2:#1a7a4f;--p3:#7a4fa0;--p4:#8a6d00;--p5:#2f79a5;--p6:#a23b7a;--p7:#00786b;--p8:#2b6c8f;--p9:#b35900;--p10:#5c6e78;}html[data-theme="mono"]{--p0:#7a7a7a;--p1:#868686;--p2:#929292;--p3:#9e9e9e;--p4:#aaaaaa;--p5:#b6b6b6;--p6:#c2c2c2;--p7:#cecece;--p8:#dadada;--p9:#e6e6e6;--p10:#f0f0f0;}html[data-theme="pastel"]{--p0:#e0655c;--p1:#e08a2e;--p2:#2f9e63;--p3:#1f9d8f;--p4:#4a90d9;--p5:#8c6dd0;--p6:#de6b94;--p7:#a05fc0;--p8:#2faa8e;--p9:#3f8fd0;--p10:#c267c0;}
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; min-height: 100dvh; overflow-x: hidden; }
+  /* dvh keeps the bottom action buttons reachable under mobile browser chrome */
+  .swipe-shell { height: 100vh; height: 100dvh; }
+  /* the nav is a fixed-height single row; on phones drop the clock so the
+     logo + count + theme picker never overflow */
+  @media (max-width: 460px) {
+    .swipe-nav { padding-left: 14px !important; padding-right: 14px !important; }
+    .swipe-clock { display: none; }
+  }
+  @media (max-width: 360px) {
+    .swipe-nav { padding-left: 8px !important; padding-right: 8px !important; }
+  }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; flex: 1; min-height: 0; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--accept); border-color: var(--accept); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--cyan);   border-color: var(--cyan); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .kp-list li { display: flex; gap: 0.6rem; font-size: 13px; line-height: 1.6; color: var(--text2); }
+  .kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); }
+  .report-title a { color: var(--text); text-decoration: none; }
+  .report-title a:hover { color: var(--cyan); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+window.__DL_ARTICLES = [{"n":2,"title":"South Korea hits Coupang with record $409 million fine over data breach","source":"therecord.media","sourceColorIdx":7,"link":"https://therecord.media/south-korea-data-breach-record-fine-coupang","time":"15:56","priority":"MUST READ","score":93,"tldr":"South Korea’s privacy regulator fined Coupang a record $409 million after finding that basic security failures allowed a former employee to steal data on more than 33 million customers and millions of non-members. Regulators also accused Coupang of failing to notify victims, deleting evidence, and committing additional privacy violations.","briefOverview":"\u003cp\u003eSouth Korea’s Personal Information Protection Commission imposed a record 624.7 billion won, or $409 million, fine on Coupang and Coupang Fulfillment Services after investigating a major customer data breach. The regulator concluded that the breach resulted from “deficiencies in basic safety management,” not sophisticated hacking. The penalty is the largest ever issued by the commission for a personal data breach.\u003c/p\u003e\n\n\u003cp\u003eThe investigation confirmed that 33,222,472 registered Coupang members were affected, along with at least 4,338,368 non-members whose names, phone numbers, and addresses had been stored as delivery recipients. The regulator said Coupang failed to notify those non-member victims despite being formally urged to do so four times. Coupang also faces a criminal referral over evidence destruction after web access logs were deleted.\u003c/p\u003e\n\n\u003cp\u003eThe alleged perpetrator was an unnamed Chinese national and former employee who had developed Coupang’s alternative authentication system and stolen the signing key behind it before leaving the company. Using the stolen key, he accessed delivery address and account edit pages tens of millions of times, later sending extortion emails to customers and Coupang. The investigation also uncovered separate privacy violations involving the Coupang Partners affiliate program, advertising practices, journalist blacklisting, employee weight data, and the exclusion of the chief privacy officer from an internal investigation.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eSouth Korea’s Personal Information Protection Commission fined Coupang and its logistics subsidiary, Coupang Fulfillment Services, 624.7 billion won, or $409 million, after investigating a data breach affecting tens of millions of people. The commission said the breach stemmed from “deficiencies in basic safety management” rather than sophisticated hacking. The fine is the largest ever issued by the commission for a personal data breach, surpassing a previous 134.8 billion won fine against SK Telecom.\u003c/p\u003e\n\n\u003cp\u003eCoupang had first disclosed in November that about 33.7 million customer accounts had been compromised. The PIPC confirmed 33,222,472 registered members were affected and also identified at least 4,338,368 non-members whose names, phone numbers, and addresses were stored as delivery recipients by other customers. The regulator said these non-members had no way of knowing their data was held by Coupang and that Coupang failed to notify them despite four formal requests in December 2025 and January 2026.\u003c/p\u003e\n\n\u003cp\u003eThe alleged perpetrator was an unnamed Chinese national and former Coupang employee who left the company at the end of 2024. While employed, he had developed Coupang’s alternative authentication system and allegedly stole the signing key that supported it before departing. He began with a test run on 95 accounts in January 2025, then used the stolen key to cycle through member ID numbers and access delivery address and account edit pages on a massive scale.\u003c/p\u003e\n\n\u003cp\u003eFrom April, the attacker hit Coupang’s delivery address page about 148 million times over two months to collect names, phone numbers, and addresses. Between June and October, he accessed the account edit page nearly 35 million times to collect names and email addresses, and a final phase added apartment entry codes and order histories. He later reassembled the information into customer profiles and sent extortion emails to members and to Coupang, claiming to hold large volumes of address, order, and email data.\u003c/p\u003e\n\n\u003cp\u003eThe PIPC found that Coupang failed to detect abnormal traffic during the seven-month attack, including spikes many times above normal and tens of millions of attempts using non-existent member IDs. The commission referred Coupang for criminal prosecution over destruction of evidence after the company manually deleted about six months of web access logs after a preservation order and allowed additional logs to be automatically deleted. Regulators said about 13% of logs covering the attack period were lost, making it impossible to identify all affected victims.\u003c/p\u003e\n\n\u003cp\u003eThe expanded investigation also uncovered separate violations, including the covert collection of third-party browsing activity from about 11.2 million users through the Coupang Partners affiliate marketing program without consent. The PIPC imposed a further 201.1 billion won fine for that violation alone, and found issues involving hijack ads, an internal blacklist of 71 police press-corps journalists, misuse of employee weight data, and exclusion of Coupang’s chief privacy officer from an internal investigation. Coupang said it regretted the decision and reserved the right to challenge it after receiving the formal written ruling.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"overview\"\u003eOverview\u003c/h2\u003e\n\n\u003cp\u003eSouth Korea’s Personal Information Protection Commission imposed a record 624.7 billion won, or $409 million, fine on Coupang, the country’s largest online retailer, and its logistics subsidiary, Coupang Fulfillment Services. The sanction followed an investigation into a data breach that compromised personal information belonging to tens of millions of customers.\u003c/p\u003e\n\n\u003cp\u003eThe commission concluded that the breach resulted from “deficiencies in basic safety management,” rather than from sophisticated hacking. The penalty is the largest ever issued by the PIPC for a personal data breach, exceeding the 134.8 billion won fine levied against SK Telecom earlier in the year.\u003c/p\u003e\n\n\u003ch2 id=\"scale-of-the-breach\"\u003eScale of the breach\u003c/h2\u003e\n\n\u003cp\u003eCoupang first disclosed the breach in November, saying that approximately 33.7 million customer accounts had been compromised. The PIPC’s investigation confirmed that 33,222,472 registered members were affected.\u003c/p\u003e\n\n\u003cp\u003eThe regulator also identified a separate group of victims that Coupang had not previously acknowledged: at least 4,338,368 non-members. These people had their names, phone numbers, and addresses stored as delivery recipients by other customers, and the regulator said they had no way of knowing that Coupang held their data.\u003c/p\u003e\n\n\u003cp\u003eAccording to the PIPC, it formally urged Coupang four times in December 2025 and January 2026 to notify the non-member victims. Coupang failed to do so each time.\u003c/p\u003e\n\n\u003ch2 id=\"alleged-actor-and-access-method\"\u003eAlleged actor and access method\u003c/h2\u003e\n\n\u003cp\u003eThe alleged perpetrator was an unnamed Chinese national and former Coupang employee who left the company at the end of 2024. While still employed, he had developed Coupang’s alternative authentication system.\u003c/p\u003e\n\n\u003cp\u003eBefore leaving, he allegedly stole the signing key that underpinned that authentication system. He then used the stolen key to access customer information over several months.\u003c/p\u003e\n\n\u003cp\u003eThe activity began with a test run in January 2025, when the stolen key was used on 95 accounts. From April, the attacker systematically cycled through member ID numbers and hit Coupang’s delivery address page approximately 148 million times over two months.\u003c/p\u003e\n\n\u003ch2 id=\"data-accessed-during-the-attack\"\u003eData accessed during the attack\u003c/h2\u003e\n\n\u003cp\u003eThe first major phase of the attack targeted Coupang’s delivery address page. Through approximately 148 million hits over two months, the attacker harvested names, phone numbers, and addresses.\u003c/p\u003e\n\n\u003cp\u003eThe attacker then shifted to the account edit page. Between June and October, that page was accessed nearly 35 million times to collect names and email addresses.\u003c/p\u003e\n\n\u003cp\u003eA final phase added apartment entry codes and order histories. The former employee later reassembled the data into individual customer profiles.\u003c/p\u003e\n\n\u003ch2 id=\"extortion-emails\"\u003eExtortion emails\u003c/h2\u003e\n\n\u003cp\u003eAfter compiling the stolen data, the former employee sent two extortion emails. One was sent directly to members, and the other was sent to Coupang.\u003c/p\u003e\n\n\u003cp\u003eThe second email claimed possession of 120 million addresses, 560 million order records, and more than 33 million email addresses. The sample data included sensitive purchase histories.\u003c/p\u003e\n\n\u003ch2 id=\"detection-failures-identified-by-the-regulator\"\u003eDetection failures identified by the regulator\u003c/h2\u003e\n\n\u003cp\u003eThe PIPC found that Coupang failed to detect the activity throughout the seven-month attack. The affected pages saw traffic spikes many times higher than normal.\u003c/p\u003e\n\n\u003cp\u003eThe regulator also found that tens of millions of access attempts used non-existent member IDs. Coupang did not detect the breach until a customer forwarded one of the extortion emails.\u003c/p\u003e\n\n\u003ch2 id=\"evidence-destruction-and-lost-logs\"\u003eEvidence destruction and lost logs\u003c/h2\u003e\n\n\u003cp\u003eThe commission referred Coupang for criminal prosecution over destruction of evidence. Regulators had ordered the preservation of access logs on November 21, the day after Coupang filed its initial breach report.\u003c/p\u003e\n\n\u003cp\u003eSix days later, Coupang manually deleted approximately six months of web access logs. The company also failed to pause its routine policy of automatically deleting logs after six months, which allowed additional records to be wiped.\u003c/p\u003e\n\n\u003cp\u003eAccording to the article, roughly 13% of the logs covering the attack period were lost. The loss made it impossible to identify all affected victims.\u003c/p\u003e\n\n\u003cp\u003ePolice separately recovered a smashed MacBook Air from a river during the investigation. The laptop, allegedly weighted with bricks in an apparent attempt to destroy evidence, was documented by forensic teams from Mandiant, Palo Alto Networks, and Ernst \u0026amp; Young before being handed to authorities.\u003c/p\u003e\n\n\u003ch2 id=\"additional-violations-found-in-the-expanded-investigation\"\u003eAdditional violations found in the expanded investigation\u003c/h2\u003e\n\n\u003cp\u003eThe investigation was expanded in January 2026 following parliamentary hearings and media coverage. That broader review uncovered several violations separate from the breach itself.\u003c/p\u003e\n\n\u003ch3 id=\"coupang-partners-data-collection\"\u003eCoupang Partners data collection\u003c/h3\u003e\n\n\u003cp\u003eThrough its “Coupang Partners” affiliate marketing program, Coupang covertly collected third-party browsing activity from about 11.2 million users. The collected information included URLs visited, app names, timestamps, IP addresses, and device identifiers.\u003c/p\u003e\n\n\u003cp\u003eThe data was linked to individual member accounts and collected without consent. Coupang argued that the information was not personal data, but the regulator disagreed because it was stored alongside member ID numbers and device identifiers.\u003c/p\u003e\n\n\u003cp\u003eThe commission imposed a further 201.1 billion won, or $132 million, fine for this violation alone. Coupang deleted the records in April 2026 after investigators confronted the company.\u003c/p\u003e\n\n\u003ch3 id=\"hijack-ads\"\u003eHijack ads\u003c/h3\u003e\n\n\u003cp\u003eThe PIPC also found that some advertising partners in the Coupang Partners program had been running “hijack ads.” These ads redirected users to Coupang without their consent.\u003c/p\u003e\n\n\u003cp\u003eIn some cases, the article says the ads covered the screen with a transparent button so that clicking anywhere triggered a redirect. Coupang had been aware of the practice since 2022.\u003c/p\u003e\n\n\u003cp\u003eThe investigation found that Coupang failed to terminate partners who met its own threshold for removal. In some cases, it paid higher commissions to partners after they were caught.\u003c/p\u003e\n\n\u003ch3 id=\"journalist-blacklist\"\u003eJournalist blacklist\u003c/h3\u003e\n\n\u003cp\u003eCoupang Fulfillment Services was found to have secretly added 71 police press-corps journalists to an internal employment blacklist. None of the journalists had ever worked at a Coupang warehouse.\u003c/p\u003e\n\n\u003cp\u003eThe blacklist cited “spreading false information.” The journalists were added without their knowledge or consent.\u003c/p\u003e\n\n\u003ch3 id=\"employee-weight-data\"\u003eEmployee weight data\u003c/h3\u003e\n\n\u003cp\u003eThe logistics subsidiary was also found to have submitted employees’ weight data as evidence in an industrial accident lawsuit. The data had been collected for health management purposes.\u003c/p\u003e\n\n\u003cp\u003eThe commission found that the company did not have a separate legal basis for using the data in that way.\u003c/p\u003e\n\n\u003ch3 id=\"chief-privacy-officer-exclusion\"\u003eChief privacy officer exclusion\u003c/h3\u003e\n\n\u003cp\u003eThe regulator also found that Coupang excluded its own chief privacy officer from the company’s internal investigation of the hacker in December 2025. That investigation had drawn criticism from lawmakers and government officials at the time.\u003c/p\u003e\n\n\u003cp\u003eThe PIPC treated the exclusion not as a mere internal communication failure, but as a substantive violation of the legally mandated independence of the chief privacy officer’s role.\u003c/p\u003e\n\n\u003ch2 id=\"company-and-legal-response\"\u003eCompany and legal response\u003c/h2\u003e\n\n\u003cp\u003eActing CEO Harold Rogers, who was questioned by police in January as a suspect in an obstruction inquiry, had pledged full cooperation with authorities. Coupang said it regretted the PIPC’s decision.\u003c/p\u003e\n\n\u003cp\u003eThe company reserved the right to challenge the decision through legal proceedings once it receives the formal written ruling. Dispute mediation proceedings involving more than 2,500 individual and group claimants, which had been paused during the investigation, are set to resume on June 12.\u003c/p\u003e\n\n\u003cp\u003eA class-action lawsuit in the United States remains pending. Coupang’s shares have fallen around 35% since the start of the year, and the company has warned that revenue growth could slow.\u003c/p\u003e\n\n\u003ch2 id=\"impact-and-significance-stated-in-the-article\"\u003eImpact and significance stated in the article\u003c/h2\u003e\n\n\u003cp\u003eThe PIPC’s sanction is significant because it is the largest fine the commission has ever issued for a personal data breach. The investigation found that the incident affected not only registered Coupang members but also millions of non-members whose information was stored as delivery-recipient data.\u003c/p\u003e\n\n\u003cp\u003eThe article also states that the loss of access logs prevented regulators from identifying all affected victims. Coupang continues to face scrutiny from South Korean lawmakers over both the breach and its response.\u003c/p\u003e\n","keyPoints":["South Korea’s Personal Information Protection Commission fined Coupang and Coupang Fulfillment Services 624.7 billion won, or $409 million, after finding that a data breach resulted from deficiencies in basic safety management.","The investigation confirmed that 33,222,472 registered Coupang members were affected and identified at least 4,338,368 non-members whose names, phone numbers, and addresses had been stored as delivery recipients.","The regulator said a former Coupang employee used a stolen signing key for an alternative authentication system to access customer data over a seven-month period without being detected by the company.","The commission referred Coupang for criminal prosecution over destruction of evidence after the company manually deleted about six months of web access logs and allowed additional records to be automatically wiped.","The investigation also found that Coupang covertly collected third-party browsing activity from about 11.2 million users through its Coupang Partners affiliate marketing program without consent."],"insights":["The attacker’s use of tens of millions of non-existent member IDs and page traffic spikes many times above normal levels went undetected for months, showing that Coupang’s monitoring failed to catch highly anomalous access patterns on sensitive account and delivery pages.","The breach affected millions of non-members who had no direct relationship with Coupang and no way to know their data was stored there, highlighting that delivery-recipient data can create large hidden privacy exposure beyond registered users.","Coupang’s deletion of roughly 13% of access logs from the attack period made it impossible to identify all affected victims, turning log-retention failures into a direct obstacle to breach scoping and notification.","The former employee was able to abuse an authentication system he had developed and a signing key he allegedly stole before leaving, underscoring the importance of key rotation and access reviews when privileged engineers depart.","The regulator treated the exclusion of Coupang’s chief privacy officer from the company’s internal investigation as a violation of the role’s legally mandated independence, not merely an internal process failure."],"referencedReports":[],"body":"\u003cp\u003eSouth Korea’s Personal Information Protection Commission imposed a record 624.7 billion won, or $409 million, fine on Coupang and Coupang Fulfillment Services after investigating a major customer data breach. The regulator concluded that the breach resulted from “deficiencies in basic safety management,” not sophisticated hacking. The penalty is the largest ever issued by the commission for a personal data breach.\u003c/p\u003e\n\n\u003cp\u003eThe investigation confirmed that 33,222,472 registered Coupang members were affected, along with at least 4,338,368 non-members whose names, phone numbers, and addresses had been stored as delivery recipients. The regulator said Coupang failed to notify those non-member victims despite being formally urged to do so four times. Coupang also faces a criminal referral over evidence destruction after web access logs were deleted.\u003c/p\u003e\n\n\u003cp\u003eThe alleged perpetrator was an unnamed Chinese national and former employee who had developed Coupang’s alternative authentication system and stolen the signing key behind it before leaving the company. Using the stolen key, he accessed delivery address and account edit pages tens of millions of times, later sending extortion emails to customers and Coupang. The investigation also uncovered separate privacy violations involving the Coupang Partners affiliate program, advertising practices, journalist blacklisting, employee weight data, and the exclusion of the chief privacy officer from an internal investigation.\u003c/p\u003e\n"},{"n":5,"title":"Over 400 Arch Linux packages compromised to push rootkit, infostealer","source":"bleepingcomputer.com","sourceColorIdx":10,"link":"https://www.bleepingcomputer.com/news/security/over-400-arch-linux-packages-compromised-to-push-rootkit-infostealer/","time":"17:03","priority":"MUST READ","score":92,"tldr":"More than 400 Arch User Repository packages were compromised to install the malicious atomic-lockfile npm package, which drops a Linux infostealer with possible eBPF rootkit capabilities. Arch users who installed affected packages should check for compromise, rotate credentials, and consider a full reinstall if infected.","briefOverview":"\u003cp\u003eMore than 400 packages in the Arch User Repository are distributing a Linux rootkit and infostealer targeting credentials and access tokens. The article says a new maintainer spoofed a trusted publisher on AUR to push infected packages. AUR maintainers are working to identify and remove malicious commits and ban the accounts involved.\u003c/p\u003e\n\n\u003cp\u003eThe compromised packages were modified with preinstall scripts that download and execute a malicious npm package called atomic-lockfile. Independent researcher Whanos reported that one atomic-lockfile sample included a Linux ELF payload named deps, described as a credential stealer with optional root-only eBPF rootkit capabilities. Sonatype also reported a related campaign in which at least 20 orphaned AUR packages were hijacked and modified to install atomic-lockfile through PKGBUILD changes.\u003c/p\u003e\n\n\u003cp\u003eThe malware targets developer workstation and build environment secrets, including browser and Electron app data, GitHub credentials, npm data, Vault tokens, Docker/Podman data, SSH artifacts, VPN material, shell histories, and collaboration app data. The article advises Arch users to review affected packages and indicators of compromise, use available checks for atomic-lockfile, rotate credentials if compromised, and consider reinstalling Arch from scratch because a rootkit may survive normal cleanup.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eMore than 400 packages in the Arch User Repository are distributing a Linux rootkit and infostealer malware aimed at credentials and access tokens. The article cites a report from the Independent Federated Intelligence Network saying a new maintainer spoofed a trusted publisher on AUR to push infected packages. AUR is a community-maintained repository for Arch Linux package build scripts and is described as essential for many Arch-based systems but not a vetted space.\u003c/p\u003e\n\n\u003cp\u003eAccording to IFIN member Michael Taggart, the compromised packages were modified with preinstall scripts that download and execute a malicious npm package called atomic-lockfile. Independent researcher Whanos reported that one sample of atomic-lockfile included a Linux ELF payload named deps. Whanos described the payload as a credential stealer with optional root-only eBPF rootkit capabilities.\u003c/p\u003e\n\n\u003cp\u003eThe article says the malware is designed for developer workstations and build environments. It targets browser and Electron application data, Slack, Microsoft Teams, Discord, GitHub, npm, Vault, Docker/Podman, SSH, VPN material, shell histories, and other local developer secrets. With eBPF technology present, the malware can run inside the kernel with elevated privileges and hide local processes.\u003c/p\u003e\n\n\u003cp\u003eSonatype also published a report on a campaign targeting AUR and delivering atomic-lockfile through a different method. Sonatype said the threat actor hijacked at least 20 orphaned AUR packages and modified the PKGBUILD file to add a post-install script invoking npm to retrieve the malicious package. Its analysis found a Linux executable with references to an eBPF rootkit that could hide processes, files, and network interfaces.\u003c/p\u003e\n\n\u003cp\u003eAUR maintainers are working to identify and remove malicious commits and ban the accounts pushing them. Arch Linux package maintainer Jonathan Grotelüschen urged users to report malicious packages they find. Arch users are advised to review affected packages and indicators of compromise, check for atomic-lockfile, rotate all credentials if compromised, and consider reinstalling Arch from scratch because a rootkit may survive normal cleaning efforts.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"overview\"\u003eOverview\u003c/h2\u003e\n\n\u003cp\u003eMore than 400 packages in the Arch User Repository are distributing a Linux rootkit and infostealer malware targeting credentials and access tokens. The article reports that a new maintainer is spoofing a trusted publisher on AUR to push infected packages, citing a report from the Independent Federated Intelligence Network.\u003c/p\u003e\n\n\u003cp\u003eAUR is described as a community-maintained repository for Arch Linux that contains PKGBUILD scripts with instructions for downloading, compiling, and installing software not available in Arch’s official repositories. The article notes that AUR is widely used because it provides proprietary applications, beta or nightly versions of open-source software, niche utilities, and older package versions, but it is not a vetted space.\u003c/p\u003e\n\n\u003ch2 id=\"compromise-method\"\u003eCompromise Method\u003c/h2\u003e\n\n\u003cp\u003eAccording to IFIN member Michael Taggart, the compromised packages were modified with preinstall scripts that download and execute a malicious npm package called atomic-lockfile. The article says this allowed infected AUR packages to retrieve and run the malicious package during installation.\u003c/p\u003e\n\n\u003cp\u003eSonatype reported a related campaign using a different method. Its researchers said a threat actor hijacked at least 20 orphaned AUR packages and modified their PKGBUILD files, which are Bash scripts containing build information for Arch Linux packages. The modified packages added a post-install script that invoked npm and installed atomic-lockfile during package installation.\u003c/p\u003e\n\n\u003ch2 id=\"malware-and-capabilities\"\u003eMalware and Capabilities\u003c/h2\u003e\n\n\u003cp\u003eIndependent security researcher Whanos reported that one sample of atomic-lockfile included a Linux ELF payload named deps. Whanos described deps as a credential stealer with optional root-only eBPF rootkit capabilities.\u003c/p\u003e\n\n\u003cp\u003eThe article says the malware is designed for developer workstations and build environments. It targets sensitive local data including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eBrowser and Electron application data\u003c/li\u003e\n\u003cli\u003eSlack data\u003c/li\u003e\n\u003cli\u003eMicrosoft Teams data\u003c/li\u003e\n\u003cli\u003eDiscord data\u003c/li\u003e\n\u003cli\u003eGitHub credentials\u003c/li\u003e\n\u003cli\u003enpm data\u003c/li\u003e\n\u003cli\u003eHashiCorp Vault tokens\u003c/li\u003e\n\u003cli\u003eDocker and Podman data\u003c/li\u003e\n\u003cli\u003eSSH artifacts\u003c/li\u003e\n\u003cli\u003eVPN material\u003c/li\u003e\n\u003cli\u003eShell histories\u003c/li\u003e\n\u003cli\u003eTelegram data\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article states that with eBPF technology present, the malware can run inside the kernel with elevated privileges and hide local processes. Sonatype’s analysis also found references to an eBPF rootkit that could hide processes, files, and network interfaces.\u003c/p\u003e\n\n\u003ch2 id=\"exfiltration-indicators\"\u003eExfiltration Indicators\u003c/h2\u003e\n\n\u003cp\u003eSonatype determined that the Linux binary can archive data, handle multi-part files, and perform HTTP uploads. The article says these capabilities indicate that functionality for a typical exfiltration mechanism is present.\u003c/p\u003e\n\n\u003cp\u003eThe sensitive information targeted by the binary includes GitHub credentials, SSH artifacts, HashiCorp Vault tokens, browser cookie databases, Slack data, Discord data, Microsoft Teams data, and Telegram data.\u003c/p\u003e\n\n\u003ch2 id=\"affected-parties-and-ecosystem\"\u003eAffected Parties and Ecosystem\u003c/h2\u003e\n\n\u003cp\u003eThe affected ecosystem is the Arch User Repository, which serves Arch Linux and Arch-based distributions. The article emphasizes that AUR is community-maintained and not vetted, making it possible for threat actors to push malware through packages that change ownership without being noticed.\u003c/p\u003e\n\n\u003cp\u003eThe article identifies AUR users, especially users of developer workstations and build environments, as impacted because the malware targets credentials, tokens, application data, container tooling data, SSH material, and other local developer secrets.\u003c/p\u003e\n\n\u003ch2 id=\"response-and-recommendations\"\u003eResponse and Recommendations\u003c/h2\u003e\n\n\u003cp\u003eAUR maintainers are working to identify and remove malicious commits and ban the accounts pushing them. Arch Linux package maintainer Jonathan Grotelüschen urged users to report any malicious package they find.\u003c/p\u003e\n\n\u003cp\u003eThe article advises Arch users to review the list of affected packages and the indicators of compromise provided in Whanos’s report. It also notes that Michael Taggart pointed to a script that checks for atomic-lockfile malware on the system.\u003c/p\u003e\n\n\u003cp\u003eIf compromised packages are found, users are advised to rotate all credentials and consider reinstalling Arch from scratch. The article says this is because a rootkit may survive normal cleaning efforts.\u003c/p\u003e\n","keyPoints":["More than 400 packages in the Arch User Repository are distributing a Linux rootkit and infostealer malware targeting credentials and access tokens.","The compromised packages were modified with preinstall or post-install scripts that download and execute a malicious npm package called atomic-lockfile.","Independent researcher Whanos reported that one atomic-lockfile sample included a Linux ELF payload named deps, described as a credential stealer with optional root-only eBPF rootkit capabilities.","Sonatype said the attacker hijacked at least 20 orphaned AUR packages and modified their PKGBUILD files to invoke npm and install atomic-lockfile during package installation.","Arch users are advised to review affected packages and indicators of compromise, check for atomic-lockfile, rotate credentials if compromised, and consider reinstalling Arch from scratch because a rootkit may survive normal cleaning efforts."],"insights":["The campaign abused AUR’s community-maintained trust model by spoofing a trusted publisher and taking over orphaned packages, showing that package ownership changes are a critical review point for Arch users.","The malicious package targeted developer and build environments specifically, including GitHub, npm, Vault, Docker/Podman, SSH, browser, and collaboration app data, making credential rotation broader than just system passwords.","Because the payload referenced eBPF rootkit capabilities that can hide processes, files, and network interfaces, normal removal of suspicious packages may not be sufficient after infection.","The attack bridged ecosystems by using AUR package scripts to invoke npm and retrieve the malicious atomic-lockfile package, so reviewing only the AUR package source may miss the final payload source."],"referencedReports":[{"title":"400+ AUR Packages Compromised with Infostealer and Rootkit","url":"https://discourse.ifin.network/t/400-aur-packages-compromised-with-infostealer-and-rootkit/577","publisher":"Independent Federated Intelligence Network","context":"The article cites an IFIN report stating that a new maintainer spoofed a trusted AUR publisher and that compromised packages were modified to download and execute atomic-lockfile.","category":"research","primary":true},{"title":"Preliminary Analysis of AUR Malware","url":"https://ioctl.fail/preliminary-analysis-of-aur-malware/","publisher":"Whanos","context":"The article cites Whanos's analysis describing the atomic-lockfile payload as a credential stealer with optional root-only eBPF rootkit capabilities and listing indicators of compromise.","category":"research","primary":true},{"title":"Atomic Arch: npm Campaign Adds Malicious Dependency","url":"https://www.sonatype.com/blog/atomic-arch-npm-campaign-adds-malicious-dependency","publisher":"Sonatype","context":"The article references Sonatype's report on a campaign targeting AUR packages by modifying PKGBUILD files to install the malicious atomic-lockfile npm package.","category":"research","primary":true}],"body":"\u003cp\u003eMore than 400 packages in the Arch User Repository are distributing a Linux rootkit and infostealer targeting credentials and access tokens. The article says a new maintainer spoofed a trusted publisher on AUR to push infected packages. AUR maintainers are working to identify and remove malicious commits and ban the accounts involved.\u003c/p\u003e\n\n\u003cp\u003eThe compromised packages were modified with preinstall scripts that download and execute a malicious npm package called atomic-lockfile. Independent researcher Whanos reported that one atomic-lockfile sample included a Linux ELF payload named deps, described as a credential stealer with optional root-only eBPF rootkit capabilities. Sonatype also reported a related campaign in which at least 20 orphaned AUR packages were hijacked and modified to install atomic-lockfile through PKGBUILD changes.\u003c/p\u003e\n\n\u003cp\u003eThe malware targets developer workstation and build environment secrets, including browser and Electron app data, GitHub credentials, npm data, Vault tokens, Docker/Podman data, SSH artifacts, VPN material, shell histories, and collaboration app data. The article advises Arch users to review affected packages and indicators of compromise, use available checks for atomic-lockfile, rotate credentials if compromised, and consider reinstalling Arch from scratch because a rootkit may survive normal cleanup.\u003c/p\u003e\n"},{"n":3,"title":"Major US surveillance program poised to lapse after legislative deadlock","source":"therecord.media","sourceColorIdx":7,"link":"https://therecord.media/major-us-surveillance-program-set-to-lapse-702-fisa","time":"17:08","priority":"SHOULD READ","score":82,"tldr":"Section 702 of FISA, a major U.S. foreign surveillance authority used for national security intelligence, is set to lapse after Congress failed to pass an extension amid political deadlock over intelligence leadership and reform demands. Existing surveillance orders may continue for now, but new orders and telecom provider compliance could face legal uncertainty.","briefOverview":"\u003cp\u003eSection 702 of the Foreign Intelligence Surveillance Act is set to expire at midnight after Congress and the White House failed to renew it. The article says this would be the first lapse of the program since it became law in 2008. Section 702 allows U.S. intelligence agencies to collect, without a warrant, the digital communications of foreigners overseas.\u003c/p\u003e\n\n\u003cp\u003eLawmakers had spent months trying to reach a renewal deal acceptable to privacy and civil liberties advocates in both parties. Negotiations were disrupted after President Donald Trump announced federal housing official Bill Pulte as acting director of national intelligence, a move that angered Democrats and blindsided Republicans. The House failed to pass a short-term extension before leaving for recess, and the Senate also failed to fast-track a renewal.\u003c/p\u003e\n\n\u003cp\u003eThe program may not stop entirely because an intelligence court approved its continuation for another year in March. The article says existing Section 702 orders would likely continue, but the government probably could not seek new ones, and that interpretation could be challenged in court. A major unresolved issue is whether U.S. communications providers will keep complying with Section 702 court orders if the authority lapses.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eA major U.S. surveillance authority, Section 702 of the Foreign Intelligence Surveillance Act, is poised to lapse at midnight after failed efforts by Congress and the White House to renew it. The article describes this as the first lapse of the program since it was enacted in 2008. Section 702 permits U.S. intelligence agencies to collect, without a warrant, the digital communications of foreigners overseas.\u003c/p\u003e\n\n\u003cp\u003eCongressional lawmakers had worked for months on legislation intended to satisfy privacy and civil liberty advocates across party lines. The Senate had been nearing legislation expected to receive bipartisan support. Those negotiations were upended after President Donald Trump announced that Bill Pulte, a federal housing official with no military or intelligence experience, would serve as acting director of national intelligence.\u003c/p\u003e\n\n\u003cp\u003ePulte’s appointment angered Democrats and surprised Republicans, according to the article. The House attempted to pass another short-term extension on Thursday but fell far short of the required votes before members left town for recess until June 23. The Senate also attempted to fast-track a Section 702 renewal but failed.\u003c/p\u003e\n\n\u003cp\u003eTrump later said he would nominate Jay Clayton, a federal district judge in New York and former Securities and Exchange Commission chair, as permanent director of national intelligence. Sen. Mark Warner welcomed the nomination but said the Senate needed a clear guarantee that Pulte would not serve as acting DNI before taking up a FISA extension. The Senate Intelligence Committee has scheduled Clayton’s confirmation hearing for next week, and Majority Leader John Thune has said he intends to move quickly to confirm him.\u003c/p\u003e\n\n\u003cp\u003eThe lapse may not immediately terminate the program because an intelligence court approved the FISA program in March to continue for another year. The article says this likely means existing Section 702 orders would continue, while the government could not seek new orders, though that interpretation could face legal challenge. A key unanswered question is whether major U.S. communications providers will stop complying with Section 702 court orders.\u003c/p\u003e\n\n\u003cp\u003eWarner said some telecommunications companies may not object to participating as long as they receive indemnification, but he warned that expiration creates uncertainty if indemnification goes away. The article notes that, during the last FISA renewal push in 2024, two service providers told the National Security Agency they would opt out if the program expired. Former NSA operations director Jon Darby said the lapse would reduce insight into threats involving Iran, China, Russia, and terrorists who may target the World Cup, while Jake Laperruque of the Center for Democracy and Technology called the lapse a failure caused by leadership refusing votes on reform.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"overview\"\u003eOverview\u003c/h2\u003e\n\n\u003cp\u003eSection 702 of the Foreign Intelligence Surveillance Act is set to expire at midnight after Congress and the White House failed to renew it. The article says this would be the first lapse of Section 702 since it was passed into law in 2008. The authority allows U.S. intelligence agencies to collect, without a warrant, the digital communications of foreigners overseas.\u003c/p\u003e\n\n\u003cp\u003eThe lapse follows weeks of unsuccessful efforts to preserve access to what the article describes as critical national security information. Lawmakers had spent months trying to create a deal that could satisfy privacy and civil liberty advocates from both parties. The Senate had been moving toward legislation expected to gain bipartisan support before negotiations were disrupted.\u003c/p\u003e\n\n\u003ch2 id=\"legislative-deadlock\"\u003eLegislative Deadlock\u003c/h2\u003e\n\n\u003cp\u003eThe article says negotiations were upended when President Donald Trump announced that federal housing official Bill Pulte would serve as acting director of national intelligence. Pulte is described as having no military or intelligence experience and as previously gaining notoriety for targeting the president’s critics with mortgage fraud accusations and probes. The appointment angered Democrats and blindsided Republicans.\u003c/p\u003e\n\n\u003cp\u003eOn Thursday, the House attempted to pass another short-term extension of Section 702. The effort fell well short of the necessary votes before House members left town for recess until June 23. The Senate also tried and failed to fast-track a renewal of Section 702.\u003c/p\u003e\n\n\u003ch2 id=\"intelligence-leadership-dispute\"\u003eIntelligence Leadership Dispute\u003c/h2\u003e\n\n\u003cp\u003eTrump eventually said he would nominate Jay Clayton to be the next permanent director of national intelligence. Clayton is described in the article as a federal district judge in New York and a former chair of the Securities and Exchange Commission. The announcement was welcomed by key Democrats, including Sen. Mark Warner, the ranking member on the Senate Intelligence Committee.\u003c/p\u003e\n\n\u003cp\u003eWarner said he was glad the president had “finally come to his senses,” but added that the Senate needed a clear guarantee that Pulte would not serve as acting DNI before taking up a FISA extension. The Senate Intelligence Committee has scheduled Clayton’s confirmation hearing for next week. Senate Majority Leader John Thune has publicly indicated that he intends to move as quickly as possible to confirm Clayton.\u003c/p\u003e\n\n\u003ch2 id=\"technical-and-legal-status-of-section-702\"\u003eTechnical and Legal Status of Section 702\u003c/h2\u003e\n\n\u003cp\u003eThe article says the program will not necessarily shut down completely when the statutory authority lapses. In March, an intelligence court approved the FISA program to continue for another year. The likely result, according to the article, is that existing Section 702 orders would continue while the government would be unable to seek new ones.\u003c/p\u003e\n\n\u003cp\u003eHowever, the article notes that even this interpretation could be challenged in court. A major unresolved issue is whether large U.S. communications providers will keep complying with court orders under Section 702. This provider-compliance question is presented as a central operational risk of the lapse.\u003c/p\u003e\n\n\u003ch2 id=\"communications-provider-uncertainty\"\u003eCommunications Provider Uncertainty\u003c/h2\u003e\n\n\u003cp\u003eSen. Warner, who is described as a former telecom executive, said some telecommunications companies may not find participation burdensome as long as they receive indemnification. He warned that uncertainty arises if indemnification disappears, which is why lawmakers have tried to avoid allowing the authority to expire. The article does not say whether any companies have indicated this time that they would stop complying.\u003c/p\u003e\n\n\u003cp\u003eThe article notes that during the final hours of the previous FISA renewal push in 2024, two service providers told the National Security Agency they would opt out of the program if it expired. Warner said he did not know whether any companies had made similar indications during the current lapse. Any such standoff would likely go to court.\u003c/p\u003e\n\n\u003cp\u003eThe article cites a 2008 dispute involving Yahoo and the law that preceded Section 702. In that case, a judge ruled that Yahoo did not have to adhere to the prior law, and the matter was ultimately resolved in the government’s favor after several months of legal wrangling. The article uses this example to illustrate the kind of legal fight that could occur if providers resist compliance.\u003c/p\u003e\n\n\u003ch2 id=\"impact-described-in-the-article\"\u003eImpact Described in the Article\u003c/h2\u003e\n\n\u003cp\u003eThe article says the program provides more than half of the president’s daily intelligence briefing. It also says the program will begin to “roll up” as the lapse takes effect. Former NSA Director of Operations Jon Darby said Section 702 underpins much of the country’s most important foreign intelligence.\u003c/p\u003e\n\n\u003cp\u003eDarby argued that there are numerous safeguards in place to prevent misuse and that reviewing or modifying safeguards can be appropriate. However, he called letting the authority lapse “irresponsible and dangerous.” He said the United States would have less insight into threats involving Iran, China, Russia, and terrorists who may be targeting the World Cup.\u003c/p\u003e\n\n\u003ch2 id=\"reform-criticism\"\u003eReform Criticism\u003c/h2\u003e\n\n\u003cp\u003eJake Laperruque, deputy director for the Center for Democracy and Technology’s Security and Surveillance Project, called the lapse an “inexcusable failure” by congressional leadership. He said the failure occurred because leaders refused to allow votes on reform. He also said that the law is clear that ongoing operations do not change, but that the issue still needs to be addressed.\u003c/p\u003e\n\n\u003cp\u003eLaperruque accused the administration and lawmakers of blocking votes on reform and pushing an extension of the status quo that a strong bipartisan majority rejected. He said they had repeated the same failed plan and hoped for a different outcome. He called for votes on reforms to fix FISA and make it safe from abuse.\u003c/p\u003e\n\n\u003ch2 id=\"key-affected-parties-and-entities\"\u003eKey Affected Parties and Entities\u003c/h2\u003e\n\n\u003cp\u003eThe article identifies several affected or involved parties:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eU.S. intelligence agencies that use Section 702 authority.\u003c/li\u003e\n\u003cli\u003eCongress, including both the House and Senate, which failed to pass a renewal or extension.\u003c/li\u003e\n\u003cli\u003eThe White House, which was involved in failed efforts to renew the authority.\u003c/li\u003e\n\u003cli\u003ePresident Donald Trump, whose acting DNI announcement disrupted negotiations.\u003c/li\u003e\n\u003cli\u003eBill Pulte, named by Trump as acting director of national intelligence.\u003c/li\u003e\n\u003cli\u003eJay Clayton, whom Trump said he would nominate as permanent director of national intelligence.\u003c/li\u003e\n\u003cli\u003eSen. Mark Warner, who welcomed Clayton’s nomination but demanded assurance that Pulte would not serve as acting DNI.\u003c/li\u003e\n\u003cli\u003eSenate Majority Leader John Thune, who indicated he intends to move quickly on Clayton’s confirmation.\u003c/li\u003e\n\u003cli\u003eThe National Security Agency, which was told by two service providers in 2024 that they would opt out if the program expired.\u003c/li\u003e\n\u003cli\u003eMajor U.S. communications and telecommunications providers, whose compliance with Section 702 orders remains a key question.\u003c/li\u003e\n\u003cli\u003eThe Center for Democracy and Technology, represented in the article by Jake Laperruque.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"bottom-line\"\u003eBottom Line\u003c/h2\u003e\n\n\u003cp\u003eThe article’s central issue is that Section 702 is set to lapse because lawmakers failed to pass a renewal amid disputes over surveillance reform and intelligence leadership. Existing orders may continue because of prior intelligence court approval, but the government likely cannot seek new orders and provider compliance may become uncertain. Officials and advocates quoted in the article disagree on the cause and implications, with national security voices warning of reduced intelligence collection and reform advocates blaming congressional leadership for blocking votes on changes to FISA.\u003c/p\u003e\n","keyPoints":["Section 702 of the Foreign Intelligence Surveillance Act is set to expire at midnight for the first time since it became law in 2008.","Congressional efforts to renew Section 702 stalled after President Donald Trump announced Bill Pulte as acting director of national intelligence, angering Democrats and surprising Republicans.","The House and Senate both failed to advance short-term or fast-tracked renewals of Section 702 before the deadline.","A March intelligence court approval may allow existing Section 702 orders to continue for another year, but the government likely cannot seek new orders if the law lapses.","A key unresolved issue is whether major U.S. communications providers will continue complying with Section 702 court orders if the program expires."],"insights":["The practical impact of the lapse may hinge less on the statutory deadline itself than on whether communications providers continue complying with existing Section 702 orders without clear indemnification.","The article indicates that prior lapses or near-lapses can quickly become provider-compliance disputes, citing two service providers that told the NSA in 2024 they would opt out if the program expired and a 2008 Yahoo-related court fight.","The March intelligence court approval creates an unusual split in the program’s status: existing Section 702 operations may continue for up to a year while the government is likely unable to seek new orders.","The failed renewal is tied not only to surveillance reform disagreements but also to a personnel fight over the acting director of national intelligence, showing how leadership disputes can directly affect intelligence authorities."],"referencedReports":[],"body":"\u003cp\u003eSection 702 of the Foreign Intelligence Surveillance Act is set to expire at midnight after Congress and the White House failed to renew it. The article says this would be the first lapse of the program since it became law in 2008. Section 702 allows U.S. intelligence agencies to collect, without a warrant, the digital communications of foreigners overseas.\u003c/p\u003e\n\n\u003cp\u003eLawmakers had spent months trying to reach a renewal deal acceptable to privacy and civil liberties advocates in both parties. Negotiations were disrupted after President Donald Trump announced federal housing official Bill Pulte as acting director of national intelligence, a move that angered Democrats and blindsided Republicans. The House failed to pass a short-term extension before leaving for recess, and the Senate also failed to fast-track a renewal.\u003c/p\u003e\n\n\u003cp\u003eThe program may not stop entirely because an intelligence court approved its continuation for another year in March. The article says existing Section 702 orders would likely continue, but the government probably could not seek new ones, and that interpretation could be challenged in court. A major unresolved issue is whether U.S. communications providers will keep complying with Section 702 court orders if the authority lapses.\u003c/p\u003e\n"},{"n":6,"title":"Ukrainian national pleads guilty to role in Conti ransomware operation","source":"bleepingcomputer.com","sourceColorIdx":10,"link":"https://www.bleepingcomputer.com/news/security/ukrainian-national-pleads-guilty-to-role-in-conti-ransomware-operation/","time":"17:54","priority":"SHOULD READ","score":78,"tldr":"Ukrainian national Oleksii Lytvynenko pleaded guilty in the U.S. to helping the Conti ransomware operation by developing malware tooling and possessing stolen victim data. He faces up to 20 years in prison for his role in attacks tied to a group that extorted over $150 million from more than 1,000 victims worldwide.","briefOverview":"\u003cp\u003eUkrainian national Oleksii Oleksiyovych Lytvynenko pleaded guilty in the United States to conspiracy to commit wire fraud for his role in the Conti ransomware operation. The U.S. Department of Justice said the activity occurred between 2021 and 2022. Lytvynenko was extradited from Ireland to the United States after his arrest in July 2023.\u003c/p\u003e\n\n\u003cp\u003eAccording to prosecutors, Lytvynenko and co-conspirators deployed Conti ransomware on victim networks in the United States and abroad. The attacks involved stealing data, encrypting devices, and extorting Bitcoin ransom payments. Lytvynenko admitted to possessing data stolen from eight U.S. victims and four overseas victims.\u003c/p\u003e\n\n\u003cp\u003eThe case is significant because court documents state that Conti targeted more than 1,000 victims worldwide and collected over $150 million in ransom payments. Lytvynenko also admitted to working on a malware “loader” used to load software needed to carry out attacks. He now faces a maximum sentence of 20 years in prison.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eUkrainian national Oleksii Oleksiyovych Lytvynenko pleaded guilty to conspiracy to commit wire fraud in connection with the Conti ransomware operation. The U.S. Department of Justice announced the plea on Thursday and said the relevant attacks occurred between 2021 and 2022. Lytvynenko was extradited from Ireland to the United States after being arrested in July 2023.\u003c/p\u003e\n\n\u003cp\u003eProsecutors said Lytvynenko and his co-conspirators deployed Conti ransomware on victim networks in the United States and abroad. The attacks involved stealing data and encrypting devices to pressure victims into paying Bitcoin ransoms. According to the DOJ, Lytvynenko admitted to joining the Conti conspiracy in approximately September 2021.\u003c/p\u003e\n\n\u003cp\u003eLytvynenko also admitted to possessing data stolen from eight U.S. victims and four overseas victims. He further admitted to joining a team run by another Conti conspirator, where he worked on coding a malware “loader.” The article describes the loader as malware used to load software needed to carry out attacks.\u003c/p\u003e\n\n\u003cp\u003eThe Conti ransomware operation was one of the most prolific cybercrime groups active at the time. The group targeted hospitals, businesses, schools, and government agencies worldwide. Court documents state that Conti targeted more than 1,000 victims worldwide and collected over $150 million in ransom payments.\u003c/p\u003e\n\n\u003cp\u003eThe article also places Conti in the broader ransomware ecosystem. It says Conti emerged from the Ryuk cybercrime group and was closely tied to the TrickBot malware syndicate. The group shut down in 2022 after its internal chats were leaked and law enforcement pressure increased.\u003c/p\u003e\n\n\u003cp\u003eSecurity researchers believe former Conti members later splintered into other ransomware groups, including BlackCat, Black Basta, ZEON, Hive, Quantum, BlackByte, Karakurt, and the Silent Ransom Group. In September 2023, the United States and United Kingdom sanctioned and charged nine Russian nationals associated with TrickBot and Conti. Those actions were tied to attacks against more than 900 victims worldwide.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"overview\"\u003eOverview\u003c/h2\u003e\n\n\u003cp\u003eUkrainian national Oleksii Oleksiyovych Lytvynenko pleaded guilty in the United States to conspiracy to commit wire fraud for his role in the Conti ransomware operation. The U.S. Department of Justice said the charges relate to Conti ransomware attacks conducted between 2021 and 2022. Lytvynenko is 44 years old and was extradited from Ireland to the United States after his arrest in July 2023.\u003c/p\u003e\n\n\u003cp\u003eLytvynenko now faces a maximum sentence of 20 years in prison. His guilty plea is tied to activity involving stolen data, encrypted victim systems, and Bitcoin ransom demands. The article describes the case as part of the broader law enforcement response to the Conti ransomware operation and related cybercrime groups.\u003c/p\u003e\n\n\u003ch2 id=\"alleged-and-admitted-conduct\"\u003eAlleged and Admitted Conduct\u003c/h2\u003e\n\n\u003cp\u003eAccording to prosecutors, Lytvynenko and his co-conspirators deployed Conti ransomware on victim networks in the United States and abroad. The attacks involved stealing data and encrypting devices to extort ransom payments in Bitcoin.\u003c/p\u003e\n\n\u003cp\u003eThe Department of Justice said Lytvynenko admitted that he joined the Conti conspiracy in approximately September 2021. He also admitted to possessing data stolen from eight U.S. victims and four overseas victims.\u003c/p\u003e\n\n\u003cp\u003eLytvynenko further admitted that he joined a team run by another Conti conspirator. In that role, he worked on coding a “loader,” which the article describes as a type of malware used to load software needed to carry out attacks.\u003c/p\u003e\n\n\u003ch2 id=\"technical-detail\"\u003eTechnical Detail\u003c/h2\u003e\n\n\u003cp\u003eThe main technical detail disclosed in the article is Lytvynenko’s work on a malware loader. The loader was used to load software required to carry out attacks. The article does not provide code-level detail, specific loader names, or details about the systems affected by the loader.\u003c/p\u003e\n\n\u003cp\u003eThe article also states that Conti ransomware attacks involved two core pressure tactics:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eStealing data from victim networks.\u003c/li\u003e\n\u003cli\u003eEncrypting devices to extort Bitcoin ransom payments.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"scale-and-impact-of-conti\"\u003eScale and Impact of Conti\u003c/h2\u003e\n\n\u003cp\u003eThe Conti ransomware operation was described as one of the most prolific cybercrime groups active at the time. It targeted hospitals, businesses, schools, and government agencies worldwide.\u003c/p\u003e\n\n\u003cp\u003eCourt documents cited in the article state that Conti targeted more than 1,000 victims worldwide. The same documents state that the group collected more than $150 million in ransom payments.\u003c/p\u003e\n\n\u003cp\u003eThe victims specifically linked to Lytvynenko’s admitted possession of stolen data included eight U.S. victims and four overseas victims. The article does not name those victims.\u003c/p\u003e\n\n\u003ch2 id=\"background-on-the-conti-operation\"\u003eBackground on the Conti Operation\u003c/h2\u003e\n\n\u003cp\u003eThe article says the Conti ransomware gang emerged from the Ryuk cybercrime group. It was also closely tied to the TrickBot malware syndicate.\u003c/p\u003e\n\n\u003cp\u003eConti became notorious for large-scale attacks against healthcare organizations, governments, and enterprises. The group shut down in 2022 after its internal chats were leaked and law enforcement pressure increased.\u003c/p\u003e\n\n\u003cp\u003eSecurity researchers believe former Conti members later splintered into several other ransomware or extortion groups. The article lists BlackCat, Black Basta, ZEON, Hive, Quantum, BlackByte, Karakurt, and the Silent Ransom Group.\u003c/p\u003e\n\n\u003ch2 id=\"related-law-enforcement-actions\"\u003eRelated Law Enforcement Actions\u003c/h2\u003e\n\n\u003cp\u003eThe article notes that in September 2023, the United States and the United Kingdom sanctioned and charged nine Russian nationals associated with the TrickBot and Conti ransomware cybercrime operations. Those actions were connected to attacks against more than 900 victims worldwide.\u003c/p\u003e\n\n\u003cp\u003eLytvynenko’s case follows his extradition from Ireland to the United States. His guilty plea adds to the legal actions described in the article involving individuals associated with the Conti and TrickBot ecosystems.\u003c/p\u003e\n\n\u003ch2 id=\"key-takeaways\"\u003eKey Takeaways\u003c/h2\u003e\n\n\u003cul\u003e\n\u003cli\u003eOleksii Oleksiyovych Lytvynenko pleaded guilty to conspiracy to commit wire fraud for his role in Conti ransomware attacks.\u003c/li\u003e\n\u003cli\u003eProsecutors said the attacks involved stolen data, encrypted systems, and Bitcoin ransom demands.\u003c/li\u003e\n\u003cli\u003eLytvynenko admitted to joining Conti around September 2021 and possessing data stolen from eight U.S. victims and four overseas victims.\u003c/li\u003e\n\u003cli\u003eHe also admitted to working on a malware loader used to load software needed for attacks.\u003c/li\u003e\n\u003cli\u003eCourt documents state that Conti targeted more than 1,000 victims worldwide and collected over $150 million in ransom payments.\u003c/li\u003e\n\u003cli\u003eLytvynenko faces a maximum sentence of 20 years in prison.\u003c/li\u003e\n\u003c/ul\u003e\n","keyPoints":["Ukrainian national Oleksii Oleksiyovych Lytvynenko pleaded guilty in the United States to conspiracy to commit wire fraud for his role in Conti ransomware attacks conducted between 2021 and 2022.","Prosecutors said Lytvynenko and co-conspirators deployed Conti ransomware on victim networks in the United States and abroad, stealing data and encrypting devices to extort Bitcoin ransom payments.","Lytvynenko admitted to joining the Conti conspiracy around September 2021, possessing data stolen from eight U.S. victims and four overseas victims, and working on a malware loader for the operation.","Court documents state that the Conti ransomware operation targeted more than 1,000 victims worldwide and collected over $150 million in ransom payments.","Lytvynenko was extradited from Ireland to the United States after his July 2023 arrest and now faces a maximum sentence of 20 years in prison."],"insights":["Lytvynenko’s admitted work on a malware loader shows that law enforcement is pursuing not only ransomware deployers but also developers of supporting tooling used in ransomware operations.","The case highlights the international reach of U.S. ransomware prosecutions, with a Ukrainian national arrested in Ireland, extradited to the United States, and prosecuted for victims in the United States and abroad.","The Conti ecosystem continued to matter after the group shut down in 2022, as researchers linked former members to multiple later ransomware and extortion groups including BlackCat, Black Basta, Hive, Karakurt, and Silent Ransom Group.","The article shows that leaked internal chats and increased law enforcement pressure were significant enough to contribute to the shutdown of one of the most prolific ransomware operations of its time."],"referencedReports":[],"body":"\u003cp\u003eUkrainian national Oleksii Oleksiyovych Lytvynenko pleaded guilty in the United States to conspiracy to commit wire fraud for his role in the Conti ransomware operation. The U.S. Department of Justice said the activity occurred between 2021 and 2022. Lytvynenko was extradited from Ireland to the United States after his arrest in July 2023.\u003c/p\u003e\n\n\u003cp\u003eAccording to prosecutors, Lytvynenko and co-conspirators deployed Conti ransomware on victim networks in the United States and abroad. The attacks involved stealing data, encrypting devices, and extorting Bitcoin ransom payments. Lytvynenko admitted to possessing data stolen from eight U.S. victims and four overseas victims.\u003c/p\u003e\n\n\u003cp\u003eThe case is significant because court documents state that Conti targeted more than 1,000 victims worldwide and collected over $150 million in ransom payments. Lytvynenko also admitted to working on a malware “loader” used to load software needed to carry out attacks. He now faces a maximum sentence of 20 years in prison.\u003c/p\u003e\n"},{"n":1,"title":"Bankruptcy admin approves settlement fund of $47 million for 23andMe data breach victims","source":"therecord.media","sourceColorIdx":7,"link":"https://therecord.media/bankruptcy-admin-approves-settlement-for-23andme-breach-victims","time":"17:12","priority":"MAY READ","score":68,"tldr":"A Missouri bankruptcy court administrator approved a $46.8 million settlement fund for victims of 23andMe’s 2023 data breach, with about $32.5 million going to affected customers. Individual payouts will range from about $50 to $10,000 depending on the severity of harm.","briefOverview":"\u003cp\u003eA Missouri bankruptcy court administrator approved a $46.8 million settlement fund for victims of a 2023 data breach at 23andMe. About 7 million customers of the genetics testing company had data stolen by hackers starting in April 2023. Many of those customers had their information posted on the dark web.\u003c/p\u003e\n\n\u003cp\u003eVictims will receive \u003cspan class=\"math inline\"\u003e\\(32.5 million from the fund, while more than \\)\u003c/span\u003e14 million will be used to pay Kroll, the settlement and claims administrator. Nearly 256,000 claims have been resolved, according to court documents. Class members will receive payments based on the severity of individual harms, ranging from as little as \u003cspan class=\"math inline\"\u003e\\(50 to up to \\)\u003c/span\u003e10,000.\u003c/p\u003e\n\n\u003cp\u003eThe plaintiffs had sought $48 billion in damages, but the administrator approved a much smaller amount due to the company’s financial condition and the expected cost of prolonged litigation. The company, now named Chrome Holding Co., filed for bankruptcy in March 2025 and liquidated most of its assets. Founder Anne Wojcicki bought it back amid controversy.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eA Missouri bankruptcy court administrator signed off on a settlement fund worth $46.8 million for victims of a 2023 data breach at 23andMe. The breach affected about 7 million customers of the genetics testing company. The article says hackers began stealing customer data in April 2023, and many victims had their information posted on the dark web.\u003c/p\u003e\n\n\u003cp\u003eThe settlement allocates \u003cspan class=\"math inline\"\u003e\\(32.5 million to victims, while more than \\)\u003c/span\u003e14 million will be used to pay Kroll, the settlement and claims administrator. Nearly 256,000 claims have been resolved, according to court documents. Class members will recover damages based on the severity of individual harms caused by the breach.\u003c/p\u003e\n\n\u003cp\u003eThe payout structure ranges from as little as \u003cspan class=\"math inline\"\u003e\\(50 for minor claims to up to \\)\u003c/span\u003e10,000 for the most serious claims. The plaintiffs had sought \u003cspan class=\"math inline\"\u003e\\(48 billion in damages. The administrator approved the lower amount after considering findings that a \\)\u003c/span\u003e30 million prepetition settlement would be reasonable given the company’s dire financial condition.\u003c/p\u003e\n\n\u003cp\u003eThe article says 23andMe had been in poor financial health even before the breach. The administrator also cited the risk of protracted, high-stakes litigation that could last months or years, require extensive discovery, and consume millions of dollars in professional fees and related costs. Court documents said those resources would be better preserved for stakeholders.\u003c/p\u003e\n\n\u003cp\u003eAfter announcing the hack in October 2023, 23andMe said the malicious actor obtained DNA Relatives profiles for about 5.5 million consumers. Data for another 14.1 million customers who used a product called Family Tree was also accessed. The article does not name the malicious actor.\u003c/p\u003e\n\n\u003cp\u003eIn March 2025, 23andMe, now named Chrome Holding Co., filed for bankruptcy and liquidated most of its assets. Anne Wojcicki, the company’s founder, bought it back amid controversy. The settlement was approved within that bankruptcy context.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"overview\"\u003eOverview\u003c/h2\u003e\n\n\u003cp\u003eA Missouri bankruptcy court administrator approved a $46.8 million settlement fund for victims of a 2023 data breach at 23andMe. The breach affected about 7 million customers of the genetics testing company, with hackers stealing data starting in April 2023. The article says many victims had their information posted on the dark web.\u003c/p\u003e\n\n\u003cp\u003eThe approved settlement is far below the $48 billion in damages sought by plaintiffs. The administrator determined that a smaller amount should be levied because of the company’s dire financial condition and the risks and costs of extended litigation.\u003c/p\u003e\n\n\u003ch2 id=\"settlement-allocation\"\u003eSettlement Allocation\u003c/h2\u003e\n\n\u003cp\u003eThe settlement fund totals \u003cspan class=\"math inline\"\u003e\\(46.8 million. Of that amount, victims will be allotted \\)\u003c/span\u003e32.5 million.\u003c/p\u003e\n\n\u003cp\u003eMore than $14 million of the fund will be used to pay Kroll, the settlement and claims administrator in the case. Court documents cited in the article say nearly 256,000 claims have been resolved.\u003c/p\u003e\n\n\u003ch2 id=\"victim-compensation\"\u003eVictim Compensation\u003c/h2\u003e\n\n\u003cp\u003eClass members will receive damages based on the severity of the individual harms caused by the breach. The article states that awards may reach up to $10,000 for the most serious claims.\u003c/p\u003e\n\n\u003cp\u003eFor minor claims, awards may be as low as $50. The settlement therefore uses a tiered compensation structure tied to the harm alleged by each claimant.\u003c/p\u003e\n\n\u003ch2 id=\"breach-details\"\u003eBreach Details\u003c/h2\u003e\n\n\u003cp\u003e23andMe announced the hack in October 2023. The company said the malicious actor obtained DNA Relatives profiles for about 5.5 million consumers.\u003c/p\u003e\n\n\u003cp\u003eThe article also says data for another 14.1 million customers who used a product called Family Tree was accessed. The article does not identify the malicious actor by name.\u003c/p\u003e\n\n\u003ch2 id=\"bankruptcy-context\"\u003eBankruptcy Context\u003c/h2\u003e\n\n\u003cp\u003eThe article says 23andMe was already in poor financial health even before the breach. It states that the company had seemingly already tapped the market of people interested in using its at-home, saliva-based DNA tests.\u003c/p\u003e\n\n\u003cp\u003eIn March 2025, 23andMe, now named Chrome Holding Co., filed for bankruptcy and liquidated most of its assets. Anne Wojcicki, who founded the company, later bought it back amid controversy.\u003c/p\u003e\n\n\u003ch2 id=\"rationale-for-the-lower-settlement\"\u003eRationale for the Lower Settlement\u003c/h2\u003e\n\n\u003cp\u003eThe plaintiffs sought \u003cspan class=\"math inline\"\u003e\\(48 billion in damages, but the administrator approved a much lower amount. Court documents cited in the article say the district court found a \\)\u003c/span\u003e30 million prepetition settlement would be reasonable in light of the company’s dire financial condition.\u003c/p\u003e\n\n\u003cp\u003eThe plan administrator also determined that pursuing the larger amount would expose the estates to protracted, high-stakes litigation. According to the article, that litigation could last months or years, require extensive discovery, and cost millions of dollars in professional fees and related costs.\u003c/p\u003e\n\n\u003cp\u003eCourt documents said those resources would be better preserved for stakeholders. This reasoning was a central factor in approving the smaller settlement fund.\u003c/p\u003e\n\n\u003ch2 id=\"affected-parties-and-named-entities\"\u003eAffected Parties and Named Entities\u003c/h2\u003e\n\n\u003cul\u003e\n\u003cli\u003e23andMe was the genetics testing company affected by the 2023 data breach.\u003c/li\u003e\n\u003cli\u003eChrome Holding Co. is the current name of 23andMe, according to the article.\u003c/li\u003e\n\u003cli\u003eAbout 7 million 23andMe customers had data stolen by hackers starting in April 2023.\u003c/li\u003e\n\u003cli\u003eKroll is the settlement and claims administrator receiving more than $14 million from the fund.\u003c/li\u003e\n\u003cli\u003eAnne Wojcicki founded 23andMe and bought it back after the company filed for bankruptcy and liquidated most of its assets.\u003c/li\u003e\n\u003cli\u003eA Missouri bankruptcy court administrator approved the settlement.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"impact\"\u003eImpact\u003c/h2\u003e\n\n\u003cp\u003eThe breach exposed customer data tied to 23andMe services, including DNA Relatives profiles and Family Tree data. Many victims had information posted on the dark web.\u003c/p\u003e\n\n\u003cp\u003eThe financial impact of the settlement is limited by the company’s bankruptcy situation. Victims will share \u003cspan class=\"math inline\"\u003e\\(32.5 million, and individual payments will depend on the severity of harms, ranging from \\)\u003c/span\u003e50 to $10,000.\u003c/p\u003e\n","keyPoints":["A Missouri bankruptcy court administrator approved a $46.8 million settlement fund for victims of a 2023 data breach at 23andMe.","About 7 million 23andMe customers had data stolen by hackers starting in April 2023, and many had their information posted on the dark web.","Victims will receive $32.5 million from the settlement fund, while more than $14 million will be used to pay Kroll, the settlement and claims administrator.","Nearly 256,000 claims have been resolved, with class members eligible for awards ranging from $50 for minor claims to up to $10,000 for the most serious claims.","23andMe, now named Chrome Holding Co., filed for bankruptcy in March 2025 and liquidated most of its assets before founder Anne Wojcicki bought it back."],"insights":["The approved settlement is dramatically smaller than the plaintiffs’ requested $48 billion because the administrator prioritized the company’s dire financial condition and avoiding prolonged litigation costs.","More than $14 million of the $46.8 million fund will go to Kroll for settlement and claims administration, leaving $32.5 million for victims.","The bankruptcy process materially shaped the outcome of the data breach claims, with the administrator citing preservation of estate resources for stakeholders as a reason to avoid high-stakes litigation.","The settlement uses a severity-based payout structure, meaning the most serious individual harms may receive up to $10,000 while minor claims may receive as little as $50."],"referencedReports":[],"body":"\u003cp\u003eA Missouri bankruptcy court administrator approved a $46.8 million settlement fund for victims of a 2023 data breach at 23andMe. About 7 million customers of the genetics testing company had data stolen by hackers starting in April 2023. Many of those customers had their information posted on the dark web.\u003c/p\u003e\n\n\u003cp\u003eVictims will receive \u003cspan class=\"math inline\"\u003e\\(32.5 million from the fund, while more than \\)\u003c/span\u003e14 million will be used to pay Kroll, the settlement and claims administrator. Nearly 256,000 claims have been resolved, according to court documents. Class members will receive payments based on the severity of individual harms, ranging from as little as \u003cspan class=\"math inline\"\u003e\\(50 to up to \\)\u003c/span\u003e10,000.\u003c/p\u003e\n\n\u003cp\u003eThe plaintiffs had sought $48 billion in damages, but the administrator approved a much smaller amount due to the company’s financial condition and the expected cost of prolonged litigation. The company, now named Chrome Holding Co., filed for bankruptcy in March 2025 and liquidated most of its assets. Founder Anne Wojcicki bought it back amid controversy.\u003c/p\u003e\n"},{"n":7,"title":"Early Warning Signs of Supply-Chain Attacks Live in the Dark Web","source":"bleepingcomputer.com","sourceColorIdx":10,"link":"https://www.bleepingcomputer.com/news/security/early-warning-signs-of-supply-chain-attacks-live-in-the-dark-web/","time":"14:01","priority":"MAY READ","score":45,"tldr":"Supply-chain attacks often leave early clues on dark web forums through offers of developer access, leaked repositories, API keys, OAuth tokens, CI/CD secrets, and vendor data before they become public incidents. Defenders should monitor these signals because seemingly ordinary access sales can expose trusted software build, deployment, and integration paths.","briefOverview":"\u003cp\u003eFlare researchers reviewed underground forum and marketplace posts and found that early warning signs of software supply-chain attacks may appear before incidents become public. These signals often do not use the phrase “supply-chain attack” and may instead appear as offers involving GitHub access, private repositories, source code, API keys, OAuth tokens, cloud credentials, CI/CD data, or vendor-related leaks. The article argues that the risk depends on where the access sits and which trust relationships it touches.\u003c/p\u003e\n\n\u003cp\u003eThe article explains that developer identities, repositories, SaaS integrations, package publishing systems, and CI/CD environments can expose paths into trusted software build and deployment processes. It cites examples involving Vercel, Sportradar, Mistral AI, Shai-Hulud, LiteLLM, and malicious VS Code extensions to show how trusted tools and software ecosystems can create downstream risk. The main takeaway for defenders is to monitor underground signals around developer access and operational secrets, not only public vulnerability disclosures or package alerts.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eThe article, sponsored and written by Flare, focuses on how early signs of software supply-chain attacks can appear in underground forums and marketplaces before they are publicly recognized as incidents. It says these signs are often hard to identify because they may look like ordinary access sales or data leaks. Posts may mention GitHub access, private repositories, source code, API keys, OAuth tokens, cloud credentials, CI/CD data, or vendor-related leaks without explicitly describing a supply-chain attack.\u003c/p\u003e\n\n\u003cp\u003eA software supply-chain attack is described as an attack on trusted tools, vendors, software components, services, or processes that an organization relies on, rather than a direct attack on the organization itself. The article says this can include compromised third-party providers, developer accounts, source-code repositories, package registries, CI/CD pipelines, update mechanisms, plugins, or SaaS integrations. The danger is that attackers may use trusted access, updates, code, or integrations to reach downstream customers, users, or internal systems.\u003c/p\u003e\n\n\u003cp\u003eFlare researchers observed a post advertising GitHub-related access, including developer accounts, private repositories, access material, and source-code exposure. The article says such access may expose secrets, deployment scripts, package publishing logic, cloud credentials, internal documentation, and CI/CD workflows. It also references the April 2026 Vercel incident as an example of how trusted third-party AI tools and OAuth-connected SaaS access can create broader security concerns.\u003c/p\u003e\n\n\u003cp\u003eThe article also discusses alleged vendor data and source-code exposure involving Sportradar AG, which it says was later echoed in public reporting on the broader TeamPCP supply-chain campaign. It says the Sportradar case was linked to a compromised Trivy scanner and included database passwords, API key and secret pairs, Kafka credentials, and monitoring tokens. It also references public reporting around TeamPCP and Mistral AI, noting that repositories may contain credentials, build logic, deployment workflows, internal service names, API documentation, or references to customers and integrations.\u003c/p\u003e\n\n\u003cp\u003ePackage ecosystem incidents are presented as another area where access can scale. The article cites Shai-Hulud as a self-spreading npm supply-chain attack that stole developer secrets and infected trusted packages, and it references the LiteLLM incident involving unauthorized PyPI package publishes connected to developer and CI/CD environments. The article concludes that defenders should monitor exposed developer credentials, GitHub and GitLab access, package registry tokens, leaked repositories, CI/CD secrets, cloud keys, OAuth grants, and claims involving important vendors or software providers.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"overview\"\u003eOverview\u003c/h2\u003e\n\n\u003cp\u003eThe article argues that early warning signs of software supply-chain attacks often appear in underground forums and marketplaces before they are visible as public incidents. According to Flare researchers, these signals are difficult to recognize because they may not be labeled as supply-chain activity. Instead, they may appear as posts advertising GitHub access, private repositories, source code, API keys, OAuth tokens, cloud credentials, CI/CD data, or vendor-related leaks.\u003c/p\u003e\n\n\u003cp\u003eThe article emphasizes that the supply-chain relevance of such posts depends on where the access sits and what trust relationships it touches. A post that looks like a standard access sale can become supply-chain relevant if it provides visibility into software build processes, secrets, package publishing workflows, cloud access, or trusted vendor integrations.\u003c/p\u003e\n\n\u003ch2 id=\"what-the-article-defines-as-a-software-supply-chain-attack\"\u003eWhat the Article Defines as a Software Supply-Chain Attack\u003c/h2\u003e\n\n\u003cp\u003eThe article defines a software supply-chain attack as an attack that targets trusted tools, vendors, software components, services, or processes an organization relies on, rather than attacking the organization directly. In software environments, this can include compromise of:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eThird-party providers\u003c/li\u003e\n\u003cli\u003eDeveloper accounts\u003c/li\u003e\n\u003cli\u003eSource-code repositories\u003c/li\u003e\n\u003cli\u003ePackage registries\u003c/li\u003e\n\u003cli\u003eCI/CD pipelines\u003c/li\u003e\n\u003cli\u003eUpdate mechanisms\u003c/li\u003e\n\u003cli\u003ePlugins\u003c/li\u003e\n\u003cli\u003eSaaS integrations\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe core risk is that once attackers compromise something trusted inside the delivery chain, they may reach downstream customers, users, or internal systems through legitimate-looking access, code, updates, or integrations.\u003c/p\u003e\n\n\u003ch2 id=\"underground-access-sales-can-become-supply-chain-relevant\"\u003eUnderground Access Sales Can Become Supply-Chain Relevant\u003c/h2\u003e\n\n\u003cp\u003eFlare researchers observed a post advertising GitHub-related access, including references to developer accounts, private repositories, access material, and source-code exposure. The article says this may initially look like a normal access sale, but GitHub access can expose more than code.\u003c/p\u003e\n\n\u003cp\u003eAccording to the article, GitHub or repository access may reveal:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eSecrets\u003c/li\u003e\n\u003cli\u003eDeployment scripts\u003c/li\u003e\n\u003cli\u003ePackage publishing logic\u003c/li\u003e\n\u003cli\u003eCloud credentials\u003c/li\u003e\n\u003cli\u003eInternal documentation\u003c/li\u003e\n\u003cli\u003eCI/CD workflows\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article says that if attackers gain access to a developer identity or private repository, they may understand how software is built, which dependencies are used, where secrets are stored, and how updates are published. In some cases, that access can enable attacks against customers, downstream users, or other connected systems.\u003c/p\u003e\n\n\u003ch2 id=\"oauth-saas-and-trusted-integrations\"\u003eOAuth, SaaS, and Trusted Integrations\u003c/h2\u003e\n\n\u003cp\u003eThe article cites the April 2026 Vercel incident as an example of how trusted third-party AI tools and OAuth-connected SaaS access can create broader security concerns. It notes that Vercel said sensitive customer data and source code were not accessed.\u003c/p\u003e\n\n\u003cp\u003eThe article uses the incident to highlight the type of exposure analysts should watch for: trusted integrations, SaaS accounts, internal tools, environment variables, and developer platforms connected through permissions that can be abused if one link in the chain is compromised. It says underground posts mentioning OAuth access, SaaS tools, environment variables, or developer platforms deserve attention even when the initial claim is limited or unverified.\u003c/p\u003e\n\n\u003ch2 id=\"source-code-is-more-than-intellectual-property\"\u003eSource Code Is More Than Intellectual Property\u003c/h2\u003e\n\n\u003cp\u003eFlare researchers also reviewed posts involving alleged vendor data and source-code exposure, including claims around Sportradar AG. The article says those claims were later echoed in public reporting on the broader TeamPCP supply-chain campaign.\u003c/p\u003e\n\n\u003cp\u003eThe Sportradar case is described as linked to a compromised Trivy scanner and included exposure of sensitive operational material such as:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eDatabase passwords\u003c/li\u003e\n\u003cli\u003eAPI key and secret pairs\u003c/li\u003e\n\u003cli\u003eKafka credentials\u003c/li\u003e\n\u003cli\u003eMonitoring tokens\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article says this kind of data can show how a vendor’s systems are connected, which services and integrations are trusted, and which credentials may create risk for partners or customers. It states that in supply-chain investigations, the most dangerous part of a leak is not always the stolen database itself, but the access paths and trusted relationships it exposes.\u003c/p\u003e\n\n\u003ch2 id=\"teampcp-and-mistral-ai-claims\"\u003eTeamPCP and Mistral AI Claims\u003c/h2\u003e\n\n\u003cp\u003eThe article also references public reporting around TeamPCP and Mistral AI. It says that in May 2026, reports claimed TeamPCP was selling hundreds of alleged Mistral AI repositories, while Mistral disputed parts of the claim.\u003c/p\u003e\n\n\u003cp\u003eThe article uses this case to illustrate why source-code theft should not be treated only as an intellectual-property issue. It says repositories may include credentials, building logic, internal service names, deployment workflows, API documentation, or references to customers and integrations. Even when leaked source code does not provide immediate production access, the article says it can help attackers map an environment and identify future attack paths.\u003c/p\u003e\n\n\u003ch2 id=\"package-ecosystem-incidents-show-how-access-can-scale\"\u003ePackage Ecosystem Incidents Show How Access Can Scale\u003c/h2\u003e\n\n\u003cp\u003eThe article applies the same analysis to package ecosystem incidents. It cites public reporting on Shai-Hulud, described as a self-spreading npm supply-chain attack that stole developer secrets and infected trusted packages.\u003c/p\u003e\n\n\u003cp\u003eAccording to the article, Shai-Hulud showed how compromised npm maintainer accounts and malicious package updates could be used to steal credentials, harvest CI/CD secrets, and propagate across repositories. The significance was not only the malicious code, but the abuse of trusted package publishing mechanisms.\u003c/p\u003e\n\n\u003cp\u003eThe article also says discussions around Shai-Hulud-style activity and supply-chain attack competition were observed. These posts were less concrete as victim leads, but the article says they are useful as threat context because they show actors watching public package compromise techniques and discussing how they may be reused, modified, or extended.\u003c/p\u003e\n\n\u003ch2 id=\"litellm-ai-infrastructure-and-developer-tooling\"\u003eLiteLLM, AI Infrastructure, and Developer Tooling\u003c/h2\u003e\n\n\u003cp\u003eThe article cites the LiteLLM supply-chain incident as another recent example. It says public reporting described unauthorized PyPI package publishes connected to a broader compromise path involving developer and CI/CD environments.\u003c/p\u003e\n\n\u003cp\u003eBecause LiteLLM is used as an AI gateway, the article says the incident shows that supply-chain risk is expanding into AI infrastructure and developer tooling. The article also notes that developer environments themselves are becoming attractive targets.\u003c/p\u003e\n\n\u003cp\u003eRecent reporting around malicious VS Code extensions is cited as an example of how trusted development tools can become a route into repositories and credentials. The article says extensions, plugins, and AI coding tools often sit close to source code, terminals, tokens, and internal workflows, making them valuable even when they are not part of production infrastructure.\u003c/p\u003e\n\n\u003ch2 id=\"guidance-for-defenders\"\u003eGuidance for Defenders\u003c/h2\u003e\n\n\u003cp\u003eThe article says the reviewed underground posts do not prove that every access sale is a supply-chain threat. However, it says security teams should ask better questions when posts involve source code, developer accounts, SaaS access, API keys, OAuth tokens, package ecosystems, or CI/CD material.\u003c/p\u003e\n\n\u003cp\u003eThe article frames the key question as not only whether data was leaked, but whether the access could affect how trusted software is built, deployed, updated, or integrated.\u003c/p\u003e\n\n\u003cp\u003eIt recommends that supply-chain monitoring include more than vulnerability disclosures and package alerts. Organizations should watch for:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eExposed developer credentials\u003c/li\u003e\n\u003cli\u003eGitHub and GitLab access\u003c/li\u003e\n\u003cli\u003ePackage registry tokens\u003c/li\u003e\n\u003cli\u003eLeaked repositories\u003c/li\u003e\n\u003cli\u003eCI/CD secrets\u003c/li\u003e\n\u003cli\u003eCloud keys\u003c/li\u003e\n\u003cli\u003eOAuth grants\u003c/li\u003e\n\u003cli\u003eClaims involving important vendors or software providers\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article concludes that the value of underground monitoring is recognizing these early signals before they are framed as full supply-chain incidents.\u003c/p\u003e\n","keyPoints":["Flare researchers found that underground forums and marketplaces can contain early warning signs of software supply-chain attacks before they are publicly reported as incidents.","Posts advertising GitHub access, private repositories, source code, API keys, OAuth tokens, cloud credentials, or CI/CD data may be supply-chain relevant depending on the trust relationships that access touches.","The article says source-code exposure can reveal credentials, build logic, deployment workflows, internal service names, API documentation, and integrations, making it more than an intellectual-property issue.","Publicly reported incidents involving Vercel, Sportradar, Mistral AI, Shai-Hulud, LiteLLM, and malicious VS Code extensions illustrate how trusted tools, vendor systems, package publishing, and developer environments can create supply-chain risk.","The article recommends that defenders monitor exposed developer credentials, GitHub and GitLab access, package registry tokens, leaked repositories, CI/CD secrets, cloud keys, OAuth grants, and claims involving important vendors or software providers."],"insights":["Underground posts do not need to mention “supply-chain attack” to be relevant; analysts should assess whether the advertised access touches software build, deployment, update, or integration trust paths.","GitHub or private repository access can become high-impact because it may expose not only code but also secrets, deployment scripts, package publishing logic, cloud credentials, internal documentation, and CI/CD workflows.","Source-code leaks should be triaged for operational relationships and access paths, because the article emphasizes that the most dangerous part may be exposed credentials, integrations, and trusted connections rather than the stolen code itself.","Developer tools such as VS Code extensions, plugins, and AI coding tools deserve monitoring because they often sit close to source code, terminals, tokens, and internal workflows even when they are not production infrastructure."],"referencedReports":[{"title":"Vercel April 2026 Security Incident","url":"https://vercel.com/kb/bulletin/vercel-april-2026-security-incident","publisher":"Vercel","context":"The article cites Vercel's April 2026 security incident bulletin as an example of risk from trusted third-party AI tools and OAuth-connected SaaS access.","category":"advisory","primary":false},{"title":"OECD.AI incident report on alleged Mistral AI repositories sold by TeamPCP","url":"https://oecd.ai/en/incidents/2026-05-12-3594","publisher":"OECD.AI","context":"The article references this incident report when discussing public reporting that TeamPCP allegedly sold hundreds of Mistral AI repositories.","category":"news","primary":false},{"title":"Inside LiteLLM Supply-Chain Compromise","url":"https://www.trendmicro.com/en/research/26/c/inside-litellm-supply-chain-compromise.html","publisher":"Trend Micro","context":"The article cites Trend Micro's analysis of the LiteLLM supply-chain incident involving unauthorized PyPI package publishes and developer or CI/CD environment compromise paths.","category":"research","primary":false}],"body":"\u003cp\u003eFlare researchers reviewed underground forum and marketplace posts and found that early warning signs of software supply-chain attacks may appear before incidents become public. These signals often do not use the phrase “supply-chain attack” and may instead appear as offers involving GitHub access, private repositories, source code, API keys, OAuth tokens, cloud credentials, CI/CD data, or vendor-related leaks. The article argues that the risk depends on where the access sits and which trust relationships it touches.\u003c/p\u003e\n\n\u003cp\u003eThe article explains that developer identities, repositories, SaaS integrations, package publishing systems, and CI/CD environments can expose paths into trusted software build and deployment processes. It cites examples involving Vercel, Sportradar, Mistral AI, Shai-Hulud, LiteLLM, and malicious VS Code extensions to show how trusted tools and software ecosystems can create downstream risk. The main takeaway for defenders is to monitor underground signals around developer access and operational secrets, not only public vulnerability disclosures or package alerts.\u003c/p\u003e\n"},{"n":4,"title":"The JNUC 2026 session catalog is live — and the clock is ticking","source":"jamf.com","sourceColorIdx":3,"link":"https://www.jamf.com/blog/jnuc-2026-session-catalog/","time":"15:02","priority":"MAY READ","score":25,"tldr":"Jamf has published the JNUC 2026 session catalog, highlighting sessions around Apple platform management and enterprise AI. Attendees are urged to browse sessions and register before Just in Time pricing ends on July 1 for the September 23–25 event in Kansas City.","briefOverview":"\u003cp\u003eJamf announced that the JNUC 2026 session catalog is live and available for prospective attendees to browse. The article encourages readers to review the full session lineup, identify relevant sessions and start building an agenda. It also urges registration before Just in Time pricing ends on July 1.\u003c/p\u003e\n\n\u003cp\u003eJNUC 2026 is framed around the theme of the Apple platform for enterprise AI. The programming includes topics such as Mac workflows, mobility workflows, Mac and mobile compliance, reporting and risk reduction, integrations and APIs, end-user experience, and community, career and culture. The event is scheduled for September 23–25, 2026, in Kansas City.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eJamf published an announcement that the JNUC 2026 session catalog is officially live. The article presents the catalog as a reason for prospective attendees to commit to the event, browse the session lineup and begin planning their agenda. It emphasizes that attendees can use the catalog to find content most relevant to them.\u003c/p\u003e\n\n\u003cp\u003eThe stated theme for JNUC 2026 is the Apple platform for enterprise AI. The article says the programming reflects where the industry is headed, while focusing on Apple administration and related workflows. It does not identify any threat actors, incidents, vulnerabilities or disclosed security events.\u003c/p\u003e\n\n\u003cp\u003eThe session areas listed in the article include Mac workflows, mobility workflows, Mac and mobile compliance, reporting and risk reduction, integrations and APIs, end-user experience, and community, career and culture. These topics indicate that the event content spans Apple device management, compliance, risk reduction and user experience. The article does not provide detailed descriptions of individual sessions.\u003c/p\u003e\n\n\u003cp\u003eJamf highlights that Just in Time pricing remains available only through July 1. The article urges readers to register before standard rates begin and notes that earlier registration allows attendees to start planning their agenda sooner. It also includes a link to browse the session catalog.\u003c/p\u003e\n\n\u003cp\u003eJNUC 2026 will take place in Kansas City from September 23–25, 2026. The event is positioned as a gathering for Jamf Nation and Apple administrators, with Jamf stating that the conference has brought Apple admins together for over 16 years. The article closes by encouraging readers to review the catalog and register.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch2 id=\"overview\"\u003eOverview\u003c/h2\u003e\n\n\u003cp\u003eJamf announced that the JNUC 2026 session catalog is officially live. The article encourages prospective attendees to browse the full lineup, identify the sessions most relevant to them and begin building an agenda. It presents the release of the catalog as a key reason to commit to attending the conference.\u003c/p\u003e\n\n\u003ch2 id=\"event-details\"\u003eEvent details\u003c/h2\u003e\n\n\u003cp\u003eJNUC 2026 is scheduled to take place in Kansas City from September 23–25, 2026. The article identifies the event as part of Jamf Nation and says JNUC has been bringing Apple administrators together for over 16 years. The article includes a call to action to browse the catalog and register.\u003c/p\u003e\n\n\u003ch2 id=\"theme-and-programming-focus\"\u003eTheme and programming focus\u003c/h2\u003e\n\n\u003cp\u003eThe stated theme of JNUC 2026 is the Apple platform for enterprise AI. Jamf says the programming reflects where the industry is headed, but the article does not provide specific session abstracts or detailed technical descriptions.\u003c/p\u003e\n\n\u003cp\u003eThe article lists several areas covered by this year’s programming:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eMac workflows.\u003c/li\u003e\n\u003cli\u003eMobility workflows.\u003c/li\u003e\n\u003cli\u003eMac and mobile compliance.\u003c/li\u003e\n\u003cli\u003eReporting and risk reduction.\u003c/li\u003e\n\u003cli\u003eIntegrations and APIs.\u003c/li\u003e\n\u003cli\u003eEnd-user experience.\u003c/li\u003e\n\u003cli\u003eCommunity, career and culture.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"pricing-and-registration-deadline\"\u003ePricing and registration deadline\u003c/h2\u003e\n\n\u003cp\u003eThe article states that Just in Time pricing is still available only through July 1. It urges readers to register before standard rates take effect. Jamf also notes that registering earlier allows attendees to begin planning their agenda sooner.\u003c/p\u003e\n\n\u003ch2 id=\"stakeholders-and-audience\"\u003eStakeholders and audience\u003c/h2\u003e\n\n\u003cp\u003eThe primary audience described in the article is Jamf Nation and Apple administrators. Jamf is the publisher of the announcement and the organizer associated with the event. The article also references the Apple platform as the central focus of the conference theme and programming.\u003c/p\u003e\n\n\u003ch2 id=\"security-relevance-and-limitations\"\u003eSecurity relevance and limitations\u003c/h2\u003e\n\n\u003cp\u003eThe article includes security-adjacent topics such as Mac and mobile compliance, reporting and risk reduction, integrations and APIs, and end-user experience. However, it does not report on a cybersecurity incident, vulnerability, advisory, malware campaign, threat actor or technical analysis. Its main purpose is to announce the availability of the JNUC 2026 session catalog and encourage registration before a pricing deadline.\u003c/p\u003e\n","keyPoints":["The JNUC 2026 session catalog is officially live, allowing attendees to browse the full lineup and start building an agenda.","The theme of JNUC 2026 is the Apple platform for enterprise AI.","The 2026 programming covers areas including Mac workflows, mobility workflows, compliance, reporting and risk reduction, integrations and APIs, end-user experience, and community, career and culture.","Just in Time pricing for JNUC 2026 is available only through July 1 before standard rates begin.","JNUC 2026 will take place in Kansas City from September 23 to 25, 2026."],"insights":["Prospective attendees can use the newly released session catalog to decide whether the event content matches their needs before committing to registration.","Registering before July 1 is the actionable deadline for attendees who want to avoid paying standard rates.","The agenda appears designed for Apple administrators with both management and security responsibilities, since it combines workflows, compliance, risk reduction, integrations, APIs and end-user experience topics.","The article positions enterprise AI as the central lens for this year’s Apple platform discussions, indicating that AI-related enterprise use cases will shape the conference programming."],"referencedReports":[],"body":"\u003cp\u003eJamf announced that the JNUC 2026 session catalog is live and available for prospective attendees to browse. The article encourages readers to review the full session lineup, identify relevant sessions and start building an agenda. It also urges registration before Just in Time pricing ends on July 1.\u003c/p\u003e\n\n\u003cp\u003eJNUC 2026 is framed around the theme of the Apple platform for enterprise AI. The programming includes topics such as Mac workflows, mobility workflows, Mac and mobile compliance, reporting and risk reduction, integrations and APIs, end-user experience, and community, career and culture. The event is scheduled for September 23–25, 2026, in Kansas City.\u003c/p\u003e\n"}];
+window.__DL_DIGEST   = "downlink-digest-2026-06-12_1400.html";
+window.__DL_WINDOW   = "4 hours";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", padding:24 }}>
+        <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, padding:"40px 32px", maxWidth:480, textAlign:"center" }}>
+          <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:11, color:"var(--discard)", letterSpacing:"0.18em", marginBottom:12 }}>// RENDER ERROR</div>
+          <p style={{ color:"var(--text2)", fontSize:13 }}>{String(this.state.error)}</p>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+function pointList(items) {
+  return (
+    <ul className="kp-list">
+      {(items || []).map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            <a href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => <div className="prose">{article.tldr}</div> });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Full", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  if (article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => pointList(article.keyPoints) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => pointList(article.insights) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  const initialTab = tabs[0] ? tabs[0].id : "source";
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  const rightTabIds = new Set(["keypoints", "insights", "reports"]);
+  const leftTabs  = tabs.filter(t => !rightTabIds.has(t.id));
+  const rightTabs = tabs.filter(t =>  rightTabIds.has(t.id));
+  const renderTabBtn = tab => (
+    <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+      {tab.label}
+    </button>
+  );
+  return (
+    <>
+      <div className="tabs">
+        {leftTabs.map(renderTabBtn)}
+        {rightTabs.length > 0 && <span style={{ flex: 1 }} />}
+        {rightTabs.map(renderTabBtn)}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  const [theme, setTheme] = React.useState(() => document.documentElement.dataset.theme || 'dark');
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  const applyTheme = (t) => {
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('downlink.theme', t); } catch(e){}
+    setTheme(t);
+  };
+  return (
+    <nav className="swipe-nav" style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--cyan)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <span className="swipe-clock" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+        }}>
+          {Math.min(index + 1, total)} / {total}
+        </div>
+        <select value={theme} onChange={(e) => applyTheme(e.target.value)} title="Select theme" aria-label="Select theme" style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "var(--text2)",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "4px 20px 4px 8px", borderRadius: 2,
+          cursor: "pointer", textTransform: "uppercase", appearance: "none", WebkitAppearance: "none",
+          backgroundImage: "linear-gradient(45deg, transparent 50%, var(--text3) 50%), linear-gradient(135deg, var(--text3) 50%, transparent 50%)",
+          backgroundPosition: "calc(100% - 10px) 50%, calc(100% - 6px) 50%", backgroundSize: "4px 4px, 4px 4px", backgroundRepeat: "no-repeat"
+        }}>
+          <option value="dark">DARK</option>
+          <option value="light">LIGHT</option>
+          <option value="contrast">CONTRAST</option>
+          <option value="mono">MONO</option>
+          <option value="colorblind">COLORBLIND</option>
+          <option value="pastel">PASTEL</option>
+          
+        </select>
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const srcColor  = `var(--p${article.sourceColorIdx})`;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+              {article.source}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 22, lineHeight: 1.3, color: "var(--text)", letterSpacing: "-0.005em" }}>
+          {article.title}
+        </h2>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text2)", fontSize: 14, lineHeight: 1.65, fontWeight: 400 }}>{article.tldr}</p>
+        {article.keyPoints && article.keyPoints.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+            <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+              {article.keyPoints.map((kp, i) => (
+                <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: priorityC, marginTop: 3, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const srcColor  = `var(--p${article.sourceColorIdx})`;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.35, color: "var(--text)", marginBottom: 12 }}>
+          {article.title}
+        </h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor }}>{article.source}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Front continues off to the right and fades out, then the detail view fades in.
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.32s cubic-bezier(.4,0,.6,1), opacity 0.32s";
+          el.style.transform = `translate(140%, ${dy * 1.4}px) rotate(18deg)`;
+          el.style.opacity = "0";
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.style.opacity = "0";
+            el2.getBoundingClientRect();
+            el2.style.transition = "opacity 0.22s ease";
+            el2.style.opacity = "1";
+            setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 240);
+          }
+        }, 320);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{ opacity: 0 }}>DONE</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div className="swipe-shell" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 24px 16px", minHeight: 0 }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 16px", width: "100%", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 16, flexShrink: 0 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 12, textAlign: "center", flexShrink: 0 }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ErrorBoundary><App /></ErrorBoundary>
+);
+</script>
+</body>
+</html>
