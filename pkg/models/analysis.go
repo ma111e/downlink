@@ -22,7 +22,7 @@ type ReferencedReport struct {
 }
 
 // GlossaryTerm is a single jargon term and its plain-language definition, produced
-// by the beginner-mode analysis task to help newcomers familiarize themselves with
+// by the glossary-mode analysis task to help newcomers familiarize themselves with
 // the terminology used in an article.
 type GlossaryTerm struct {
 	Term       string `json:"term"`
@@ -49,9 +49,9 @@ type ArticleAnalysis struct {
 	BriefOverview          string              `gorm:"type:text" json:"brief_overview"`
 	StandardSynthesis      string              `gorm:"type:text" json:"standard_synthesis"`
 	ComprehensiveSynthesis string              `gorm:"type:text" json:"comprehensive_synthesis"`
-	BeginnerExplanation    string              `gorm:"type:text" json:"beginner_explanation"`
-	BeginnerGlossaryJson   string              `gorm:"column:beginner_glossary;type:text" json:"-"`
-	BeginnerGlossary       []GlossaryTerm      `gorm:"-" json:"beginner_glossary"`
+	GlossaryExplanation    string              `gorm:"type:text" json:"glossary_explanation"`
+	GlossaryTermsJson      string              `gorm:"column:glossary_terms;type:text" json:"-"`
+	GlossaryTerms          []GlossaryTerm      `gorm:"-" json:"glossary_terms"`
 	ThinkingProcess        string              `gorm:"type:text" json:"thinking_process,omitempty"`
 	RawResponse            string              `gorm:"type:text" json:"raw_response"`
 	CreatedAt              time.Time           `gorm:"index" json:"created_at"`
@@ -102,12 +102,12 @@ func (a *ArticleAnalysis) BeforeCreate(tx *gorm.DB) error {
 		a.ScoreDimensionsJson = string(scoreDimensionsBytes)
 	}
 
-	if len(a.BeginnerGlossary) > 0 {
-		beginnerGlossaryBytes, err := json.Marshal(a.BeginnerGlossary)
+	if len(a.GlossaryTerms) > 0 {
+		glossaryTermsBytes, err := json.Marshal(a.GlossaryTerms)
 		if err != nil {
 			return err
 		}
-		a.BeginnerGlossaryJson = string(beginnerGlossaryBytes)
+		a.GlossaryTermsJson = string(glossaryTermsBytes)
 	}
 
 	return nil
@@ -142,8 +142,8 @@ func (a *ArticleAnalysis) AfterFind(tx *gorm.DB) error {
 		a.ScoreDimensions = &dims
 	}
 
-	if a.BeginnerGlossaryJson != "" {
-		if err := json.Unmarshal([]byte(a.BeginnerGlossaryJson), &a.BeginnerGlossary); err != nil {
+	if a.GlossaryTermsJson != "" {
+		if err := json.Unmarshal([]byte(a.GlossaryTermsJson), &a.GlossaryTerms); err != nil {
 			return err
 		}
 	}

@@ -43,7 +43,7 @@ Model and scoring:
 | `--provider/-p`, `--model/-m` | Override the LLM for this run (all steps). |
 | `--select-model` | Pick a model interactively. |
 | `--vibe-score` | Use legacy single-number scoring for this run. See [analysis-and-scoring.md](analysis-and-scoring.md). |
-| `--beginner` | Generate plain-language explanations and a jargon glossary for this run. See [analysis-and-scoring.md](analysis-and-scoring.md). |
+| `--glossary` | Generate plain-language explanations and a jargon glossary for this run. See [analysis-and-scoring.md](analysis-and-scoring.md). |
 
 Output and publishing:
 
@@ -81,6 +81,6 @@ Pick a theme per run with `dlk digest generate --theme <name>`, or set a default
 published pages with `github_pages.theme` in config. The archive can be re-rendered into a
 different theme later with `dlk publish republish-all --theme <name>`.
 
-When a digest has beginner content, the page nav shows a **Beginner** switch next to the
+When a digest has glossary content, the page nav shows a **Glossary** switch next to the
 theme picker. Toggling it reveals each article's plain-language explanation and jargon
-glossary. See [analysis-and-scoring.md](analysis-and-scoring.md#beginner-mode).
+glossary. See [analysis-and-scoring.md](analysis-and-scoring.md#glossary-mode).

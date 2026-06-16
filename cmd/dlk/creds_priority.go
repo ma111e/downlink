@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createAuthPriorityCommand() *cobra.Command {
+func createCredsPriorityCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "priority [provider] [credential-id] [priority]",
 		Short: "Set priority for a credential (lower = preferred)",

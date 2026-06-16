@@ -51,11 +51,11 @@ key. Add the entry first, then log in:
 
 ```sh
 dlk model add                 # choose openai-codex or claude-code
-dlk model auth login          # device-code flow; stores the credential
+dlk model creds login         # device-code flow; stores the credential
 ```
 
 Credentials are stored as a pool on the provider entry. Manage them with
-`dlk model auth list`, `dlk model auth remove`, and `dlk model auth priority` (the pool is
+`dlk model creds list`, `dlk model creds remove`, and `dlk model creds priority` (the pool is
 tried in priority order). The OAuth managers persist credentials back into `config.json`.
 
 ## Concurrency

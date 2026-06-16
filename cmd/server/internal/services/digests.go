@@ -210,7 +210,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 				_ = stream.Send(ev)
 			}
 		}
-		analyses, analysisErrors, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, req.ReanalyzeOnModelChange, req.Reanalyze, req.VibeScore, req.Beginner, req.Provider, req.Model, onAnalysisStart, onTaskProgress)
+		analyses, analysisErrors, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, req.ReanalyzeOnModelChange, req.Reanalyze, req.VibeScore, req.Glossary, req.Provider, req.Model, onAnalysisStart, onTaskProgress)
 		if err != nil {
 			if cancelled(stream) {
 				return ctx.Err()
@@ -558,7 +558,7 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 	reanalyzeOnModelChange bool,
 	reanalyze bool,
 	vibeScore *bool,
-	beginner *bool,
+	glossary *bool,
 	provider string,
 	model string,
 	onStart func(articleId, articleTitle string, current, total uint32),
@@ -687,7 +687,7 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 			analysisReq := &protos.AnalyzeArticleWithProviderModelRequest{
 				ArticleId: article.Id,
 				VibeScore: vibeScore,
-				Beginner:  beginner,
+				Glossary:  glossary,
 				Provider:  provider,
 				ModelName: model,
 			}

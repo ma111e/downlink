@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/ma111e/downlink/cmd/server/internal/auth"
+	"github.com/ma111e/downlink/cmd/server/internal/creds"
 	"github.com/ma111e/downlink/cmd/server/internal/config"
 	"github.com/ma111e/downlink/cmd/server/internal/feedserver"
 	"github.com/ma111e/downlink/cmd/server/internal/manager"
@@ -201,7 +201,7 @@ func main() {
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentLLMRequests, "max-concurrent-llm-requests", 1, "Maximum number of concurrent LLM analysis requests (default: 1)")
 	rootCmd.PersistentFlags().Bool("auto-analyze", false, "Automatically enqueue articles for analysis after each feed refresh [overrides config]")
 	rootCmd.PersistentFlags().Bool("vibe-score", false, "Use the legacy single-number LLM importance prompt instead of the rubric scoring system [overrides config]")
-	rootCmd.PersistentFlags().Bool("beginner", false, "Generate beginner-mode content (plain-language explanation + jargon glossary) per article [overrides config]")
+	rootCmd.PersistentFlags().Bool("glossary", false, "Generate glossary-mode content (plain-language explanation + jargon glossary) per article [overrides config]")
 	//rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./excuses-client.yml)")
 
 	rootCmd.PersistentFlags().Bool("gh-pages-enabled", false, "Enable GitHub Pages publishing [overrides config]")
@@ -272,11 +272,11 @@ func applyAnalysisFlagOverrides(cmd *cobra.Command) {
 	} else if viper.IsSet("vibe-score") {
 		a.VibeScore = viper.GetBool("vibe-score")
 	}
-	if cmd.Flags().Changed("beginner") {
-		v, _ := cmd.Flags().GetBool("beginner")
-		a.Beginner = v
-	} else if viper.IsSet("beginner") {
-		a.Beginner = viper.GetBool("beginner")
+	if cmd.Flags().Changed("glossary") {
+		v, _ := cmd.Flags().GetBool("glossary")
+		a.Glossary = v
+	} else if viper.IsSet("glossary") {
+		a.Glossary = viper.GetBool("glossary")
 	}
 }
 
@@ -394,7 +394,7 @@ func startServer(host string, port int, tls bool, certFile, keyFile string, maxC
 	protos.RegisterLLMsServiceServer(grpcServer, llmsServer)
 	protos.RegisterQueueServiceServer(grpcServer, queueServer)
 	protos.RegisterServerConfigServiceServer(grpcServer, services.NewServerConfigServer())
-	protos.RegisterAuthServiceServer(grpcServer, auth.NewService(config.CodexManager, config.ClaudeManager))
+	protos.RegisterCredsServiceServer(grpcServer, creds.NewService(config.CodexManager, config.ClaudeManager))
 
 	log.WithFields(log.Fields{
 		"host": host,

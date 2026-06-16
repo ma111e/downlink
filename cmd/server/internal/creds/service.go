@@ -1,4 +1,4 @@
-package auth
+package creds
 
 import (
 	"context"
@@ -40,9 +40,9 @@ type claudeLoginSession struct {
 	expiresAt    time.Time
 }
 
-// Service implements protos.AuthServiceServer.
+// Service implements protos.CredsServiceServer.
 type Service struct {
-	protos.UnimplementedAuthServiceServer
+	protos.UnimplementedCredsServiceServer
 
 	manager       *codexauth.Manager
 	claudeManager *claudeauth.Manager

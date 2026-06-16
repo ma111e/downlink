@@ -12,18 +12,18 @@ import (
 // Extend this slice when adding new OAuth-capable providers.
 var oauthProviderTypes = []string{"openai-codex", "claude-code"}
 
-func createAuthCommands() *cobra.Command {
-	authCmd := &cobra.Command{
-		Use:   "auth",
-		Short: "Manage provider authentication credentials",
+func createCredsCommands() *cobra.Command {
+	credsCmd := &cobra.Command{
+		Use:   "creds",
+		Short: "Manage provider OAuth credentials",
 	}
 
-	authCmd.AddCommand(createAuthLoginCommand())
-	authCmd.AddCommand(createAuthListCommand())
-	authCmd.AddCommand(createAuthRemoveCommand())
-	authCmd.AddCommand(createAuthPriorityCommand())
+	credsCmd.AddCommand(createCredsLoginCommand())
+	credsCmd.AddCommand(createCredsListCommand())
+	credsCmd.AddCommand(createCredsRemoveCommand())
+	credsCmd.AddCommand(createCredsPriorityCommand())
 
-	return authCmd
+	return credsCmd
 }
 
 // selectOAuthProvider prompts the user to pick one of their configured OAuth-capable
@@ -49,7 +49,7 @@ func selectOAuthProvider(client *downlinkclient.DownlinkClient) (string, error) 
 	}
 
 	if len(capable) == 0 {
-		return "", fmt.Errorf("no OAuth providers configured; run 'auth login' first")
+		return "", fmt.Errorf("no OAuth providers configured; run 'creds login' first")
 	}
 	if len(capable) == 1 {
 		return capable[0].name, nil

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v7.35.0
-// source: auth.proto
+// source: creds.proto
 
 package protos
 
@@ -19,21 +19,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AuthService_StartCodexLogin_FullMethodName            = "/downlink.AuthService/StartCodexLogin"
-	AuthService_PollCodexLogin_FullMethodName             = "/downlink.AuthService/PollCodexLogin"
-	AuthService_ListCodexCredentials_FullMethodName       = "/downlink.AuthService/ListCodexCredentials"
-	AuthService_RemoveCodexCredential_FullMethodName      = "/downlink.AuthService/RemoveCodexCredential"
-	AuthService_SetCodexCredentialPriority_FullMethodName = "/downlink.AuthService/SetCodexCredentialPriority"
-	AuthService_StartClaudeLogin_FullMethodName           = "/downlink.AuthService/StartClaudeLogin"
-	AuthService_CompleteClaudeLogin_FullMethodName        = "/downlink.AuthService/CompleteClaudeLogin"
+	CredsService_StartCodexLogin_FullMethodName            = "/downlink.CredsService/StartCodexLogin"
+	CredsService_PollCodexLogin_FullMethodName             = "/downlink.CredsService/PollCodexLogin"
+	CredsService_ListCodexCredentials_FullMethodName       = "/downlink.CredsService/ListCodexCredentials"
+	CredsService_RemoveCodexCredential_FullMethodName      = "/downlink.CredsService/RemoveCodexCredential"
+	CredsService_SetCodexCredentialPriority_FullMethodName = "/downlink.CredsService/SetCodexCredentialPriority"
+	CredsService_StartClaudeLogin_FullMethodName           = "/downlink.CredsService/StartClaudeLogin"
+	CredsService_CompleteClaudeLogin_FullMethodName        = "/downlink.CredsService/CompleteClaudeLogin"
 )
 
-// AuthServiceClient is the client API for AuthService service.
+// CredsServiceClient is the client API for CredsService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// AuthService manages Codex/ChatGPT OAuth credentials.
-type AuthServiceClient interface {
+// CredsService manages Codex/ChatGPT OAuth credentials.
+type CredsServiceClient interface {
 	// StartCodexLogin begins a device-code login flow for openai-codex.
 	StartCodexLogin(ctx context.Context, in *StartCodexLoginRequest, opts ...grpc.CallOption) (*StartCodexLoginResponse, error)
 	// PollCodexLogin polls the status of an in-progress login session.
@@ -53,90 +53,90 @@ type AuthServiceClient interface {
 	CompleteClaudeLogin(ctx context.Context, in *CompleteClaudeLoginRequest, opts ...grpc.CallOption) (*CompleteClaudeLoginResponse, error)
 }
 
-type authServiceClient struct {
+type credsServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewAuthServiceClient(cc grpc.ClientConnInterface) AuthServiceClient {
-	return &authServiceClient{cc}
+func NewCredsServiceClient(cc grpc.ClientConnInterface) CredsServiceClient {
+	return &credsServiceClient{cc}
 }
 
-func (c *authServiceClient) StartCodexLogin(ctx context.Context, in *StartCodexLoginRequest, opts ...grpc.CallOption) (*StartCodexLoginResponse, error) {
+func (c *credsServiceClient) StartCodexLogin(ctx context.Context, in *StartCodexLoginRequest, opts ...grpc.CallOption) (*StartCodexLoginResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StartCodexLoginResponse)
-	err := c.cc.Invoke(ctx, AuthService_StartCodexLogin_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, CredsService_StartCodexLogin_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authServiceClient) PollCodexLogin(ctx context.Context, in *PollCodexLoginRequest, opts ...grpc.CallOption) (*PollCodexLoginResponse, error) {
+func (c *credsServiceClient) PollCodexLogin(ctx context.Context, in *PollCodexLoginRequest, opts ...grpc.CallOption) (*PollCodexLoginResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PollCodexLoginResponse)
-	err := c.cc.Invoke(ctx, AuthService_PollCodexLogin_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, CredsService_PollCodexLogin_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authServiceClient) ListCodexCredentials(ctx context.Context, in *ListCodexCredentialsRequest, opts ...grpc.CallOption) (*ListCodexCredentialsResponse, error) {
+func (c *credsServiceClient) ListCodexCredentials(ctx context.Context, in *ListCodexCredentialsRequest, opts ...grpc.CallOption) (*ListCodexCredentialsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListCodexCredentialsResponse)
-	err := c.cc.Invoke(ctx, AuthService_ListCodexCredentials_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, CredsService_ListCodexCredentials_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authServiceClient) RemoveCodexCredential(ctx context.Context, in *RemoveCodexCredentialRequest, opts ...grpc.CallOption) (*RemoveCodexCredentialResponse, error) {
+func (c *credsServiceClient) RemoveCodexCredential(ctx context.Context, in *RemoveCodexCredentialRequest, opts ...grpc.CallOption) (*RemoveCodexCredentialResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RemoveCodexCredentialResponse)
-	err := c.cc.Invoke(ctx, AuthService_RemoveCodexCredential_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, CredsService_RemoveCodexCredential_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authServiceClient) SetCodexCredentialPriority(ctx context.Context, in *SetCodexCredentialPriorityRequest, opts ...grpc.CallOption) (*SetCodexCredentialPriorityResponse, error) {
+func (c *credsServiceClient) SetCodexCredentialPriority(ctx context.Context, in *SetCodexCredentialPriorityRequest, opts ...grpc.CallOption) (*SetCodexCredentialPriorityResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SetCodexCredentialPriorityResponse)
-	err := c.cc.Invoke(ctx, AuthService_SetCodexCredentialPriority_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, CredsService_SetCodexCredentialPriority_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authServiceClient) StartClaudeLogin(ctx context.Context, in *StartClaudeLoginRequest, opts ...grpc.CallOption) (*StartClaudeLoginResponse, error) {
+func (c *credsServiceClient) StartClaudeLogin(ctx context.Context, in *StartClaudeLoginRequest, opts ...grpc.CallOption) (*StartClaudeLoginResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StartClaudeLoginResponse)
-	err := c.cc.Invoke(ctx, AuthService_StartClaudeLogin_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, CredsService_StartClaudeLogin_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authServiceClient) CompleteClaudeLogin(ctx context.Context, in *CompleteClaudeLoginRequest, opts ...grpc.CallOption) (*CompleteClaudeLoginResponse, error) {
+func (c *credsServiceClient) CompleteClaudeLogin(ctx context.Context, in *CompleteClaudeLoginRequest, opts ...grpc.CallOption) (*CompleteClaudeLoginResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CompleteClaudeLoginResponse)
-	err := c.cc.Invoke(ctx, AuthService_CompleteClaudeLogin_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, CredsService_CompleteClaudeLogin_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// AuthServiceServer is the server API for AuthService service.
-// All implementations must embed UnimplementedAuthServiceServer
+// CredsServiceServer is the server API for CredsService service.
+// All implementations must embed UnimplementedCredsServiceServer
 // for forward compatibility.
 //
-// AuthService manages Codex/ChatGPT OAuth credentials.
-type AuthServiceServer interface {
+// CredsService manages Codex/ChatGPT OAuth credentials.
+type CredsServiceServer interface {
 	// StartCodexLogin begins a device-code login flow for openai-codex.
 	StartCodexLogin(context.Context, *StartCodexLoginRequest) (*StartCodexLoginResponse, error)
 	// PollCodexLogin polls the status of an in-progress login session.
@@ -154,220 +154,220 @@ type AuthServiceServer interface {
 	// CompleteClaudeLogin finishes the flow with the "<code>#<state>" string the
 	// user pastes back, exchanging it for tokens and storing the credential.
 	CompleteClaudeLogin(context.Context, *CompleteClaudeLoginRequest) (*CompleteClaudeLoginResponse, error)
-	mustEmbedUnimplementedAuthServiceServer()
+	mustEmbedUnimplementedCredsServiceServer()
 }
 
-// UnimplementedAuthServiceServer must be embedded to have
+// UnimplementedCredsServiceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedAuthServiceServer struct{}
+type UnimplementedCredsServiceServer struct{}
 
-func (UnimplementedAuthServiceServer) StartCodexLogin(context.Context, *StartCodexLoginRequest) (*StartCodexLoginResponse, error) {
+func (UnimplementedCredsServiceServer) StartCodexLogin(context.Context, *StartCodexLoginRequest) (*StartCodexLoginResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method StartCodexLogin not implemented")
 }
-func (UnimplementedAuthServiceServer) PollCodexLogin(context.Context, *PollCodexLoginRequest) (*PollCodexLoginResponse, error) {
+func (UnimplementedCredsServiceServer) PollCodexLogin(context.Context, *PollCodexLoginRequest) (*PollCodexLoginResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method PollCodexLogin not implemented")
 }
-func (UnimplementedAuthServiceServer) ListCodexCredentials(context.Context, *ListCodexCredentialsRequest) (*ListCodexCredentialsResponse, error) {
+func (UnimplementedCredsServiceServer) ListCodexCredentials(context.Context, *ListCodexCredentialsRequest) (*ListCodexCredentialsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListCodexCredentials not implemented")
 }
-func (UnimplementedAuthServiceServer) RemoveCodexCredential(context.Context, *RemoveCodexCredentialRequest) (*RemoveCodexCredentialResponse, error) {
+func (UnimplementedCredsServiceServer) RemoveCodexCredential(context.Context, *RemoveCodexCredentialRequest) (*RemoveCodexCredentialResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RemoveCodexCredential not implemented")
 }
-func (UnimplementedAuthServiceServer) SetCodexCredentialPriority(context.Context, *SetCodexCredentialPriorityRequest) (*SetCodexCredentialPriorityResponse, error) {
+func (UnimplementedCredsServiceServer) SetCodexCredentialPriority(context.Context, *SetCodexCredentialPriorityRequest) (*SetCodexCredentialPriorityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetCodexCredentialPriority not implemented")
 }
-func (UnimplementedAuthServiceServer) StartClaudeLogin(context.Context, *StartClaudeLoginRequest) (*StartClaudeLoginResponse, error) {
+func (UnimplementedCredsServiceServer) StartClaudeLogin(context.Context, *StartClaudeLoginRequest) (*StartClaudeLoginResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method StartClaudeLogin not implemented")
 }
-func (UnimplementedAuthServiceServer) CompleteClaudeLogin(context.Context, *CompleteClaudeLoginRequest) (*CompleteClaudeLoginResponse, error) {
+func (UnimplementedCredsServiceServer) CompleteClaudeLogin(context.Context, *CompleteClaudeLoginRequest) (*CompleteClaudeLoginResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CompleteClaudeLogin not implemented")
 }
-func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
-func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
+func (UnimplementedCredsServiceServer) mustEmbedUnimplementedCredsServiceServer() {}
+func (UnimplementedCredsServiceServer) testEmbeddedByValue()                      {}
 
-// UnsafeAuthServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to AuthServiceServer will
+// UnsafeCredsServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to CredsServiceServer will
 // result in compilation errors.
-type UnsafeAuthServiceServer interface {
-	mustEmbedUnimplementedAuthServiceServer()
+type UnsafeCredsServiceServer interface {
+	mustEmbedUnimplementedCredsServiceServer()
 }
 
-func RegisterAuthServiceServer(s grpc.ServiceRegistrar, srv AuthServiceServer) {
-	// If the following call panics, it indicates UnimplementedAuthServiceServer was
+func RegisterCredsServiceServer(s grpc.ServiceRegistrar, srv CredsServiceServer) {
+	// If the following call panics, it indicates UnimplementedCredsServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&AuthService_ServiceDesc, srv)
+	s.RegisterService(&CredsService_ServiceDesc, srv)
 }
 
-func _AuthService_StartCodexLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _CredsService_StartCodexLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StartCodexLoginRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).StartCodexLogin(ctx, in)
+		return srv.(CredsServiceServer).StartCodexLogin(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_StartCodexLogin_FullMethodName,
+		FullMethod: CredsService_StartCodexLogin_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).StartCodexLogin(ctx, req.(*StartCodexLoginRequest))
+		return srv.(CredsServiceServer).StartCodexLogin(ctx, req.(*StartCodexLoginRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_PollCodexLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _CredsService_PollCodexLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PollCodexLoginRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).PollCodexLogin(ctx, in)
+		return srv.(CredsServiceServer).PollCodexLogin(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_PollCodexLogin_FullMethodName,
+		FullMethod: CredsService_PollCodexLogin_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).PollCodexLogin(ctx, req.(*PollCodexLoginRequest))
+		return srv.(CredsServiceServer).PollCodexLogin(ctx, req.(*PollCodexLoginRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_ListCodexCredentials_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _CredsService_ListCodexCredentials_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListCodexCredentialsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).ListCodexCredentials(ctx, in)
+		return srv.(CredsServiceServer).ListCodexCredentials(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_ListCodexCredentials_FullMethodName,
+		FullMethod: CredsService_ListCodexCredentials_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).ListCodexCredentials(ctx, req.(*ListCodexCredentialsRequest))
+		return srv.(CredsServiceServer).ListCodexCredentials(ctx, req.(*ListCodexCredentialsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_RemoveCodexCredential_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _CredsService_RemoveCodexCredential_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RemoveCodexCredentialRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).RemoveCodexCredential(ctx, in)
+		return srv.(CredsServiceServer).RemoveCodexCredential(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_RemoveCodexCredential_FullMethodName,
+		FullMethod: CredsService_RemoveCodexCredential_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).RemoveCodexCredential(ctx, req.(*RemoveCodexCredentialRequest))
+		return srv.(CredsServiceServer).RemoveCodexCredential(ctx, req.(*RemoveCodexCredentialRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_SetCodexCredentialPriority_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _CredsService_SetCodexCredentialPriority_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetCodexCredentialPriorityRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).SetCodexCredentialPriority(ctx, in)
+		return srv.(CredsServiceServer).SetCodexCredentialPriority(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_SetCodexCredentialPriority_FullMethodName,
+		FullMethod: CredsService_SetCodexCredentialPriority_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).SetCodexCredentialPriority(ctx, req.(*SetCodexCredentialPriorityRequest))
+		return srv.(CredsServiceServer).SetCodexCredentialPriority(ctx, req.(*SetCodexCredentialPriorityRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_StartClaudeLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _CredsService_StartClaudeLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StartClaudeLoginRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).StartClaudeLogin(ctx, in)
+		return srv.(CredsServiceServer).StartClaudeLogin(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_StartClaudeLogin_FullMethodName,
+		FullMethod: CredsService_StartClaudeLogin_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).StartClaudeLogin(ctx, req.(*StartClaudeLoginRequest))
+		return srv.(CredsServiceServer).StartClaudeLogin(ctx, req.(*StartClaudeLoginRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_CompleteClaudeLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _CredsService_CompleteClaudeLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CompleteClaudeLoginRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).CompleteClaudeLogin(ctx, in)
+		return srv.(CredsServiceServer).CompleteClaudeLogin(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_CompleteClaudeLogin_FullMethodName,
+		FullMethod: CredsService_CompleteClaudeLogin_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).CompleteClaudeLogin(ctx, req.(*CompleteClaudeLoginRequest))
+		return srv.(CredsServiceServer).CompleteClaudeLogin(ctx, req.(*CompleteClaudeLoginRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
+// CredsService_ServiceDesc is the grpc.ServiceDesc for CredsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var AuthService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "downlink.AuthService",
-	HandlerType: (*AuthServiceServer)(nil),
+var CredsService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "downlink.CredsService",
+	HandlerType: (*CredsServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "StartCodexLogin",
-			Handler:    _AuthService_StartCodexLogin_Handler,
+			Handler:    _CredsService_StartCodexLogin_Handler,
 		},
 		{
 			MethodName: "PollCodexLogin",
-			Handler:    _AuthService_PollCodexLogin_Handler,
+			Handler:    _CredsService_PollCodexLogin_Handler,
 		},
 		{
 			MethodName: "ListCodexCredentials",
-			Handler:    _AuthService_ListCodexCredentials_Handler,
+			Handler:    _CredsService_ListCodexCredentials_Handler,
 		},
 		{
 			MethodName: "RemoveCodexCredential",
-			Handler:    _AuthService_RemoveCodexCredential_Handler,
+			Handler:    _CredsService_RemoveCodexCredential_Handler,
 		},
 		{
 			MethodName: "SetCodexCredentialPriority",
-			Handler:    _AuthService_SetCodexCredentialPriority_Handler,
+			Handler:    _CredsService_SetCodexCredentialPriority_Handler,
 		},
 		{
 			MethodName: "StartClaudeLogin",
-			Handler:    _AuthService_StartClaudeLogin_Handler,
+			Handler:    _CredsService_StartClaudeLogin_Handler,
 		},
 		{
 			MethodName: "CompleteClaudeLogin",
-			Handler:    _AuthService_CompleteClaudeLogin_Handler,
+			Handler:    _CredsService_CompleteClaudeLogin_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "auth.proto",
+	Metadata: "creds.proto",
 }

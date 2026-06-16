@@ -43,7 +43,7 @@ type AnalysisConfig struct {
 	WorkerPool   *WorkerPoolConfig `json:"worker_pool,omitempty"`   // Configuration for the analysis worker pool
 	AutoAnalyze  bool              `json:"auto_analyze,omitempty"`  // Automatically enqueue articles for analysis after each feed refresh
 	VibeScore    bool              `json:"vibe_score,omitempty"`    // Use the legacy single-number LLM importance prompt instead of the rubric scoring system
-	Beginner     bool              `json:"beginner,omitempty"`      // Generate beginner-mode content (plain-language explanation + jargon glossary) as an extra analysis task
+	Glossary     bool              `json:"glossary,omitempty"`      // Generate glossary-mode content (plain-language explanation + jargon glossary) as an extra analysis task
 }
 
 // WorkerPoolConfig contains the configuration for the worker pool

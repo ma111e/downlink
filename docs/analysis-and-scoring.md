@@ -1,7 +1,7 @@
 # Analysis and scoring
 
 Analysis runs each article through the configured LLM to produce a summary, key points,
-an importance score, and optionally beginner-friendly explanations. Scores drive how
+an importance score, and optionally a plain-language explanation with a jargon glossary. Scores drive how
 articles are ranked and grouped in digests.
 
 ## Running analysis
@@ -56,18 +56,18 @@ rubric. Enable it with `analysis.vibe_score` in config, the server's `--vibe-sco
 or per run with `dlk digest generate --vibe-score`. The rubric is the default and is
 recommended; vibe scores cannot be recomputed without re-running the LLM.
 
-## Beginner mode
+## Glossary mode
 
 An optional extra analysis task writes a plain-language explanation and a short jargon
 glossary for each article, aimed at readers new to cybersecurity. On the digest page they
-sit behind a **Beginner** switch in the nav, next to the theme picker. The switch is off by
-default, remembers its state in the browser, and only appears when the digest has beginner
+sit behind a **Glossary** switch in the nav, next to the theme picker. The switch is off by
+default, remembers its state in the browser, and only appears when the digest has glossary
 content.
 
-Enable it with `analysis.beginner` in config, the server's `--beginner` flag, or per run
-with `dlk digest generate --beginner` (use `--beginner=false` to force it off). It adds one
-LLM round-trip per article. Existing analyses have no beginner content, so run
-`dlk digest generate --reanalyze --beginner` to backfill it.
+Enable it with `analysis.glossary` in config, the server's `--glossary` flag, or per run
+with `dlk digest generate --glossary` (use `--glossary=false` to force it off). It adds one
+LLM round-trip per article. Existing analyses have no glossary content, so run
+`dlk digest generate --reanalyze --glossary` to backfill it.
 
 ## Persona and writing style
 

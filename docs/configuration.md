@@ -59,7 +59,7 @@ Each entry configures one LLM backend.
 | `temperature` | float | / | Sampling temperature. |
 | `max_retries` | int | / | Retries on a failed request. |
 | `timeout_minutes` | int | `20` | Per-request timeout. |
-| `credentials` | array | / | OAuth credential pool for `openai-codex`/`claude-code`; populated by `dlk model auth login`, not edited by hand. |
+| `credentials` | array | / | OAuth credential pool for `openai-codex`/`claude-code`; populated by `dlk model creds login`, not edited by hand. |
 
 See [llm-providers.md](llm-providers.md) for which fields each provider type needs.
 
@@ -70,7 +70,7 @@ See [llm-providers.md](llm-providers.md) for which fields each provider type nee
 | `provider` | string | / | `name` of the provider entry used for analysis and digest summaries. |
 | `auto_analyze` | bool | `false` | Enqueue articles for analysis automatically after each feed refresh. |
 | `vibe_score` | bool | `false` | Use the legacy single-number importance prompt instead of the rubric. See [analysis-and-scoring.md](analysis-and-scoring.md). |
-| `beginner` | bool | `false` | Generate a plain-language explanation and jargon glossary per article, shown on the digest page behind a "Beginner" nav switch. Adds one LLM round-trip per article; re-analyze existing articles to populate it. Override per run with `dlk digest generate --beginner` (or `--beginner=false` to force off). |
+| `glossary` | bool | `false` | Generate a plain-language explanation and jargon glossary per article, shown on the digest page behind a "Glossary" nav switch. Adds one LLM round-trip per article; re-analyze existing articles to populate it. Override per run with `dlk digest generate --glossary` (or `--glossary=false` to force off). |
 | `persona` | string | / | Prompt prefix injected before every analysis request. |
 | `writing_style` | string | / | Style guide injected into the digest summary prompt. |
 
