@@ -777,19 +777,19 @@ var colorPalette = []string{
 }
 
 // lightColorPalette is the palette for the cream "light" theme background. Same hues as
-// colorPalette but darker and more saturated so they stay legible on a light surface.
+// colorPalette but lighter and more saturated for vivid source dots on a light surface.
 var lightColorPalette = []string{
-	"#dc2626", // red
-	"#ea580c", // orange
-	"#16a34a", // green
-	"#0d9488", // teal
-	"#2563eb", // blue
-	"#9333ea", // purple
-	"#db2777", // pink
-	"#7c3aed", // violet
-	"#059669", // emerald
-	"#0284c7", // sky
-	"#c026d3", // fuchsia
+	"#ef4444", // red
+	"#f97316", // orange
+	"#22c55e", // green
+	"#14b8a6", // teal
+	"#3b82f6", // blue
+	"#a855f7", // purple
+	"#ec4899", // pink
+	"#8b5cf6", // violet
+	"#10b981", // emerald
+	"#0ea5e9", // sky
+	"#d946ef", // fuchsia
 }
 
 // colorblindPalette is the palette for the colorblind-safe "colorblind" theme. Built from the
