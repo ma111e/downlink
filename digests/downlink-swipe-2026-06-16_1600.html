@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<script>
+// Set the theme before first paint to avoid a flash. A saved choice wins;
+// otherwise the server-rendered data-theme (the configured default) is kept.
+// Shared key across digest/archive/swipe pages.
+(function(){
+  try {
+    var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
+    var t = localStorage.getItem('downlink.theme');
+    if (valid[t]) document.documentElement.dataset.theme = t;
+  } catch(e){}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="DOWNLINK · Triage — 4 hours digest">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Vertex AI Bucket Squatting, ClickFix Loaders, and Steam Wallpaper Malware — DOWNLINK Triage">
+<meta property="og:description" content="Swipe-triage the 4 hours intelligence digest.">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+    --dot: #ffffff08;
+  }
+  /* Light theme: palette anchored on #EFEEEA / #FE7743 / #273F4F. */
+  html[data-theme="light"] {
+    --bg: #efeeea;
+    --surface: #fafaf8;
+    --surface2: #e8e7e2;
+    --border: #d3d2cc;
+    --border2: #b8b7b0;
+    --text: #0d0c0a;
+    --text2: #273f4f;
+    --text3: #5c6e78;
+    /* Toned, homogeneous accents: uniform OKLCH L 58% / C 0.13, hue only varies. */
+    --cyan:    oklch(58% 0.13 45);   /* brand orange */
+    --must:    oklch(58% 0.13 25);
+    --should:  oklch(58% 0.13 67);
+    --may:     oklch(58% 0.13 250);
+    --discard: oklch(58% 0.13 25);
+    --accept:  oklch(58% 0.13 150);
+    --dot: rgba(0,0,0,.035);
+  }
+  /* Contrast theme: pure black, max-legibility whites, vivid accents. */
+  html[data-theme="contrast"] {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface2: #111111;
+    --border: #2a2a2a;
+    --border2: #3a3a3a;
+    --text: #ffffff;
+    --text2: #c7c7c7;
+    --text3: #888888;
+    --cyan: #00ffd1;
+    --must:   #ff5050;
+    --should: #ffd24a;
+    --may:    #00ffd1;
+    --discard: #ff5050;
+    --accept:  #00ff95;
+    --dot: rgba(255,255,255,.08);
+  }
+  /* Mono theme: grayscale, no chroma. */
+  html[data-theme="mono"] {
+    --bg: #0c0c0c;
+    --surface: #131313;
+    --surface2: #181818;
+    --border: #242424;
+    --border2: #333333;
+    --text: #e6e6e6;
+    --text2: #9a9a9a;
+    --text3: #5e5e5e;
+    --cyan: #e6e6e6;
+    --must:   #f0f0f0;
+    --should: #c8c8c8;
+    --may:    #9a9a9a;
+    --discard: #cfcfcf;
+    --accept:  #cfcfcf;
+    --dot: rgba(255,255,255,.04);
+  }
+  /* Colorblind theme: light base, colorblind-safe Okabe-Ito accents. Crucially
+     discard/accept become vermillion/blue so the triage actions are no longer a
+     red/green pair (the worst case for protan/deutan vision). */
+  html[data-theme="colorblind"] {
+    --bg: #efeeea;
+    --surface: #fafaf8;
+    --surface2: #e8e7e2;
+    --border: #d3d2cc;
+    --border2: #b8b7b0;
+    --text: #0d0c0a;
+    --text2: #273f4f;
+    --text3: #5c6e78;
+    --cyan:    #0072b2;  /* Okabe blue */
+    --must:    #c44601;  /* vermillion */
+    --should:  #8a6d00;  /* dark gold */
+    --may:     #2f79a5;  /* teal-blue */
+    --discard: #c44601;  /* vermillion (was red) */
+    --accept:  #0072b2;  /* blue (was green) */
+    --dot: rgba(0,0,0,.035);
+  }
+  /* Pastel theme: soft cream base (#FAF6E6), deepened mint/coral accents, deep plum text. */
+  html[data-theme="pastel"] {
+    --bg: #faf6e6;
+    --surface: #fffdf4;
+    --surface2: #f1ead2;
+    --border: #e6dcbf;
+    --border2: #d2c5a2;
+    --text: #3a3137;
+    --text2: #6c5560;
+    --text3: #9c8a86;
+    --cyan:    #1f9d8f;  /* mint-teal primary */
+    --must:    #d9534f;  /* coral-red */
+    --should:  #e08a2e;  /* peach-amber */
+    --may:     #4a90d9;  /* soft blue */
+    --discard: #d9534f;  /* coral-red */
+    --accept:  #2f9e63;  /* green */
+    --dot: rgba(0,0,0,.03);
+  }
+  /* Per-theme source-color palette (--p0..--pN), generated server-side. */
+  :root{--p0:#f87171;--p1:#fb923c;--p2:#4ade80;--p3:#2dd4bf;--p4:#60a5fa;--p5:#c084fc;--p6:#f472b6;--p7:#a78bfa;--p8:#34d399;--p9:#38bdf8;--p10:#e879f9;}html[data-theme="light"]{--p0:#dc2626;--p1:#ea580c;--p2:#16a34a;--p3:#0d9488;--p4:#2563eb;--p5:#9333ea;--p6:#db2777;--p7:#7c3aed;--p8:#059669;--p9:#0284c7;--p10:#c026d3;}html[data-theme="colorblind"]{--p0:#0072b2;--p1:#c44601;--p2:#1a7a4f;--p3:#7a4fa0;--p4:#8a6d00;--p5:#2f79a5;--p6:#a23b7a;--p7:#00786b;--p8:#2b6c8f;--p9:#b35900;--p10:#5c6e78;}html[data-theme="mono"]{--p0:#7a7a7a;--p1:#868686;--p2:#929292;--p3:#9e9e9e;--p4:#aaaaaa;--p5:#b6b6b6;--p6:#c2c2c2;--p7:#cecece;--p8:#dadada;--p9:#e6e6e6;--p10:#f0f0f0;}html[data-theme="pastel"]{--p0:#e0655c;--p1:#e08a2e;--p2:#2f9e63;--p3:#1f9d8f;--p4:#4a90d9;--p5:#8c6dd0;--p6:#de6b94;--p7:#a05fc0;--p8:#2faa8e;--p9:#3f8fd0;--p10:#c267c0;}
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; min-height: 100dvh; overflow-x: hidden; }
+  /* dvh keeps the bottom action buttons reachable under mobile browser chrome */
+  .swipe-shell { height: 100vh; height: 100dvh; }
+  /* the nav is a fixed-height single row; on phones drop the clock so the
+     logo + count + theme picker never overflow */
+  @media (max-width: 460px) {
+    .swipe-nav { padding-left: 14px !important; padding-right: 14px !important; }
+    .swipe-clock { display: none; }
+  }
+  @media (max-width: 360px) {
+    .swipe-nav { padding-left: 8px !important; padding-right: 8px !important; }
+  }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; flex: 1; min-height: 0; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--accept); border-color: var(--accept); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--cyan);   border-color: var(--cyan); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .kp-list li { display: flex; gap: 0.6rem; font-size: 13px; line-height: 1.6; color: var(--text2); }
+  .kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); }
+  .report-title a { color: var(--text); text-decoration: none; }
+  .report-title a:hover { color: var(--cyan); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+window.__DL_ARTICLES = [{"n":3,"title":"Google Vertex AI SDK Flaw Let Attackers Hijack Model Uploads via Bucket Squatting","source":"thehackernews.com","sourceColorIdx":8,"link":"https://thehackernews.com/2026/06/google-vertex-ai-sdk-flaw-let-attackers.html","time":"19:05","priority":"SHOULD READ","score":89,"tldr":"A flaw in the Google Vertex AI Python SDK let attackers hijack model uploads by pre-creating a predictable Cloud Storage bucket, then swap in a malicious pickle model to execute code inside Google’s serving environment. Google patched the issue in version 1.148.0, so users should update and set an explicit staging bucket they control.","briefOverview":"\u003cp\u003eA flaw in the Google Cloud Vertex AI SDK for Python allowed an attacker with no access to a victim’s project to hijack the victim’s machine learning model upload. Palo Alto Networks Unit 42 reported the issue through Google’s bug bounty program and called the technique “Pickle in the Middle.” Google said it saw no exploitation in the wild and patched the flaw, advising users to update to version 1.148.0 or later.\u003c/p\u003e\n\n\u003cp\u003eThe bug was in the SDK’s handling of temporary Cloud Storage buckets when users did not explicitly set a staging bucket. The SDK generated a predictable bucket name from the project ID and region, then checked only whether the bucket existed, not whether the victim owned it. Because bucket names are globally unique, an attacker could create the expected bucket first, receive the model upload, and replace it with a malicious pickle or joblib file that would execute code when Vertex AI loaded it.\u003c/p\u003e\n\n\u003cp\u003eUnit 42 said the attack worked only if the victim’s default staging bucket did not already exist in that region and the staging_bucket parameter was left unset. In its proof of concept, the attacker replaced the uploaded model within 1.4 seconds, before Vertex AI read it about 2.5 seconds later. Google first added a random uuid4 to bucket names in version 1.144.0 and then added bucket ownership verification in version 1.148.0.\u003c/p\u003e\n\n\u003cp\u003eThe article also says the payload in Unit 42’s test stole an OAuth token from the serving container’s metadata server and exfiltrated it to the attacker. In that environment, the token was not limited to the compromised deployment and could access other model artifacts in the same Google-managed tenant project, along with BigQuery metadata, access lists, tenant logs, GKE cluster names, and internal container image paths. The report notes this is the second predictable-bucket-name issue found in Vertex AI this year, following CVE-2026-2473 in Vertex AI Experiments.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eA flaw in the Google Cloud Vertex AI SDK for Python let an attacker hijack a victim’s machine learning model upload and execute code inside Google’s serving infrastructure. Palo Alto Networks Unit 42 discovered the issue, reported it through Google’s Vulnerability Reward Program, and said it saw no exploitation in the wild. Google has since patched the problem and recommends updating to version 1.148.0 or later.\u003c/p\u003e\n\n\u003cp\u003eThe attack did not require credentials, phishing, or prior access to the victim’s environment. According to the article, the attacker needed only a Google Cloud project of their own and the victim’s project ID, which is often public. Unit 42 called the technique “Pickle in the Middle.”\u003c/p\u003e\n\n\u003cp\u003eThe root cause was the SDK’s default logic for selecting a temporary Cloud Storage bucket during model uploads. If the user did not specify a staging bucket, the SDK generated a predictable bucket name based on the project ID and region, such as project-vertex-staging-region. It then checked only whether the bucket existed, not whether the victim actually owned it.\u003c/p\u003e\n\n\u003cp\u003eBecause Cloud Storage bucket names are globally unique, an attacker could register the expected bucket name first in their own project. The victim’s SDK would then upload model files to that attacker-controlled bucket, allowing the attacker to swap in a malicious model before Vertex AI loaded it. The article notes that many Python ML models are stored with pickle or joblib, both of which can execute code during deserialization.\u003c/p\u003e\n\n\u003cp\u003eUnit 42 said the exploit depended on timing and observed about 2.5 seconds between the victim’s upload and Vertex AI reading the file. In its proof of concept, a Cloud Function triggered after upload and replaced the model in 1.4 seconds. Once loaded, the malicious payload stole an OAuth token from the serving container’s metadata server and sent it to the attacker.\u003c/p\u003e\n\n\u003cp\u003eIn Unit 42’s test environment, that token was not limited to the compromised deployment. It could access other model artifacts in the same Google-managed tenant project, including a full TensorFlow model with trained weights, as well as BigQuery metadata, access lists, tenant logs, GKE cluster names, and internal container image paths. The article says the issue affected versions 1.139.0 and 1.140.0 tested by Unit 42, while Google shipped a partial fix in v1.144.0 by adding a random uuid4 to the bucket name and completed the fix in v1.148.0 by verifying bucket ownership in Model.upload().\u003c/p\u003e\n\n\u003cp\u003eThe attack only worked if the victim’s default staging bucket did not already exist in the target region and if the developer left the staging_bucket parameter unset. The article advises users to update the google-cloud-aiplatform package anywhere it runs, including notebooks, CI jobs, and training pipelines, not just production systems. It also places the issue in a broader pattern, noting that Google patched a separate Vertex AI Experiments bucket-squatting flaw, CVE-2026-2473, earlier in the year.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"overview\"\u003eOverview\u003c/h1\u003e\n\n\u003cp\u003eA flaw in the Google Cloud Vertex AI SDK for Python allowed an attacker to hijack a victim’s machine learning model upload and execute code inside Google’s serving infrastructure. The article says the attacker did not need access to the victim’s Google Cloud project, credentials, phishing, or an existing foothold. According to Palo Alto Networks Unit 42, the attacker needed only a Google Cloud project of their own and the victim’s project ID, which is often publicly visible.\u003c/p\u003e\n\n\u003cp\u003eUnit 42 discovered and reported the bug through Google’s bug bounty program and referred to the technique as \u003cstrong\u003e“Pickle in the Middle.”\u003c/strong\u003e Google said it saw no exploitation in the wild. The article states that Google has patched the issue and advises SDK users to update to version \u003cstrong\u003e1.148.0 or later\u003c/strong\u003e.\u003c/p\u003e\n\n\u003ch1 id=\"root-cause\"\u003eRoot Cause\u003c/h1\u003e\n\n\u003cp\u003eThe flaw was in the Python SDK’s logic for selecting a temporary Cloud Storage bucket during model uploads.\u003c/p\u003e\n\n\u003cp\u003eIf the user did not explicitly set a bucket, the SDK generated a predictable default bucket name using the project ID and region, with an example format like:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eproject-vertex-staging-region\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article says the SDK verified only whether the bucket existed, but \u003cstrong\u003edid not verify whether the bucket was owned by the victim\u003c/strong\u003e. Since Google Cloud Storage bucket names are globally unique, an attacker could create the expected bucket name in their own project before the victim did.\u003c/p\u003e\n\n\u003cp\u003eThat meant the victim’s SDK could upload the model files into an attacker-controlled bucket without realizing it.\u003c/p\u003e\n\n\u003ch1 id=\"attack-chain\"\u003eAttack Chain\u003c/h1\u003e\n\n\u003cp\u003eThe article describes the attack flow as follows:\u003c/p\u003e\n\n\u003col\u003e\n\u003cli\u003eThe attacker learns the victim’s project ID.\u003c/li\u003e\n\u003cli\u003eThe attacker predicts the default staging bucket name based on the project ID and region.\u003c/li\u003e\n\u003cli\u003eThe attacker creates that bucket first in their own Google Cloud project.\u003c/li\u003e\n\u003cli\u003eThe victim uploads a model through the Vertex AI SDK without setting \u003ccode\u003estaging_bucket\u003c/code\u003e.\u003c/li\u003e\n\u003cli\u003eThe SDK finds the attacker’s bucket and uploads the model there.\u003c/li\u003e\n\u003cli\u003eThe attacker replaces the uploaded model with a malicious one before Vertex AI reads it.\u003c/li\u003e\n\u003cli\u003eVertex AI later loads the swapped model, triggering code execution inside the serving container.\u003c/li\u003e\n\u003c/ol\u003e\n\n\u003cp\u003eThe article notes that many Python machine learning models are serialized using \u003cstrong\u003epickle\u003c/strong\u003e or \u003cstrong\u003ejoblib\u003c/strong\u003e, both of which can execute code when deserialized. That made model substitution particularly dangerous in this workflow.\u003c/p\u003e\n\n\u003ch1 id=\"timing-and-proof-of-concept\"\u003eTiming and Proof of Concept\u003c/h1\u003e\n\n\u003cp\u003eUnit 42 said the exploit depended on timing. In its measurements, there were about \u003cstrong\u003e2.5 seconds\u003c/strong\u003e between the victim’s upload and Vertex AI reading the file.\u003c/p\u003e\n\n\u003cp\u003eIn the proof of concept described in the article:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eThe attacker used a \u003cstrong\u003eCloud Function\u003c/strong\u003e triggered after the upload.\u003c/li\u003e\n\u003cli\u003eThat function replaced the model in \u003cstrong\u003e1.4 seconds\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003eThis was fast enough to win the race before Vertex AI loaded the file.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article presents this timing detail as an important practical component of the attack’s success.\u003c/p\u003e\n\n\u003ch1 id=\"impact-described-by-unit-42\"\u003eImpact Described by Unit 42\u003c/h1\u003e\n\n\u003cp\u003eAccording to the article, the malicious payload stole an \u003cstrong\u003eOAuth token\u003c/strong\u003e from the serving container’s \u003cstrong\u003emetadata server\u003c/strong\u003e and sent it to the attacker.\u003c/p\u003e\n\n\u003cp\u003eIn Unit 42’s test environment, that token was not limited to the single compromised deployment. The article says it could access:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eOther model artifacts in the same Google-managed tenant project\u003c/li\u003e\n\u003cli\u003eA full TensorFlow model with trained weights\u003c/li\u003e\n\u003cli\u003eBigQuery metadata\u003c/li\u003e\n\u003cli\u003eAccess lists\u003c/li\u003e\n\u003cli\u003eTenant logs\u003c/li\u003e\n\u003cli\u003eGKE cluster names\u003c/li\u003e\n\u003cli\u003eInternal container image paths\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article frames this as a significant cross-tenant exposure path because code execution in the serving container led to access beyond the original victim model deployment.\u003c/p\u003e\n\n\u003ch1 id=\"conditions-required-for-the-attack\"\u003eConditions Required for the Attack\u003c/h1\u003e\n\n\u003cp\u003eThe article says the technique worked only under specific conditions:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eThe victim’s default staging bucket in that region did \u003cstrong\u003enot already exist\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003eThe victim left the \u003cstrong\u003e\u003ccode\u003estaging_bucket\u003c/code\u003e\u003c/strong\u003e parameter \u003cstrong\u003eunset\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eIt adds that the first condition is common for a new Vertex AI project in a region. The second condition depends on the developer relying on the SDK’s default behavior instead of explicitly choosing a bucket they control.\u003c/p\u003e\n\n\u003ch1 id=\"versions-disclosure-and-fix-timeline\"\u003eVersions, Disclosure, and Fix Timeline\u003c/h1\u003e\n\n\u003cp\u003eUnit 42 reported the flaw through Google’s Vulnerability Reward Program on \u003cstrong\u003eMarch 5, 2026\u003c/strong\u003e. The researchers tested \u003cstrong\u003eversions 1.139.0 and 1.140.0\u003c/strong\u003e, which were the latest available at the time, and found both vulnerable.\u003c/p\u003e\n\n\u003cp\u003eThe article describes Google’s remediation in two stages:\u003c/p\u003e\n\n\u003ch2 id=\"initial-fix\"\u003eInitial Fix\u003c/h2\u003e\n\n\u003cp\u003eGoogle released \u003cstrong\u003ev1.144.0\u003c/strong\u003e on \u003cstrong\u003eMarch 31\u003c/strong\u003e.\u003c/p\u003e\n\n\u003cp\u003eThis version:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eAdded a random \u003cstrong\u003e\u003ccode\u003euuid4\u003c/code\u003e\u003c/strong\u003e to the bucket name\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"completed-fix\"\u003eCompleted Fix\u003c/h2\u003e\n\n\u003cp\u003eGoogle released \u003cstrong\u003ev1.148.0\u003c/strong\u003e on \u003cstrong\u003eApril 15\u003c/strong\u003e.\u003c/p\u003e\n\n\u003cp\u003eThis version:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eAdded \u003cstrong\u003ebucket ownership verification\u003c/strong\u003e in \u003ccode\u003eModel.upload()\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eBlocked the bucket-squatting scenario described in the report\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article notes that, at the time of publication, neither Unit 42 nor Google’s Vertex AI security bulletins listed a \u003cstrong\u003eCVE\u003c/strong\u003e for this issue.\u003c/p\u003e\n\n\u003ch1 id=\"guidance-to-users\"\u003eGuidance to Users\u003c/h1\u003e\n\n\u003cp\u003eThe article recommends two concrete actions:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eUpdate to \u003cstrong\u003e1.148.0 or later\u003c/strong\u003e so the ownership check is active\u003c/li\u003e\n\u003cli\u003eSet an explicit \u003cstrong\u003e\u003ccode\u003estaging_bucket\u003c/code\u003e\u003c/strong\u003e pointing to a Cloud Storage location the user controls\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eIt also emphasizes that the vulnerable logic lives in the \u003cstrong\u003eclient SDK\u003c/strong\u003e, not just in a backend service. Because of that, users should verify the \u003ccode\u003egoogle-cloud-aiplatform\u003c/code\u003e version anywhere it runs, including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eNotebooks\u003c/li\u003e\n\u003cli\u003eCI jobs\u003c/li\u003e\n\u003cli\u003eTraining pipelines\u003c/li\u003e\n\u003cli\u003eProduction services\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch1 id=\"broader-context\"\u003eBroader Context\u003c/h1\u003e\n\n\u003cp\u003eThe article says this is the \u003cstrong\u003esecond predictable-bucket-name flaw\u003c/strong\u003e to surface in Vertex AI this year.\u003c/p\u003e\n\n\u003cp\u003eIt references a separate issue, \u003cstrong\u003eCVE-2026-2473\u003c/strong\u003e, which Google patched in February. That bug affected \u003cstrong\u003eVertex AI Experiments\u003c/strong\u003e and also involved bucket squatting that enabled:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eCross-tenant code execution\u003c/li\u003e\n\u003cli\u003eModel theft\u003c/li\u003e\n\u003cli\u003eModel poisoning\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article also mentions Unit 42’s earlier work on \u003cstrong\u003eVertex AI’s default service-agent permissions\u003c/strong\u003e, which traced a related path from a deployed AI agent into customer and tenant data.\u003c/p\u003e\n\n\u003ch1 id=\"key-takeaways\"\u003eKey Takeaways\u003c/h1\u003e\n\n\u003cul\u003e\n\u003cli\u003eA predictable default staging bucket name in the Vertex AI Python SDK allowed model-upload hijacking when ownership was not checked.\u003c/li\u003e\n\u003cli\u003eThe attacker needed only their own Google Cloud project and the victim’s project ID.\u003c/li\u003e\n\u003cli\u003eThe technique enabled malicious model substitution and code execution inside Google’s serving environment.\u003c/li\u003e\n\u003cli\u003eIn Unit 42’s test, the resulting token theft exposed access to additional model artifacts and internal tenant resources.\u003c/li\u003e\n\u003cli\u003eGoogle patched the issue in stages, with the ownership verification landing in \u003cstrong\u003ev1.148.0\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003eUsers are advised to update the SDK and explicitly configure a staging bucket they control.\u003c/li\u003e\n\u003c/ul\u003e\n","keyPoints":["A flaw in the Google Cloud Vertex AI SDK for Python allowed an attacker with only a Google Cloud project and a victim's project ID to hijack the victim's machine learning model upload.","The SDK generated a predictable default staging bucket name from the project ID and region and checked only whether the bucket existed, not whether the victim owned it.","An attacker could create the expected bucket first, receive the victim's uploaded model files, replace them with a malicious pickle or joblib model, and have code execute when Vertex AI loaded the model.","Unit 42 measured about 2.5 seconds between the victim's upload and Vertex AI reading the file, and its proof of concept replaced the model in 1.4 seconds using a Cloud Function.","Google addressed the issue by adding a random uuid4 to the bucket name in version 1.144.0 and adding bucket ownership verification in version 1.148.0."],"insights":["The attacker did not need any access to the victim's Google Cloud project because the victim's project ID alone was enough to predict the default staging bucket name used by the SDK.","The exploit depended on a very short race window, yet Unit 42's proof of concept still succeeded by replacing the uploaded model in 1.4 seconds before Vertex AI read it about 2.5 seconds later.","The stolen OAuth token from the serving container was not limited to the compromised deployment in Unit 42's test environment and could access other model artifacts and internal Google-managed tenant resources.","The exposure can persist outside production services because the flawed logic resides in the client SDK, so notebooks, CI jobs, and training pipelines also need the updated google-cloud-aiplatform version.","This is the second Vertex AI bucket-squatting issue reported this year, indicating that predictable bucket naming in Vertex AI workflows has already led to multiple cross-tenant code execution and model theft scenarios."],"referencedReports":[{"title":"Hijacking Vertex AI Model Uploads to Achieve Arbitrary Code Execution in Google Cloud","url":"https://unit42.paloaltonetworks.com/hijacking-vertex-ai-model/","publisher":"palo alto networks unit 42","context":"The article is based on Unit 42's technical analysis of the Vertex AI SDK flaw and explicitly cites it as the report that found and described the issue.","category":"research","primary":true},{"title":"Vertex AI Security Bulletins","url":"https://cloud.google.com/vertex-ai/docs/security-bulletins","publisher":"google cloud","context":"The article references Google's Vertex AI security bulletins when noting the separate predictable-bucket-name flaw CVE-2026-2473.","category":"advisory","primary":false}],"body":"\u003cp\u003eA flaw in the Google Cloud Vertex AI SDK for Python allowed an attacker with no access to a victim’s project to hijack the victim’s machine learning model upload. Palo Alto Networks Unit 42 reported the issue through Google’s bug bounty program and called the technique “Pickle in the Middle.” Google said it saw no exploitation in the wild and patched the flaw, advising users to update to version 1.148.0 or later.\u003c/p\u003e\n\n\u003cp\u003eThe bug was in the SDK’s handling of temporary Cloud Storage buckets when users did not explicitly set a staging bucket. The SDK generated a predictable bucket name from the project ID and region, then checked only whether the bucket existed, not whether the victim owned it. Because bucket names are globally unique, an attacker could create the expected bucket first, receive the model upload, and replace it with a malicious pickle or joblib file that would execute code when Vertex AI loaded it.\u003c/p\u003e\n\n\u003cp\u003eUnit 42 said the attack worked only if the victim’s default staging bucket did not already exist in that region and the staging_bucket parameter was left unset. In its proof of concept, the attacker replaced the uploaded model within 1.4 seconds, before Vertex AI read it about 2.5 seconds later. Google first added a random uuid4 to bucket names in version 1.144.0 and then added bucket ownership verification in version 1.148.0.\u003c/p\u003e\n\n\u003cp\u003eThe article also says the payload in Unit 42’s test stole an OAuth token from the serving container’s metadata server and exfiltrated it to the attacker. In that environment, the token was not limited to the compromised deployment and could access other model artifacts in the same Google-managed tenant project, along with BigQuery metadata, access lists, tenant logs, GKE cluster names, and internal container image paths. The report notes this is the second predictable-bucket-name issue found in Vertex AI this year, following CVE-2026-2473 in Vertex AI Experiments.\u003c/p\u003e\n"},{"n":1,"title":"Steam Workshop abused to spread malware via Wallpaper Engine app","source":"bleepingcomputer.com","sourceColorIdx":10,"link":"https://www.bleepingcomputer.com/news/security/steam-workshop-abused-to-spread-malware-via-wallpaper-engine-app/","time":"18:27","priority":"SHOULD READ","score":88,"tldr":"Attackers abused Steam Workshop by hiding malware inside Wallpaper Engine application wallpapers, leading to Steam account theft, backdoors, and cryptominers on victims’ PCs. Steam removed the samples Kaspersky found, but users should treat executable wallpapers as risky and scan Workshop downloads before running them.","briefOverview":"\u003cp\u003eThreat actors are abusing Steam Workshop to distribute malware through wallpaper packages for Wallpaper Engine, according to a Kaspersky report. The malicious wallpapers can hijack Steam accounts, install backdoors, or run cryptomining software. Kaspersky says it found dozens of these wallpapers, many of which had already been downloaded thousands or tens of thousands of times.\u003c/p\u003e\n\n\u003cp\u003eThe abuse centers on Wallpaper Engine’s application wallpaper feature, which allows executable Windows applications to run as desktop backgrounds. Kaspersky says attackers bundled malware directly in wallpaper packages or hid it in password-protected archives that users were tricked into opening, with payloads executing automatically upon installation. In one tested case, a wallpaper posing as the game NTRaholic launched normally while secretly installing a DarkKomet backdoor and a modified AggregatorHost.dll designed to steal Steam credentials.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eSteam Workshop, Valve’s built-in platform for downloading community-created content for games and applications, is being abused to spread malware through Wallpaper Engine wallpaper packages. Kaspersky reported that attackers used malicious wallpapers to infect users with backdoors, credential stealers, cryptominers, botnet loaders, and even ransomware. The researchers said the abuse had been occurring since at least late 2025.\u003c/p\u003e\n\n\u003cp\u003eThe issue is tied to Wallpaper Engine’s support for application wallpapers, which are executable Windows applications that can function as desktop backgrounds. According to Kaspersky, this feature creates a built-in security risk because it allows software to run under the guise of wallpaper content. Steam users downloading these items through Workshop could unknowingly install malware.\u003c/p\u003e\n\n\u003cp\u003eKaspersky said it found dozens of malicious application wallpapers on Steam Workshop, with each one already downloaded thousands or tens of thousands of times. The malicious content either included malware directly in the package or concealed it inside password-protected archives that users were tricked into opening. The researchers said the payloads executed automatically as soon as the wallpaper was installed.\u003c/p\u003e\n\n\u003cp\u003eIn one analyzed example, a wallpaper masquerading as a game called NTRaholic launched as expected to avoid raising suspicion. At the same time, it installed a backdoor associated with the DarkKomet malware family in the background. It also installed a custom AggregatorHost.dll that searched the computer for Steam accounts and stole account credentials.\u003c/p\u003e\n\n\u003cp\u003eKaspersky found that multiple malware families were involved in these campaigns, including Lumma, Vidar, RanEngine, botnet loaders, cryptocurrency miners, and ransomware strains. This indicated that more than one threat actor was abusing Wallpaper Engine through Steam Workshop. Steam has since removed all of the malicious wallpapers identified by Kaspersky, though the researchers warned that new submissions are likely and advised users to download only from trusted sources and scan Workshop content with updated antivirus software.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"overview\"\u003eOverview\u003c/h1\u003e\n\n\u003cp\u003eKaspersky says threat actors have been abusing Steam Workshop to distribute malware through Wallpaper Engine wallpaper packages. The malicious content can hijack Steam accounts, install backdoors, and run cryptomining processes on affected systems. According to the researchers, this abuse has been active since at least late 2025.\u003c/p\u003e\n\n\u003cp\u003eThe article focuses on the way attackers used Steam’s community content ecosystem together with Wallpaper Engine’s application wallpaper capability. Kaspersky says it found dozens of malicious wallpaper items on Steam Workshop, and each had already been downloaded thousands or even tens of thousands of times.\u003c/p\u003e\n\n\u003ch1 id=\"platform-and-feature-context\"\u003ePlatform and Feature Context\u003c/h1\u003e\n\n\u003cp\u003eSteam Workshop is described as Valve’s built-in content-sharing hub for the Steam gaming service. Users can upload and download community-created items such as mods, maps, skins, save files, tools, and wallpapers.\u003c/p\u003e\n\n\u003cp\u003eThe attacks specifically involve Wallpaper Engine, a desktop customization application available on Steam. The article notes that Wallpaper Engine supports four types of wallpapers:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eVideos\u003c/li\u003e\n\u003cli\u003eInteractive scenes\u003c/li\u003e\n\u003cli\u003eWeb pages that can play audio and video\u003c/li\u003e\n\u003cli\u003eApplications\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe application wallpaper type is central to the abuse described in the report. These wallpapers are executable Windows applications that can include games, desktop widgets, and system monitoring tools, and Wallpaper Engine runs them as desktop backgrounds.\u003c/p\u003e\n\n\u003ch1 id=\"core-security-issue\"\u003eCore Security Issue\u003c/h1\u003e\n\n\u003cp\u003eKaspersky warns that the application wallpaper feature represents a built-in security risk. Because these wallpapers are actually executable Windows applications, attackers can disguise malware as harmless or entertaining wallpaper content.\u003c/p\u003e\n\n\u003cp\u003eAccording to the article, the threat actors exploited this gap by uploading malicious wallpaper files to Steam Workshop and persuading users to install them through Wallpaper Engine. Kaspersky says it discovered dozens of these malicious application wallpapers already circulating on the platform.\u003c/p\u003e\n\n\u003ch1 id=\"how-the-malware-was-delivered\"\u003eHow the Malware Was Delivered\u003c/h1\u003e\n\n\u003cp\u003eKaspersky found that the malicious wallpaper packages delivered malware in two main ways:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eMalware was bundled directly inside the wallpaper package.\u003c/li\u003e\n\u003cli\u003eMalware was placed inside password-protected archives that users were tricked into opening.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe researchers say the payloads executed automatically when the user installed the wallpaper. This means the wallpaper installation process itself was sufficient to trigger the malicious code, according to the article.\u003c/p\u003e\n\n\u003ch1 id=\"example-case-ntraholic-wallpaper\"\u003eExample Case: NTRaholic Wallpaper\u003c/h1\u003e\n\n\u003cp\u003eKaspersky tested one wallpaper that posed as a game called \u003cstrong\u003eNTRaholic\u003c/strong\u003e. The article says the wallpaper launched as expected, which helped reduce user suspicion.\u003c/p\u003e\n\n\u003cp\u003eWhile the visible program behaved normally, malicious components were installed in the background. In this sample, Kaspersky identified:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eA backdoor belonging to the \u003cstrong\u003eDarkKomet\u003c/strong\u003e malware family\u003c/li\u003e\n\u003cli\u003eA custom version of \u003cstrong\u003eAggregatorHost.dll\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article says the modified AggregatorHost.dll searched the infected computer for Steam accounts and stole account credentials.\u003c/p\u003e\n\n\u003ch1 id=\"malware-families-and-payload-types-observed\"\u003eMalware Families and Payload Types Observed\u003c/h1\u003e\n\n\u003cp\u003eKaspersky says the abuse was not limited to a single malware family or operator. The researchers found multiple cases involving:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eDarkKomet\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eLumma\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eVidar\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eRanEngine\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003eCryptocurrency miners\u003c/li\u003e\n\u003cli\u003eBotnet loaders\u003c/li\u003e\n\u003cli\u003eRansomware strains\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article states that this variety shows Wallpaper Engine was being abused by multiple threat actors.\u003c/p\u003e\n\n\u003ch1 id=\"impact-described-in-the-article\"\u003eImpact Described in the Article\u003c/h1\u003e\n\n\u003cp\u003eThe potential effects on victims included:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eHijacking Steam accounts\u003c/li\u003e\n\u003cli\u003eCompromising systems with a backdoor\u003c/li\u003e\n\u003cli\u003eRunning cryptomining processes\u003c/li\u003e\n\u003cli\u003eStealing account credentials\u003c/li\u003e\n\u003cli\u003eDelivering additional malware families, including ransomware\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article does not provide a total victim count, but it emphasizes that many of the identified wallpapers had already accumulated significant download numbers.\u003c/p\u003e\n\n\u003ch1 id=\"response-and-mitigation\"\u003eResponse and Mitigation\u003c/h1\u003e\n\n\u003cp\u003eAccording to the article, Steam identified and removed all of the malicious wallpaper applications that Kaspersky reported. However, Kaspersky warned that threat actors are likely to submit new malicious wallpapers in the future.\u003c/p\u003e\n\n\u003cp\u003eKaspersky’s recommendations in the article were straightforward:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eDownload content only from trusted sources\u003c/li\u003e\n\u003cli\u003eScan anything downloaded from Steam Workshop with an up-to-date antivirus product\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch1 id=\"key-takeaways\"\u003eKey Takeaways\u003c/h1\u003e\n\n\u003cp\u003eThe article presents the abuse of Wallpaper Engine application wallpapers as a notable security issue within Steam Workshop. The key reason is that the feature allows executable applications to be delivered in a format users may perceive as low risk.\u003c/p\u003e\n\n\u003cp\u003eKaspersky’s findings also show that the malicious content was designed to appear legitimate in at least some cases, such as the NTRaholic sample that launched normally while installing malware in the background. Combined with high download counts and multiple malware families, the article frames this as an active and recurring distribution method rather than an isolated incident.\u003c/p\u003e\n","keyPoints":["Kaspersky reported that threat actors abused Steam Workshop and the Wallpaper Engine app to distribute malicious wallpaper packages containing malware.","The malicious packages used Wallpaper Engine application wallpapers, which are executable Windows applications that can run as desktop backgrounds.","Kaspersky found dozens of malicious wallpapers that had already been downloaded thousands or tens of thousands of times, and said the abuse had been occurring since at least late 2025.","In one tested sample posing as the game NTRaholic, the wallpaper launched normally while also installing a DarkKomet backdoor and a malicious AggregatorHost.dll file that searched for Steam accounts and stole credentials.","Kaspersky said Steam removed all malicious wallpaper applications it identified, but warned that attackers are likely to submit new ones."],"insights":["The article highlights that Wallpaper Engine’s application wallpaper feature is itself a built-in security risk because it allows executable Windows applications to run as wallpapers.","Kaspersky found that some malicious wallpapers were designed to appear functional, such as a sample that launched a game as expected while silently installing malware in the background.","The malware was not limited to one payload type, as Kaspersky observed backdoors, Steam credential stealers, infostealers, cryptominers, botnet loaders, and ransomware tied to these wallpaper packages.","The article notes that payloads can execute automatically when a user installs a wallpaper, reducing the amount of user interaction attackers need after the initial download.","The use of password-protected archives inside wallpaper packages shows attackers were adding an extra layer to conceal malicious files while still getting users to open them."],"referencedReports":[{"title":"Dozens of malicious wallpapers found on Steam Workshop","url":"https://securelist.com/dozens-of-malicious-wallpapers-found-on-steam-workshop/120186/","publisher":"kaspersky","context":"The article cites Kaspersky's report as the basis for its findings about malicious Wallpaper Engine wallpapers on Steam Workshop.","category":"research","primary":true}],"body":"\u003cp\u003eThreat actors are abusing Steam Workshop to distribute malware through wallpaper packages for Wallpaper Engine, according to a Kaspersky report. The malicious wallpapers can hijack Steam accounts, install backdoors, or run cryptomining software. Kaspersky says it found dozens of these wallpapers, many of which had already been downloaded thousands or tens of thousands of times.\u003c/p\u003e\n\n\u003cp\u003eThe abuse centers on Wallpaper Engine’s application wallpaper feature, which allows executable Windows applications to run as desktop backgrounds. Kaspersky says attackers bundled malware directly in wallpaper packages or hid it in password-protected archives that users were tricked into opening, with payloads executing automatically upon installation. In one tested case, a wallpaper posing as the game NTRaholic launched normally while secretly installing a DarkKomet backdoor and a modified AggregatorHost.dll designed to steal Steam credentials.\u003c/p\u003e\n"},{"n":2,"title":"ClickFix Campaigns Expand Malware Delivery With New Loaders and Fake Update Lures","source":"thehackernews.com","sourceColorIdx":8,"link":"https://thehackernews.com/2026/06/clickfix-campaigns-expand-malware.html","time":"17:41","priority":"SHOULD READ","score":88,"tldr":"Researchers say ClickFix social-engineering lures are evolving into a major malware delivery method, now spreading new loaders like BabaDeda Loader, Lorem Ipsum Loader, and Potemkin that can lead to info-stealers, RATs, and ransomware. The key takeaway is that simply tricking users into pasting and running commands remains highly effective for attackers, even as defenders disrupt older delivery methods.","briefOverview":"\u003cp\u003eCybersecurity researchers reported multiple ClickFix campaigns that are delivering three malware loaders: BabaDeda Loader, Lorem Ipsum Loader, and Potemkin. The campaigns were documented by Morphisec, BlueVoyant, and Huntress, and they show how ClickFix continues to be used as a social engineering method to get users to run attacker-supplied commands. The loaders are then used to deploy information stealers, remote access trojans, backdoors, and follow-on tooling.\u003c/p\u003e\n\n\u003cp\u003eIn the BabaDeda case, attacks observed in April 2026 targeted education and financial organizations and used hidden PowerShell, in-memory shellcode, DLL side-loading, and external payload storage. BlueVoyant said a separate campaign used compromised WordPress sites and fake Edge security update lures to deliver Lorem Ipsum Loader, which it attributed with high confidence to Vanilla Tempest. Huntress also described a Potemkin-based chain that led to EtherRAT and RMMProject, followed by hands-on-keyboard activity including Microsoft Defender exclusions, tunneling, reconnaissance, and lateral movement to a domain controller.\u003c/p\u003e\n\n\u003cp\u003eThe article says these findings reflect an evolution toward modular loader frameworks that separate delivery, storage, execution, and payload deployment into distinct components. It also emphasizes that ClickFix remains effective because users are persuaded to paste and run commands that appear to be legitimate troubleshooting steps. Apple has responded to this broader risk by adding a macOS Tahoe 26.4 warning for users attempting to paste commands into Terminal from websites or messaging channels.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eCybersecurity researchers have identified multiple ClickFix campaigns that deliver new malware loaders named BabaDeda Loader, Lorem Ipsum Loader, and Potemkin. The reporting draws on independent findings from Morphisec, BlueVoyant, and Huntress. Across the campaigns, attackers rely on ClickFix social engineering to trick users into executing malicious PowerShell or related commands, after which additional malware is installed.\u003c/p\u003e\n\n\u003cp\u003eMorphisec said attacks involving BabaDeda Loader were observed in April 2026 and targeted education and financial organizations. According to the report, the framework expands on earlier BabaDeda activity by becoming a more capable loader focused on stealth, evasion, and payload flexibility. The attack chain uses hidden PowerShell, in-memory shellcode, DLL side-loading, and external payload storage, while the loader profiles the host, avoids Russian or Belarusian systems, checks for security products, and injects payloads into trusted Windows processes such as svchost.exe.\u003c/p\u003e\n\n\u003cp\u003eThe article says one malware family delivered through BabaDeda Loader is a .NET backdoor and information stealer that can gather detailed system information, browser profiles, cookies, browsing history, saved credentials, local-state encryption keys, screenshots, files, and command output for exfiltration to a command-and-control server. A second chain drops a ZIP archive that side-loads DanaBot and SectopRAT using a staged component called Storage Crypter. Morphisec noted that payloads are hidden in external storage-like files such as List.Control.dat and decoded only shortly before execution, which reduces forensic visibility and complicates automated analysis.\u003c/p\u003e\n\n\u003cp\u003eBlueVoyant described a separate active campaign in which at least five compromised WordPress sites across sectors including architecture, legal services, and construction technology were used to host ClickFix lures. This activity represented a shift from earlier campaigns that used trojanized Microsoft Teams installers promoted through SEO poisoning and malvertising. BlueVoyant attributed the Lorem Ipsum ecosystem with high confidence to Vanilla Tempest and said the delivery change followed Microsoft’s disruption of Fox Tempest, whose malware-signing-as-a-service operation had supported signed-installer delivery using fraudulent Microsoft Trusted Signing certificates.\u003c/p\u003e\n\n\u003cp\u003eIn the Lorem Ipsum chain, victims are shown fake Edge browser security update prompts that trigger a command to download a ZIP file and an outdated 2017 version of Node.js to run JavaScript payloads. Those payloads deploy additional components, including a batch script that establishes persistence and launches a DLL side-loading chain using mscoree.dll or msvcp140.dll to decode the embedded Lorem Ipsum Loader. BlueVoyant said the loader retrieves a next-stage backdoor from attacker-controlled profiles on social networking platforms, and that the chain ultimately hands off to post-exploitation tooling and ransomware deployments, primarily Rhysida.\u003c/p\u003e\n\n\u003cp\u003eHuntress reported a third ClickFix campaign in which an MSI package drops the previously undocumented Potemkin loader through an HTA payload. Potemkin uses a domain generation algorithm with a built-in 1,000-word dictionary to locate its command-and-control infrastructure, writes a unique UUID to %LOCALAPPDATA%\\hyper-v.ver, and reflectively loads follow-on modules in memory. Huntress said the activity led to deployment of EtherRAT and RMMProject, after which the threat actor configured Microsoft Defender exclusions, set up Chisel reverse SOCKS tunnels and a Cloudflare tunnel, conducted reconnaissance, moved laterally with WMIExec and SMBExec, reached the domain controller, and spread EtherRAT across more than 11 hosts.\u003c/p\u003e\n\n\u003cp\u003eThe article concludes that ClickFix remains an effective and enduring technique because it exploits users’ willingness to follow authoritative-looking instructions such as pasting commands into Run or Terminal windows. It notes that ClickFix has recently been used against both Windows and macOS users, including in campaigns involving Phexia Stealer, HellsUchecker, and fake Claude installers. Apple has introduced a warning in macOS Tahoe 26.4 to alert users when they attempt to paste commands into Terminal from websites, chat agents, messaging apps, or email.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"overview\"\u003eOverview\u003c/h1\u003e\n\n\u003cp\u003eCybersecurity researchers have documented multiple active ClickFix campaigns that are expanding malware delivery through three named loaders: \u003cstrong\u003eBabaDeda Loader\u003c/strong\u003e, \u003cstrong\u003eLorem Ipsum Loader\u003c/strong\u003e, and \u003cstrong\u003ePotemkin\u003c/strong\u003e. The article draws on independent reports from \u003cstrong\u003eMorphisec\u003c/strong\u003e, \u003cstrong\u003eBlueVoyant\u003c/strong\u003e, and \u003cstrong\u003eHuntress\u003c/strong\u003e, each describing different but related attack chains that begin with ClickFix-style social engineering and end with the deployment of stealers, backdoors, remote access tools, or ransomware-associated tooling.\u003c/p\u003e\n\n\u003cp\u003eThe central theme is that \u003cstrong\u003eClickFix remains an effective initial access method\u003c/strong\u003e. In these campaigns, victims are tricked into executing attacker-provided commands, often under the guise of troubleshooting, browser security verification, or update prompts. The article presents this as part of a broader trend in which threat actors continue to adapt their delivery mechanisms even when defenders disrupt earlier infrastructure or techniques.\u003c/p\u003e\n\n\u003ch1 id=\"core-findings\"\u003eCore Findings\u003c/h1\u003e\n\n\u003cp\u003eThe article highlights three separate malware delivery ecosystems:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eBabaDeda Loader\u003c/strong\u003e, analyzed by Morphisec\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eLorem Ipsum Loader\u003c/strong\u003e, analyzed by BlueVoyant\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003ePotemkin\u003c/strong\u003e, analyzed by Huntress\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eAlthough the technical details differ, all three campaigns rely on \u003cstrong\u003eClickFix\u003c/strong\u003e to persuade users to manually execute malicious content. The article frames these as examples of increasingly \u003cstrong\u003emodular loader frameworks\u003c/strong\u003e that separate delivery, storage, execution, and payload deployment into distinct stages instead of bundling everything into one monolithic sample.\u003c/p\u003e\n\n\u003ch1 id=\"babadeda-loader-campaign\"\u003eBabaDeda Loader Campaign\u003c/h1\u003e\n\n\u003ch2 id=\"observed-activity-and-targets\"\u003eObserved activity and targets\u003c/h2\u003e\n\n\u003cp\u003eMorphisec said attacks involving \u003cstrong\u003eBabaDeda Loader\u003c/strong\u003e were observed in \u003cstrong\u003eApril 2026\u003c/strong\u003e and targeted \u003cstrong\u003eeducation and financial organizations\u003c/strong\u003e. According to Morphisec, this activity builds on earlier BabaDeda operations that hid malicious payloads inside legitimate-looking installers, but now extends that approach into a more capable framework designed for \u003cstrong\u003estealth, evasion, and payload flexibility\u003c/strong\u003e.\u003c/p\u003e\n\n\u003cp\u003eThe article attributes the activity to \u003cstrong\u003eBabaDeda\u003c/strong\u003e, a crypter service previously documented by Morphisec in \u003cstrong\u003eNovember 2021\u003c/strong\u003e in relation to campaigns targeting the \u003cstrong\u003ecryptocurrency and Web3 sectors\u003c/strong\u003e. In that earlier activity, BabaDeda was associated with the distribution of information stealers, RATs, and \u003cstrong\u003eLockBit ransomware\u003c/strong\u003e.\u003c/p\u003e\n\n\u003ch2 id=\"initial-access-and-execution-chain\"\u003eInitial access and execution chain\u003c/h2\u003e\n\n\u003cp\u003eThe attack starts with a \u003cstrong\u003eClickFix social engineering lure\u003c/strong\u003e that convinces the victim to run attacker-supplied \u003cstrong\u003ePowerShell\u003c/strong\u003e commands. That command delivers the loader, which then deploys additional malware.\u003c/p\u003e\n\n\u003cp\u003eThe article says the chain combines several familiar techniques:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eHidden PowerShell\u003c/li\u003e\n\u003cli\u003eIn-memory shellcode\u003c/li\u003e\n\u003cli\u003eDLL side-loading\u003c/li\u003e\n\u003cli\u003eExternal payload storage\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"loader-behavior\"\u003eLoader behavior\u003c/h2\u003e\n\n\u003cp\u003eBabaDeda Loader is described as capable of:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eProfiling the victim host\u003c/li\u003e\n\u003cli\u003eAvoiding execution on \u003cstrong\u003eRussian\u003c/strong\u003e or \u003cstrong\u003eBelarusian\u003c/strong\u003e systems\u003c/li\u003e\n\u003cli\u003ePerforming checks related to security products\u003c/li\u003e\n\u003cli\u003eRetrieving a main payload\u003c/li\u003e\n\u003cli\u003eInjecting that payload into a trusted Windows process such as \u003cstrong\u003esvchost.exe\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"delivered-malware-and-capabilities\"\u003eDelivered malware and capabilities\u003c/h2\u003e\n\n\u003cp\u003eOne malware family delivered through BabaDeda Loader is a \u003cstrong\u003e.NET backdoor and information stealer\u003c/strong\u003e that can:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eCollect detailed system information\u003c/li\u003e\n\u003cli\u003eDiscover installed browser profiles\u003c/li\u003e\n\u003cli\u003eExtract browser artifacts including cookies, browsing history, saved credentials, preferences, and local-state encryption keys\u003c/li\u003e\n\u003cli\u003eTraverse directories and select files using configurable rules\u003c/li\u003e\n\u003cli\u003eRead and exfiltrate file contents\u003c/li\u003e\n\u003cli\u003eCapture screenshots and display information\u003c/li\u003e\n\u003cli\u003eExecute shell commands or external processes and collect output\u003c/li\u003e\n\u003cli\u003eTransfer data back to command-and-control infrastructure\u003c/li\u003e\n\u003cli\u003eUse native Windows APIs for process interaction, memory operations, DPAPI access, Restart Manager behavior, and advanced file access\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eA second BabaDeda-related chain drops a \u003cstrong\u003eZIP archive\u003c/strong\u003e that uses \u003cstrong\u003eDLL side-loading\u003c/strong\u003e to launch \u003cstrong\u003eDanaBot\u003c/strong\u003e and \u003cstrong\u003eSectopRAT\u003c/strong\u003e (also called \u003cstrong\u003eArechClient\u003c/strong\u003e). The article emphasizes the use of a staged loader component named \u003cstrong\u003eStorage Crypter\u003c/strong\u003e, which reads payload material from external storage-like files such as \u003cstrong\u003eList.Control.dat\u003c/strong\u003e.\u003c/p\u003e\n\n\u003cp\u003eMorphisec said this design keeps the visible application package looking legitimate while hiding the malicious payload in external containers that are decoded only shortly before execution. According to the article, that approach minimizes forensic visibility, complicates automated analysis, and reduces opportunities for traditional security tools to detect the activity before it runs.\u003c/p\u003e\n\n\u003ch1 id=\"lorem-ipsum-loader-campaign\"\u003eLorem Ipsum Loader Campaign\u003c/h1\u003e\n\n\u003ch2 id=\"delivery-shift-to-compromised-wordpress-sites\"\u003eDelivery shift to compromised WordPress sites\u003c/h2\u003e\n\n\u003cp\u003eBlueVoyant reported an active ClickFix campaign that uses at least \u003cstrong\u003efive compromised WordPress sites\u003c/strong\u003e as the starting point to deliver \u003cstrong\u003eLorem Ipsum Loader\u003c/strong\u003e and a backdoor of the same ecosystem. The hacked sites span sectors including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eArchitecture\u003c/li\u003e\n\u003cli\u003eLegal services\u003c/li\u003e\n\u003cli\u003eConstruction technology\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article contrasts this with \u003cstrong\u003eearlier opportunistic campaigns\u003c/strong\u003e that used \u003cstrong\u003etrojanized Microsoft Teams installers\u003c/strong\u003e distributed via fake download portals promoted through \u003cstrong\u003eSEO poisoning\u003c/strong\u003e and \u003cstrong\u003emalvertising\u003c/strong\u003e. It says the loader is believed to have been active in the wild since \u003cstrong\u003eFebruary 2026\u003c/strong\u003e.\u003c/p\u003e\n\n\u003ch2 id=\"why-the-delivery-model-changed\"\u003eWhy the delivery model changed\u003c/h2\u003e\n\n\u003cp\u003eThe article links this change in initial access to \u003cstrong\u003eMicrosoft’s disruption of Fox Tempest\u003c/strong\u003e (also known as \u003cstrong\u003eForging Marauder\u003c/strong\u003e). Fox Tempest is described as a threat actor that advertised a \u003cstrong\u003emalware-signing-as-a-service\u003c/strong\u003e operation, helping malware operators deliver payloads using fraudulently signed \u003cstrong\u003eMicrosoft Trusted Signing certificates\u003c/strong\u003e.\u003c/p\u003e\n\n\u003cp\u003eBlueVoyant said the loss of certificate supply made the previously used signed-installer model unworkable, forcing the operators to move to a delivery mechanism that removes the need for code signing. The article presents this as a concrete example of how threat actors can quickly adapt after defensive disruption.\u003c/p\u003e\n\n\u003ch2 id=\"attribution-and-operator-profile\"\u003eAttribution and operator profile\u003c/h2\u003e\n\n\u003cp\u003eThe article states that the \u003cstrong\u003eLorem Ipsum ecosystem\u003c/strong\u003e has been attributed with \u003cstrong\u003ehigh confidence\u003c/strong\u003e to \u003cstrong\u003eVanilla Tempest\u003c/strong\u003e, also known as \u003cstrong\u003eRapid Brigantine\u003c/strong\u003e, \u003cstrong\u003eVice Society\u003c/strong\u003e, and \u003cstrong\u003eVice Spider\u003c/strong\u003e. It describes the actor as \u003cstrong\u003efinancially motivated\u003c/strong\u003e and says the group is known for deploying ransomware families including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eRhysida\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eBlackCat\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eZeppelin\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eQuantum Locker\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"technical-execution-chain\"\u003eTechnical execution chain\u003c/h2\u003e\n\n\u003cp\u003eThe Lorem Ipsum delivery sequence uses \u003cstrong\u003efake Microsoft Edge security update lures\u003c/strong\u003e in a ClickFix format. Victims are induced to run a malicious command that downloads:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eA \u003cstrong\u003eZIP archive\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003eAn outdated \u003cstrong\u003eNode.js\u003c/strong\u003e release from \u003cstrong\u003e2017\u003c/strong\u003e (\u003cstrong\u003eversion 7.10.1\u003c/strong\u003e)\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article says the old Node.js version is used to execute JavaScript-based payloads from the archive while lowering the chance of detection.\u003c/p\u003e\n\n\u003cp\u003eThe JavaScript acts as a \u003cstrong\u003edropper\u003c/strong\u003e that deploys more malware, including a \u003cstrong\u003ebatch script\u003c/strong\u003e that establishes persistence and launches a \u003cstrong\u003eDLL side-loading\u003c/strong\u003e chain. That chain executes a malicious DLL such as:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003emscoree.dll\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003emsvcp140.dll\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThat DLL then decodes the embedded \u003cstrong\u003eLorem Ipsum Loader\u003c/strong\u003e payload.\u003c/p\u003e\n\n\u003ch2 id=\"backdoor-retrieval-and-follow-on-activity\"\u003eBackdoor retrieval and follow-on activity\u003c/h2\u003e\n\n\u003cp\u003eBlueVoyant said Lorem Ipsum Loader is designed to fetch the next-stage \u003cstrong\u003eLorem Ipsum Backdoor\u003c/strong\u003e from command-and-control infrastructure whose location is obtained from \u003cstrong\u003eattacker-controlled profiles on social networking platforms\u003c/strong\u003e. The backdoor then provides the capability to run further payloads delivered by the C2 server.\u003c/p\u003e\n\n\u003cp\u003eThe article says the chain ultimately hands off to \u003cstrong\u003eRapid Brigantine’s established post-exploitation tooling\u003c/strong\u003e and then to its documented ransomware deployments, \u003cstrong\u003eprimarily Rhysida\u003c/strong\u003e.\u003c/p\u003e\n\n\u003ch1 id=\"potemkin-rmmproject-and-etherrat-campaign\"\u003ePotemkin, RMMProject, and EtherRAT Campaign\u003c/h1\u003e\n\n\u003ch2 id=\"initial-infection-chain\"\u003eInitial infection chain\u003c/h2\u003e\n\n\u003cp\u003eThe third ClickFix campaign discussed in the article involves an \u003cstrong\u003eMSI package\u003c/strong\u003e that drops a previously undocumented loader named \u003cstrong\u003ePotemkin\u003c/strong\u003e using an \u003cstrong\u003eHTML Application (HTA)\u003c/strong\u003e payload. Huntress said Potemkin serves as a conduit for:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eEtherRAT\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eRMMProject\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eRMMProject is described as a \u003cstrong\u003eLua-scriptable DLL\u003c/strong\u003e containing modules for:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eRemote screen control\u003c/li\u003e\n\u003cli\u003eBrowser credential theft\u003c/li\u003e\n\u003cli\u003eBypassing Chromium’s \u003cstrong\u003eApp-Bound Encryption (ABE)\u003c/strong\u003e protections\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"rmmproject-capabilities\"\u003eRMMProject capabilities\u003c/h2\u003e\n\n\u003cp\u003eThe article says RMMProject includes a task dispatcher that can:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eRun a file or process\u003c/li\u003e\n\u003cli\u003eTake screenshots\u003c/li\u003e\n\u003cli\u003eSteal browser autofill data\u003c/li\u003e\n\u003cli\u003eExecute arbitrary Lua scripts\u003c/li\u003e\n\u003cli\u003eTerminate browser processes\u003c/li\u003e\n\u003cli\u003eDownload and run an additional module from a URL at runtime\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"potemkin-technical-details\"\u003ePotemkin technical details\u003c/h2\u003e\n\n\u003cp\u003eHuntress described Potemkin as a \u003cstrong\u003ecustom x64 loader\u003c/strong\u003e that:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eUses a \u003cstrong\u003edomain generation algorithm (DGA)\u003c/strong\u003e to locate C2 infrastructure\u003c/li\u003e\n\u003cli\u003eReflectively loads follow-on modules in memory\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article includes several implementation details:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eA built-in \u003cstrong\u003e1,000-word dictionary\u003c/strong\u003e is used for DGA-driven C2 discovery\u003c/li\u003e\n\u003cli\u003eA unique \u003cstrong\u003eUUID\u003c/strong\u003e identifying the victim is written to \u003cstrong\u003e%LOCALAPPDATA%\\hyper-v.ver\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003eThe loader supports task polling, DLL retrieval, and DLL execution\u003c/li\u003e\n\u003cli\u003eA \u003cstrong\u003ecustom byte cipher\u003c/strong\u003e protects both C2 traffic and the DGA dictionary\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"post-compromise-activity\"\u003ePost-compromise activity\u003c/h2\u003e\n\n\u003cp\u003eAfter access was established, the article says the unidentified threat actor conducted \u003cstrong\u003ehands-on-keyboard\u003c/strong\u003e operations that included:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eConfiguring \u003cstrong\u003eMicrosoft Defender exclusions\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003eDeploying \u003cstrong\u003eChisel reverse SOCKS tunnels\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003eConducting additional reconnaissance\u003c/li\u003e\n\u003cli\u003eSetting up a \u003cstrong\u003eCloudflare tunnel\u003c/strong\u003e for persistent access\u003c/li\u003e\n\u003cli\u003eMoving laterally using \u003cstrong\u003eWMIExec\u003c/strong\u003e and \u003cstrong\u003eSMBExec\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003eReaching the \u003cstrong\u003edomain controller\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003ePropagating \u003cstrong\u003eEtherRAT\u003c/strong\u003e across \u003cstrong\u003emore than 11 hosts\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThis section makes clear that the Potemkin campaign was not limited to simple malware execution on a single endpoint, but extended into broader network compromise and propagation.\u003c/p\u003e\n\n\u003ch1 id=\"why-clickfix-remains-effective\"\u003eWhy ClickFix Remains Effective\u003c/h1\u003e\n\n\u003cp\u003eThe article concludes that \u003cstrong\u003eClickFix is still highly effective\u003c/strong\u003e because it exploits predictable user behavior. Huntress is quoted as saying that people naturally follow instructions that look authoritative, such as “press Win+R, paste this, hit Enter,” especially when those instructions resemble routine troubleshooting steps.\u003c/p\u003e\n\n\u003cp\u003eThe article says the social engineering does not need to be highly sophisticated to succeed. In this framing, the effectiveness comes from making the action appear normal and urgent rather than from technical novelty.\u003c/p\u003e\n\n\u003ch1 id=\"broader-clickfix-activity-mentioned\"\u003eBroader ClickFix Activity Mentioned\u003c/h1\u003e\n\n\u003cp\u003eThe article also notes that ClickFix has been used recently against both \u003cstrong\u003eWindows\u003c/strong\u003e and \u003cstrong\u003emacOS\u003c/strong\u003e users. It cites examples including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003ePhexia Stealer\u003c/strong\u003e, a macOS infostealer\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eHellsUchecker\u003c/strong\u003e, a backdoor delivered through \u003cstrong\u003eEtherHiding\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003eFake \u003cstrong\u003eClaude\u003c/strong\u003e MSI installers that run PowerShell payloads\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThese examples are used to reinforce the point that ClickFix is an enduring and adaptable delivery mechanism across operating systems and lure themes.\u003c/p\u003e\n\n\u003ch1 id=\"defensive-response-mentioned\"\u003eDefensive Response Mentioned\u003c/h1\u003e\n\n\u003cp\u003eThe article highlights a response from \u003cstrong\u003eApple\u003c/strong\u003e related to the broader risk of malicious command pasting. It says Apple introduced a new security pop-up in \u003cstrong\u003emacOS Tahoe 26.4\u003c/strong\u003e that warns users who attempt to paste commands into \u003cstrong\u003eTerminal\u003c/strong\u003e from websites, chat agents, messaging apps, or email.\u003c/p\u003e\n\n\u003cp\u003eApple is quoted as saying that scammers use those channels to trick people into pasting malicious commands that can damage the Mac or compromise privacy, and that the alert is intended to help users avoid running unexpected commands.\u003c/p\u003e\n\n\u003ch1 id=\"significance\"\u003eSignificance\u003c/h1\u003e\n\n\u003cp\u003eSeveral broader implications are explicit in the article:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eLoader ecosystems are becoming more modular\u003c/strong\u003e, splitting delivery, storage, execution, and payload deployment into separate components.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eThreat actors adapt quickly\u003c/strong\u003e when older delivery paths are disrupted, as shown by the shift from signed installers to ClickFix lures in the Lorem Ipsum ecosystem.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eClickFix remains durable\u003c/strong\u003e because it relies on user compliance with simple, plausible instructions rather than requiring exploit chains.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003ePost-compromise impact can be extensive\u003c/strong\u003e, particularly in the Potemkin case where the intrusion progressed to lateral movement and domain-level access.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch1 id=\"named-organizations-actors-and-malware-in-the-article\"\u003eNamed Organizations, Actors, and Malware in the Article\u003c/h1\u003e\n\n\u003ch2 id=\"security-vendors-and-researchers\"\u003eSecurity vendors and researchers\u003c/h2\u003e\n\n\u003cul\u003e\n\u003cli\u003eMorphisec\u003c/li\u003e\n\u003cli\u003eBlueVoyant\u003c/li\u003e\n\u003cli\u003eHuntress\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"threat-actors-and-aliases\"\u003eThreat actors and aliases\u003c/h2\u003e\n\n\u003cul\u003e\n\u003cli\u003eBabaDeda\u003c/li\u003e\n\u003cli\u003eVanilla Tempest\u003c/li\u003e\n\u003cli\u003eRapid Brigantine\u003c/li\u003e\n\u003cli\u003eVice Society\u003c/li\u003e\n\u003cli\u003eVice Spider\u003c/li\u003e\n\u003cli\u003eFox Tempest\u003c/li\u003e\n\u003cli\u003eForging Marauder\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"malware-loaders-and-tools\"\u003eMalware, loaders, and tools\u003c/h2\u003e\n\n\u003cul\u003e\n\u003cli\u003eBabaDeda Loader\u003c/li\u003e\n\u003cli\u003eLorem Ipsum Loader\u003c/li\u003e\n\u003cli\u003eLorem Ipsum Backdoor\u003c/li\u003e\n\u003cli\u003ePotemkin\u003c/li\u003e\n\u003cli\u003eDanaBot\u003c/li\u003e\n\u003cli\u003eSectopRAT\u003c/li\u003e\n\u003cli\u003eArechClient\u003c/li\u003e\n\u003cli\u003eStorage Crypter\u003c/li\u003e\n\u003cli\u003eEtherRAT\u003c/li\u003e\n\u003cli\u003eRMMProject\u003c/li\u003e\n\u003cli\u003ePhexia Stealer\u003c/li\u003e\n\u003cli\u003eHellsUchecker\u003c/li\u003e\n\u003cli\u003eChisel\u003c/li\u003e\n\u003cli\u003eWMIExec\u003c/li\u003e\n\u003cli\u003eSMBExec\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"ransomware-families-mentioned\"\u003eRansomware families mentioned\u003c/h2\u003e\n\n\u003cul\u003e\n\u003cli\u003eLockBit\u003c/li\u003e\n\u003cli\u003eRhysida\u003c/li\u003e\n\u003cli\u003eBlackCat\u003c/li\u003e\n\u003cli\u003eZeppelin\u003c/li\u003e\n\u003cli\u003eQuantum Locker\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch1 id=\"final-takeaway\"\u003eFinal Takeaway\u003c/h1\u003e\n\n\u003cp\u003eThe article’s most important message is that \u003cstrong\u003eClickFix continues to be a reliable and evolving malware delivery mechanism\u003c/strong\u003e. Across multiple campaigns, attackers are using it to launch increasingly modular loaders that can deliver stealers, backdoors, RATs, and ransomware-related tooling, while also adapting quickly when older delivery methods are disrupted. The combination of simple social engineering and technically layered payload chains remains a significant risk for both individual endpoints and enterprise environments.\u003c/p\u003e\n","keyPoints":["Researchers identified multiple ClickFix campaigns delivering three malware loaders named BabaDeda Loader, Lorem Ipsum Loader, and Potemkin.","Morphisec said a ClickFix chain observed in April 2026 targeted education and financial organizations and used BabaDeda Loader to deploy information stealers and remote access trojans through techniques such as hidden PowerShell, in-memory shellcode, DLL side-loading, and external payload storage.","BlueVoyant reported that compromised WordPress sites were used to host ClickFix lures that delivered Lorem Ipsum Loader, and the activity was attributed with high confidence to Vanilla Tempest.","Huntress found a ClickFix campaign in which an MSI package dropped the Potemkin loader via an HTA payload, leading to the deployment of EtherRAT and RMMProject.","The article says ClickFix remains effective because it persuades users to paste and run attacker-supplied commands, and Apple has introduced a macOS Tahoe 26.4 warning to help prevent malicious Terminal copy-pastes."],"insights":["The article shows that disrupting one delivery model does not necessarily stop an operation, as the actors behind Lorem Ipsum Loader shifted from fraudulently signed installers to ClickFix lures on compromised WordPress sites after losing access to malicious code-signing certificates.","BabaDeda Loader’s use of externally stored payload containers such as “List.Control.dat” reduces forensic visibility because the visible package appears legitimate and the malicious content is only decoded shortly before execution.","The Potemkin campaign combined an initial loader with hands-on-keyboard follow-on activity, including Defender exclusions, tunneling, and lateral movement to a domain controller, showing that the ClickFix lure can be the entry point to broader network compromise rather than just single-host malware delivery.","Lorem Ipsum Loader’s use of an outdated 2017 Node.js version to run JavaScript payloads is notable because the article says it was intended to lower detection chances while executing the next-stage malware chain.","The article highlights that ClickFix remains durable because it relies on simple user instructions like copying and running commands, which has become significant enough for Apple to add a macOS Tahoe 26.4 warning for Terminal paste actions."],"referencedReports":[{"title":"What is the BabaDeda Loader? Analysis of a New ClickFix Malware Campaign","url":"https://www.morphisec.com/blog/what-is-the-babadeda-loader-analysis-of-a-new-clickfix-malware-campaign/","publisher":"morphisec","context":"The article cites this Morphisec technical analysis as one of the independent reports describing a ClickFix campaign that delivers BabaDeda Loader.","category":"research","primary":true},{"title":"Orem Ipsum + ClickFix = Rapid Brigantine","url":"https://www.bluevoyant.com/blog/orem-ipsum-clickfix-rapid-brigantine","publisher":"bluevoyant","context":"The article references this BlueVoyant report as the source detailing the ClickFix campaign that delivers Lorem Ipsum Loader and links it to Vanilla Tempest.","category":"research","primary":true},{"title":"Potemkin Loader + RMMProject: ClickFix Attack Leads to Full Domain Compromise","url":"https://www.huntress.com/blog/potemkin-loader-rmmproject-clickfix-attack","publisher":"huntress","context":"The article cites this Huntress technical analysis as the report covering the Potemkin loader ClickFix chain that led to EtherRAT and RMMProject deployment.","category":"research","primary":true},{"title":"Malware Insights: The MacOS Phexia Campaign","url":"https://cookie.engineer/weblog/articles/malware-insights-macos-phexia-campaign.html","publisher":"cookie.engineer","context":"The article points to this research when noting that ClickFix has also been used to deliver the macOS infostealer Phexia Stealer.","category":"research","primary":false},{"title":"HellsUChecker ClickFix EtherHiding","url":"https://www.derp.ca/research/hellsuchecker-clickfix-etherhiding/","publisher":"derp.ca","context":"The article references this research as an example of a ClickFix-delivered backdoor called HellsUchecker.","category":"research","primary":false},{"title":"OCRFix, EtherHiding, and a Botnet","url":"https://www.derp.ca/research/ocrfix-etherhiding-botnet/","publisher":"derp.ca","context":"The article links this technical research to explain the EtherHiding technique mentioned in connection with HellsUchecker delivery.","category":"research","primary":false},{"title":"VE ClickFix Phishing Campaign: Fake Claude Installer","url":"https://www.rapid7.com/blog/post/ve-clickfix-phishing-campaign-fake-claude-installer/","publisher":"rapid7","context":"The article cites this Rapid7 report as an example of ClickFix campaigns using fake Claude installers to run PowerShell payloads.","category":"research","primary":false},{"title":"Scammers use these channels to instruct people to paste malicious commands into Terminal","url":"https://support.apple.com/en-us/127377","publisher":"apple","context":"The article references this Apple support advisory while discussing the new macOS Tahoe 26.4 warning for suspicious Terminal paste actions.","category":"advisory","primary":false}],"body":"\u003cp\u003eCybersecurity researchers reported multiple ClickFix campaigns that are delivering three malware loaders: BabaDeda Loader, Lorem Ipsum Loader, and Potemkin. The campaigns were documented by Morphisec, BlueVoyant, and Huntress, and they show how ClickFix continues to be used as a social engineering method to get users to run attacker-supplied commands. The loaders are then used to deploy information stealers, remote access trojans, backdoors, and follow-on tooling.\u003c/p\u003e\n\n\u003cp\u003eIn the BabaDeda case, attacks observed in April 2026 targeted education and financial organizations and used hidden PowerShell, in-memory shellcode, DLL side-loading, and external payload storage. BlueVoyant said a separate campaign used compromised WordPress sites and fake Edge security update lures to deliver Lorem Ipsum Loader, which it attributed with high confidence to Vanilla Tempest. Huntress also described a Potemkin-based chain that led to EtherRAT and RMMProject, followed by hands-on-keyboard activity including Microsoft Defender exclusions, tunneling, reconnaissance, and lateral movement to a domain controller.\u003c/p\u003e\n\n\u003cp\u003eThe article says these findings reflect an evolution toward modular loader frameworks that separate delivery, storage, execution, and payload deployment into distinct components. It also emphasizes that ClickFix remains effective because users are persuaded to paste and run commands that appear to be legitimate troubleshooting steps. Apple has responded to this broader risk by adding a macOS Tahoe 26.4 warning for users attempting to paste commands into Terminal from websites or messaging channels.\u003c/p\u003e\n"}];
+window.__DL_DIGEST   = "downlink-digest-2026-06-16_1600.html";
+window.__DL_WINDOW   = "4 hours";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", padding:24 }}>
+        <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, padding:"40px 32px", maxWidth:480, textAlign:"center" }}>
+          <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:11, color:"var(--discard)", letterSpacing:"0.18em", marginBottom:12 }}>// RENDER ERROR</div>
+          <p style={{ color:"var(--text2)", fontSize:13 }}>{String(this.state.error)}</p>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+function pointList(items) {
+  return (
+    <ul className="kp-list">
+      {(items || []).map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            <a href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => <div className="prose">{article.tldr}</div> });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Full", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  if (article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => pointList(article.keyPoints) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => pointList(article.insights) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  const initialTab = tabs[0] ? tabs[0].id : "source";
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  const rightTabIds = new Set(["keypoints", "insights", "reports"]);
+  const leftTabs  = tabs.filter(t => !rightTabIds.has(t.id));
+  const rightTabs = tabs.filter(t =>  rightTabIds.has(t.id));
+  const renderTabBtn = tab => (
+    <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+      {tab.label}
+    </button>
+  );
+  return (
+    <>
+      <div className="tabs">
+        {leftTabs.map(renderTabBtn)}
+        {rightTabs.length > 0 && <span style={{ flex: 1 }} />}
+        {rightTabs.map(renderTabBtn)}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  const [theme, setTheme] = React.useState(() => document.documentElement.dataset.theme || 'dark');
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  const applyTheme = (t) => {
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('downlink.theme', t); } catch(e){}
+    setTheme(t);
+  };
+  return (
+    <nav className="swipe-nav" style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--cyan)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <span className="swipe-clock" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+        }}>
+          {Math.min(index + 1, total)} / {total}
+        </div>
+        <select value={theme} onChange={(e) => applyTheme(e.target.value)} title="Select theme" aria-label="Select theme" style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "var(--text2)",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "4px 20px 4px 8px", borderRadius: 2,
+          cursor: "pointer", textTransform: "uppercase", appearance: "none", WebkitAppearance: "none",
+          backgroundImage: "linear-gradient(45deg, transparent 50%, var(--text3) 50%), linear-gradient(135deg, var(--text3) 50%, transparent 50%)",
+          backgroundPosition: "calc(100% - 10px) 50%, calc(100% - 6px) 50%", backgroundSize: "4px 4px, 4px 4px", backgroundRepeat: "no-repeat"
+        }}>
+          <option value="dark">DARK</option>
+          <option value="light">LIGHT</option>
+          <option value="contrast">CONTRAST</option>
+          <option value="mono">MONO</option>
+          <option value="colorblind">COLORBLIND</option>
+          <option value="pastel">PASTEL</option>
+          
+        </select>
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const srcColor  = `var(--p${article.sourceColorIdx})`;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+              {article.source}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 22, lineHeight: 1.3, color: "var(--text)", letterSpacing: "-0.005em" }}>
+          {article.title}
+        </h2>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text2)", fontSize: 14, lineHeight: 1.65, fontWeight: 400 }}>{article.tldr}</p>
+        {article.keyPoints && article.keyPoints.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+            <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+              {article.keyPoints.map((kp, i) => (
+                <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: priorityC, marginTop: 3, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const srcColor  = `var(--p${article.sourceColorIdx})`;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.35, color: "var(--text)", marginBottom: 12 }}>
+          {article.title}
+        </h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor }}>{article.source}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Front continues off to the right and fades out, then the detail view fades in.
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.32s cubic-bezier(.4,0,.6,1), opacity 0.32s";
+          el.style.transform = `translate(140%, ${dy * 1.4}px) rotate(18deg)`;
+          el.style.opacity = "0";
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.style.opacity = "0";
+            el2.getBoundingClientRect();
+            el2.style.transition = "opacity 0.22s ease";
+            el2.style.opacity = "1";
+            setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 240);
+          }
+        }, 320);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{ opacity: 0 }}>DONE</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div className="swipe-shell" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 24px 16px", minHeight: 0 }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 16px", width: "100%", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 16, flexShrink: 0 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 12, textAlign: "center", flexShrink: 0 }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ErrorBoundary><App /></ErrorBoundary>
+);
+</script>
+</body>
+</html>
