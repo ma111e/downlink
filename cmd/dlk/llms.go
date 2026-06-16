@@ -378,7 +378,7 @@ func createModelCommands() *cobra.Command {
 		Run:   runRemoveProvider,
 	}
 
-	cmd.AddCommand(listCmd, setPersonaCmd, saveProvidersCmd, addProviderCmd, removeProviderCmd, createAuthCommands())
+	cmd.AddCommand(listCmd, setPersonaCmd, saveProvidersCmd, addProviderCmd, removeProviderCmd, createCredsCommands())
 	return cmd
 }
 
@@ -440,7 +440,7 @@ func runAddProvider(cmd *cobra.Command, args []string) {
 	case "claude-code":
 		// claude-code authenticates via OAuth, not an API key. The credential is
 		// attached separately by the login flow; tie it to this entry's name.
-		fmt.Printf("\nclaude-code uses OAuth — no API key needed here.\nAfter adding, run: dlk model auth login claude-code --provider-name %s\n\n", name)
+		fmt.Printf("\nclaude-code uses OAuth — no API key needed here.\nAfter adding, run: dlk model creds login claude-code --provider-name %s\n\n", name)
 	case "openai", "anthropic", "mistral", "openai-codex":
 		flushStdin()
 		if err := huh.NewInput().
@@ -644,7 +644,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 		}
 
 		if codexProvider == nil || len(codexProvider.Credentials) == 0 {
-			fmt.Println("Error: No Codex credentials stored. Run 'dlk model auth login' to authenticate.")
+			fmt.Println("Error: No Codex credentials stored. Run 'dlk model creds login' to authenticate.")
 			var modelName string
 			flushStdin()
 			_ = huh.NewInput().

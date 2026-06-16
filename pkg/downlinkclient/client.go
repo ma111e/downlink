@@ -22,7 +22,7 @@ type DownlinkClient struct {
 	llmsClient         protos.LLMsServiceClient
 	queueClient        protos.QueueServiceClient
 	serverConfigClient protos.ServerConfigServiceClient
-	authClient         protos.AuthServiceClient
+	credsClient        protos.CredsServiceClient
 	conn               *grpc.ClientConn
 }
 
@@ -37,7 +37,7 @@ func NewDownlinkClient(conn *grpc.ClientConn) *DownlinkClient {
 		llmsClient:         protos.NewLLMsServiceClient(conn),
 		queueClient:        protos.NewQueueServiceClient(conn),
 		serverConfigClient: protos.NewServerConfigServiceClient(conn),
-		authClient:         protos.NewAuthServiceClient(conn),
+		credsClient:        protos.NewCredsServiceClient(conn),
 		conn:               conn,
 	}
 }

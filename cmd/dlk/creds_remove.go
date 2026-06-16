@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createAuthRemoveCommand() *cobra.Command {
+func createCredsRemoveCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove [provider] [credential-id]",
 		Short: "Remove a credential by ID",

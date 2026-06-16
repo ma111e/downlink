@@ -46,11 +46,11 @@ type RenderedAnalysis struct {
 	KeyPoints              []template.HTML
 	Insights               []template.HTML
 	ReferencedReports      []RenderedReport
-	BeginnerExplanation    template.HTML
-	BeginnerGlossary       []RenderedGlossaryTerm
+	GlossaryExplanation    template.HTML
+	GlossaryTerms          []RenderedGlossaryTerm
 }
 
-// RenderedGlossaryTerm is a beginner-mode jargon term prepared for the template, with
+// RenderedGlossaryTerm is a glossary-mode jargon term prepared for the template, with
 // its definition tag-highlighted.
 type RenderedGlossaryTerm struct {
 	Term       string
@@ -263,7 +263,7 @@ type digestTemplateData struct {
 	CategoryCounts   map[string]int // TOC rows per category, for the category filter badges
 	PriorityCounts   map[string]int // TOC rows per priority key (must/should/may), for the priority filter badges
 	Tags             []TagCount     // distinct tags present among TOC rows (with match counts), for the tag filter cloud
-	HasBeginner      bool           // true when any article has beginner-mode content, gating the nav switch
+	HasGlossary      bool           // true when any article has glossary-mode content, gating the nav switch
 	Commit           string
 }
 
@@ -362,8 +362,8 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 				KeyPoints:              highlightPlainSlice(analysis.KeyPoints, tagRe),
 				Insights:               highlightPlainSlice(analysis.Insights, tagRe),
 				ReferencedReports:      renderReports(analysis.ReferencedReports, tagRe),
-				BeginnerExplanation:    highlightHTMLFragment(markdownToHTML(analysis.BeginnerExplanation), tagRe),
-				BeginnerGlossary:       renderGlossary(analysis.BeginnerGlossary, tagRe),
+				GlossaryExplanation:    highlightHTMLFragment(markdownToHTML(analysis.GlossaryExplanation), tagRe),
+				GlossaryTerms:          renderGlossary(analysis.GlossaryTerms, tagRe),
 			}
 		}
 
@@ -489,10 +489,10 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 	}
 	summaryTagRe := compileTagRegexp(summaryTagNames)
 
-	hasBeginner := false
+	hasGlossary := false
 	for _, e := range articleEntries {
-		if e.Analysis != nil && e.Analysis.BeginnerExplanation != "" {
-			hasBeginner = true
+		if e.Analysis != nil && e.Analysis.GlossaryExplanation != "" {
+			hasGlossary = true
 			break
 		}
 	}
@@ -517,7 +517,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		Theme:            normalizeTheme(theme),
 		Themes:           themeOptions(),
 		PaletteCSS:       paletteCSS(),
-		HasBeginner:      hasBeginner,
+		HasGlossary:      hasGlossary,
 		Commit:           version.Commit,
 	}
 
@@ -741,7 +741,7 @@ func renderReports(reports []models.ReferencedReport, re *regexp.Regexp) []Rende
 	return out
 }
 
-// renderGlossary prepares beginner-mode glossary terms for the template, tag-highlighting
+// renderGlossary prepares glossary-mode terms for the template, tag-highlighting
 // each definition while leaving the term itself plain-escaped by the template.
 func renderGlossary(terms []models.GlossaryTerm, re *regexp.Regexp) []RenderedGlossaryTerm {
 	if len(terms) == 0 {
@@ -793,20 +793,20 @@ var lightColorPalette = []string{
 }
 
 // colorblindPalette is the palette for the colorblind-safe "colorblind" theme. Built from the
-// AA-adjusted Okabe-Ito colors the theme already uses, so source dots stay distinct under
-// protan/deutan/tritan vision on the cream background.
+// Okabe-Ito colors the theme uses, tuned more saturated but keeping their hues so source dots
+// stay distinct under protan/deutan/tritan vision and AA-legible (>=4.5:1) on the cream bg.
 var colorblindPalette = []string{
-	"#0072b2", // blue
-	"#c44601", // vermillion
-	"#1a7a4f", // bluish green
-	"#7a4fa0", // purple
-	"#8a6d00", // dark gold
-	"#2f79a5", // teal-blue
-	"#a23b7a", // reddish purple
-	"#00786b", // teal
-	"#2b6c8f", // dark sky
-	"#b35900", // dark orange
-	"#5c6e78", // slate
+	"#0071b0", // blue
+	"#be4401", // vermillion
+	"#0d7b4a", // bluish green
+	"#8f4acc", // purple
+	"#856900", // dark gold
+	"#1972a7", // teal-blue
+	"#c42787", // reddish purple
+	"#007a6d", // teal
+	"#1a72a1", // dark sky
+	"#aa5400", // dark orange
+	"#517082", // slate
 }
 
 // monoPalette is the palette for the grayscale "mono" theme. Eleven evenly-spaced

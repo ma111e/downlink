@@ -304,7 +304,7 @@ type GenerateDigestRequest struct {
 	VibeScore              *bool                  `protobuf:"varint,14,opt,name=vibe_score,json=vibeScore,proto3,oneof" json:"vibe_score,omitempty"`                                      // When set, overrides the server's vibe_score config for this run (legacy single-number importance prompt)
 	Provider               string                 `protobuf:"bytes,15,opt,name=provider,proto3" json:"provider,omitempty"`                                                                // Provider override (type or profile name, auto-detected); applies to all LLM steps of this run
 	Model                  string                 `protobuf:"bytes,16,opt,name=model,proto3" json:"model,omitempty"`                                                                      // Model override; with empty provider the server resolves the matching provider
-	Beginner               *bool                  `protobuf:"varint,17,opt,name=beginner,proto3,oneof" json:"beginner,omitempty"`                                                         // When set, overrides the server's beginner config for this run (plain-language explanation + jargon glossary)
+	Glossary               *bool                  `protobuf:"varint,17,opt,name=glossary,proto3,oneof" json:"glossary,omitempty"`                                                         // When set, overrides the server's glossary config for this run (plain-language explanation + jargon glossary)
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -451,9 +451,9 @@ func (x *GenerateDigestRequest) GetModel() string {
 	return ""
 }
 
-func (x *GenerateDigestRequest) GetBeginner() bool {
-	if x != nil && x.Beginner != nil {
-		return *x.Beginner
+func (x *GenerateDigestRequest) GetGlossary() bool {
+	if x != nil && x.Glossary != nil {
+		return *x.Glossary
 	}
 	return false
 }
@@ -1146,10 +1146,10 @@ const file_digests_proto_rawDesc = "" +
 	"vibe_score\x18\x0e \x01(\bH\x01R\tvibeScore\x88\x01\x01\x12\x1a\n" +
 	"\bprovider\x18\x0f \x01(\tR\bprovider\x12\x14\n" +
 	"\x05model\x18\x10 \x01(\tR\x05model\x12\x1f\n" +
-	"\bbeginner\x18\x11 \x01(\bH\x02R\bbeginner\x88\x01\x01B\x13\n" +
+	"\bglossary\x18\x11 \x01(\bH\x02R\bglossary\x88\x01\x01B\x13\n" +
 	"\x11_gh_pages_enabledB\r\n" +
 	"\v_vibe_scoreB\v\n" +
-	"\t_beginner\"B\n" +
+	"\t_glossary\"B\n" +
 	"\x16GenerateDigestResponse\x12(\n" +
 	"\x06digest\x18\x01 \x01(\v2\x10.downlink.DigestR\x06digest\"\xf5\x02\n" +
 	"\x13DigestProgressEvent\x12\x14\n" +

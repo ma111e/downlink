@@ -470,7 +470,7 @@ type AnalyzeArticleWithProviderModelRequest struct {
 	SkipReferences bool                   `protobuf:"varint,7,opt,name=skip_references,json=skipReferences,proto3" json:"skip_references,omitempty"` // If true, skip the referenced_reports task
 	VibeScore      *bool                  `protobuf:"varint,8,opt,name=vibe_score,json=vibeScore,proto3,oneof" json:"vibe_score,omitempty"`          // When set, overrides the server's vibe_score config (legacy single-number importance prompt)
 	Provider       string                 `protobuf:"bytes,9,opt,name=provider,proto3" json:"provider,omitempty"`                                    // Provider override (type or profile name, auto-detected by the server)
-	Beginner       *bool                  `protobuf:"varint,10,opt,name=beginner,proto3,oneof" json:"beginner,omitempty"`                            // When set, overrides the server's beginner config (plain-language explanation + jargon glossary)
+	Glossary       *bool                  `protobuf:"varint,10,opt,name=glossary,proto3,oneof" json:"glossary,omitempty"`                            // When set, overrides the server's glossary config (plain-language explanation + jargon glossary)
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -561,9 +561,9 @@ func (x *AnalyzeArticleWithProviderModelRequest) GetProvider() string {
 	return ""
 }
 
-func (x *AnalyzeArticleWithProviderModelRequest) GetBeginner() bool {
-	if x != nil && x.Beginner != nil {
-		return *x.Beginner
+func (x *AnalyzeArticleWithProviderModelRequest) GetGlossary() bool {
+	if x != nil && x.Glossary != nil {
+		return *x.Glossary
 	}
 	return false
 }
@@ -2145,10 +2145,10 @@ const file_llms_proto_rawDesc = "" +
 	"\n" +
 	"vibe_score\x18\b \x01(\bH\x00R\tvibeScore\x88\x01\x01\x12\x1a\n" +
 	"\bprovider\x18\t \x01(\tR\bprovider\x12\x1f\n" +
-	"\bbeginner\x18\n" +
-	" \x01(\bH\x01R\bbeginner\x88\x01\x01B\r\n" +
+	"\bglossary\x18\n" +
+	" \x01(\bH\x01R\bglossary\x88\x01\x01B\r\n" +
 	"\v_vibe_scoreB\v\n" +
-	"\t_beginnerJ\x04\b\x05\x10\x06\"`\n" +
+	"\t_glossaryJ\x04\b\x05\x10\x06\"`\n" +
 	"'AnalyzeArticleWithProviderModelResponse\x125\n" +
 	"\banalysis\x18\x01 \x01(\v2\x19.downlink.ArticleAnalysisR\banalysis\"S\n" +
 	"\x15AnalyzeArticleRequest\x12\x1d\n" +

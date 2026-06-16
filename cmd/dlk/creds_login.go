@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createAuthLoginCommand() *cobra.Command {
+func createCredsLoginCommand() *cobra.Command {
 	var providerName string
 
 	cmd := &cobra.Command{

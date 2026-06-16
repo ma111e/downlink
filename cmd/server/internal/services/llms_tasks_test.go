@@ -23,7 +23,7 @@ func TestGetAnalysisTasksScoringMode(t *testing.T) {
 	}
 }
 
-func TestGetAnalysisTasksBeginnerMode(t *testing.T) {
+func TestGetAnalysisTasksGlossaryMode(t *testing.T) {
 	const contentLen = 2000
 
 	names := func(tasks []analysisTask) map[string]bool {
@@ -34,15 +34,15 @@ func TestGetAnalysisTasksBeginnerMode(t *testing.T) {
 		return m
 	}
 
-	if names(getAnalysisTasks(contentLen, false, false, false))["beginner"] {
-		t.Error("beginner disabled: beginner task should not be present")
+	if names(getAnalysisTasks(contentLen, false, false, false))["glossary"] {
+		t.Error("glossary disabled: glossary task should not be present")
 	}
-	if !names(getAnalysisTasks(contentLen, false, false, true))["beginner"] {
-		t.Error("beginner enabled: beginner task should be present")
+	if !names(getAnalysisTasks(contentLen, false, false, true))["glossary"] {
+		t.Error("glossary enabled: glossary task should be present")
 	}
-	// The scoring task must still come last regardless of beginner mode.
+	// The scoring task must still come last regardless of glossary mode.
 	if got := lastTaskName(getAnalysisTasks(contentLen, false, false, true)); got != "rubric" {
-		t.Errorf("beginner enabled: last task = %q, want \"rubric\"", got)
+		t.Errorf("glossary enabled: last task = %q, want \"rubric\"", got)
 	}
 }
 

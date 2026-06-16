@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.35.0
-// source: auth.proto
+// source: creds.proto
 
 package protos
 
@@ -34,7 +34,7 @@ type StartCodexLoginRequest struct {
 
 func (x *StartCodexLoginRequest) Reset() {
 	*x = StartCodexLoginRequest{}
-	mi := &file_auth_proto_msgTypes[0]
+	mi := &file_creds_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +46,7 @@ func (x *StartCodexLoginRequest) String() string {
 func (*StartCodexLoginRequest) ProtoMessage() {}
 
 func (x *StartCodexLoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[0]
+	mi := &file_creds_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +59,7 @@ func (x *StartCodexLoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartCodexLoginRequest.ProtoReflect.Descriptor instead.
 func (*StartCodexLoginRequest) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{0}
+	return file_creds_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *StartCodexLoginRequest) GetProviderName() string {
@@ -89,7 +89,7 @@ type StartCodexLoginResponse struct {
 
 func (x *StartCodexLoginResponse) Reset() {
 	*x = StartCodexLoginResponse{}
-	mi := &file_auth_proto_msgTypes[1]
+	mi := &file_creds_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -101,7 +101,7 @@ func (x *StartCodexLoginResponse) String() string {
 func (*StartCodexLoginResponse) ProtoMessage() {}
 
 func (x *StartCodexLoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[1]
+	mi := &file_creds_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -114,7 +114,7 @@ func (x *StartCodexLoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartCodexLoginResponse.ProtoReflect.Descriptor instead.
 func (*StartCodexLoginResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{1}
+	return file_creds_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *StartCodexLoginResponse) GetSessionId() string {
@@ -161,7 +161,7 @@ type PollCodexLoginRequest struct {
 
 func (x *PollCodexLoginRequest) Reset() {
 	*x = PollCodexLoginRequest{}
-	mi := &file_auth_proto_msgTypes[2]
+	mi := &file_creds_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -173,7 +173,7 @@ func (x *PollCodexLoginRequest) String() string {
 func (*PollCodexLoginRequest) ProtoMessage() {}
 
 func (x *PollCodexLoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[2]
+	mi := &file_creds_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -186,7 +186,7 @@ func (x *PollCodexLoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PollCodexLoginRequest.ProtoReflect.Descriptor instead.
 func (*PollCodexLoginRequest) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{2}
+	return file_creds_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *PollCodexLoginRequest) GetSessionId() string {
@@ -211,7 +211,7 @@ type PollCodexLoginResponse struct {
 
 func (x *PollCodexLoginResponse) Reset() {
 	*x = PollCodexLoginResponse{}
-	mi := &file_auth_proto_msgTypes[3]
+	mi := &file_creds_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -223,7 +223,7 @@ func (x *PollCodexLoginResponse) String() string {
 func (*PollCodexLoginResponse) ProtoMessage() {}
 
 func (x *PollCodexLoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[3]
+	mi := &file_creds_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -236,7 +236,7 @@ func (x *PollCodexLoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PollCodexLoginResponse.ProtoReflect.Descriptor instead.
 func (*PollCodexLoginResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{3}
+	return file_creds_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *PollCodexLoginResponse) GetSessionId() string {
@@ -283,7 +283,7 @@ type ListCodexCredentialsRequest struct {
 
 func (x *ListCodexCredentialsRequest) Reset() {
 	*x = ListCodexCredentialsRequest{}
-	mi := &file_auth_proto_msgTypes[4]
+	mi := &file_creds_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -295,7 +295,7 @@ func (x *ListCodexCredentialsRequest) String() string {
 func (*ListCodexCredentialsRequest) ProtoMessage() {}
 
 func (x *ListCodexCredentialsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[4]
+	mi := &file_creds_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -308,7 +308,7 @@ func (x *ListCodexCredentialsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCodexCredentialsRequest.ProtoReflect.Descriptor instead.
 func (*ListCodexCredentialsRequest) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{4}
+	return file_creds_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListCodexCredentialsRequest) GetProviderName() string {
@@ -333,7 +333,7 @@ type CodexCredentialInfo struct {
 
 func (x *CodexCredentialInfo) Reset() {
 	*x = CodexCredentialInfo{}
-	mi := &file_auth_proto_msgTypes[5]
+	mi := &file_creds_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -345,7 +345,7 @@ func (x *CodexCredentialInfo) String() string {
 func (*CodexCredentialInfo) ProtoMessage() {}
 
 func (x *CodexCredentialInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[5]
+	mi := &file_creds_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -358,7 +358,7 @@ func (x *CodexCredentialInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodexCredentialInfo.ProtoReflect.Descriptor instead.
 func (*CodexCredentialInfo) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{5}
+	return file_creds_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CodexCredentialInfo) GetId() string {
@@ -419,7 +419,7 @@ type ListCodexCredentialsResponse struct {
 
 func (x *ListCodexCredentialsResponse) Reset() {
 	*x = ListCodexCredentialsResponse{}
-	mi := &file_auth_proto_msgTypes[6]
+	mi := &file_creds_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -431,7 +431,7 @@ func (x *ListCodexCredentialsResponse) String() string {
 func (*ListCodexCredentialsResponse) ProtoMessage() {}
 
 func (x *ListCodexCredentialsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[6]
+	mi := &file_creds_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -444,7 +444,7 @@ func (x *ListCodexCredentialsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCodexCredentialsResponse.ProtoReflect.Descriptor instead.
 func (*ListCodexCredentialsResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{6}
+	return file_creds_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListCodexCredentialsResponse) GetCredentials() []*CodexCredentialInfo {
@@ -464,7 +464,7 @@ type RemoveCodexCredentialRequest struct {
 
 func (x *RemoveCodexCredentialRequest) Reset() {
 	*x = RemoveCodexCredentialRequest{}
-	mi := &file_auth_proto_msgTypes[7]
+	mi := &file_creds_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +476,7 @@ func (x *RemoveCodexCredentialRequest) String() string {
 func (*RemoveCodexCredentialRequest) ProtoMessage() {}
 
 func (x *RemoveCodexCredentialRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[7]
+	mi := &file_creds_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +489,7 @@ func (x *RemoveCodexCredentialRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveCodexCredentialRequest.ProtoReflect.Descriptor instead.
 func (*RemoveCodexCredentialRequest) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{7}
+	return file_creds_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RemoveCodexCredentialRequest) GetProviderName() string {
@@ -515,7 +515,7 @@ type RemoveCodexCredentialResponse struct {
 
 func (x *RemoveCodexCredentialResponse) Reset() {
 	*x = RemoveCodexCredentialResponse{}
-	mi := &file_auth_proto_msgTypes[8]
+	mi := &file_creds_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -527,7 +527,7 @@ func (x *RemoveCodexCredentialResponse) String() string {
 func (*RemoveCodexCredentialResponse) ProtoMessage() {}
 
 func (x *RemoveCodexCredentialResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[8]
+	mi := &file_creds_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -540,7 +540,7 @@ func (x *RemoveCodexCredentialResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveCodexCredentialResponse.ProtoReflect.Descriptor instead.
 func (*RemoveCodexCredentialResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{8}
+	return file_creds_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RemoveCodexCredentialResponse) GetRemoved() bool {
@@ -561,7 +561,7 @@ type SetCodexCredentialPriorityRequest struct {
 
 func (x *SetCodexCredentialPriorityRequest) Reset() {
 	*x = SetCodexCredentialPriorityRequest{}
-	mi := &file_auth_proto_msgTypes[9]
+	mi := &file_creds_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -573,7 +573,7 @@ func (x *SetCodexCredentialPriorityRequest) String() string {
 func (*SetCodexCredentialPriorityRequest) ProtoMessage() {}
 
 func (x *SetCodexCredentialPriorityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[9]
+	mi := &file_creds_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -586,7 +586,7 @@ func (x *SetCodexCredentialPriorityRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use SetCodexCredentialPriorityRequest.ProtoReflect.Descriptor instead.
 func (*SetCodexCredentialPriorityRequest) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{9}
+	return file_creds_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SetCodexCredentialPriorityRequest) GetProviderName() string {
@@ -619,7 +619,7 @@ type SetCodexCredentialPriorityResponse struct {
 
 func (x *SetCodexCredentialPriorityResponse) Reset() {
 	*x = SetCodexCredentialPriorityResponse{}
-	mi := &file_auth_proto_msgTypes[10]
+	mi := &file_creds_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -631,7 +631,7 @@ func (x *SetCodexCredentialPriorityResponse) String() string {
 func (*SetCodexCredentialPriorityResponse) ProtoMessage() {}
 
 func (x *SetCodexCredentialPriorityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[10]
+	mi := &file_creds_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -644,7 +644,7 @@ func (x *SetCodexCredentialPriorityResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use SetCodexCredentialPriorityResponse.ProtoReflect.Descriptor instead.
 func (*SetCodexCredentialPriorityResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{10}
+	return file_creds_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SetCodexCredentialPriorityResponse) GetUpdated() bool {
@@ -667,7 +667,7 @@ type StartClaudeLoginRequest struct {
 
 func (x *StartClaudeLoginRequest) Reset() {
 	*x = StartClaudeLoginRequest{}
-	mi := &file_auth_proto_msgTypes[11]
+	mi := &file_creds_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -679,7 +679,7 @@ func (x *StartClaudeLoginRequest) String() string {
 func (*StartClaudeLoginRequest) ProtoMessage() {}
 
 func (x *StartClaudeLoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[11]
+	mi := &file_creds_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -692,7 +692,7 @@ func (x *StartClaudeLoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartClaudeLoginRequest.ProtoReflect.Descriptor instead.
 func (*StartClaudeLoginRequest) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{11}
+	return file_creds_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StartClaudeLoginRequest) GetProviderName() string {
@@ -720,7 +720,7 @@ type StartClaudeLoginResponse struct {
 
 func (x *StartClaudeLoginResponse) Reset() {
 	*x = StartClaudeLoginResponse{}
-	mi := &file_auth_proto_msgTypes[12]
+	mi := &file_creds_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -732,7 +732,7 @@ func (x *StartClaudeLoginResponse) String() string {
 func (*StartClaudeLoginResponse) ProtoMessage() {}
 
 func (x *StartClaudeLoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[12]
+	mi := &file_creds_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -745,7 +745,7 @@ func (x *StartClaudeLoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartClaudeLoginResponse.ProtoReflect.Descriptor instead.
 func (*StartClaudeLoginResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{12}
+	return file_creds_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *StartClaudeLoginResponse) GetSessionId() string {
@@ -773,7 +773,7 @@ type CompleteClaudeLoginRequest struct {
 
 func (x *CompleteClaudeLoginRequest) Reset() {
 	*x = CompleteClaudeLoginRequest{}
-	mi := &file_auth_proto_msgTypes[13]
+	mi := &file_creds_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -785,7 +785,7 @@ func (x *CompleteClaudeLoginRequest) String() string {
 func (*CompleteClaudeLoginRequest) ProtoMessage() {}
 
 func (x *CompleteClaudeLoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[13]
+	mi := &file_creds_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -798,7 +798,7 @@ func (x *CompleteClaudeLoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteClaudeLoginRequest.ProtoReflect.Descriptor instead.
 func (*CompleteClaudeLoginRequest) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{13}
+	return file_creds_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CompleteClaudeLoginRequest) GetSessionId() string {
@@ -828,7 +828,7 @@ type CompleteClaudeLoginResponse struct {
 
 func (x *CompleteClaudeLoginResponse) Reset() {
 	*x = CompleteClaudeLoginResponse{}
-	mi := &file_auth_proto_msgTypes[14]
+	mi := &file_creds_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -840,7 +840,7 @@ func (x *CompleteClaudeLoginResponse) String() string {
 func (*CompleteClaudeLoginResponse) ProtoMessage() {}
 
 func (x *CompleteClaudeLoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[14]
+	mi := &file_creds_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -853,7 +853,7 @@ func (x *CompleteClaudeLoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteClaudeLoginResponse.ProtoReflect.Descriptor instead.
 func (*CompleteClaudeLoginResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{14}
+	return file_creds_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CompleteClaudeLoginResponse) GetStatus() string {
@@ -884,12 +884,11 @@ func (x *CompleteClaudeLoginResponse) GetLabel() string {
 	return ""
 }
 
-var File_auth_proto protoreflect.FileDescriptor
+var File_creds_proto protoreflect.FileDescriptor
 
-const file_auth_proto_rawDesc = "" +
+const file_creds_proto_rawDesc = "" +
 	"\n" +
-	"\n" +
-	"auth.proto\x12\bdownlink\"\\\n" +
+	"\vcreds.proto\x12\bdownlink\"\\\n" +
 	"\x16StartCodexLoginRequest\x12#\n" +
 	"\rprovider_name\x18\x01 \x01(\tR\fproviderName\x12\x1d\n" +
 	"\n" +
@@ -952,8 +951,8 @@ const file_auth_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12#\n" +
 	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\x12#\n" +
 	"\rcredential_id\x18\x03 \x01(\tR\fcredentialId\x12\x14\n" +
-	"\x05label\x18\x04 \x01(\tR\x05label2\xd1\x05\n" +
-	"\vAuthService\x12X\n" +
+	"\x05label\x18\x04 \x01(\tR\x05label2\xd2\x05\n" +
+	"\fCredsService\x12X\n" +
 	"\x0fStartCodexLogin\x12 .downlink.StartCodexLoginRequest\x1a!.downlink.StartCodexLoginResponse\"\x00\x12U\n" +
 	"\x0ePollCodexLogin\x12\x1f.downlink.PollCodexLoginRequest\x1a .downlink.PollCodexLoginResponse\"\x00\x12g\n" +
 	"\x14ListCodexCredentials\x12%.downlink.ListCodexCredentialsRequest\x1a&.downlink.ListCodexCredentialsResponse\"\x00\x12j\n" +
@@ -963,19 +962,19 @@ const file_auth_proto_rawDesc = "" +
 	"\x13CompleteClaudeLogin\x12$.downlink.CompleteClaudeLoginRequest\x1a%.downlink.CompleteClaudeLoginResponse\"\x00B\tZ\aprotos/b\x06proto3"
 
 var (
-	file_auth_proto_rawDescOnce sync.Once
-	file_auth_proto_rawDescData []byte
+	file_creds_proto_rawDescOnce sync.Once
+	file_creds_proto_rawDescData []byte
 )
 
-func file_auth_proto_rawDescGZIP() []byte {
-	file_auth_proto_rawDescOnce.Do(func() {
-		file_auth_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)))
+func file_creds_proto_rawDescGZIP() []byte {
+	file_creds_proto_rawDescOnce.Do(func() {
+		file_creds_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_creds_proto_rawDesc), len(file_creds_proto_rawDesc)))
 	})
-	return file_auth_proto_rawDescData
+	return file_creds_proto_rawDescData
 }
 
-var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
-var file_auth_proto_goTypes = []any{
+var file_creds_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_creds_proto_goTypes = []any{
 	(*StartCodexLoginRequest)(nil),             // 0: downlink.StartCodexLoginRequest
 	(*StartCodexLoginResponse)(nil),            // 1: downlink.StartCodexLoginResponse
 	(*PollCodexLoginRequest)(nil),              // 2: downlink.PollCodexLoginRequest
@@ -992,22 +991,22 @@ var file_auth_proto_goTypes = []any{
 	(*CompleteClaudeLoginRequest)(nil),         // 13: downlink.CompleteClaudeLoginRequest
 	(*CompleteClaudeLoginResponse)(nil),        // 14: downlink.CompleteClaudeLoginResponse
 }
-var file_auth_proto_depIdxs = []int32{
+var file_creds_proto_depIdxs = []int32{
 	5,  // 0: downlink.ListCodexCredentialsResponse.credentials:type_name -> downlink.CodexCredentialInfo
-	0,  // 1: downlink.AuthService.StartCodexLogin:input_type -> downlink.StartCodexLoginRequest
-	2,  // 2: downlink.AuthService.PollCodexLogin:input_type -> downlink.PollCodexLoginRequest
-	4,  // 3: downlink.AuthService.ListCodexCredentials:input_type -> downlink.ListCodexCredentialsRequest
-	7,  // 4: downlink.AuthService.RemoveCodexCredential:input_type -> downlink.RemoveCodexCredentialRequest
-	9,  // 5: downlink.AuthService.SetCodexCredentialPriority:input_type -> downlink.SetCodexCredentialPriorityRequest
-	11, // 6: downlink.AuthService.StartClaudeLogin:input_type -> downlink.StartClaudeLoginRequest
-	13, // 7: downlink.AuthService.CompleteClaudeLogin:input_type -> downlink.CompleteClaudeLoginRequest
-	1,  // 8: downlink.AuthService.StartCodexLogin:output_type -> downlink.StartCodexLoginResponse
-	3,  // 9: downlink.AuthService.PollCodexLogin:output_type -> downlink.PollCodexLoginResponse
-	6,  // 10: downlink.AuthService.ListCodexCredentials:output_type -> downlink.ListCodexCredentialsResponse
-	8,  // 11: downlink.AuthService.RemoveCodexCredential:output_type -> downlink.RemoveCodexCredentialResponse
-	10, // 12: downlink.AuthService.SetCodexCredentialPriority:output_type -> downlink.SetCodexCredentialPriorityResponse
-	12, // 13: downlink.AuthService.StartClaudeLogin:output_type -> downlink.StartClaudeLoginResponse
-	14, // 14: downlink.AuthService.CompleteClaudeLogin:output_type -> downlink.CompleteClaudeLoginResponse
+	0,  // 1: downlink.CredsService.StartCodexLogin:input_type -> downlink.StartCodexLoginRequest
+	2,  // 2: downlink.CredsService.PollCodexLogin:input_type -> downlink.PollCodexLoginRequest
+	4,  // 3: downlink.CredsService.ListCodexCredentials:input_type -> downlink.ListCodexCredentialsRequest
+	7,  // 4: downlink.CredsService.RemoveCodexCredential:input_type -> downlink.RemoveCodexCredentialRequest
+	9,  // 5: downlink.CredsService.SetCodexCredentialPriority:input_type -> downlink.SetCodexCredentialPriorityRequest
+	11, // 6: downlink.CredsService.StartClaudeLogin:input_type -> downlink.StartClaudeLoginRequest
+	13, // 7: downlink.CredsService.CompleteClaudeLogin:input_type -> downlink.CompleteClaudeLoginRequest
+	1,  // 8: downlink.CredsService.StartCodexLogin:output_type -> downlink.StartCodexLoginResponse
+	3,  // 9: downlink.CredsService.PollCodexLogin:output_type -> downlink.PollCodexLoginResponse
+	6,  // 10: downlink.CredsService.ListCodexCredentials:output_type -> downlink.ListCodexCredentialsResponse
+	8,  // 11: downlink.CredsService.RemoveCodexCredential:output_type -> downlink.RemoveCodexCredentialResponse
+	10, // 12: downlink.CredsService.SetCodexCredentialPriority:output_type -> downlink.SetCodexCredentialPriorityResponse
+	12, // 13: downlink.CredsService.StartClaudeLogin:output_type -> downlink.StartClaudeLoginResponse
+	14, // 14: downlink.CredsService.CompleteClaudeLogin:output_type -> downlink.CompleteClaudeLoginResponse
 	8,  // [8:15] is the sub-list for method output_type
 	1,  // [1:8] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
@@ -1015,26 +1014,26 @@ var file_auth_proto_depIdxs = []int32{
 	0,  // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_auth_proto_init() }
-func file_auth_proto_init() {
-	if File_auth_proto != nil {
+func init() { file_creds_proto_init() }
+func file_creds_proto_init() {
+	if File_creds_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_creds_proto_rawDesc), len(file_creds_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_auth_proto_goTypes,
-		DependencyIndexes: file_auth_proto_depIdxs,
-		MessageInfos:      file_auth_proto_msgTypes,
+		GoTypes:           file_creds_proto_goTypes,
+		DependencyIndexes: file_creds_proto_depIdxs,
+		MessageInfos:      file_creds_proto_msgTypes,
 	}.Build()
-	File_auth_proto = out.File
-	file_auth_proto_goTypes = nil
-	file_auth_proto_depIdxs = nil
+	File_creds_proto = out.File
+	file_creds_proto_goTypes = nil
+	file_creds_proto_depIdxs = nil
 }

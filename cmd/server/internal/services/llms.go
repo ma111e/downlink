@@ -297,17 +297,17 @@ func vibeScoreEnabled(reqVibe *bool) bool {
 	return config.Config.Analysis.VibeScore
 }
 
-// beginnerEnabled resolves whether the beginner-mode analysis task should run.
+// glossaryEnabled resolves whether the glossary-mode analysis task should run.
 // A per-request override (non-nil) wins; otherwise the server's analysis config
 // default applies.
-func beginnerEnabled(reqBeginner *bool) bool {
-	if reqBeginner != nil {
-		return *reqBeginner
+func glossaryEnabled(reqGlossary *bool) bool {
+	if reqGlossary != nil {
+		return *reqGlossary
 	}
-	return config.Config.Analysis.Beginner
+	return config.Config.Analysis.Glossary
 }
 
-func getAnalysisTasks(contentLen int, fastMode bool, vibeScore bool, beginner bool) []analysisTask {
+func getAnalysisTasks(contentLen int, fastMode bool, vibeScore bool, glossary bool) []analysisTask {
 	if fastMode {
 		return []analysisTask{
 			{
@@ -413,17 +413,17 @@ Return ONLY the JSON object below.`,
 		})
 	}
 
-	if beginner {
+	if glossary {
 		tasks = append(tasks, analysisTask{
-			name: "beginner",
+			name: "glossary",
 			instruction: `You are explaining this article to someone brand new to cybersecurity. Produce two things, using ONLY information present in the article — do not infer or add outside context.
 
 explanation: 2–4 plain sentences describing what the article is about and why it matters, written for a complete beginner. Avoid jargon entirely; if a concept is unavoidable, restate it in everyday language. No markdown, no bullet points.
-glossary: the technical terms, acronyms, tools, and named entities the article uses that a beginner would not know (e.g. CVE, RCE, lateral movement, named malware or threat actors). For each, give the term as written and a single plain-language sentence defining it. Include 0 to 12 entries; if the article uses no jargon, return an empty array.
+terms: the technical terms, acronyms, tools, and named entities the article uses that a beginner would not know (e.g. CVE, RCE, lateral movement, named malware or threat actors). For each, give the term as written and a single plain-language sentence defining it. Include 0 to 12 entries; if the article uses no jargon, return an empty array.
 
 Return ONLY the JSON object below.`,
-			schema:       `{"beginner": {"explanation": "<2-4 plain sentences>", "glossary": [{"term": "<term>", "definition": "<one plain sentence>"}]}}`,
-			requiredKeys: []string{"beginner"},
+			schema:       `{"glossary": {"explanation": "<2-4 plain sentences>", "terms": [{"term": "<term>", "definition": "<one plain sentence>"}]}}`,
+			requiredKeys: []string{"glossary"},
 		})
 	}
 
@@ -526,7 +526,7 @@ func (s *LLMsServer) buildAnalysisPromptForRequest(req *protos.AnalyzeArticleWit
 		return "", err
 	}
 
-	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), beginnerEnabled(req.Beginner))
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), glossaryEnabled(req.Glossary))
 	var allInstructions, allSchemas []string
 	for i, t := range tasks {
 		allInstructions = append(allInstructions, fmt.Sprintf("%d. %s", i+1, t.instruction))
@@ -815,7 +815,7 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 
 	// Run analysis tasks sequentially using a single ChatModel conversation.
 	// The article is sent once in the first message; subsequent tasks only send the instruction.
-	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), beginnerEnabled(req.Beginner))
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), glossaryEnabled(req.Glossary))
 	totalTasks := len(tasks)
 	assembled := make(map[string]interface{})
 	assembled["id"] = actx.articleId
@@ -1300,12 +1300,12 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 		}
 	}
 
-	if beginner, ok := result["beginner"].(map[string]interface{}); ok {
-		if explanation, ok := beginner["explanation"].(string); ok {
-			analysis.BeginnerExplanation = explanation
+	if glossary, ok := result["glossary"].(map[string]interface{}); ok {
+		if explanation, ok := glossary["explanation"].(string); ok {
+			analysis.GlossaryExplanation = explanation
 		}
-		if glossary := glossaryFromResult(beginner["glossary"]); len(glossary) > 0 {
-			analysis.BeginnerGlossary = glossary
+		if terms := glossaryFromResult(glossary["terms"]); len(terms) > 0 {
+			analysis.GlossaryTerms = terms
 		}
 	}
 

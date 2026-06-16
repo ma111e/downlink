@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createAuthListCommand() *cobra.Command {
+func createCredsListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list [provider]",
 		Short: "List registered credentials for a provider",
