@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<script>
+// Set the theme before first paint to avoid a flash. A saved choice wins;
+// otherwise the server-rendered data-theme (the configured default) is kept.
+// Shared key across digest/archive/swipe pages.
+(function(){
+  try {
+    var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
+    var t = localStorage.getItem('downlink.theme');
+    if (valid[t]) document.documentElement.dataset.theme = t;
+  } catch(e){}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="DOWNLINK · Triage — 4 hours digest">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Telegram restrictions, GhostTree evasion, Rokarolla Android malware, and rising imposter scams — DOWNLINK Triage">
+<meta property="og:description" content="Swipe-triage the 4 hours intelligence digest.">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+    --dot: #ffffff08;
+  }
+  /* Light theme: palette anchored on #EFEEEA / #FE7743 / #273F4F. */
+  html[data-theme="light"] {
+    --bg: #efeeea;
+    --surface: #fafaf8;
+    --surface2: #e8e7e2;
+    --border: #d3d2cc;
+    --border2: #b8b7b0;
+    --text: #0d0c0a;
+    --text2: #273f4f;
+    --text3: #5c6e78;
+    /* Toned, homogeneous accents: uniform OKLCH L 58% / C 0.13, hue only varies. */
+    --cyan:    oklch(58% 0.13 45);   /* brand orange */
+    --must:    oklch(58% 0.13 25);
+    --should:  oklch(58% 0.13 67);
+    --may:     oklch(58% 0.13 250);
+    --discard: oklch(58% 0.13 25);
+    --accept:  oklch(58% 0.13 150);
+    --dot: rgba(0,0,0,.035);
+  }
+  /* Contrast theme: pure black, max-legibility whites, vivid accents. */
+  html[data-theme="contrast"] {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface2: #111111;
+    --border: #2a2a2a;
+    --border2: #3a3a3a;
+    --text: #ffffff;
+    --text2: #c7c7c7;
+    --text3: #888888;
+    --cyan: #00ffd1;
+    --must:   #ff5050;
+    --should: #ffd24a;
+    --may:    #00ffd1;
+    --discard: #ff5050;
+    --accept:  #00ff95;
+    --dot: rgba(255,255,255,.08);
+  }
+  /* Mono theme: grayscale, no chroma. */
+  html[data-theme="mono"] {
+    --bg: #0c0c0c;
+    --surface: #131313;
+    --surface2: #181818;
+    --border: #242424;
+    --border2: #333333;
+    --text: #e6e6e6;
+    --text2: #9a9a9a;
+    --text3: #5e5e5e;
+    --cyan: #e6e6e6;
+    --must:   #f0f0f0;
+    --should: #c8c8c8;
+    --may:    #9a9a9a;
+    --discard: #cfcfcf;
+    --accept:  #cfcfcf;
+    --dot: rgba(255,255,255,.04);
+  }
+  /* Colorblind theme: light base, colorblind-safe Okabe-Ito accents. Crucially
+     discard/accept become vermillion/blue so the triage actions are no longer a
+     red/green pair (the worst case for protan/deutan vision). */
+  html[data-theme="colorblind"] {
+    --bg: #efeeea;
+    --surface: #fafaf8;
+    --surface2: #e8e7e2;
+    --border: #d3d2cc;
+    --border2: #b8b7b0;
+    --text: #0d0c0a;
+    --text2: #273f4f;
+    --text3: #5c6e78;
+    --cyan:    #0072b2;  /* Okabe blue */
+    --must:    #c44601;  /* vermillion */
+    --should:  #8a6d00;  /* dark gold */
+    --may:     #2f79a5;  /* teal-blue */
+    --discard: #c44601;  /* vermillion (was red) */
+    --accept:  #0072b2;  /* blue (was green) */
+    --dot: rgba(0,0,0,.035);
+  }
+  /* Pastel theme: soft cream base (#FAF6E6), deepened mint/coral accents, deep plum text. */
+  html[data-theme="pastel"] {
+    --bg: #faf6e6;
+    --surface: #fffdf4;
+    --surface2: #f1ead2;
+    --border: #e6dcbf;
+    --border2: #d2c5a2;
+    --text: #3a3137;
+    --text2: #6c5560;
+    --text3: #9c8a86;
+    --cyan:    #1f9d8f;  /* mint-teal primary */
+    --must:    #d9534f;  /* coral-red */
+    --should:  #e08a2e;  /* peach-amber */
+    --may:     #4a90d9;  /* soft blue */
+    --discard: #d9534f;  /* coral-red */
+    --accept:  #2f9e63;  /* green */
+    --dot: rgba(0,0,0,.03);
+  }
+  /* Per-theme source-color palette (--p0..--pN), generated server-side. */
+  :root{--p0:#f87171;--p1:#fb923c;--p2:#4ade80;--p3:#2dd4bf;--p4:#60a5fa;--p5:#c084fc;--p6:#f472b6;--p7:#a78bfa;--p8:#34d399;--p9:#38bdf8;--p10:#e879f9;}html[data-theme="light"]{--p0:#dc2626;--p1:#ea580c;--p2:#16a34a;--p3:#0d9488;--p4:#2563eb;--p5:#9333ea;--p6:#db2777;--p7:#7c3aed;--p8:#059669;--p9:#0284c7;--p10:#c026d3;}html[data-theme="colorblind"]{--p0:#0072b2;--p1:#c44601;--p2:#1a7a4f;--p3:#7a4fa0;--p4:#8a6d00;--p5:#2f79a5;--p6:#a23b7a;--p7:#00786b;--p8:#2b6c8f;--p9:#b35900;--p10:#5c6e78;}html[data-theme="mono"]{--p0:#7a7a7a;--p1:#868686;--p2:#929292;--p3:#9e9e9e;--p4:#aaaaaa;--p5:#b6b6b6;--p6:#c2c2c2;--p7:#cecece;--p8:#dadada;--p9:#e6e6e6;--p10:#f0f0f0;}html[data-theme="pastel"]{--p0:#e0655c;--p1:#e08a2e;--p2:#2f9e63;--p3:#1f9d8f;--p4:#4a90d9;--p5:#8c6dd0;--p6:#de6b94;--p7:#a05fc0;--p8:#2faa8e;--p9:#3f8fd0;--p10:#c267c0;}
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; min-height: 100dvh; overflow-x: hidden; }
+  /* dvh keeps the bottom action buttons reachable under mobile browser chrome */
+  .swipe-shell { height: 100vh; height: 100dvh; }
+  /* the nav is a fixed-height single row; on phones drop the clock so the
+     logo + count + theme picker never overflow */
+  @media (max-width: 460px) {
+    .swipe-nav { padding-left: 14px !important; padding-right: 14px !important; }
+    .swipe-clock { display: none; }
+  }
+  @media (max-width: 360px) {
+    .swipe-nav { padding-left: 8px !important; padding-right: 8px !important; }
+  }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; flex: 1; min-height: 0; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--accept); border-color: var(--accept); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--cyan);   border-color: var(--cyan); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .kp-list li { display: flex; gap: 0.6rem; font-size: 13px; line-height: 1.6; color: var(--text2); }
+  .kp-list li::before { content: "–"; color: var(--cyan); flex-shrink: 0; font-weight: 600; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); }
+  .report-title a { color: var(--text); text-decoration: none; }
+  .report-title a:hover { color: var(--cyan); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+window.__DL_ARTICLES = [{"n":5,"title":"New Rokarolla Android Malware Steals PINs, SMS Codes, and Crypto Wallet Funds","source":"thehackernews.com","sourceColorIdx":8,"link":"https://thehackernews.com/2026/06/new-rokarolla-android-malware-steals.html","time":"13:10","priority":"MUST READ","score":91,"tldr":"Zimperium researchers found a new Android banking trojan called Rokarolla that can take over phones by abusing Accessibility, stealing lock-screen PINs, SMS codes, banking credentials, and even redirecting crypto payments. It spreads through fake app sites, disables Play Protect, and uses overlays plus broad remote-control features to target hundreds of banking and wallet apps.","briefOverview":"\u003cp\u003eZimperium\u0026rsquo;s zLabs has documented a new Android banking trojan called Rokarolla that targets 217 banking and cryptocurrency apps and includes 137 remote commands. According to the report, the malware can steal lock-screen PINs, read and send SMS, rewrite the clipboard to redirect cryptocurrency payments, and disable Google Play Protect. The article says Rokarolla spreads through malicious websites impersonating popular apps such as TikTok and Chrome.\u003c/p\u003e\n\n\u003cp\u003eThe infection chain starts with a dropper disguised as Google Play Protect, which helps install the payload and obtain Accessibility access. Rokarolla then uses HTML overlays downloaded from its command-and-control server to mimic legitimate banking and wallet apps and capture credentials and card details. It also uses a separate fake Android lock-screen overlay to collect a victim\u0026rsquo;s PIN, pattern, or password.\u003c/p\u003e\n\n\u003cp\u003eThe malware can read all SMS messages, send texts itself, scrape contacts, log keystrokes and screens, and read notifications. By making itself the default app for texts and calls, it can also block incoming calls, including possible warning calls from a bank. Zimperium says there is no software patch for this because it is malware rather than a product flaw, and recommends installing apps only from Google Play, keeping Play Protect enabled, and treating unexpected Accessibility requests as a warning sign.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eZimperium\u0026rsquo;s zLabs has reported a new Android banking trojan named Rokarolla, named after its command-and-control servers. The article says the malware targets 217 banking and cryptocurrency apps and supports 137 remote commands, giving operators broad control over infected devices. Its capabilities include stealing lock-screen PINs, reading and sending SMS, redirecting copied cryptocurrency wallet addresses, and disabling Google Play Protect.\u003c/p\u003e\n\n\u003cp\u003eAccording to the article, Rokarolla is distributed through malicious websites that impersonate well-known apps such as TikTok and Chrome. Victims first install a dropper that pretends to be Google Play Protect. That disguise is used to help install the malware payload and obtain Accessibility access, after which one of the malware\u0026rsquo;s commands disables Play Protect.\u003c/p\u003e\n\n\u003cp\u003eCredential theft is centered on overlays. Rokarolla retrieves a target list from its server and, for each active app, downloads a fake HTML login page that it stores locally. When a victim opens a real banking or wallet app, the malware places the counterfeit page on top of it and captures entered data, including card information.\u003c/p\u003e\n\n\u003cp\u003eThe report also describes a separate overlay that mimics the Android lock screen so the malware can collect the device PIN, pattern, or password. The article says Rokarolla reads all SMS messages and can send its own, allowing it to obtain one-time codes used by banks for logins and transactions. By making itself the device\u0026rsquo;s default app for calls and texts, it can also block incoming calls, including possible warning calls from a bank.\u003c/p\u003e\n\n\u003cp\u003eBeyond overlays and SMS theft, Rokarolla includes a keylogger, a screen logger, contact scraping, notification reading, and clipboard manipulation that silently replaces copied cryptocurrency wallet addresses with attacker-controlled ones. For surveillance, it avoids MediaProjection screen casting, which would trigger a visible recording prompt, and instead takes screenshots through Accessibility, compresses them as PNG files, and exfiltrates them one frame at a time. The article contrasts this with the live hidden VNC approach used in malware families such as Klopatra.\u003c/p\u003e\n\n\u003cp\u003eThe malware is described as resilient because it has multiple fallback command-and-control domains and can receive new domains dynamically. The article notes that its 137 commands exceed the 107 commands Zimperium previously counted in the HOOK trojan, and places Rokarolla within a broader wave of 2026 Android banking malware campaigns using fake-app droppers, Accessibility abuse, and HTML overlays. Zimperium did not attribute Rokarolla to a named threat group, but said its own products detect the family and published indicators of compromise in its GitHub repository.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"overview\"\u003eOverview\u003c/h1\u003e\n\n\u003cp\u003eZimperium\u0026rsquo;s zLabs has documented a new Android banking trojan called \u003cstrong\u003eRokarolla\u003c/strong\u003e. The article says the malware targets \u003cstrong\u003e217 banking and cryptocurrency apps\u003c/strong\u003e and contains \u003cstrong\u003e137 remote commands\u003c/strong\u003e, giving an operator what the report describes as near-total control over an infected phone. Its listed capabilities include stealing lock-screen credentials, reading and sending SMS, altering clipboard contents to redirect cryptocurrency transactions, and disabling Google Play Protect.\u003c/p\u003e\n\n\u003cp\u003eThe malware is named after its command-and-control infrastructure. Zimperium did not attribute Rokarolla to any named threat group. The article frames the build as a banker specifically assembled to defeat protections users are typically told to rely on, from Play Protect to the Android lock screen.\u003c/p\u003e\n\n\u003ch1 id=\"distribution-and-initial-access\"\u003eDistribution and Initial Access\u003c/h1\u003e\n\n\u003cp\u003eAccording to the article, Rokarolla spreads through \u003cstrong\u003emalicious websites\u003c/strong\u003e that impersonate familiar applications such as \u003cstrong\u003eTikTok\u003c/strong\u003e and \u003cstrong\u003eChrome\u003c/strong\u003e. Victims are first tricked into installing a \u003cstrong\u003edropper\u003c/strong\u003e that masquerades as \u003cstrong\u003eGoogle Play Protect\u003c/strong\u003e.\u003c/p\u003e\n\n\u003cp\u003eThat fake Play Protect component serves two purposes described in the article:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eit helps deliver and install the main malware payload\u003c/li\u003e\n\u003cli\u003eit is used to obtain \u003cstrong\u003eAccessibility\u003c/strong\u003e access\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eOnce Rokarolla is active, one of its commands disables the real \u003cstrong\u003eGoogle Play Protect\u003c/strong\u003e, removing a built-in Android safety mechanism.\u003c/p\u003e\n\n\u003ch1 id=\"credential-theft-via-overlays\"\u003eCredential Theft via Overlays\u003c/h1\u003e\n\n\u003cp\u003eThe article says Rokarolla\u0026rsquo;s main theft mechanism relies on \u003cstrong\u003eHTML overlays\u003c/strong\u003e. The malware receives a target list from its command-and-control server and downloads a corresponding fake HTML login page for each active app of interest. These pages are then stored in a local database on the device.\u003c/p\u003e\n\n\u003cp\u003eWhen a victim launches a legitimate banking or cryptocurrency app, Rokarolla overlays it with the fraudulent login page and captures anything typed into it. The article notes that this includes \u003cstrong\u003ecredentials\u003c/strong\u003e and \u003cstrong\u003ecard details\u003c/strong\u003e.\u003c/p\u003e\n\n\u003cp\u003eZimperium\u0026rsquo;s report reportedly includes an example of an overlay impersonating the banking app \u003cstrong\u003eimagin\u003c/strong\u003e. A separate overlay imitates the \u003cstrong\u003eAndroid lock screen\u003c/strong\u003e, allowing the malware to collect the victim\u0026rsquo;s \u003cstrong\u003ePIN, pattern, or password\u003c/strong\u003e.\u003c/p\u003e\n\n\u003ch1 id=\"device-takeover-and-user-monitoring\"\u003eDevice Takeover and User Monitoring\u003c/h1\u003e\n\n\u003cp\u003eThe article describes Rokarolla as extending well beyond simple banking credential theft. It can:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eread all SMS messages on the device\u003c/li\u003e\n\u003cli\u003esend SMS messages itself\u003c/li\u003e\n\u003cli\u003elog keystrokes\u003c/li\u003e\n\u003cli\u003elog screen activity\u003c/li\u003e\n\u003cli\u003escrape contacts\u003c/li\u003e\n\u003cli\u003eread notifications\u003c/li\u003e\n\u003cli\u003emanipulate the clipboard\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe lock-screen overlay is particularly significant because it gives the operator a path to controlling the device even when it is locked. The article explicitly says this can allow operator control of the phone while locked.\u003c/p\u003e\n\n\u003ch1 id=\"sms-and-call-manipulation\"\u003eSMS and Call Manipulation\u003c/h1\u003e\n\n\u003cp\u003eSMS access gives Rokarolla the ability to collect \u003cstrong\u003eone-time codes\u003c/strong\u003e used by banks to approve logins and transactions. The article says this is enough to capture SMS-based verification codes commonly used in banking workflows.\u003c/p\u003e\n\n\u003cp\u003eIn addition, the malware can make itself the device\u0026rsquo;s \u003cstrong\u003edefault app for texts and calls\u003c/strong\u003e. The article says that by doing so it can block incoming calls, which could prevent a fraud-warning call from a bank from reaching the victim.\u003c/p\u003e\n\n\u003ch1 id=\"cryptocurrency-theft-behavior\"\u003eCryptocurrency Theft Behavior\u003c/h1\u003e\n\n\u003cp\u003eRokarolla also targets cryptocurrency users through \u003cstrong\u003eclipboard rewriting\u003c/strong\u003e. The article says it silently swaps copied wallet addresses with attacker-controlled addresses, so a payment copied by the user can be redirected to the wrong account.\u003c/p\u003e\n\n\u003cp\u003eThis is presented as one of the trojan\u0026rsquo;s direct monetization paths alongside banking credential theft and SMS interception.\u003c/p\u003e\n\n\u003ch1 id=\"surveillance-method\"\u003eSurveillance Method\u003c/h1\u003e\n\n\u003cp\u003eFor screen surveillance, Rokarolla does not use the more visible \u003cstrong\u003eMediaProjection\u003c/strong\u003e-based screen casting mechanism. The article explains that MediaProjection would generate a visible recording prompt that could alert the user.\u003c/p\u003e\n\n\u003cp\u003eInstead, Rokarolla uses \u003cstrong\u003eAccessibility\u003c/strong\u003e to take screenshots, compresses them as \u003cstrong\u003ePNG\u003c/strong\u003e, and exfiltrates them one frame at a time. The article says this snapshot approach is quieter and simpler than the hidden live VNC method seen in malware families such as \u003cstrong\u003eKlopatra\u003c/strong\u003e.\u003c/p\u003e\n\n\u003ch1 id=\"command-and-control-resilience\"\u003eCommand-and-Control Resilience\u003c/h1\u003e\n\n\u003cp\u003eThe malware is described as having \u003cstrong\u003emultiple fallback C2 domains\u003c/strong\u003e and the ability to receive \u003cstrong\u003enew domains dynamically\u003c/strong\u003e. According to the article, this means taking down a single command-and-control server would do little to stop the operation.\u003c/p\u003e\n\n\u003cp\u003eThe article also compares Rokarolla with another Android banking trojan, \u003cstrong\u003eHOOK\u003c/strong\u003e, stating that Rokarolla\u0026rsquo;s \u003cstrong\u003e137 commands\u003c/strong\u003e exceed the \u003cstrong\u003e107 commands\u003c/strong\u003e Zimperium counted in HOOK.\u003c/p\u003e\n\n\u003ch1 id=\"broader-context\"\u003eBroader Context\u003c/h1\u003e\n\n\u003cp\u003eThe article places Rokarolla within a broader \u003cstrong\u003ewave of 2026 Android bankers\u003c/strong\u003e described by Zimperium. It says the same playbook has been appearing across these campaigns:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003efake-app droppers\u003c/li\u003e\n\u003cli\u003eAccessibility abuse\u003c/li\u003e\n\u003cli\u003eHTML overlay-based credential theft\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThis context presents Rokarolla not as an isolated anomaly, but as part of a repeating Android banking malware pattern documented by the researchers.\u003c/p\u003e\n\n\u003ch1 id=\"impact-and-risk-framing\"\u003eImpact and Risk Framing\u003c/h1\u003e\n\n\u003cp\u003eThe article portrays Rokarolla as highly capable because it combines several forms of access and deception into one workflow:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003einitial infection through fake app websites\u003c/li\u003e\n\u003cli\u003einstallation aided by a fake Play Protect interface\u003c/li\u003e\n\u003cli\u003eAccessibility privilege abuse\u003c/li\u003e\n\u003cli\u003ebanking and wallet overlays for credential capture\u003c/li\u003e\n\u003cli\u003elock-screen overlays for PIN theft\u003c/li\u003e\n\u003cli\u003eSMS interception for one-time codes\u003c/li\u003e\n\u003cli\u003ecall blocking to suppress warnings\u003c/li\u003e\n\u003cli\u003eclipboard manipulation for cryptocurrency theft\u003c/li\u003e\n\u003cli\u003escreenshot-based surveillance\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eTogether, these functions give the operator broad visibility into the device and the ability to interfere with both user actions and defensive notifications.\u003c/p\u003e\n\n\u003ch1 id=\"response-and-defensive-guidance\"\u003eResponse and Defensive Guidance\u003c/h1\u003e\n\n\u003cp\u003eThe article says there is \u003cstrong\u003eno patch\u003c/strong\u003e for Rokarolla because it is \u003cstrong\u003emalware rather than a product flaw\u003c/strong\u003e. The defenses recommended are standard anti-banker precautions for Android:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003einstall apps only from \u003cstrong\u003eGoogle Play\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003ekeep \u003cstrong\u003ePlay Protect\u003c/strong\u003e enabled\u003c/li\u003e\n\u003cli\u003etreat unexpected \u003cstrong\u003eAccessibility\u003c/strong\u003e requests as a major warning sign\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article emphasizes that Accessibility permission is central to the attack chain.\u003c/p\u003e\n\n\u003ch1 id=\"detection-and-attribution\"\u003eDetection and Attribution\u003c/h1\u003e\n\n\u003cp\u003eZimperium says its own security products detect Rokarolla. It also states that indicators of compromise are available in the company\u0026rsquo;s \u003cstrong\u003eGitHub repository\u003c/strong\u003e.\u003c/p\u003e\n\n\u003cp\u003eAttribution remains unresolved in the article. Zimperium did \u003cstrong\u003enot\u003c/strong\u003e connect Rokarolla to a named threat actor or group.\u003c/p\u003e\n\n\u003ch1 id=\"bottom-line\"\u003eBottom Line\u003c/h1\u003e\n\n\u003cp\u003eThe article describes Rokarolla as an Android banking trojan built for broad device compromise rather than narrow credential theft alone. Its combination of fake Play Protect installation, Accessibility abuse, banking and lock-screen overlays, SMS interception, clipboard hijacking, and quiet screenshot surveillance makes it a comprehensive mobile theft platform aimed at banking and cryptocurrency users.\u003c/p\u003e\n","keyPoints":["Zimperium's zLabs documented a new Android banking trojan called Rokarolla that targets 217 banking and cryptocurrency apps and includes 137 remote commands.","Rokarolla spreads through malicious websites impersonating apps such as TikTok and Chrome, using a dropper disguised as Google Play Protect to install the payload and obtain Accessibility access.","The malware uses downloaded HTML overlays to mimic legitimate banking and wallet apps, capturing credentials, card details, and even lock-screen PINs, patterns, or passwords.","Rokarolla can read and send SMS, make itself the default app for texts and calls to block bank warning calls, log keystrokes and screens, scrape contacts and notifications, and silently replace copied crypto wallet addresses in the clipboard.","According to the article, Rokarolla uses multiple fallback command-and-control domains, can receive new domains dynamically, and can disable Google Play Protect after infection."],"insights":["Rokarolla is designed to undermine the exact Android protections users are commonly told to trust, because it masquerades as Google Play Protect to gain installation and Accessibility access and then disables Play Protect afterward.","By combining a fake Android lock-screen overlay with SMS interception, Rokarolla can potentially defeat both device locking and bank one-time-code checks using only capabilities described in the report.","Its screenshot-based surveillance through Accessibility avoids the visible recording prompt associated with MediaProjection, making monitoring quieter than malware families that rely on live hidden VNC.","The malware’s resilience is strengthened by multiple fallback command-and-control domains and the ability to receive new domains dynamically, so taking down a single server is unlikely to disrupt operations.","Because Rokarolla can become the default app for texts and calls, it can not only steal messages but also suppress incoming bank warning calls that might otherwise alert the victim in time."],"referencedReports":[{"title":"Rokarolla Android banker with complete device takeover capabilities","url":"https://zimperium.com/blog/rokarolla-android-banker-with-complete-device-takeover-capabilities","publisher":"zimperium","context":"The article is based on Zimperium zLabs' technical analysis of the Rokarolla Android banking trojan and cites it directly when describing its capabilities and infection chain.","category":"research","primary":true},{"title":"android-bankers-4-campaigns-in-a-row","url":"https://zimperium.com/blog/android-bankers-4-campaigns-in-a-row","publisher":"zimperium","context":"The article references this Zimperium report to place Rokarolla within a broader wave of 2026 Android banking trojan campaigns using fake-app droppers, Accessibility abuse, and HTML overlays.","category":"research","primary":false}],"body":"\u003cp\u003eZimperium\u0026rsquo;s zLabs has documented a new Android banking trojan called Rokarolla that targets 217 banking and cryptocurrency apps and includes 137 remote commands. According to the report, the malware can steal lock-screen PINs, read and send SMS, rewrite the clipboard to redirect cryptocurrency payments, and disable Google Play Protect. The article says Rokarolla spreads through malicious websites impersonating popular apps such as TikTok and Chrome.\u003c/p\u003e\n\n\u003cp\u003eThe infection chain starts with a dropper disguised as Google Play Protect, which helps install the payload and obtain Accessibility access. Rokarolla then uses HTML overlays downloaded from its command-and-control server to mimic legitimate banking and wallet apps and capture credentials and card details. It also uses a separate fake Android lock-screen overlay to collect a victim\u0026rsquo;s PIN, pattern, or password.\u003c/p\u003e\n\n\u003cp\u003eThe malware can read all SMS messages, send texts itself, scrape contacts, log keystrokes and screens, and read notifications. By making itself the default app for texts and calls, it can also block incoming calls, including possible warning calls from a bank. Zimperium says there is no software patch for this because it is malware rather than a product flaw, and recommends installing apps only from Google Play, keeping Play Protect enabled, and treating unexpected Accessibility requests as a warning sign.\u003c/p\u003e\n"},{"n":4,"title":"FTC warns of record $3.5 billion losses to imposter scams in 2025","source":"bleepingcomputer.com","sourceColorIdx":10,"link":"https://www.bleepingcomputer.com/news/security/ftc-warns-of-record-35-billion-losses-to-imposter-scams-in-2025/","time":"13:42","priority":"SHOULD READ","score":79,"tldr":"The FTC says Americans lost a record $3.5 billion to imposter scams in 2025, making them the most reported fraud category and showing losses have nearly tripled since 2020. Social media, especially Facebook, was the biggest contact channel, and the agency says it is increasing enforcement against business and government impersonation schemes.","briefOverview":"\u003cp\u003eThe U.S. Federal Trade Commission said Americans lost $3.5 billion to imposter scams in 2025, making them the most reported fraud category and pushing reported losses to nearly triple their 2020 level. The article says these scams commonly begin through text messages, phone calls, emails, social media, and search engine results. The costliest schemes often involve fake bank security alerts that pressure people to move money to supposedly protect their accounts.\u003c/p\u003e\n\n\u003cp\u003eThe FTC said victims lost nearly \u003cspan class=\"math inline\"\u003e\\(1 billion to business impersonators and about \\)\u003c/span\u003e920 million to government impersonators. Social media accounted for more than \u003cspan class=\"math inline\"\u003e\\(2.1 billion in 2025 losses tied to impersonators, with Facebook producing more losses than text and email combined, while WhatsApp and Instagram ranked next. Overall reported fraud losses across all categories rose to about \\)\u003c/span\u003e16 billion in 2025, and the FTC said it has used its Impersonation Rule to bring a dozen enforcement actions and secure more than $70 million in consumer redress.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eThe U.S. Federal Trade Commission warned that Americans reported losing $3.5 billion to imposter scams in 2025. According to the article, these scams were the most reported fraud category last year and represented nearly one in three fraud reports filed with the FTC. The agency said reported losses from imposter scams have nearly tripled since 2020.\u003c/p\u003e\n\n\u003cp\u003eThe article describes imposter scams as fraud schemes in which criminals contact victims through text messages, phone calls, emails, social media, and search engine results. It says the costliest versions often use fake bank security alerts to convince targets to transfer money in order to \u0026ldquo;protect\u0026rdquo; their accounts. The FTC also said nearly \u003cspan class=\"math inline\"\u003e\\(1 billion in losses came from business impersonators, with bank impersonators driving the most lucrative scams, while government impersonators accounted for about \\)\u003c/span\u003e920 million.\u003c/p\u003e\n\n\u003cp\u003eSocial media was highlighted as the most expensive contact channel for these scams. The FTC said more than $2.1 billion in 2025 losses linked to impersonators were traced to social platforms, representing an eightfold increase since 2020. Nearly one in three Americans who lost money in these scams were first contacted through social media, and Facebook alone accounted for more losses than text and email combined, with WhatsApp and Instagram ranking second and third.\u003c/p\u003e\n\n\u003cp\u003eThe broader fraud picture was also severe. The article says overall reported fraud losses across all categories reached about \u003cspan class=\"math inline\"\u003e\\(16 billion in 2025, the highest on record and roughly 25% higher than the previous year. It also notes that the FBI warned in its 2025 Internet Crime Report that U.S. victims lost almost \\)\u003c/span\u003e21 billion to cyber-enabled crimes during the same period.\u003c/p\u003e\n\n\u003cp\u003eThe FTC said it has taken enforcement action under its Impersonation Rule, which went into effect in April 2024. Since then, the agency has brought a dozen enforcement actions, secured more than $70 million in consumer redress, and stopped some imposter schemes. The article names actions involving MediaAlpha, American Tax Service, Blackstone Legal, Click Profit, Accelerated Debt Settlement, and a complaint filed in April 2026 against Innovative Partners over alleged government and insurance carrier impersonation used to sell fraudulent health plans.\u003c/p\u003e\n\n\u003cp\u003eThe article also places the warning in the context of earlier FTC scam alerts. In March 2024, the agency warned that scammers were impersonating FTC employees and pressuring Americans by phone, email, or text to wire or transfer money. That earlier warning aligns with the FTC’s current message that impersonation fraud remains one of the most damaging and persistent forms of fraud affecting U.S. consumers.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"overview\"\u003eOverview\u003c/h1\u003e\n\n\u003cp\u003eThe article reports that the U.S. Federal Trade Commission (FTC) warned Americans lost \u003cstrong\u003e$3.5 billion to imposter scams in 2025\u003c/strong\u003e, with reported losses from these scams \u003cstrong\u003enearly tripling since 2020\u003c/strong\u003e. Imposter scams were also described as the \u003cstrong\u003emost reported fraud category\u003c/strong\u003e last year, accounting for \u003cstrong\u003enearly one in three fraud reports\u003c/strong\u003e filed with the FTC.\u003c/p\u003e\n\n\u003cp\u003eThe article presents the FTC’s warning as part of a broader escalation in fraud-related losses in the United States. Across all fraud categories, reported losses reached \u003cstrong\u003eabout $16 billion in 2025\u003c/strong\u003e, which the article says was the \u003cstrong\u003ehighest on record\u003c/strong\u003e and about \u003cstrong\u003e25% above the previous year\u003c/strong\u003e.\u003c/p\u003e\n\n\u003ch1 id=\"what-the-ftc-said-about-imposter-scams\"\u003eWhat the FTC Said About Imposter Scams\u003c/h1\u003e\n\n\u003cp\u003eAccording to the article, imposter scams involve fraudsters pretending to be trusted entities and contacting victims through multiple channels, including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003etext messages\u003c/li\u003e\n\u003cli\u003ephone calls\u003c/li\u003e\n\u003cli\u003eemails\u003c/li\u003e\n\u003cli\u003esocial media\u003c/li\u003e\n\u003cli\u003esearch engine results\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article says the \u003cstrong\u003ecostliest schemes\u003c/strong\u003e typically involve a \u003cstrong\u003efake bank security alert\u003c/strong\u003e. In those scams, targets are prompted to transfer funds in order to supposedly \u003cstrong\u003e“protect” their accounts\u003c/strong\u003e.\u003c/p\u003e\n\n\u003cp\u003eThe FTC broke out losses by impersonator type:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eNearly $1 billion\u003c/strong\u003e lost to \u003cstrong\u003ebusiness impersonators\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eApproximately $920 million\u003c/strong\u003e lost to \u003cstrong\u003egovernment impersonators\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eWithin the business impersonator category, the article specifically states that \u003cstrong\u003ebank impersonators were behind the most lucrative scams\u003c/strong\u003e.\u003c/p\u003e\n\n\u003ch1 id=\"social-media-s-role\"\u003eSocial Media’s Role\u003c/h1\u003e\n\n\u003cp\u003eA central theme in the article is the growing role of social media as a delivery channel for impersonation scams. The FTC said social media was the \u003cstrong\u003emost cost-effective attack vector for impersonators\u003c/strong\u003e, with \u003cstrong\u003emore than $2.1 billion in 2025 losses\u003c/strong\u003e traced to social platforms.\u003c/p\u003e\n\n\u003cp\u003eThe article adds several notable details:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eSocial media-related impersonation scam losses reflected an \u003cstrong\u003eeightfold increase since 2020\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eNearly one in three Americans\u003c/strong\u003e who lost money in these scams were \u003cstrong\u003efirst contacted through social media\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eFacebook\u003c/strong\u003e alone accounted for \u003cstrong\u003emore losses than text and email combined\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eWhatsApp\u003c/strong\u003e and \u003cstrong\u003eInstagram\u003c/strong\u003e ranked \u003cstrong\u003esecond and third\u003c/strong\u003e among social platforms tied to these losses.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThese figures position social platforms as the article’s most significant distribution channel for impersonation-driven fraud losses.\u003c/p\u003e\n\n\u003ch1 id=\"broader-u-s-fraud-and-cybercrime-context\"\u003eBroader U.S. Fraud and Cybercrime Context\u003c/h1\u003e\n\n\u003cp\u003eThe article places the FTC’s findings within a wider landscape of rising fraud and cyber-enabled crime. It states that total reported fraud losses across all categories hit \u003cstrong\u003eabout $16 billion in 2025\u003c/strong\u003e.\u003c/p\u003e\n\n\u003cp\u003eIt also references the FBI’s \u003cstrong\u003e2025 Internet Crime Report\u003c/strong\u003e, which warned that U.S. victims lost \u003cstrong\u003ealmost $21 billion to cyber-enabled crimes\u003c/strong\u003e during the same year. This comparison underscores the scale of financially motivated crime affecting U.S. residents.\u003c/p\u003e\n\n\u003ch1 id=\"ftc-enforcement-and-regulatory-response\"\u003eFTC Enforcement and Regulatory Response\u003c/h1\u003e\n\n\u003cp\u003eThe article highlights the FTC’s use of its \u003cstrong\u003eImpersonation Rule\u003c/strong\u003e, which took effect in \u003cstrong\u003eApril 2024\u003c/strong\u003e. Since that rule became active, the FTC said it has:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003ebrought \u003cstrong\u003ea dozen enforcement actions\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003esecured \u003cstrong\u003emore than $70 million in consumer redress\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003ehalted \u003cstrong\u003esome imposter schemes\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe FTC quote included in the article states that the agency will use every available tool to combat \u003cstrong\u003egovernment and business impersonation\u003c/strong\u003e and to protect the digital economy.\u003c/p\u003e\n\n\u003ch1 id=\"examples-of-named-ftc-actions\"\u003eExamples of Named FTC Actions\u003c/h1\u003e\n\n\u003cp\u003eThe article lists several law enforcement actions the FTC announced under the Impersonation Rule:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eMediaAlpha\u003c/strong\u003e — described as a \u003cstrong\u003egovernment imposter scheme\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eAmerican Tax Service\u003c/strong\u003e — described as an \u003cstrong\u003eIRS imposter scheme\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eBlackstone Legal\u003c/strong\u003e — described as a \u003cstrong\u003ephantom debt business imposter scheme\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eClick Profit\u003c/strong\u003e — described as a \u003cstrong\u003ebusiness imposter money-making scam\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eAccelerated Debt Settlement\u003c/strong\u003e — described as a \u003cstrong\u003egovernment and business imposter scheme\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eIt also says the FTC filed a complaint in \u003cstrong\u003eApril 2026\u003c/strong\u003e against \u003cstrong\u003eInnovative Partners\u003c/strong\u003e, alleging the company \u003cstrong\u003eimpersonated the government and insurance carriers\u003c/strong\u003e to sell \u003cstrong\u003efraudulent health plans\u003c/strong\u003e.\u003c/p\u003e\n\n\u003ch1 id=\"prior-warning-about-ftc-employee-impersonation\"\u003ePrior Warning About FTC Employee Impersonation\u003c/h1\u003e\n\n\u003cp\u003eThe article notes that in \u003cstrong\u003eMarch 2024\u003c/strong\u003e, the FTC separately warned that scammers were \u003cstrong\u003eimpersonating FTC employees\u003c/strong\u003e. According to that earlier warning, fraudsters used phone calls, email, or text messages to pressure Americans into \u003cstrong\u003ewiring or transferring money\u003c/strong\u003e.\u003c/p\u003e\n\n\u003cp\u003eThis prior alert is presented as part of the same broader impersonation fraud trend now reflected in the 2025 loss figures.\u003c/p\u003e\n\n\u003ch1 id=\"significance\"\u003eSignificance\u003c/h1\u003e\n\n\u003cp\u003eThe main significance of the article is that impersonation scams are not only widespread but also increasingly expensive for victims in the United States. The FTC’s data show both scale and growth:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003e$3.5 billion\u003c/strong\u003e lost to imposter scams in 2025\u003c/li\u003e\n\u003cli\u003elosses \u003cstrong\u003enearly tripled since 2020\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003esocial media-linked losses reached \u003cstrong\u003emore than $2.1 billion\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003eimpersonation scams represented \u003cstrong\u003enearly one in three fraud reports\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article also shows that the FTC is pairing public warnings with active enforcement, using its Impersonation Rule to pursue named entities and recover funds for consumers.\u003c/p\u003e\n\n\u003ch1 id=\"key-takeaways\"\u003eKey Takeaways\u003c/h1\u003e\n\n\u003cul\u003e\n\u003cli\u003eThe FTC says Americans lost a \u003cstrong\u003erecord $3.5 billion\u003c/strong\u003e to imposter scams in 2025.\u003c/li\u003e\n\u003cli\u003eImposter scams were the \u003cstrong\u003emost reported fraud category\u003c/strong\u003e last year.\u003c/li\u003e\n\u003cli\u003eThe \u003cstrong\u003ecostliest scams\u003c/strong\u003e often used \u003cstrong\u003efake bank security alerts\u003c/strong\u003e to trigger fund transfers.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eBusiness impersonators\u003c/strong\u003e and \u003cstrong\u003egovernment impersonators\u003c/strong\u003e accounted for major portions of the losses.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSocial media\u003c/strong\u003e, especially \u003cstrong\u003eFacebook\u003c/strong\u003e, played a major role in the fraud ecosystem described in the article.\u003c/li\u003e\n\u003cli\u003eThe FTC says it has already used its \u003cstrong\u003eImpersonation Rule\u003c/strong\u003e for multiple enforcement actions and has obtained \u003cstrong\u003emore than $70 million\u003c/strong\u003e in consumer redress.\u003c/li\u003e\n\u003c/ul\u003e\n","keyPoints":["The FTC said Americans reported losing $3.5 billion to imposter scams in 2025, with losses nearly tripling since 2020.","Imposter scams were the most reported fraud category in 2025, and the costliest schemes often used fake bank security alerts to convince victims to transfer money.","Victims lost nearly $1 billion to business impersonators and about $920 million to government impersonators, according to the FTC.","The FTC said more than $2.1 billion in 2025 imposter scam losses were traced to social media, with Facebook accounting for more losses than text and email combined.","Since the FTC's Impersonation Rule took effect in April 2024, the agency said it has brought a dozen enforcement actions and secured more than $70 million in consumer redress."],"insights":["Social media was the most financially significant contact channel for imposter scams in 2025, with more than $2.1 billion in losses and Facebook alone exceeding the losses tied to text and email combined.","The article highlights that bank impersonation was especially lucrative within business impersonator scams, indicating that fake security alerts and account-protection pretexts were particularly effective at driving fund transfers.","Although business and government impersonators accounted for nearly $1.92 billion in losses combined, total reported fraud losses across all categories reached about $16 billion in 2025, showing imposter scams made up a substantial share of overall fraud.","The FTC’s enforcement activity under its Impersonation Rule has already produced more than $70 million in consumer redress and multiple cases against named entities, showing the rule is being used actively rather than remaining a passive policy measure."],"referencedReports":[{"title":"FTC data show people reported losing $3.5 billion to imposter scams in 2025","url":"https://www.ftc.gov/news-events/news/press-releases/2026/06/ftc-data-show-people-reported-losing-3-point-5-billion-imposter-scams-2025","publisher":"federal trade commission","context":"The article relies on this FTC release for the reported 2025 imposter scam losses, breakdowns by scam type, and social media-related loss figures.","category":"news","primary":true},{"title":"2025 internet crime report","url":"https://www.bleepingcomputer.com/news/security/fbi-americans-lost-a-record-21-billion-to-cybercrime-last-year/","publisher":"federal bureau of investigation","context":"The article references the FBI's 2025 Internet Crime Report as a separate warning that U.S. victims lost almost $21 billion to cyber-enabled crimes last year.","category":"research","primary":false}],"body":"\u003cp\u003eThe U.S. Federal Trade Commission said Americans lost $3.5 billion to imposter scams in 2025, making them the most reported fraud category and pushing reported losses to nearly triple their 2020 level. The article says these scams commonly begin through text messages, phone calls, emails, social media, and search engine results. The costliest schemes often involve fake bank security alerts that pressure people to move money to supposedly protect their accounts.\u003c/p\u003e\n\n\u003cp\u003eThe FTC said victims lost nearly \u003cspan class=\"math inline\"\u003e\\(1 billion to business impersonators and about \\)\u003c/span\u003e920 million to government impersonators. Social media accounted for more than \u003cspan class=\"math inline\"\u003e\\(2.1 billion in 2025 losses tied to impersonators, with Facebook producing more losses than text and email combined, while WhatsApp and Instagram ranked next. Overall reported fraud losses across all categories rose to about \\)\u003c/span\u003e16 billion in 2025, and the FTC said it has used its Impersonation Rule to bring a dozen enforcement actions and secure more than $70 million in consumer redress.\u003c/p\u003e\n"},{"n":1,"title":"India temporarily blocks Telegram over medical exam cheating fears","source":"therecord.media","sourceColorIdx":7,"link":"https://therecord.media/india-blocks-telegram-over-cheating-fears","time":"15:38","priority":"MAY READ","score":71,"tldr":"India temporarily blocked Telegram and disabled its message-editing feature ahead of the re-run NEET-UG medical entrance exam to curb cheating scams and rumors about leaked papers. Critics say the move inconveniences legitimate users and does little to fix the underlying exam security problems.","briefOverview":"\u003cp\u003eIndia temporarily blocked access to Telegram ahead of the nationwide rerun of the NEET-UG medical entrance exam, citing fears that the platform could be used for cheating. The National Testing Agency said local authorities ordered Telegram to restrict access across India until June 22, one day after the exam is reheld. Authorities also directed Telegram to disable its message-editing feature in India until June 30.\u003c/p\u003e\n\n\u003cp\u003eThe government said scammers had used message editing to post fake exam questions before the test and later replace them with the real questions, creating the appearance of an advance leak. More than 2 million candidates are scheduled to retake the exam after the original May test was scrapped following leak allegations and nationwide protests. The NTA said cyber authorities removed many Telegram channels, groups, and bots advertising fraudulent access to leaked papers, even though no exam paper had actually been leaked.\u003c/p\u003e\n\n\u003cp\u003eDigital rights advocates criticized the restrictions as a reactive and ineffective response that would inconvenience legitimate users while failing to address vulnerabilities in the exam system. The Internet Freedom Foundation said many students rely on Telegram study groups and argued that any real leak would likely come from insiders in printing and logistics rather than from the platform itself. Telegram had not publicly commented at the time of publication.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eIndia temporarily blocked Telegram ahead of this week\u0026rsquo;s rerun of the National Eligibility cum Entrance Test for Undergraduate courses, or NEET-UG, over concerns that the platform could be used for cheating. According to the National Testing Agency, local authorities ordered Telegram to restrict access across India until June 22, one day after the exam is reheld. The government also instructed Telegram to disable its message-editing feature in India until June 30.\u003c/p\u003e\n\n\u003cp\u003eAuthorities said scammers had exploited Telegram\u0026rsquo;s message-editing function in a specific way. They allegedly posted fake exam questions before the test and later edited those messages to insert the actual questions, making it seem as though they had obtained the paper in advance. The article says this tactic was used to bolster fraudulent claims of access to leaked exam material.\u003c/p\u003e\n\n\u003cp\u003eThe exam rerun affects more than 2 million candidates and follows the cancellation of the original May examination. That earlier test was scrapped after allegations that question papers had been leaked, which triggered nationwide protests and calls for the education minister\u0026rsquo;s resignation. The NEET-UG exam is described as the primary gateway to medical education in India and has faced repeated controversy over alleged leaks and irregularities.\u003c/p\u003e\n\n\u003cp\u003eThe NTA said Indian cyber authorities removed a substantial number of Telegram channels, groups, and bots that advertised fraudulent access to leaked exam papers for up to several thousand dollars. It also said no exam paper had actually been leaked. Earlier in the month, police in Ahmedabad arrested members of a cyber fraud ring accused of running eight Telegram channels using the same scheme, with investigators alleging the group moved about 15 million rupees through fraudulent bank accounts and contacted around 1,000 mobile numbers in a month.\u003c/p\u003e\n\n\u003cp\u003eThe agency acknowledged that blocking Telegram would inconvenience millions of legitimate users but said the measures were needed to protect the integrity of the exam. Digital rights advocates disagreed with that approach. The Internet Freedom Foundation called the restriction reactive and ineffective, arguing that it would punish ordinary users and that any genuine leak would likely originate from insiders involved in printing and logistics rather than from the messaging platform.\u003c/p\u003e\n\n\u003cp\u003eAt the time of publication, Telegram had not publicly commented on the restrictions. The article also notes that similar accusations emerged during the 2024 examination, when unusually high scores prompted investigations. This latest action therefore sits within a broader pattern of recurring scrutiny around the administration and security of India\u0026rsquo;s medical entrance exams.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"overview\"\u003eOverview\u003c/h1\u003e\n\n\u003cp\u003eIndia temporarily blocked access to Telegram ahead of the nationwide rerun of the NEET-UG medical entrance examination, citing concerns that the messaging platform could be used to facilitate cheating. The National Testing Agency said local authorities ordered Telegram to restrict access across India until June 22, which is one day after the exam is scheduled to be reheld on June 21. In addition to the platform restriction, the government directed Telegram to disable its message-editing feature in India until June 30.\u003c/p\u003e\n\n\u003cp\u003eThe move was presented as a measure to protect exam integrity after the original test, held in May, was scrapped over allegations that question papers had been leaked. More than 2 million candidates are set to retake the exam. The controversy around the exam has already triggered nationwide protests and calls for the resignation of India\u0026rsquo;s education minister.\u003c/p\u003e\n\n\u003ch1 id=\"what-authorities-said\"\u003eWhat authorities said\u003c/h1\u003e\n\n\u003cp\u003eThe National Testing Agency said the restrictions were imposed because of fears that Telegram could be used to spread fraudulent claims and support cheating-related schemes tied to the exam. Authorities specifically highlighted abuse of Telegram\u0026rsquo;s message-editing capability.\u003c/p\u003e\n\n\u003cp\u003eAccording to the article, scammers had used the feature by:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003ePosting fake exam questions before the test\u003c/li\u003e\n\u003cli\u003eLater replacing those posts with the real questions\u003c/li\u003e\n\u003cli\u003eCreating the appearance that they had leaked the exam in advance\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eAuthorities said this tactic allowed fraudsters to claim credibility after the fact and use that apparent proof to promote access to supposed leaked papers.\u003c/p\u003e\n\n\u003ch1 id=\"fraud-activity-described-in-the-article\"\u003eFraud activity described in the article\u003c/h1\u003e\n\n\u003cp\u003eThe NTA said Indian cyber authorities removed a \u0026ldquo;substantial number\u0026rdquo; of Telegram channels, groups, and bots that were advertising fraudulent access to leaked exam papers. These operators were allegedly offering to sell the material for up to several thousand dollars to candidates and their families. However, the agency also said that no exam paper had actually been leaked in connection with those Telegram offers.\u003c/p\u003e\n\n\u003cp\u003eThe article points to a law enforcement case in Ahmedabad as an example of this pattern. Earlier in the month, police there arrested members of a cyber fraud ring accused of operating eight Telegram channels using the same scheme. Investigators said the group moved approximately 15 million rupees through fraudulent bank accounts and contacted around 1,000 mobile numbers in a single month. The article adds that similar investigations are underway elsewhere in India.\u003c/p\u003e\n\n\u003ch1 id=\"exam-context-and-scale\"\u003eExam context and scale\u003c/h1\u003e\n\n\u003cp\u003eThe affected examination is the National Eligibility cum Entrance Test for Undergraduate courses, or NEET-UG, which the article describes as the primary gateway to medical education in India. The rerun is significant because it involves more than 2 million candidates.\u003c/p\u003e\n\n\u003cp\u003eThe article says the original May exam was canceled after allegations that question papers had been leaked. That controversy led to public protests across the country and political pressure on the education minister. It also notes that the NEET-UG examination has repeatedly faced controversy over allegations of leaks and irregularities.\u003c/p\u003e\n\n\u003cp\u003eA prior example cited in the article is the 2024 examination, when unusually high scores prompted investigations and similar accusations emerged.\u003c/p\u003e\n\n\u003ch1 id=\"technical-and-platform-specific-detail\"\u003eTechnical and platform-specific detail\u003c/h1\u003e\n\n\u003cp\u003eThe article includes one notable platform-specific measure beyond the temporary block itself: the disabling of Telegram\u0026rsquo;s message-editing feature in India until June 30. Authorities treated that feature as a key enabler in the scam pattern they described.\u003c/p\u003e\n\n\u003cp\u003eThe technical behavior described is not a claim that Telegram itself leaked papers, but that actors used the platform\u0026rsquo;s functionality to manipulate message timelines and create false evidence of prior access to genuine questions. This detail is central to the government\u0026rsquo;s explanation for the restrictions.\u003c/p\u003e\n\n\u003ch1 id=\"impact-on-users-and-stakeholders\"\u003eImpact on users and stakeholders\u003c/h1\u003e\n\n\u003cp\u003eThe NTA acknowledged that the restrictions would inconvenience millions of legitimate Telegram users. The article also says that many students rely on Telegram study groups and educational resources in the final days before the exam.\u003c/p\u003e\n\n\u003cp\u003eStakeholders mentioned in the article include:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eThe National Testing Agency\u003c/li\u003e\n\u003cli\u003eIndian local and cyber authorities\u003c/li\u003e\n\u003cli\u003eTelegram\u003c/li\u003e\n\u003cli\u003eMore than 2 million NEET-UG candidates\u003c/li\u003e\n\u003cli\u003eCandidates\u0026rsquo; families targeted by fraud offers\u003c/li\u003e\n\u003cli\u003ePolice in Ahmedabad\u003c/li\u003e\n\u003cli\u003eDigital rights advocates, including the Internet Freedom Foundation\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch1 id=\"criticism-and-opposition\"\u003eCriticism and opposition\u003c/h1\u003e\n\n\u003cp\u003eDigital rights advocates criticized the decision to block Telegram. The Internet Freedom Foundation called the restriction a \u0026ldquo;reactive and ineffective\u0026rdquo; response that would punish ordinary users while failing to address vulnerabilities within the examination system itself.\u003c/p\u003e\n\n\u003cp\u003eThe organization argued that:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eStudents depend on Telegram study groups and educational resources in the days before the exam\u003c/li\u003e\n\u003cli\u003eA genuine paper leak would likely originate from insiders involved in printing and logistics rather than from the messaging platform\u003c/li\u003e\n\u003cli\u003eIf no leak exists, suppressing rumor does not justify shutting down a platform when targeted blocking and criminal prosecution remain available\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThis criticism framed the government\u0026rsquo;s action as broad and disruptive rather than well-targeted.\u003c/p\u003e\n\n\u003ch1 id=\"telegram-s-response-status\"\u003eTelegram\u0026rsquo;s response status\u003c/h1\u003e\n\n\u003cp\u003eAt the time of publication, Telegram had not publicly commented on the restrictions.\u003c/p\u003e\n\n\u003ch1 id=\"key-takeaways-from-the-article\"\u003eKey takeaways from the article\u003c/h1\u003e\n\n\u003cul\u003e\n\u003cli\u003eIndia temporarily blocked Telegram before the NEET-UG rerun because authorities feared the platform could be used to support cheating and fraud.\u003c/li\u003e\n\u003cli\u003eAuthorities also disabled Telegram\u0026rsquo;s message-editing feature in India until June 30, saying scammers had used it to fabricate evidence of advance exam leaks.\u003c/li\u003e\n\u003cli\u003eThe NTA said many Telegram channels, groups, and bots were removed for advertising fake leaked papers, even though no exam paper had actually been leaked through those schemes.\u003c/li\u003e\n\u003cli\u003eMore than 2 million candidates are affected because the exam is being reheld after the original test was canceled over leak allegations.\u003c/li\u003e\n\u003cli\u003eDigital rights groups said the restrictions would burden legitimate users and fail to address deeper problems in the exam system.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch1 id=\"bottom-line\"\u003eBottom line\u003c/h1\u003e\n\n\u003cp\u003eThe article describes a government response focused on limiting Telegram\u0026rsquo;s role in rumor amplification and exam-related fraud ahead of a highly sensitive national test rerun. The immediate justification centered on abuse of Telegram\u0026rsquo;s editing feature and the presence of channels and bots selling fake leaked papers. At the same time, critics argued that the platform restrictions were overbroad and did not resolve the underlying vulnerabilities that have repeatedly fueled controversy around the NEET-UG examination.\u003c/p\u003e\n","keyPoints":["India temporarily blocked access to Telegram nationwide until June 22 ahead of the rerun of the NEET-UG medical entrance exam, according to the National Testing Agency.","Indian authorities also directed Telegram to disable its message-editing feature in India until June 30 because scammers had used it to make false claims that they leaked exam questions in advance.","More than 2 million candidates are scheduled to retake the June 21 exam after the original May test was scrapped following allegations that question papers had been leaked.","The National Testing Agency said cyber authorities removed many Telegram channels, groups, and bots advertising fraudulent access to leaked exam papers, even though no exam paper had actually been leaked.","Digital rights advocates, including the Internet Freedom Foundation, criticized the restriction as reactive and ineffective and said it would punish ordinary users while failing to address vulnerabilities in the examination system."],"insights":["Authorities targeted Telegram's message-editing feature separately from the platform block because scammers had used edited posts to create the appearance of a prior leak after real questions became known.","The National Testing Agency said the fraud operation centered on selling fake access to leaked papers even though no exam paper had actually been leaked, showing the response was aimed at both scams and rumor amplification.","Police in Ahmedabad linked the scheme to a cyber fraud ring that allegedly ran eight Telegram channels, moved about 15 million rupees through fraudulent bank accounts, and contacted around 1,000 mobile numbers in one month.","The article highlights a tension between exam-integrity enforcement and legitimate student use, because Telegram was also described as a source of study groups and educational resources in the final days before the exam."],"referencedReports":[{"title":"Notice","url":"https://nta.ac.in/Download/Notice/Notice_20260616120254.pdf","publisher":"national-testing-agency","context":"The article cites this National Testing Agency notice as the source for the temporary Telegram restriction and message-editing disablement in India.","category":"advisory","primary":true}],"body":"\u003cp\u003eIndia temporarily blocked access to Telegram ahead of the nationwide rerun of the NEET-UG medical entrance exam, citing fears that the platform could be used for cheating. The National Testing Agency said local authorities ordered Telegram to restrict access across India until June 22, one day after the exam is reheld. Authorities also directed Telegram to disable its message-editing feature in India until June 30.\u003c/p\u003e\n\n\u003cp\u003eThe government said scammers had used message editing to post fake exam questions before the test and later replace them with the real questions, creating the appearance of an advance leak. More than 2 million candidates are scheduled to retake the exam after the original May test was scrapped following leak allegations and nationwide protests. The NTA said cyber authorities removed many Telegram channels, groups, and bots advertising fraudulent access to leaked papers, even though no exam paper had actually been leaked.\u003c/p\u003e\n\n\u003cp\u003eDigital rights advocates criticized the restrictions as a reactive and ineffective response that would inconvenience legitimate users while failing to address vulnerabilities in the exam system. The Internet Freedom Foundation said many students rely on Telegram study groups and argued that any real leak would likely come from insiders in printing and logistics rather than from the platform itself. Telegram had not publicly commented at the time of publication.\u003c/p\u003e\n"},{"n":2,"title":"GhostTree Attack Abused Recursive Windows Junctions to Hide Malware","source":"bleepingcomputer.com","sourceColorIdx":10,"link":"https://www.bleepingcomputer.com/news/security/ghosttree-attack-abused-recursive-windows-junctions-to-hide-malware/","time":"14:17","priority":"MAY READ","score":70,"tldr":"Researchers showed that attackers can abuse recursive NTFS junctions in Windows, a technique dubbed GhostTree, to create effectively endless file paths that can cause recursive scans to hang and leave malware in the folder uninspected. The issue was demonstrated against Windows Defender and highlights a blind spot in file-scanning defenses.","briefOverview":"\u003cp\u003eResearchers described a Windows evasion technique called GhostTree that abuses NTFS junctions to create recursive directory loops. By pointing a child folder back to its parent, an attacker can generate effectively endless valid file paths, causing recursive scans to never finish while malicious files in the same folder remain unexamined. The article says no administrator privileges are needed to create these junctions, only write access to the target folder.\u003c/p\u003e\n\n\u003cp\u003eThe article distinguishes between GhostBranch, which uses a single looping child junction, and GhostTree, which uses multiple child junctions to create branching path combinations. It says Windows path length limits cap recursion depth, but GhostTree still produces an enormous number of valid paths by allowing each level to branch through different child folders. The researchers state they tested the method against Windows Defender, reported it to Microsoft, and that the issue was later patched after Microsoft initially said bypassing Defender was not crossing a security boundary.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eThe article presents GhostTree as a technique for hiding malware from recursive scanning tools by abusing NTFS junctions on Windows. Junctions are reparse points that redirect one directory to another, and the article emphasizes that any user can create them without administrator privileges as long as they have write access to the folder. According to the article, this makes a normally obscure file system feature operationally useful from an offensive perspective.\u003c/p\u003e\n\n\u003cp\u003eThe core idea is to create a junction that points back to its own parent directory, forming a recursive loop. In the simpler GhostBranch variant, a child folder inside a parent points back to that same parent, so paths such as repeated Child\\Child\\Child sequences all resolve to the same file. The article says this creates an unlimited number of valid paths until practical path length limits are reached.\u003c/p\u003e\n\n\u003cp\u003eGhostTree extends this concept by creating multiple looping child folders instead of one. With two children, each recursion level can branch through either child while still returning to the parent, creating a binary tree-like path structure. The article states that while the depth remains constrained by the classic Windows 260-character path limit, the branching produces approximately 2^126 possible path combinations in its example.\u003c/p\u003e\n\n\u003cp\u003eThe significance for defenders, according to the article, is that recursive directory scans may hang or fail to complete when they follow these loops. The article specifically says the same problem affects EDR products and that malware placed in the parent directory can go unexamined because the scanner never finishes traversing the folder structure. It also notes that the issue was confirmed against Windows Defender.\u003c/p\u003e\n\n\u003cp\u003eThe researchers reported the issue to Microsoft. The article says Microsoft initially closed the ticket with the statement that bypassing Defender was not crossing a security boundary, but the issue was later patched anyway. The article concludes by arguing that defenders should not rely only on endpoint scanning and should instead also monitor file system activity for anomalous junction creation and recursive directory structures.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"overview\"\u003eOverview\u003c/h1\u003e\n\n\u003cp\u003eThe article describes a Windows malware evasion technique called \u003cstrong\u003eGhostTree\u003c/strong\u003e that abuses \u003cstrong\u003eNTFS junctions\u003c/strong\u003e to create recursive directory loops. These loops generate effectively endless valid file paths and can cause tools that scan directories recursively, including EDR products, to follow the loop and never complete the scan. According to the article, this leaves malicious files in the same folder unexamined.\u003c/p\u003e\n\n\u003cp\u003eThe article frames junctions and symbolic links as file system features that are legitimate but often overlooked by security teams. It emphasizes one property in particular: \u003cstrong\u003eany user can create them\u003c/strong\u003e. No administrator privileges are required; only write access to the target folder is needed.\u003c/p\u003e\n\n\u003ch1 id=\"how-the-article-explains-ntfs-junctions\"\u003eHow the article explains NTFS junctions\u003c/h1\u003e\n\n\u003cp\u003eThe article says a junction is a type of \u003cstrong\u003eNTFS reparse point\u003c/strong\u003e that redirects one directory to another. It provides a command example using \u003ccode\u003emklink /J\u003c/code\u003e to create a directory junction. Once created, applications see the target directory’s contents as if they were local to the junction path.\u003c/p\u003e\n\n\u003cp\u003eIt also notes an important practical constraint: classic Windows systems impose a \u003cstrong\u003e260-character maximum path length\u003c/strong\u003e. Although NTFS itself can support much longer paths, and the limit can technically be extended to 32,767 characters through a registry change, many applications and utilities still do not handle paths beyond 260 characters correctly. The article says this path length limitation determines how deep the recursive loops can go and how many unique paths GhostTree can produce.\u003c/p\u003e\n\n\u003ch1 id=\"ghostbranch-the-simpler-recursive-loop\"\u003eGhostBranch: the simpler recursive loop\u003c/h1\u003e\n\n\u003cp\u003eThe article first introduces \u003cstrong\u003eGhostBranch\u003c/strong\u003e as the simpler version of the technique. In this setup:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eA parent folder contains a file such as \u003ccode\u003eprogram.exe\u003c/code\u003e.\u003c/li\u003e\n\u003cli\u003eA child folder is created inside the parent.\u003c/li\u003e\n\u003cli\u003eThat child folder is configured as a junction that points back to the parent directory.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article’s example is:\u003c/p\u003e\n\n\u003cpre\u003e\u003ccode class=\"language-text\"\u003eC:\\Parent\\program.exe\nmklink /J C:\\Parent\\Child C:\\Parent\n\u003c/code\u003e\u003c/pre\u003e\n\n\u003cp\u003eThis creates what the article calls a logical loop. Because the child points back to the parent, the child appears to contain everything in the parent, including the child itself. As a result, many different path strings all resolve to the same executable, such as:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eC:\\Parent\\Child\\Program.exe\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eC:\\Parent\\Child\\Child\\Program.exe\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eC:\\Parent\\Child\\Child\\Child\\Child\\Program.exe\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article says this means an attacker can keep adding \u003ccode\u003eChild\u003c/code\u003e to the path and it will still remain valid.\u003c/p\u003e\n\n\u003ch1 id=\"ghosttree-adding-branching-to-recursion\"\u003eGhostTree: adding branching to recursion\u003c/h1\u003e\n\n\u003cp\u003eThe article then describes \u003cstrong\u003eGhostTree\u003c/strong\u003e as an extension of GhostBranch. Instead of creating one child junction, the attacker creates multiple child folders, each of which points back to the parent. The example uses two child junctions:\u003c/p\u003e\n\n\u003cpre\u003e\u003ccode class=\"language-text\"\u003emklink /J C:\\Parent\\Child1 C:\\Parent\nmklink /J C:\\Parent\\Child2 C:\\Parent\n\u003c/code\u003e\u003c/pre\u003e\n\n\u003cp\u003eNow each level in the path can branch through either \u003ccode\u003eChild1\u003c/code\u003e or \u003ccode\u003eChild2\u003c/code\u003e, but both still lead back to the parent. The article gives examples such as:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eC:\\Parent\\Child1\\Program.exe\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eC:\\Parent\\Child2\\Program.exe\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eC:\\Parent\\Child1\\Child1\\Program.exe\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eC:\\Parent\\Child1\\Child2\\Program.exe\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eAccording to the article, this transforms a simple recursive loop into a branching path structure resembling a binary tree.\u003c/p\u003e\n\n\u003ch1 id=\"path-calculations-in-the-article\"\u003ePath calculations in the article\u003c/h1\u003e\n\n\u003cp\u003eThe article compares the path generation potential of GhostBranch and GhostTree under Windows path length constraints.\u003c/p\u003e\n\n\u003ch2 id=\"ghostbranch-calculations\"\u003eGhostBranch calculations\u003c/h2\u003e\n\n\u003cp\u003eTo maximize depth under the 260-character path limit, the article proposes:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eA single-letter folder such as \u003ccode\u003eP\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eAn executable named \u003ccode\u003e1.exe\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eA path structure like \u003ccode\u003eC:\\P\\P\\P\\...\\1.exe\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eIt says this allows approximately \u003cstrong\u003e126 unique directory structures\u003c/strong\u003e before path length limits are reached.\u003c/p\u003e\n\n\u003ch2 id=\"ghosttree-calculations\"\u003eGhostTree calculations\u003c/h2\u003e\n\n\u003cp\u003eFor GhostTree, the article introduces two one-letter folder names, \u003ccode\u003eP\u003c/code\u003e and \u003ccode\u003eB\u003c/code\u003e, and paths such as:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eC:\\B\\1.exe\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eC:\\P\\B\\1.exe\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eC:\\P\\B\\P\\B\\...\\1.exe\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article says the maximum depth remains about \u003cstrong\u003e126 folders\u003c/strong\u003e, but each level can be either \u003ccode\u003eP\u003c/code\u003e or \u003ccode\u003eB\u003c/code\u003e. It therefore models the total number of possible nodes as:\u003c/p\u003e\n\n\u003cpre\u003e\u003ccode class=\"language-text\"\u003e2^126 ≈ 8.5 × 10^37\n\u003c/code\u003e\u003c/pre\u003e\n\n\u003cp\u003eThe article emphasizes the scale of that number by comparing it to the estimated number of grains of sand on Earth and the number of atoms in a human body.\u003c/p\u003e\n\n\u003ch1 id=\"why-the-article-says-this-matters-to-defenders\"\u003eWhy the article says this matters to defenders\u003c/h1\u003e\n\n\u003cp\u003eThe main defensive concern described in the article is that recursive scanning can become effectively non-terminating. It explicitly states that:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eThe Windows \u003ccode\u003edir\u003c/code\u003e command run recursively cannot finish scanning such a parent directory.\u003c/li\u003e\n\u003cli\u003eEDR products that recursively scan folders face the same problem.\u003c/li\u003e\n\u003cli\u003eMalware stored in the parent directory may go unexamined because the scan hangs while traversing the recursive structure.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article presents this as a practical method for evading endpoint scanning by combining malware placement in the parent folder with recursive junction loops.\u003c/p\u003e\n\n\u003ch1 id=\"testing-and-vendor-response\"\u003eTesting and vendor response\u003c/h1\u003e\n\n\u003cp\u003eThe article says the researchers tested GhostTree against \u003cstrong\u003eWindows Defender\u003c/strong\u003e and confirmed that it could be used to evade folder scans.\u003c/p\u003e\n\n\u003cp\u003eIt further states that the issue was reported to \u003cstrong\u003eMicrosoft\u003c/strong\u003e. According to the article:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eMicrosoft initially closed the ticket.\u003c/li\u003e\n\u003cli\u003eThe explanation given was that “bypassing Defender is not crossing a security boundary.”\u003c/li\u003e\n\u003cli\u003eThe issue was later patched regardless.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article does not provide technical patch details, version information, or a CVE identifier.\u003c/p\u003e\n\n\u003ch1 id=\"defensive-framing-in-the-article\"\u003eDefensive framing in the article\u003c/h1\u003e\n\n\u003cp\u003eThe article concludes by arguing that endpoint scanning should be treated as only one layer of defense. It says that monitoring file system activity at the data layer can catch behaviors that scanners miss, specifically mentioning:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eAnomalous junction creation\u003c/li\u003e\n\u003cli\u003eRecursive directory structures that should not exist in normal operations\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eIt also states that Varonis monitors file access patterns and can detect this kind of anomalous activity across file systems and cloud infrastructure.\u003c/p\u003e\n\n\u003ch1 id=\"named-techniques-products-and-entities-mentioned\"\u003eNamed techniques, products, and entities mentioned\u003c/h1\u003e\n\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eGhostTree\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eGhostBranch\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eNTFS junctions\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSymbolic links\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eWindows Defender\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eMicrosoft\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eVaronis\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch1 id=\"bottom-line\"\u003eBottom line\u003c/h1\u003e\n\n\u003cp\u003eThe article’s central claim is that recursive NTFS junctions can be abused to create a folder structure that causes recursive scans to stall or fail to complete, allowing malware in the same directory to avoid inspection. It presents GhostBranch as the basic looping form and GhostTree as the branching variant that massively increases the number of valid paths under the same path-length constraints. The researchers say they validated the issue against Windows Defender, reported it to Microsoft, and that the issue was ultimately patched.\u003c/p\u003e\n","keyPoints":["The article describes GhostTree as a technique that uses recursive NTFS junctions in Windows to create effectively infinite valid file paths within a folder structure.","It states that any user with write access to a folder can create junctions without administrator privileges by using commands such as mklink /J.","The simpler GhostBranch method creates a child junction that points back to its parent directory, producing many different valid paths to the same file until Windows path length limits are reached.","GhostTree expands this by creating multiple child junctions that each point back to the parent, allowing a branching set of paths that the article says can reach about 2^126 possible path combinations.","The researchers say they tested the technique against Windows Defender, reported it to Microsoft, and that the issue was later patched after Microsoft initially said bypassing Defender was not crossing a security boundary."],"insights":["The article highlights that NTFS junction abuse does not require administrator privileges, meaning a low-privilege user with only write access to a folder can create the recursive structure used by GhostTree.","A single recursive junction already creates an unbounded set of valid paths to the same file, but adding a second junction changes the problem from simple recursion to a combinatorial explosion of distinct paths.","The practical limit on GhostTree is driven less by NTFS itself than by legacy Windows path handling, because many applications still break around the traditional 260-character path limit even though NTFS can support much longer paths.","According to the article, recursive directory scans can become effectively non-terminating on a GhostTree folder, which means malware in the same parent directory may remain unexamined while the scanner follows the loop.","The article suggests defenders should look beyond signature or folder scanning and monitor for anomalous junction creation and recursive directory structures, because those file-system behaviors can reveal this evasion technique directly."],"referencedReports":[],"body":"\u003cp\u003eResearchers described a Windows evasion technique called GhostTree that abuses NTFS junctions to create recursive directory loops. By pointing a child folder back to its parent, an attacker can generate effectively endless valid file paths, causing recursive scans to never finish while malicious files in the same folder remain unexamined. The article says no administrator privileges are needed to create these junctions, only write access to the target folder.\u003c/p\u003e\n\n\u003cp\u003eThe article distinguishes between GhostBranch, which uses a single looping child junction, and GhostTree, which uses multiple child junctions to create branching path combinations. It says Windows path length limits cap recursion depth, but GhostTree still produces an enormous number of valid paths by allowing each level to branch through different child folders. The researchers state they tested the method against Windows Defender, reported it to Microsoft, and that the issue was later patched after Microsoft initially said bypassing Defender was not crossing a security boundary.\u003c/p\u003e\n"},{"n":3,"title":"UK to require ID or face scan before you can make social media accounts","source":"bleepingcomputer.com","sourceColorIdx":10,"link":"https://www.bleepingcomputer.com/news/security/uk-to-require-id-or-face-scan-before-you-can-make-social-media-accounts/","time":"14:38","priority":"MAY READ","score":66,"tldr":"The UK plans to require new social media users to prove they are over 16—likely with an ID upload or facial age scan—as part of a ban on under-16s creating accounts starting in 2027. Critics warn the system is easy to bypass with VPNs while creating major privacy and data-breach risks for adults and children alike.","briefOverview":"\u003cp\u003eThe UK government plans to ban under-16s from social media, with regulations due before Christmas and enforcement beginning in spring 2027. To enforce the rule, platforms will likely require new users to prove they are over 16 through an ID upload or a facial age scan. The article says this effectively ends anonymous creation of new social media accounts in the UK, even though most long-standing adult accounts may be exempt.\u003c/p\u003e\n\n\u003cp\u003eThe proposal covers major social platforms including Instagram, YouTube, TikTok, Snapchat, Facebook, and X, while excluding messaging services such as WhatsApp and Signal and also excluding YouTube Kids. The UK says it will go further than Australia’s model by also restricting high-risk features like livestreaming and stranger contact on a wider set of services, including gaming platforms such as Roblox. The article also notes separate planned restrictions for AI romantic companion chatbots and ongoing consultation on overnight curfews and breaks in infinite scrolling for under-18s.\u003c/p\u003e\n\n\u003cp\u003eSecurity and privacy experts cited in the article warn that the age-checking systems are easy to bypass with VPNs and can expose users’ identity documents and biometric data to breaches. The article points to research that found low-to-medium robustness for most age-verification methods and notes that more than 60% of Australian children were still using social media months after that country’s ban took effect. It also highlights concern from academics, rights groups, and platforms that the measures may push users toward less-regulated spaces while normalizing routine online age verification.\u003c/p\u003e\n","standardSynthesis":"\u003cp\u003eThe article reports that the UK government will ban under-16s from social media, with regulations expected before Christmas and the rules due to take effect in spring 2027. Prime Minister Keir Starmer presented the move as a response to consultation feedback and as a line in the sand against technology companies. The government says the policy is intended to give children their childhood back after platforms failed to keep them safe.\u003c/p\u003e\n\n\u003cp\u003eThe ban is modeled on Australia’s social media restrictions but is described as going further. It will apply to user-to-user platforms whose purpose is social interaction and that use algorithmic feeds, with the government naming Instagram, YouTube, TikTok, Snapchat, Facebook, and X. Messaging services such as WhatsApp and Signal are excluded, along with YouTube Kids, while a narrow exemption list is planned for educational services, e-commerce, and music streaming.\u003c/p\u003e\n\n\u003cp\u003eThe article says the practical enforcement mechanism is age verification for new accounts, likely through either a facial age scan or an ID upload. Although the government says most adults will not need to complete new checks, that is because long-standing accounts may qualify as low risk if they are old enough, have a credit card attached, or are linked to an email already age-verified elsewhere. According to the article, that grandfathering does not help adults who want to open new or pseudonymous accounts, meaning new account creation would effectively require proof of age.\u003c/p\u003e\n\n\u003cp\u003eThe UK also plans wider restrictions beyond outright bans. High-risk features such as livestreaming and stranger contact will be restricted across more services, including gaming platforms like Roblox, and those restrictions will remain on by default for 16- and 17-year-olds. Separately, AI romantic companion chatbots that simulate sexual or roleplay relationships will be required to enforce an 18+ minimum, and intimate functions on AI chatbots more broadly will be restricted for under-18s. The government is also consulting on overnight curfews and breaks in infinite scrolling for under-18s.\u003c/p\u003e\n\n\u003cp\u003eA major weakness highlighted in the article is that VPN use can bypass the checks because the Online Safety Act targets sites rather than users. The article cites spikes in VPN signups after adult-site enforcement and points to Australian research showing that more than 60% of children were still using social media despite that country’s ban. It also describes political debate in the UK over whether children’s VPN use should be restricted and notes that one proposed measure would in practice have required VPN providers to age-check all users in order to distinguish children from adults.\u003c/p\u003e\n\n\u003cp\u003eResearchers, academics, and rights groups cited in the article argue that the controls are both weak and risky. Research referenced through the Science Media Centre found low-to-medium robustness for nearly every age-verification method except credit-card checks, leading one quoted assessment to call the regime compliance theatre. The article also cites warnings from University of Southampton lecturer Richard Gomer and the Open Rights Group that requiring users to submit IDs or biometric data creates identity theft, blackmail, and data-leak risks, while Meta and YouTube argue that bans may simply push teenagers toward less-regulated spaces. Finally, the article situates the proposal alongside the UK’s GOV.UK Wallet and digital driving licence efforts, suggesting a broader direction in which proving age is becoming a routine precondition for online access.\u003c/p\u003e\n","comprehensiveSynthesis":"\u003ch1 id=\"overview\"\u003eOverview\u003c/h1\u003e\n\n\u003cp\u003eThe article reports on a UK government plan to ban under-16s from social media, with regulations due before Christmas and implementation expected in spring 2027. The policy is presented as a child-safety measure, but the article emphasizes that its enforcement mechanism would likely require anyone creating a new social media account in the UK to prove they are over 16 by uploading identity documents or passing a facial age scan.\u003c/p\u003e\n\n\u003cp\u003eAlthough the government says most adults will not face a fresh check, the article argues that this reassurance depends on grandfathering older accounts rather than avoiding age verification altogether. In practice, the article says new adult users and anyone seeking a fresh pseudonymous account would still face age-gating.\u003c/p\u003e\n\n\u003ch1 id=\"government-announcement-and-rationale\"\u003eGovernment announcement and rationale\u003c/h1\u003e\n\n\u003cp\u003ePrime Minister Keir Starmer announced the plan on June 15 after a national consultation that the government says received more than 116,000 responses from parents, children, and experts. The government states that nine in ten parents backed an under-16 ban and that two-thirds of young people agreed that under-16s should be kept off at least some platforms.\u003c/p\u003e\n\n\u003cp\u003eStarmer framed the move as stronger action than any other country has taken, saying the government was banning social media for under-16s and adding wider protections. Technology Secretary Liz Kendall similarly cast the decision as taking power away from large technology companies and giving it back to parents.\u003c/p\u003e\n\n\u003ch1 id=\"scope-of-the-restrictions\"\u003eScope of the restrictions\u003c/h1\u003e\n\n\u003cp\u003eThe article says the UK model is based on Australia’s social media age restrictions, which took effect in December 2025, but that the UK intends to go further.\u003c/p\u003e\n\n\u003ch2 id=\"platforms-covered\"\u003ePlatforms covered\u003c/h2\u003e\n\n\u003cp\u003eThe restrictions will apply to user-to-user platforms that exist to enable social interaction and that operate algorithmic feeds. The government specifically names:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eInstagram\u003c/li\u003e\n\u003cli\u003eYouTube\u003c/li\u003e\n\u003cli\u003eTikTok\u003c/li\u003e\n\u003cli\u003eSnapchat\u003c/li\u003e\n\u003cli\u003eFacebook\u003c/li\u003e\n\u003cli\u003eX\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch2 id=\"platforms-excluded\"\u003ePlatforms excluded\u003c/h2\u003e\n\n\u003cp\u003eThe article says messaging services are explicitly excluded, including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eWhatsApp\u003c/li\u003e\n\u003cli\u003eSignal\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eIt also says YouTube Kids is excluded. In addition, there will be a narrowly defined exemption list for:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eEducational services\u003c/li\u003e\n\u003cli\u003eE-commerce\u003c/li\u003e\n\u003cli\u003eMusic streaming\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003ch1 id=\"wider-controls-beyond-the-under-16-ban\"\u003eWider controls beyond the under-16 ban\u003c/h1\u003e\n\n\u003cp\u003eThe article notes that the policy is not limited to account bans.\u003c/p\u003e\n\n\u003ch2 id=\"feature-restrictions\"\u003eFeature restrictions\u003c/h2\u003e\n\n\u003cp\u003eHigh-risk features such as livestreaming and allowing strangers to contact children will be restricted across a wider range of services, including gaming platforms such as Roblox. The article says Roblox itself would remain available, but features such as chat would be locked down.\u003c/p\u003e\n\n\u003cp\u003eTo avoid what the government describes as a cliff-edge at age 16, livestreaming and stranger-contact restrictions will also be enabled by default for 16- and 17-year-olds.\u003c/p\u003e\n\n\u003ch2 id=\"ai-chatbot-restrictions\"\u003eAI chatbot restrictions\u003c/h2\u003e\n\n\u003cp\u003eThe article also says AI romantic companion chatbots that simulate sexual or roleplay relationships will have to enforce an 18+ minimum age. More broadly, intimate functions on AI chatbots will be restricted for under-18s.\u003c/p\u003e\n\n\u003ch2 id=\"additional-measures-under-consultation\"\u003eAdditional measures under consultation\u003c/h2\u003e\n\n\u003cp\u003eThe government is consulting on:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eOvernight curfews for under-18s\u003c/li\u003e\n\u003cli\u003eBreaks in infinite scrolling for under-18s\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article says more detail is promised in July.\u003c/p\u003e\n\n\u003ch1 id=\"how-age-verification-would-work\"\u003eHow age verification would work\u003c/h1\u003e\n\n\u003cp\u003eA central point in the article is that the practical impact falls heavily on account creation.\u003c/p\u003e\n\n\u003ch2 id=\"grandfathering-for-many-adults\"\u003eGrandfathering for many adults\u003c/h2\u003e\n\n\u003cp\u003eAccording to the fact sheet cited in the article, an account may be treated as low risk if:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eIt has been open for more than 16 years\u003c/li\u003e\n\u003cli\u003eIt has a credit card attached\u003c/li\u003e\n\u003cli\u003eIt is linked to an email already age-verified elsewhere\u003c/li\u003e\n\u003cli\u003eThe user has already completed verification under the existing Online Safety Act\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThis means many long-standing adult accounts may avoid a new verification step.\u003c/p\u003e\n\n\u003ch2 id=\"new-accounts-face-stronger-checks\"\u003eNew accounts face stronger checks\u003c/h2\u003e\n\n\u003cp\u003eThe article says that this carve-out does not help users creating accounts from scratch. If someone wants a fresh account, including a pseudonymous one, the fallback methods described are:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eFacial recognition age checks\u003c/li\u003e\n\u003cli\u003eID uploads\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article characterizes this as a quiet but significant shift: a policy marketed as child protection would, in practice, require adults to prove their age before opening new social media accounts.\u003c/p\u003e\n\n\u003ch1 id=\"relationship-to-existing-uk-online-safety-enforcement\"\u003eRelationship to existing UK online safety enforcement\u003c/h1\u003e\n\n\u003cp\u003eThe article places the proposal in the context of the Online Safety Act.\u003c/p\u003e\n\n\u003cp\u003eIt says that since July 25, 2025, the Act has required adult and other sensitive sites to run highly effective age checks for every user, typically using:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eID upload\u003c/li\u003e\n\u003cli\u003eFacial-age selfie\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eUnlike the proposed social media regime, those checks are described as having no grandfathering. The article also says enforcement has been aggressive. By February 2026, Ofcom had opened investigations into more than 90 platforms and issued six fines, and its remit had expanded to services including:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eReddit\u003c/li\u003e\n\u003cli\u003eX\u003c/li\u003e\n\u003cli\u003eDiscord\u003c/li\u003e\n\u003cli\u003eBluesky\u003c/li\u003e\n\u003cli\u003eAI services\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article argues that the new social media restrictions do not yet go as far as the adult-content rules, but that they normalize the same underlying verification infrastructure. It also notes that Ofcom has been asked to carry out a rapid study into how to verify whether someone is over 16.\u003c/p\u003e\n\n\u003ch1 id=\"the-vpn-loophole\"\u003eThe VPN loophole\u003c/h1\u003e\n\n\u003cp\u003eOne of the article’s main technical objections is that the age-gating regime is easy to bypass with a VPN.\u003c/p\u003e\n\n\u003cp\u003eThe article states that the Online Safety Act targets sites rather than users, so connecting through a server outside the UK can sidestep the check. It cites reports that some VPN providers saw signup spikes of up to 1,800% when adult-site enforcement began.\u003c/p\u003e\n\n\u003cp\u003eThe article then argues that any social media age-gate would inherit the same weakness.\u003c/p\u003e\n\n\u003ch2 id=\"australia-as-an-example\"\u003eAustralia as an example\u003c/h2\u003e\n\n\u003cp\u003eThe article points to Australia’s experience as evidence of this problem, citing research that found more than 60% of children were still using social media months after that country’s ban took effect.\u003c/p\u003e\n\n\u003ch2 id=\"uk-political-debate-over-vpn-restrictions\"\u003eUK political debate over VPN restrictions\u003c/h2\u003e\n\n\u003cp\u003eThe article says the UK government has limited room to close the loophole because a blanket VPN ban has been ruled out. It cites statements from Baroness Lloyd in October 2025 saying there were no current plans to ban VPNs because of their legitimate uses.\u003c/p\u003e\n\n\u003cp\u003eAt the same time, the article says children-specific VPN restrictions remain under discussion:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eIn February 2026, the government said its wellbeing consultation would examine options to age restrict or limit children’s VPN use.\u003c/li\u003e\n\u003cli\u003eIn January 2026, the House of Lords passed an amendment that would have required ministers to prohibit VPN providers from serving UK children.\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article says that such a requirement would, in practice, force providers to age-check everyone in order to distinguish children from adults. It also notes that this amendment drew public petitions against it and was later rejected by the Commons during parliamentary ping-pong.\u003c/p\u003e\n\n\u003cp\u003eThe resulting law, after Royal Assent in April, instead gave ministers broad power to restrict children’s online access by regulation.\u003c/p\u003e\n\n\u003cp\u003eThe article concludes that, for now, nothing stops a determined adult or a determined 15-year-old from circumventing the system.\u003c/p\u003e\n\n\u003ch1 id=\"security-and-privacy-concerns\"\u003eSecurity and privacy concerns\u003c/h1\u003e\n\n\u003cp\u003eThe article says the core cybersecurity criticism is not opposition to protecting children, but rather that the chosen enforcement method introduces new risks while failing to provide robust controls.\u003c/p\u003e\n\n\u003ch2 id=\"research-on-age-verification-robustness\"\u003eResearch on age-verification robustness\u003c/h2\u003e\n\n\u003cp\u003eDr. Siamak Shahandashti, a senior lecturer in cyber security and privacy at the University of York, is cited as pointing to empirical work from Politecnico di Milano that tested age-verification methods used on adult sites.\u003c/p\u003e\n\n\u003cp\u003eAccording to the article, the researchers found:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eLow-to-medium robustness for nearly every method\u003c/li\u003e\n\u003cli\u003eCredit-card checks as the main exception\u003c/li\u003e\n\u003cli\u003eMost methods could be bypassed by motivated minors with accessible tools and know-how\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThe article quotes the study’s conclusion, via Shahandashti, that mandated age verification currently functions as “compliance theatre.” It adds that Shahandashti said checks tied to real physical ID could be made robust enough if clear standards were defined.\u003c/p\u003e\n\n\u003ch2 id=\"data-exposure-and-identity-risks\"\u003eData exposure and identity risks\u003c/h2\u003e\n\n\u003cp\u003eDr. Richard Gomer of the University of Southampton is cited as focusing on the second-order risks of age verification. The article says he warned that requiring users to submit passports or driving licences to platforms exposes them to:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eIdentity theft\u003c/li\u003e\n\u003cli\u003eBlackmail\u003c/li\u003e\n\u003cli\u003eBreach-related harms\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eHe also warned that the regulation pushes the web further away from anonymous and open communication.\u003c/p\u003e\n\n\u003ch2 id=\"open-rights-group-concerns\"\u003eOpen Rights Group concerns\u003c/h2\u003e\n\n\u003cp\u003eThe article says the Open Rights Group warned that over-16s would have to hand over identity documents or biometric data to unregulated age-verification companies. It points to Discord as a platform that had already suffered a major data leak after introducing age checks.\u003c/p\u003e\n\n\u003cp\u003eJames Baker of the Open Rights Group is cited as arguing that the measures address symptoms rather than causes, specifically the engagement-driven business models that reward harmful content. The article also says Baker had previously warned that the underlying legal powers were rushed through without enough political scrutiny.\u003c/p\u003e\n\n\u003ch1 id=\"platform-responses\"\u003ePlatform responses\u003c/h1\u003e\n\n\u003cp\u003eThe article notes that platforms themselves are not aligned with the policy.\u003c/p\u003e\n\n\u003cp\u003eMeta and YouTube are described as arguing that bans may push teenagers toward less-regulated spaces rather than making them safer. Meta is also said to have argued that age checks should happen on the device, so users are not required to hand ID to each service separately.\u003c/p\u003e\n\n\u003ch1 id=\"broader-policy-direction\"\u003eBroader policy direction\u003c/h1\u003e\n\n\u003cp\u003eThe article closes by placing the proposal within a wider UK trend toward age verification as a routine condition for online access.\u003c/p\u003e\n\n\u003cp\u003eIt notes that since January 2025 the government has been building:\u003c/p\u003e\n\n\u003cul\u003e\n\u003cli\u003eA GOV.UK Wallet\u003c/li\u003e\n\u003cli\u003eA digital driving licence\u003c/li\u003e\n\u003c/ul\u003e\n\n\u003cp\u003eThese are described as being pitched partly as tools to prove age online and in person using the facial-recognition features built into modern phones. The article stresses that this initiative predates the current announcement and is formally separate from it, but says that together they suggest a future in which proving age increasingly becomes a prerequisite for being online in the UK.\u003c/p\u003e\n\n\u003ch1 id=\"main-takeaways-from-the-article\"\u003eMain takeaways from the article\u003c/h1\u003e\n\n\u003cul\u003e\n\u003cli\u003eThe UK plans to ban under-16s from social media starting in spring 2027.\u003c/li\u003e\n\u003cli\u003eEnforcement for new users will likely rely on ID uploads or facial age scans.\u003c/li\u003e\n\u003cli\u003eMany older adult accounts may be exempt through grandfathering, but new adult accounts would still face age checks.\u003c/li\u003e\n\u003cli\u003eThe article says the controls are easily bypassed with VPNs, as seen in earlier UK enforcement and in Australia’s experience.\u003c/li\u003e\n\u003cli\u003eResearchers and rights groups cited in the article warn that the system creates substantial privacy, identity, and breach risks while offering limited robustness against determined minors.\u003c/li\u003e\n\u003cli\u003eThe proposal is presented as part of a broader movement toward normalized digital age verification in the UK.\u003c/li\u003e\n\u003c/ul\u003e\n","keyPoints":["The UK government plans to ban under-16s from social media, with regulations due before Christmas and the rules set to take effect in spring 2027.","To enforce the ban, new account creation will likely require users to prove they are over 16 through an ID upload or a facial age scan.","The rules are modeled on Australia’s social media age restrictions, but the UK says it will go further by also restricting features such as livestreaming and stranger contact across additional services including gaming platforms like Roblox.","The article states that the system can be bypassed with a VPN, and cites research showing that more than 60% of Australian children were still using social media months after Australia’s ban took effect.","Security and privacy experts quoted in the article warn that age-verification systems are weak against motivated minors and create risks of identity theft, blackmail, and data leaks when users must submit IDs or biometric data."],"insights":["Although the policy is framed as protecting children, the article says its practical effect is that adults creating new social media accounts in the UK will also have to prove their age, making fresh pseudonymous account creation much harder.","The article highlights a grandfathering effect: many long-standing adult accounts may avoid new checks through signals like account age, attached credit cards, or prior age verification, while new users face the strictest burden.","According to the article, the same VPN loophole that undermined UK adult-site age checks would also undermine social media age-gating, limiting enforcement against determined adults and minors.","The article notes that efforts to stop children from bypassing the rules with VPNs could effectively require VPN providers to age-check all UK users in order to distinguish children from adults.","The article frames the social media proposal as part of a broader UK shift toward age verification as a routine condition of online access, alongside the government’s GOV.UK Wallet and digital driving licence initiative."],"referencedReports":[{"title":"Age checks for online safety: what you need to know as a user","url":"https://www.ofcom.org.uk/online-safety/protecting-children/age-checks-for-online-safety--what-you-need-to-know-as-a-user","publisher":"ofcom","context":"The article cites this Ofcom guidance to explain that the Online Safety Act has required adult and other sensitive sites to use highly effective age checks since July 25, 2025.","category":"guide","primary":false},{"title":"Expert reaction to UK government announcing a ban on social media for under 16s","url":"https://www.sciencemediacentre.org/expert-reaction-to-uk-government-announcing-a-ban-on-social-media-for-under-16s-2/","publisher":"science-media-centre","context":"The article uses this Science Media Centre roundup to reference researchers' findings and expert commentary on the robustness of age-verification methods.","category":"research","primary":false}],"body":"\u003cp\u003eThe UK government plans to ban under-16s from social media, with regulations due before Christmas and enforcement beginning in spring 2027. To enforce the rule, platforms will likely require new users to prove they are over 16 through an ID upload or a facial age scan. The article says this effectively ends anonymous creation of new social media accounts in the UK, even though most long-standing adult accounts may be exempt.\u003c/p\u003e\n\n\u003cp\u003eThe proposal covers major social platforms including Instagram, YouTube, TikTok, Snapchat, Facebook, and X, while excluding messaging services such as WhatsApp and Signal and also excluding YouTube Kids. The UK says it will go further than Australia’s model by also restricting high-risk features like livestreaming and stranger contact on a wider set of services, including gaming platforms such as Roblox. The article also notes separate planned restrictions for AI romantic companion chatbots and ongoing consultation on overnight curfews and breaks in infinite scrolling for under-18s.\u003c/p\u003e\n\n\u003cp\u003eSecurity and privacy experts cited in the article warn that the age-checking systems are easy to bypass with VPNs and can expose users’ identity documents and biometric data to breaches. The article points to research that found low-to-medium robustness for most age-verification methods and notes that more than 60% of Australian children were still using social media months after that country’s ban took effect. It also highlights concern from academics, rights groups, and platforms that the measures may push users toward less-regulated spaces while normalizing routine online age verification.\u003c/p\u003e\n"}];
+window.__DL_DIGEST   = "downlink-digest-2026-06-16_1200.html";
+window.__DL_WINDOW   = "4 hours";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", padding:24 }}>
+        <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, padding:"40px 32px", maxWidth:480, textAlign:"center" }}>
+          <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:11, color:"var(--discard)", letterSpacing:"0.18em", marginBottom:12 }}>// RENDER ERROR</div>
+          <p style={{ color:"var(--text2)", fontSize:13 }}>{String(this.state.error)}</p>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+function pointList(items) {
+  return (
+    <ul className="kp-list">
+      {(items || []).map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            <a href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => <div className="prose">{article.tldr}</div> });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Full", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  if (article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => pointList(article.keyPoints) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => pointList(article.insights) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  const initialTab = tabs[0] ? tabs[0].id : "source";
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  const rightTabIds = new Set(["keypoints", "insights", "reports"]);
+  const leftTabs  = tabs.filter(t => !rightTabIds.has(t.id));
+  const rightTabs = tabs.filter(t =>  rightTabIds.has(t.id));
+  const renderTabBtn = tab => (
+    <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+      {tab.label}
+    </button>
+  );
+  return (
+    <>
+      <div className="tabs">
+        {leftTabs.map(renderTabBtn)}
+        {rightTabs.length > 0 && <span style={{ flex: 1 }} />}
+        {rightTabs.map(renderTabBtn)}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  const [theme, setTheme] = React.useState(() => document.documentElement.dataset.theme || 'dark');
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  const applyTheme = (t) => {
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('downlink.theme', t); } catch(e){}
+    setTheme(t);
+  };
+  return (
+    <nav className="swipe-nav" style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--cyan)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <span className="swipe-clock" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+        }}>
+          {Math.min(index + 1, total)} / {total}
+        </div>
+        <select value={theme} onChange={(e) => applyTheme(e.target.value)} title="Select theme" aria-label="Select theme" style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "var(--text2)",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "4px 20px 4px 8px", borderRadius: 2,
+          cursor: "pointer", textTransform: "uppercase", appearance: "none", WebkitAppearance: "none",
+          backgroundImage: "linear-gradient(45deg, transparent 50%, var(--text3) 50%), linear-gradient(135deg, var(--text3) 50%, transparent 50%)",
+          backgroundPosition: "calc(100% - 10px) 50%, calc(100% - 6px) 50%", backgroundSize: "4px 4px, 4px 4px", backgroundRepeat: "no-repeat"
+        }}>
+          <option value="dark">DARK</option>
+          <option value="light">LIGHT</option>
+          <option value="contrast">CONTRAST</option>
+          <option value="mono">MONO</option>
+          <option value="colorblind">COLORBLIND</option>
+          <option value="pastel">PASTEL</option>
+          
+        </select>
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const srcColor  = `var(--p${article.sourceColorIdx})`;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+              {article.source}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 22, lineHeight: 1.3, color: "var(--text)", letterSpacing: "-0.005em" }}>
+          {article.title}
+        </h2>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text2)", fontSize: 14, lineHeight: 1.65, fontWeight: 400 }}>{article.tldr}</p>
+        {article.keyPoints && article.keyPoints.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+            <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+              {article.keyPoints.map((kp, i) => (
+                <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: priorityC, marginTop: 3, letterSpacing: "0.04em" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const srcColor  = `var(--p${article.sourceColorIdx})`;
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 18, lineHeight: 1.35, color: "var(--text)", marginBottom: 12 }}>
+          {article.title}
+        </h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor }}>{article.source}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Front continues off to the right and fades out, then the detail view fades in.
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.32s cubic-bezier(.4,0,.6,1), opacity 0.32s";
+          el.style.transform = `translate(140%, ${dy * 1.4}px) rotate(18deg)`;
+          el.style.opacity = "0";
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.style.opacity = "0";
+            el2.getBoundingClientRect();
+            el2.style.transition = "opacity 0.22s ease";
+            el2.style.opacity = "1";
+            setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 240);
+          }
+        }, 320);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{ opacity: 0 }}>DONE</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div className="swipe-shell" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 24px 16px", minHeight: 0 }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 16px", width: "100%", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 16, flexShrink: 0 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 12, textAlign: "center", flexShrink: 0 }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ErrorBoundary><App /></ErrorBoundary>
+);
+</script>
+</body>
+</html>
