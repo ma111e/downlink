@@ -11,6 +11,7 @@ import (
 
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/scoring"
+	"github.com/ma111e/downlink/pkg/utils"
 
 	"github.com/gorilla/feeds"
 	gogit "gopkg.in/src-d/go-git.v4"
@@ -179,21 +180,7 @@ func mergeDigestsNewestFirst(digests []models.Digest, limit int) []models.Digest
 // empty segments. A trailing empty segment yields the directory URL. When base
 // is empty the result is a root-relative path.
 func joinURL(base string, segments ...string) string {
-	parts := make([]string, 0, len(segments)+1)
-	if trimmed := strings.TrimRight(strings.TrimSpace(base), "/"); trimmed != "" {
-		parts = append(parts, trimmed)
-	}
-	for _, s := range segments {
-		s = strings.Trim(strings.TrimSpace(s), "/")
-		if s != "" {
-			parts = append(parts, s)
-		}
-	}
-	joined := strings.Join(parts, "/")
-	if base == "" {
-		return "/" + strings.TrimPrefix(joined, "/")
-	}
-	return joined
+	return utils.JoinURL(base, segments...)
 }
 
 // writeAndStageFeeds builds the RSS and Atom feeds from digests and writes them

@@ -15,15 +15,18 @@ import (
 
 // FeedServer handles HTTP requests for Atom feeds
 type FeedServer struct {
-	store store.Store
-	port  int
+	store   store.Store
+	port    int
+	baseURL string
 }
 
-// NewFeedServer creates a new feed server instance
-func NewFeedServer(store store.Store, port int) *FeedServer {
+// NewFeedServer creates a new feed server instance. baseURL, when set, is used
+// to build absolute links for the served feeds (empty keeps links relative).
+func NewFeedServer(store store.Store, port int, baseURL string) *FeedServer {
 	return &FeedServer{
-		store: store,
-		port:  port,
+		store:   store,
+		port:    port,
+		baseURL: baseURL,
 	}
 }
 
@@ -58,8 +61,9 @@ func (fs *FeedServer) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	for _, feed := range availableFeeds {
 		normalizedName := utils.NormalizeFeedName(feed.Title)
-		fmt.Fprintf(w, "<li><a href=\"/feeds/%s\">%s</a> - <a href=\"/feeds/%s\">%s</a></li>",
-			html.EscapeString(normalizedName), html.EscapeString(feed.Title), html.EscapeString(normalizedName), html.EscapeString(feed.URL))
+		feedLink := utils.JoinURL(fs.baseURL, "feeds", normalizedName)
+		fmt.Fprintf(w, "<li><a href=\"%s\">%s</a> - <a href=\"%s\">%s</a></li>",
+			html.EscapeString(feedLink), html.EscapeString(feed.Title), html.EscapeString(feedLink), html.EscapeString(feed.URL))
 	}
 
 	fmt.Fprintf(w, "</ul></body></html>")
@@ -108,7 +112,7 @@ func (fs *FeedServer) handleFeedRequest(w http.ResponseWriter, r *http.Request) 
 	// Create Atom feed
 	atomFeed := &feeds.Feed{
 		Title:       feed.Title,
-		Link:        &feeds.Link{Href: feed.URL},
+		Link:        &feeds.Link{Href: utils.JoinURL(fs.baseURL, "feeds", normalizedName)},
 		Description: fmt.Sprintf("Articles from %s", feed.Title),
 		Created:     feed.LastFetch,
 	}
@@ -117,7 +121,7 @@ func (fs *FeedServer) handleFeedRequest(w http.ResponseWriter, r *http.Request) 
 	for _, article := range feedArticles {
 		item := &feeds.Item{
 			Title:       article.Title,
-			Link:        &feeds.Link{Href: article.Link},
+			Link:        &feeds.Link{Href: utils.ResolveLink(fs.baseURL, article.Link)},
 			Description: article.Content,
 			Created:     article.PublishedAt,
 			Id:          article.Id,

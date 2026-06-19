@@ -63,6 +63,13 @@ curl http://localhost:65261/feeds/the-hacker-news  # one feed as Atom
 The port is fixed. Expose it (or put it behind a reverse proxy) only if you want the
 feeds reachable beyond the host.
 
+By default the index links and each feed's self-link are root-relative (`/feeds/<name>`),
+and article links pass through from the source feed. When the export sits behind a reverse
+proxy or public host, set `feed_base_url` (config.json) or `DOWNLINK_FEED_BASE_URL` /
+`--feed-base-url` to that public base, e.g. `https://feeds.example.com`. The server then
+emits absolute links and resolves relative article links against it. See
+[configuration.md](configuration.md) for precedence.
+
 ## Scheduling digests
 
 The server does not generate digests on a timer. Drive it from cron (or any scheduler) by

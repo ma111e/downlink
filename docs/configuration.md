@@ -37,6 +37,7 @@ Top-level fields:
 |---|---|---|---|
 | `db_path` | string | `./downlink.db` | SQLite database file path. |
 | `solimen_addr` | string | `http://localhost:5011` | Address of the Solimen full-browser scraper. |
+| `feed_base_url` | string | / | Base URL for the served Atom feed links (e.g. `https://feeds.example.com`). Empty keeps links relative. |
 | `providers` | array | / | LLM provider entries. See [llm-providers.md](llm-providers.md). |
 | `analysis` | object | / | Analysis settings (active provider, persona, scoring). |
 | `notifications` | object | / | Discord and GitHub Pages settings. |
@@ -104,6 +105,7 @@ These override `config.json` and are themselves overridden by an explicit CLI fl
 | `DOWNLINK_AUTO_START_LIGHTPANDA` | `--auto-start-lightpanda` | `false` | Start the Lightpanda container if absent. |
 | `DOWNLINK_AUTO_START_SOLIMEN` | `--auto-start-solimen` | `false` | Start the Solimen container if absent. |
 | `DOWNLINK_SOLIMEN_ADDR` | `--solimen-addr` | `http://localhost:5011` | Solimen address for `full_browser` scraping. |
+| `DOWNLINK_FEED_BASE_URL` | `--feed-base-url` | / | Same as `feed_base_url`; base URL for served Atom feed links. |
 | `DOWNLINK_MAX_CONCURRENT_LLM_REQUESTS` | `--max-concurrent-llm-requests` | `1` | Cap on concurrent LLM calls across all paths. |
 | `DOWNLINK_AUTO_ANALYZE` | `--auto-analyze` | `false` | Same as `analysis.auto_analyze`. |
 

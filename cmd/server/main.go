@@ -53,6 +53,7 @@ func main() {
 	var autoStartLightpanda bool
 	var autoStartSolimen bool
 	var solimenAddr string
+	var feedBaseURL string
 	var logLevel string
 	var traceDir string
 	var maxConcurrentLLMRequests int
@@ -86,6 +87,7 @@ func main() {
 			autoStartLightpanda = viper.GetBool("auto-start-lightpanda")
 			autoStartSolimen = viper.GetBool("auto-start-solimen")
 			solimenAddr = viper.GetString("solimen-addr")
+			feedBaseURL = viper.GetString("feed-base-url")
 			logLevel = viper.GetString("log-level")
 			traceDir = viper.GetString("trace-dir")
 			maxConcurrentLLMRequests = viper.GetInt("max-concurrent-llm-requests")
@@ -175,8 +177,11 @@ func main() {
 			}
 
 			// Start Atom feed server
+			if feedBaseURL == "" {
+				feedBaseURL = config.Config.FeedBaseURL
+			}
 			go func() {
-				atomServer := feedserver.NewFeedServer(store.Db, 65261)
+				atomServer := feedserver.NewFeedServer(store.Db, 65261, feedBaseURL)
 				if err := atomServer.Start(); err != nil {
 					log.WithError(err).Error("Atom feed server failed")
 				}
@@ -196,6 +201,7 @@ func main() {
 	rootCmd.PersistentFlags().BoolVar(&autoStartLightpanda, "auto-start-lightpanda", false, "Automatically start the Lightpanda Docker container if not running (skip interactive prompt)")
 	rootCmd.PersistentFlags().BoolVar(&autoStartSolimen, "auto-start-solimen", false, "Automatically start the Solimen Docker container if not running (skip interactive prompt)")
 	rootCmd.PersistentFlags().StringVar(&solimenAddr, "solimen-addr", "http://localhost:5011", "Solimen service address for full_browser scraping (e.g. http://localhost:5011)")
+	rootCmd.PersistentFlags().StringVar(&feedBaseURL, "feed-base-url", "", "Base URL for served Atom feed links (e.g. https://feeds.example.com)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (trace, debug, info, warn, error)")
 	rootCmd.PersistentFlags().StringVar(&traceDir, "trace-dir", "", "Directory for content-level debug traces (LLM prompt/response, raw feed/scrape bodies); only active at --log-level trace. Default: /tmp/downlink-trace-<timestamp>")
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentLLMRequests, "max-concurrent-llm-requests", 1, "Maximum number of concurrent LLM analysis requests (default: 1)")
