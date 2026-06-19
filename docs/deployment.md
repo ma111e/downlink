@@ -67,7 +67,8 @@ By default the index links and each feed's self-link are root-relative (`/feeds/
 and article links pass through from the source feed. When the export sits behind a reverse
 proxy or public host, set `feed_base_url` (config.json) or `DOWNLINK_FEED_BASE_URL` /
 `--feed-base-url` to that public base, e.g. `https://feeds.example.com`. The server then
-emits absolute links and resolves relative article links against it. See
+emits absolute links and resolves relative article links against it. When `feed_base_url`
+is unset it falls back to `notifications.github_pages.base_url`. See
 [configuration.md](configuration.md) for precedence.
 
 ## Scheduling digests

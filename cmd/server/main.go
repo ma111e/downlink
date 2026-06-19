@@ -176,9 +176,13 @@ func main() {
 				}()
 			}
 
-			// Start Atom feed server
+			// Start Atom feed server. Resolve the base URL for served feed links:
+			// explicit flag/env > feed_base_url > github_pages.base_url.
 			if feedBaseURL == "" {
 				feedBaseURL = config.Config.FeedBaseURL
+			}
+			if feedBaseURL == "" {
+				feedBaseURL = config.Config.Notifications.GitHubPages.BaseURL
 			}
 			go func() {
 				atomServer := feedserver.NewFeedServer(store.Db, 65261, feedBaseURL)
