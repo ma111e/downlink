@@ -206,6 +206,7 @@ This command requires a running downlink server (--address / --port).`,
 		},
 	}
 
+	var removeNoWait bool
 	removeCmd := &cobra.Command{
 		Use:   "remove [title]",
 		Short: "Remove a digest from the GitHub Pages archive and republish",
@@ -246,10 +247,17 @@ When no title is given, an interactive list is shown to pick from.`,
 				}
 			}
 
-			_, err = publisher.RemoveDigest(title)
-			return err
+			sha, err := publisher.RemoveDigest(title)
+			if err != nil {
+				return err
+			}
+			if removeNoWait {
+				return nil
+			}
+			return publisher.WaitForPagesBuild(sha)
 		},
 	}
+	removeCmd.Flags().BoolVar(&removeNoWait, "no-wait", false, "Push and exit without waiting for the GitHub Pages deploy")
 
 	var republishTheme string
 	var republishDryRun bool
