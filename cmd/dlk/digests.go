@@ -365,6 +365,12 @@ Examples:
 				prog.addHiddenRow("summarize", "generating summary")
 			}
 			prog.addHiddenRow("store", "storing digest")
+			// The glossary is opt-in (server config or --glossary): register its row unless it
+			// was explicitly disabled for this run. The row stays hidden until the "glossary"
+			// stage actually runs.
+			if !(cmd.Flags().Changed("glossary") && !digestGlossary) {
+				prog.addHiddenRow("glossary", "building glossary")
+			}
 			prog.addHiddenRow("notify", "sending notification")
 			prog.startSpinner()
 
@@ -680,10 +686,15 @@ func newDigestProgressHandler(prog *batchProgress) func(*protos.DigestProgressEv
 			}
 		case "store":
 			prog.showRow("store")
+		case "glossary":
+			prog.showRow("glossary")
+			if strings.HasPrefix(ev.Message, "glossary built") {
+				prog.completeRow("glossary", true, ev.Message)
+			}
 		case "notify":
 			prog.showRow("notify")
 		case "done":
-			for _, id := range []string{"fetch", "analyze", "dedupe", "summarize", "store", "notify"} {
+			for _, id := range []string{"fetch", "analyze", "dedupe", "summarize", "store", "glossary", "notify"} {
 				prog.completeRow(id, true, "")
 			}
 		case "error":
@@ -692,6 +703,7 @@ func newDigestProgressHandler(prog *batchProgress) func(*protos.DigestProgressEv
 			prog.completeRow("dedupe", false, ev.Error)
 			prog.completeRow("summarize", false, ev.Error)
 			prog.completeRow("store", false, ev.Error)
+			prog.completeRow("glossary", false, ev.Error)
 			prog.completeRow("notify", false, ev.Error)
 		}
 	}

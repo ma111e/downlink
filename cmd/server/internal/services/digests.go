@@ -339,11 +339,15 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 
 	// Step 6: Populate the persistent global glossary from this digest (opt-in). Failures
 	// here must never fail digest generation, so errors are logged as warnings only.
+	glossaryEntries := 0
 	if glossaryEnabled(req.Glossary) {
 		sendProgress(stream, "glossary", "building glossary...", 0, 0)
-		if err := s.populateGlossary(ctx, digest.Id, analyses, articleMap, req.Provider, req.Model); err != nil {
+		n, err := s.populateGlossary(ctx, digest.Id, analyses, articleMap, req.Provider, req.Model)
+		if err != nil {
 			log.WithError(err).WithField("digestId", digest.Id).Warn("Failed to populate glossary")
 		}
+		glossaryEntries = n
+		sendProgress(stream, "glossary", fmt.Sprintf("glossary built (%d terms)", glossaryEntries), 0, 0)
 	}
 
 	log.WithFields(log.Fields{
@@ -352,6 +356,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		"skipped":         articleLen - len(digestAnalyses),
 		"analysisCount":   len(digestAnalyses),
 		"duplicateGroups": len(groupingResult.DuplicateGroups),
+		"glossaryEntries": glossaryEntries,
 	}).Info("Digest generated successfully")
 
 	// Send notifications if configured. Reload digest once so Articles,
@@ -968,7 +973,7 @@ func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []mod
 // glossary and records which entries the digest references. Jargon (already extracted on the
 // analyses) costs nothing; entity definitions are generated in a single batched LLM call that
 // skips any entity already defined. Manual overrides are never overwritten.
-func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, provider, model string) error {
+func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, provider, model string) (int, error) {
 	stepCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
@@ -1017,7 +1022,7 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 		}
 		existing, err := store.Db.GetGlossaryEntriesByKeys(keys)
 		if err != nil {
-			return fmt.Errorf("failed to load existing glossary entries: %w", err)
+			return 0, fmt.Errorf("failed to load existing glossary entries: %w", err)
 		}
 
 		// Reference entities that already have a definition; queue the rest for the LLM.
@@ -1059,18 +1064,18 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 	}
 
 	if len(entryIds) == 0 {
-		return nil
+		return 0, nil
 	}
 	rows := make([]models.DigestGlossary, 0, len(entryIds))
 	for id := range entryIds {
 		rows = append(rows, models.DigestGlossary{DigestId: digestId, EntryId: id})
 	}
 	if err := store.Db.StoreDigestGlossaryBatch(rows); err != nil {
-		return fmt.Errorf("failed to store digest glossary links: %w", err)
+		return 0, fmt.Errorf("failed to store digest glossary links: %w", err)
 	}
 
 	log.WithFields(log.Fields{"digestId": digestId, "entries": len(rows)}).Info("Glossary populated")
-	return nil
+	return len(rows), nil
 }
 
 // defineEntities asks the model for a one-line plain-language definition of each named
