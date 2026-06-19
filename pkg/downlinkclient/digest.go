@@ -64,7 +64,6 @@ type GenerateDigestOptions struct {
 	SkipAnalysis           bool
 	SkipDuplicates         bool
 	ExcludeDigested        bool
-	SkipSummary            bool
 	Theme                  string
 	OneShotAnalysis        bool
 	Test                   bool
@@ -74,6 +73,9 @@ type GenerateDigestOptions struct {
 	Reanalyze              bool
 	VibeScore              *bool  // When non-nil, overrides the server's vibe_score config for this run
 	Glossary               *bool  // When non-nil, overrides the server's glossary config for this run
+	StandardSynthesis      *bool  // When non-nil, overrides the server's standard_synthesis config for this run
+	ComprehensiveSynthesis *bool  // When non-nil, overrides the server's comprehensive_synthesis config for this run
+	ExecutiveSummary       *bool  // When non-nil, overrides the server's executive_summary config for this run
 	Provider               string // Provider override (type or profile name, auto-detected by the server)
 	Model                  string // Model override; with empty Provider the server resolves the matching provider
 	OnEvent                func(*protos.DigestProgressEvent)
@@ -82,14 +84,13 @@ type GenerateDigestOptions struct {
 // GenerateDigest generates a new digest, streaming progress events to onEvent as they arrive.
 // Returns the final digest once the stream completes with a "done" event.
 // The provided ctx controls the stream lifetime: cancel it to abort generation on the server.
-func (pc *DownlinkClient) GenerateDigest(ctx context.Context, startTime time.Time, endTime time.Time, skipAnalysis bool, skipDuplicates bool, excludeDigested bool, skipSummary bool, theme string, onEvent func(*protos.DigestProgressEvent)) (models.Digest, error) {
+func (pc *DownlinkClient) GenerateDigest(ctx context.Context, startTime time.Time, endTime time.Time, skipAnalysis bool, skipDuplicates bool, excludeDigested bool, theme string, onEvent func(*protos.DigestProgressEvent)) (models.Digest, error) {
 	return pc.GenerateDigestWithOptions(ctx, GenerateDigestOptions{
 		StartTime:       startTime,
 		EndTime:         endTime,
 		SkipAnalysis:    skipAnalysis,
 		SkipDuplicates:  skipDuplicates,
 		ExcludeDigested: excludeDigested,
-		SkipSummary:     skipSummary,
 		Theme:           theme,
 		OnEvent:         onEvent,
 	})
@@ -102,7 +103,6 @@ func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options
 		SkipAnalysis:           options.SkipAnalysis,
 		SkipDuplicates:         options.SkipDuplicates,
 		ExcludeDigested:        options.ExcludeDigested,
-		SkipSummary:            options.SkipSummary,
 		Theme:                  options.Theme,
 		OneShotAnalysis:        options.OneShotAnalysis,
 		Test:                   options.Test,
@@ -112,6 +112,9 @@ func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options
 		Reanalyze:              options.Reanalyze,
 		VibeScore:              options.VibeScore,
 		Glossary:               options.Glossary,
+		StandardSynthesis:      options.StandardSynthesis,
+		ComprehensiveSynthesis: options.ComprehensiveSynthesis,
+		ExecutiveSummary:       options.ExecutiveSummary,
 		Provider:               options.Provider,
 		Model:                  options.Model,
 	})

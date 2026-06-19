@@ -307,7 +307,37 @@ func glossaryEnabled(reqGlossary *bool) bool {
 	return config.Config.Analysis.Glossary
 }
 
-func getAnalysisTasks(contentLen int, fastMode bool, vibeScore bool, glossary bool) []analysisTask {
+// standardSynthesisEnabled resolves whether the Standard article summary should be
+// generated. A per-request override (non-nil) wins; otherwise the server's analysis
+// config default applies.
+func standardSynthesisEnabled(req *bool) bool {
+	if req != nil {
+		return *req
+	}
+	return config.Config.Analysis.StandardSynthesis
+}
+
+// comprehensiveSynthesisEnabled resolves whether the Full (comprehensive) article
+// summary should be generated. A per-request override (non-nil) wins; otherwise the
+// server's analysis config default applies.
+func comprehensiveSynthesisEnabled(req *bool) bool {
+	if req != nil {
+		return *req
+	}
+	return config.Config.Analysis.ComprehensiveSynthesis
+}
+
+// executiveSummaryEnabled resolves whether the digest-level executive summary should
+// be generated. A per-request override (non-nil) wins; otherwise the server's
+// analysis config default applies.
+func executiveSummaryEnabled(req *bool) bool {
+	if req != nil {
+		return *req
+	}
+	return config.Config.Analysis.ExecutiveSummary
+}
+
+func getAnalysisTasks(contentLen int, fastMode bool, vibeScore bool, glossary bool, standardSynthesis bool, comprehensiveSynthesis bool) []analysisTask {
 	if fastMode {
 		return []analysisTask{
 			{
@@ -399,16 +429,30 @@ Return ONLY the JSON object below.`,
 	)
 
 	if contentLen > 1000 {
+		// brief_overview is always generated; standard_synthesis and
+		// comprehensive_synthesis are opt-in via config/flags. The prompt and schema
+		// only ask for the enabled levels.
+		levelLines := []string{
+			"brief_overview: 2–3 markdown paragraphs (blank line between each), 3–4 sentences per paragraph. Cover the core event, its significance, and any key technical detail or impact.",
+		}
+		schemaParts := []string{`"brief_overview": "<text>"`}
+		if standardSynthesis {
+			levelLines = append(levelLines, "standard_synthesis: 4–6 markdown paragraphs (blank line between each), 3–5 sentences per paragraph. Cover the full picture: context, technical details, affected parties, known or suspected actors, and any disclosed impact or response.")
+			schemaParts = append(schemaParts, `"standard_synthesis": "<text>"`)
+		}
+		if comprehensiveSynthesis {
+			levelLines = append(levelLines, "comprehensive_synthesis: Unlimited length. A thorough, structured analysis using markdown headings, paragraphs, and bullet points where helpful.")
+			schemaParts = append(schemaParts, `"comprehensive_synthesis": "<text>"`)
+		}
+		countWord := []string{"one summary", "two summaries", "three summaries"}[len(levelLines)-1]
 		tasks = append(tasks, analysisTask{
 			name: "summaries",
-			instruction: `You are a cybersecurity analyst. Write three summaries of the article using ONLY information present in the article — do not infer or add external context.
+			instruction: fmt.Sprintf(`You are a cybersecurity analyst. Write %s of the article using ONLY information present in the article — do not infer or add external context.
 
-brief_overview: 2–3 markdown paragraphs (blank line between each), 3–4 sentences per paragraph. Cover the core event, its significance, and any key technical detail or impact.
-standard_synthesis: 4–6 markdown paragraphs (blank line between each), 3–5 sentences per paragraph. Cover the full picture: context, technical details, affected parties, known or suspected actors, and any disclosed impact or response.
-comprehensive_synthesis: Unlimited length. A thorough, structured analysis using markdown headings, paragraphs, and bullet points where helpful.
+%s
 
-Return ONLY the JSON object below.`,
-			schema:       `{"summaries": {"brief_overview": "<text>", "standard_synthesis": "<text>", "comprehensive_synthesis": "<text>"}}`,
+Return ONLY the JSON object below.`, countWord, strings.Join(levelLines, "\n")),
+			schema:       fmt.Sprintf(`{"summaries": {%s}}`, strings.Join(schemaParts, ", ")),
 			requiredKeys: []string{"summaries"},
 		})
 	}
@@ -526,7 +570,7 @@ func (s *LLMsServer) buildAnalysisPromptForRequest(req *protos.AnalyzeArticleWit
 		return "", err
 	}
 
-	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), glossaryEnabled(req.Glossary))
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), glossaryEnabled(req.Glossary), standardSynthesisEnabled(req.StandardSynthesis), comprehensiveSynthesisEnabled(req.ComprehensiveSynthesis))
 	var allInstructions, allSchemas []string
 	for i, t := range tasks {
 		allInstructions = append(allInstructions, fmt.Sprintf("%d. %s", i+1, t.instruction))
@@ -815,7 +859,7 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 
 	// Run analysis tasks sequentially using a single ChatModel conversation.
 	// The article is sent once in the first message; subsequent tasks only send the instruction.
-	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), glossaryEnabled(req.Glossary))
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), glossaryEnabled(req.Glossary), standardSynthesisEnabled(req.StandardSynthesis), comprehensiveSynthesisEnabled(req.ComprehensiveSynthesis))
 	totalTasks := len(tasks)
 	assembled := make(map[string]interface{})
 	assembled["id"] = actx.articleId

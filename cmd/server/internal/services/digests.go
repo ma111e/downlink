@@ -210,7 +210,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 				_ = stream.Send(ev)
 			}
 		}
-		analyses, analysisErrors, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, req.ReanalyzeOnModelChange, req.Reanalyze, req.VibeScore, req.Glossary, req.Provider, req.Model, onAnalysisStart, onTaskProgress)
+		analyses, analysisErrors, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, req.ReanalyzeOnModelChange, req.Reanalyze, req.VibeScore, req.Glossary, req.StandardSynthesis, req.ComprehensiveSynthesis, req.Provider, req.Model, onAnalysisStart, onTaskProgress)
 		if err != nil {
 			if cancelled(stream) {
 				return ctx.Err()
@@ -265,8 +265,8 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	// Step 3: Generate digest summary presentation
 	var digestTitle, digestSummary string
 	var summaryProviderType, summaryModelName string
-	if req.SkipSummary {
-		log.Info("Skipping digest summary generation (skip_summary requested)")
+	if !executiveSummaryEnabled(req.ExecutiveSummary) {
+		log.Info("Skipping digest summary generation (executive_summary disabled)")
 	} else {
 		sendProgress(stream, "summarize", "generating digest summary...", 0, 0)
 		digestTitle, digestSummary, summaryProviderType, summaryModelName, err = s.generateDigestSummary(ctx, analyses, articleMap, windowStart, windowEnd, req.Provider, req.Model)
@@ -559,6 +559,8 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 	reanalyze bool,
 	vibeScore *bool,
 	glossary *bool,
+	standardSynthesis *bool,
+	comprehensiveSynthesis *bool,
 	provider string,
 	model string,
 	onStart func(articleId, articleTitle string, current, total uint32),
@@ -685,11 +687,13 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 			}
 
 			analysisReq := &protos.AnalyzeArticleWithProviderModelRequest{
-				ArticleId: article.Id,
-				VibeScore: vibeScore,
-				Glossary:  glossary,
-				Provider:  provider,
-				ModelName: model,
+				ArticleId:              article.Id,
+				VibeScore:              vibeScore,
+				Glossary:               glossary,
+				StandardSynthesis:      standardSynthesis,
+				ComprehensiveSynthesis: comprehensiveSynthesis,
+				Provider:               provider,
+				ModelName:              model,
 			}
 
 			analyze := func(ctx context.Context) error {

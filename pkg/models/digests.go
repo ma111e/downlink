@@ -44,6 +44,11 @@ type AnalysisConfig struct {
 	AutoAnalyze  bool              `json:"auto_analyze,omitempty"`  // Automatically enqueue articles for analysis after each feed refresh
 	VibeScore    bool              `json:"vibe_score,omitempty"`    // Use the legacy single-number LLM importance prompt instead of the rubric scoring system
 	Glossary     bool              `json:"glossary,omitempty"`      // Generate glossary-mode content (plain-language explanation + jargon glossary) as an extra analysis task
+
+	StandardSynthesis      bool `json:"standard_synthesis,omitempty"`      // Generate the Standard article summary (brief overview is always generated)
+	ComprehensiveSynthesis bool `json:"comprehensive_synthesis,omitempty"` // Generate the Full (comprehensive) article summary
+
+	ExecutiveSummary bool `json:"executive_summary,omitempty"` // Generate the digest-level executive summary (title + thematic overview)
 }
 
 // WorkerPoolConfig contains the configuration for the worker pool

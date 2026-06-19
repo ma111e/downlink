@@ -357,8 +357,8 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 				Tldr:                   highlightPlain(analysis.Tldr, tagRe),
 				Justification:          highlightHTMLFragment(markdownToHTML(analysis.Justification), tagRe),
 				BriefOverview:          highlightHTMLFragment(markdownToHTML(analysis.BriefOverview), tagRe),
-				StandardSynthesis:      highlightHTMLFragment(markdownToHTML(analysis.StandardSynthesis), tagRe),
-				ComprehensiveSynthesis: highlightHTMLFragment(markdownToHTML(analysis.ComprehensiveSynthesis), tagRe),
+				StandardSynthesis:      mdProseOrEmpty(analysis.StandardSynthesis, tagRe),
+				ComprehensiveSynthesis: mdProseOrEmpty(analysis.ComprehensiveSynthesis, tagRe),
 				KeyPoints:              highlightPlainSlice(analysis.KeyPoints, tagRe),
 				Insights:               highlightPlainSlice(analysis.Insights, tagRe),
 				ReferencedReports:      renderReports(analysis.ReferencedReports, tagRe),
@@ -629,6 +629,17 @@ func parseOverviewSections(md string, re *regexp.Regexp) []OverviewSection {
 }
 
 // markdownToHTML converts a markdown string to sanitized HTML using gomarkdown.
+// mdProseOrEmpty renders markdown prose to tag-highlighted HTML, returning an empty
+// value when the source is blank or whitespace-only. This keeps optional summary
+// fields truly empty so the digest template can hide their tabs (markdownToHTML
+// only short-circuits on exactly "").
+func mdProseOrEmpty(md string, tagRe *regexp.Regexp) template.HTML {
+	if strings.TrimSpace(md) == "" {
+		return ""
+	}
+	return highlightHTMLFragment(markdownToHTML(md), tagRe)
+}
+
 func markdownToHTML(md string) template.HTML {
 	if md == "" {
 		return ""

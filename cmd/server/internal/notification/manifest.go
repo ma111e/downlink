@@ -17,24 +17,30 @@ import (
 // ManifestFilename is the basename of the manifest checked into the Pages branch.
 const ManifestFilename = "manifest.json"
 
+// Headline is one article headline in a manifest entry, paired with its
+// importance priority ("must"/"should"/"may"/"opt").
+type Headline struct {
+	Title    string `json:"title"`
+	Priority string `json:"priority,omitempty"`
+}
+
 // ManifestEntry describes a single published digest in the manifest.
 type ManifestEntry struct {
-	Filename           string   `json:"filename"`
-	StartedAt          string   `json:"started_at"`
-	PeriodStart        string   `json:"period_start,omitempty"`
-	TimeWindow         string   `json:"time_window"`
-	ArticleCount       int      `json:"article_count"`
-	MustCount          int      `json:"must_count"`
-	ShouldCount        int      `json:"should_count"`
-	MayCount           int      `json:"may_count"`
-	OptCount           int      `json:"opt_count"`
-	Provider           string   `json:"provider"`
-	Model              string   `json:"model"`
-	Models             []string `json:"models,omitempty"` // all unique model names across summary + article analysis
-	Title              string   `json:"title,omitempty"`
-	Headlines          []string `json:"headlines"`
-	HeadlinePriorities []string `json:"headline_priorities,omitempty"`
-	Summary            string   `json:"summary"`
+	Filename     string     `json:"filename"`
+	StartedAt    string     `json:"started_at"`
+	PeriodStart  string     `json:"period_start,omitempty"`
+	TimeWindow   string     `json:"time_window"`
+	ArticleCount int        `json:"article_count"`
+	MustCount    int        `json:"must_count"`
+	ShouldCount  int        `json:"should_count"`
+	MayCount     int        `json:"may_count"`
+	OptCount     int        `json:"opt_count"`
+	Provider     string     `json:"provider"`
+	Model        string     `json:"model"`
+	Models       []string   `json:"models,omitempty"` // all unique model names across summary + article analysis
+	Title        string     `json:"title,omitempty"`
+	Headlines    []Headline `json:"headlines"`
+	Summary      string     `json:"summary"`
 }
 
 // Manifest is the JSON document checked into the Pages branch listing every
@@ -148,27 +154,25 @@ func (m Manifest) Write(path string) error {
 func ManifestEntryFromDigest(d models.Digest) ManifestEntry {
 	provider, model := digestProviderLabel(d)
 	must, should, may, opt := digestPriorityCounts(d)
-	headlines, headlinePriorities := digestHeadlinePreview(d, 0)
 	// CreatedAt is the window start (see GenerateDigest). period_start (the
 	// timestamp the archive index displays) is therefore CreatedAt directly,
 	// and started_at (used for "last sync") is the window end, CreatedAt+window.
 	return ManifestEntry{
-		Filename:           DigestHTMLFilename(d),
-		StartedAt:          d.CreatedAt.UTC().Add(d.TimeWindow).Format("2006-01-02 15:04 UTC"),
-		PeriodStart:        d.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
-		TimeWindow:         formatDuration(d.TimeWindow),
-		ArticleCount:       len(d.Articles),
-		MustCount:          must,
-		ShouldCount:        should,
-		MayCount:           may,
-		OptCount:           opt,
-		Provider:           provider,
-		Model:              model,
-		Models:             digestAllModelNames(d),
-		Title:              d.Title,
-		Headlines:          headlines,
-		HeadlinePriorities: headlinePriorities,
-		Summary:            digestSummaryText(d.DigestSummary, 220),
+		Filename:     DigestHTMLFilename(d),
+		StartedAt:    d.CreatedAt.UTC().Add(d.TimeWindow).Format("2006-01-02 15:04 UTC"),
+		PeriodStart:  d.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
+		TimeWindow:   formatDuration(d.TimeWindow),
+		ArticleCount: len(d.Articles),
+		MustCount:    must,
+		ShouldCount:  should,
+		MayCount:     may,
+		OptCount:     opt,
+		Provider:     provider,
+		Model:        model,
+		Models:       digestAllModelNames(d),
+		Title:        d.Title,
+		Headlines:    digestHeadlinePreview(d, 0),
+		Summary:      digestSummaryText(d.DigestSummary, 220),
 	}
 }
 
@@ -232,12 +236,7 @@ func priorityKeyForScore(score int) string {
 	return scoring.PriorityKey(score)
 }
 
-func digestHeadlines(d models.Digest, limit int) []string {
-	headlines, _ := digestHeadlinePreview(d, limit)
-	return headlines
-}
-
-func digestHeadlinePreview(d models.Digest, limit int) ([]string, []string) {
+func digestHeadlinePreview(d models.Digest, limit int) []Headline {
 	scoreByArticle := make(map[string]int, len(d.DigestAnalyses))
 	for _, da := range d.DigestAnalyses {
 		if da.Analysis != nil {
@@ -257,20 +256,21 @@ func digestHeadlinePreview(d models.Digest, limit int) ([]string, []string) {
 	if limit > 0 && limit < capacity {
 		capacity = limit
 	}
-	headlines := make([]string, 0, capacity)
-	priorities := make([]string, 0, capacity)
+	headlines := make([]Headline, 0, capacity)
 	for _, art := range articles {
 		title := strings.TrimSpace(articleTitle(art.Title))
 		if title == "" {
 			continue
 		}
-		headlines = append(headlines, title)
-		priorities = append(priorities, priorityKeyForScore(scoreByArticle[art.Id]))
+		headlines = append(headlines, Headline{
+			Title:    title,
+			Priority: priorityKeyForScore(scoreByArticle[art.Id]),
+		})
 		if limit > 0 && len(headlines) == limit {
 			break
 		}
 	}
-	return headlines, priorities
+	return headlines
 }
 
 var (

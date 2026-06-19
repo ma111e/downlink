@@ -85,8 +85,8 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string, theme string) 
 			insights = da.Analysis.Insights
 			referencedReports = da.Analysis.ReferencedReports
 			briefOverview = string(markdownToHTML(da.Analysis.BriefOverview))
-			standardSynthesis = string(markdownToHTML(da.Analysis.StandardSynthesis))
-			comprehensiveSynthesis = string(markdownToHTML(da.Analysis.ComprehensiveSynthesis))
+			standardSynthesis = string(mdProseOrEmpty(da.Analysis.StandardSynthesis, nil))
+			comprehensiveSynthesis = string(mdProseOrEmpty(da.Analysis.ComprehensiveSynthesis, nil))
 			src := da.Analysis.BriefOverview
 			if src == "" {
 				src = da.Analysis.StandardSynthesis

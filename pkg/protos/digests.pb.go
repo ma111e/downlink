@@ -293,18 +293,20 @@ type GenerateDigestRequest struct {
 	SkipAnalysis           bool                   `protobuf:"varint,3,opt,name=skip_analysis,json=skipAnalysis,proto3" json:"skip_analysis,omitempty"`
 	SkipDuplicates         bool                   `protobuf:"varint,4,opt,name=skip_duplicates,json=skipDuplicates,proto3" json:"skip_duplicates,omitempty"`
 	ExcludeDigested        bool                   `protobuf:"varint,5,opt,name=exclude_digested,json=excludeDigested,proto3" json:"exclude_digested,omitempty"`
-	SkipSummary            bool                   `protobuf:"varint,6,opt,name=skip_summary,json=skipSummary,proto3" json:"skip_summary,omitempty"`
 	Theme                  string                 `protobuf:"bytes,7,opt,name=theme,proto3" json:"theme,omitempty"`
 	OneShotAnalysis        bool                   `protobuf:"varint,8,opt,name=one_shot_analysis,json=oneShotAnalysis,proto3" json:"one_shot_analysis,omitempty"`
 	Test                   bool                   `protobuf:"varint,9,opt,name=test,proto3" json:"test,omitempty"`
 	TestDigestId           string                 `protobuf:"bytes,10,opt,name=test_digest_id,json=testDigestId,proto3" json:"test_digest_id,omitempty"`
-	GhPagesEnabled         *bool                  `protobuf:"varint,11,opt,name=gh_pages_enabled,json=ghPagesEnabled,proto3,oneof" json:"gh_pages_enabled,omitempty"`                     // When set, overrides the server's GitHub Pages enabled config for this run
-	ReanalyzeOnModelChange bool                   `protobuf:"varint,12,opt,name=reanalyze_on_model_change,json=reanalyzeOnModelChange,proto3" json:"reanalyze_on_model_change,omitempty"` // Re-analyze articles whose existing analysis used a different model than the current default
-	Reanalyze              bool                   `protobuf:"varint,13,opt,name=reanalyze,proto3" json:"reanalyze,omitempty"`                                                             // Re-analyze every article in the window, even if it already has a current-model analysis
-	VibeScore              *bool                  `protobuf:"varint,14,opt,name=vibe_score,json=vibeScore,proto3,oneof" json:"vibe_score,omitempty"`                                      // When set, overrides the server's vibe_score config for this run (legacy single-number importance prompt)
-	Provider               string                 `protobuf:"bytes,15,opt,name=provider,proto3" json:"provider,omitempty"`                                                                // Provider override (type or profile name, auto-detected); applies to all LLM steps of this run
-	Model                  string                 `protobuf:"bytes,16,opt,name=model,proto3" json:"model,omitempty"`                                                                      // Model override; with empty provider the server resolves the matching provider
-	Glossary               *bool                  `protobuf:"varint,17,opt,name=glossary,proto3,oneof" json:"glossary,omitempty"`                                                         // When set, overrides the server's glossary config for this run (plain-language explanation + jargon glossary)
+	GhPagesEnabled         *bool                  `protobuf:"varint,11,opt,name=gh_pages_enabled,json=ghPagesEnabled,proto3,oneof" json:"gh_pages_enabled,omitempty"`                       // When set, overrides the server's GitHub Pages enabled config for this run
+	ReanalyzeOnModelChange bool                   `protobuf:"varint,12,opt,name=reanalyze_on_model_change,json=reanalyzeOnModelChange,proto3" json:"reanalyze_on_model_change,omitempty"`   // Re-analyze articles whose existing analysis used a different model than the current default
+	Reanalyze              bool                   `protobuf:"varint,13,opt,name=reanalyze,proto3" json:"reanalyze,omitempty"`                                                               // Re-analyze every article in the window, even if it already has a current-model analysis
+	VibeScore              *bool                  `protobuf:"varint,14,opt,name=vibe_score,json=vibeScore,proto3,oneof" json:"vibe_score,omitempty"`                                        // When set, overrides the server's vibe_score config for this run (legacy single-number importance prompt)
+	Provider               string                 `protobuf:"bytes,15,opt,name=provider,proto3" json:"provider,omitempty"`                                                                  // Provider override (type or profile name, auto-detected); applies to all LLM steps of this run
+	Model                  string                 `protobuf:"bytes,16,opt,name=model,proto3" json:"model,omitempty"`                                                                        // Model override; with empty provider the server resolves the matching provider
+	Glossary               *bool                  `protobuf:"varint,17,opt,name=glossary,proto3,oneof" json:"glossary,omitempty"`                                                           // When set, overrides the server's glossary config for this run (plain-language explanation + jargon glossary)
+	StandardSynthesis      *bool                  `protobuf:"varint,18,opt,name=standard_synthesis,json=standardSynthesis,proto3,oneof" json:"standard_synthesis,omitempty"`                // When set, overrides the server's standard_synthesis config (generate the Standard article summary)
+	ComprehensiveSynthesis *bool                  `protobuf:"varint,19,opt,name=comprehensive_synthesis,json=comprehensiveSynthesis,proto3,oneof" json:"comprehensive_synthesis,omitempty"` // When set, overrides the server's comprehensive_synthesis config (generate the Full article summary)
+	ExecutiveSummary       *bool                  `protobuf:"varint,20,opt,name=executive_summary,json=executiveSummary,proto3,oneof" json:"executive_summary,omitempty"`                   // When set, overrides the server's executive_summary config (generate the digest-level executive summary)
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -370,13 +372,6 @@ func (x *GenerateDigestRequest) GetSkipDuplicates() bool {
 func (x *GenerateDigestRequest) GetExcludeDigested() bool {
 	if x != nil {
 		return x.ExcludeDigested
-	}
-	return false
-}
-
-func (x *GenerateDigestRequest) GetSkipSummary() bool {
-	if x != nil {
-		return x.SkipSummary
 	}
 	return false
 }
@@ -454,6 +449,27 @@ func (x *GenerateDigestRequest) GetModel() string {
 func (x *GenerateDigestRequest) GetGlossary() bool {
 	if x != nil && x.Glossary != nil {
 		return *x.Glossary
+	}
+	return false
+}
+
+func (x *GenerateDigestRequest) GetStandardSynthesis() bool {
+	if x != nil && x.StandardSynthesis != nil {
+		return *x.StandardSynthesis
+	}
+	return false
+}
+
+func (x *GenerateDigestRequest) GetComprehensiveSynthesis() bool {
+	if x != nil && x.ComprehensiveSynthesis != nil {
+		return *x.ComprehensiveSynthesis
+	}
+	return false
+}
+
+func (x *GenerateDigestRequest) GetExecutiveSummary() bool {
+	if x != nil && x.ExecutiveSummary != nil {
+		return *x.ExecutiveSummary
 	}
 	return false
 }
@@ -1125,15 +1141,14 @@ const file_digests_proto_rawDesc = "" +
 	"\barticles\x18\x01 \x03(\v2\x11.downlink.ArticleR\barticles\"%\n" +
 	"\x13DeleteDigestRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x19\n" +
-	"\x17DeleteAllDigestsRequest\"\xd1\x05\n" +
+	"\x17DeleteAllDigestsRequest\"\xa1\a\n" +
 	"\x15GenerateDigestRequest\x129\n" +
 	"\n" +
 	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12#\n" +
 	"\rskip_analysis\x18\x03 \x01(\bR\fskipAnalysis\x12'\n" +
 	"\x0fskip_duplicates\x18\x04 \x01(\bR\x0eskipDuplicates\x12)\n" +
-	"\x10exclude_digested\x18\x05 \x01(\bR\x0fexcludeDigested\x12!\n" +
-	"\fskip_summary\x18\x06 \x01(\bR\vskipSummary\x12\x14\n" +
+	"\x10exclude_digested\x18\x05 \x01(\bR\x0fexcludeDigested\x12\x14\n" +
 	"\x05theme\x18\a \x01(\tR\x05theme\x12*\n" +
 	"\x11one_shot_analysis\x18\b \x01(\bR\x0foneShotAnalysis\x12\x12\n" +
 	"\x04test\x18\t \x01(\bR\x04test\x12$\n" +
@@ -1146,10 +1161,16 @@ const file_digests_proto_rawDesc = "" +
 	"vibe_score\x18\x0e \x01(\bH\x01R\tvibeScore\x88\x01\x01\x12\x1a\n" +
 	"\bprovider\x18\x0f \x01(\tR\bprovider\x12\x14\n" +
 	"\x05model\x18\x10 \x01(\tR\x05model\x12\x1f\n" +
-	"\bglossary\x18\x11 \x01(\bH\x02R\bglossary\x88\x01\x01B\x13\n" +
+	"\bglossary\x18\x11 \x01(\bH\x02R\bglossary\x88\x01\x01\x122\n" +
+	"\x12standard_synthesis\x18\x12 \x01(\bH\x03R\x11standardSynthesis\x88\x01\x01\x12<\n" +
+	"\x17comprehensive_synthesis\x18\x13 \x01(\bH\x04R\x16comprehensiveSynthesis\x88\x01\x01\x120\n" +
+	"\x11executive_summary\x18\x14 \x01(\bH\x05R\x10executiveSummary\x88\x01\x01B\x13\n" +
 	"\x11_gh_pages_enabledB\r\n" +
 	"\v_vibe_scoreB\v\n" +
-	"\t_glossary\"B\n" +
+	"\t_glossaryB\x15\n" +
+	"\x13_standard_synthesisB\x1a\n" +
+	"\x18_comprehensive_synthesisB\x14\n" +
+	"\x12_executive_summaryJ\x04\b\x06\x10\a\"B\n" +
 	"\x16GenerateDigestResponse\x12(\n" +
 	"\x06digest\x18\x01 \x01(\v2\x10.downlink.DigestR\x06digest\"\xf5\x02\n" +
 	"\x13DigestProgressEvent\x12\x14\n" +

@@ -24,7 +24,7 @@ func TestLoadManifestReadsExistingFile(t *testing.T) {
 				ShouldCount:  1,
 				Provider:     "openai",
 				Model:        "gpt-test",
-				Headlines:    []string{"Article A"},
+				Headlines:    []Headline{{Title: "Article A", Priority: "must"}},
 				Summary:      "A short digest.",
 			},
 		},
@@ -142,7 +142,7 @@ func TestManifestEntryFromDigest(t *testing.T) {
 		got.Summary != "A short digest." {
 		t.Fatalf("ManifestEntryFromDigest() = %+v", got)
 	}
-	if len(got.Headlines) != 2 || got.Headlines[0] != "Article B" || got.Headlines[1] != "Article A" {
+	if len(got.Headlines) != 2 || got.Headlines[0].Title != "Article B" || got.Headlines[1].Title != "Article A" {
 		t.Fatalf("headlines = %+v", got.Headlines)
 	}
 }

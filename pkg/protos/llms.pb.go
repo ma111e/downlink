@@ -461,18 +461,20 @@ func (x *ModelInfo) GetProviderType() string {
 
 // AnalyzeArticleWithProviderModelRequest is the request for the AnalyzeArticleWithProviderModel method
 type AnalyzeArticleWithProviderModelRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ArticleId      string                 `protobuf:"bytes,1,opt,name=article_id,json=articleId,proto3" json:"article_id,omitempty"`
-	ProviderType   string                 `protobuf:"bytes,2,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
-	ModelName      string                 `protobuf:"bytes,3,opt,name=model_name,json=modelName,proto3" json:"model_name,omitempty"`
-	FastMode       bool                   `protobuf:"varint,4,opt,name=fast_mode,json=fastMode,proto3" json:"fast_mode,omitempty"`                   // If true, only extract key points
-	ProviderName   string                 `protobuf:"bytes,6,opt,name=provider_name,json=providerName,proto3" json:"provider_name,omitempty"`        // Named profile from config.providers; takes precedence over provider_type/model_name
-	SkipReferences bool                   `protobuf:"varint,7,opt,name=skip_references,json=skipReferences,proto3" json:"skip_references,omitempty"` // If true, skip the referenced_reports task
-	VibeScore      *bool                  `protobuf:"varint,8,opt,name=vibe_score,json=vibeScore,proto3,oneof" json:"vibe_score,omitempty"`          // When set, overrides the server's vibe_score config (legacy single-number importance prompt)
-	Provider       string                 `protobuf:"bytes,9,opt,name=provider,proto3" json:"provider,omitempty"`                                    // Provider override (type or profile name, auto-detected by the server)
-	Glossary       *bool                  `protobuf:"varint,10,opt,name=glossary,proto3,oneof" json:"glossary,omitempty"`                            // When set, overrides the server's glossary config (plain-language explanation + jargon glossary)
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	ArticleId              string                 `protobuf:"bytes,1,opt,name=article_id,json=articleId,proto3" json:"article_id,omitempty"`
+	ProviderType           string                 `protobuf:"bytes,2,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
+	ModelName              string                 `protobuf:"bytes,3,opt,name=model_name,json=modelName,proto3" json:"model_name,omitempty"`
+	FastMode               bool                   `protobuf:"varint,4,opt,name=fast_mode,json=fastMode,proto3" json:"fast_mode,omitempty"`                                                  // If true, only extract key points
+	ProviderName           string                 `protobuf:"bytes,6,opt,name=provider_name,json=providerName,proto3" json:"provider_name,omitempty"`                                       // Named profile from config.providers; takes precedence over provider_type/model_name
+	SkipReferences         bool                   `protobuf:"varint,7,opt,name=skip_references,json=skipReferences,proto3" json:"skip_references,omitempty"`                                // If true, skip the referenced_reports task
+	VibeScore              *bool                  `protobuf:"varint,8,opt,name=vibe_score,json=vibeScore,proto3,oneof" json:"vibe_score,omitempty"`                                         // When set, overrides the server's vibe_score config (legacy single-number importance prompt)
+	Provider               string                 `protobuf:"bytes,9,opt,name=provider,proto3" json:"provider,omitempty"`                                                                   // Provider override (type or profile name, auto-detected by the server)
+	Glossary               *bool                  `protobuf:"varint,10,opt,name=glossary,proto3,oneof" json:"glossary,omitempty"`                                                           // When set, overrides the server's glossary config (plain-language explanation + jargon glossary)
+	StandardSynthesis      *bool                  `protobuf:"varint,11,opt,name=standard_synthesis,json=standardSynthesis,proto3,oneof" json:"standard_synthesis,omitempty"`                // When set, overrides the server's standard_synthesis config (generate the Standard article summary)
+	ComprehensiveSynthesis *bool                  `protobuf:"varint,12,opt,name=comprehensive_synthesis,json=comprehensiveSynthesis,proto3,oneof" json:"comprehensive_synthesis,omitempty"` // When set, overrides the server's comprehensive_synthesis config (generate the Full article summary)
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *AnalyzeArticleWithProviderModelRequest) Reset() {
@@ -564,6 +566,20 @@ func (x *AnalyzeArticleWithProviderModelRequest) GetProvider() string {
 func (x *AnalyzeArticleWithProviderModelRequest) GetGlossary() bool {
 	if x != nil && x.Glossary != nil {
 		return *x.Glossary
+	}
+	return false
+}
+
+func (x *AnalyzeArticleWithProviderModelRequest) GetStandardSynthesis() bool {
+	if x != nil && x.StandardSynthesis != nil {
+		return *x.StandardSynthesis
+	}
+	return false
+}
+
+func (x *AnalyzeArticleWithProviderModelRequest) GetComprehensiveSynthesis() bool {
+	if x != nil && x.ComprehensiveSynthesis != nil {
+		return *x.ComprehensiveSynthesis
 	}
 	return false
 }
@@ -2132,7 +2148,7 @@ const file_llms_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12#\n" +
-	"\rprovider_type\x18\x05 \x01(\tR\fproviderType\"\xf9\x02\n" +
+	"\rprovider_type\x18\x05 \x01(\tR\fproviderType\"\x9e\x04\n" +
 	"&AnalyzeArticleWithProviderModelRequest\x12\x1d\n" +
 	"\n" +
 	"article_id\x18\x01 \x01(\tR\tarticleId\x12#\n" +
@@ -2146,9 +2162,13 @@ const file_llms_proto_rawDesc = "" +
 	"vibe_score\x18\b \x01(\bH\x00R\tvibeScore\x88\x01\x01\x12\x1a\n" +
 	"\bprovider\x18\t \x01(\tR\bprovider\x12\x1f\n" +
 	"\bglossary\x18\n" +
-	" \x01(\bH\x01R\bglossary\x88\x01\x01B\r\n" +
+	" \x01(\bH\x01R\bglossary\x88\x01\x01\x122\n" +
+	"\x12standard_synthesis\x18\v \x01(\bH\x02R\x11standardSynthesis\x88\x01\x01\x12<\n" +
+	"\x17comprehensive_synthesis\x18\f \x01(\bH\x03R\x16comprehensiveSynthesis\x88\x01\x01B\r\n" +
 	"\v_vibe_scoreB\v\n" +
-	"\t_glossaryJ\x04\b\x05\x10\x06\"`\n" +
+	"\t_glossaryB\x15\n" +
+	"\x13_standard_synthesisB\x1a\n" +
+	"\x18_comprehensive_synthesisJ\x04\b\x05\x10\x06\"`\n" +
 	"'AnalyzeArticleWithProviderModelResponse\x125\n" +
 	"\banalysis\x18\x01 \x01(\v2\x19.downlink.ArticleAnalysisR\banalysis\"S\n" +
 	"\x15AnalyzeArticleRequest\x12\x1d\n" +

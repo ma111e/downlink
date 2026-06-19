@@ -72,6 +72,9 @@ See [llm-providers.md](llm-providers.md) for which fields each provider type nee
 | `auto_analyze` | bool | `false` | Enqueue articles for analysis automatically after each feed refresh. |
 | `vibe_score` | bool | `false` | Use the legacy single-number importance prompt instead of the rubric. See [analysis-and-scoring.md](analysis-and-scoring.md). |
 | `glossary` | bool | `false` | Generate a plain-language explanation and jargon glossary per article, shown on the digest page behind a "Glossary" nav switch. Adds one LLM round-trip per article; re-analyze existing articles to populate it. Override per run with `dlk digest generate --glossary` (or `--glossary=false` to force off). |
+| `standard_synthesis` | bool | `false` | Also generate the **Standard** article summary (a medium, multi-paragraph synthesis), shown as an extra tab in the digest. The **Brief** summary is always generated. Override per run with `dlk digest generate --standard-synthesis` (or `=false` to force off). |
+| `comprehensive_synthesis` | bool | `false` | Also generate the **Comprehensive** article summary (a long, structured analysis), shown as an extra tab in the digest. Override per run with `dlk digest generate --comprehensive-synthesis` (or `=false` to force off). |
+| `executive_summary` | bool | `false` | Generate the digest-level executive summary (a title plus a thematic overview shown under "Executive Overview" and in the Discord embed). Override per run with `dlk digest generate --executive-summary` (or `=false` to force off). |
 | `persona` | string | / | Prompt prefix injected before every analysis request. |
 | `writing_style` | string | / | Style guide injected into the digest summary prompt. |
 

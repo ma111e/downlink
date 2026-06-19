@@ -145,6 +145,7 @@ func createDigestCommands() *cobra.Command {
 	var digestFrom, digestTo, digestBetween, digestDay, digestTheme, digestTestID string
 	var digestProvider, digestModel string
 	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages, digestReanalyzeOnModelChange, digestReanalyze, digestVibeScore, digestGlossary, digestSelectModel bool
+	var digestStandardSynthesis, digestComprehensiveSynthesis, digestExecutiveSummary bool
 	generateCmd := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate a new digest",
@@ -335,14 +336,19 @@ Examples:
 
 			skipAnalysis, _ := cmd.Flags().GetBool("skip-analysis")
 			skipDuplicates, _ := cmd.Flags().GetBool("skip-duplicates")
-			skipSummary, _ := cmd.Flags().GetBool("skip-summary")
 			excludeDigested, _ := cmd.Flags().GetBool("exclude-digested")
 			oneShotAnalysis, _ := cmd.Flags().GetBool("one-shot")
+
+			// Tri-state override for the opt-in executive summary, same semantics as
+			// vibe_score: only override the server config when the flag was set.
+			var executiveSummary *bool
+			if cmd.Flags().Changed("executive-summary") {
+				executiveSummary = &digestExecutiveSummary
+			}
 
 			if skipLLM, _ := cmd.Flags().GetBool("skip-llm"); skipLLM {
 				skipAnalysis = true
 				skipDuplicates = true
-				skipSummary = true
 			}
 
 			prog := newBatchProgress()
@@ -353,7 +359,10 @@ Examples:
 			if !skipDuplicates {
 				prog.addHiddenRow("dedupe", "deduplicating")
 			}
-			if !skipSummary {
+			// The executive summary is opt-in: register its progress row unless it was
+			// explicitly disabled for this run. The row stays hidden until the
+			// "summarize" stage actually runs.
+			if executiveSummary == nil || *executiveSummary {
 				prog.addHiddenRow("summarize", "generating summary")
 			}
 			prog.addHiddenRow("store", "storing digest")
@@ -406,6 +415,17 @@ Examples:
 				glossary = &digestGlossary
 			}
 
+			// Tri-state overrides for the Standard and Comprehensive article
+			// summaries, same semantics as vibe_score.
+			var standardSynthesis *bool
+			if cmd.Flags().Changed("standard-synthesis") {
+				standardSynthesis = &digestStandardSynthesis
+			}
+			var comprehensiveSynthesis *bool
+			if cmd.Flags().Changed("comprehensive-synthesis") {
+				comprehensiveSynthesis = &digestComprehensiveSynthesis
+			}
+
 			handler := newDigestProgressHandler(prog)
 			digest, err := client.GenerateDigestWithOptions(ctx, downlinkclient.GenerateDigestOptions{
 				StartTime:              *fromTime,
@@ -413,7 +433,6 @@ Examples:
 				SkipAnalysis:           skipAnalysis,
 				SkipDuplicates:         skipDuplicates,
 				ExcludeDigested:        excludeDigested,
-				SkipSummary:            skipSummary,
 				Theme:                  digestTheme,
 				OneShotAnalysis:        oneShotAnalysis,
 				GHPagesEnabled:         ghPagesEnabled,
@@ -421,6 +440,9 @@ Examples:
 				Reanalyze:              digestReanalyze,
 				VibeScore:              vibeScore,
 				Glossary:               glossary,
+				StandardSynthesis:      standardSynthesis,
+				ComprehensiveSynthesis: comprehensiveSynthesis,
+				ExecutiveSummary:       executiveSummary,
 				Provider:               digestProvider,
 				Model:                  digestModel,
 				OnEvent:                handler,
@@ -457,7 +479,7 @@ Examples:
 	generateCmd.Flags().Bool("skip-llm", false, "Skip all LLM usage (analysis, duplicate detection, and summary)")
 	generateCmd.Flags().Bool("skip-analysis", false, "Skip LLM-based article analysis")
 	generateCmd.Flags().Bool("skip-duplicates", false, "Skip LLM-based duplicate detection")
-	generateCmd.Flags().Bool("skip-summary", false, "Skip LLM-based digest summary generation")
+	generateCmd.Flags().BoolVar(&digestExecutiveSummary, "executive-summary", false, "Generate the digest-level executive summary for this run [overrides server config; use --executive-summary=false to force off]")
 	generateCmd.Flags().Bool("one-shot", false, "Analyze missing articles with one full LLM prompt instead of the multi-step chain")
 	generateCmd.Flags().Bool("exclude-digested", false, "Exclude articles already included in a previous digest")
 	generateCmd.Flags().StringVar(&digestTheme, "theme", "dark", "HTML theme for the digest (see: digest --list-themes)")
@@ -472,6 +494,8 @@ Examples:
 	generateCmd.Flags().BoolVar(&digestReanalyze, "reanalyze", false, "Re-analyze every article in the window, even if it already has an analysis")
 	generateCmd.Flags().BoolVar(&digestVibeScore, "vibe-score", false, "Use the legacy single-number LLM importance prompt instead of the rubric scoring system for this run [overrides server config; use --vibe-score=false to force the rubric]")
 	generateCmd.Flags().BoolVar(&digestGlossary, "glossary", false, "Generate glossary-mode content (plain-language explanation + jargon glossary) for this run [overrides server config; use --glossary=false to force off]")
+	generateCmd.Flags().BoolVar(&digestStandardSynthesis, "standard-synthesis", false, "Generate the Standard article summary for this run [overrides server config; use --standard-synthesis=false to force off]")
+	generateCmd.Flags().BoolVar(&digestComprehensiveSynthesis, "comprehensive-synthesis", false, "Generate the Full (comprehensive) article summary for this run [overrides server config; use --comprehensive-synthesis=false to force off]")
 
 	// Get digest articles command
 	articlesCmd := &cobra.Command{

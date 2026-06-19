@@ -29,8 +29,7 @@ Pipeline control:
 | `--dry-run` | List the articles that would be included, generate nothing. |
 | `--skip-analysis` | Skip LLM article analysis. |
 | `--skip-duplicates` | Skip LLM duplicate detection. |
-| `--skip-summary` | Skip the LLM digest summary. |
-| `--skip-llm` | Skip all three LLM steps. |
+| `--skip-llm` | Skip the LLM analysis and duplicate-detection steps. |
 | `--one-shot` | Analyze missing articles with one combined prompt instead of the multi-step chain. |
 | `--exclude-digested` | Exclude articles already in a previous digest. |
 | `--reanalyze` | Re-analyze every article in the window. |
@@ -44,6 +43,9 @@ Model and scoring:
 | `--select-model` | Pick a model interactively. |
 | `--vibe-score` | Use legacy single-number scoring for this run. See [analysis-and-scoring.md](analysis-and-scoring.md). |
 | `--glossary` | Generate plain-language explanations and a jargon glossary for this run. See [analysis-and-scoring.md](analysis-and-scoring.md). |
+| `--standard-synthesis` | Also generate the Standard article summary for this run (Brief is always generated). Use `=false` to force off. |
+| `--comprehensive-synthesis` | Also generate the Comprehensive article summary for this run. Use `=false` to force off. |
+| `--executive-summary` | Generate the digest-level executive summary for this run (off by default). Use `=false` to force off. |
 
 Output and publishing:
 
