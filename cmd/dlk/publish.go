@@ -202,6 +202,9 @@ This command requires a running downlink server (--address / --port).`,
 			publisher.SetDigestLister(func(n int) ([]models.Digest, error) {
 				return client.ListDigestsFull(n)
 			})
+			publisher.SetSourceLister(func() ([]models.Feed, error) {
+				return client.ListFeeds()
+			})
 			return publisher.SendDigest(digest)
 		},
 	}
@@ -290,6 +293,9 @@ This command requires a running downlink server (--address / --port).`,
 			}
 
 			publisher := notification.NewGitHubPagesPublisher(cfg)
+			publisher.SetSourceLister(func() ([]models.Feed, error) {
+				return client.ListFeeds()
+			})
 			return runPublishWithProgress(publisher, func(prog notification.PublishProgress) error {
 				prog.Start("fetch", fmt.Sprintf("Fetching %d digests", len(summaries)))
 				digests := make([]models.Digest, 0, len(summaries))
@@ -356,6 +362,9 @@ This command requires a running downlink server (--address / --port).`,
 			publisher := notification.NewGitHubPagesPublisher(cfg)
 			publisher.SetDigestLister(func(n int) ([]models.Digest, error) {
 				return client.ListDigestsFull(n)
+			})
+			publisher.SetSourceLister(func() ([]models.Feed, error) {
+				return client.ListFeeds()
 			})
 
 			var digest models.Digest

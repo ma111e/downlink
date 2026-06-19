@@ -40,6 +40,13 @@ func (s *GormStore) GetDigest(id string) (models.Digest, error) {
 	}
 	digest.DigestAnalyses = digestAnalyses
 
+	// Load glossary entries referenced by this digest
+	var digestGlossary []models.DigestGlossary
+	if err := s.db.Preload("Entry").Where("digest_id = ?", id).Find(&digestGlossary).Error; err != nil {
+		return digest, fmt.Errorf("failed to load digest glossary: %w", err)
+	}
+	digest.DigestGlossary = digestGlossary
+
 	return digest, nil
 }
 

@@ -337,6 +337,15 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	}
 	digest.ArticleCount = &articleLen
 
+	// Step 6: Populate the persistent global glossary from this digest (opt-in). Failures
+	// here must never fail digest generation, so errors are logged as warnings only.
+	if glossaryEnabled(req.Glossary) {
+		sendProgress(stream, "glossary", "building glossary...", 0, 0)
+		if err := s.populateGlossary(ctx, digest.Id, analyses, articleMap, req.Provider, req.Model); err != nil {
+			log.WithError(err).WithField("digestId", digest.Id).Warn("Failed to populate glossary")
+		}
+	}
+
 	log.WithFields(log.Fields{
 		"id":              digest.Id,
 		"articleCount":    articleLen,
@@ -511,6 +520,9 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 			publisher.SetDigestLister(func(n int) ([]models.Digest, error) {
 				return store.Db.ListDigests(n, true)
 			})
+			publisher.SetSourceLister(func() ([]models.Feed, error) {
+				return store.Db.ListFeeds()
+			})
 			if err := publisher.SendDigest(digest); err != nil {
 				log.WithError(err).Warn("Failed to publish digest to GitHub Pages")
 				errs = append(errs, fmt.Errorf("github pages: %w", err))
@@ -531,6 +543,9 @@ func (s *DigestServer) getRecentArticles(after time.Time, before *time.Time, exc
 		StartDate:       &after,
 		EndDate:         before,
 		ExcludeDigested: excludeDigested,
+		// The digest covers every article in the window, not a UI page, so
+		// bypass the default page cap that ListArticles otherwise applies.
+		Unbounded: true,
 	}
 
 	articles, err := store.Db.ListArticles(filter)
@@ -947,6 +962,188 @@ func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []mod
 	}).Info("Digest summary generated")
 
 	return strings.TrimSpace(parsed.Title), strings.TrimSpace(parsed.Summary), resolved.ProviderType, resolved.ModelName, nil
+}
+
+// populateGlossary feeds this digest's jargon and named entities into the persistent global
+// glossary and records which entries the digest references. Jargon (already extracted on the
+// analyses) costs nothing; entity definitions are generated in a single batched LLM call that
+// skips any entity already defined. Manual overrides are never overwritten.
+func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, provider, model string) error {
+	stepCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
+	// entryIds collects the canonical glossary entry ids this digest references (deduped).
+	entryIds := make(map[string]struct{})
+
+	// Phase A — jargon: upsert every extracted term (no LLM cost).
+	for i := range analyses {
+		for _, term := range analyses[i].GlossaryTerms {
+			key := models.NormalizeGlossaryKey(term.Term)
+			if key == "" || strings.TrimSpace(term.Definition) == "" {
+				continue
+			}
+			entry := &models.GlossaryEntry{
+				NormalizedKey:   key,
+				Term:            strings.TrimSpace(term.Term),
+				Kind:            models.GlossaryKindJargon,
+				Definition:      strings.TrimSpace(term.Definition),
+				DefinitionModel: model,
+				Source:          "analysis:" + analyses[i].Id,
+			}
+			if err := store.Db.UpsertGlossaryEntry(entry); err != nil {
+				log.WithError(err).WithField("term", term.Term).Warn("Failed to upsert jargon glossary entry")
+				continue
+			}
+			entryIds[entry.Id] = struct{}{}
+		}
+	}
+
+	// Phase B — entities: collect distinct tag slugs across the digest's articles.
+	slugByKey := make(map[string]string) // normalized key -> tag slug
+	for _, article := range articleMap {
+		for _, tag := range article.Tags {
+			slug := strings.TrimSpace(tag.Name)
+			if slug == "" {
+				continue
+			}
+			slugByKey[models.NormalizeGlossaryKey(slug)] = slug
+		}
+	}
+
+	if len(slugByKey) > 0 {
+		keys := make([]string, 0, len(slugByKey))
+		for key := range slugByKey {
+			keys = append(keys, key)
+		}
+		existing, err := store.Db.GetGlossaryEntriesByKeys(keys)
+		if err != nil {
+			return fmt.Errorf("failed to load existing glossary entries: %w", err)
+		}
+
+		// Reference entities that already have a definition; queue the rest for the LLM.
+		var undefinedSlugs []string
+		for key, slug := range slugByKey {
+			if e, ok := existing[key]; ok && e.EffectiveDefinition() != "" {
+				entryIds[e.Id] = struct{}{}
+				continue
+			}
+			undefinedSlugs = append(undefinedSlugs, slug)
+		}
+
+		if len(undefinedSlugs) > 0 {
+			defs, err := s.defineEntities(stepCtx, undefinedSlugs, provider, model)
+			if err != nil {
+				log.WithError(err).Warn("Failed to generate entity definitions for glossary")
+			}
+			for key, def := range defs {
+				slug := slugByKey[key]
+				if slug == "" {
+					slug = key
+				}
+				entry := &models.GlossaryEntry{
+					NormalizedKey:   key,
+					Term:            slug,
+					Kind:            models.GlossaryKindEntity,
+					Definition:      def,
+					TagId:           slug,
+					DefinitionModel: model,
+					Source:          "tag",
+				}
+				if err := store.Db.UpsertGlossaryEntry(entry); err != nil {
+					log.WithError(err).WithField("entity", slug).Warn("Failed to upsert entity glossary entry")
+					continue
+				}
+				entryIds[entry.Id] = struct{}{}
+			}
+		}
+	}
+
+	if len(entryIds) == 0 {
+		return nil
+	}
+	rows := make([]models.DigestGlossary, 0, len(entryIds))
+	for id := range entryIds {
+		rows = append(rows, models.DigestGlossary{DigestId: digestId, EntryId: id})
+	}
+	if err := store.Db.StoreDigestGlossaryBatch(rows); err != nil {
+		return fmt.Errorf("failed to store digest glossary links: %w", err)
+	}
+
+	log.WithFields(log.Fields{"digestId": digestId, "entries": len(rows)}).Info("Glossary populated")
+	return nil
+}
+
+// defineEntities asks the model for a one-line plain-language definition of each named
+// entity, returned keyed by NormalizedGlossaryKey. Unknown entities (empty definitions)
+// are dropped so they can be retried on a future digest.
+func (s *DigestServer) defineEntities(ctx context.Context, entities []string, provider, model string) (map[string]string, error) {
+	if len(entities) == 0 {
+		return map[string]string{}, nil
+	}
+
+	var list strings.Builder
+	for _, e := range entities {
+		list.WriteString(e)
+		list.WriteString("\n")
+	}
+
+	prompt := fmt.Sprintf(`You are explaining cybersecurity terms to a complete beginner. For each named
+entity below (threat actor, malware family, tool, CVE, technique, vendor, organization, or
+country relevant to a security story), give one plain-language sentence a newcomer can
+understand. If you do not recognize an entity, or cannot define it confidently, return an
+empty string for it — do not guess.
+
+Echo back each entity exactly as given (the key).
+
+<start_of_entities>
+%s<end_of_entities>
+
+Respond with valid JSON only — no explanations, markdown, or text outside the JSON structure:
+
+{
+  "definitions": {
+    "<entity>": "<one plain-language sentence, or empty string if unknown>"
+  }
+}`, list.String())
+
+	resolved, err := ResolveLLM(LLMRequest{Provider: provider, ModelName: model})
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve LLM provider: %w", err)
+	}
+
+	rawResponse, err := s.gw.Generate(ctx, resolved.Provider, prompt, llmgateway.WithLabel("digest:glossary-entities"))
+	if err != nil {
+		return nil, fmt.Errorf("LLM call for entity definitions failed: %w", err)
+	}
+
+	cleaned := llmutil.CleanLLMResponse(rawResponse)
+	var parsed struct {
+		Definitions map[string]string `json:"definitions"`
+	}
+	if err := json.Unmarshal([]byte(cleaned), &parsed); err != nil {
+		if err := json.Unmarshal([]byte(llmutil.ExtractJSON(cleaned)), &parsed); err != nil {
+			return nil, fmt.Errorf("failed to parse entity definitions: %w", err)
+		}
+	}
+
+	return entityDefinitionsFromResult(parsed.Definitions), nil
+}
+
+// entityDefinitionsFromResult normalizes entity-definition keys and drops empty definitions.
+func entityDefinitionsFromResult(raw map[string]string) map[string]string {
+	out := make(map[string]string)
+	for entity, def := range raw {
+		def = strings.TrimSpace(def)
+		if def == "" {
+			continue
+		}
+		key := models.NormalizeGlossaryKey(entity)
+		if key == "" {
+			continue
+		}
+		out[key] = def
+	}
+	return out
 }
 
 func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time) string {

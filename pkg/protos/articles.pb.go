@@ -497,6 +497,7 @@ type ArticleFilter struct {
 	ExcludeDigested bool                   `protobuf:"varint,10,opt,name=exclude_digested,json=excludeDigested,proto3" json:"exclude_digested,omitempty"`
 	Limit           uint32                 `protobuf:"varint,11,opt,name=limit,proto3" json:"limit,omitempty"`
 	Query           string                 `protobuf:"bytes,12,opt,name=query,proto3" json:"query,omitempty"`
+	Unbounded       bool                   `protobuf:"varint,13,opt,name=unbounded,proto3" json:"unbounded,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -613,6 +614,13 @@ func (x *ArticleFilter) GetQuery() string {
 		return x.Query
 	}
 	return ""
+}
+
+func (x *ArticleFilter) GetUnbounded() bool {
+	if x != nil {
+		return x.Unbounded
+	}
+	return false
 }
 
 // ListArticlesResponse represents the response with a list of articles
@@ -1013,7 +1021,7 @@ const file_articles_proto_rawDesc = "" +
 	"\x05_readB\x10\n" +
 	"\x0e_category_nameB\r\n" +
 	"\v_hero_imageB\r\n" +
-	"\v_bookmarked\"\xb3\x03\n" +
+	"\v_bookmarked\"\xd1\x03\n" +
 	"\rArticleFilter\x12\x1f\n" +
 	"\vunread_only\x18\x01 \x01(\bR\n" +
 	"unreadOnly\x12#\n" +
@@ -1029,7 +1037,8 @@ const file_articles_proto_rawDesc = "" +
 	"\x10exclude_digested\x18\n" +
 	" \x01(\bR\x0fexcludeDigested\x12\x14\n" +
 	"\x05limit\x18\v \x01(\rR\x05limit\x12\x14\n" +
-	"\x05query\x18\f \x01(\tR\x05query\"E\n" +
+	"\x05query\x18\f \x01(\tR\x05query\x12\x1c\n" +
+	"\tunbounded\x18\r \x01(\bR\tunbounded\"E\n" +
 	"\x14ListArticlesResponse\x12-\n" +
 	"\barticles\x18\x01 \x03(\v2\x11.downlink.ArticleR\barticles\"\x86\x02\n" +
 	"\x15ArticleCountsResponse\x12(\n" +

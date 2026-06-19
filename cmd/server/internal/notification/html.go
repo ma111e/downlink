@@ -2,6 +2,7 @@ package notification
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/ma111e/downlink/pkg/digestthemes"
 	"github.com/ma111e/downlink/pkg/models"
@@ -263,8 +264,16 @@ type digestTemplateData struct {
 	CategoryCounts   map[string]int // TOC rows per category, for the category filter badges
 	PriorityCounts   map[string]int // TOC rows per priority key (must/should/may), for the priority filter badges
 	Tags             []TagCount     // distinct tags present among TOC rows (with match counts), for the tag filter cloud
-	HasGlossary      bool           // true when any article has glossary-mode content, gating the nav switch
+	HasGlossary      bool           // true when the digest has glossary content, gating the nav switch + modal
+	GlossaryJSON     template.JS    // normalized-key → {term, def} map baked in for the definition modal
 	Commit           string
+}
+
+// glossaryJSEntry is one entry in the page's baked-in term→definition lookup.
+type glossaryJSEntry struct {
+	Term string `json:"term"`
+	Def  string `json:"def"`
+	Tag  string `json:"tag,omitempty"`
 }
 
 // TagCount is a tag and the number of TOC rows that carry it (matching the row-level
@@ -304,6 +313,29 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 
 	var tocEntries []TOCEntry
 	var articleEntries []ArticleEntry
+
+	// Build the digest-wide glossary lookup from the entries this digest references. In-prose
+	// highlighting is driven by this set (defined jargon + defined entities), so every highlight
+	// resolves to a definition in the modal. When the digest has no glossary, highlighting is off.
+	glossaryByKey := make(map[string]glossaryJSEntry, len(digest.DigestGlossary))
+	glossaryTerms := make([]string, 0, len(digest.DigestGlossary))
+	for _, dg := range digest.DigestGlossary {
+		if dg.Entry == nil {
+			continue
+		}
+		def := dg.Entry.EffectiveDefinition()
+		if def == "" {
+			continue
+		}
+		key := dg.Entry.NormalizedKey
+		if _, seen := glossaryByKey[key]; seen {
+			continue
+		}
+		glossaryByKey[key] = glossaryJSEntry{Term: dg.Entry.Term, Def: def, Tag: dg.Entry.TagId}
+		glossaryTerms = append(glossaryTerms, dg.Entry.Term)
+	}
+	glossaryActive := len(glossaryByKey) > 0
+	glossaryRe := compileTagRegexp(glossaryTerms) // nil when no glossary → highlighting is a no-op
 
 	digestModelName := strings.Join(digestAllModelNames(digest), " · ")
 
@@ -347,7 +379,9 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		for _, t := range art.Tags {
 			tags = append(tags, t.Name)
 		}
-		tagRe := compileTagRegexp(tags)
+		// Highlight defined glossary terms (jargon + entities), not raw tags. When the digest has
+		// no glossary, glossaryRe is nil and highlighting is a no-op.
+		tagRe := glossaryRe
 
 		var rendered *RenderedAnalysis
 		if analysis != nil {
@@ -481,19 +515,17 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		return tags[i].Name < tags[j].Name
 	})
 
-	// Highlight the digest-level executive summary against the same tag set that builds the
-	// header filter cloud, so every highlighted word maps to a real filter pill.
-	summaryTagNames := make([]string, 0, len(tags))
-	for _, t := range tags {
-		summaryTagNames = append(summaryTagNames, t.Name)
-	}
-	summaryTagRe := compileTagRegexp(summaryTagNames)
+	// In glossary mode, highlight the executive summary against the glossary term set (so its
+	// highlights open the definition modal); otherwise leave the summary unhighlighted.
+	summaryTagRe := glossaryRe
 
-	hasGlossary := false
-	for _, e := range articleEntries {
-		if e.Analysis != nil && e.Analysis.GlossaryExplanation != "" {
-			hasGlossary = true
-			break
+	hasGlossary := glossaryActive
+	if !hasGlossary {
+		for _, e := range articleEntries {
+			if e.Analysis != nil && e.Analysis.GlossaryExplanation != "" {
+				hasGlossary = true
+				break
+			}
 		}
 	}
 
@@ -518,6 +550,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		Themes:           themeOptions(),
 		PaletteCSS:       paletteCSS(),
 		HasGlossary:      hasGlossary,
+		GlossaryJSON:     marshalGlossaryJS(glossaryByKey),
 		Commit:           version.Commit,
 	}
 
@@ -654,6 +687,20 @@ func markdownToHTML(md string) template.HTML {
 
 // htmlTagSplit matches HTML tags so highlighting can skip them and only touch text nodes.
 var htmlTagSplit = regexp.MustCompile(`<[^>]*>`)
+
+// marshalGlossaryJS serializes the term→definition lookup into a JS object literal for the
+// definition modal. encoding/json escapes '<', '>' and '&' (e.g. "</script>" → "</script>"),
+// so the result is safe to inject inside a <script> block via template.JS. Returns "{}" when empty.
+func marshalGlossaryJS(m map[string]glossaryJSEntry) template.JS {
+	if len(m) == 0 {
+		return template.JS("{}")
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return template.JS("{}")
+	}
+	return template.JS(b) //nolint:gosec // values are JSON-encoded; encoding/json escapes HTML-significant runes
+}
 
 // compileTagRegexp builds a single case-insensitive, word-bounded alternation that
 // matches any of the given kebab-case tags in prose, treating '-' as interchangeable
@@ -1131,6 +1178,65 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, theme string) ([]byt
 		Themes:        themeOptions(),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render digest index: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// sourceEntry is one feed row on the sources page.
+type sourceEntry struct {
+	Title string
+	URL   string
+	Host  string
+}
+
+type sourcesTemplateData struct {
+	Theme   string        // resolved data-theme attribute value
+	Themes  []themeOption // all known themes, for the picker + pre-paint allowlist
+	Commit  string
+	Sources []sourceEntry
+}
+
+// RenderSourcesPage generates the standalone "sources" page listing every
+// enabled feed. The feeds are embedded server-side, so the rendered bytes are
+// self-contained and need no client-side fetch. Disabled feeds are omitted.
+func RenderSourcesPage(feeds []models.Feed, theme string) ([]byte, error) {
+	templateText, err := loadNotificationTemplate("sources.html.tmpl")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load sources template: %w", err)
+	}
+
+	tmpl, err := template.New("sources").Parse(templateText)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse sources template: %w", err)
+	}
+
+	var entries []sourceEntry
+	for _, f := range feeds {
+		if f.Enabled != nil && !*f.Enabled {
+			continue
+		}
+		title := f.Title
+		if title == "" {
+			title = articleSource(f.URL)
+		}
+		entries = append(entries, sourceEntry{
+			Title: title,
+			URL:   f.URL,
+			Host:  articleSource(f.URL),
+		})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return strings.ToLower(entries[i].Title) < strings.ToLower(entries[j].Title)
+	})
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, sourcesTemplateData{
+		Theme:   normalizeTheme(theme),
+		Themes:  themeOptions(),
+		Commit:  version.Commit,
+		Sources: entries,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to render sources page: %w", err)
 	}
 	return buf.Bytes(), nil
 }

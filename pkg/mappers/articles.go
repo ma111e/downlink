@@ -134,6 +134,7 @@ func ArticleFilterToModel(protoFilter *protos.ArticleFilter) *models.ArticleFilt
 		Limit:           int(protoFilter.Limit),
 		Query:           protoFilter.Query,
 		ExcludeDigested: protoFilter.ExcludeDigested,
+		Unbounded:       protoFilter.Unbounded,
 		// These fields MUST BE INITIALIZED or they won't be set in the query (??)
 		// StartDate: &time.Time{},
 		// EndDate:   &time.Time{},
@@ -164,6 +165,7 @@ func ArticleFilterToProto(modelFilter *models.ArticleFilter) *protos.ArticleFilt
 		Limit:           uint32(modelFilter.Limit),
 		Query:           modelFilter.Query,
 		ExcludeDigested: modelFilter.ExcludeDigested,
+		Unbounded:       modelFilter.Unbounded,
 		// These fields MUST BE INITIALIZED or they won't be set in the query (??)
 		// StartDate: &timestamppb.Timestamp{},
 		// EndDate:   &timestamppb.Timestamp{},

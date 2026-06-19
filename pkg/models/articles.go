@@ -70,4 +70,7 @@ type ArticleFilter struct {
 	Offset          int        `json:"offset,omitempty"`
 	Limit           int        `json:"limit,omitempty"`
 	Query           string     `json:"query,omitempty"`
+	// Unbounded returns every matching row, bypassing the default page cap.
+	// Used by digest generation, which needs the full window, not a UI page.
+	Unbounded bool `json:"unbounded,omitempty"`
 }

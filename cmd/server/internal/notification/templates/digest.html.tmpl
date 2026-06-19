@@ -1016,15 +1016,40 @@ mark.tag-hl {
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
+  cursor: text;
   position: relative; /* lift above the stretched .report-link::after overlay */
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+/* The definition modal only opens when glossary mode is on, so only show the affordance then. */
+html[data-glossary="on"] mark.tag-hl { cursor: help; }
+html[data-glossary="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
 }
+
+/* Glossary definition modal */
+.glossary-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.glossary-modal[hidden] { display: none; }
+.glossary-modal-backdrop { position: absolute; inset: 0; background: color-mix(in oklch, var(--bg) 70%, transparent); backdrop-filter: blur(2px); }
+.glossary-modal-card {
+  position: relative;
+  max-width: 30rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem 1.4rem;
+  box-shadow: 0 12px 40px rgba(0,0,0,.4);
+}
+.glossary-modal-close {
+  position: absolute; top: .5rem; right: .6rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.4rem; line-height: 1; cursor: pointer; padding: .15rem .35rem;
+}
+.glossary-modal-close:hover { color: var(--text); }
+.glossary-modal-term { margin: 0 1.5rem .5rem 0; color: var(--cyan); font-size: 1.05rem; }
+.glossary-modal-def { margin: 0; color: var(--text); line-height: 1.5; }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
 .kp-list li { display: flex; gap: 0.6rem; font-size: 13.5px; line-height: 1.6; color: var(--text2); }
@@ -1212,12 +1237,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
 /* ── back to top ─────────────────────────────────── */
 #back-top {
@@ -1307,7 +1334,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
     <select class="nav-theme-select" id="nav-theme-select" onchange="applyTheme(this.value)" title="Select theme" aria-label="Select theme">
       {{range .Themes}}<option value="{{.Value}}">{{.Label}}</option>
       {{end}}</select>
-    {{if .HasGlossary}}<button class="nav-glossary-toggle" id="nav-glossary-toggle" type="button" onclick="toggleGlossary()" aria-pressed="false" title="Show plain-language explanations and a jargon glossary">Glossary</button>{{end}}
+    {{if .HasGlossary}}<button class="nav-glossary-toggle" id="nav-glossary-toggle" type="button" onclick="toggleGlossary()" aria-pressed="false" title="Show plain-language explanations, and click highlighted terms for definitions">Glossary</button>{{end}}
   </div>
 </nav>
 
@@ -1523,8 +1550,18 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+{{if .HasGlossary}}<div id="glossary-modal" class="glossary-modal" hidden>
+  <div class="glossary-modal-backdrop" onclick="closeGlossaryModal()"></div>
+  <div class="glossary-modal-card" role="dialog" aria-modal="true" aria-labelledby="glossary-modal-term">
+    <button class="glossary-modal-close" onclick="closeGlossaryModal()" aria-label="Close">×</button>
+    <h3 id="glossary-modal-term" class="glossary-modal-term"></h3>
+    <p id="glossary-modal-def" class="glossary-modal-def"></p>
+  </div>
+</div>{{end}}
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · {{.StartedAt}} · {{.TimeWindow}} window</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
   <span class="footer-right">{{.ArticleCount}} articles · {{.Commit}}</span>
 </footer>
 
@@ -1656,15 +1693,32 @@ function toggleTag(tag) {
   applyFilters();
 }
 
-// Highlighted entity words in expanded row bodies filter by their tag, just like the
-// tag pills/chips. Tags are lowercase kebab-case, so normalizing the matched prose text
-// (lowercase + collapse whitespace/hyphen runs) reproduces the canonical tag.
+// Glossary: highlighted jargon/entity words in the prose open a plain-language definition
+// modal. The lookup is keyed by a normalized form of the term (lowercase, strip leading '#',
+// collapse whitespace/hyphen runs to a single space) — this MUST match NormalizeGlossaryKey
+// in pkg/models/glossary.go and the highlight regexp in notification/html.go. The modal is
+// gated by the glossary toggle (html[data-glossary="on"]); the highlights themselves are
+// always shown. The top tag pills/chips keep their own filter behavior (toggleTag).
+var GLOSSARY = {{.GlossaryJSON}};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryModal(term, def){
+  document.getElementById('glossary-modal-term').textContent = term;
+  document.getElementById('glossary-modal-def').textContent = def;
+  document.getElementById('glossary-modal').hidden = false;
+}
+function closeGlossaryModal(){
+  var modal = document.getElementById('glossary-modal');
+  if (modal) modal.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); // don't bubble into row/tab handlers
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  if (document.documentElement.dataset.glossary !== 'on') return; // modal disabled by toggle
+  var entry = GLOSSARY[glossaryKey(m.textContent)];
+  if (entry) openGlossaryModal(m.textContent.trim(), entry.def);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryModal(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });

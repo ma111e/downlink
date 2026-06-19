@@ -101,6 +101,8 @@ func (s *GormStore) initSchema() error {
 		&models.DigestProviderResult{},
 		&models.ArticleAnalysis{},
 		&models.DigestAnalysis{},
+		&models.GlossaryEntry{},
+		&models.DigestGlossary{},
 		&models.FeedGroup{},
 		// Add any new allModels here
 	}

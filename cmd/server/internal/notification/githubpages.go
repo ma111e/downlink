@@ -39,6 +39,7 @@ type GitHubPagesPublisher struct {
 	cfg         models.GitHubPagesNotificationConfig
 	progress    PublishProgress
 	listDigests DigestLister
+	listSources SourceLister
 }
 
 // DigestLister returns up to limit newest digests with full payload (provider
@@ -54,6 +55,17 @@ const FeedDigestLimit = 7
 // the RSS/Atom feeds on each push. Passing nil disables feed generation.
 func (p *GitHubPagesPublisher) SetDigestLister(fn DigestLister) {
 	p.listDigests = fn
+}
+
+// SourceLister returns every configured feed. It lets the publisher build the
+// "sources" page without depending on the store: callers that have DB or client
+// access supply it via SetSourceLister. A nil lister disables the sources page.
+type SourceLister func() ([]models.Feed, error)
+
+// SetSourceLister attaches the lister used to fetch the feed list when building
+// the sources page on each push. Passing nil disables sources page generation.
+func (p *GitHubPagesPublisher) SetSourceLister(fn SourceLister) {
+	p.listSources = fn
 }
 
 // SetProgress attaches a PublishProgress sink so callers can render live step
@@ -441,14 +453,53 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, theme 
 		return fmt.Errorf("github pages: failed to build root index: %w", err)
 	}
 	existingRoot, readRootErr := os.ReadFile(rootIndexAbsPath)
-	if readRootErr == nil && bytes.Equal(existingRoot, rootIndexBytes) {
+	if readRootErr != nil || !bytes.Equal(existingRoot, rootIndexBytes) {
+		if err := os.WriteFile(rootIndexAbsPath, rootIndexBytes, 0644); err != nil {
+			return fmt.Errorf("github pages: failed to write root index HTML: %w", err)
+		}
+		if _, err := wt.Add(rootIndexRelPath); err != nil {
+			return fmt.Errorf("github pages: failed to stage root index file: %w", err)
+		}
+	}
+
+	return p.ensureSourcesPage(wt, outputDir, theme)
+}
+
+// ensureSourcesPage writes sources.html at the repo root and under outputDir,
+// listing every enabled feed. Both copies are identical (feeds are embedded at
+// render time), so footer links in the root index and in digest pages can use a
+// relative "sources.html" sibling. When no source lister is configured the page
+// is left untouched.
+func (p *GitHubPagesPublisher) ensureSourcesPage(wt *gogit.Worktree, outputDir, theme string) error {
+	if p.listSources == nil {
 		return nil
 	}
-	if err := os.WriteFile(rootIndexAbsPath, rootIndexBytes, 0644); err != nil {
-		return fmt.Errorf("github pages: failed to write root index HTML: %w", err)
+
+	feeds, err := p.listSources()
+	if err != nil {
+		return fmt.Errorf("github pages: failed to list sources: %w", err)
 	}
-	if _, err := wt.Add(rootIndexRelPath); err != nil {
-		return fmt.Errorf("github pages: failed to stage root index file: %w", err)
+
+	sourcesBytes, err := RenderSourcesPage(feeds, theme)
+	if err != nil {
+		return fmt.Errorf("github pages: failed to build sources page: %w", err)
+	}
+
+	for _, relPath := range []string{"sources.html", filepath.Join(outputDir, "sources.html")} {
+		absPath := filepath.Join(p.cfg.CloneDir, relPath)
+		existing, readErr := os.ReadFile(absPath)
+		if readErr == nil && bytes.Equal(existing, sourcesBytes) {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(absPath), 0755); err != nil {
+			return fmt.Errorf("github pages: failed to create sources dir: %w", err)
+		}
+		if err := os.WriteFile(absPath, sourcesBytes, 0644); err != nil {
+			return fmt.Errorf("github pages: failed to write sources HTML: %w", err)
+		}
+		if _, err := wt.Add(relPath); err != nil {
+			return fmt.Errorf("github pages: failed to stage sources file: %w", err)
+		}
 	}
 	return nil
 }

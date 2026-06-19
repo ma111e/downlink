@@ -39,6 +39,12 @@ type Store interface {
 	StoreDigestAnalysesBatch(entries []models.DigestAnalysis) error
 	GetDigestAnalyses(digestId string) ([]models.DigestAnalysis, error)
 
+	UpsertGlossaryEntry(entry *models.GlossaryEntry) error
+	GetGlossaryEntriesByKeys(keys []string) (map[string]*models.GlossaryEntry, error)
+	StoreDigestGlossaryBatch(rows []models.DigestGlossary) error
+	GetDigestGlossary(digestId string) ([]models.DigestGlossary, error)
+	SetGlossaryManualOverride(key, curatedDef string) error
+
 	GetCategories() ([]models.Category, error)
 	SaveCategory(category models.Category) error
 	GetOrCreateCategory(name string) (*models.Category, error)

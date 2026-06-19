@@ -77,6 +77,41 @@ func TestRenderDigestIndexUsesManifest(t *testing.T) {
 	}
 }
 
+func TestRenderSourcesPageListsEnabledFeeds(t *testing.T) {
+	enabled := true
+	disabled := false
+	feeds := []models.Feed{
+		{Title: "The Verge", URL: "https://www.theverge.com/rss/index.xml", Enabled: &enabled},
+		{Title: "Defunct Blog", URL: "https://defunct.example.com/feed", Enabled: &disabled},
+		{Title: "No Flag Feed", URL: "https://noflag.example.org/atom"}, // nil Enabled => treated as enabled
+	}
+
+	htmlBytes, err := RenderSourcesPage(feeds, "dark")
+	if err != nil {
+		t.Fatalf("RenderSourcesPage() error = %v", err)
+	}
+	html := string(htmlBytes)
+
+	for _, want := range []string{
+		"DOWNLINK // sources",
+		"The Verge",
+		"https://www.theverge.com/rss/index.xml",
+		"theverge.com",
+		"No Flag Feed",
+		`href="index.html"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("RenderSourcesPage() missing %q:\n%s", want, html)
+		}
+	}
+
+	for _, omit := range []string{"Defunct Blog", "defunct.example.com"} {
+		if strings.Contains(html, omit) {
+			t.Fatalf("RenderSourcesPage() should omit disabled feed %q", omit)
+		}
+	}
+}
+
 func TestRenderDigestHTMLDoesNotIncludeManifestSwitcher(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 	htmlBytes, err := RenderDigestHTML(digest, "dark")
@@ -288,6 +323,73 @@ func TestRenderDigestHTMLGlossaryMode(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderDigestHTML() missing glossary fragment %q:\n%s", want, html)
 		}
+	}
+}
+
+func TestRenderDigestHTMLGlossaryModal(t *testing.T) {
+	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+	category := "news"
+	digest := models.Digest{
+		Id:         "digest-modal",
+		CreatedAt:  createdAt,
+		TimeWindow: 24 * time.Hour,
+		Articles: []models.Article{
+			{Id: "article-c", Title: "Modal Article", Link: "https://example.com/c", PublishedAt: createdAt, CategoryName: &category},
+		},
+		DigestAnalyses: []models.DigestAnalysis{
+			{
+				ArticleId: "article-c",
+				Analysis: &models.ArticleAnalysis{
+					ArticleId:     "article-c",
+					ProviderType:  "openai",
+					ModelName:     "gpt-test",
+					BriefOverview: "The crew deployed Cobalt Strike across the estate.",
+				},
+			},
+		},
+		DigestGlossary: []models.DigestGlossary{
+			{
+				DigestId: "digest-modal",
+				EntryId:  "entry-1",
+				Entry: &models.GlossaryEntry{
+					Id:            "entry-1",
+					NormalizedKey: models.NormalizeGlossaryKey("cobalt-strike"),
+					Term:          "cobalt-strike",
+					Kind:          models.GlossaryKindEntity,
+					Definition:    "A commercial hacking toolkit often abused by attackers.",
+					TagId:         "cobalt-strike",
+				},
+			},
+		},
+	}
+
+	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML() error = %v", err)
+	}
+	html := string(htmlBytes)
+
+	for _, want := range []string{
+		// The term→definition map is baked in, keyed by the normalized key.
+		`var GLOSSARY = {`,
+		`"cobalt strike":`,
+		`A commercial hacking toolkit often abused by attackers.`,
+		// The modal scaffold is present.
+		`id="glossary-modal"`,
+		`id="glossary-modal-def"`,
+		// The entity name is highlighted in the prose (regex matches "Cobalt Strike" from slug).
+		`<mark class="tag-hl">Cobalt Strike</mark>`,
+		// Toggle is rendered since the digest has glossary content.
+		`id="nav-glossary-toggle"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("RenderDigestHTML() missing glossary-modal fragment %q:\n%s", want, html)
+		}
+	}
+
+	// The baked key must equal NormalizeGlossaryKey output for the term.
+	if !strings.Contains(html, `"`+models.NormalizeGlossaryKey("Cobalt Strike")+`":`) {
+		t.Fatal("baked glossary key does not match NormalizeGlossaryKey output")
 	}
 }
 

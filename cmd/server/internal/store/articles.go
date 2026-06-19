@@ -188,8 +188,11 @@ func (s *GormStore) ListArticles(filter models.ArticleFilter) ([]models.Article,
 	// Order by published date descending
 	query = query.Order("published_at DESC")
 
-	// Add a reasonable limit and optional offset for pagination
-	query = query.Limit(normalizeArticleListLimit(filter.Limit))
+	// Add a reasonable limit and optional offset for pagination. Unbounded
+	// callers (digest generation) skip the cap and take the whole window.
+	if !filter.Unbounded {
+		query = query.Limit(normalizeArticleListLimit(filter.Limit))
+	}
 	if filter.Offset > 0 {
 		query = query.Offset(filter.Offset)
 	}

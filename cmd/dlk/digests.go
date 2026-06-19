@@ -293,6 +293,8 @@ Examples:
 					StartDate:       fromTime,
 					EndDate:         &toTimeVal,
 					ExcludeDigested: excludeDigested,
+					// Match the real digest fetch: the whole window, not a UI page.
+					Unbounded: true,
 				}
 				articles, err := client.ListArticles(filter)
 				if err != nil {
@@ -306,9 +308,6 @@ Examples:
 					fmt.Println("No articles found in this time window.")
 				} else {
 					printArticleTable(articles)
-					if len(articles) >= 100 {
-						fmt.Println("\nNote: Showing first 100 articles")
-					}
 				}
 				fmt.Println("\n(no digest generated)")
 				return
