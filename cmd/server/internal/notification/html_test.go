@@ -357,10 +357,11 @@ func TestRenderDigestHTMLGlossaryMode(t *testing.T) {
 	html := string(htmlBytes)
 
 	for _, want := range []string{
-		// Multi-step help-level control + persistence plumbing appear when beginner-aid content exists.
+		// Multi-step help-level slider + persistence plumbing appear when beginner-aid content exists.
 		`id="nav-help"`,
-		`onclick="setHelpLevel(1)"`,
-		`onclick="setHelpLevel(3)"`,
+		`id="nav-help-slider"`,
+		`role="slider"`,
+		`class="nav-help-dot" data-level="3"`,
 		`id="learn-card"`,
 		`id="nav-learn-caret"`,
 		// The three per-feature switches inside the card.
