@@ -1187,6 +1187,17 @@ func articleSource(link string) string {
 	return strings.TrimPrefix(u.Hostname(), "www.")
 }
 
+// siteHomepage derives the blog/site root (scheme + host) from a feed URL, so a
+// source links to the site itself rather than its raw RSS/Atom endpoint. Falls
+// back to the original link when it can't be parsed.
+func siteHomepage(feedURL string) string {
+	u, err := url.Parse(feedURL)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return feedURL
+	}
+	return u.Scheme + "://" + u.Host + "/"
+}
+
 type digestIndexTemplateData struct {
 	ManifestURL   string
 	DigestBaseURL string
@@ -1264,7 +1275,7 @@ func RenderSourcesPage(feeds []models.Feed, theme string) ([]byte, error) {
 		}
 		entries = append(entries, sourceEntry{
 			Title: title,
-			URL:   f.URL,
+			URL:   siteHomepage(f.URL),
 			Host:  articleSource(f.URL),
 		})
 	}

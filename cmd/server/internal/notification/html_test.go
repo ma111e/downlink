@@ -95,7 +95,7 @@ func TestRenderSourcesPageListsEnabledFeeds(t *testing.T) {
 	for _, want := range []string{
 		"DOWNLINK // sources",
 		"The Verge",
-		"https://www.theverge.com/rss/index.xml",
+		`href="https://www.theverge.com/"`, // site root, not the RSS endpoint
 		"theverge.com",
 		"No Flag Feed",
 		`href="index.html"`,
@@ -103,6 +103,10 @@ func TestRenderSourcesPageListsEnabledFeeds(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderSourcesPage() missing %q:\n%s", want, html)
 		}
+	}
+
+	if strings.Contains(html, "/rss/index.xml") {
+		t.Fatalf("RenderSourcesPage() should link to the site, not the RSS URL:\n%s", html)
 	}
 
 	for _, omit := range []string{"Defunct Blog", "defunct.example.com"} {

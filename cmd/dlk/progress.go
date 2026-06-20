@@ -117,11 +117,15 @@ func (d *batchProgress) redraw() {
 		}
 		fmt.Print("\r\033[K")
 		if r.done {
-			if r.success {
-				fmt.Printf("  ✓ %s %s\n", r.label, r.summary)
-			} else {
-				fmt.Printf("  ✗ %s %s\n", r.label, r.summary)
+			text := r.summary
+			if text == "" {
+				text = r.label
 			}
+			mark := "✓"
+			if !r.success {
+				mark = "✗"
+			}
+			fmt.Printf("  %s %s\n", mark, text)
 		} else {
 			fmt.Printf("  %s %s\n", spinnerFrames[d.frame], r.label)
 		}
