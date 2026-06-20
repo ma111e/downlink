@@ -69,7 +69,7 @@ func TestGitHubPagesPublisherWritesDefaultDigestFolderLayout(t *testing.T) {
 	}
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 
-	relPath, err := publisher.renderAndStage(wt, digest, outputDir, "dark")
+	relPath, err := publisher.renderAndStage(wt, digest, outputDir, "default")
 	if err != nil {
 		t.Fatalf("renderAndStage() error = %v", err)
 	}
@@ -79,7 +79,7 @@ func TestGitHubPagesPublisherWritesDefaultDigestFolderLayout(t *testing.T) {
 	if err := publisher.writeAndStageManifest(wt, digest, outputDir); err != nil {
 		t.Fatalf("writeAndStageManifest() error = %v", err)
 	}
-	if err := publisher.ensureIndex(wt, outputDir, "dark"); err != nil {
+	if err := publisher.ensureIndex(wt, outputDir, "default"); err != nil {
 		t.Fatalf("ensureIndex() error = %v", err)
 	}
 
@@ -121,7 +121,7 @@ func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
 	}
 	digest := sampleDigest("digest-two", time.Date(2026, 4, 25, 9, 30, 0, 0, time.UTC))
 
-	relPath, err := publisher.renderAndStage(wt, digest, outputDir, "dark")
+	relPath, err := publisher.renderAndStage(wt, digest, outputDir, "default")
 	if err != nil {
 		t.Fatalf("renderAndStage() error = %v", err)
 	}
@@ -131,7 +131,7 @@ func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
 	if err := publisher.writeAndStageManifest(wt, digest, outputDir); err != nil {
 		t.Fatalf("writeAndStageManifest() error = %v", err)
 	}
-	if err := publisher.ensureIndex(wt, outputDir, "dark"); err != nil {
+	if err := publisher.ensureIndex(wt, outputDir, "default"); err != nil {
 		t.Fatalf("ensureIndex() error = %v", err)
 	}
 

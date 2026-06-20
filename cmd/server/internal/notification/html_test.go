@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ma111e/downlink/pkg/digestlayouts"
 	"github.com/ma111e/downlink/pkg/models"
 )
 
@@ -43,7 +44,7 @@ func TestHighlightTagsInSectionText(t *testing.T) {
 }
 
 func TestRenderDigestIndexUsesManifest(t *testing.T) {
-	htmlBytes, err := RenderDigestIndex("dark")
+	htmlBytes, err := RenderDigestIndex("default")
 	if err != nil {
 		t.Fatalf("RenderDigestIndex() error = %v", err)
 	}
@@ -86,7 +87,7 @@ func TestRenderSourcesPageListsEnabledFeeds(t *testing.T) {
 		{Title: "No Flag Feed", URL: "https://noflag.example.org/atom"}, // nil Enabled => treated as enabled
 	}
 
-	htmlBytes, err := RenderSourcesPage(feeds, "dark")
+	htmlBytes, err := RenderSourcesPage(feeds, "default")
 	if err != nil {
 		t.Fatalf("RenderSourcesPage() error = %v", err)
 	}
@@ -118,7 +119,7 @@ func TestRenderSourcesPageListsEnabledFeeds(t *testing.T) {
 
 func TestRenderDigestHTMLDoesNotIncludeManifestSwitcher(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	htmlBytes, err := RenderDigestHTML(digest, "default")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -141,30 +142,65 @@ func TestRenderDigestHTMLDoesNotIncludeManifestSwitcher(t *testing.T) {
 	}
 }
 
-func TestRenderDigestHTMLBakesTheme(t *testing.T) {
+func TestRenderDigestHTMLLayoutSelection(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 
-	htmlBytes, err := RenderDigestHTML(digest, "mono")
-	if err != nil {
-		t.Fatalf("RenderDigestHTML() error = %v", err)
-	}
-	if !strings.Contains(string(htmlBytes), `data-theme="mono"`) {
-		t.Fatalf("RenderDigestHTML() did not bake data-theme=\"mono\"")
+	// Color selection is client-side now: the server always bakes the fixed dark
+	// first-paint theme regardless of the layout chosen.
+	for _, layout := range []string{"", "default"} {
+		htmlBytes, err := RenderDigestHTML(digest, layout)
+		if err != nil {
+			t.Fatalf("RenderDigestHTML(%q) error = %v", layout, err)
+		}
+		if !strings.Contains(string(htmlBytes), `data-theme="dark"`) {
+			t.Fatalf("RenderDigestHTML(%q) did not bake data-theme=\"dark\"", layout)
+		}
 	}
 
-	// An unknown theme falls back to the dark default.
-	htmlBytes, err = RenderDigestHTML(digest, "bogus")
-	if err != nil {
-		t.Fatalf("RenderDigestHTML() error = %v", err)
+	// An unknown layout is rejected so typos surface instead of silently falling back.
+	if _, err := RenderDigestHTML(digest, "bogus"); err == nil {
+		t.Fatal("RenderDigestHTML(\"bogus\") expected an error for an unknown layout")
 	}
-	if !strings.Contains(string(htmlBytes), `data-theme="dark"`) {
-		t.Fatalf("RenderDigestHTML() did not fall back to data-theme=\"dark\"")
+}
+
+// TestEveryRegisteredLayoutRenders guards the layout-selection feature: every layout in
+// the registry must have a complete, renderable template set. This auto-covers new layouts
+// as they are added to digestlayouts.
+func TestEveryRegisteredLayoutRenders(t *testing.T) {
+	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
+	for _, l := range digestlayouts.All() {
+		if _, err := RenderDigestHTML(digest, l.Name); err != nil {
+			t.Fatalf("RenderDigestHTML(layout=%q) error = %v", l.Name, err)
+		}
+	}
+}
+
+// TestEmeraldLayoutDiffersFromDefault proves the selected layout actually changes the
+// rendered output: emerald carries its green primary accent and default does not.
+func TestEmeraldLayoutDiffersFromDefault(t *testing.T) {
+	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
+	const emeraldAccent = "oklch(72% 0.17 150)"
+
+	emerald, err := RenderDigestHTML(digest, "emerald")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML(emerald) error = %v", err)
+	}
+	if !strings.Contains(string(emerald), emeraldAccent) {
+		t.Fatalf("emerald layout missing its green accent %q", emeraldAccent)
+	}
+
+	def, err := RenderDigestHTML(digest, "default")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML(default) error = %v", err)
+	}
+	if strings.Contains(string(def), emeraldAccent) {
+		t.Fatalf("default layout unexpectedly contains the emerald accent %q", emeraldAccent)
 	}
 }
 
 func TestRenderDigestHTMLShowsScoreTooltip(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	htmlBytes, err := RenderDigestHTML(digest, "default")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -187,7 +223,7 @@ func TestRenderDigestHTMLBakesFilterCountsAtBuildTime(t *testing.T) {
 	// sampleDigest: article-b score 95 (Must Read), article-a score 80 (Should Read),
 	// no categories. The counts must be baked into the spans, not filled by JS on load.
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	htmlBytes, err := RenderDigestHTML(digest, "default")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -245,7 +281,7 @@ func TestRenderDigestHTMLPreCollapsesReportsAtBuildTime(t *testing.T) {
 		},
 	}
 
-	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	htmlBytes, err := RenderDigestHTML(digest, "default")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -289,12 +325,12 @@ func TestRenderDigestHTMLGlossaryMode(t *testing.T) {
 			{
 				ArticleId: "article-b",
 				Analysis: &models.ArticleAnalysis{
-					ArticleId:           "article-b",
-					ProviderType:        "openai",
-					ModelName:           "gpt-test",
-					ImportanceScore:     95,
-					BriefOverview:       "Brief.",
-					GlossaryExplanation: "A flaw lets attackers run code on a server.",
+					ArticleId:       "article-b",
+					ProviderType:    "openai",
+					ModelName:       "gpt-test",
+					ImportanceScore: 95,
+					BriefOverview:   "Brief.",
+					PlainWords:      "A flaw lets attackers run code on a server.",
 				},
 			},
 		},
@@ -314,26 +350,28 @@ func TestRenderDigestHTMLGlossaryMode(t *testing.T) {
 		},
 	}
 
-	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	htmlBytes, err := RenderDigestHTML(digest, "default")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
 	html := string(htmlBytes)
 
 	for _, want := range []string{
-		// Learning switch + persistence plumbing appear when beginner-aid content exists.
-		`id="nav-learn-switch"`,
-		`onclick="toggleLearning()"`,
+		// Multi-step help-level control + persistence plumbing appear when beginner-aid content exists.
+		`id="nav-help"`,
+		`onclick="setHelpLevel(1)"`,
+		`onclick="setHelpLevel(3)"`,
 		`id="learn-card"`,
 		`id="nav-learn-caret"`,
 		// The three per-feature switches inside the card.
+		`onclick="toggleLearnFeature('plain')"`,
 		`onclick="toggleLearnFeature('glossary')"`,
-		`onclick="toggleLearnFeature('why')"`,
 		`onclick="toggleLearnFeature('define')"`,
-		`downlink.learning`,
+		`downlink.help.level`,
+		`data-help-level`,
 		`data-learning`,
-		// The per-article block keeps its plain-language explanation (no term list now).
-		`class="panel-section glossary-block"`,
+		// The per-article block carries the merged "In plain words" explanation.
+		`class="panel-section plain-words-block"`,
 		`A flaw lets attackers run code on a server.`,
 		// Terms now live in the consolidated right-side glossary drawer.
 		`id="glossary-panel"`,
@@ -343,6 +381,9 @@ func TestRenderDigestHTMLGlossaryMode(t *testing.T) {
 		`github.com/ma111e/downlink/issues/new`,
 		// Drawer is hidden until Learning mode + the Glossary feature are on.
 		`html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: flex; }`,
+		// Panel entries carry their help tier, and the level filter hides entries above the level.
+		`class="glossary-panel-entry" data-lvl="`,
+		`html[data-help-level="2"] .glossary-panel-entry[data-lvl="3"] { display: none; }`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderDigestHTML() missing learning/glossary fragment %q:\n%s", want, html)
@@ -396,7 +437,7 @@ func TestRenderDigestHTMLGlossaryPopup(t *testing.T) {
 		},
 	}
 
-	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	htmlBytes, err := RenderDigestHTML(digest, "default")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -421,8 +462,10 @@ func TestRenderDigestHTMLGlossaryPopup(t *testing.T) {
 		`id="glossary-popup-context"`,
 		// The entity name is highlighted in the prose (regex matches "Cobalt Strike" from slug).
 		`<mark class="tag-hl">Cobalt Strike</mark>`,
-		// Learning switch is rendered since the digest has beginner-aid content.
-		`id="nav-learn-switch"`,
+		// Help-level control is rendered since the digest has beginner-aid content.
+		`id="nav-help"`,
+		// The highlighted entity carries its help tier so the level filter can reveal/hide it.
+		`m.dataset.lvl =`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderDigestHTML() missing glossary-popup fragment %q:\n%s", want, html)
@@ -435,15 +478,15 @@ func TestRenderDigestHTMLGlossaryPopup(t *testing.T) {
 	}
 }
 
-func TestRenderDigestHTMLWhyItMatters(t *testing.T) {
+func TestRenderDigestHTMLPlainWords(t *testing.T) {
 	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
 	category := "news"
 	digest := models.Digest{
-		Id:         "digest-why",
+		Id:         "digest-plain",
 		CreatedAt:  createdAt,
 		TimeWindow: 24 * time.Hour,
 		Articles: []models.Article{
-			{Id: "article-w", Title: "Why Article", Link: "https://example.com/w", PublishedAt: createdAt, CategoryName: &category},
+			{Id: "article-w", Title: "Plain Article", Link: "https://example.com/w", PublishedAt: createdAt, CategoryName: &category},
 		},
 		DigestAnalyses: []models.DigestAnalysis{
 			{
@@ -453,46 +496,46 @@ func TestRenderDigestHTMLWhyItMatters(t *testing.T) {
 					ProviderType: "openai",
 					ModelName:    "gpt-test",
 					KeyPoints:    []string{"A breach exposed customer data."},
-					WhyItMatters: "Millions of ordinary customers could see their personal details misused.",
+					PlainWords:   "Millions of ordinary customers could see their personal details misused.",
 					// No glossary content at all.
 				},
 			},
 		},
 	}
 
-	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	htmlBytes, err := RenderDigestHTML(digest, "default")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
 	html := string(htmlBytes)
 
 	for _, want := range []string{
-		// The block, its label, and its content render.
-		`class="panel-section why-block"`,
-		`Why it matters`,
+		// The merged block, its label, and its content render.
+		`class="panel-section plain-words-block"`,
+		`In plain words`,
 		`Millions of ordinary customers could see their personal details misused.`,
-		// Consent gate: hidden by default, revealed only under Learning mode + the Why it matters feature.
-		`.why-block { display: none; }`,
-		`html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }`,
-		// The Learning switch is available even though the digest has no glossary content.
-		`id="nav-learn-switch"`,
+		// Consent gate: hidden by default, revealed only under Learning mode + the Plain words feature.
+		`.plain-words-block { display: none; }`,
+		`html[data-learning="on"][data-learn-plain="on"] .plain-words-block { display: block; }`,
+		// The help-level control is available even though the digest has no glossary content.
+		`id="nav-help"`,
 	} {
 		if !strings.Contains(html, want) {
-			t.Fatalf("RenderDigestHTML() missing why-it-matters fragment %q:\n%s", want, html)
+			t.Fatalf("RenderDigestHTML() missing plain-words fragment %q:\n%s", want, html)
 		}
 	}
 }
 
 func TestRenderDigestHTMLNoGlossaryToggleWhenAbsent(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	htmlBytes, err := RenderDigestHTML(digest, "default")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
 	html := string(htmlBytes)
 
-	if strings.Contains(html, `id="nav-learn-switch"`) {
-		t.Fatal("RenderDigestHTML() rendered the Learning switch for a digest with no beginner-aid content")
+	if strings.Contains(html, `id="nav-help"`) {
+		t.Fatal("RenderDigestHTML() rendered the help-level control for a digest with no beginner-aid content")
 	}
 	if strings.Contains(html, `class="panel-section glossary-block"`) {
 		t.Fatal("RenderDigestHTML() rendered a glossary block for a digest with no glossary content")
@@ -501,7 +544,7 @@ func TestRenderDigestHTMLNoGlossaryToggleWhenAbsent(t *testing.T) {
 
 func TestRenderSwipeHTMLInjectsDigestAndArticles(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	htmlBytes, err := RenderSwipeHTML(digest, "downlink-digest-2026-04-24_1200.html", "dark")
+	htmlBytes, err := RenderSwipeHTML(digest, "downlink-digest-2026-04-24_1200.html", "default")
 	if err != nil {
 		t.Fatalf("RenderSwipeHTML() error = %v", err)
 	}

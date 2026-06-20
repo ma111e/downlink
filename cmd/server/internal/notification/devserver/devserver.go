@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -240,7 +241,9 @@ func (h *reloadHub) handleSSE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// startWatcher watches dir for *.tmpl changes and triggers a debounced reload.
+// startWatcher watches dir (and its layout subdirectories) for *.tmpl changes and
+// triggers a debounced reload. fsnotify is not recursive, so each directory holding
+// templates is added explicitly.
 func startWatcher(dir string, hub *reloadHub) (*fsnotify.Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -249,6 +252,22 @@ func startWatcher(dir string, hub *reloadHub) (*fsnotify.Watcher, error) {
 	if err := watcher.Add(dir); err != nil {
 		watcher.Close()
 		return nil, fmt.Errorf("add %s: %w", dir, err)
+	}
+	// Templates live one level down in per-layout subdirectories; watch each.
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		watcher.Close()
+		return nil, fmt.Errorf("read %s: %w", dir, err)
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		sub := filepath.Join(dir, e.Name())
+		if err := watcher.Add(sub); err != nil {
+			watcher.Close()
+			return nil, fmt.Errorf("add %s: %w", sub, err)
+		}
 	}
 
 	go func() {

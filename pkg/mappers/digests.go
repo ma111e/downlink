@@ -60,6 +60,19 @@ func DigestToProto(digest *models.Digest) *protos.Digest {
 		}
 	}
 
+	// Convert digest glossary
+	if len(digest.DigestGlossary) > 0 {
+		protoDigest.DigestGlossary = make([]*protos.DigestGlossary, 0, len(digest.DigestGlossary))
+		for _, dg := range digest.DigestGlossary {
+			protoDG := &protos.DigestGlossary{
+				DigestId: dg.DigestId,
+				EntryId:  dg.EntryId,
+				Entry:    GlossaryEntryToProto(dg.Entry),
+			}
+			protoDigest.DigestGlossary = append(protoDigest.DigestGlossary, protoDG)
+		}
+	}
+
 	return protoDigest
 }
 
@@ -116,6 +129,21 @@ func DigestToModel(digest *protos.Digest) *models.Digest {
 				modelDA.Analysis = a
 			}
 			modelDigest.DigestAnalyses = append(modelDigest.DigestAnalyses, modelDA)
+		}
+	}
+
+	// Convert digest glossary
+	if len(digest.DigestGlossary) > 0 {
+		modelDigest.DigestGlossary = make([]models.DigestGlossary, 0, len(digest.DigestGlossary))
+		for _, dg := range digest.DigestGlossary {
+			if dg == nil {
+				continue
+			}
+			modelDigest.DigestGlossary = append(modelDigest.DigestGlossary, models.DigestGlossary{
+				DigestId: dg.DigestId,
+				EntryId:  dg.EntryId,
+				Entry:    GlossaryEntryToModel(dg.Entry),
+			})
 		}
 	}
 

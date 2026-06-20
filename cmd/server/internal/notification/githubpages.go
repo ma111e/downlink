@@ -152,7 +152,7 @@ func (p *GitHubPagesPublisher) sendDigest(digest models.Digest) (string, error) 
 		return "", fmt.Errorf("github pages: failed to get worktree: %w", err)
 	}
 
-	digestRelPath, err := p.renderAndStage(wt, digest, outputDir, p.cfg.Theme)
+	digestRelPath, err := p.renderAndStage(wt, digest, outputDir, p.cfg.Layout)
 	if err != nil {
 		return "", err
 	}
@@ -169,7 +169,7 @@ func (p *GitHubPagesPublisher) sendDigest(digest models.Digest) (string, error) 
 	} else if err := p.writeAndStageFeeds(wt, outputDir, feedDigests); err != nil {
 		return "", err
 	}
-	if err := p.ensureIndex(wt, outputDir, p.cfg.Theme); err != nil {
+	if err := p.ensureIndex(wt, outputDir, p.cfg.Layout); err != nil {
 		return "", err
 	}
 
@@ -410,11 +410,11 @@ func (p *GitHubPagesPublisher) ensureRepo(auth *githttp.BasicAuth) (*gogit.Repos
 // ensureIndex writes the digest index under outputDir and a root index.html
 // that renders the same archive while loading manifest and digest files from
 // outputDir.
-func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, theme string) error {
+func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, layout string) error {
 	indexRelPath := filepath.Join(outputDir, "index.html")
 	indexAbsPath := filepath.Join(p.cfg.CloneDir, indexRelPath)
 
-	indexBytes, err := RenderDigestIndex(theme)
+	indexBytes, err := RenderDigestIndex(layout)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to build index: %w", err)
 	}
@@ -437,7 +437,7 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, theme 
 	rootIndexBytes, err := renderDigestIndexWithPaths(
 		filepath.ToSlash(filepath.Join(outputDir, ManifestFilename)),
 		filepath.ToSlash(outputDir),
-		theme,
+		layout,
 	)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to build root index: %w", err)
@@ -452,7 +452,7 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, theme 
 		}
 	}
 
-	return p.ensureSourcesPage(wt, outputDir, theme)
+	return p.ensureSourcesPage(wt, outputDir, layout)
 }
 
 // ensureSourcesPage writes sources.html at the repo root and under outputDir,
@@ -460,7 +460,7 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, theme 
 // render time), so footer links in the root index and in digest pages can use a
 // relative "sources.html" sibling. When no source lister is configured the page
 // is left untouched.
-func (p *GitHubPagesPublisher) ensureSourcesPage(wt *gogit.Worktree, outputDir, theme string) error {
+func (p *GitHubPagesPublisher) ensureSourcesPage(wt *gogit.Worktree, outputDir, layout string) error {
 	if p.listSources == nil {
 		return nil
 	}
@@ -470,7 +470,7 @@ func (p *GitHubPagesPublisher) ensureSourcesPage(wt *gogit.Worktree, outputDir, 
 		return fmt.Errorf("github pages: failed to list sources: %w", err)
 	}
 
-	sourcesBytes, err := RenderSourcesPage(feeds, theme)
+	sourcesBytes, err := RenderSourcesPage(feeds, layout)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to build sources page: %w", err)
 	}
@@ -582,7 +582,7 @@ func (p *GitHubPagesPublisher) InitPages(reinit bool) error {
 		}
 	}
 
-	if err := p.ensureIndex(wt, outputDir, p.cfg.Theme); err != nil {
+	if err := p.ensureIndex(wt, outputDir, p.cfg.Layout); err != nil {
 		return err
 	}
 
@@ -663,7 +663,7 @@ func resolveGitHubPagesOutputDir(input string) (string, error) {
 // entries are removed. Pass dryRun=true to render and stage locally without
 // committing or pushing. When wait is true (and not a dry run) it blocks until
 // the resulting GitHub Pages build deploys.
-func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme string, dryRun, wait bool) error {
+func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout string, dryRun, wait bool) error {
 	if len(digests) == 0 {
 		log.Info("RepublishAll: no digests to republish")
 		return nil
@@ -747,7 +747,7 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 			digestRelPath := filepath.Join(outputDir, digestFilename)
 			digestAbsPath := filepath.Join(p.cfg.CloneDir, digestRelPath)
 
-			htmlBytes, err := RenderDigestHTML(digest, theme)
+			htmlBytes, err := RenderDigestHTML(digest, layout)
 			if err != nil {
 				return fmt.Errorf("github pages: render digest %s: %w", digest.Id, err)
 			}
@@ -758,7 +758,7 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 				return fmt.Errorf("github pages: write digest HTML %s: %w", digest.Id, err)
 			}
 
-			swipeBytes, err := RenderSwipeHTML(digest, digestFilename, theme)
+			swipeBytes, err := RenderSwipeHTML(digest, digestFilename, layout)
 			if err != nil {
 				return fmt.Errorf("github pages: render swipe %s: %w", digest.Id, err)
 			}
@@ -800,7 +800,7 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, theme strin
 		return err
 	}
 
-	if err := p.ensureIndex(wt, outputDir, theme); err != nil {
+	if err := p.ensureIndex(wt, outputDir, layout); err != nil {
 		p.pComplete("render", false, "index render failed")
 		return err
 	}
@@ -868,7 +868,7 @@ func (p *GitHubPagesPublisher) RepublishIndex(dryRun, wait bool) error {
 	p.pComplete("prepare", true, "repo ready")
 
 	p.pStart("render", "Rendering index pages")
-	if err := p.ensureIndex(wt, outputDir, p.cfg.Theme); err != nil {
+	if err := p.ensureIndex(wt, outputDir, p.cfg.Layout); err != nil {
 		p.pComplete("render", false, "render failed")
 		return err
 	}
@@ -953,7 +953,7 @@ func (p *GitHubPagesPublisher) pushWithRetry(repo *gogit.Repository, wt *gogit.W
 // digest HTML, and stages it in the worktree.
 func (p *GitHubPagesPublisher) renderAndStageSwipe(wt *gogit.Worktree, digest models.Digest, outputDir string) error {
 	digestFilename := DigestHTMLFilename(digest)
-	swipeBytes, err := RenderSwipeHTML(digest, digestFilename, p.cfg.Theme)
+	swipeBytes, err := RenderSwipeHTML(digest, digestFilename, p.cfg.Layout)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to render swipe HTML: %w", err)
 	}
@@ -975,8 +975,8 @@ func (p *GitHubPagesPublisher) renderAndStageSwipe(wt *gogit.Worktree, digest mo
 // renderAndStage renders a digest, writes it to the publisher's output dir,
 // and stages it in the worktree. It returns the staged file's repo-relative
 // path.
-func (p *GitHubPagesPublisher) renderAndStage(wt *gogit.Worktree, digest models.Digest, outputDir string, theme string) (string, error) {
-	htmlBytes, err := RenderDigestHTML(digest, theme)
+func (p *GitHubPagesPublisher) renderAndStage(wt *gogit.Worktree, digest models.Digest, outputDir string, layout string) (string, error) {
+	htmlBytes, err := RenderDigestHTML(digest, layout)
 	if err != nil {
 		return "", fmt.Errorf("github pages: failed to render digest HTML: %w", err)
 	}

@@ -478,7 +478,7 @@ func notificationTestDigestScore(digest models.Digest) int {
 	return score
 }
 
-func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest, theme string, failOnError bool, ghPagesOverride *bool) (int, error) {
+func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest, layout string, failOnError bool, ghPagesOverride *bool) (int, error) {
 	var errs []error
 	attempts := 0
 
@@ -492,7 +492,7 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 			errs = append(errs, fmt.Errorf("discord digest: %w", err))
 		}
 
-		htmlBytes, err := notification.RenderDigestHTML(digest, theme)
+		htmlBytes, err := notification.RenderDigestHTML(digest, layout)
 		if err != nil {
 			log.WithError(err).Warn("Failed to render digest HTML")
 			errs = append(errs, fmt.Errorf("discord html render: %w", err))
@@ -971,99 +971,125 @@ func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []mod
 	return strings.TrimSpace(parsed.Title), strings.TrimSpace(parsed.Summary), resolved.ProviderType, resolved.ModelName, nil
 }
 
-// populateGlossary feeds this digest's jargon and named entities into the persistent global
-// glossary and records which entries the digest references. Jargon (already extracted on the
-// analyses) costs nothing; entity definitions are generated in a single batched LLM call that
-// skips any entity already defined. Manual overrides are never overwritten.
+// populateGlossary feeds this digest's extracted terms (jargon/concepts from the analyses
+// plus named entities from tags) into the persistent global glossary and records which
+// entries the digest references. Terms already defined in the glossary are linked without
+// any LLM call; only genuinely new terms are defined, in a single batched call. Definitions
+// are therefore generated exactly once per term — never re-generated and discarded. Manual
+// overrides are never overwritten.
 func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, provider, model string) (int, error) {
 	stepCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
-	// entryIds collects the canonical glossary entry ids this digest references (deduped).
-	entryIds := make(map[string]struct{})
+	// candidate is a term this digest references, keyed by NormalizeGlossaryKey.
+	type candidate struct {
+		kind        models.GlossaryKind
+		category    string
+		tagId       string
+		displayTerm string
+	}
+	candidates := make(map[string]*candidate)
 
-	// Phase A — jargon: upsert every extracted term (no LLM cost).
+	// Jargon/concepts extracted per-article (term + type + context; no definition).
 	for i := range analyses {
 		for _, term := range analyses[i].GlossaryTerms {
 			key := models.NormalizeGlossaryKey(term.Term)
-			if key == "" || strings.TrimSpace(term.Definition) == "" {
+			if key == "" {
 				continue
 			}
-			entry := &models.GlossaryEntry{
-				NormalizedKey:   key,
-				Term:            strings.TrimSpace(term.Term),
-				Kind:            models.GlossaryKindJargon,
-				Category:        models.NormalizeGlossaryCategory(term.Type),
-				Definition:      strings.TrimSpace(term.Definition),
-				DefinitionModel: model,
-				Source:          "analysis:" + analyses[i].Id,
+			c, ok := candidates[key]
+			if !ok {
+				c = &candidate{kind: models.GlossaryKindJargon, displayTerm: strings.TrimSpace(term.Term)}
+				candidates[key] = c
 			}
-			if err := store.Db.UpsertGlossaryEntry(entry); err != nil {
-				log.WithError(err).WithField("term", term.Term).Warn("Failed to upsert jargon glossary entry")
-				continue
+			if c.category == "" || c.category == models.GlossaryCategoryOther {
+				c.category = models.NormalizeGlossaryCategory(term.Type)
 			}
-			entryIds[entry.Id] = struct{}{}
 		}
 	}
 
-	// Phase B — entities: collect distinct tag slugs across the digest's articles.
-	slugByKey := make(map[string]string) // normalized key -> tag slug
+	// Named entities from tags take precedence — they carry a TagId for highlighting/linkage.
 	for _, article := range articleMap {
 		for _, tag := range article.Tags {
 			slug := strings.TrimSpace(tag.Name)
 			if slug == "" {
 				continue
 			}
-			slugByKey[models.NormalizeGlossaryKey(slug)] = slug
+			key := models.NormalizeGlossaryKey(slug)
+			if key == "" {
+				continue
+			}
+			c, ok := candidates[key]
+			if !ok {
+				c = &candidate{displayTerm: slug}
+				candidates[key] = c
+			}
+			c.kind = models.GlossaryKindEntity
+			c.tagId = slug
 		}
 	}
 
-	if len(slugByKey) > 0 {
-		keys := make([]string, 0, len(slugByKey))
-		for key := range slugByKey {
-			keys = append(keys, key)
-		}
-		existing, err := store.Db.GetGlossaryEntriesByKeys(keys)
-		if err != nil {
-			return 0, fmt.Errorf("failed to load existing glossary entries: %w", err)
-		}
+	if len(candidates) == 0 {
+		return 0, nil
+	}
 
-		// Reference entities that already have a definition; queue the rest for the LLM.
-		var undefinedSlugs []string
-		for key, slug := range slugByKey {
-			if e, ok := existing[key]; ok && e.EffectiveDefinition() != "" {
-				entryIds[e.Id] = struct{}{}
+	// entryIds collects the canonical glossary entry ids this digest references (deduped).
+	entryIds := make(map[string]struct{})
+
+	keys := make([]string, 0, len(candidates))
+	for key := range candidates {
+		keys = append(keys, key)
+	}
+	existing, err := store.Db.GetGlossaryEntriesByKeys(keys)
+	if err != nil {
+		return 0, fmt.Errorf("failed to load existing glossary entries: %w", err)
+	}
+
+	// Reference terms that already have a definition; queue the rest for one batched LLM call.
+	var undefined []string
+	for key, c := range candidates {
+		if e, ok := existing[key]; ok && e.EffectiveDefinition() != "" {
+			entryIds[e.Id] = struct{}{}
+			continue
+		}
+		undefined = append(undefined, c.displayTerm)
+	}
+
+	if len(undefined) > 0 {
+		defs, err := s.defineEntities(stepCtx, undefined, provider, model)
+		if err != nil {
+			log.WithError(err).Warn("Failed to generate glossary definitions")
+		}
+		for key, ed := range defs {
+			c, ok := candidates[key]
+			if !ok {
 				continue
 			}
-			undefinedSlugs = append(undefinedSlugs, slug)
-		}
-
-		if len(undefinedSlugs) > 0 {
-			defs, err := s.defineEntities(stepCtx, undefinedSlugs, provider, model)
-			if err != nil {
-				log.WithError(err).Warn("Failed to generate entity definitions for glossary")
+			// Prefer the model's returned type; fall back to the extracted type.
+			category := models.NormalizeGlossaryCategory(ed.Type)
+			if category == models.GlossaryCategoryOther && c.category != "" {
+				category = c.category
 			}
-			for key, ed := range defs {
-				slug := slugByKey[key]
-				if slug == "" {
-					slug = key
-				}
-				entry := &models.GlossaryEntry{
-					NormalizedKey:   key,
-					Term:            slug,
-					Kind:            models.GlossaryKindEntity,
-					Category:        ed.Type,
-					Definition:      ed.Def,
-					TagId:           slug,
-					DefinitionModel: model,
-					Source:          "tag",
-				}
-				if err := store.Db.UpsertGlossaryEntry(entry); err != nil {
-					log.WithError(err).WithField("entity", slug).Warn("Failed to upsert entity glossary entry")
-					continue
-				}
-				entryIds[entry.Id] = struct{}{}
+			source := "tag"
+			if c.kind == models.GlossaryKindJargon {
+				source = "analysis"
 			}
+			entry := &models.GlossaryEntry{
+				NormalizedKey:   key,
+				Term:            c.displayTerm,
+				Kind:            c.kind,
+				Category:        category,
+				Difficulty:      models.NormalizeGlossaryDifficulty(ed.Difficulty),
+				Definition:      ed.Def,
+				TagId:           c.tagId,
+				DefinitionModel: model,
+				Source:          source,
+			}
+			if err := store.Db.UpsertGlossaryEntry(entry); err != nil {
+				log.WithError(err).WithField("term", c.displayTerm).Warn("Failed to upsert glossary entry")
+				continue
+			}
+			entryIds[entry.Id] = struct{}{}
 		}
 	}
 
@@ -1082,15 +1108,17 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 	return len(rows), nil
 }
 
-// entityDefinition is a generated definition plus its semantic type for a named entity.
+// entityDefinition is a generated definition plus its semantic type and difficulty for a
+// named entity.
 type entityDefinition struct {
-	Def  string
-	Type string
+	Def        string
+	Type       string
+	Difficulty string
 }
 
 // defineEntities asks the model for a one-line plain-language definition and a type for each
-// named entity, returned keyed by NormalizedGlossaryKey. Unknown entities (empty definitions)
-// are dropped so they can be retried on a future digest.
+// term — a named entity or a security concept — returned keyed by NormalizedGlossaryKey.
+// Unknown terms (empty definitions) are dropped so they can be retried on a future digest.
 func (s *DigestServer) defineEntities(ctx context.Context, entities []string, provider, model string) (map[string]entityDefinition, error) {
 	if len(entities) == 0 {
 		return map[string]entityDefinition{}, nil
@@ -1102,16 +1130,22 @@ func (s *DigestServer) defineEntities(ctx context.Context, entities []string, pr
 		list.WriteString("\n")
 	}
 
-	prompt := fmt.Sprintf(`You are explaining cybersecurity terms to a complete beginner. For each named
-entity below (threat actor, malware family, tool, CVE, technique, vendor, organization, or
-country relevant to a security story), give one plain-language sentence a newcomer can
-understand, and classify its type. If you do not recognize an entity, or cannot define it
-confidently, return an empty definition for it — do not guess.
+	prompt := fmt.Sprintf(`You are explaining cybersecurity terms to a complete beginner. For each term
+below — a named entity (threat actor, malware family, tool, CVE, vendor, organization, or
+country) or a security concept/technique/protocol relevant to a security story — give one
+plain-language sentence a newcomer can understand, classify its type, and rate how much help
+a reader needs with it. If you do not recognize a term, or cannot define it confidently,
+return an empty definition for it — do not guess.
 
 type must be ONE of: threat-actor, malware, tool, technique, vulnerability, protocol, concept,
 organization, product, other.
 
-Echo back each entity exactly as given (the key).
+difficulty must be ONE of:
+  - beginner: a common, widely-known term most people have heard of (e.g. phishing, password, VPN)
+  - intermediate: a security-specific term a newcomer to the field would need explained (e.g. C2, lateral movement, RAT)
+  - advanced: a niche or obscure term even many practitioners would not know offhand (e.g. a specific malware family, an uncommon technique)
+
+Echo back each term exactly as given (the key).
 
 <start_of_entities>
 %s<end_of_entities>
@@ -1120,7 +1154,7 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 
 {
   "definitions": {
-    "<entity>": {"definition": "<one plain-language sentence, or empty string if unknown>", "type": "<category>"}
+    "<entity>": {"definition": "<one plain-language sentence, or empty string if unknown>", "type": "<category>", "difficulty": "<difficulty>"}
   }
 }`, list.String())
 
@@ -1139,6 +1173,7 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 		Definitions map[string]struct {
 			Definition string `json:"definition"`
 			Type       string `json:"type"`
+			Difficulty string `json:"difficulty"`
 		} `json:"definitions"`
 	}
 	if err := json.Unmarshal([]byte(cleaned), &parsed); err != nil {
@@ -1149,7 +1184,7 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 
 	raw := make(map[string]entityDefinition, len(parsed.Definitions))
 	for entity, v := range parsed.Definitions {
-		raw[entity] = entityDefinition{Def: v.Definition, Type: v.Type}
+		raw[entity] = entityDefinition{Def: v.Definition, Type: v.Type, Difficulty: v.Difficulty}
 	}
 	return entityDefinitionsFromResult(raw), nil
 }
@@ -1166,7 +1201,7 @@ func entityDefinitionsFromResult(raw map[string]entityDefinition) map[string]ent
 		if key == "" {
 			continue
 		}
-		out[key] = entityDefinition{Def: def, Type: models.NormalizeGlossaryCategory(v.Type)}
+		out[key] = entityDefinition{Def: def, Type: models.NormalizeGlossaryCategory(v.Type), Difficulty: models.NormalizeGlossaryDifficulty(v.Difficulty)}
 	}
 	return out
 }

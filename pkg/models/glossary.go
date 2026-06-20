@@ -46,6 +46,43 @@ func NormalizeGlossaryCategory(s string) string {
 	return GlossaryCategoryOther
 }
 
+// glossaryDifficulties is the fixed difficulty taxonomy: how much help a reader needs with a
+// term. It drives the digest page's multi-step "help level" control, which reveals terms by
+// tier (advanced first, beginner last). Anything outside the set (or empty) defaults to the
+// middle bucket.
+var glossaryDifficulties = map[string]bool{
+	"beginner":     true, // common, widely-known
+	"intermediate": true, // security-specific
+	"advanced":     true, // niche / obscure
+}
+
+// GlossaryDifficultyDefault is the fallback difficulty for unknown/empty values.
+const GlossaryDifficultyDefault = "intermediate"
+
+// NormalizeGlossaryDifficulty lowercases/trims the value and returns it if it is in the fixed
+// taxonomy, otherwise the default ("intermediate").
+func NormalizeGlossaryDifficulty(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if glossaryDifficulties[s] {
+		return s
+	}
+	return GlossaryDifficultyDefault
+}
+
+// GlossaryDifficultyTier maps a difficulty to the numeric tier used by the page's help-level
+// filter: advanced=1 (shown first), intermediate=2, beginner=3 (shown only at the highest
+// level). A term is shown when the selected help level >= its tier. Unknown/empty → 2.
+func GlossaryDifficultyTier(s string) int {
+	switch NormalizeGlossaryDifficulty(s) {
+	case "advanced":
+		return 1
+	case "beginner":
+		return 3
+	default:
+		return 2
+	}
+}
+
 // GlossaryEntry is one deduplicated term in the persistent global glossary. Identity is the
 // normalized key; definitions are reused across digests and never re-queried once present.
 // A manual override, once set, wins forever and is never overwritten by regeneration.
@@ -55,6 +92,7 @@ type GlossaryEntry struct {
 	Term              string       `json:"term"`                                // display form (first-seen)
 	Kind              GlossaryKind `gorm:"index" json:"kind"`                   // provenance: jargon vs entity
 	Category          string       `gorm:"index" json:"category"`               // semantic type (see NormalizeGlossaryCategory)
+	Difficulty        string       `gorm:"index" json:"difficulty"`             // help tier (see NormalizeGlossaryDifficulty)
 	Definition        string       `gorm:"type:text" json:"definition"`         // LLM-generated, current best
 	CuratedDefinition string       `gorm:"type:text" json:"curated_definition"` // manual override text
 	ManualOverride    bool         `gorm:"default:false;index" json:"manual_override"`

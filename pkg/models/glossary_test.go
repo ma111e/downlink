@@ -43,6 +43,36 @@ func TestNormalizeGlossaryCategory(t *testing.T) {
 	}
 }
 
+func TestNormalizeGlossaryDifficulty(t *testing.T) {
+	cases := map[string]string{
+		"beginner":     "beginner",
+		"Intermediate": "intermediate",
+		"  ADVANCED  ": "advanced",
+		"":             "intermediate", // unset defaults to the middle bucket
+		"made-up":      "intermediate",
+	}
+	for in, want := range cases {
+		if got := NormalizeGlossaryDifficulty(in); got != want {
+			t.Errorf("NormalizeGlossaryDifficulty(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestGlossaryDifficultyTier(t *testing.T) {
+	cases := map[string]int{
+		"advanced":     1,
+		"intermediate": 2,
+		"beginner":     3,
+		"":             2, // unset → intermediate tier
+		"made-up":      2,
+	}
+	for in, want := range cases {
+		if got := GlossaryDifficultyTier(in); got != want {
+			t.Errorf("GlossaryDifficultyTier(%q) = %d, want %d", in, got, want)
+		}
+	}
+}
+
 func TestEffectiveDefinition(t *testing.T) {
 	e := GlossaryEntry{Definition: "generated"}
 	if got := e.EffectiveDefinition(); got != "generated" {

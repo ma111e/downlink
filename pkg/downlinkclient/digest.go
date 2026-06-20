@@ -64,7 +64,7 @@ type GenerateDigestOptions struct {
 	SkipAnalysis           bool
 	SkipDuplicates         bool
 	ExcludeDigested        bool
-	Theme                  string
+	Layout                 string // graphical/layout theme name; empty = server default
 	OneShotAnalysis        bool
 	Test                   bool
 	TestDigestID           string
@@ -84,14 +84,14 @@ type GenerateDigestOptions struct {
 // GenerateDigest generates a new digest, streaming progress events to onEvent as they arrive.
 // Returns the final digest once the stream completes with a "done" event.
 // The provided ctx controls the stream lifetime: cancel it to abort generation on the server.
-func (pc *DownlinkClient) GenerateDigest(ctx context.Context, startTime time.Time, endTime time.Time, skipAnalysis bool, skipDuplicates bool, excludeDigested bool, theme string, onEvent func(*protos.DigestProgressEvent)) (models.Digest, error) {
+func (pc *DownlinkClient) GenerateDigest(ctx context.Context, startTime time.Time, endTime time.Time, skipAnalysis bool, skipDuplicates bool, excludeDigested bool, layout string, onEvent func(*protos.DigestProgressEvent)) (models.Digest, error) {
 	return pc.GenerateDigestWithOptions(ctx, GenerateDigestOptions{
 		StartTime:       startTime,
 		EndTime:         endTime,
 		SkipAnalysis:    skipAnalysis,
 		SkipDuplicates:  skipDuplicates,
 		ExcludeDigested: excludeDigested,
-		Theme:           theme,
+		Layout:          layout,
 		OnEvent:         onEvent,
 	})
 }
@@ -103,7 +103,7 @@ func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options
 		SkipAnalysis:           options.SkipAnalysis,
 		SkipDuplicates:         options.SkipDuplicates,
 		ExcludeDigested:        options.ExcludeDigested,
-		Theme:                  options.Theme,
+		Theme:                  options.Layout, // proto field carries the layout name (kept for wire compat)
 		OneShotAnalysis:        options.OneShotAnalysis,
 		Test:                   options.Test,
 		TestDigestId:           options.TestDigestID,

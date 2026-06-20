@@ -35,6 +35,7 @@ type GlossaryEntry struct {
 	ManualOverride      bool                   `protobuf:"varint,8,opt,name=manual_override,json=manualOverride,proto3" json:"manual_override,omitempty"`
 	TagId               string                 `protobuf:"bytes,9,opt,name=tag_id,json=tagId,proto3" json:"tag_id,omitempty"`
 	EffectiveDefinition string                 `protobuf:"bytes,10,opt,name=effective_definition,json=effectiveDefinition,proto3" json:"effective_definition,omitempty"` // curated override when set, else definition
+	Difficulty          string                 `protobuf:"bytes,11,opt,name=difficulty,proto3" json:"difficulty,omitempty"`                                              // help tier: "beginner" | "intermediate" | "advanced"
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -135,6 +136,13 @@ func (x *GlossaryEntry) GetTagId() string {
 func (x *GlossaryEntry) GetEffectiveDefinition() string {
 	if x != nil {
 		return x.EffectiveDefinition
+	}
+	return ""
+}
+
+func (x *GlossaryEntry) GetDifficulty() string {
+	if x != nil {
+		return x.Difficulty
 	}
 	return ""
 }
@@ -509,6 +517,8 @@ type ArticleAnalysis struct {
 	ReferencedReports      []*ReferencedReport    `protobuf:"bytes,19,rep,name=referenced_reports,json=referencedReports,proto3" json:"referenced_reports,omitempty"`
 	ReferencedReportsJson  string                 `protobuf:"bytes,20,opt,name=referenced_reports_json,json=referencedReportsJson,proto3" json:"referenced_reports_json,omitempty"`
 	ScoreDimensions        *ScoreDimensions       `protobuf:"bytes,21,opt,name=score_dimensions,json=scoreDimensions,proto3,oneof" json:"score_dimensions,omitempty"`
+	PlainWords             string                 `protobuf:"bytes,22,opt,name=plain_words,json=plainWords,proto3" json:"plain_words,omitempty"`
+	GlossaryTerms          []*GlossaryTerm        `protobuf:"bytes,24,rep,name=glossary_terms,json=glossaryTerms,proto3" json:"glossary_terms,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -690,6 +700,89 @@ func (x *ArticleAnalysis) GetScoreDimensions() *ScoreDimensions {
 	return nil
 }
 
+func (x *ArticleAnalysis) GetPlainWords() string {
+	if x != nil {
+		return x.PlainWords
+	}
+	return ""
+}
+
+func (x *ArticleAnalysis) GetGlossaryTerms() []*GlossaryTerm {
+	if x != nil {
+		return x.GlossaryTerms
+	}
+	return nil
+}
+
+// GlossaryTerm is a per-article jargon term with its in-context explanation.
+type GlossaryTerm struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Term          string                 `protobuf:"bytes,1,opt,name=term,proto3" json:"term,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Definition    string                 `protobuf:"bytes,3,opt,name=definition,proto3" json:"definition,omitempty"`
+	Context       string                 `protobuf:"bytes,4,opt,name=context,proto3" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GlossaryTerm) Reset() {
+	*x = GlossaryTerm{}
+	mi := &file_analysis_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GlossaryTerm) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GlossaryTerm) ProtoMessage() {}
+
+func (x *GlossaryTerm) ProtoReflect() protoreflect.Message {
+	mi := &file_analysis_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GlossaryTerm.ProtoReflect.Descriptor instead.
+func (*GlossaryTerm) Descriptor() ([]byte, []int) {
+	return file_analysis_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GlossaryTerm) GetTerm() string {
+	if x != nil {
+		return x.Term
+	}
+	return ""
+}
+
+func (x *GlossaryTerm) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *GlossaryTerm) GetDefinition() string {
+	if x != nil {
+		return x.Definition
+	}
+	return ""
+}
+
+func (x *GlossaryTerm) GetContext() string {
+	if x != nil {
+		return x.Context
+	}
+	return ""
+}
+
 // GetAllArticleAnalysesRequest represents a request to retrieve all analysis results for a specific article
 type GetAllArticleAnalysesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -700,7 +793,7 @@ type GetAllArticleAnalysesRequest struct {
 
 func (x *GetAllArticleAnalysesRequest) Reset() {
 	*x = GetAllArticleAnalysesRequest{}
-	mi := &file_analysis_proto_msgTypes[8]
+	mi := &file_analysis_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -712,7 +805,7 @@ func (x *GetAllArticleAnalysesRequest) String() string {
 func (*GetAllArticleAnalysesRequest) ProtoMessage() {}
 
 func (x *GetAllArticleAnalysesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_analysis_proto_msgTypes[8]
+	mi := &file_analysis_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -725,7 +818,7 @@ func (x *GetAllArticleAnalysesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAllArticleAnalysesRequest.ProtoReflect.Descriptor instead.
 func (*GetAllArticleAnalysesRequest) Descriptor() ([]byte, []int) {
-	return file_analysis_proto_rawDescGZIP(), []int{8}
+	return file_analysis_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetAllArticleAnalysesRequest) GetArticleId() string {
@@ -745,7 +838,7 @@ type GetAllArticleAnalysesResponse struct {
 
 func (x *GetAllArticleAnalysesResponse) Reset() {
 	*x = GetAllArticleAnalysesResponse{}
-	mi := &file_analysis_proto_msgTypes[9]
+	mi := &file_analysis_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -757,7 +850,7 @@ func (x *GetAllArticleAnalysesResponse) String() string {
 func (*GetAllArticleAnalysesResponse) ProtoMessage() {}
 
 func (x *GetAllArticleAnalysesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_analysis_proto_msgTypes[9]
+	mi := &file_analysis_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -770,7 +863,7 @@ func (x *GetAllArticleAnalysesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAllArticleAnalysesResponse.ProtoReflect.Descriptor instead.
 func (*GetAllArticleAnalysesResponse) Descriptor() ([]byte, []int) {
-	return file_analysis_proto_rawDescGZIP(), []int{9}
+	return file_analysis_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetAllArticleAnalysesResponse) GetAnalyses() []*ArticleAnalysis {
@@ -789,7 +882,7 @@ type GetAnalysisRequest struct {
 
 func (x *GetAnalysisRequest) Reset() {
 	*x = GetAnalysisRequest{}
-	mi := &file_analysis_proto_msgTypes[10]
+	mi := &file_analysis_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -801,7 +894,7 @@ func (x *GetAnalysisRequest) String() string {
 func (*GetAnalysisRequest) ProtoMessage() {}
 
 func (x *GetAnalysisRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_analysis_proto_msgTypes[10]
+	mi := &file_analysis_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -814,7 +907,7 @@ func (x *GetAnalysisRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAnalysisRequest.ProtoReflect.Descriptor instead.
 func (*GetAnalysisRequest) Descriptor() ([]byte, []int) {
-	return file_analysis_proto_rawDescGZIP(), []int{10}
+	return file_analysis_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetAnalysisRequest) GetArticleId() string {
@@ -828,7 +921,7 @@ var File_analysis_proto protoreflect.FileDescriptor
 
 const file_analysis_proto_rawDesc = "" +
 	"\n" +
-	"\x0eanalysis.proto\x12\bdownlink\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x0earticles.proto\"\xcc\x02\n" +
+	"\x0eanalysis.proto\x12\bdownlink\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x0earticles.proto\"\xec\x02\n" +
 	"\rGlossaryEntry\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0enormalized_key\x18\x02 \x01(\tR\rnormalizedKey\x12\x12\n" +
@@ -842,7 +935,10 @@ const file_analysis_proto_rawDesc = "" +
 	"\x0fmanual_override\x18\b \x01(\bR\x0emanualOverride\x12\x15\n" +
 	"\x06tag_id\x18\t \x01(\tR\x05tagId\x121\n" +
 	"\x14effective_definition\x18\n" +
-	" \x01(\tR\x13effectiveDefinition\"2\n" +
+	" \x01(\tR\x13effectiveDefinition\x12\x1e\n" +
+	"\n" +
+	"difficulty\x18\v \x01(\tR\n" +
+	"difficulty\"2\n" +
 	"\x1aListGlossaryEntriesRequest\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\"P\n" +
 	"\x1bListGlossaryEntriesResponse\x121\n" +
@@ -866,7 +962,7 @@ const file_analysis_proto_rawDesc = "" +
 	"\anovelty\x18\x04 \x01(\x05R\anovelty\x12$\n" +
 	"\ractionability\x18\x05 \x01(\x05R\ractionability\x12 \n" +
 	"\vcredibility\x18\x06 \x01(\x05R\vcredibility\x12#\n" +
-	"\ris_aggregator\x18\a \x01(\bR\fisAggregator\"\xaa\a\n" +
+	"\ris_aggregator\x18\a \x01(\bR\fisAggregator\"\xb6\b\n" +
 	"\x0fArticleAnalysis\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -893,10 +989,20 @@ const file_analysis_proto_rawDesc = "" +
 	"\aarticle\x18\x11 \x01(\v2\x11.downlink.ArticleH\x00R\aarticle\x88\x01\x01\x12I\n" +
 	"\x12referenced_reports\x18\x13 \x03(\v2\x1a.downlink.ReferencedReportR\x11referencedReports\x126\n" +
 	"\x17referenced_reports_json\x18\x14 \x01(\tR\x15referencedReportsJson\x12I\n" +
-	"\x10score_dimensions\x18\x15 \x01(\v2\x19.downlink.ScoreDimensionsH\x01R\x0fscoreDimensions\x88\x01\x01B\n" +
+	"\x10score_dimensions\x18\x15 \x01(\v2\x19.downlink.ScoreDimensionsH\x01R\x0fscoreDimensions\x88\x01\x01\x12\x1f\n" +
+	"\vplain_words\x18\x16 \x01(\tR\n" +
+	"plainWords\x12=\n" +
+	"\x0eglossary_terms\x18\x18 \x03(\v2\x16.downlink.GlossaryTermR\rglossaryTermsB\n" +
 	"\n" +
 	"\b_articleB\x13\n" +
-	"\x11_score_dimensions\"=\n" +
+	"\x11_score_dimensionsJ\x04\b\x17\x10\x18R\x14glossary_explanationR\x0ewhy_it_matters\"p\n" +
+	"\fGlossaryTerm\x12\x12\n" +
+	"\x04term\x18\x01 \x01(\tR\x04term\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x1e\n" +
+	"\n" +
+	"definition\x18\x03 \x01(\tR\n" +
+	"definition\x12\x18\n" +
+	"\acontext\x18\x04 \x01(\tR\acontext\"=\n" +
 	"\x1cGetAllArticleAnalysesRequest\x12\x1d\n" +
 	"\n" +
 	"article_id\x18\x01 \x01(\tR\tarticleId\"V\n" +
@@ -923,7 +1029,7 @@ func file_analysis_proto_rawDescGZIP() []byte {
 	return file_analysis_proto_rawDescData
 }
 
-var file_analysis_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_analysis_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_analysis_proto_goTypes = []any{
 	(*GlossaryEntry)(nil),                 // 0: downlink.GlossaryEntry
 	(*ListGlossaryEntriesRequest)(nil),    // 1: downlink.ListGlossaryEntriesRequest
@@ -933,33 +1039,35 @@ var file_analysis_proto_goTypes = []any{
 	(*ReferencedReport)(nil),              // 5: downlink.ReferencedReport
 	(*ScoreDimensions)(nil),               // 6: downlink.ScoreDimensions
 	(*ArticleAnalysis)(nil),               // 7: downlink.ArticleAnalysis
-	(*GetAllArticleAnalysesRequest)(nil),  // 8: downlink.GetAllArticleAnalysesRequest
-	(*GetAllArticleAnalysesResponse)(nil), // 9: downlink.GetAllArticleAnalysesResponse
-	(*GetAnalysisRequest)(nil),            // 10: downlink.GetAnalysisRequest
-	(*timestamppb.Timestamp)(nil),         // 11: google.protobuf.Timestamp
-	(*Article)(nil),                       // 12: downlink.Article
+	(*GlossaryTerm)(nil),                  // 8: downlink.GlossaryTerm
+	(*GetAllArticleAnalysesRequest)(nil),  // 9: downlink.GetAllArticleAnalysesRequest
+	(*GetAllArticleAnalysesResponse)(nil), // 10: downlink.GetAllArticleAnalysesResponse
+	(*GetAnalysisRequest)(nil),            // 11: downlink.GetAnalysisRequest
+	(*timestamppb.Timestamp)(nil),         // 12: google.protobuf.Timestamp
+	(*Article)(nil),                       // 13: downlink.Article
 }
 var file_analysis_proto_depIdxs = []int32{
 	0,  // 0: downlink.ListGlossaryEntriesResponse.entries:type_name -> downlink.GlossaryEntry
 	0,  // 1: downlink.SetGlossaryOverrideResponse.entry:type_name -> downlink.GlossaryEntry
-	11, // 2: downlink.ArticleAnalysis.created_at:type_name -> google.protobuf.Timestamp
-	12, // 3: downlink.ArticleAnalysis.article:type_name -> downlink.Article
+	12, // 2: downlink.ArticleAnalysis.created_at:type_name -> google.protobuf.Timestamp
+	13, // 3: downlink.ArticleAnalysis.article:type_name -> downlink.Article
 	5,  // 4: downlink.ArticleAnalysis.referenced_reports:type_name -> downlink.ReferencedReport
 	6,  // 5: downlink.ArticleAnalysis.score_dimensions:type_name -> downlink.ScoreDimensions
-	7,  // 6: downlink.GetAllArticleAnalysesResponse.analyses:type_name -> downlink.ArticleAnalysis
-	8,  // 7: downlink.AnalysisService.GetAllArticleAnalyses:input_type -> downlink.GetAllArticleAnalysesRequest
-	10, // 8: downlink.AnalysisService.GetAnalysis:input_type -> downlink.GetAnalysisRequest
-	1,  // 9: downlink.AnalysisService.ListGlossaryEntries:input_type -> downlink.ListGlossaryEntriesRequest
-	3,  // 10: downlink.AnalysisService.SetGlossaryOverride:input_type -> downlink.SetGlossaryOverrideRequest
-	9,  // 11: downlink.AnalysisService.GetAllArticleAnalyses:output_type -> downlink.GetAllArticleAnalysesResponse
-	7,  // 12: downlink.AnalysisService.GetAnalysis:output_type -> downlink.ArticleAnalysis
-	2,  // 13: downlink.AnalysisService.ListGlossaryEntries:output_type -> downlink.ListGlossaryEntriesResponse
-	4,  // 14: downlink.AnalysisService.SetGlossaryOverride:output_type -> downlink.SetGlossaryOverrideResponse
-	11, // [11:15] is the sub-list for method output_type
-	7,  // [7:11] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	8,  // 6: downlink.ArticleAnalysis.glossary_terms:type_name -> downlink.GlossaryTerm
+	7,  // 7: downlink.GetAllArticleAnalysesResponse.analyses:type_name -> downlink.ArticleAnalysis
+	9,  // 8: downlink.AnalysisService.GetAllArticleAnalyses:input_type -> downlink.GetAllArticleAnalysesRequest
+	11, // 9: downlink.AnalysisService.GetAnalysis:input_type -> downlink.GetAnalysisRequest
+	1,  // 10: downlink.AnalysisService.ListGlossaryEntries:input_type -> downlink.ListGlossaryEntriesRequest
+	3,  // 11: downlink.AnalysisService.SetGlossaryOverride:input_type -> downlink.SetGlossaryOverrideRequest
+	10, // 12: downlink.AnalysisService.GetAllArticleAnalyses:output_type -> downlink.GetAllArticleAnalysesResponse
+	7,  // 13: downlink.AnalysisService.GetAnalysis:output_type -> downlink.ArticleAnalysis
+	2,  // 14: downlink.AnalysisService.ListGlossaryEntries:output_type -> downlink.ListGlossaryEntriesResponse
+	4,  // 15: downlink.AnalysisService.SetGlossaryOverride:output_type -> downlink.SetGlossaryOverrideResponse
+	12, // [12:16] is the sub-list for method output_type
+	8,  // [8:12] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_analysis_proto_init() }
@@ -975,7 +1083,7 @@ func file_analysis_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_analysis_proto_rawDesc), len(file_analysis_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

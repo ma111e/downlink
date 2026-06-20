@@ -59,7 +59,11 @@ func swipePriorityLabel(tag string) string {
 
 // RenderSwipeHTML generates the self-contained Tinder-style triage page for a digest.
 // digestFilename is the filename of the companion list-view page (used for the back link).
-func RenderSwipeHTML(digest models.Digest, digestFilename string, theme string) ([]byte, error) {
+func RenderSwipeHTML(digest models.Digest, digestFilename string, layout string) ([]byte, error) {
+	layout, err := resolveLayout(layout)
+	if err != nil {
+		return nil, err
+	}
 	daByArticle := make(map[string]models.DigestAnalysis, len(digest.DigestAnalyses))
 	for _, da := range digest.DigestAnalyses {
 		daByArticle[da.ArticleId] = da
@@ -146,11 +150,11 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string, theme string) 
 		TimeWindow:     formatDuration(digest.TimeWindow),
 		ArticlesJSON:   string(articlesJSON),
 		PaletteCSS:     string(paletteCSS()),
-		Theme:          normalizeTheme(theme),
+		Theme:          firstPaintTheme,
 		Themes:         themeOptions(),
 	}
 
-	templateText, err := loadNotificationTemplate("swipe.html.tmpl")
+	templateText, err := loadNotificationTemplate(layout, "swipe.html.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("swipe: load template: %w", err)
 	}

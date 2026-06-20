@@ -293,7 +293,7 @@ type GenerateDigestRequest struct {
 	SkipAnalysis           bool                   `protobuf:"varint,3,opt,name=skip_analysis,json=skipAnalysis,proto3" json:"skip_analysis,omitempty"`
 	SkipDuplicates         bool                   `protobuf:"varint,4,opt,name=skip_duplicates,json=skipDuplicates,proto3" json:"skip_duplicates,omitempty"`
 	ExcludeDigested        bool                   `protobuf:"varint,5,opt,name=exclude_digested,json=excludeDigested,proto3" json:"exclude_digested,omitempty"`
-	Theme                  string                 `protobuf:"bytes,7,opt,name=theme,proto3" json:"theme,omitempty"`
+	Theme                  string                 `protobuf:"bytes,7,opt,name=theme,proto3" json:"theme,omitempty"` // graphical/layout theme name (templates/<name>/ set); empty = "default"
 	OneShotAnalysis        bool                   `protobuf:"varint,8,opt,name=one_shot_analysis,json=oneShotAnalysis,proto3" json:"one_shot_analysis,omitempty"`
 	Test                   bool                   `protobuf:"varint,9,opt,name=test,proto3" json:"test,omitempty"`
 	TestDigestId           string                 `protobuf:"bytes,10,opt,name=test_digest_id,json=testDigestId,proto3" json:"test_digest_id,omitempty"`
@@ -976,6 +976,7 @@ type Digest struct {
 	DigestSummary   string                  `protobuf:"bytes,7,opt,name=digest_summary,json=digestSummary,proto3" json:"digest_summary,omitempty"`
 	DigestAnalyses  []*DigestAnalysis       `protobuf:"bytes,8,rep,name=digest_analyses,json=digestAnalyses,proto3" json:"digest_analyses,omitempty"`
 	Title           string                  `protobuf:"bytes,9,opt,name=title,proto3" json:"title,omitempty"`
+	DigestGlossary  []*DigestGlossary       `protobuf:"bytes,10,rep,name=digest_glossary,json=digestGlossary,proto3" json:"digest_glossary,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1073,6 +1074,74 @@ func (x *Digest) GetTitle() string {
 	return ""
 }
 
+func (x *Digest) GetDigestGlossary() []*DigestGlossary {
+	if x != nil {
+		return x.DigestGlossary
+	}
+	return nil
+}
+
+// DigestGlossary records which global glossary entries a digest references.
+type DigestGlossary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DigestId      string                 `protobuf:"bytes,1,opt,name=digest_id,json=digestId,proto3" json:"digest_id,omitempty"`
+	EntryId       string                 `protobuf:"bytes,2,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	Entry         *GlossaryEntry         `protobuf:"bytes,3,opt,name=entry,proto3,oneof" json:"entry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DigestGlossary) Reset() {
+	*x = DigestGlossary{}
+	mi := &file_digests_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DigestGlossary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DigestGlossary) ProtoMessage() {}
+
+func (x *DigestGlossary) ProtoReflect() protoreflect.Message {
+	mi := &file_digests_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DigestGlossary.ProtoReflect.Descriptor instead.
+func (*DigestGlossary) Descriptor() ([]byte, []int) {
+	return file_digests_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *DigestGlossary) GetDigestId() string {
+	if x != nil {
+		return x.DigestId
+	}
+	return ""
+}
+
+func (x *DigestGlossary) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+func (x *DigestGlossary) GetEntry() *GlossaryEntry {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
+}
+
 // DigestArticle represents an article included in a digest
 type DigestArticle struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1084,7 +1153,7 @@ type DigestArticle struct {
 
 func (x *DigestArticle) Reset() {
 	*x = DigestArticle{}
-	mi := &file_digests_proto_msgTypes[14]
+	mi := &file_digests_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1096,7 +1165,7 @@ func (x *DigestArticle) String() string {
 func (*DigestArticle) ProtoMessage() {}
 
 func (x *DigestArticle) ProtoReflect() protoreflect.Message {
-	mi := &file_digests_proto_msgTypes[14]
+	mi := &file_digests_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1109,7 +1178,7 @@ func (x *DigestArticle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DigestArticle.ProtoReflect.Descriptor instead.
 func (*DigestArticle) Descriptor() ([]byte, []int) {
-	return file_digests_proto_rawDescGZIP(), []int{14}
+	return file_digests_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DigestArticle) GetDigestId() string {
@@ -1221,7 +1290,7 @@ const file_digests_proto_rawDesc = "" +
 	"\x0fduplicate_group\x18\x04 \x01(\tR\x0eduplicateGroup\x122\n" +
 	"\x15is_most_comprehensive\x18\x05 \x01(\bR\x13isMostComprehensive\x12:\n" +
 	"\banalysis\x18\x06 \x01(\v2\x19.downlink.ArticleAnalysisH\x00R\banalysis\x88\x01\x01B\v\n" +
-	"\t_analysis\"\xae\x03\n" +
+	"\t_analysis\"\xf1\x03\n" +
 	"\x06Digest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1233,7 +1302,14 @@ const file_digests_proto_rawDesc = "" +
 	"\barticles\x18\x06 \x03(\v2\x11.downlink.ArticleR\barticles\x12%\n" +
 	"\x0edigest_summary\x18\a \x01(\tR\rdigestSummary\x12A\n" +
 	"\x0fdigest_analyses\x18\b \x03(\v2\x18.downlink.DigestAnalysisR\x0edigestAnalyses\x12\x14\n" +
-	"\x05title\x18\t \x01(\tR\x05title\"K\n" +
+	"\x05title\x18\t \x01(\tR\x05title\x12A\n" +
+	"\x0fdigest_glossary\x18\n" +
+	" \x03(\v2\x18.downlink.DigestGlossaryR\x0edigestGlossary\"\x86\x01\n" +
+	"\x0eDigestGlossary\x12\x1b\n" +
+	"\tdigest_id\x18\x01 \x01(\tR\bdigestId\x12\x19\n" +
+	"\bentry_id\x18\x02 \x01(\tR\aentryId\x122\n" +
+	"\x05entry\x18\x03 \x01(\v2\x17.downlink.GlossaryEntryH\x00R\x05entry\x88\x01\x01B\b\n" +
+	"\x06_entry\"K\n" +
 	"\rDigestArticle\x12\x1b\n" +
 	"\tdigest_id\x18\x01 \x01(\tR\bdigestId\x12\x1d\n" +
 	"\n" +
@@ -1256,7 +1332,7 @@ func file_digests_proto_rawDescGZIP() []byte {
 	return file_digests_proto_rawDescData
 }
 
-var file_digests_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_digests_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_digests_proto_goTypes = []any{
 	(*GetDigestRequest)(nil),          // 0: downlink.GetDigestRequest
 	(*GetDigestResponse)(nil),         // 1: downlink.GetDigestResponse
@@ -1272,41 +1348,45 @@ var file_digests_proto_goTypes = []any{
 	(*DigestProviderResult)(nil),      // 11: downlink.DigestProviderResult
 	(*DigestAnalysis)(nil),            // 12: downlink.DigestAnalysis
 	(*Digest)(nil),                    // 13: downlink.Digest
-	(*DigestArticle)(nil),             // 14: downlink.DigestArticle
-	(*Article)(nil),                   // 15: downlink.Article
-	(*timestamppb.Timestamp)(nil),     // 16: google.protobuf.Timestamp
-	(*ArticleAnalysis)(nil),           // 17: downlink.ArticleAnalysis
-	(*durationpb.Duration)(nil),       // 18: google.protobuf.Duration
+	(*DigestGlossary)(nil),            // 14: downlink.DigestGlossary
+	(*DigestArticle)(nil),             // 15: downlink.DigestArticle
+	(*Article)(nil),                   // 16: downlink.Article
+	(*timestamppb.Timestamp)(nil),     // 17: google.protobuf.Timestamp
+	(*ArticleAnalysis)(nil),           // 18: downlink.ArticleAnalysis
+	(*durationpb.Duration)(nil),       // 19: google.protobuf.Duration
+	(*GlossaryEntry)(nil),             // 20: downlink.GlossaryEntry
 }
 var file_digests_proto_depIdxs = []int32{
 	13, // 0: downlink.GetDigestResponse.digest:type_name -> downlink.Digest
-	15, // 1: downlink.GetDigestArticlesResponse.articles:type_name -> downlink.Article
-	16, // 2: downlink.GenerateDigestRequest.start_time:type_name -> google.protobuf.Timestamp
-	16, // 3: downlink.GenerateDigestRequest.end_time:type_name -> google.protobuf.Timestamp
+	16, // 1: downlink.GetDigestArticlesResponse.articles:type_name -> downlink.Article
+	17, // 2: downlink.GenerateDigestRequest.start_time:type_name -> google.protobuf.Timestamp
+	17, // 3: downlink.GenerateDigestRequest.end_time:type_name -> google.protobuf.Timestamp
 	13, // 4: downlink.GenerateDigestResponse.digest:type_name -> downlink.Digest
 	13, // 5: downlink.DigestProgressEvent.digest:type_name -> downlink.Digest
 	13, // 6: downlink.ListDigestsResponse.digests:type_name -> downlink.Digest
-	16, // 7: downlink.DigestProviderResult.created_at:type_name -> google.protobuf.Timestamp
+	17, // 7: downlink.DigestProviderResult.created_at:type_name -> google.protobuf.Timestamp
 	13, // 8: downlink.DigestProviderResult.digest:type_name -> downlink.Digest
-	17, // 9: downlink.DigestAnalysis.analysis:type_name -> downlink.ArticleAnalysis
-	16, // 10: downlink.Digest.created_at:type_name -> google.protobuf.Timestamp
-	18, // 11: downlink.Digest.time_window:type_name -> google.protobuf.Duration
+	18, // 9: downlink.DigestAnalysis.analysis:type_name -> downlink.ArticleAnalysis
+	17, // 10: downlink.Digest.created_at:type_name -> google.protobuf.Timestamp
+	19, // 11: downlink.Digest.time_window:type_name -> google.protobuf.Duration
 	11, // 12: downlink.Digest.provider_results:type_name -> downlink.DigestProviderResult
-	15, // 13: downlink.Digest.articles:type_name -> downlink.Article
+	16, // 13: downlink.Digest.articles:type_name -> downlink.Article
 	12, // 14: downlink.Digest.digest_analyses:type_name -> downlink.DigestAnalysis
-	9,  // 15: downlink.DigestService.ListDigests:input_type -> downlink.ListDigestsRequest
-	0,  // 16: downlink.DigestService.GetDigest:input_type -> downlink.GetDigestRequest
-	2,  // 17: downlink.DigestService.GetDigestArticles:input_type -> downlink.GetDigestArticlesRequest
-	6,  // 18: downlink.DigestService.GenerateDigest:input_type -> downlink.GenerateDigestRequest
-	10, // 19: downlink.DigestService.ListDigests:output_type -> downlink.ListDigestsResponse
-	1,  // 20: downlink.DigestService.GetDigest:output_type -> downlink.GetDigestResponse
-	3,  // 21: downlink.DigestService.GetDigestArticles:output_type -> downlink.GetDigestArticlesResponse
-	8,  // 22: downlink.DigestService.GenerateDigest:output_type -> downlink.DigestProgressEvent
-	19, // [19:23] is the sub-list for method output_type
-	15, // [15:19] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	14, // 15: downlink.Digest.digest_glossary:type_name -> downlink.DigestGlossary
+	20, // 16: downlink.DigestGlossary.entry:type_name -> downlink.GlossaryEntry
+	9,  // 17: downlink.DigestService.ListDigests:input_type -> downlink.ListDigestsRequest
+	0,  // 18: downlink.DigestService.GetDigest:input_type -> downlink.GetDigestRequest
+	2,  // 19: downlink.DigestService.GetDigestArticles:input_type -> downlink.GetDigestArticlesRequest
+	6,  // 20: downlink.DigestService.GenerateDigest:input_type -> downlink.GenerateDigestRequest
+	10, // 21: downlink.DigestService.ListDigests:output_type -> downlink.ListDigestsResponse
+	1,  // 22: downlink.DigestService.GetDigest:output_type -> downlink.GetDigestResponse
+	3,  // 23: downlink.DigestService.GetDigestArticles:output_type -> downlink.GetDigestArticlesResponse
+	8,  // 24: downlink.DigestService.GenerateDigest:output_type -> downlink.DigestProgressEvent
+	21, // [21:25] is the sub-list for method output_type
+	17, // [17:21] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_digests_proto_init() }
@@ -1319,13 +1399,14 @@ func file_digests_proto_init() {
 	file_digests_proto_msgTypes[6].OneofWrappers = []any{}
 	file_digests_proto_msgTypes[11].OneofWrappers = []any{}
 	file_digests_proto_msgTypes[12].OneofWrappers = []any{}
+	file_digests_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_digests_proto_rawDesc), len(file_digests_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

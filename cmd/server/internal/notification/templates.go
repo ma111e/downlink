@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-//go:embed templates/*.tmpl
+//go:embed templates/*/*.tmpl
 var notificationTemplateFS embed.FS
 
 // devTemplateDir, when non-empty, makes loadNotificationTemplate read templates
@@ -21,9 +21,11 @@ func SetTemplateDir(dir string) {
 	devTemplateDir = dir
 }
 
-func loadNotificationTemplate(name string) (string, error) {
+// loadNotificationTemplate reads template file name belonging to the given layout
+// (a subdirectory of templates/). Each layout holds a full set of page templates.
+func loadNotificationTemplate(layout, name string) (string, error) {
 	if devTemplateDir != "" {
-		path := filepath.Join(devTemplateDir, name)
+		path := filepath.Join(devTemplateDir, layout, name)
 		b, err := os.ReadFile(path)
 		if err != nil {
 			return "", fmt.Errorf("read %s: %w", path, err)
@@ -31,7 +33,7 @@ func loadNotificationTemplate(name string) (string, error) {
 		return string(b), nil
 	}
 
-	path := "templates/" + name
+	path := "templates/" + layout + "/" + name
 	b, err := notificationTemplateFS.ReadFile(path)
 	if err != nil {
 		return "", fmt.Errorf("read %s: %w", path, err)

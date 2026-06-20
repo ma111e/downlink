@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ma111e/downlink/pkg/digestthemes"
+	"github.com/ma111e/downlink/pkg/digestlayouts"
 	"github.com/ma111e/downlink/pkg/downlinkclient"
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/protos"
@@ -33,15 +33,15 @@ func createDigestCommands() *cobra.Command {
 		Long:  `Create and view article digests.`,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if listThemesFlag {
-				fmt.Println("Available themes:")
-				for _, t := range digestthemes.All() {
-					fmt.Printf("  %-12s %s\n", t.Name, t.Description)
+				fmt.Println("Available layout themes:")
+				for _, l := range digestlayouts.All() {
+					fmt.Printf("  %-12s %s\n", l.Name, l.Description)
 				}
 				os.Exit(0)
 			}
 		},
 	}
-	cmd.PersistentFlags().BoolVar(&listThemesFlag, "list-themes", false, "List available HTML themes and exit")
+	cmd.PersistentFlags().BoolVar(&listThemesFlag, "list-themes", false, "List available layout themes and exit")
 
 	// List digests command
 	listCmd := &cobra.Command{
@@ -142,7 +142,7 @@ func createDigestCommands() *cobra.Command {
 	getCmd.Flags().BoolVar(&showMarkdown, "markdown", false, "Display summary in styled markdown format")
 
 	// Generate digest command
-	var digestFrom, digestTo, digestBetween, digestDay, digestTheme, digestTestID string
+	var digestFrom, digestTo, digestBetween, digestDay, digestLayout, digestTestID string
 	var digestProvider, digestModel string
 	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages, digestReanalyzeOnModelChange, digestReanalyze, digestVibeScore, digestGlossary, digestSelectModel bool
 	var digestStandardSynthesis, digestComprehensiveSynthesis, digestExecutiveSummary bool
@@ -175,8 +175,8 @@ Examples:
 			client := getNewDownlinkClient()
 
 			if digestTest {
-				if !digestthemes.Valid(digestTheme) {
-					fmt.Printf("Unknown theme %q. Run 'digest --list-themes' to see available themes.\n", digestTheme)
+				if !digestlayouts.Valid(digestLayout) {
+					fmt.Printf("Unknown layout theme %q. Run 'digest --list-themes' to see available themes.\n", digestLayout)
 					return
 				}
 
@@ -208,7 +208,7 @@ Examples:
 				digest, err := client.GenerateDigestWithOptions(ctx, downlinkclient.GenerateDigestOptions{
 					StartTime:    time.Now(),
 					EndTime:      time.Now(),
-					Theme:        digestTheme,
+					Layout:       digestLayout,
 					Test:         true,
 					TestDigestID: digestTestID,
 					OnEvent:      handler,
@@ -313,8 +313,8 @@ Examples:
 				return
 			}
 
-			if !digestthemes.Valid(digestTheme) {
-				fmt.Printf("Unknown theme %q. Run 'digest --list-themes' to see available themes.\n", digestTheme)
+			if !digestlayouts.Valid(digestLayout) {
+				fmt.Printf("Unknown layout theme %q. Run 'digest --list-themes' to see available themes.\n", digestLayout)
 				return
 			}
 
@@ -438,7 +438,7 @@ Examples:
 				SkipAnalysis:           skipAnalysis,
 				SkipDuplicates:         skipDuplicates,
 				ExcludeDigested:        excludeDigested,
-				Theme:                  digestTheme,
+				Layout:                 digestLayout,
 				OneShotAnalysis:        oneShotAnalysis,
 				GHPagesEnabled:         ghPagesEnabled,
 				ReanalyzeOnModelChange: digestReanalyzeOnModelChange,
@@ -487,7 +487,7 @@ Examples:
 	generateCmd.Flags().BoolVar(&digestExecutiveSummary, "executive-summary", false, "Generate the digest-level executive summary for this run [overrides server config; use --executive-summary=false to force off]")
 	generateCmd.Flags().Bool("one-shot", false, "Analyze missing articles with one full LLM prompt instead of the multi-step chain")
 	generateCmd.Flags().Bool("exclude-digested", false, "Exclude articles already included in a previous digest")
-	generateCmd.Flags().StringVar(&digestTheme, "theme", "dark", "HTML theme for the digest (see: digest --list-themes)")
+	generateCmd.Flags().StringVar(&digestLayout, "theme", "default", "Layout/graphical theme for the digest (see: digest --list-themes)")
 	generateCmd.Flags().StringVarP(&digestProvider, "provider", "p", "", "Provider override for this run (a provider type or a configured profile name, auto-detected by the server); applies to all LLM steps")
 	generateCmd.Flags().StringVarP(&digestModel, "model", "m", "", "Model override for this run. If given without --provider, the server finds the provider offering it (errors if ambiguous)")
 	generateCmd.Flags().BoolVar(&digestSelectModel, "select-model", false, "Interactively pick a model; lists every provider's models (or just --provider's when set)")

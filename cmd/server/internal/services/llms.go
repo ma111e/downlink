@@ -394,11 +394,11 @@ Return ONLY the JSON object below.`,
 			requiredKeys: []string{"tldr"},
 		},
 		analysisTask{
-			name: "why_it_matters",
-			instruction: `You are explaining this article to someone outside the security field. Using ONLY information present in the article, write 1–2 plain sentences explaining why this matters in the real world: who is actually affected and what the broader stakes are. Avoid jargon, and do not assume the reader defends or operates any systems. No bullet points or markdown.
+			name: "plain_words",
+			instruction: `You are explaining this article to someone brand new to the security field. Using ONLY information present in the article, write 2–4 plain sentences that cover both what the article is about and why it matters in the real world: what happened, who is actually affected, and what the broader stakes are. Avoid jargon entirely; if a concept is unavoidable, restate it in everyday language. Do not assume the reader defends or operates any systems. No bullet points or markdown.
 Return ONLY the JSON object below.`,
-			schema:       `{"why_it_matters": "<1-2 sentences>"}`,
-			requiredKeys: []string{"why_it_matters"},
+			schema:       `{"plain_words": "<2-4 sentences>"}`,
+			requiredKeys: []string{"plain_words"},
 		},
 		analysisTask{
 			name: "key_points",
@@ -467,18 +467,14 @@ Return ONLY the JSON object below.`, countWord, strings.Join(levelLines, "\n")),
 	if glossary {
 		tasks = append(tasks, analysisTask{
 			name: "glossary",
-			instruction: `You are explaining this article to someone brand new to cybersecurity. Produce two things, using ONLY information present in the article — do not infer or add outside context.
-
-explanation: 2–4 plain sentences describing what the article is about and why it matters, written for a complete beginner. Avoid jargon entirely; if a concept is unavoidable, restate it in everyday language. No markdown, no bullet points.
-terms: extract EVERY technical term, acronym, tool, protocol, technique, malware family, named entity, and security concept the article uses — be generous and thorough. Include common-but-technical concepts a newcomer would still need explained (e.g. ransomware, RAT, C2, backdoor, relay, phishing, lateral movement), not only obscure ones, alongside named things (CVEs, threat actors, malware names, products). For each term provide:
+			instruction: `You are explaining this article to someone brand new to cybersecurity. Using ONLY information present in the article — do not infer or add outside context — extract EVERY technical term, acronym, tool, protocol, technique, malware family, named entity, and security concept the article uses — be generous and thorough. Include common-but-technical concepts a newcomer would still need explained (e.g. ransomware, RAT, C2, backdoor, relay, phishing, lateral movement), not only obscure ones, alongside named things (CVEs, threat actors, malware names, products). Do NOT write a general definition for any term — definitions are generated separately. For each term provide only:
   - term: the term exactly as written in the article
   - type: ONE of threat-actor, malware, tool, technique, vulnerability, protocol, concept, organization, product, other
-  - definition: a single plain-language sentence defining the term in general
   - context: a single plain-language sentence explaining why this term matters in THIS article specifically (what role it plays in the events described)
 Include 0 to 30 entries; if the article genuinely uses no notable terms, return an empty array.
 
 Return ONLY the JSON object below.`,
-			schema:       `{"glossary": {"explanation": "<2-4 plain sentences>", "terms": [{"term": "<term>", "type": "<category>", "definition": "<one plain sentence>", "context": "<one plain sentence on its role in this article>"}]}}`,
+			schema:       `{"glossary": {"terms": [{"term": "<term>", "type": "<category>", "context": "<one plain sentence on its role in this article>"}]}}`,
 			requiredKeys: []string{"glossary"},
 		})
 	}
@@ -1244,7 +1240,9 @@ func glossaryFromResult(value any) []models.GlossaryTerm {
 			Definition: stringFromObject(obj, "definition"),
 			Context:    stringFromObject(obj, "context"),
 		}
-		if term.Term == "" || term.Definition == "" {
+		// Definitions are generated separately (see populateGlossary), so the
+		// per-article task only supplies term/type/context. Keep any term with a name.
+		if term.Term == "" {
 			continue
 		}
 		terms = append(terms, term)
@@ -1322,8 +1320,8 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 		analysis.Tldr = tldr
 	}
 
-	if why, ok := result["why_it_matters"].(string); ok {
-		analysis.WhyItMatters = why
+	if plain, ok := result["plain_words"].(string); ok {
+		analysis.PlainWords = plain
 	}
 
 	if justification, ok := result["justification"].(string); ok {
@@ -1363,9 +1361,6 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 	}
 
 	if glossary, ok := result["glossary"].(map[string]interface{}); ok {
-		if explanation, ok := glossary["explanation"].(string); ok {
-			analysis.GlossaryExplanation = explanation
-		}
 		if terms := glossaryFromResult(glossary["terms"]); len(terms) > 0 {
 			analysis.GlossaryTerms = terms
 		}

@@ -267,7 +267,7 @@ When no title is given, an interactive list is shown to pick from.`,
 	}
 	removeCmd.Flags().BoolVar(&removeNoWait, "no-wait", false, "Push and exit without waiting for the GitHub Pages deploy")
 
-	var republishTheme string
+	var republishLayout string
 	var republishDryRun bool
 	var republishNoWait bool
 
@@ -313,11 +313,11 @@ This command requires a running downlink server (--address / --port).`,
 					digests = append(digests, d)
 				}
 				prog.Complete("fetch", true, fmt.Sprintf("fetched %d digests", len(digests)))
-				return publisher.RepublishAll(digests, republishTheme, republishDryRun, !republishNoWait)
+				return publisher.RepublishAll(digests, republishLayout, republishDryRun, !republishNoWait)
 			})
 		},
 	}
-	republishAllCmd.Flags().StringVar(&republishTheme, "theme", "dark", "Theme to use when re-rendering digest pages")
+	republishAllCmd.Flags().StringVar(&republishLayout, "theme", "default", "Layout theme to use when re-rendering digest pages")
 	republishAllCmd.Flags().BoolVar(&republishDryRun, "dry-run", false, "Render and stage locally without committing or pushing")
 	republishAllCmd.Flags().BoolVar(&republishNoWait, "no-wait", false, "Push and exit without waiting for the GitHub Pages deploy")
 

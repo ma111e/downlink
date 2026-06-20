@@ -104,6 +104,8 @@ func ArticleAnalysisToProto(analysis *models.ArticleAnalysis) *protos.ArticleAna
 		InsightsJson:           analysis.InsightsJson,
 		ReferencedReportsJson:  analysis.ReferencedReportsJson,
 		ScoreDimensions:        ScoreDimensionsToProto(analysis.ScoreDimensions),
+		PlainWords:             analysis.PlainWords,
+		GlossaryTerms:          AllGlossaryTermsToProto(analysis.GlossaryTerms),
 	}
 
 	return protoAnalysis
@@ -135,9 +137,48 @@ func ArticleAnalysisToModel(analysis *protos.ArticleAnalysis) *models.ArticleAna
 		RawResponse:            analysis.RawResponse,
 		CreatedAt:              analysis.CreatedAt.AsTime(),
 		ScoreDimensions:        ScoreDimensionsToModel(analysis.ScoreDimensions),
+		PlainWords:             analysis.PlainWords,
+		GlossaryTerms:          AllGlossaryTermsToModels(analysis.GlossaryTerms),
 	}
 
 	return modelAnalysis
+}
+
+func GlossaryTermToProto(term models.GlossaryTerm) *protos.GlossaryTerm {
+	return &protos.GlossaryTerm{
+		Term:       term.Term,
+		Type:       term.Type,
+		Definition: term.Definition,
+		Context:    term.Context,
+	}
+}
+
+func GlossaryTermToModel(term *protos.GlossaryTerm) models.GlossaryTerm {
+	if term == nil {
+		return models.GlossaryTerm{}
+	}
+	return models.GlossaryTerm{
+		Term:       term.Term,
+		Type:       term.Type,
+		Definition: term.Definition,
+		Context:    term.Context,
+	}
+}
+
+func AllGlossaryTermsToProto(terms []models.GlossaryTerm) []*protos.GlossaryTerm {
+	var protoTerms []*protos.GlossaryTerm
+	for _, term := range terms {
+		protoTerms = append(protoTerms, GlossaryTermToProto(term))
+	}
+	return protoTerms
+}
+
+func AllGlossaryTermsToModels(terms []*protos.GlossaryTerm) []models.GlossaryTerm {
+	var modelTerms []models.GlossaryTerm
+	for _, term := range terms {
+		modelTerms = append(modelTerms, GlossaryTermToModel(term))
+	}
+	return modelTerms
 }
 
 func AllArticleAnalysesToProto(analyses []models.ArticleAnalysis) []*protos.ArticleAnalysis {

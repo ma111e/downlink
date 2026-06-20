@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ma111e/downlink/pkg/digestlayouts"
 	"github.com/ma111e/downlink/pkg/digestthemes"
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/scoring"
@@ -40,7 +41,7 @@ type RenderedAnalysis struct {
 	ProviderType           string
 	ModelName              string
 	Tldr                   template.HTML
-	WhyItMatters           template.HTML
+	PlainWords             template.HTML
 	Justification          template.HTML
 	BriefOverview          template.HTML
 	StandardSynthesis      template.HTML
@@ -48,7 +49,6 @@ type RenderedAnalysis struct {
 	KeyPoints              []template.HTML
 	Insights               []template.HTML
 	ReferencedReports      []RenderedReport
-	GlossaryExplanation    template.HTML
 }
 
 // RenderedReport is a referenced report prepared for the digest template, with its
@@ -257,7 +257,7 @@ type digestTemplateData struct {
 	CategoryCounts      map[string]int       // TOC rows per category, for the category filter badges
 	PriorityCounts      map[string]int       // TOC rows per priority key (must/should/may), for the priority filter badges
 	Tags                []TagCount           // distinct tags present among TOC rows (with match counts), for the tag filter cloud
-	HasLearning         bool                 // true when the digest has beginner aids (glossary or why-it-matters), gating the Learning switch + popup
+	HasLearning         bool                 // true when the digest has beginner aids ("In plain words" or glossary terms), gating the Learning switch + popup
 	GlossaryJSON        template.JS          // normalized-key → {term, def, type} map baked in for the definition popup
 	GlossaryContextJSON template.JS          // articleId → {normalized-key → context} for per-article popup context
 	GlossaryPanel       []GlossaryPanelEntry // deduped term list for the right-side glossary drawer
@@ -270,6 +270,7 @@ type glossaryJSEntry struct {
 	Def  string `json:"def"`
 	Type string `json:"type,omitempty"`
 	Tag  string `json:"tag,omitempty"`
+	Lvl  int    `json:"lvl,omitempty"` // help tier: 1=advanced, 2=intermediate, 3=beginner
 }
 
 // GlossaryPanelEntry is one deduplicated term shown in the right-side glossary drawer
@@ -278,6 +279,7 @@ type GlossaryPanelEntry struct {
 	Term       string
 	Type       string
 	Definition string
+	Lvl        int // help tier: 1=advanced, 2=intermediate, 3=beginner
 }
 
 // TagCount is a tag and the number of TOC rows that carry it (matching the row-level
@@ -303,12 +305,16 @@ func init() {
 
 // RenderDigestHTML generates a self-contained HTML file for the given digest.
 // The digest must have Articles, DigestAnalyses (with Analysis preloaded), and ProviderResults populated.
-// theme selects the visual style; an empty string or "dark" uses the default dark theme.
+// layout selects the template set (a templates/<layout>/ directory); an empty string uses the default.
 //
 // The provider/model switcher in the rendered page is populated client-side
 // from manifest.json - the page itself only embeds the digest id and a hash
 // of its article set used to filter siblings.
-func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
+func RenderDigestHTML(digest models.Digest, layout string) ([]byte, error) {
+	layout, err := resolveLayout(layout)
+	if err != nil {
+		return nil, err
+	}
 	// Build a lookup: articleId → DigestAnalysis (for duplicate metadata and analysis)
 	daByArticle := make(map[string]models.DigestAnalysis, len(digest.DigestAnalyses))
 	for _, da := range digest.DigestAnalyses {
@@ -336,9 +342,10 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		if _, seen := glossaryByKey[key]; seen {
 			continue
 		}
-		glossaryByKey[key] = glossaryJSEntry{Term: dg.Entry.Term, Def: def, Type: dg.Entry.Category, Tag: dg.Entry.TagId}
+		tier := models.GlossaryDifficultyTier(dg.Entry.Difficulty)
+		glossaryByKey[key] = glossaryJSEntry{Term: dg.Entry.Term, Def: def, Type: dg.Entry.Category, Tag: dg.Entry.TagId, Lvl: tier}
 		glossaryTerms = append(glossaryTerms, dg.Entry.Term)
-		glossaryPanel = append(glossaryPanel, GlossaryPanelEntry{Term: dg.Entry.Term, Type: dg.Entry.Category, Definition: def})
+		glossaryPanel = append(glossaryPanel, GlossaryPanelEntry{Term: dg.Entry.Term, Type: dg.Entry.Category, Definition: def, Lvl: tier})
 	}
 	glossaryActive := len(glossaryByKey) > 0
 	glossaryRe := compileTagRegexp(glossaryTerms) // nil when no glossary → highlighting is a no-op
@@ -422,7 +429,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 				ProviderType:           analysis.ProviderType,
 				ModelName:              analysis.ModelName,
 				Tldr:                   highlightPlain(analysis.Tldr, tagRe),
-				WhyItMatters:           highlightHTMLFragment(markdownToHTML(analysis.WhyItMatters), tagRe),
+				PlainWords:             highlightHTMLFragment(markdownToHTML(analysis.PlainWords), tagRe),
 				Justification:          highlightHTMLFragment(markdownToHTML(analysis.Justification), tagRe),
 				BriefOverview:          highlightHTMLFragment(markdownToHTML(analysis.BriefOverview), tagRe),
 				StandardSynthesis:      mdProseOrEmpty(analysis.StandardSynthesis, tagRe),
@@ -430,7 +437,6 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 				KeyPoints:              highlightPlainSlice(analysis.KeyPoints, tagRe),
 				Insights:               highlightPlainSlice(analysis.Insights, tagRe),
 				ReferencedReports:      renderReports(analysis.ReferencedReports, tagRe),
-				GlossaryExplanation:    highlightHTMLFragment(markdownToHTML(analysis.GlossaryExplanation), tagRe),
 			}
 		}
 
@@ -553,11 +559,11 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 	summaryTagRe := glossaryRe
 
 	// hasLearning means "has beginner aids" — it gates the reader's Learning switch and the
-	// data-learning consent gate that reveals glossary explanations AND the "Why it matters" blocks.
+	// data-learning consent gate that reveals the "In plain words" blocks and the glossary drawer.
 	hasLearning := glossaryActive
 	if !hasLearning {
 		for _, e := range articleEntries {
-			if e.Analysis != nil && (e.Analysis.GlossaryExplanation != "" || e.Analysis.WhyItMatters != "") {
+			if e.Analysis != nil && e.Analysis.PlainWords != "" {
 				hasLearning = true
 				break
 			}
@@ -581,7 +587,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		CategoryCounts:      categoryCounts,
 		PriorityCounts:      priorityCounts,
 		Tags:                tags,
-		Theme:               normalizeTheme(theme),
+		Theme:               firstPaintTheme,
 		Themes:              themeOptions(),
 		PaletteCSS:          paletteCSS(),
 		HasLearning:         hasLearning,
@@ -615,7 +621,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		"sectionBorderB": func(i, total int) bool { return i < total-2 },
 	}
 
-	templateText, err := loadNotificationTemplate("digest.html.tmpl")
+	templateText, err := loadNotificationTemplate(layout, "digest.html.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load digest HTML template: %w", err)
 	}
@@ -951,13 +957,22 @@ func themeOptions() []themeOption {
 	return opts
 }
 
-// normalizeTheme returns theme if it is a known theme, else "dark". Used to fill
-// the <html data-theme> attribute so the server-rendered default is always valid.
-func normalizeTheme(theme string) string {
-	if digestthemes.Valid(theme) {
-		return theme
+// firstPaintTheme is the color theme baked into the <html data-theme> attribute for
+// the server-rendered first paint. Color selection is otherwise entirely client-side
+// (the in-page dropdown + localStorage override this immediately).
+const firstPaintTheme = "dark"
+
+// resolveLayout returns the layout to render: the default when layout is empty, or an
+// error when a non-empty layout is not a known one (so typos surface instead of
+// silently falling back).
+func resolveLayout(layout string) (string, error) {
+	if layout == "" {
+		return digestlayouts.Default(), nil
 	}
-	return "dark"
+	if !digestlayouts.Valid(layout) {
+		return "", fmt.Errorf("unknown layout %q", layout)
+	}
+	return layout, nil
 }
 
 // paletteIndex hashes a string to a stable index into any of the theme palettes.
@@ -1200,12 +1215,16 @@ type digestIndexTemplateData struct {
 // RenderDigestIndex generates the index HTML shell. The digest list is
 // populated client-side by fetching manifest.json, so the rendered bytes are
 // constant for a given template.
-func RenderDigestIndex(theme string) ([]byte, error) {
-	return renderDigestIndexWithPaths("manifest.json", "", theme)
+func RenderDigestIndex(layout string) ([]byte, error) {
+	return renderDigestIndexWithPaths("manifest.json", "", layout)
 }
 
-func renderDigestIndexWithPaths(manifestURL, digestBaseURL, theme string) ([]byte, error) {
-	templateText, err := loadNotificationTemplate("archive-index.html.tmpl")
+func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout string) ([]byte, error) {
+	layout, err := resolveLayout(layout)
+	if err != nil {
+		return nil, err
+	}
+	templateText, err := loadNotificationTemplate(layout, "archive-index.html.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load index template: %w", err)
 	}
@@ -1219,7 +1238,7 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, theme string) ([]byt
 		ManifestURL:   manifestURL,
 		DigestBaseURL: digestBaseURL,
 		Commit:        version.Commit,
-		Theme:         normalizeTheme(theme),
+		Theme:         firstPaintTheme,
 		Themes:        themeOptions(),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render digest index: %w", err)
@@ -1244,8 +1263,12 @@ type sourcesTemplateData struct {
 // RenderSourcesPage generates the standalone "sources" page listing every
 // enabled feed. The feeds are embedded server-side, so the rendered bytes are
 // self-contained and need no client-side fetch. Disabled feeds are omitted.
-func RenderSourcesPage(feeds []models.Feed, theme string) ([]byte, error) {
-	templateText, err := loadNotificationTemplate("sources.html.tmpl")
+func RenderSourcesPage(feeds []models.Feed, layout string) ([]byte, error) {
+	layout, err := resolveLayout(layout)
+	if err != nil {
+		return nil, err
+	}
+	templateText, err := loadNotificationTemplate(layout, "sources.html.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load sources template: %w", err)
 	}
@@ -1276,7 +1299,7 @@ func RenderSourcesPage(feeds []models.Feed, theme string) ([]byte, error) {
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, sourcesTemplateData{
-		Theme:   normalizeTheme(theme),
+		Theme:   firstPaintTheme,
 		Themes:  themeOptions(),
 		Commit:  version.Commit,
 		Sources: entries,

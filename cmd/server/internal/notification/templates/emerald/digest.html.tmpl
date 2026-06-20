@@ -11,12 +11,17 @@
     var valid = { {{range .Themes}}"{{.Value}}": 1, {{end}} };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    // Learning mode + per-feature sub-toggles (sub-features default on unless explicitly turned off).
-    if (localStorage.getItem('downlink.learning') === 'on') {
+    // Help level (multi-step): 1=Light, 2=Standard, 3=Full; absent=off. Higher levels explain
+    // more terms. A legacy on/off Learning preference maps to Standard. Per-feature sub-toggles
+    // default on unless explicitly turned off.
+    var lvl = localStorage.getItem('downlink.help.level');
+    if (lvl !== '1' && lvl !== '2' && lvl !== '3' && localStorage.getItem('downlink.learning') === 'on') lvl = '2';
+    if (lvl === '1' || lvl === '2' || lvl === '3') {
       var d = document.documentElement.dataset;
       d.learning = 'on';
+      d.helpLevel = lvl;
+      d.learnPlain = localStorage.getItem('downlink.learn.plain') === 'off' ? 'off' : 'on';
       d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
-      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
       d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
     }
   } catch(e){}
@@ -97,7 +102,7 @@ html[data-theme="light"] {
   --text2:   #273f4f;  /* reference dark teal                     9.5:1 on bg */
   --text3:   #5c6e78;  /* lightened teal                          4.6:1 on bg */
   /* Homogeneous accents: uniform OKLCH L 66% / C 0.18, hue only varies. */
-  --cyan:    oklch(66% 0.18 45);   /* brand orange: primary accent */
+  --cyan:    oklch(72% 0.17 150);  /* emerald layout: green primary accent */
   --green:   oklch(66% 0.18 150);
   --violet:  oklch(66% 0.18 300);
   --must:    oklch(66% 0.18 25);
@@ -240,11 +245,11 @@ html {
   background-size: 24px 24px;
   color: var(--text);
   font-family: var(--sans);
-  font-size: clamp(14px, 0.85dvw, 18px);
+  font-size: clamp(15px, 1dvw, 20px);
   line-height: 1.6;
   scroll-behavior: smooth;
 }
-body { min-height: 100vh; max-width: clamp(900px, 72dvw, 1600px); margin: 0 auto; }
+body { min-height: 100vh; max-width: 900px; margin: 0 auto; }
 ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -279,7 +284,7 @@ a:hover { text-decoration: underline; }
   z-index: 100;
   background: color-mix(in oklch, var(--bg) 90%, transparent);
   backdrop-filter: blur(16px);
-  margin: 0 clamp(24px, 2.5dvw, 52px);
+  margin: 0 40px;
   height: 56px;
   display: flex;
   align-items: center;
@@ -371,49 +376,36 @@ a:hover { text-decoration: underline; }
 /* Learning mode: a master switch that reveals the newcomer aids, plus a caret-opened card of
    per-feature switches. */
 .nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
-.nav-learn-switch {
+/* Multi-step "help level" control: Off | Light | Standard | Full. Higher = more jargon explained. */
+.nav-help {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.nav-help-label { color: var(--text3); padding-right: 6px; }
+.nav-help-seg {
   color: var(--text2);
   background: var(--surface);
   border: 1px solid var(--border2);
-  border-radius: 2px;
-  padding: 4px 8px;
+  border-left-width: 0;
+  padding: 4px 7px;
   cursor: pointer;
-  text-transform: uppercase;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
 }
-.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
-.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-learn-track {
-  position: relative;
-  width: 20px;
-  height: 11px;
-  border-radius: 999px;
-  background: var(--border2);
-  transition: background .15s;
-  flex: none;
-}
-.nav-learn-knob {
-  position: absolute;
-  top: 1px;
-  left: 1px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--text3);
-  transition: transform .15s, background .15s;
-}
-.nav-learn-switch[aria-checked="true"] {
+.nav-help-seg:first-of-type { border-left-width: 1px; border-radius: 2px 0 0 2px; }
+.nav-help-seg:last-of-type { border-radius: 0 2px 2px 0; }
+.nav-help-seg:hover { color: var(--text); border-color: var(--should); }
+.nav-help-seg:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-help-seg[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
-  background: color-mix(in oklch, var(--should) 10%, transparent);
+  background: color-mix(in oklch, var(--should) 14%, transparent);
 }
-.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
-.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
 .nav-learn-caret {
   font-size: 10px;
   color: var(--text2);
@@ -558,7 +550,7 @@ a:hover { text-decoration: underline; }
 
 /* ── toc ─────────────────────────────────────────── */
 #toc {
-  padding: 0 clamp(24px, 2.5dvw, 52px);
+  padding: 0 40px;
 }
 .toc-card {
   background: var(--surface);
@@ -793,7 +785,7 @@ a:hover { text-decoration: underline; }
 }
 /* ── overview ────────────────────────────────────── */
 #overview {
-  padding: 20px clamp(24px, 2.5dvw, 52px) 0;
+  padding: 20px 40px 0;
 }
 .overview-card {
   container-type: inline-size;
@@ -1134,6 +1126,18 @@ html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
 }
+/* Help-level filter: a term shows only when the selected level (1/2/3) >= its tier (data-lvl:
+   1=advanced, 2=intermediate, 3=beginner). Revert the highlight for terms above the level. */
+html[data-help-level="1"] mark.tag-hl[data-lvl="2"],
+html[data-help-level="1"] mark.tag-hl[data-lvl="3"],
+html[data-help-level="2"] mark.tag-hl[data-lvl="3"],
+html[data-help-level="1"] mark.tag-hl[data-lvl="2"]:hover,
+html[data-help-level="1"] mark.tag-hl[data-lvl="3"]:hover,
+html[data-help-level="2"] mark.tag-hl[data-lvl="3"]:hover {
+  background: transparent;
+  cursor: auto;
+  text-decoration: none;
+}
 
 /* Glossary definition popup */
 /* Non-blocking persistent popup pinned bottom-left; never dims or blocks the page. */
@@ -1231,8 +1235,22 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
   font-size: 1.4rem; line-height: 1; cursor: pointer; padding: 0 .25rem;
 }
 .glossary-panel-close:hover { color: var(--text); }
+.glossary-panel-search { padding: .75rem 1rem; border-bottom: 1px solid var(--border); flex: none; }
+.glossary-panel-search input {
+  width: 100%; box-sizing: border-box;
+  background: var(--bg); border: 1px solid var(--border2); border-radius: 6px;
+  padding: .45rem .6rem; color: var(--text);
+  font-family: var(--mono); font-size: .82rem; outline: none;
+}
+.glossary-panel-search input:focus { border-color: var(--should); }
 .glossary-panel-body { flex: 1; overflow-y: auto; padding: .9rem 1rem; }
 .glossary-panel-list { margin: 0; padding: 0; }
+.glossary-panel-entry[hidden] { display: none; }
+/* Help-level filter: hide panel entries whose tier exceeds the selected level (in sync with marks). */
+html[data-help-level="1"] .glossary-panel-entry[data-lvl="2"],
+html[data-help-level="1"] .glossary-panel-entry[data-lvl="3"],
+html[data-help-level="2"] .glossary-panel-entry[data-lvl="3"] { display: none; }
+.glossary-panel-empty { margin: 0; color: var(--text2); font-size: .85rem; }
 .glossary-panel-term {
   margin: 0; color: var(--text); font-weight: 600; font-size: .92rem;
   display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
@@ -1321,18 +1339,17 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
 .panel-subhead--summary   { --panel-c: var(--cyan); }
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
-.panel-subhead--glossary  { --panel-c: var(--should); }
-.panel-subhead--why       { --panel-c: var(--must); }
+.panel-subhead--plain     { --panel-c: var(--should); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary,
-.panel-subhead--why { color: var(--panel-c); }
-/* beginner aids: hidden until Learning mode + the matching per-feature switch are on (reader consent) */
-.glossary-block { display: none; }
-html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.panel-subhead--plain { color: var(--panel-c); }
+/* beginner aids: hidden until Learning mode + the Plain words switch are on (reader consent).
+   This gates both the "In plain words" block and the WHY justification disclosure. */
+.plain-words-block { display: none; }
+html[data-learning="on"][data-learn-plain="on"] .plain-words-block { display: block; }
 .why-block { display: none; }
-html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
+html[data-learning="on"][data-learn-plain="on"] .why-block { display: block; }
 .summary-switch { display: flex; flex-wrap: wrap; gap: 2px; margin-left: auto; }
 .summary-switch .tab-btn {
   margin-bottom: 0;
@@ -1422,7 +1439,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 /* ── footer ──────────────────────────────────────── */
 #footer {
   border-top: 1px solid var(--border);
-  padding: 16px clamp(24px, 2.5dvw, 52px);
+  padding: 16px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1482,7 +1499,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   .overview-cell-full { grid-column: auto; }
   #back-top { bottom: 1rem; right: 0.75rem; }
   .toc-title { padding: 12px 16px; }
-  .digest-title-text { font-size: clamp(16px, 5dvw, 1.57rem); }
+  .digest-title-text { font-size: clamp(17px, 5dvw, 1.57rem); }
   /* summary picker: label on its own line, picker wraps full-width beneath it */
   .panel-subhead--summary { flex-wrap: wrap; }
   .panel-subhead--summary .summary-switch {
@@ -1530,15 +1547,18 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
       {{range .Themes}}<option value="{{.Value}}">{{.Label}}</option>
       {{end}}</select>
     {{if .HasLearning}}<div class="nav-learn" id="nav-learn">
-      <button class="nav-learn-switch" id="nav-learn-switch" type="button" role="switch" aria-checked="false" onclick="toggleLearning()" title="Learning mode: plain-language explanations, 'Why it matters' notes, and click-to-define terms for newcomers">
-        <span class="nav-learn-track"><span class="nav-learn-knob"></span></span>
-        <span class="nav-learn-label">Learning</span>
-      </button>
+      <div class="nav-help" id="nav-help" role="radiogroup" aria-label="Help level: how much jargon is explained">
+        <span class="nav-help-label">Help</span>
+        <button class="nav-help-seg" data-level="0" type="button" role="radio" aria-checked="true" onclick="setHelpLevel(0)" title="Off: no explanations">Off</button>
+        <button class="nav-help-seg" data-level="1" type="button" role="radio" aria-checked="false" onclick="setHelpLevel(1)" title="Light: explain only niche, advanced terms">Light</button>
+        <button class="nav-help-seg" data-level="2" type="button" role="radio" aria-checked="false" onclick="setHelpLevel(2)" title="Standard: explain security-specific and advanced terms">Std</button>
+        <button class="nav-help-seg" data-level="3" type="button" role="radio" aria-checked="false" onclick="setHelpLevel(3)" title="Full: explain every term, including common ones">Full</button>
+      </div>
       <button class="nav-learn-caret" id="nav-learn-caret" type="button" onclick="toggleLearnMenu()" aria-expanded="false" aria-label="Customize learning features" hidden>▾</button>
       <div class="learn-card" id="learn-card" role="menu" hidden>
         <div class="learn-card-title">Learning features</div>
+        <button class="learn-feature" id="learn-feat-plain" type="button" role="switch" aria-checked="true" onclick="toggleLearnFeature('plain')"><span class="learn-feature-label">Plain words</span><span class="learn-switch"><span class="learn-switch-knob"></span></span></button>
         <button class="learn-feature" id="learn-feat-glossary" type="button" role="switch" aria-checked="true" onclick="toggleLearnFeature('glossary')"><span class="learn-feature-label">Glossary</span><span class="learn-switch"><span class="learn-switch-knob"></span></span></button>
-        <button class="learn-feature" id="learn-feat-why" type="button" role="switch" aria-checked="true" onclick="toggleLearnFeature('why')"><span class="learn-feature-label">Why it matters</span><span class="learn-switch"><span class="learn-switch-knob"></span></span></button>
         <button class="learn-feature" id="learn-feat-define" type="button" role="switch" aria-checked="true" onclick="toggleLearnFeature('define')"><span class="learn-feature-label">Definitions</span><span class="learn-switch"><span class="learn-switch-knob"></span></span></button>
       </div>
     </div>{{end}}
@@ -1618,7 +1638,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                   {{if index $row.OtherDetails $oi}}<div class="article-body" id="member-body-{{$other.Id}}" data-article-id="{{$other.Id}}">
                     {{$od := index $row.OtherDetails $oi}}
                     {{if $od.HasAnalysis}}
-                    {{template "glossaryBlock" $od.Analysis}}
+                    {{template "plainWordsBlock" $od.Analysis}}
                     <div class="panel-section">
                       <div class="panel-subhead panel-subhead--summary">Summary
                         <div class="summary-switch">
@@ -1638,7 +1658,6 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                       </div>
                     </div>
                     {{if $od.Analysis.KeyPoints}}<div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list">{{range $od.Analysis.KeyPoints}}<li><span class="kp-text">{{.}}</span></li>{{end}}</ul></div>{{end}}
-                    {{template "whyBlock" $od.Analysis}}
                     <a href="{{$od.Link}}" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
                     {{if $od.Analysis.Justification}}<div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body">{{$od.Analysis.Justification}}</div></div>{{end}}
                     {{if $od.Analysis.ReferencedReports}}{{template "reportList" $od.Analysis.ReferencedReports}}{{end}}
@@ -1654,7 +1673,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </details>
           {{if $row.CanonDetail}}<div class="toc-row-body" id="canon-body-{{$row.Canonical.Id}}" data-article-id="{{$row.Canonical.Id}}">
             {{if $row.CanonDetail.HasAnalysis}}
-            {{template "glossaryBlock" $row.CanonDetail.Analysis}}
+            {{template "plainWordsBlock" $row.CanonDetail.Analysis}}
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
@@ -1674,7 +1693,6 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             {{if $row.CanonDetail.Analysis.KeyPoints}}<div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list">{{range $row.CanonDetail.Analysis.KeyPoints}}<li><span class="kp-text">{{.}}</span></li>{{end}}</ul></div>{{end}}
-            {{template "whyBlock" $row.CanonDetail.Analysis}}
             <a href="{{$row.CanonDetail.Link}}" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             {{if $row.CanonDetail.Analysis.Justification}}<div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body">{{$row.CanonDetail.Analysis.Justification}}</div></div>{{end}}
             {{if $row.CanonDetail.Analysis.ReferencedReports}}{{template "reportList" $row.CanonDetail.Analysis.ReferencedReports}}{{end}}
@@ -1704,7 +1722,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
           {{if $row.Detail}}<div class="toc-row-body" data-article-id="{{$row.Entry.Id}}">
             {{if $row.Detail.HasAnalysis}}
-            {{template "glossaryBlock" $row.Detail.Analysis}}
+            {{template "plainWordsBlock" $row.Detail.Analysis}}
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
@@ -1724,7 +1742,6 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             {{if $row.Detail.Analysis.KeyPoints}}<div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list">{{range $row.Detail.Analysis.KeyPoints}}<li><span class="kp-text">{{.}}</span></li>{{end}}</ul></div>{{end}}
-            {{template "whyBlock" $row.Detail.Analysis}}
             <a href="{{$row.Detail.Link}}" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             {{if $row.Detail.Analysis.Justification}}<div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body">{{$row.Detail.Analysis.Justification}}</div></div>{{end}}
             {{if $row.Detail.Analysis.ReferencedReports}}{{template "reportList" $row.Detail.Analysis.ReferencedReports}}{{end}}
@@ -1775,10 +1792,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
     <span class="glossary-panel-title">Glossary</span>
     <button class="glossary-panel-close" type="button" onclick="closeGlossaryPanel()" aria-label="Close glossary">×</button>
   </div>
+  <div class="glossary-panel-search">
+    <input id="glossary-panel-search" type="search" placeholder="Filter terms…" autocomplete="off" aria-label="Filter glossary" oninput="filterGlossary(this.value)">
+  </div>
   <div class="glossary-panel-body">
     <dl class="glossary-panel-list">
-      {{range .GlossaryPanel}}<dt class="glossary-panel-term">{{.Term}}{{if .Type}} <span class="glossary-popup-type">{{.Type}}</span>{{end}}</dt><dd class="glossary-panel-def">{{.Definition}}</dd>{{end}}
+      {{range .GlossaryPanel}}<div class="glossary-panel-entry" data-lvl="{{.Lvl}}"><dt class="glossary-panel-term">{{.Term}}{{if .Type}} <span class="glossary-popup-type">{{.Type}}</span>{{end}}</dt><dd class="glossary-panel-def">{{.Definition}}</dd></div>{{end}}
     </dl>
+    <p id="glossary-panel-empty" class="glossary-panel-empty" hidden>No matching terms.</p>
   </div>
   <div class="glossary-panel-foot">
     <a class="glossary-panel-suggest" href="https://github.com/ma111e/downlink/issues/new?title=Glossary%20improvement" target="_blank" rel="noopener noreferrer">Suggest an improvement</a>
@@ -1801,30 +1822,35 @@ function applyTheme(t) {
 // sync the picker with the theme chosen before first paint
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-// Learning mode: master switch + a caret-opened card of per-feature switches. State lives on
-// <html> as data-learning + data-learn-{glossary,why,define}, persisted in localStorage and applied
-// before first paint. Sub-features default on the first time Learning is enabled.
+// Learning mode: a multi-step help level (Off | Light | Standard | Full) plus a caret-opened
+// card of per-feature switches. State lives on <html> as data-learning + data-help-level +
+// data-learn-{plain,glossary,define}, persisted in localStorage and applied before first paint.
+// The help level (1/2/3) decides which jargon is shown: a term appears when level >= its tier
+// (advanced=1, intermediate=2, beginner=3). Sub-features default on the first time it's enabled.
 var LEARN_FEATURES = {
+  plain:    { attr: 'learnPlain',    key: 'downlink.learn.plain',    el: 'learn-feat-plain' },
   glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
-  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
   define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
 };
 function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
-function toggleLearning() {
+function setHelpLevel(n) {
   var d = document.documentElement.dataset;
-  var on = d.learning === 'on';
-  if (on) {
+  if (n === 0) {
     delete d.learning;
+    delete d.helpLevel;
     closeLearnMenu();
   } else {
     d.learning = 'on';
+    d.helpLevel = String(n);
     // Default any unset sub-feature to on.
     Object.keys(LEARN_FEATURES).forEach(function(f){
       var cfg = LEARN_FEATURES[f];
       if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
     });
   }
-  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  learnSetItem('downlink.help.level', String(n));
+  // Keep the legacy key in sync so older cached pages still open with learning on/off.
+  learnSetItem('downlink.learning', n === 0 ? 'off' : 'on');
   syncLearnUI();
 }
 function toggleLearnFeature(f) {
@@ -1849,12 +1875,14 @@ function closeLearnMenu() {
   var caret = document.getElementById('nav-learn-caret');
   if (caret) caret.setAttribute('aria-expanded', 'false');
 }
-// Reflect the persisted state into the switch, caret visibility, and each feature row.
+// Reflect the persisted state into the help-level segments, caret visibility, and each feature row.
 function syncLearnUI() {
   var d = document.documentElement.dataset;
   var learningOn = d.learning === 'on';
-  var sw = document.getElementById('nav-learn-switch');
-  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var level = learningOn ? (parseInt(d.helpLevel, 10) || 0) : 0;
+  document.querySelectorAll('.nav-help-seg').forEach(function(seg){
+    seg.setAttribute('aria-checked', parseInt(seg.dataset.level, 10) === level ? 'true' : 'false');
+  });
   var caret = document.getElementById('nav-learn-caret');
   if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
   Object.keys(LEARN_FEATURES).forEach(function(f){
@@ -1873,6 +1901,25 @@ function toggleGlossaryPanel() {
   var open = p.classList.toggle('is-open');
   var btn = document.getElementById('glossary-panel-toggle');
   if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) { var s = document.getElementById('glossary-panel-search'); if (s) s.focus(); }
+}
+// Live, case-insensitive filter over each glossary entry (term + type + definition).
+function filterGlossary(q) {
+  q = (q || '').trim().toLowerCase();
+  var panel = document.getElementById('glossary-panel');
+  if (!panel) return;
+  var d = document.documentElement.dataset;
+  var level = d.learning === 'on' ? (parseInt(d.helpLevel, 10) || 0) : 0;
+  var entries = panel.querySelectorAll('.glossary-panel-entry');
+  var shown = 0;
+  entries.forEach(function (el) {
+    var inLevel = (parseInt(el.dataset.lvl, 10) || 2) <= level;
+    var match = inLevel && (!q || el.textContent.toLowerCase().indexOf(q) !== -1);
+    el.hidden = !match;
+    if (match) shown++;
+  });
+  var empty = document.getElementById('glossary-panel-empty');
+  if (empty) empty.hidden = shown !== 0;
 }
 function closeGlossaryPanel() {
   var p = document.getElementById('glossary-panel');
@@ -2008,6 +2055,12 @@ function toggleTag(tag) {
 var GLOSSARY = {{.GlossaryJSON}};
 var CONTEXT = {{.GlossaryContextJSON}};
 function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+// Tag each highlighted term with its help tier (1=advanced, 2=intermediate, 3=beginner) so the
+// CSS help-level filter can reveal/hide it. Unknown terms default to the middle tier.
+document.querySelectorAll('mark.tag-hl').forEach(function(m){
+  var e = GLOSSARY[glossaryKey(m.textContent)];
+  m.dataset.lvl = (e && e.lvl) ? e.lvl : 2;
+});
 function openGlossaryPopup(term, def, type, ctx){
   document.getElementById('glossary-popup-term').textContent = term;
   document.getElementById('glossary-popup-def').textContent = def;
@@ -2034,6 +2087,8 @@ document.addEventListener('click', function(e){
   var key = glossaryKey(m.textContent);
   var entry = GLOSSARY[key];
   if (!entry) return;
+  var level = parseInt(dd.helpLevel, 10) || 0;
+  if ((entry.lvl || 2) > level) return; // term hidden at the current help level
   // Per-article context: find which article body this mark sits in (summary marks have none).
   var ctx = '';
   var host = m.closest('[data-article-id]');
@@ -2107,12 +2162,7 @@ function showMoreTags(btn) {
   {{if .Context}}<div class="report-context">{{.Context}}</div>{{end}}
 </li>{{end}}{{if and $hasPrimary (gt $n 0)}}<button class="report-show-more" data-more="+{{$n}} more" onclick="toggleReports(this)">+{{$n}} more</button>{{end}}</ul></div>{{end}}
 
-{{define "glossaryBlock"}}{{if .GlossaryExplanation}}<div class="panel-section glossary-block">
-  <div class="panel-subhead panel-subhead--glossary">In plain words</div>
-  <div class="prose">{{.GlossaryExplanation}}</div>
-</div>{{end}}{{end}}
-
-{{define "whyBlock"}}{{if .WhyItMatters}}<div class="panel-section why-block">
-  <div class="panel-subhead panel-subhead--why">Why it matters</div>
-  <div class="prose">{{.WhyItMatters}}</div>
+{{define "plainWordsBlock"}}{{if .PlainWords}}<div class="panel-section plain-words-block">
+  <div class="panel-subhead panel-subhead--plain">In plain words</div>
+  <div class="prose">{{.PlainWords}}</div>
 </div>{{end}}{{end}}

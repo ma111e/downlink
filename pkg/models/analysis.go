@@ -49,12 +49,11 @@ type ArticleAnalysis struct {
 	Insights               []string            `gorm:"-" json:"insights"`
 	ReferencedReports      []ReferencedReport  `gorm:"-" json:"referenced_reports"`
 	Tldr                   string              `gorm:"type:text" json:"tldr"`
-	WhyItMatters           string              `gorm:"type:text" json:"why_it_matters"`
+	PlainWords             string              `gorm:"type:text" json:"plain_words"`
 	Justification          string              `gorm:"type:text" json:"justification"`
 	BriefOverview          string              `gorm:"type:text" json:"brief_overview"`
 	StandardSynthesis      string              `gorm:"type:text" json:"standard_synthesis"`
 	ComprehensiveSynthesis string              `gorm:"type:text" json:"comprehensive_synthesis"`
-	GlossaryExplanation    string              `gorm:"type:text" json:"glossary_explanation"`
 	GlossaryTermsJson      string              `gorm:"column:glossary_terms;type:text" json:"-"`
 	GlossaryTerms          []GlossaryTerm      `gorm:"-" json:"glossary_terms"`
 	ThinkingProcess        string              `gorm:"type:text" json:"thinking_process,omitempty"`

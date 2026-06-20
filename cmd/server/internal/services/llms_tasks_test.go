@@ -49,7 +49,7 @@ func TestGetAnalysisTasksGlossaryMode(t *testing.T) {
 	}
 }
 
-func TestGetAnalysisTasksAlwaysIncludesWhyItMatters(t *testing.T) {
+func TestGetAnalysisTasksAlwaysIncludesPlainWords(t *testing.T) {
 	const contentLen = 2000
 
 	has := func(tasks []analysisTask, name string) bool {
@@ -61,12 +61,12 @@ func TestGetAnalysisTasksAlwaysIncludesWhyItMatters(t *testing.T) {
 		return false
 	}
 
-	// why_it_matters is a core, always-on task regardless of mode flags.
-	if !has(getAnalysisTasks(contentLen, false, false, false, false, false), "why_it_matters") {
-		t.Error("why_it_matters task should always be present (rubric mode)")
+	// plain_words is a core, always-on task regardless of mode flags.
+	if !has(getAnalysisTasks(contentLen, false, false, false, false, false), "plain_words") {
+		t.Error("plain_words task should always be present (rubric mode)")
 	}
-	if !has(getAnalysisTasks(contentLen, false, true, false, false, false), "why_it_matters") {
-		t.Error("why_it_matters task should always be present (vibe mode)")
+	if !has(getAnalysisTasks(contentLen, false, true, false, false, false), "plain_words") {
+		t.Error("plain_words task should always be present (vibe mode)")
 	}
 }
 
