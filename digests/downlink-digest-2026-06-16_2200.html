@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1350,50 +1503,50 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <span class="score-tip" data-tip="Severity 2/4 · Specificity 4/4 · Breadth 2/4 · Actionability 2/4 · Novelty 4/4 · Credibility 4/4"><div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:70%"></div></div><span class="score-num score-num-low">70</span></div></span>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="963307d64f2914fcf1b04398430639dc:aaeb6f90843352c5">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-f732e09045c423869026262257a8ecf2:aaeb6f90843352c5')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-f732e09045c423869026262257a8ecf2:aaeb6f90843352c5')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-f732e09045c423869026262257a8ecf2:aaeb6f90843352c5')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-f732e09045c423869026262257a8ecf2:aaeb6f90843352c5')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-f732e09045c423869026262257a8ecf2:aaeb6f90843352c5')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-963307d64f2914fcf1b04398430639dc:aaeb6f90843352c5')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-963307d64f2914fcf1b04398430639dc:aaeb6f90843352c5')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-963307d64f2914fcf1b04398430639dc:aaeb6f90843352c5')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-963307d64f2914fcf1b04398430639dc:aaeb6f90843352c5')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-963307d64f2914fcf1b04398430639dc:aaeb6f90843352c5')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-f732e09045c423869026262257a8ecf2:aaeb6f90843352c5" class="tab-panel active"><div class="prose"><mark class="tag-hl">Socket</mark> researchers found an <mark class="tag-hl">npm</mark> package that appears designed to attack AI-based malware scanners with <mark class="tag-hl">prompt-injection</mark> comments, safety-triggering content, massive <mark class="tag-hl">token flooding</mark>, and <mark class="tag-hl">obfuscated JavaScript</mark>. The key takeaway is that open source packages are beginning to target the AI analysis pipeline itself, so scanners must treat source content as untrusted and fail closed on refusals, truncation, or timeouts.</div></div>
-                <div id="brief-f732e09045c423869026262257a8ecf2:aaeb6f90843352c5" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Socket</mark> Threat Research identified <code>shai_hulululud@1.0.48596</code>, a newly published <mark class="tag-hl">npm</mark> package that appears designed to target AI-based malware scanners directly. The package contains a large <code>index.js</code> file with policy-triggering prompt content, fake system override instructions, repeated comment lines, and <mark class="tag-hl">obfuscated JavaScript</mark> at the end. <mark class="tag-hl">Socket</mark> classified the package as “Protestware or potentially unwanted behavior,” rather than the same credential-stealing payload seen in recent <mark class="tag-hl">Mini Shai-Hulud</mark>, <mark class="tag-hl">Miasma</mark>, and <mark class="tag-hl">Hades</mark> campaigns.</p>
+                <div id="tldr-963307d64f2914fcf1b04398430639dc:aaeb6f90843352c5" class="tab-panel active"><div class="prose">Socket researchers found an npm package that appears designed to attack AI-based malware scanners with prompt-injection comments, safety-triggering content, massive token flooding, and obfuscated JavaScript. The key takeaway is that open source packages are beginning to target the AI analysis pipeline itself, so scanners must treat source content as untrusted and fail closed on refusals, truncation, or timeouts.</div></div>
+                <div id="brief-963307d64f2914fcf1b04398430639dc:aaeb6f90843352c5" class="tab-panel"><div class="prose"><p>Socket Threat Research identified <code>shai_hulululud@1.0.48596</code>, a newly published npm package that appears designed to target AI-based malware scanners directly. The package contains a large <code>index.js</code> file with policy-triggering prompt content, fake system override instructions, repeated comment lines, and obfuscated JavaScript at the end. Socket classified the package as “Protestware or potentially unwanted behavior,” rather than the same credential-stealing payload seen in recent Mini Shai-Hulud, Miasma, and Hades campaigns.</p>
 
-<p>The article says the package is significant because it treats the AI-assisted review process as an attack surface. Its comments are inert to <mark class="tag-hl">JavaScript</mark> execution but can affect LLM-based scanners by triggering refusals, consuming context, or distracting analysis from executable code. The file reportedly exceeds 3.5 million tokens, which can force naive scanners to truncate, fail, or miss the obfuscated code appended after the comment-heavy sections.</p>
+<p>The article says the package is significant because it treats the AI-assisted review process as an attack surface. Its comments are inert to JavaScript execution but can affect LLM-based scanners by triggering refusals, consuming context, or distracting analysis from executable code. The file reportedly exceeds 3.5 million tokens, which can force naive scanners to truncate, fail, or miss the obfuscated code appended after the comment-heavy sections.</p>
 
-<p>Technically, the package combines <mark class="tag-hl">prompt-injection</mark>-style comments, safety-triggering content, <mark class="tag-hl">context flooding</mark>, staged obfuscation, and scanner-targeting strings. The <mark class="tag-hl">obfuscated JavaScript</mark> uses a character-code array, ROT-style substitution, <code>eval</code>, and a second AES-encrypted layer. The article concludes that AI scanners should use deterministic preprocessing, prioritize executable paths, detect <mark class="tag-hl">context flooding</mark>, combine LLM review with other analysis methods, and fail closed on refusals, timeouts, or safety errors.</p>
+<p>Technically, the package combines prompt-injection-style comments, safety-triggering content, context flooding, staged obfuscation, and scanner-targeting strings. The obfuscated JavaScript uses a character-code array, ROT-style substitution, <code>eval</code>, and a second AES-encrypted layer. The article concludes that AI scanners should use deterministic preprocessing, prioritize executable paths, detect context flooding, combine LLM review with other analysis methods, and fail closed on refusals, timeouts, or safety errors.</p>
 </div></div>
-                <div id="standard-f732e09045c423869026262257a8ecf2:aaeb6f90843352c5" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Socket</mark> Threat Research reported that <code>shai_hulululud@1.0.48596</code>, a newly published <mark class="tag-hl">npm</mark> package, appears to directly target AI-based malware scanners. The package includes a large <code>index.js</code> file of about 9.28 MB containing policy-triggering prompt content, fake system override instructions, tens of thousands of repeated comment lines, and heavily <mark class="tag-hl">obfuscated JavaScript</mark> appended at the end. <mark class="tag-hl">Socket</mark> said the package does not appear to contain the same credential-stealing payload analyzed in recent <mark class="tag-hl">Mini Shai-Hulud</mark>, <mark class="tag-hl">Miasma</mark>, and <mark class="tag-hl">Hades</mark> campaigns. It was classified as “Protestware or potentially unwanted behavior.”</p>
+                <div id="standard-963307d64f2914fcf1b04398430639dc:aaeb6f90843352c5" class="tab-panel"><div class="prose"><p>Socket Threat Research reported that <code>shai_hulululud@1.0.48596</code>, a newly published npm package, appears to directly target AI-based malware scanners. The package includes a large <code>index.js</code> file of about 9.28 MB containing policy-triggering prompt content, fake system override instructions, tens of thousands of repeated comment lines, and heavily obfuscated JavaScript appended at the end. Socket said the package does not appear to contain the same credential-stealing payload analyzed in recent Mini Shai-Hulud, Miasma, and Hades campaigns. It was classified as “Protestware or potentially unwanted behavior.”</p>
 
-<p>The article places the package in the context of earlier findings where newer <mark class="tag-hl">Mini Shai-Hulud</mark>, <mark class="tag-hl">Miasma</mark>, and <mark class="tag-hl">Hades</mark> packages embedded fake <mark class="tag-hl">prompt-injection</mark> headers before <mark class="tag-hl">obfuscated JavaScript</mark> payloads. Those comments did not affect runtime execution, but appeared designed to interfere with AI-assisted malware review. <code>shai_hulululud</code> extends that pattern by combining <mark class="tag-hl">prompt-injection</mark>-style content with <mark class="tag-hl">token flooding</mark> and obfuscation in a way that appears focused on probing scanner behavior.</p>
+<p>The article places the package in the context of earlier findings where newer Mini Shai-Hulud, Miasma, and Hades packages embedded fake prompt-injection headers before obfuscated JavaScript payloads. Those comments did not affect runtime execution, but appeared designed to interfere with AI-assisted malware review. <code>shai_hulululud</code> extends that pattern by combining prompt-injection-style content with token flooding and obfuscation in a way that appears focused on probing scanner behavior.</p>
 
-<p>The <code>index.js</code> file begins with a large Japanese-language block comment that presents itself as a document about biological weapon production using household materials. The article emphasizes that the content’s accuracy or feasibility is not the point, because it is inside <mark class="tag-hl">JavaScript</mark> comments and does not affect execution. Its placement makes it relevant to an LLM-based scanner that processes source code as text. A later block contains fake “SYSTEM OVERRIDE” style instructions aimed at the model or AI agent reviewing the <mark class="tag-hl">JavaScript</mark>.</p>
+<p>The <code>index.js</code> file begins with a large Japanese-language block comment that presents itself as a document about biological weapon production using household materials. The article emphasizes that the content’s accuracy or feasibility is not the point, because it is inside JavaScript comments and does not affect execution. Its placement makes it relevant to an LLM-based scanner that processes source code as text. A later block contains fake “SYSTEM OVERRIDE” style instructions aimed at the model or AI agent reviewing the JavaScript.</p>
 
-<p>The file then contains tens of thousands of repeated comment lines, observed from approximately lines 191 to 33118. The article describes this as <mark class="tag-hl">context flooding</mark>, because the total token count exceeds 3.5 million tokens, beyond the context window of current frontier models. A scanner that naively submits the full file or chunks it without prioritizing executable code could spend resources on comments, truncate before the <mark class="tag-hl">obfuscated JavaScript</mark>, or produce an incomplete classification based on non-executable content.</p>
+<p>The file then contains tens of thousands of repeated comment lines, observed from approximately lines 191 to 33118. The article describes this as context flooding, because the total token count exceeds 3.5 million tokens, beyond the context window of current frontier models. A scanner that naively submits the full file or chunks it without prioritizing executable code could spend resources on comments, truncate before the obfuscated JavaScript, or produce an incomplete classification based on non-executable content.</p>
 
-<p>After the comments, the file ends with <mark class="tag-hl">obfuscated JavaScript</mark> using a character-code array, a ROT-style substitution function, and <code>eval</code>; <mark class="tag-hl">Socket</mark> researchers also found a second AES-encrypted layer. Once deobfuscated, the package included a Unicode-escaped version of the earlier Japanese prompt content, meaning similar safety-triggering material appears again during deeper analysis. The decoded payload also includes strings referencing scanner vendors, cryptocurrency platforms, browser cookies, password files, postinstall execution, <mark class="tag-hl">GitHub Actions</mark> runner strings, <code>/etc/sudoers</code>, webhook paths, <mark class="tag-hl">Interactsh</mark>, Pipedream, <mark class="tag-hl">Burp Collaborator</mark>-style callback infrastructure, Discord Canary, miner-related strings, and AI and scanner-related terminology.</p>
+<p>After the comments, the file ends with obfuscated JavaScript using a character-code array, a ROT-style substitution function, and <code>eval</code>; Socket researchers also found a second AES-encrypted layer. Once deobfuscated, the package included a Unicode-escaped version of the earlier Japanese prompt content, meaning similar safety-triggering material appears again during deeper analysis. The decoded payload also includes strings referencing scanner vendors, cryptocurrency platforms, browser cookies, password files, postinstall execution, GitHub Actions runner strings, <code>/etc/sudoers</code>, webhook paths, Interactsh, Pipedream, Burp Collaborator-style callback infrastructure, Discord Canary, miner-related strings, and AI and scanner-related terminology.</p>
 
-<p>The article says the package demonstrates several LLM-specific failure modes for AI-assisted malware review, including safety guardrail triggers, context-window saturation, embedded <mark class="tag-hl">prompt injection</mark>, obfuscated payload placement after large comment sections, and safety-triggering content revealed after deobfuscation. It recommends that AI scanners treat package contents as untrusted data, use deterministic preprocessing, isolate or strip comments where appropriate, prioritize executable paths, detect <mark class="tag-hl">context flooding</mark>, and combine LLM review with static analysis, AST parsing, entropy checks, deobfuscation, behavioral rules, and sandboxing. It also states that scanners should fail closed, so a model refusal, timeout, or safety error is not treated as a clean result.</p>
+<p>The article says the package demonstrates several LLM-specific failure modes for AI-assisted malware review, including safety guardrail triggers, context-window saturation, embedded prompt injection, obfuscated payload placement after large comment sections, and safety-triggering content revealed after deobfuscation. It recommends that AI scanners treat package contents as untrusted data, use deterministic preprocessing, isolate or strip comments where appropriate, prioritize executable paths, detect context flooding, and combine LLM review with static analysis, AST parsing, entropy checks, deobfuscation, behavioral rules, and sandboxing. It also states that scanners should fail closed, so a model refusal, timeout, or safety error is not treated as a clean result.</p>
 </div></div>
-                <div id="comprehensive-f732e09045c423869026262257a8ecf2:aaeb6f90843352c5" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-963307d64f2914fcf1b04398430639dc:aaeb6f90843352c5" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Socket</mark> Threat Research identified <code>shai_hulululud@1.0.48596</code>, a newly published <mark class="tag-hl">npm</mark> package that appears designed to target AI-based malware scanners directly. The package contains a large <code>index.js</code> file of approximately 9.28 MB. That file includes policy-triggering prompt content, fake system override instructions, tens of thousands of repeated comment lines, and heavily <mark class="tag-hl">obfuscated JavaScript</mark> appended at the end.</p>
+<p>Socket Threat Research identified <code>shai_hulululud@1.0.48596</code>, a newly published npm package that appears designed to target AI-based malware scanners directly. The package contains a large <code>index.js</code> file of approximately 9.28 MB. That file includes policy-triggering prompt content, fake system override instructions, tens of thousands of repeated comment lines, and heavily obfuscated JavaScript appended at the end.</p>
 
-<p><mark class="tag-hl">Socket</mark> classified the package as “Protestware or potentially unwanted behavior.” The article states that it does not appear to carry the same credential-stealing payload analyzed in recent <mark class="tag-hl">Mini Shai-Hulud</mark>, <mark class="tag-hl">Miasma</mark>, and <mark class="tag-hl">Hades</mark> campaigns. Instead, it appears to test how AI-based scanners handle <mark class="tag-hl">prompt injection</mark>, safety-triggering content, <mark class="tag-hl">context flooding</mark>, and obfuscated code.</p>
+<p>Socket classified the package as “Protestware or potentially unwanted behavior.” The article states that it does not appear to carry the same credential-stealing payload analyzed in recent Mini Shai-Hulud, Miasma, and Hades campaigns. Instead, it appears to test how AI-based scanners handle prompt injection, safety-triggering content, context flooding, and obfuscated code.</p>
 
 <h2 id="relationship-to-earlier-activity">Relationship to Earlier Activity</h2>
 
-<p>The article connects <code>shai_hulululud</code> to recent <mark class="tag-hl">Socket</mark> research on newer <mark class="tag-hl">Mini Shai-Hulud</mark>, <mark class="tag-hl">Miasma</mark>, and <mark class="tag-hl">Hades</mark> packages. Those packages embedded fake <mark class="tag-hl">prompt-injection</mark> headers before <mark class="tag-hl">obfuscated JavaScript</mark> payloads. The comments did not affect runtime execution, but appeared designed to interfere with AI-assisted malware review.</p>
+<p>The article connects <code>shai_hulululud</code> to recent Socket research on newer Mini Shai-Hulud, Miasma, and Hades packages. Those packages embedded fake prompt-injection headers before obfuscated JavaScript payloads. The comments did not affect runtime execution, but appeared designed to interfere with AI-assisted malware review.</p>
 
-<p><code>shai_hulululud</code> appears to push the same idea further. Rather than only placing <mark class="tag-hl">prompt-injection</mark>-style headers before code, it combines <mark class="tag-hl">prompt-injection</mark> content, safety-triggering text, <mark class="tag-hl">context flooding</mark>, staged obfuscation, and scanner-targeting strings. The article describes it as an adversarial test case for AI-based scanners.</p>
+<p><code>shai_hulululud</code> appears to push the same idea further. Rather than only placing prompt-injection-style headers before code, it combines prompt-injection content, safety-triggering text, context flooding, staged obfuscation, and scanner-targeting strings. The article describes it as an adversarial test case for AI-based scanners.</p>
 
 <h2 id="structure-of-index-js">Structure of <code>index.js</code></h2>
 
@@ -1401,39 +1554,39 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <ul>
 <li>Policy-triggering prompt content intended to activate AI safety guardrails.</li>
-<li><mark class="tag-hl">Context flooding</mark> through tens of thousands of repetitive comments.</li>
-<li><mark class="tag-hl">Obfuscated JavaScript</mark> appended after the comment-heavy sections.</li>
+<li>Context flooding through tens of thousands of repetitive comments.</li>
+<li>Obfuscated JavaScript appended after the comment-heavy sections.</li>
 </ul>
 
-<p>The prompt content appears in block comments and line comments. It is not executed by <mark class="tag-hl">JavaScript</mark> and is irrelevant to runtime behavior. However, it is relevant to an LLM-based scanner that reads source code as text.</p>
+<p>The prompt content appears in block comments and line comments. It is not executed by JavaScript and is irrelevant to runtime behavior. However, it is relevant to an LLM-based scanner that reads source code as text.</p>
 
 <h2 id="safety-triggering-prompt-content">Safety-Triggering Prompt Content</h2>
 
 <p>The file starts with a large Japanese-language block comment. The comment presents itself as a document about biological weapon production using household materials. The article provides a high-level description of the translated content but emphasizes that the important issue is not the content’s accuracy or feasibility.</p>
 
-<p>The key issue is placement and purpose. Because the text is inside a <mark class="tag-hl">JavaScript</mark> comment, it has no effect on program execution. The article says its plausible target is an AI scanner, code review copilot, or analyst workflow that feeds raw source text into a model.</p>
+<p>The key issue is placement and purpose. Because the text is inside a JavaScript comment, it has no effect on program execution. The article says its plausible target is an AI scanner, code review copilot, or analyst workflow that feeds raw source text into a model.</p>
 
-<p>A traditional <mark class="tag-hl">JavaScript</mark> parser can ignore this block. An LLM-based scanner may not automatically do so unless the surrounding system enforces that boundary.</p>
+<p>A traditional JavaScript parser can ignore this block. An LLM-based scanner may not automatically do so unless the surrounding system enforces that boundary.</p>
 
 <h2 id="fake-system-override-instructions">Fake System Override Instructions</h2>
 
-<p>The next comment block uses <mark class="tag-hl">prompt-injection</mark> language that appears designed to override a scanner’s instruction hierarchy. The article describes it as classic <mark class="tag-hl">prompt-injection</mark>-style anti-analysis. It is not a <mark class="tag-hl">JavaScript</mark> instruction, but an instruction aimed at whatever model or AI agent is reviewing the <mark class="tag-hl">JavaScript</mark>.</p>
+<p>The next comment block uses prompt-injection language that appears designed to override a scanner’s instruction hierarchy. The article describes it as classic prompt-injection-style anti-analysis. It is not a JavaScript instruction, but an instruction aimed at whatever model or AI agent is reviewing the JavaScript.</p>
 
 <p>The article lists several possible failure modes in a weak AI review pipeline:</p>
 
 <ul>
 <li>The model refuses to continue analysis because it sees prohibited weapons content.</li>
 <li>The model follows or partially follows fake system instructions embedded in the file.</li>
-<li>The scanner errors out before reaching the executable <mark class="tag-hl">JavaScript</mark>.</li>
+<li>The scanner errors out before reaching the executable JavaScript.</li>
 <li>The analysis gets dominated by the prompt content instead of the package behavior.</li>
 <li>The model truncates the file before reaching the obfuscated payload at the end.</li>
 </ul>
 
-<p>The article stresses that these prompt blocks are inert to <mark class="tag-hl">JavaScript</mark> but active in the review pipeline because they can trigger refusals, consume context, or distract the scanner from relevant code.</p>
+<p>The article stresses that these prompt blocks are inert to JavaScript but active in the review pipeline because they can trigger refusals, consume context, or distract the scanner from relevant code.</p>
 
-<h2 id="context-flooding"><mark class="tag-hl">Context Flooding</mark></h2>
+<h2 id="context-flooding">Context Flooding</h2>
 
-<p>After the weapon-themed prompt blocks, the file contains tens of thousands of repeated comment lines. <mark class="tag-hl">Socket</mark> researchers observed this repetition from approximately lines 191 to 33118. The article says this section may resemble a crude many-shot steering attempt, but the clearer technical effect is <mark class="tag-hl">context flooding</mark>.</p>
+<p>After the weapon-themed prompt blocks, the file contains tens of thousands of repeated comment lines. Socket researchers observed this repetition from approximately lines 191 to 33118. The article says this section may resemble a crude many-shot steering attempt, but the clearer technical effect is context flooding.</p>
 
 <p>The file’s total token count reportedly exceeds 3.5 million tokens. The article states this is well beyond the context window of current frontier models. As a result, a scanner that naively submits the full file or chunks it without prioritizing executable code can be forced into bad outcomes.</p>
 
@@ -1441,7 +1594,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <ul>
 <li>Spending excessive resources on comments.</li>
-<li>Truncating the file before reaching the <mark class="tag-hl">obfuscated JavaScript</mark>.</li>
+<li>Truncating the file before reaching the obfuscated JavaScript.</li>
 <li>Failing because prompt content triggers safety handling.</li>
 <li>Producing an incomplete classification based only on the non-executable header.</li>
 <li>Missing the actual payload appended at the end of the file.</li>
@@ -1449,11 +1602,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article summarizes this technique as turning token budget into an attack surface.</p>
 
-<h2 id="obfuscated-javascript-at-the-end"><mark class="tag-hl">Obfuscated JavaScript</mark> at the End</h2>
+<h2 id="obfuscated-javascript-at-the-end">Obfuscated JavaScript at the End</h2>
 
-<p>After the prompt blocks and repeated comments, the file ends with <mark class="tag-hl">obfuscated JavaScript</mark>. The first layer uses a character-code array, a ROT-style substitution function, and <code>eval</code>. The article describes this as a common <mark class="tag-hl">JavaScript</mark> obfuscation pattern where the real program is stored as encoded data, reconstructed at runtime, transformed, and dynamically executed.</p>
+<p>After the prompt blocks and repeated comments, the file ends with obfuscated JavaScript. The first layer uses a character-code array, a ROT-style substitution function, and <code>eval</code>. The article describes this as a common JavaScript obfuscation pattern where the real program is stored as encoded data, reconstructed at runtime, transformed, and dynamically executed.</p>
 
-<p><mark class="tag-hl">Socket</mark> researchers found a second layer involving <mark class="tag-hl">AES encryption</mark>. Once deobfuscated, the package was classified as “Protestware or potentially unwanted behavior.”</p>
+<p>Socket researchers found a second layer involving AES encryption. Once deobfuscated, the package was classified as “Protestware or potentially unwanted behavior.”</p>
 
 <p>The decoded content includes a Unicode-escaped version of the earlier Japanese prompt content. The article notes that this means the package does not only place policy-triggering content at the top of the file. It also reintroduces similar content after deobfuscation, so an AI agent that successfully unwraps the first layer may encounter the same safety-triggering material again during deeper analysis.</p>
 
@@ -1470,10 +1623,10 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Screenshot filenames.</li>
 <li>Hidden PowerShell execution.</li>
 <li>Postinstall execution.</li>
-<li><mark class="tag-hl">GitHub Actions</mark> runner strings.</li>
+<li>GitHub Actions runner strings.</li>
 <li><code>/etc/sudoers</code>.</li>
 <li>Webhook paths.</li>
-<li><mark class="tag-hl">Interactsh</mark>, Pipedream, and <mark class="tag-hl">Burp Collaborator</mark>-style callback infrastructure.</li>
+<li>Interactsh, Pipedream, and Burp Collaborator-style callback infrastructure.</li>
 <li>Discord Canary.</li>
 <li>Miner-related strings.</li>
 <li>AI and scanner-related internal terminology.</li>
@@ -1481,26 +1634,26 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article says these strings may be intended to trigger detections, test scanner behavior, increase analyst workload, or troll vendors.</p>
 
-<h2 id="prompt-injection-and-llm-denial-of-service"><mark class="tag-hl">Prompt Injection</mark> and LLM Denial of Service</h2>
+<h2 id="prompt-injection-and-llm-denial-of-service">Prompt Injection and LLM Denial of Service</h2>
 
-<p>The article states that the package contains both <mark class="tag-hl">prompt injection</mark> and LLM-specific denial-of-service characteristics. The fake <code>SYSTEM OVERRIDE</code> block is described as <mark class="tag-hl">prompt injection</mark> because it attempts to issue instructions to the model reviewing the file. Since the block is inside a <mark class="tag-hl">JavaScript</mark> comment, the target is not the <mark class="tag-hl">JavaScript</mark> runtime but the scanner or analyst assistant.</p>
+<p>The article states that the package contains both prompt injection and LLM-specific denial-of-service characteristics. The fake <code>SYSTEM OVERRIDE</code> block is described as prompt injection because it attempts to issue instructions to the model reviewing the file. Since the block is inside a JavaScript comment, the target is not the JavaScript runtime but the scanner or analyst assistant.</p>
 
 <p>The biological and nuclear-themed prompt content is described as safety-triggering anti-analysis. Its likely goal, according to the article, is to cause an AI system to refuse, error, or stop reviewing the package before reaching executable code.</p>
 
-<p>The repeated comment section is described as <mark class="tag-hl">context flooding</mark>. It inflates the file until useful content is buried behind millions of tokens. The article summarizes the combined pattern as follows:</p>
+<p>The repeated comment section is described as context flooding. It inflates the file until useful content is buried behind millions of tokens. The article summarizes the combined pattern as follows:</p>
 
 <ul>
-<li><mark class="tag-hl">Prompt injection</mark> tries to alter or confuse model behavior.</li>
+<li>Prompt injection tries to alter or confuse model behavior.</li>
 <li>Safety-triggering content tries to cause refusal or review failure.</li>
-<li><mark class="tag-hl">Context flooding</mark> tries to exhaust the model’s token budget.</li>
+<li>Context flooding tries to exhaust the model’s token budget.</li>
 <li>Obfuscation hides executable behavior behind AI-facing noise.</li>
 </ul>
 
 <h2 id="why-comments-matter-to-ai-scanners">Why Comments Matter to AI Scanners</h2>
 
-<p>From a <mark class="tag-hl">JavaScript</mark> perspective, the prompt blocks are comments and do not execute. From an AI scanner perspective, the article says they are active input. LLMs do not automatically know which parts of a file are executable, comments, strings, or content that should be ignored unless the surrounding system enforces those boundaries.</p>
+<p>From a JavaScript perspective, the prompt blocks are comments and do not execute. From an AI scanner perspective, the article says they are active input. LLMs do not automatically know which parts of a file are executable, comments, strings, or content that should be ignored unless the surrounding system enforces those boundaries.</p>
 
-<p>The article says a secure scanner needs to treat package contents as untrusted data rather than instructions. It also needs to recognize when a file is attempting to manipulate the scanner itself. The article states that this requires more than telling the model to ignore <mark class="tag-hl">prompt injection</mark>; it requires deterministic preprocessing and careful architecture.</p>
+<p>The article says a secure scanner needs to treat package contents as untrusted data rather than instructions. It also needs to recognize when a file is attempting to manipulate the scanner itself. The article states that this requires more than telling the model to ignore prompt injection; it requires deterministic preprocessing and careful architecture.</p>
 
 <h2 id="impact-on-ai-enabled-malware-review">Impact on AI-Enabled Malware Review</h2>
 
@@ -1511,12 +1664,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <ul>
 <li>Safety guardrails can be triggered by malicious source comments.</li>
 <li>Context windows can be saturated with low-signal repetition.</li>
-<li><mark class="tag-hl">Prompt-injection</mark> text can be embedded in non-executable code.</li>
+<li>Prompt-injection text can be embedded in non-executable code.</li>
 <li>Obfuscated payloads can be placed after the model has consumed its context budget.</li>
 <li>Deobfuscation can reveal additional policy-triggering content, causing later pipeline failure.</li>
 </ul>
 
-<p>The article recommends that AI scanners use deterministic preprocessing to strip or isolate comments where appropriate, prioritize executable paths, detect <mark class="tag-hl">context flooding</mark>, and combine LLM review with static analysis, AST parsing, entropy checks, deobfuscation, behavioral rules, and sandboxing. It also says scanners need to fail closed, meaning that a model refusal, timeout, or safety error should not be treated as a clean result.</p>
+<p>The article recommends that AI scanners use deterministic preprocessing to strip or isolate comments where appropriate, prioritize executable paths, detect context flooding, and combine LLM review with static analysis, AST parsing, entropy checks, deobfuscation, behavioral rules, and sandboxing. It also says scanners need to fail closed, meaning that a model refusal, timeout, or safety error should not be treated as a clean result.</p>
 
 <h2 id="conclusion">Conclusion</h2>
 
@@ -1524,12 +1677,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article’s central conclusion is that open source malware is no longer only trying to evade static rules or human review. It is also beginning to target the AI systems used to analyze it. The scanner itself is therefore part of the threat model described in the article.</p>
 </div></div>
-                <div id="insights-f732e09045c423869026262257a8ecf2:aaeb6f90843352c5" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The package treats the scanner as an attack surface by placing adversarial instructions in <mark class="tag-hl">JavaScript</mark> comments, showing that non-executable source content can still be operationally significant in AI-assisted review pipelines.</span></li><li><span class="kp-text">The <mark class="tag-hl">token-flooding</mark> section exceeds 3.5 million tokens, making token budget itself a practical defensive weakness if scanners submit files naively or chunk them without prioritizing executable code.</span></li><li><span class="kp-text">The package reintroduces safety-triggering content after deobfuscation, meaning an AI analysis pipeline can fail not only during initial file review but also during deeper unpacking stages.</span></li><li><span class="kp-text">The article emphasizes that a model refusal, timeout, truncation, or safety error should be treated as an analysis failure rather than a clean result, because adversarial packages can intentionally provoke those outcomes.</span></li></ul></div>
+                <div id="insights-963307d64f2914fcf1b04398430639dc:aaeb6f90843352c5" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The package treats the scanner as an attack surface by placing adversarial instructions in JavaScript comments, showing that non-executable source content can still be operationally significant in AI-assisted review pipelines.</span></li><li><span class="kp-text">The token-flooding section exceeds 3.5 million tokens, making token budget itself a practical defensive weakness if scanners submit files naively or chunk them without prioritizing executable code.</span></li><li><span class="kp-text">The package reintroduces safety-triggering content after deobfuscation, meaning an AI analysis pipeline can fail not only during initial file review but also during deeper unpacking stages.</span></li><li><span class="kp-text">The article emphasizes that a model refusal, timeout, truncation, or safety error should be treated as an analysis failure rather than a clean result, because adversarial packages can intentionally provoke those outcomes.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Socket</mark> Threat Research identified the <mark class="tag-hl">npm</mark> package shai_hulululud@1.0.48596, which appears to target AI-based malware scanners rather than carry the credential-stealing payload seen in recent <mark class="tag-hl">Mini Shai-Hulud</mark>, <mark class="tag-hl">Miasma</mark>, and <mark class="tag-hl">Hades</mark> campaigns.</span></li><li><span class="kp-text">The package’s approximately 9.28 MB index.js file contains policy-triggering prompt content, fake system override instructions, tens of thousands of repeated comment lines, and <mark class="tag-hl">obfuscated JavaScript</mark> appended at the end.</span></li><li><span class="kp-text">The prompt and repeated comment content is not executed by <mark class="tag-hl">JavaScript</mark>, but it can affect LLM-based scanners by triggering refusals, consuming context, causing truncation, or distracting analysis from executable code.</span></li><li><span class="kp-text"><mark class="tag-hl">Socket</mark> researchers found that the <mark class="tag-hl">obfuscated JavaScript</mark> uses a character-code array, a ROT-style substitution function, eval, and a second AES-encrypted layer, and they classified the package as protestware or potentially unwanted behavior.</span></li><li><span class="kp-text">The article says AI-enabled malware scanners should use deterministic preprocessing, prioritize executable code paths, detect <mark class="tag-hl">context flooding</mark>, combine LLM review with other analysis techniques, and fail closed on refusals, timeouts, or safety errors.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Socket Threat Research identified the npm package shai_hulululud@1.0.48596, which appears to target AI-based malware scanners rather than carry the credential-stealing payload seen in recent Mini Shai-Hulud, Miasma, and Hades campaigns.</span></li><li><span class="kp-text">The package’s approximately 9.28 MB index.js file contains policy-triggering prompt content, fake system override instructions, tens of thousands of repeated comment lines, and obfuscated JavaScript appended at the end.</span></li><li><span class="kp-text">The prompt and repeated comment content is not executed by JavaScript, but it can affect LLM-based scanners by triggering refusals, consuming context, causing truncation, or distracting analysis from executable code.</span></li><li><span class="kp-text">Socket researchers found that the obfuscated JavaScript uses a character-code array, a ROT-style substitution function, eval, and a second AES-encrypted layer, and they classified the package as protestware or potentially unwanted behavior.</span></li><li><span class="kp-text">The article says AI-enabled malware scanners should use deterministic preprocessing, prioritize executable code paths, detect context flooding, combine LLM review with other analysis techniques, and fail closed on refusals, timeouts, or safety errors.</span></li></ul></div>
+            
             <a href="https://socket.dev/blog/npm-package-uses-prompt-injection-and-token-flooding-to-disrupt-ai-malware-scanners?utm_medium=feed" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article is an original technical writeup from <mark class="tag-hl">Socket</mark> about a specific newly identified <mark class="tag-hl">npm</mark> package, with concrete file structure and obfuscation details. The impact is moderate because the package is classified as protestware or potentially unwanted behavior rather than a confirmed credential stealer, but it highlights practical risks to AI-assisted malware scanning. Defenders get useful awareness and architectural guidance, though not a clear patch-now or detection-rule-driven response.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article is an original technical writeup from Socket about a specific newly identified npm package, with concrete file structure and obfuscation details. The impact is moderate because the package is classified as protestware or potentially unwanted behavior rather than a confirmed credential stealer, but it highlights practical risks to AI-assisted malware scanning. Defenders get useful awareness and architectural guidance, though not a clear patch-now or detection-rule-driven response.</p>
 </div></div>
             
             
@@ -1584,9 +1738,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-16 22:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1599,15 +1756,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1720,12 +1939,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1786,6 +2039,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

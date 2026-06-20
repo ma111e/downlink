@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1350,54 +1503,54 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:68%"></div></div><span class="score-num score-num-low">68</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:5cb1a4ed1914b448">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:5cb1a4ed1914b448')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:5cb1a4ed1914b448')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:5cb1a4ed1914b448')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:5cb1a4ed1914b448')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:5cb1a4ed1914b448')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:5cb1a4ed1914b448')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:5cb1a4ed1914b448')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:5cb1a4ed1914b448')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:5cb1a4ed1914b448')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:5cb1a4ed1914b448')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:5cb1a4ed1914b448" class="tab-panel active"><div class="prose">A former IT employee of <mark class="tag-hl">Iowa</mark>’s <mark class="tag-hl">Saydel Community School District</mark> was sentenced to 21 months in prison for using retained credentials to repeatedly sabotage district systems for nearly two years. The attacks disrupted classroom operations, deleted accounts, and caused nearly $60,000 in remediation costs.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:5cb1a4ed1914b448" class="tab-panel"><div class="prose"><p>A former IT employee at <mark class="tag-hl">Iowa</mark>’s <mark class="tag-hl">Saydel Community School District</mark> was sentenced to 21 months in prison for conducting a prolonged cyberattack against his former employer. <mark class="tag-hl">Ezekiel Dean Potter</mark>, 34, had worked as a senior IT support specialist for the district from May 2022 through April 2023. Prosecutors said he retained access credentials after his employment ended and repeatedly targeted district systems over the next 21 months.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:5cb1a4ed1914b448" class="tab-panel active"><div class="prose">A former IT employee of Iowa’s Saydel Community School District was sentenced to 21 months in prison for using retained credentials to repeatedly sabotage district systems for nearly two years. The attacks disrupted classroom operations, deleted accounts, and caused nearly $60,000 in remediation costs.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:5cb1a4ed1914b448" class="tab-panel"><div class="prose"><p>A former IT employee at Iowa’s Saydel Community School District was sentenced to 21 months in prison for conducting a prolonged cyberattack against his former employer. Ezekiel Dean Potter, 34, had worked as a senior IT support specialist for the district from May 2022 through April 2023. Prosecutors said he retained access credentials after his employment ended and repeatedly targeted district systems over the next 21 months.</p>
 
-<p>The attacks disrupted classroom operations, deleted accounts, impaired access to educational platforms, and caused tens of thousands of dollars in remediation costs. Court documents said Potter deleted the district’s <mark class="tag-hl">Facebook</mark> page, affected <mark class="tag-hl">Apple School Manager</mark> access, targeted <mark class="tag-hl">GoDaddy</mark> and other online services, and later accessed <mark class="tag-hl">Schoology</mark> through <mark class="tag-hl">Google</mark> administrator accounts. He was ordered to pay $59,668.81 in restitution to the district and its insurer, <mark class="tag-hl">Travelers Casualty and Surety Company</mark>.</p>
+<p>The attacks disrupted classroom operations, deleted accounts, impaired access to educational platforms, and caused tens of thousands of dollars in remediation costs. Court documents said Potter deleted the district’s Facebook page, affected Apple School Manager access, targeted GoDaddy and other online services, and later accessed Schoology through Google administrator accounts. He was ordered to pay $59,668.81 in restitution to the district and its insurer, Travelers Casualty and Surety Company.</p>
 
-<p>Federal investigators traced some activity to IP addresses associated with Potter’s other employers, including Casey’s Store Support Center and <mark class="tag-hl">The Printer Inc</mark>. After Potter left <mark class="tag-hl">The Printer Inc</mark>., a coworker gave investigators a USB drive that allegedly contained spreadsheets with usernames and passwords for Saydel accounts and services. Potter pleaded guilty in January 2026 to computer fraud charges under the Computer Fraud and Abuse Act without a plea agreement.</p>
+<p>Federal investigators traced some activity to IP addresses associated with Potter’s other employers, including Casey’s Store Support Center and The Printer Inc. After Potter left The Printer Inc., a coworker gave investigators a USB drive that allegedly contained spreadsheets with usernames and passwords for Saydel accounts and services. Potter pleaded guilty in January 2026 to computer fraud charges under the Computer Fraud and Abuse Act without a plea agreement.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:5cb1a4ed1914b448" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Ezekiel Dean Potter</mark>, a former senior IT support specialist for the <mark class="tag-hl">Saydel Community School District</mark> in Des Moines, <mark class="tag-hl">Iowa</mark>, was sentenced to 21 months in prison for cyberattacks against the district after his employment ended. Potter worked for the district from May 2022 through April 2023. Prosecutors said he retained access credentials and repeatedly targeted district systems for 21 months.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:5cb1a4ed1914b448" class="tab-panel"><div class="prose"><p>Ezekiel Dean Potter, a former senior IT support specialist for the Saydel Community School District in Des Moines, Iowa, was sentenced to 21 months in prison for cyberattacks against the district after his employment ended. Potter worked for the district from May 2022 through April 2023. Prosecutors said he retained access credentials and repeatedly targeted district systems for 21 months.</p>
 
-<p>The U.S. government described Potter in a sentencing memorandum as “a plague on the <mark class="tag-hl">Saydel Community School District</mark>.” Prosecutors said he deleted the district’s <mark class="tag-hl">Facebook</mark> page, removed employee access to educational platforms and accounts, and repeatedly attempted to reset employee usernames and passwords for various platforms and accounts. The attacks disrupted school operations, impaired the district’s ability to teach students, and generated tens of thousands of dollars in remediation costs.</p>
+<p>The U.S. government described Potter in a sentencing memorandum as “a plague on the Saydel Community School District.” Prosecutors said he deleted the district’s Facebook page, removed employee access to educational platforms and accounts, and repeatedly attempted to reset employee usernames and passwords for various platforms and accounts. The attacks disrupted school operations, impaired the district’s ability to teach students, and generated tens of thousands of dollars in remediation costs.</p>
 
-<p>Court documents said the activity began shortly after Potter left the district, when Saydel’s <mark class="tag-hl">Facebook</mark> account was deleted. Prosecutors said Potter later targeted the district’s <mark class="tag-hl">Apple School Manager</mark> account, deleting user accounts, passwords, phone numbers, billing information, and device management server data. This prevented school employees from accessing <mark class="tag-hl">Apple School Manager</mark> and disabled management of district MacBooks and iPads for about a week while staff worked with Apple to recover access.</p>
+<p>Court documents said the activity began shortly after Potter left the district, when Saydel’s Facebook account was deleted. Prosecutors said Potter later targeted the district’s Apple School Manager account, deleting user accounts, passwords, phone numbers, billing information, and device management server data. This prevented school employees from accessing Apple School Manager and disabled management of district MacBooks and iPads for about a week while staff worked with Apple to recover access.</p>
 
-<p>The district also saw unauthorized access attempts against its <mark class="tag-hl">GoDaddy</mark> account and other online services. In January 2025, Potter accessed the district’s <mark class="tag-hl">Schoology</mark> learning management system through a <mark class="tag-hl">Google</mark> administrator account and deleted an IT employee’s account, disrupting teacher access and affecting classes for approximately two hours. A week later, prosecutors said he accessed another administrator account and deleted nine <mark class="tag-hl">Gmail</mark> accounts belonging to current and former district employees, including the IT director and superintendent.</p>
+<p>The district also saw unauthorized access attempts against its GoDaddy account and other online services. In January 2025, Potter accessed the district’s Schoology learning management system through a Google administrator account and deleted an IT employee’s account, disrupting teacher access and affecting classes for approximately two hours. A week later, prosecutors said he accessed another administrator account and deleted nine Gmail accounts belonging to current and former district employees, including the IT director and superintendent.</p>
 
-<p>Court filings said Potter later switched to using a VPN service after receiving <mark class="tag-hl">Google</mark> security alerts about unauthorized account access. Federal investigators traced some activity to IP addresses linked to Potter’s other employers, including Casey’s Store Support Center and <mark class="tag-hl">The Printer Inc</mark>. After Potter left <mark class="tag-hl">The Printer Inc</mark>. in January 2025, a former coworker turned over a USB drive from Potter’s desk that allegedly contained spreadsheets with usernames and passwords for Saydel district accounts and services.</p>
+<p>Court filings said Potter later switched to using a VPN service after receiving Google security alerts about unauthorized account access. Federal investigators traced some activity to IP addresses linked to Potter’s other employers, including Casey’s Store Support Center and The Printer Inc. After Potter left The Printer Inc. in January 2025, a former coworker turned over a USB drive from Potter’s desk that allegedly contained spreadsheets with usernames and passwords for Saydel district accounts and services.</p>
 
-<p>Potter pleaded guilty in January 2026 to computer fraud charges under the Computer Fraud and Abuse Act without entering into a plea agreement. On June 11, he was sentenced to 21 months in prison followed by three years of supervised release. His supervised release includes restrictions and monitoring related to employment, finances, and computer systems, and he must pay $59,668.81 in restitution to <mark class="tag-hl">Saydel Community School District</mark> and <mark class="tag-hl">Travelers Casualty and Surety Company</mark>.</p>
+<p>Potter pleaded guilty in January 2026 to computer fraud charges under the Computer Fraud and Abuse Act without entering into a plea agreement. On June 11, he was sentenced to 21 months in prison followed by three years of supervised release. His supervised release includes restrictions and monitoring related to employment, finances, and computer systems, and he must pay $59,668.81 in restitution to Saydel Community School District and Travelers Casualty and Surety Company.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:5cb1a4ed1914b448" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:5cb1a4ed1914b448" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>A former IT employee of the <mark class="tag-hl">Saydel Community School District</mark> in Des Moines, <mark class="tag-hl">Iowa</mark>, was sentenced to 21 months in prison for conducting a prolonged cyberattack against the district after leaving his job. The defendant, <mark class="tag-hl">Ezekiel Dean Potter</mark>, 34, previously worked as a senior IT support specialist for the district from May 2022 through April 2023.</p>
+<p>A former IT employee of the Saydel Community School District in Des Moines, Iowa, was sentenced to 21 months in prison for conducting a prolonged cyberattack against the district after leaving his job. The defendant, Ezekiel Dean Potter, 34, previously worked as a senior IT support specialist for the district from May 2022 through April 2023.</p>
 
 <p>According to prosecutors, Potter retained access credentials after his employment ended and repeatedly targeted the district’s systems over the next 21 months. The attacks disrupted classroom operations, deleted accounts, impaired access to educational systems, and caused tens of thousands of dollars in remediation costs.</p>
 
 <h2 id="defendant-and-employment-context">Defendant and Employment Context</h2>
 
-<p>Potter worked for the <mark class="tag-hl">Saydel Community School District</mark> as a senior IT support specialist. His employment lasted from May 2022 through April 2023.</p>
+<p>Potter worked for the Saydel Community School District as a senior IT support specialist. His employment lasted from May 2022 through April 2023.</p>
 
 <p>After he left the district, prosecutors said he continued to have access credentials and used them to target district systems. The U.S. government described his conduct in a sentencing memorandum as lasting “over a year and a half.”</p>
 
 <h2 id="prosecutors-description-of-the-conduct">Prosecutors’ Description of the Conduct</h2>
 
-<p>The government said Potter deleted the district’s <mark class="tag-hl">Facebook</mark> page, stripped employees of access to educational platforms and accounts, and repeatedly tried to reset usernames and passwords for other platforms and accounts.</p>
+<p>The government said Potter deleted the district’s Facebook page, stripped employees of access to educational platforms and accounts, and repeatedly tried to reset usernames and passwords for other platforms and accounts.</p>
 
 <p>Prosecutors said the activity caused widespread disruption to the school district. They said the attacks impaired the district’s ability to teach students and resulted in tens of thousands of dollars in remediation costs.</p>
 
@@ -1408,34 +1561,34 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The affected or targeted services included:</p>
 
 <ul>
-<li>The <mark class="tag-hl">Saydel Community School District</mark> <mark class="tag-hl">Facebook</mark> account.</li>
-<li><mark class="tag-hl">Apple School Manager</mark>.</li>
-<li>District MacBooks and iPads managed through <mark class="tag-hl">Apple School Manager</mark>.</li>
-<li><mark class="tag-hl">GoDaddy</mark> and other online services.</li>
-<li><mark class="tag-hl">Schoology</mark>.</li>
-<li><mark class="tag-hl">Google</mark> administrator accounts.</li>
-<li><mark class="tag-hl">Gmail</mark> accounts belonging to current and former district employees.</li>
+<li>The Saydel Community School District Facebook account.</li>
+<li>Apple School Manager.</li>
+<li>District MacBooks and iPads managed through Apple School Manager.</li>
+<li>GoDaddy and other online services.</li>
+<li>Schoology.</li>
+<li>Google administrator accounts.</li>
+<li>Gmail accounts belonging to current and former district employees.</li>
 </ul>
 
-<h2 id="apple-school-manager-disruption"><mark class="tag-hl">Apple School Manager</mark> Disruption</h2>
+<h2 id="apple-school-manager-disruption">Apple School Manager Disruption</h2>
 
-<p>Prosecutors said Potter targeted the district’s <mark class="tag-hl">Apple School Manager</mark> account after his employment ended. He allegedly deleted user accounts, passwords, phone numbers, billing information, and device management server data.</p>
+<p>Prosecutors said Potter targeted the district’s Apple School Manager account after his employment ended. He allegedly deleted user accounts, passwords, phone numbers, billing information, and device management server data.</p>
 
-<p>The article states that this prevented school employees from accessing <mark class="tag-hl">Apple School Manager</mark>. It also disabled management of district MacBooks and iPads for roughly a week while staff worked with Apple to recover access.</p>
+<p>The article states that this prevented school employees from accessing Apple School Manager. It also disabled management of district MacBooks and iPads for roughly a week while staff worked with Apple to recover access.</p>
 
-<h2 id="schoology-google-administrator-and-gmail-activity"><mark class="tag-hl">Schoology</mark>, <mark class="tag-hl">Google</mark> Administrator, and <mark class="tag-hl">Gmail</mark> Activity</h2>
+<h2 id="schoology-google-administrator-and-gmail-activity">Schoology, Google Administrator, and Gmail Activity</h2>
 
-<p>Court documents said that in January 2025, Potter accessed the district’s <mark class="tag-hl">Schoology</mark> learning management system through a <mark class="tag-hl">Google</mark> administrator account. He deleted an IT employee’s account, which disrupted teacher access to the platform and affected classes for approximately two hours.</p>
+<p>Court documents said that in January 2025, Potter accessed the district’s Schoology learning management system through a Google administrator account. He deleted an IT employee’s account, which disrupted teacher access to the platform and affected classes for approximately two hours.</p>
 
-<p>A week later, prosecutors said Potter accessed another administrator account. He then deleted nine <mark class="tag-hl">Gmail</mark> accounts belonging to current and former district employees, including the district’s IT director and superintendent.</p>
+<p>A week later, prosecutors said Potter accessed another administrator account. He then deleted nine Gmail accounts belonging to current and former district employees, including the district’s IT director and superintendent.</p>
 
 <h2 id="attribution-and-investigative-details">Attribution and Investigative Details</h2>
 
-<p>Court filings said Potter later switched to using a VPN service after receiving <mark class="tag-hl">Google</mark> security alerts that warned of unauthorized account access.</p>
+<p>Court filings said Potter later switched to using a VPN service after receiving Google security alerts that warned of unauthorized account access.</p>
 
-<p>Federal investigators eventually traced some of the activity to IP addresses associated with Potter’s other employers. Those employers included Casey’s Store Support Center and <mark class="tag-hl">The Printer Inc</mark>.</p>
+<p>Federal investigators eventually traced some of the activity to IP addresses associated with Potter’s other employers. Those employers included Casey’s Store Support Center and The Printer Inc.</p>
 
-<p>After Potter left <mark class="tag-hl">The Printer Inc</mark>. in January 2025, prosecutors said he asked a former coworker to retrieve and wipe a USB drive from his desk. The coworker instead turned the USB drive over to investigators.</p>
+<p>After Potter left The Printer Inc. in January 2025, prosecutors said he asked a former coworker to retrieve and wipe a USB drive from his desk. The coworker instead turned the USB drive over to investigators.</p>
 
 <p>Investigators allegedly found spreadsheets on the USB drive containing usernames and passwords for Saydel School District accounts and services.</p>
 
@@ -1449,18 +1602,19 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>As part of his supervised release, Potter will be subject to restrictions and monitoring related to employment, finances, and computer systems. The conditions include searches of electronic devices upon reasonable suspicion.</p>
 
-<p>Potter must also pay $59,668.81 in restitution. The restitution is owed to the <mark class="tag-hl">Saydel Community School District</mark> and its insurer, <mark class="tag-hl">Travelers Casualty and Surety Company</mark>, for remediation costs related to the attacks.</p>
+<p>Potter must also pay $59,668.81 in restitution. The restitution is owed to the Saydel Community School District and its insurer, Travelers Casualty and Surety Company, for remediation costs related to the attacks.</p>
 
 <h2 id="impact-on-the-school-district">Impact on the School District</h2>
 
 <p>The article states that the attacks disrupted classroom operations and impaired the district’s ability to teach students. The disruptions included loss of access to educational platforms, deletion of accounts, and temporary inability to manage district Apple devices.</p>
 
-<p>The financial impact described in the article was $59,668.81 in restitution for remediation costs. The affected parties named in connection with restitution are the <mark class="tag-hl">Saydel Community School District</mark> and <mark class="tag-hl">Travelers Casualty and Surety Company</mark>.</p>
+<p>The financial impact described in the article was $59,668.81 in restitution for remediation costs. The affected parties named in connection with restitution are the Saydel Community School District and Travelers Casualty and Surety Company.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:5cb1a4ed1914b448" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The incident shows that offboarding failures can have long-lasting impact, as Potter allegedly retained credentials and used them to access district systems for 21 months after leaving.</span></li><li><span class="kp-text">Third-party and cloud administration consoles were central points of disruption, with <mark class="tag-hl">Apple School Manager</mark>, <mark class="tag-hl">Google</mark> administrator accounts, <mark class="tag-hl">Schoology</mark>, <mark class="tag-hl">GoDaddy</mark>, <mark class="tag-hl">Gmail</mark>, and <mark class="tag-hl">Facebook</mark> all involved in the attacks.</span></li><li><span class="kp-text"><mark class="tag-hl">Google</mark> security alerts were significant enough that Potter later switched to a VPN service, indicating that account security notifications contributed to investigative pressure even though they did not immediately stop the activity.</span></li><li><span class="kp-text">Investigators linked activity to IP addresses associated with Potter’s later employers, showing that workplace network logs outside the victim organization contributed to attribution.</span></li><li><span class="kp-text">A USB drive found at Potter’s former workplace allegedly contained spreadsheets of Saydel account usernames and passwords, highlighting the risk of administrators keeping credential inventories outside approved systems.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:5cb1a4ed1914b448" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The incident shows that offboarding failures can have long-lasting impact, as Potter allegedly retained credentials and used them to access district systems for 21 months after leaving.</span></li><li><span class="kp-text">Third-party and cloud administration consoles were central points of disruption, with Apple School Manager, Google administrator accounts, Schoology, GoDaddy, Gmail, and Facebook all involved in the attacks.</span></li><li><span class="kp-text">Google security alerts were significant enough that Potter later switched to a VPN service, indicating that account security notifications contributed to investigative pressure even though they did not immediately stop the activity.</span></li><li><span class="kp-text">Investigators linked activity to IP addresses associated with Potter’s later employers, showing that workplace network logs outside the victim organization contributed to attribution.</span></li><li><span class="kp-text">A USB drive found at Potter’s former workplace allegedly contained spreadsheets of Saydel account usernames and passwords, highlighting the risk of administrators keeping credential inventories outside approved systems.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Former <mark class="tag-hl">Saydel Community School District</mark> senior IT support specialist <mark class="tag-hl">Ezekiel Dean Potter</mark> was sentenced to 21 months in prison for conducting cyberattacks against the district after his employment ended.</span></li><li><span class="kp-text">Prosecutors said Potter retained access credentials and targeted the district’s systems over 21 months, including deleting its <mark class="tag-hl">Facebook</mark> page and disrupting access to educational platforms and accounts.</span></li><li><span class="kp-text">Court documents state that Potter deleted data from the district’s <mark class="tag-hl">Apple School Manager</mark> account, preventing staff from accessing the platform and disabling management of district MacBooks and iPads for roughly a week.</span></li><li><span class="kp-text">In January 2025, Potter accessed the district’s <mark class="tag-hl">Schoology</mark> learning management system through <mark class="tag-hl">Google</mark> administrator accounts and deleted employee <mark class="tag-hl">Gmail</mark> accounts, disrupting teacher access and district operations.</span></li><li><span class="kp-text">Potter was ordered to serve three years of supervised release and pay $59,668.81 in restitution to the <mark class="tag-hl">Saydel Community School District</mark> and its insurer for remediation costs.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Former Saydel Community School District senior IT support specialist Ezekiel Dean Potter was sentenced to 21 months in prison for conducting cyberattacks against the district after his employment ended.</span></li><li><span class="kp-text">Prosecutors said Potter retained access credentials and targeted the district’s systems over 21 months, including deleting its Facebook page and disrupting access to educational platforms and accounts.</span></li><li><span class="kp-text">Court documents state that Potter deleted data from the district’s Apple School Manager account, preventing staff from accessing the platform and disabling management of district MacBooks and iPads for roughly a week.</span></li><li><span class="kp-text">In January 2025, Potter accessed the district’s Schoology learning management system through Google administrator accounts and deleted employee Gmail accounts, disrupting teacher access and district operations.</span></li><li><span class="kp-text">Potter was ordered to serve three years of supervised release and pay $59,668.81 in restitution to the Saydel Community School District and its insurer for remediation costs.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/ex-school-district-employee-jailed-for-hacks-on-former-employer/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific incident involving insider misuse of retained credentials against a school district, with concrete impacts across cloud admin, identity, and education platforms. It is useful for security professionals as an offboarding and account-governance case, but it is narrow, not active exploitation, and not broadly urgent.</p>
 </div></div>
@@ -1508,9 +1662,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-13 18:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1523,15 +1680,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1644,12 +1863,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1710,6 +1963,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

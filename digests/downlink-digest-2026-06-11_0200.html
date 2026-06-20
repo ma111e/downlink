@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1350,38 +1503,38 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:55%"></div></div><span class="score-num score-num-low">55</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="d75ab45f002ca4c77eb7f0c0b134fe7c:bbad174bdae8c154">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-81f4a4dbe564e28bdcbe7bc1a6408c5b:bbad174bdae8c154')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-81f4a4dbe564e28bdcbe7bc1a6408c5b:bbad174bdae8c154')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-81f4a4dbe564e28bdcbe7bc1a6408c5b:bbad174bdae8c154')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-81f4a4dbe564e28bdcbe7bc1a6408c5b:bbad174bdae8c154')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-81f4a4dbe564e28bdcbe7bc1a6408c5b:bbad174bdae8c154')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d75ab45f002ca4c77eb7f0c0b134fe7c:bbad174bdae8c154')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-d75ab45f002ca4c77eb7f0c0b134fe7c:bbad174bdae8c154')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-d75ab45f002ca4c77eb7f0c0b134fe7c:bbad174bdae8c154')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d75ab45f002ca4c77eb7f0c0b134fe7c:bbad174bdae8c154')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-d75ab45f002ca4c77eb7f0c0b134fe7c:bbad174bdae8c154')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-81f4a4dbe564e28bdcbe7bc1a6408c5b:bbad174bdae8c154" class="tab-panel active"><div class="prose">MCP and APIs are complementary: use APIs for predictable scripted automation, and use MCP when analysts or AI agents need to investigate security data through natural language. Teams adopting agentic SOC workflows should run both, while treating MCP access as privileged because its tokens and scopes expand the attack surface.</div></div>
-                <div id="brief-81f4a4dbe564e28bdcbe7bc1a6408c5b:bbad174bdae8c154" class="tab-panel"><div class="prose"><p>The article argues that MCP and APIs should not be treated as rivals because they expose the same underlying capabilities for different users. APIs are described as structured, deterministic interfaces for developers and scripts, while MCP exposes platform capabilities as tools that AI agents can discover and call in response to natural language. The central takeaway is that security teams, especially those moving toward an Agentic SOC, need both interfaces.</p>
+                <div id="tldr-d75ab45f002ca4c77eb7f0c0b134fe7c:bbad174bdae8c154" class="tab-panel active"><div class="prose">MCP and APIs are complementary: use APIs for predictable scripted automation, and use MCP when analysts or AI agents need to investigate security data through natural language. Teams adopting agentic SOC workflows should run both, while treating MCP access as privileged because its tokens and scopes expand the attack surface.</div></div>
+                <div id="brief-d75ab45f002ca4c77eb7f0c0b134fe7c:bbad174bdae8c154" class="tab-panel"><div class="prose"><p>The article argues that MCP and APIs should not be treated as rivals because they expose the same underlying capabilities for different users. APIs are described as structured, deterministic interfaces for developers and scripts, while MCP exposes platform capabilities as tools that AI agents can discover and call in response to natural language. The central takeaway is that security teams, especially those moving toward an Agentic SOC, need both interfaces.</p>
 
 <p>APIs are presented as the better option for scripted automation where teams know exactly what they want to call and need consistent behavior. MCP is presented as better for analysts, AI assistants, and agentic workflow tools that need to investigate security data by asking questions rather than writing endpoint-specific code. The article emphasizes that MCP can reduce time-to-first-answer from days of integration work to minutes by letting the LLM choose tools, chain results, and format output.</p>
 
-<p>The article also highlights a security caveat: MCP servers give agents credentialed reach into the security stack. Because of that, MCP tokens and scopes become part of the attack surface and should be treated like privileged access. <mark class="tag-hl">Mitiga</mark> says it ships both API and MCP side-by-side to support deterministic automation and live natural-language investigations.</p>
+<p>The article also highlights a security caveat: MCP servers give agents credentialed reach into the security stack. Because of that, MCP tokens and scopes become part of the attack surface and should be treated like privileged access. Mitiga says it ships both API and MCP side-by-side to support deterministic automation and live natural-language investigations.</p>
 </div></div>
-                <div id="standard-81f4a4dbe564e28bdcbe7bc1a6408c5b:bbad174bdae8c154" class="tab-panel"><div class="prose"><p>The article compares MCP, or <mark class="tag-hl">Model Context Protocol</mark>, with traditional APIs in the context of security operations. It frames them as two interfaces to the same capabilities rather than competing approaches. APIs are described as contracts for code, while MCP is described as a contract for AI agents. The distinction is based less on the underlying plumbing and more on the consumer of the interface.</p>
+                <div id="standard-d75ab45f002ca4c77eb7f0c0b134fe7c:bbad174bdae8c154" class="tab-panel"><div class="prose"><p>The article compares MCP, or Model Context Protocol, with traditional APIs in the context of security operations. It frames them as two interfaces to the same capabilities rather than competing approaches. APIs are described as contracts for code, while MCP is described as a contract for AI agents. The distinction is based less on the underlying plumbing and more on the consumer of the interface.</p>
 
-<p>For APIs, the article emphasizes deterministic and scripted automation. Developers use APIs when they know the exact request they want to make, the response they expect, and the behavior they need to repeat consistently. Examples include wiring SIEM alerts into ticketing systems, pulling alert data into daily reports, or building custom enrichment that runs the same way each time. The API path requires working knowledge of HTTP, authentication flows, Swagger or <mark class="tag-hl">OpenAPI</mark>, <mark class="tag-hl">GraphQL</mark>, and automation platforms.</p>
+<p>For APIs, the article emphasizes deterministic and scripted automation. Developers use APIs when they know the exact request they want to make, the response they expect, and the behavior they need to repeat consistently. Examples include wiring SIEM alerts into ticketing systems, pulling alert data into daily reports, or building custom enrichment that runs the same way each time. The API path requires working knowledge of HTTP, authentication flows, Swagger or OpenAPI, GraphQL, and automation platforms.</p>
 
-<p>For MCP, the article emphasizes intent-driven investigation through natural language. It says AI assistants need MCP to reach into security data, run hunts, pivot on indicators of compromise, and call platform tools on the fly. MCP is presented as useful for Agentic SOC platforms such as <mark class="tag-hl">Torq</mark> and <mark class="tag-hl">Tines</mark>, general workflow builders such as <mark class="tag-hl">n8n</mark>, and human analysts using MCP-compatible clients such as <mark class="tag-hl">Claude</mark>, <mark class="tag-hl">ChatGPT</mark>, or <mark class="tag-hl">Rovo</mark>. In these cases, the user asks a question and expects the agent to assemble the workflow.</p>
+<p>For MCP, the article emphasizes intent-driven investigation through natural language. It says AI assistants need MCP to reach into security data, run hunts, pivot on indicators of compromise, and call platform tools on the fly. MCP is presented as useful for Agentic SOC platforms such as Torq and Tines, general workflow builders such as n8n, and human analysts using MCP-compatible clients such as Claude, ChatGPT, or Rovo. In these cases, the user asks a question and expects the agent to assemble the workflow.</p>
 
 <p>The article’s main operational claim is that MCP can drastically shorten time-to-value. API integrations may take days because teams must read documentation, configure authentication, map fields, handle pagination, and catch errors. With MCP, the user connects the server once and asks a question, with the LLM determining which tools to call, chaining results, and formatting the output. The article also describes a future direction where LLMs select relevant playbooks based on alert type and use those playbooks to guide MCP tool use.</p>
 
-<p>The article does not describe a specific incident or name a threat actor, but it does include a security warning about MCP access. It states that an MCP server gives an agent credentialed reach into the security stack, making its tokens and scopes part of the attack surface. <mark class="tag-hl">Mitiga</mark> says it has observed MCP tokens being stolen in the wild and advises treating MCP access like privileged access. The article concludes that the future of security tooling is multi-protocol by default, with teams choosing between API and MCP per use case, persona, and workflow.</p>
+<p>The article does not describe a specific incident or name a threat actor, but it does include a security warning about MCP access. It states that an MCP server gives an agent credentialed reach into the security stack, making its tokens and scopes part of the attack surface. Mitiga says it has observed MCP tokens being stolen in the wild and advises treating MCP access like privileged access. The article concludes that the future of security tooling is multi-protocol by default, with teams choosing between API and MCP per use case, persona, and workflow.</p>
 </div></div>
-                <div id="comprehensive-81f4a4dbe564e28bdcbe7bc1a6408c5b:bbad174bdae8c154" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-d75ab45f002ca4c77eb7f0c0b134fe7c:bbad174bdae8c154" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
 <p>The article argues that MCP and APIs are complementary interfaces rather than competing technologies. Both expose the same underlying capabilities, but they are built for different consumers and different operational patterns. APIs serve developers and scripts, while MCP serves AI agents, analysts, and natural-language-driven investigations.</p>
 
@@ -1416,9 +1569,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The article lists several places where this pattern appears:</p>
 
 <ul>
-<li>Purpose-built Agentic SOC platforms such as <mark class="tag-hl">Torq</mark> and <mark class="tag-hl">Tines</mark>, which are described as moving beyond static playbooks into LLM-driven investigations.</li>
-<li>General workflow builders such as <mark class="tag-hl">n8n</mark>, which can let security teams build their own agentic flows on top of MCP.</li>
-<li>Human analysts using AI assistants such as <mark class="tag-hl">Claude</mark>, <mark class="tag-hl">ChatGPT</mark>, or other MCP-compatible clients.</li>
+<li>Purpose-built Agentic SOC platforms such as Torq and Tines, which are described as moving beyond static playbooks into LLM-driven investigations.</li>
+<li>General workflow builders such as n8n, which can let security teams build their own agentic flows on top of MCP.</li>
+<li>Human analysts using AI assistants such as Claude, ChatGPT, or other MCP-compatible clients.</li>
 </ul>
 
 <p>An example question in the article is: “has this hash been seen anywhere in the last 90 days, and was it touched by a privileged account?” The point is that the user does not need to read API documentation or manually construct endpoint calls; they ask a question and expect an answer.</p>
@@ -1439,7 +1592,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="skills-and-operational-requirements">Skills and operational requirements</h2>
 
-<p>The article contrasts the skills needed for each interface. To use an API well, the user needs familiarity with HTTP, authentication flows, Swagger or <mark class="tag-hl">OpenAPI</mark>, <mark class="tag-hl">GraphQL</mark>, and an automation platform. The user must also be comfortable reading documentation and troubleshooting HTTP errors.</p>
+<p>The article contrasts the skills needed for each interface. To use an API well, the user needs familiarity with HTTP, authentication flows, Swagger or OpenAPI, GraphQL, and an automation platform. The user must also be comfortable reading documentation and troubleshooting HTTP errors.</p>
 
 <p>To use MCP, the article says the user needs the endpoint to connect it to the environment. After that, the key skill is writing a clear question and judging whether the answer makes sense. The article describes this as shifting the bottleneck from engineering capacity to analytical judgment.</p>
 
@@ -1447,18 +1600,19 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article includes a warning that MCP convenience comes with security risk. An MCP server gives an agent credentialed reach into the security stack. As a result, MCP tokens and scopes become part of the attack surface.</p>
 
-<p>The article states that <mark class="tag-hl">Mitiga</mark> has observed MCP tokens being stolen in the wild. It advises teams to connect fast but treat MCP access like privileged access. This caveat is presented as an important operational consideration when adopting MCP.</p>
+<p>The article states that Mitiga has observed MCP tokens being stolen in the wild. It advises teams to connect fast but treat MCP access like privileged access. This caveat is presented as an important operational consideration when adopting MCP.</p>
 
-<h2 id="mitiga-s-position"><mark class="tag-hl">Mitiga</mark>’s position</h2>
+<h2 id="mitiga-s-position">Mitiga’s position</h2>
 
-<p><mark class="tag-hl">Mitiga</mark> says it ships both API and MCP side-by-side. The API is positioned for scripted, deterministic automation, while MCP is positioned for analysts and Agentic SOC platforms that drive live investigations through natural language.</p>
+<p>Mitiga says it ships both API and MCP side-by-side. The API is positioned for scripted, deterministic automation, while MCP is positioned for analysts and Agentic SOC platforms that drive live investigations through natural language.</p>
 
 <p>The article’s conclusion is that the future of security tooling is multi-protocol by default. Teams should stop comparing MCP and APIs as if one replaces the other, and instead choose the right interface per use case, persona, and workflow.</p>
 </div></div>
-                <div id="insights-81f4a4dbe564e28bdcbe7bc1a6408c5b:bbad174bdae8c154" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">MCP shifts the bottleneck in security investigations from engineering capacity to analytical judgment, because users mainly need to ask clear questions and assess whether the answer makes sense.</span></li><li><span class="kp-text">Agentic investigations may combine MCP’s adaptability with playbook guidance, where an LLM selects a relevant playbook based on alert type and uses it to decide which MCP tools to call.</span></li><li><span class="kp-text">The same natural-language investigation request can trigger different MCP tool-call sequences depending on what the data reveals, so the workflow is assembled per case rather than predesigned.</span></li><li><span class="kp-text">MCP convenience creates a privileged-access risk because stolen MCP tokens can give an agent-like reach into the security stack, making token scope and protection operationally important.</span></li></ul></div>
+                <div id="insights-d75ab45f002ca4c77eb7f0c0b134fe7c:bbad174bdae8c154" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">MCP shifts the bottleneck in security investigations from engineering capacity to analytical judgment, because users mainly need to ask clear questions and assess whether the answer makes sense.</span></li><li><span class="kp-text">Agentic investigations may combine MCP’s adaptability with playbook guidance, where an LLM selects a relevant playbook based on alert type and uses it to decide which MCP tools to call.</span></li><li><span class="kp-text">The same natural-language investigation request can trigger different MCP tool-call sequences depending on what the data reveals, so the workflow is assembled per case rather than predesigned.</span></li><li><span class="kp-text">MCP convenience creates a privileged-access risk because stolen MCP tokens can give an agent-like reach into the security stack, making token scope and protection operationally important.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">MCP and APIs expose the same underlying capabilities but are designed for different consumers: APIs are contracts for code, while MCP is a contract for AI agents.</span></li><li><span class="kp-text">APIs are best suited for deterministic, scripted automation where developers know exactly what to call and need consistent behavior.</span></li><li><span class="kp-text">MCP is best suited for analysts, AI assistants, and Agentic SOC platforms that drive live investigations through natural language questions.</span></li><li><span class="kp-text">The article states that MCP can reduce time-to-first-answer to minutes because the LLM chooses tools, chains results, and formats output without a pre-built workflow.</span></li><li><span class="kp-text">The article warns that MCP servers give agents credentialed access into security environments, making MCP tokens and scopes part of the attack surface.</span></li></ul></div>
+            
             <a href="https://www.mitiga.io/blog/mcp-vs-api" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a useful opinion and best-practice piece explaining when security teams should use MCP versus APIs, but it does not report a specific incident, vulnerability, patch, breach, or threat actor operation. Because it is largely conceptual and evergreen, it falls into the low-priority range despite its relevance to agentic SOC adoption.</p>
 </div></div>
@@ -1513,9 +1667,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-11 02:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1528,15 +1685,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1649,12 +1868,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1715,6 +1968,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

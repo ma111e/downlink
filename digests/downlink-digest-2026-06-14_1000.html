@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,64 +1506,64 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:78%"></div></div><span class="score-num score-num-mid">78</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2fc4639190fe5d5e7d06e0ba98a7a537:1bbe4da4b89d2113">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-98368d337c723b246aa76244963caabd:1bbe4da4b89d2113')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-98368d337c723b246aa76244963caabd:1bbe4da4b89d2113')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-98368d337c723b246aa76244963caabd:1bbe4da4b89d2113')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-98368d337c723b246aa76244963caabd:1bbe4da4b89d2113')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-98368d337c723b246aa76244963caabd:1bbe4da4b89d2113')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2fc4639190fe5d5e7d06e0ba98a7a537:1bbe4da4b89d2113')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2fc4639190fe5d5e7d06e0ba98a7a537:1bbe4da4b89d2113')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2fc4639190fe5d5e7d06e0ba98a7a537:1bbe4da4b89d2113')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2fc4639190fe5d5e7d06e0ba98a7a537:1bbe4da4b89d2113')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2fc4639190fe5d5e7d06e0ba98a7a537:1bbe4da4b89d2113')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-98368d337c723b246aa76244963caabd:1bbe4da4b89d2113" class="tab-panel active"><div class="prose">Attackers used authorized <mark class="tag-hl">SendGrid</mark> infrastructure to impersonate <mark class="tag-hl">InformData</mark> in an employment verification phishing email that passed SPF, DKIM, and <mark class="tag-hl">DMARC</mark> REJECT, while diverting replies and clicks to attacker-controlled domains. The key takeaway is that perfect email authentication does not prove message intent, so defenders must also inspect reply-to domains, link destinations, and sender behavior.</div></div>
-                <div id="brief-98368d337c723b246aa76244963caabd:1bbe4da4b89d2113" class="tab-panel"><div class="prose"><p>Attackers sent an employment verification request impersonating <mark class="tag-hl">InformData</mark>, a legitimate background check company, to an employee at a sports data technology company. The message came from verifications@international.<mark class="tag-hl">informdata</mark>[.]com and passed SPF, DKIM, and <mark class="tag-hl">DMARC</mark> with a REJECT enforcement policy. <mark class="tag-hl">IRONSCALES</mark> flagged the message in June 2026, a colleague at the target organization reported it, and one mailbox was quarantined.</p>
+                <div id="tldr-2fc4639190fe5d5e7d06e0ba98a7a537:1bbe4da4b89d2113" class="tab-panel active"><div class="prose">Attackers used authorized SendGrid infrastructure to impersonate InformData in an employment verification phishing email that passed SPF, DKIM, and DMARC REJECT, while diverting replies and clicks to attacker-controlled domains. The key takeaway is that perfect email authentication does not prove message intent, so defenders must also inspect reply-to domains, link destinations, and sender behavior.</div></div>
+                <div id="brief-2fc4639190fe5d5e7d06e0ba98a7a537:1bbe4da4b89d2113" class="tab-panel"><div class="prose"><p>Attackers sent an employment verification request impersonating InformData, a legitimate background check company, to an employee at a sports data technology company. The message came from verifications@international.informdata[.]com and passed SPF, DKIM, and DMARC with a REJECT enforcement policy. IRONSCALES flagged the message in June 2026, a colleague at the target organization reported it, and one mailbox was quarantined.</p>
 
-<p>The article emphasizes that <mark class="tag-hl">DMARC</mark> REJECT did not stop the attack because the message was sent through <mark class="tag-hl">SendGrid</mark> infrastructure that was authorized for international.<mark class="tag-hl">informdata</mark>[.]com. The DKIM signature used selector s1 under that domain, and the Return-Path used a <mark class="tag-hl">SendGrid</mark> subdomain tied to international.<mark class="tag-hl">informdata</mark>[.]com. The article says the attacker either compromised the <mark class="tag-hl">InformData</mark> <mark class="tag-hl">SendGrid</mark> account or configured a new <mark class="tag-hl">SendGrid</mark> identity that could sign for the domain.</p>
+<p>The article emphasizes that DMARC REJECT did not stop the attack because the message was sent through SendGrid infrastructure that was authorized for international.informdata[.]com. The DKIM signature used selector s1 under that domain, and the Return-Path used a SendGrid subdomain tied to international.informdata[.]com. The article says the attacker either compromised the InformData SendGrid account or configured a new SendGrid identity that could sign for the domain.</p>
 
 <p>The malicious elements were in the Reply-To and link destinations rather than in email authentication failures. The Reply-To pointed to support@verifying[.]you, and the “Review Employment” button linked to verify.zippedscript[.]com, both described as attacker-controlled domains. The article says defenders should review whether Reply-To domains match the From domain and whether call-to-action links resolve to the sender’s actual infrastructure.</p>
 </div></div>
-                <div id="standard-98368d337c723b246aa76244963caabd:1bbe4da4b89d2113" class="tab-panel"><div class="prose"><p>In June 2026, <mark class="tag-hl">IRONSCALES</mark> flagged a phishing attack targeting an employee at a sports data technology company. The email claimed to be an “Employment Verification Request” from verifications@international.<mark class="tag-hl">informdata</mark>[.]com, a domain belonging to the legitimate background check company <mark class="tag-hl">InformData</mark>. A colleague at the same target organization reported the email, and one mailbox was quarantined.</p>
+                <div id="standard-2fc4639190fe5d5e7d06e0ba98a7a537:1bbe4da4b89d2113" class="tab-panel"><div class="prose"><p>In June 2026, IRONSCALES flagged a phishing attack targeting an employee at a sports data technology company. The email claimed to be an “Employment Verification Request” from verifications@international.informdata[.]com, a domain belonging to the legitimate background check company InformData. A colleague at the same target organization reported the email, and one mailbox was quarantined.</p>
 
-<p>The article’s central point is that the email passed all major authentication checks. SPF passed, DKIM passed, and <mark class="tag-hl">DMARC</mark> passed under a REJECT enforcement policy, including p=REJECT and sp=REJECT. The article describes <mark class="tag-hl">DMARC</mark> REJECT as the strictest available enforcement policy, but says it did not help because the sending infrastructure was authorized for the domain.</p>
+<p>The article’s central point is that the email passed all major authentication checks. SPF passed, DKIM passed, and DMARC passed under a REJECT enforcement policy, including p=REJECT and sp=REJECT. The article describes DMARC REJECT as the strictest available enforcement policy, but says it did not help because the sending infrastructure was authorized for the domain.</p>
 
-<p>Technically, the message was sent through <mark class="tag-hl">SendGrid</mark> infrastructure using hostname wfbtrqkw.outbound-mail.<mark class="tag-hl">sendgrid</mark>.net and IP address 159[.]183[.]84[.]25. The DKIM signature used selector s1 under international.<mark class="tag-hl">informdata</mark>[.]com, and the Return-Path pointed to a VERP-encoded address at em8327.international.<mark class="tag-hl">informdata</mark>[.]com. The article says this alignment allowed <mark class="tag-hl">DMARC</mark> to do what it was designed to do: verify authorized sending infrastructure.</p>
+<p>Technically, the message was sent through SendGrid infrastructure using hostname wfbtrqkw.outbound-mail.sendgrid.net and IP address 159[.]183[.]84[.]25. The DKIM signature used selector s1 under international.informdata[.]com, and the Return-Path pointed to a VERP-encoded address at em8327.international.informdata[.]com. The article says this alignment allowed DMARC to do what it was designed to do: verify authorized sending infrastructure.</p>
 
 <p>The phishing indicators appeared in the routing of replies and clicks. The Reply-To header pointed to support@verifying[.]you, and the “Review Employment” button linked to verify.zippedscript[.]com/verify/employment/51d4ba99721cdbdbe83cc09a15f3d76b. The unsubscribe link also pointed to verify.zippedscript[.]com/unsubscribe, which the article says confirmed attacker control of the link infrastructure.</p>
 
-<p>The article explains that the employment verification pretext works because such requests are routine in business operations and recipients may feel pressure to avoid delaying a colleague’s onboarding. <mark class="tag-hl">IRONSCALES</mark>’ <mark class="tag-hl">Themis</mark> Adaptive AI labeled the recipient as a VIP and flagged the message based on behavioral signals, including a Reply-To domain mismatch, first-time sender pattern, and a disconnect between the legitimate brand identity and link destinations. The attack is mapped to MITRE ATT&amp;CK techniques T1566.002, T1036.005, and T1598.003.</p>
+<p>The article explains that the employment verification pretext works because such requests are routine in business operations and recipients may feel pressure to avoid delaying a colleague’s onboarding. IRONSCALES’ Themis Adaptive AI labeled the recipient as a VIP and flagged the message based on behavioral signals, including a Reply-To domain mismatch, first-time sender pattern, and a disconnect between the legitimate brand identity and link destinations. The attack is mapped to MITRE ATT&amp;CK techniques T1566.002, T1036.005, and T1598.003.</p>
 </div></div>
-                <div id="comprehensive-98368d337c723b246aa76244963caabd:1bbe4da4b89d2113" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2fc4639190fe5d5e7d06e0ba98a7a537:1bbe4da4b89d2113" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">IRONSCALES</mark> reported a phishing attack in which attackers impersonated <mark class="tag-hl">InformData</mark>, a legitimate background check company, using an employment verification pretext. The email was sent to an employee at a sports data technology company and claimed to be an “Employment Verification Request.” A colleague at the same organization reported the message, and one mailbox was quarantined.</p>
+<p>IRONSCALES reported a phishing attack in which attackers impersonated InformData, a legitimate background check company, using an employment verification pretext. The email was sent to an employee at a sports data technology company and claimed to be an “Employment Verification Request.” A colleague at the same organization reported the message, and one mailbox was quarantined.</p>
 
-<p>The message appeared to come from <code>verifications@international.<mark class="tag-hl">informdata</mark>[.]com</code>, a domain belonging to the real company. The article states that SPF, DKIM, and <mark class="tag-hl">DMARC</mark> all passed, and that <mark class="tag-hl">DMARC</mark> was configured with the strictest enforcement policy: <code>p=REJECT sp=REJECT</code>. Despite these authentication results, the message was malicious.</p>
+<p>The message appeared to come from <code>verifications@international.informdata[.]com</code>, a domain belonging to the real company. The article states that SPF, DKIM, and DMARC all passed, and that DMARC was configured with the strictest enforcement policy: <code>p=REJECT sp=REJECT</code>. Despite these authentication results, the message was malicious.</p>
 
 <h2 id="why-the-attack-was-significant">Why the Attack Was Significant</h2>
 
-<p>The article highlights that email authentication succeeded because the attackers sent the message through infrastructure authorized for <code>international.<mark class="tag-hl">informdata</mark>[.]com</code>. The sending infrastructure was <mark class="tag-hl">SendGrid</mark>, specifically <code>wfbtrqkw.outbound-mail.<mark class="tag-hl">sendgrid</mark>.net</code> with IP address <code>159[.]183[.]84[.]25</code>. The DKIM signature used selector <code>s1</code> under <code>international.<mark class="tag-hl">informdata</mark>[.]com</code>, and the Return-Path pointed to a VERP-encoded address at <code>em8327.international.<mark class="tag-hl">informdata</mark>[.]com</code>.</p>
+<p>The article highlights that email authentication succeeded because the attackers sent the message through infrastructure authorized for <code>international.informdata[.]com</code>. The sending infrastructure was SendGrid, specifically <code>wfbtrqkw.outbound-mail.sendgrid.net</code> with IP address <code>159[.]183[.]84[.]25</code>. The DKIM signature used selector <code>s1</code> under <code>international.informdata[.]com</code>, and the Return-Path pointed to a VERP-encoded address at <code>em8327.international.informdata[.]com</code>.</p>
 
-<p>The article says <mark class="tag-hl">DMARC</mark> did exactly what it was designed to do: verify that the sending infrastructure was authorized for the domain. The failure was not an authentication failure but a mismatch between authorization and intent. According to the article, the attacker either compromised the <mark class="tag-hl">InformData</mark> <mark class="tag-hl">SendGrid</mark> account or configured a new <mark class="tag-hl">SendGrid</mark> identity that could sign for the domain.</p>
+<p>The article says DMARC did exactly what it was designed to do: verify that the sending infrastructure was authorized for the domain. The failure was not an authentication failure but a mismatch between authorization and intent. According to the article, the attacker either compromised the InformData SendGrid account or configured a new SendGrid identity that could sign for the domain.</p>
 
 <h2 id="phishing-mechanics">Phishing Mechanics</h2>
 
 <p>The malicious content was visible in the reply and link infrastructure. The Reply-To header pointed to <code>support@verifying[.]you</code>, which the article identifies as attacker-controlled. The “Review Employment” call-to-action linked to <code>verify.zippedscript[.]com/verify/employment/51d4ba99721cdbdbe83cc09a15f3d76b</code>, also described as attacker-controlled.</p>
 
-<p>The article notes that the long hash in the URL path functioned as a per-recipient tracking token, allowing the attacker to correlate clicks with specific email addresses. WHOIS information for <code>zippedscript[.]com</code> showed <mark class="tag-hl">Cloudflare</mark> nameservers and privacy-protected registration. The unsubscribe link also pointed to <code>verify.zippedscript[.]com/unsubscribe</code>, which the article says confirmed attacker control of the entire link infrastructure.</p>
+<p>The article notes that the long hash in the URL path functioned as a per-recipient tracking token, allowing the attacker to correlate clicks with specific email addresses. WHOIS information for <code>zippedscript[.]com</code> showed Cloudflare nameservers and privacy-protected registration. The unsubscribe link also pointed to <code>verify.zippedscript[.]com/unsubscribe</code>, which the article says confirmed attacker control of the entire link infrastructure.</p>
 
 <h2 id="social-engineering-pretext">Social Engineering Pretext</h2>
 
-<p>The lure relied on an employment verification request, a routine business process associated with hiring and background checks. The article explains that recipients may expect such messages during hiring cycles because companies like <mark class="tag-hl">InformData</mark> regularly send verification requests. It also states that the pretext creates professional pressure because ignoring or delaying a verification can slow a colleague’s onboarding.</p>
+<p>The lure relied on an employment verification request, a routine business process associated with hiring and background checks. The article explains that recipients may expect such messages during hiring cycles because companies like InformData regularly send verification requests. It also states that the pretext creates professional pressure because ignoring or delaying a verification can slow a colleague’s onboarding.</p>
 
-<p>The message therefore combined a legitimate brand identity, authenticated sending infrastructure, and a business-process pretext. The article frames this as a high-severity <mark class="tag-hl">credential harvesting</mark> and social engineering attack. It maps the activity to MITRE ATT&amp;CK techniques for spearphishing links, <mark class="tag-hl">masquerading</mark>, and phishing for information.</p>
+<p>The message therefore combined a legitimate brand identity, authenticated sending infrastructure, and a business-process pretext. The article frames this as a high-severity credential harvesting and social engineering attack. It maps the activity to MITRE ATT&amp;CK techniques for spearphishing links, masquerading, and phishing for information.</p>
 
 <h2 id="detection-and-response">Detection and Response</h2>
 
-<p><mark class="tag-hl">IRONSCALES</mark> detected the message as a first-time sender flagged as high risk. <mark class="tag-hl">Themis</mark>, the <mark class="tag-hl">IRONSCALES</mark> Adaptive AI, labeled the recipient as a VIP and flagged the email based on behavioral indicators. These indicators included the Reply-To domain mismatch, the first-time sender pattern, and the disconnect between the legitimate brand identity and the link destinations.</p>
+<p>IRONSCALES detected the message as a first-time sender flagged as high risk. Themis, the IRONSCALES Adaptive AI, labeled the recipient as a VIP and flagged the email based on behavioral indicators. These indicators included the Reply-To domain mismatch, the first-time sender pattern, and the disconnect between the legitimate brand identity and the link destinations.</p>
 
 <p>The detection did not rely on failed authentication checks because there were none. The article specifically states that defenders reviewing employment verification emails should verify whether the Reply-To domain matches the From domain and whether call-to-action links resolve to the sender’s actual infrastructure. It concludes that when a background check company’s email routes replies and clicks to entirely different domains, the verification request is the attack.</p>
 
@@ -1419,16 +1572,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The article lists the following indicators:</p>
 
 <ul>
-<li>Sender email: <code>verifications@international.<mark class="tag-hl">informdata</mark>[.]com</code></li>
+<li>Sender email: <code>verifications@international.informdata[.]com</code></li>
 <li>Reply-To email: <code>support@verifying[.]you</code></li>
-<li><mark class="tag-hl">Credential harvesting</mark> domain: <code>verify.zippedscript[.]com</code></li>
-<li><mark class="tag-hl">Credential harvesting</mark> URL: <code>verify.zippedscript[.]com/verify/employment/51d4ba99721cdbdbe83cc09a15f3d76b</code></li>
+<li>Credential harvesting domain: <code>verify.zippedscript[.]com</code></li>
+<li>Credential harvesting URL: <code>verify.zippedscript[.]com/verify/employment/51d4ba99721cdbdbe83cc09a15f3d76b</code></li>
 <li>Alternate link domain: <code>verifying[.]you</code></li>
 <li>Unsubscribe URL: <code>verify.zippedscript[.]com/unsubscribe</code></li>
 <li>Sending IP: <code>159[.]183[.]84[.]25</code></li>
-<li>Sending hostname: <code>wfbtrqkw.outbound-mail.<mark class="tag-hl">sendgrid</mark>.net</code></li>
-<li>DKIM selector: <code>s1</code> with <code>d=international.<mark class="tag-hl">informdata</mark>[.]com</code></li>
-<li>Return-Path domain: <code>em8327.international.<mark class="tag-hl">informdata</mark>[.]com</code></li>
+<li>Sending hostname: <code>wfbtrqkw.outbound-mail.sendgrid.net</code></li>
+<li>DKIM selector: <code>s1</code> with <code>d=international.informdata[.]com</code></li>
+<li>Return-Path domain: <code>em8327.international.informdata[.]com</code></li>
 </ul>
 
 <h2 id="mitre-att-ck-mapping">MITRE ATT&amp;CK Mapping</h2>
@@ -1436,21 +1589,22 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The article maps the activity to three MITRE ATT&amp;CK techniques:</p>
 
 <ul>
-<li><code>T1566.002</code>, Phishing: <mark class="tag-hl">Spearphishing Link</mark>, because the message used an employment verification email with a <mark class="tag-hl">credential harvesting</mark> link.</li>
-<li><code>T1036.005</code>, <mark class="tag-hl">Masquerading</mark>: Match Legitimate Name or Location, because the attackers impersonated <mark class="tag-hl">InformData</mark>, a real background check company.</li>
-<li><code>T1598.003</code>, Phishing for Information: <mark class="tag-hl">Spearphishing Link</mark>, because the URL included per-recipient tracking tokens for target validation.</li>
+<li><code>T1566.002</code>, Phishing: Spearphishing Link, because the message used an employment verification email with a credential harvesting link.</li>
+<li><code>T1036.005</code>, Masquerading: Match Legitimate Name or Location, because the attackers impersonated InformData, a real background check company.</li>
+<li><code>T1598.003</code>, Phishing for Information: Spearphishing Link, because the URL included per-recipient tracking tokens for target validation.</li>
 </ul>
 
 <h2 id="main-takeaway">Main Takeaway</h2>
 
-<p>The core lesson in the article is that passing SPF, DKIM, and <mark class="tag-hl">DMARC</mark>, even with a <mark class="tag-hl">DMARC</mark> REJECT policy, does not prove that a message is benign. In this case, authentication showed that the sending infrastructure was authorized for the domain, but the Reply-To address and call-to-action links led to attacker-controlled infrastructure. The article presents Reply-To mismatches, first-time sender behavior, and link destination mismatches as important detection signals when authentication checks pass.</p>
+<p>The core lesson in the article is that passing SPF, DKIM, and DMARC, even with a DMARC REJECT policy, does not prove that a message is benign. In this case, authentication showed that the sending infrastructure was authorized for the domain, but the Reply-To address and call-to-action links led to attacker-controlled infrastructure. The article presents Reply-To mismatches, first-time sender behavior, and link destination mismatches as important detection signals when authentication checks pass.</p>
 </div></div>
-                <div id="insights-98368d337c723b246aa76244963caabd:1bbe4da4b89d2113" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">A <mark class="tag-hl">DMARC</mark> REJECT policy can still allow a phishing message when the attacker sends through infrastructure that is legitimately authorized for the impersonated domain.</span></li><li><span class="kp-text">Reply-To and CTA domain mismatches can reveal malicious intent even when SPF, DKIM, and <mark class="tag-hl">DMARC</mark> all pass.</span></li><li><span class="kp-text">The employment verification theme is especially effective because recipients may feel pressure to respond quickly to avoid delaying a colleague&#39;s onboarding.</span></li><li><span class="kp-text">The long hash in the phishing URL path served as a per-recipient tracking token, allowing the attacker to correlate clicks with specific email addresses.</span></li><li><span class="kp-text">An attacker-controlled unsubscribe link can indicate that the entire link infrastructure, not just the main call-to-action, is part of the phishing operation.</span></li></ul></div>
+                <div id="insights-2fc4639190fe5d5e7d06e0ba98a7a537:1bbe4da4b89d2113" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">A DMARC REJECT policy can still allow a phishing message when the attacker sends through infrastructure that is legitimately authorized for the impersonated domain.</span></li><li><span class="kp-text">Reply-To and CTA domain mismatches can reveal malicious intent even when SPF, DKIM, and DMARC all pass.</span></li><li><span class="kp-text">The employment verification theme is especially effective because recipients may feel pressure to respond quickly to avoid delaying a colleague&#39;s onboarding.</span></li><li><span class="kp-text">The long hash in the phishing URL path served as a per-recipient tracking token, allowing the attacker to correlate clicks with specific email addresses.</span></li><li><span class="kp-text">An attacker-controlled unsubscribe link can indicate that the entire link infrastructure, not just the main call-to-action, is part of the phishing operation.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Attackers sent an employment verification request impersonating <mark class="tag-hl">InformData</mark> through <mark class="tag-hl">SendGrid</mark> infrastructure, and the email passed SPF, DKIM, and <mark class="tag-hl">DMARC</mark> with a REJECT enforcement policy.</span></li><li><span class="kp-text">The Reply-To header pointed to support@verifying[.]you, and the call-to-action linked to verify.zippedscript[.]com, both described as attacker-controlled domains.</span></li><li><span class="kp-text">The attacker used <mark class="tag-hl">SendGrid</mark> host wfbtrqkw.outbound-mail.<mark class="tag-hl">sendgrid</mark>.net and IP 159[.]183[.]84[.]25, which were configured as authorized sending infrastructure for international.<mark class="tag-hl">informdata</mark>[.]com.</span></li><li><span class="kp-text"><mark class="tag-hl">IRONSCALES</mark> flagged the phishing attack in June 2026 after a colleague at the target sports data technology company reported the email, and one mailbox was quarantined.</span></li><li><span class="kp-text">The article says <mark class="tag-hl">DMARC</mark> did not help because it verified authorized sending infrastructure for the domain, but authorization did not establish the intent or legitimacy of the message.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Attackers sent an employment verification request impersonating InformData through SendGrid infrastructure, and the email passed SPF, DKIM, and DMARC with a REJECT enforcement policy.</span></li><li><span class="kp-text">The Reply-To header pointed to support@verifying[.]you, and the call-to-action linked to verify.zippedscript[.]com, both described as attacker-controlled domains.</span></li><li><span class="kp-text">The attacker used SendGrid host wfbtrqkw.outbound-mail.sendgrid.net and IP 159[.]183[.]84[.]25, which were configured as authorized sending infrastructure for international.informdata[.]com.</span></li><li><span class="kp-text">IRONSCALES flagged the phishing attack in June 2026 after a colleague at the target sports data technology company reported the email, and one mailbox was quarantined.</span></li><li><span class="kp-text">The article says DMARC did not help because it verified authorized sending infrastructure for the domain, but authorization did not establish the intent or legitimacy of the message.</span></li></ul></div>
+            
             <a href="https://ironscales.com/threat-intelligence/informdata-employment-verification-sendgrid-reply-to-diversion" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific phishing event where attackers used authorized <mark class="tag-hl">SendGrid</mark> infrastructure to impersonate <mark class="tag-hl">InformData</mark> and bypass SPF, DKIM, and <mark class="tag-hl">DMARC</mark> REJECT, which is broadly relevant to email security teams. It is not a major breach or critical vulnerability, but it provides actionable indicators and detection lessons for authenticated phishing campaigns.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific phishing event where attackers used authorized SendGrid infrastructure to impersonate InformData and bypass SPF, DKIM, and DMARC REJECT, which is broadly relevant to email security teams. It is not a major breach or critical vulnerability, but it provides actionable indicators and detection lessons for authenticated phishing campaigns.</p>
 </div></div>
             
             
@@ -1474,25 +1628,25 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest covers a phishing case in which email authentication controls validated the sending path but did not establish message legitimacy. The reported activity highlights a common detection challenge for security teams: attacker abuse or misconfiguration of authorized third-party email infrastructure can allow malicious messages to pass SPF, DKIM, and <mark class="tag-hl">DMARC</mark> checks even under strict enforcement.</p>
+        <div class="overview-body prose"><p>This digest covers a phishing case in which email authentication controls validated the sending path but did not establish message legitimacy. The reported activity highlights a common detection challenge for security teams: attacker abuse or misconfiguration of authorized third-party email infrastructure can allow malicious messages to pass SPF, DKIM, and DMARC checks even under strict enforcement.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Phishing Abuse of Authorized SendGrid Infrastructure</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">IRONSCALES</mark> reported an employment verification-themed phishing email impersonating <mark class="tag-hl">InformData</mark> that was sent through <mark class="tag-hl">SendGrid</mark> infrastructure and passed SPF, DKIM, and <mark class="tag-hl">DMARC</mark> checks, including a <mark class="tag-hl">DMARC</mark> policy set to REJECT. The message was associated with <mark class="tag-hl">SendGrid</mark> host <code>wfbtrqkw.outbound-mail.<mark class="tag-hl">sendgrid</mark>.net</code> and IP address <code>159[.]183[.]84[.]25</code>, which the article states were configured as authorized sending infrastructure for <code>international.<mark class="tag-hl">informdata</mark>[.]com</code>.</p>
+        <div class="overview-body prose"><p>IRONSCALES reported an employment verification-themed phishing email impersonating InformData that was sent through SendGrid infrastructure and passed SPF, DKIM, and DMARC checks, including a DMARC policy set to REJECT. The message was associated with SendGrid host <code>wfbtrqkw.outbound-mail.sendgrid.net</code> and IP address <code>159[.]183[.]84[.]25</code>, which the article states were configured as authorized sending infrastructure for <code>international.informdata[.]com</code>.</p>
 
-<p>The phishing lure targeted a sports data technology company and was flagged in June 2026 after a colleague at the organization reported the email. According to <mark class="tag-hl">IRONSCALES</mark>, one mailbox was quarantined. The message used an employment verification pretext while redirecting replies and user interaction away from the apparent sender’s legitimate domain.</p>
+<p>The phishing lure targeted a sports data technology company and was flagged in June 2026 after a colleague at the organization reported the email. According to IRONSCALES, one mailbox was quarantined. The message used an employment verification pretext while redirecting replies and user interaction away from the apparent sender’s legitimate domain.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Reply-To Diversion and Attacker-Controlled Domains</span>
         </div>
-        <div class="overview-body prose"><p>The email’s Reply-To header directed responses to <code>support@verifying[.]you</code>, while the call-to-action linked to <code>verify.zippedscript[.]com</code>; both were described by <mark class="tag-hl">IRONSCALES</mark> as attacker-controlled domains. This combination created a mismatch between the authenticated sending domain and the destinations used for follow-up interaction, allowing the message to appear technically authenticated while steering the recipient into attacker-controlled communication paths.</p>
+        <div class="overview-body prose"><p>The email’s Reply-To header directed responses to <code>support@verifying[.]you</code>, while the call-to-action linked to <code>verify.zippedscript[.]com</code>; both were described by IRONSCALES as attacker-controlled domains. This combination created a mismatch between the authenticated sending domain and the destinations used for follow-up interaction, allowing the message to appear technically authenticated while steering the recipient into attacker-controlled communication paths.</p>
 
-<p>The case illustrates the distinction between domain authentication and message intent. As described in the report, <mark class="tag-hl">DMARC</mark> validated that the message was sent via infrastructure authorized for the domain, but it did not determine whether the email content, Reply-To destination, or embedded link represented a legitimate business process. For defenders and threat hunters, the incident is notable because the malicious indicators were not authentication failures, but rather the use of authorized infrastructure alongside suspicious reply routing and external verification domains.</p>
+<p>The case illustrates the distinction between domain authentication and message intent. As described in the report, DMARC validated that the message was sent via infrastructure authorized for the domain, but it did not determine whether the email content, Reply-To destination, or embedded link represented a legitimate business process. For defenders and threat hunters, the incident is notable because the malicious indicators were not authentication failures, but rather the use of authorized infrastructure alongside suspicious reply routing and external verification domains.</p>
 </div>
       </div>
     </div>
@@ -1501,9 +1655,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-14 10:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1516,15 +1673,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1637,12 +1856,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1703,6 +1956,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

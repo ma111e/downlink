@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,46 +1506,46 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:86%"></div></div><span class="score-num score-num-mid">86</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="8fb952c1b24e2b94aa058d538fb6f486:c778ae1e843c2868">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-0a3fd708c41962b4e0b600a9250fd11b:c778ae1e843c2868')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-0a3fd708c41962b4e0b600a9250fd11b:c778ae1e843c2868')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-0a3fd708c41962b4e0b600a9250fd11b:c778ae1e843c2868')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-0a3fd708c41962b4e0b600a9250fd11b:c778ae1e843c2868')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-0a3fd708c41962b4e0b600a9250fd11b:c778ae1e843c2868')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-8fb952c1b24e2b94aa058d538fb6f486:c778ae1e843c2868')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-8fb952c1b24e2b94aa058d538fb6f486:c778ae1e843c2868')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-8fb952c1b24e2b94aa058d538fb6f486:c778ae1e843c2868')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-8fb952c1b24e2b94aa058d538fb6f486:c778ae1e843c2868')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-8fb952c1b24e2b94aa058d538fb6f486:c778ae1e843c2868')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-0a3fd708c41962b4e0b600a9250fd11b:c778ae1e843c2868" class="tab-panel active"><div class="prose"><mark class="tag-hl">Apache Solr</mark> versions 9.4.0 through 9.10.1 and 10.0.0 may silently create default admin accounts when BasicAuth is enabled with bin/solr auth enable, allowing unauthenticated attackers to gain full <mark class="tag-hl">SolrCloud</mark> administrative access. Organizations should upgrade to Solr 9.11.0 or 10.1.0 and audit security.json for default accounts such as superadmin, admin, search, and index.</div></div>
-                <div id="brief-0a3fd708c41962b4e0b600a9250fd11b:c778ae1e843c2868" class="tab-panel"><div class="prose"><p><mark class="tag-hl">CVE-2026-44825</mark> is a <mark class="tag-hl">hardcoded credentials</mark> vulnerability in <mark class="tag-hl">Apache Solr</mark>’s <mark class="tag-hl">Basic Authentication</mark> setup tool, <code>bin/solr auth enable</code>. The issue can silently install undocumented template accounts with publicly known <mark class="tag-hl">default credentials</mark>, giving a remote attacker full administrative access to a <mark class="tag-hl">SolrCloud</mark> cluster. The vulnerability has a CVSS v3.1 base score of 8.1, rated High.</p>
+                <div id="tldr-8fb952c1b24e2b94aa058d538fb6f486:c778ae1e843c2868" class="tab-panel active"><div class="prose">Apache Solr versions 9.4.0 through 9.10.1 and 10.0.0 may silently create default admin accounts when BasicAuth is enabled with bin/solr auth enable, allowing unauthenticated attackers to gain full SolrCloud administrative access. Organizations should upgrade to Solr 9.11.0 or 10.1.0 and audit security.json for default accounts such as superadmin, admin, search, and index.</div></div>
+                <div id="brief-8fb952c1b24e2b94aa058d538fb6f486:c778ae1e843c2868" class="tab-panel"><div class="prose"><p>CVE-2026-44825 is a hardcoded credentials vulnerability in Apache Solr’s Basic Authentication setup tool, <code>bin/solr auth enable</code>. The issue can silently install undocumented template accounts with publicly known default credentials, giving a remote attacker full administrative access to a SolrCloud cluster. The vulnerability has a CVSS v3.1 base score of 8.1, rated High.</p>
 
-<p>The affected versions are <mark class="tag-hl">Apache Solr</mark> 9.4.0 through 9.10.1 and version 10.0.0. The issue applies specifically to <mark class="tag-hl">SolrCloud</mark> deployments where administrators enabled <mark class="tag-hl">Basic Authentication</mark> using <code>bin/solr auth enable</code>; deployments that used other BasicAuth configuration methods or never enabled BasicAuth are not affected by this specific issue. <mark class="tag-hl">Apache</mark> has released Solr 9.11.0 and 10.1.0 to address the vulnerability.</p>
+<p>The affected versions are Apache Solr 9.4.0 through 9.10.1 and version 10.0.0. The issue applies specifically to SolrCloud deployments where administrators enabled Basic Authentication using <code>bin/solr auth enable</code>; deployments that used other BasicAuth configuration methods or never enabled BasicAuth are not affected by this specific issue. Apache has released Solr 9.11.0 and 10.1.0 to address the vulnerability.</p>
 
 <p>The article says the tool may create accounts named <code>superadmin</code>, <code>admin</code>, <code>search</code>, and <code>index</code>, each with a password matching the username. An attacker authenticating as <code>superadmin</code> can read, modify, or delete any index, alter cluster configuration, and pivot to systems the Solr cluster is authorized to reach. Recommended actions include auditing <code>security.json</code>, removing or rotating the template accounts, restricting admin interface access, and monitoring authentication logs for default credential patterns.</p>
 </div></div>
-                <div id="standard-0a3fd708c41962b4e0b600a9250fd11b:c778ae1e843c2868" class="tab-panel"><div class="prose"><p><mark class="tag-hl">CVE-2026-44825</mark> is described as a <mark class="tag-hl">hardcoded credentials</mark> vulnerability in <mark class="tag-hl">Apache Solr</mark>’s <mark class="tag-hl">Basic Authentication</mark> setup tool, <code>bin/solr auth enable</code>. The vulnerability can silently install undocumented template accounts with publicly known <mark class="tag-hl">default credentials</mark>. According to the article, this can allow a remote attacker with no prior authentication to gain full administrative access to a <mark class="tag-hl">SolrCloud</mark> cluster.</p>
+                <div id="standard-8fb952c1b24e2b94aa058d538fb6f486:c778ae1e843c2868" class="tab-panel"><div class="prose"><p>CVE-2026-44825 is described as a hardcoded credentials vulnerability in Apache Solr’s Basic Authentication setup tool, <code>bin/solr auth enable</code>. The vulnerability can silently install undocumented template accounts with publicly known default credentials. According to the article, this can allow a remote attacker with no prior authentication to gain full administrative access to a SolrCloud cluster.</p>
 
 <p>The issue arises when an administrator uses <code>bin/solr auth enable</code> to configure BasicAuth. The tool writes a <code>security.json</code> file that may include additional template accounts named <code>superadmin</code>, <code>admin</code>, <code>search</code>, and <code>index</code>. Each account is configured with a password that matches the username, which means attackers aware of the issue can attempt authentication without additional reconnaissance.</p>
 
-<p>The practical impact is full administrative control of the <mark class="tag-hl">SolrCloud</mark> cluster. The article states that an attacker authenticating as <code>superadmin</code> can read, modify, or delete any index, alter cluster configuration, and pivot to any system the Solr cluster is authorized to reach. The vulnerability carries a CVSS v3.1 base score of 8.1, which is rated High.</p>
+<p>The practical impact is full administrative control of the SolrCloud cluster. The article states that an attacker authenticating as <code>superadmin</code> can read, modify, or delete any index, alter cluster configuration, and pivot to any system the Solr cluster is authorized to reach. The vulnerability carries a CVSS v3.1 base score of 8.1, which is rated High.</p>
 
-<p><mark class="tag-hl">Apache Solr</mark> versions 9.4.0 through 9.10.1 and version 10.0.0 are affected. The article specifies that the vulnerability is limited to <mark class="tag-hl">SolrCloud</mark> deployments where BasicAuth was enabled using <code>bin/solr auth enable</code>. Deployments that configured BasicAuth through other means, or that never enabled BasicAuth, are not affected by this specific issue.</p>
+<p>Apache Solr versions 9.4.0 through 9.10.1 and version 10.0.0 are affected. The article specifies that the vulnerability is limited to SolrCloud deployments where BasicAuth was enabled using <code>bin/solr auth enable</code>. Deployments that configured BasicAuth through other means, or that never enabled BasicAuth, are not affected by this specific issue.</p>
 
-<p><mark class="tag-hl">Apache</mark> has released Solr 9.11.0 and 10.1.0 to address <mark class="tag-hl">CVE-2026-44825</mark>. For deployments that cannot immediately upgrade, <mark class="tag-hl">Apache</mark> recommends deleting the template accounts created by <code>bin/solr auth enable</code>. The article also recommends auditing <code>security.json</code>, restricting access to the Solr admin interface, monitoring authentication logs for default credential patterns, and inventorying Solr deployments including staging and development instances.</p>
+<p>Apache has released Solr 9.11.0 and 10.1.0 to address CVE-2026-44825. For deployments that cannot immediately upgrade, Apache recommends deleting the template accounts created by <code>bin/solr auth enable</code>. The article also recommends auditing <code>security.json</code>, restricting access to the Solr admin interface, monitoring authentication logs for default credential patterns, and inventorying Solr deployments including staging and development instances.</p>
 </div></div>
-                <div id="comprehensive-0a3fd708c41962b4e0b600a9250fd11b:c778ae1e843c2868" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-8fb952c1b24e2b94aa058d538fb6f486:c778ae1e843c2868" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">CVE-2026-44825</mark> is a <mark class="tag-hl">hardcoded credentials</mark> vulnerability in <mark class="tag-hl">Apache Solr</mark>’s <mark class="tag-hl">Basic Authentication</mark> setup tool, <code>bin/solr auth enable</code>. The article states that the tool can silently install undocumented template accounts with publicly known <mark class="tag-hl">default credentials</mark>. This can give a remote attacker full administrative access to a <mark class="tag-hl">SolrCloud</mark> cluster.</p>
+<p>CVE-2026-44825 is a hardcoded credentials vulnerability in Apache Solr’s Basic Authentication setup tool, <code>bin/solr auth enable</code>. The article states that the tool can silently install undocumented template accounts with publicly known default credentials. This can give a remote attacker full administrative access to a SolrCloud cluster.</p>
 
 <p>The vulnerability has a CVSS v3.1 base score of 8.1, rated High. Exploitation requires no prior authentication. The central risk is that accounts may exist in the deployment even though administrators did not intentionally create them.</p>
 
 <h2 id="technical-details">Technical Details</h2>
 
-<p>The vulnerability is tied to the process of enabling <mark class="tag-hl">Basic Authentication</mark> using <code>bin/solr auth enable</code>. When this tool is used, it writes a <code>security.json</code> file. The article says that this file may include additional template user accounts.</p>
+<p>The vulnerability is tied to the process of enabling Basic Authentication using <code>bin/solr auth enable</code>. When this tool is used, it writes a <code>security.json</code> file. The article says that this file may include additional template user accounts.</p>
 
 <p>The accounts specifically identified are:</p>
 
@@ -1413,15 +1566,15 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="affected-assets">Affected Assets</h2>
 
-<p><mark class="tag-hl">Apache Solr</mark> versions 9.4.0 through 9.10.1 and version 10.0.0 are affected. The vulnerability is specific to <mark class="tag-hl">SolrCloud</mark> deployments where administrators enabled <mark class="tag-hl">Basic Authentication</mark> using <code>bin/solr auth enable</code>.</p>
+<p>Apache Solr versions 9.4.0 through 9.10.1 and version 10.0.0 are affected. The vulnerability is specific to SolrCloud deployments where administrators enabled Basic Authentication using <code>bin/solr auth enable</code>.</p>
 
 <p>The article explicitly states that deployments are not affected by this specific issue if they configured BasicAuth through other means. Deployments that never enabled BasicAuth at all are also not affected by this specific issue.</p>
 
 <h2 id="exposure-context">Exposure Context</h2>
 
-<p>The article notes that <mark class="tag-hl">Apache Solr</mark> is used for enterprise search, e-commerce product catalogs, log analytics pipelines, and document management platforms. It says <mark class="tag-hl">SolrCloud</mark> clusters are commonly internet-facing or reachable from cloud environments. It also notes that administrative interfaces are often left accessible beyond the intended perimeter during initial setup or after infrastructure changes.</p>
+<p>The article notes that Apache Solr is used for enterprise search, e-commerce product catalogs, log analytics pipelines, and document management platforms. It says SolrCloud clusters are commonly internet-facing or reachable from cloud environments. It also notes that administrative interfaces are often left accessible beyond the intended perimeter during initial setup or after infrastructure changes.</p>
 
-<p><mark class="tag-hl">CyCognito</mark> identified externally reachable <mark class="tag-hl">Apache Solr</mark> assets that may be exposed across a range of industries. Because no asset file was provided for the advisory, the article says per-sector percentages are not available. The article describes exposure as likely broadly distributed rather than concentrated in a single sector.</p>
+<p>CyCognito identified externally reachable Apache Solr assets that may be exposed across a range of industries. Because no asset file was provided for the advisory, the article says per-sector percentages are not available. The article describes exposure as likely broadly distributed rather than concentrated in a single sector.</p>
 
 <h2 id="detection-and-visibility-challenges">Detection and Visibility Challenges</h2>
 
@@ -1431,18 +1584,18 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="fixes-and-mitigation">Fixes and Mitigation</h2>
 
-<p><mark class="tag-hl">Apache</mark> has released Solr 9.11.0 and 10.1.0 to address <mark class="tag-hl">CVE-2026-44825</mark>. Organizations running affected versions should upgrade to the corresponding fixed release.</p>
+<p>Apache has released Solr 9.11.0 and 10.1.0 to address CVE-2026-44825. Organizations running affected versions should upgrade to the corresponding fixed release.</p>
 
-<p>For deployments where immediate upgrading is not possible, <mark class="tag-hl">Apache</mark> recommends deleting the template accounts created by <code>bin/solr auth enable</code>. The accounts to audit and remove are <code>superadmin</code>, <code>admin</code>, <code>search</code>, and <code>index</code>. These accounts are defined in <code>security.json</code> and can be removed or have their credentials rotated through the Solr Security API.</p>
+<p>For deployments where immediate upgrading is not possible, Apache recommends deleting the template accounts created by <code>bin/solr auth enable</code>. The accounts to audit and remove are <code>superadmin</code>, <code>admin</code>, <code>search</code>, and <code>index</code>. These accounts are defined in <code>security.json</code> and can be removed or have their credentials rotated through the Solr Security API.</p>
 
-<p>The article recommends that defenders verify directly with <mark class="tag-hl">Apache</mark>’s security advisory and inspect their deployment’s <code>security.json</code> contents. It warns that the absence of weak credentials in self-created accounts does not rule out the presence of silently installed template accounts.</p>
+<p>The article recommends that defenders verify directly with Apache’s security advisory and inspect their deployment’s <code>security.json</code> contents. It warns that the absence of weak credentials in self-created accounts does not rule out the presence of silently installed template accounts.</p>
 
 <h2 id="recommended-actions">Recommended Actions</h2>
 
 <p>The article recommends the following actions until patching is confirmed:</p>
 
 <ul>
-<li>Audit <code>security.json</code> on all <mark class="tag-hl">SolrCloud</mark> nodes for undocumented template accounts.</li>
+<li>Audit <code>security.json</code> on all SolrCloud nodes for undocumented template accounts.</li>
 <li>Remove or rotate credentials for <code>superadmin</code>, <code>admin</code>, <code>search</code>, and <code>index</code> if present.</li>
 <li>Restrict network access to the Solr admin interface at the firewall or WAF layer.</li>
 <li>Monitor Solr authentication logs for logins using default credential patterns.</li>
@@ -1450,16 +1603,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Verify that BasicAuth-enabled clusters were not configured using <code>bin/solr auth enable</code> on any affected version.</li>
 </ul>
 
-<h2 id="cycognito-activity"><mark class="tag-hl">CyCognito</mark> Activity</h2>
+<h2 id="cycognito-activity">CyCognito Activity</h2>
 
-<p><mark class="tag-hl">CyCognito</mark> published an Emerging Threat Advisory for <mark class="tag-hl">CVE-2026-44825</mark> in the <mark class="tag-hl">CyCognito</mark> platform. The company says it is actively researching enhanced detection capabilities for this vulnerability. The article also directs readers to contact <mark class="tag-hl">CyCognito</mark> to request a demo.</p>
+<p>CyCognito published an Emerging Threat Advisory for CVE-2026-44825 in the CyCognito platform. The company says it is actively researching enhanced detection capabilities for this vulnerability. The article also directs readers to contact CyCognito to request a demo.</p>
 </div></div>
-                <div id="insights-0a3fd708c41962b4e0b600a9250fd11b:c778ae1e843c2868" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Administrators may miss the exposure because verifying their own configured account after setup does not reveal the silently installed template accounts.</span></li><li><span class="kp-text">Deployments that configured BasicAuth through methods other than bin/solr auth enable, or never enabled BasicAuth, are not affected by this specific issue.</span></li><li><span class="kp-text">The article emphasizes that inherited Solr deployments through platform bundles or third-party applications can delay visibility into affected versions and authentication state.</span></li><li><span class="kp-text">Older staging or development Solr clusters may remain externally reachable even after production upgrades, making inventory of non-production instances a specific remediation priority.</span></li></ul></div>
+                <div id="insights-8fb952c1b24e2b94aa058d538fb6f486:c778ae1e843c2868" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Administrators may miss the exposure because verifying their own configured account after setup does not reveal the silently installed template accounts.</span></li><li><span class="kp-text">Deployments that configured BasicAuth through methods other than bin/solr auth enable, or never enabled BasicAuth, are not affected by this specific issue.</span></li><li><span class="kp-text">The article emphasizes that inherited Solr deployments through platform bundles or third-party applications can delay visibility into affected versions and authentication state.</span></li><li><span class="kp-text">Older staging or development Solr clusters may remain externally reachable even after production upgrades, making inventory of non-production instances a specific remediation priority.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">CVE-2026-44825</mark> is a <mark class="tag-hl">hardcoded credentials</mark> vulnerability in <mark class="tag-hl">Apache Solr</mark>’s <mark class="tag-hl">Basic Authentication</mark> setup tool, bin/solr auth enable, with a CVSS v3.1 base score of 8.1.</span></li><li><span class="kp-text">When administrators use bin/solr auth enable, the tool may write a security.json file containing template accounts named superadmin, admin, search, and index, each with a password matching the username.</span></li><li><span class="kp-text">An attacker who authenticates as superadmin can gain full administrative control of the <mark class="tag-hl">SolrCloud</mark> cluster, including the ability to read, modify, or delete indexes and alter cluster configuration.</span></li><li><span class="kp-text"><mark class="tag-hl">Apache Solr</mark> versions 9.4.0 through 9.10.1 and version 10.0.0 are affected in <mark class="tag-hl">SolrCloud</mark> deployments where <mark class="tag-hl">Basic Authentication</mark> was enabled using bin/solr auth enable.</span></li><li><span class="kp-text"><mark class="tag-hl">Apache</mark> has released Solr 9.11.0 and 10.1.0 to address <mark class="tag-hl">CVE-2026-44825</mark>, and organizations should audit security.json for the template accounts if immediate upgrading is not possible.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">CVE-2026-44825 is a hardcoded credentials vulnerability in Apache Solr’s Basic Authentication setup tool, bin/solr auth enable, with a CVSS v3.1 base score of 8.1.</span></li><li><span class="kp-text">When administrators use bin/solr auth enable, the tool may write a security.json file containing template accounts named superadmin, admin, search, and index, each with a password matching the username.</span></li><li><span class="kp-text">An attacker who authenticates as superadmin can gain full administrative control of the SolrCloud cluster, including the ability to read, modify, or delete indexes and alter cluster configuration.</span></li><li><span class="kp-text">Apache Solr versions 9.4.0 through 9.10.1 and version 10.0.0 are affected in SolrCloud deployments where Basic Authentication was enabled using bin/solr auth enable.</span></li><li><span class="kp-text">Apache has released Solr 9.11.0 and 10.1.0 to address CVE-2026-44825, and organizations should audit security.json for the template accounts if immediate upgrading is not possible.</span></li></ul></div>
+            
             <a href="https://www.cycognito.com/blog/emerging-threat-cve-2026-44825-apache-solr-administrative-takeover-via-hardcoded-credentials/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific high-impact advisory for widely used <mark class="tag-hl">Apache Solr</mark> versions where default template credentials can grant full <mark class="tag-hl">SolrCloud</mark> administrative control. There is no reported active exploitation, but the combination of exposed admin interfaces, public <mark class="tag-hl">default credentials</mark>, and available patches makes it important for security teams to review and act on.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific high-impact advisory for widely used Apache Solr versions where default template credentials can grant full SolrCloud administrative control. There is no reported active exploitation, but the combination of exposed admin interfaces, public default credentials, and available patches makes it important for security teams to review and act on.</p>
 </div></div>
             
             
@@ -1483,46 +1637,46 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:78%"></div></div><span class="score-num score-num-mid">78</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2fc4639190fe5d5e7d06e0ba98a7a537:d31ddbb954d0eb72">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-98368d337c723b246aa76244963caabd:d31ddbb954d0eb72')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-98368d337c723b246aa76244963caabd:d31ddbb954d0eb72')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-98368d337c723b246aa76244963caabd:d31ddbb954d0eb72')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-98368d337c723b246aa76244963caabd:d31ddbb954d0eb72')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-98368d337c723b246aa76244963caabd:d31ddbb954d0eb72')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2fc4639190fe5d5e7d06e0ba98a7a537:d31ddbb954d0eb72')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2fc4639190fe5d5e7d06e0ba98a7a537:d31ddbb954d0eb72')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2fc4639190fe5d5e7d06e0ba98a7a537:d31ddbb954d0eb72')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2fc4639190fe5d5e7d06e0ba98a7a537:d31ddbb954d0eb72')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2fc4639190fe5d5e7d06e0ba98a7a537:d31ddbb954d0eb72')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-98368d337c723b246aa76244963caabd:d31ddbb954d0eb72" class="tab-panel active"><div class="prose">A phishing invoice was sent through legitimate <mark class="tag-hl">Oracle NetSuite</mark> infrastructure with valid SPF, DKIM, and DMARC, linking to a real <mark class="tag-hl">QIMA</mark> payment portal with a pre-filled payment token. The case shows that authenticated SaaS-generated emails can still be fraudulent, making behavioral analysis critical for detecting invoice scams.</div></div>
-                <div id="brief-98368d337c723b246aa76244963caabd:d31ddbb954d0eb72" class="tab-panel"><div class="prose"><p>An <mark class="tag-hl">invoice phishing</mark> email was delivered through legitimate <mark class="tag-hl">Oracle NetSuite</mark> email infrastructure and relayed by <mark class="tag-hl">Oracle Email Delivery</mark>. The message passed SPF, DKIM with dual signatures from NetSuite and <mark class="tag-hl">Oracle Email Delivery</mark>, and DMARC with compauth=pass reason=100. The article says the central unanswered question is whether the invoice was real, the <mark class="tag-hl">QIMA</mark> NetSuite account was compromised, or the invoice was fabricated within the platform.</p>
+                <div id="tldr-2fc4639190fe5d5e7d06e0ba98a7a537:d31ddbb954d0eb72" class="tab-panel active"><div class="prose">A phishing invoice was sent through legitimate Oracle NetSuite infrastructure with valid SPF, DKIM, and DMARC, linking to a real QIMA payment portal with a pre-filled payment token. The case shows that authenticated SaaS-generated emails can still be fraudulent, making behavioral analysis critical for detecting invoice scams.</div></div>
+                <div id="brief-2fc4639190fe5d5e7d06e0ba98a7a537:d31ddbb954d0eb72" class="tab-panel"><div class="prose"><p>An invoice phishing email was delivered through legitimate Oracle NetSuite email infrastructure and relayed by Oracle Email Delivery. The message passed SPF, DKIM with dual signatures from NetSuite and Oracle Email Delivery, and DMARC with compauth=pass reason=100. The article says the central unanswered question is whether the invoice was real, the QIMA NetSuite account was compromised, or the invoice was fabricated within the platform.</p>
 
-<p>The email was sent from system@sent-via[.]netsuite[.]com on behalf of “Finance <mark class="tag-hl">QIMA</mark>/<mark class="tag-hl">WQS</mark>” with a Reply-To address of finance@wqscert[.]com. It used <mark class="tag-hl">Oracle Email Delivery</mark> from a <mark class="tag-hl">Japan</mark> datacenter host, aib29dd127[.]nrt1[.]oracleemaildelivery[.]com, with IP 192[.]29[.]44[.]127. X-NetSuite headers showed platform-origin details including compId=4552646, search=664953, and owner=2859289.</p>
+<p>The email was sent from system@sent-via[.]netsuite[.]com on behalf of “Finance QIMA/WQS” with a Reply-To address of finance@wqscert[.]com. It used Oracle Email Delivery from a Japan datacenter host, aib29dd127[.]nrt1[.]oracleemaildelivery[.]com, with IP 192[.]29[.]44[.]127. X-NetSuite headers showed platform-origin details including compId=4552646, search=664953, and owner=2859289.</p>
 
-<p>The “Click and Pay” link pointed to a real <mark class="tag-hl">QIMA</mark> payment portal with a pre-filled payment token, so the URL appeared clean because the domain and page were legitimate. <mark class="tag-hl">Microsoft</mark> assigned the message SCL=9 with SFTY:9.25 despite the authentication success. <mark class="tag-hl">Themis</mark> classified it as <mark class="tag-hl">Invoice Phishing</mark> at 63% confidence based on sender relationship analysis and quarantined it across four mailboxes.</p>
+<p>The “Click and Pay” link pointed to a real QIMA payment portal with a pre-filled payment token, so the URL appeared clean because the domain and page were legitimate. Microsoft assigned the message SCL=9 with SFTY:9.25 despite the authentication success. Themis classified it as Invoice Phishing at 63% confidence based on sender relationship analysis and quarantined it across four mailboxes.</p>
 </div></div>
-                <div id="standard-98368d337c723b246aa76244963caabd:d31ddbb954d0eb72" class="tab-panel"><div class="prose"><p>The article describes an <mark class="tag-hl">invoice phishing</mark> email sent through <mark class="tag-hl">Oracle NetSuite</mark>’s legitimate email infrastructure and <mark class="tag-hl">Oracle Email Delivery</mark>. The message passed SPF, DKIM, and DMARC, including dual DKIM signatures from sent-via[.]netsuite[.]com and nrt1[.]rp[.]oracleemaildelivery[.]com. The article frames the case as <mark class="tag-hl">Email as a Service abuse</mark> because the attacker did not spoof NetSuite but used it.</p>
+                <div id="standard-2fc4639190fe5d5e7d06e0ba98a7a537:d31ddbb954d0eb72" class="tab-panel"><div class="prose"><p>The article describes an invoice phishing email sent through Oracle NetSuite’s legitimate email infrastructure and Oracle Email Delivery. The message passed SPF, DKIM, and DMARC, including dual DKIM signatures from sent-via[.]netsuite[.]com and nrt1[.]rp[.]oracleemaildelivery[.]com. The article frames the case as Email as a Service abuse because the attacker did not spoof NetSuite but used it.</p>
 
-<p>The email came from system@sent-via[.]netsuite[.]com on behalf of “Finance <mark class="tag-hl">QIMA</mark>/<mark class="tag-hl">WQS</mark>” and used finance@wqscert[.]com as the Reply-To address. It was relayed through <mark class="tag-hl">Oracle Email Delivery</mark> from a <mark class="tag-hl">Japan</mark> datacenter host, aib29dd127[.]nrt1[.]oracleemaildelivery[.]com, at IP address 192[.]29[.]44[.]127. X-NetSuite headers indicated the message originated inside the NetSuite platform and included compId=4552646, search=664953, and owner=2859289.</p>
+<p>The email came from system@sent-via[.]netsuite[.]com on behalf of “Finance QIMA/WQS” and used finance@wqscert[.]com as the Reply-To address. It was relayed through Oracle Email Delivery from a Japan datacenter host, aib29dd127[.]nrt1[.]oracleemaildelivery[.]com, at IP address 192[.]29[.]44[.]127. X-NetSuite headers indicated the message originated inside the NetSuite platform and included compId=4552646, search=664953, and owner=2859289.</p>
 
-<p>The payment call-to-action linked to my[.]<mark class="tag-hl">qima</mark>[.]com/pay-pre-filled/qimawqs/a0d9464fe506416497b71c4ea7776c18, described as a real <mark class="tag-hl">QIMA</mark> payment portal with a pre-filled token. The article notes that the URL scanned clean because the domain was legitimate and the page functioned as designed. The message also included links to <mark class="tag-hl">QIMA</mark> terms-and-conditions and contact pages, and its subject referenced a specific invoice number and named both the buyer and vendor.</p>
+<p>The payment call-to-action linked to my[.]qima[.]com/pay-pre-filled/qimawqs/a0d9464fe506416497b71c4ea7776c18, described as a real QIMA payment portal with a pre-filled token. The article notes that the URL scanned clean because the domain was legitimate and the page functioned as designed. The message also included links to QIMA terms-and-conditions and contact pages, and its subject referenced a specific invoice number and named both the buyer and vendor.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> flagged the message aggressively with SCL=9 and SFTY:9.25 even though the email fully passed authentication checks. The article says this created tension between infrastructure trust and behavioral signals. It presents the case as an example of why phishing detection cannot rely on authentication alone.</p>
+<p>Microsoft flagged the message aggressively with SCL=9 and SFTY:9.25 even though the email fully passed authentication checks. The article says this created tension between infrastructure trust and behavioral signals. It presents the case as an example of why phishing detection cannot rely on authentication alone.</p>
 
-<p><mark class="tag-hl">Themis</mark>, the <mark class="tag-hl">IRONSCALES</mark> Adaptive AI system, classified the email as <mark class="tag-hl">Invoice Phishing</mark> at 63% confidence. The classification was based on sender relationship analysis because the recipient had no established communication history with the NetSuite-generated sender identity. Four mailboxes were quarantined, and the article leaves open whether the <mark class="tag-hl">QIMA</mark> NetSuite account was compromised or whether the invoice was fabricated within the platform.</p>
+<p>Themis, the IRONSCALES Adaptive AI system, classified the email as Invoice Phishing at 63% confidence. The classification was based on sender relationship analysis because the recipient had no established communication history with the NetSuite-generated sender identity. Four mailboxes were quarantined, and the article leaves open whether the QIMA NetSuite account was compromised or whether the invoice was fabricated within the platform.</p>
 </div></div>
-                <div id="comprehensive-98368d337c723b246aa76244963caabd:d31ddbb954d0eb72" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2fc4639190fe5d5e7d06e0ba98a7a537:d31ddbb954d0eb72" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The article analyzes an <mark class="tag-hl">invoice phishing</mark> email delivered through legitimate <mark class="tag-hl">Oracle NetSuite</mark> email infrastructure. The message was authenticated successfully, passing SPF, DKIM, and DMARC, including dual DKIM signatures from NetSuite and <mark class="tag-hl">Oracle Email Delivery</mark>. Despite this, the email was treated as suspicious and ultimately classified as <mark class="tag-hl">Invoice Phishing</mark> by <mark class="tag-hl">Themis</mark>, the <mark class="tag-hl">IRONSCALES</mark> Adaptive AI system.</p>
+<p>The article analyzes an invoice phishing email delivered through legitimate Oracle NetSuite email infrastructure. The message was authenticated successfully, passing SPF, DKIM, and DMARC, including dual DKIM signatures from NetSuite and Oracle Email Delivery. Despite this, the email was treated as suspicious and ultimately classified as Invoice Phishing by Themis, the IRONSCALES Adaptive AI system.</p>
 
-<p>The article’s central point is that authentication could confirm the legitimacy of the sending chain but could not determine whether the invoice itself was legitimate. It explicitly frames the open incident-response question as whether the <mark class="tag-hl">QIMA</mark> NetSuite account was compromised or whether the invoice was fabricated within the platform itself.</p>
+<p>The article’s central point is that authentication could confirm the legitimacy of the sending chain but could not determine whether the invoice itself was legitimate. It explicitly frames the open incident-response question as whether the QIMA NetSuite account was compromised or whether the invoice was fabricated within the platform itself.</p>
 
 <h2 id="sending-infrastructure-and-authentication">Sending Infrastructure and Authentication</h2>
 
-<p>The email was sent from system@sent-via[.]netsuite[.]com on behalf of “Finance <mark class="tag-hl">QIMA</mark>/<mark class="tag-hl">WQS</mark>.” It used a Reply-To address of finance@wqscert[.]com, which the article identifies as a <mark class="tag-hl">QIMA</mark>/<mark class="tag-hl">WQS</mark> finance contact. The message was relayed through <mark class="tag-hl">Oracle Email Delivery</mark> from a <mark class="tag-hl">Japan</mark> datacenter.</p>
+<p>The email was sent from system@sent-via[.]netsuite[.]com on behalf of “Finance QIMA/WQS.” It used a Reply-To address of finance@wqscert[.]com, which the article identifies as a QIMA/WQS finance contact. The message was relayed through Oracle Email Delivery from a Japan datacenter.</p>
 
 <p>The sending host was aib29dd127[.]nrt1[.]oracleemaildelivery[.]com, and the sending IP address was 192[.]29[.]44[.]127. The article states that X-NetSuite headers confirmed the message originated from inside the platform and included compId=4552646, search=664953, and owner=2859289.</p>
 
@@ -1533,24 +1687,24 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>DKIM passed.</li>
 <li>The message was dual-signed by sent-via[.]netsuite[.]com and nrt1[.]rp[.]oracleemaildelivery[.]com.</li>
 <li>DMARC passed.</li>
-<li><mark class="tag-hl">Microsoft</mark>’s composite authentication result was compauth=pass reason=100.</li>
+<li>Microsoft’s composite authentication result was compauth=pass reason=100.</li>
 </ul>
 
-<p>The article characterizes this as <mark class="tag-hl">Email as a Service abuse</mark> because NetSuite was not spoofed; it was used as the delivery mechanism.</p>
+<p>The article characterizes this as Email as a Service abuse because NetSuite was not spoofed; it was used as the delivery mechanism.</p>
 
 <h2 id="payment-link-and-invoice-fraud-mechanism">Payment Link and Invoice Fraud Mechanism</h2>
 
-<p>The “Click and Pay” call-to-action linked to hxxps://my[.]<mark class="tag-hl">qima</mark>[.]com/pay-pre-filled/qimawqs/a0d9464fe506416497b71c4ea7776c18. The article describes this as a real <mark class="tag-hl">QIMA</mark> payment portal containing a pre-filled payment token. It notes that the URL scans clean because the domain is legitimate and the page functions as designed.</p>
+<p>The “Click and Pay” call-to-action linked to hxxps://my[.]qima[.]com/pay-pre-filled/qimawqs/a0d9464fe506416497b71c4ea7776c18. The article describes this as a real QIMA payment portal containing a pre-filled payment token. It notes that the URL scans clean because the domain is legitimate and the page functions as designed.</p>
 
 <p>The article emphasizes that the payload was not a credential harvester or malware dropper. Instead, it was a real payment form pre-loaded with an invoice the attacker wanted paid. This made URL reputation and domain-based checks less useful because the payment portal itself was legitimate.</p>
 
-<p>The email also included links to <mark class="tag-hl">qima</mark>[.]com/terms-and-conditions and <mark class="tag-hl">qima</mark>[.]com/contact-us. According to the article, these links reinforced legitimacy. The subject line referenced a specific invoice number and named both the buyer and the vendor, and the target was an employee at a food and beverage company.</p>
+<p>The email also included links to qima[.]com/terms-and-conditions and qima[.]com/contact-us. According to the article, these links reinforced legitimacy. The subject line referenced a specific invoice number and named both the buyer and the vendor, and the target was an employee at a food and beverage company.</p>
 
 <h2 id="detection-signals-and-security-response">Detection Signals and Security Response</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> assigned the message SCL=9 with SFTY:9.25. The article describes this as an unusually aggressive score for a message with perfect authentication. It says the tension between full authentication passage and high spam scoring reflects how static analysis can become conflicted when infrastructure trust and behavioral signals diverge.</p>
+<p>Microsoft assigned the message SCL=9 with SFTY:9.25. The article describes this as an unusually aggressive score for a message with perfect authentication. It says the tension between full authentication passage and high spam scoring reflects how static analysis can become conflicted when infrastructure trust and behavioral signals diverge.</p>
 
-<p><mark class="tag-hl">Themis</mark> classified the message as <mark class="tag-hl">Invoice Phishing</mark> at 63% confidence. The article states that this detection was not based on a malicious URL, a bad signature, or a known threat indicator. Instead, it was based on sender relationship analysis.</p>
+<p>Themis classified the message as Invoice Phishing at 63% confidence. The article states that this detection was not based on a malicious URL, a bad signature, or a known threat indicator. Instead, it was based on sender relationship analysis.</p>
 
 <p>The specific behavioral signal cited was that the recipient had no established communication history with the NetSuite-generated sender identity. Four mailboxes were quarantined as a result.</p>
 
@@ -1559,15 +1713,15 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The article names several stakeholders and infrastructure providers involved in the case:</p>
 
 <ul>
-<li><mark class="tag-hl">Oracle NetSuite</mark>, whose legitimate email infrastructure was used to send the invoice.</li>
-<li><mark class="tag-hl">Oracle Email Delivery</mark>, which relayed the email from a <mark class="tag-hl">Japan</mark> datacenter.</li>
-<li><mark class="tag-hl">QIMA</mark>/<mark class="tag-hl">WQS</mark>, whose finance identity and payment portal appeared in the message.</li>
-<li><mark class="tag-hl">Microsoft</mark>, whose anti-spam engine assigned SCL=9 with SFTY:9.25.</li>
-<li><mark class="tag-hl">IRONSCALES</mark>, whose <mark class="tag-hl">Themis</mark> system classified the message as <mark class="tag-hl">Invoice Phishing</mark>.</li>
+<li>Oracle NetSuite, whose legitimate email infrastructure was used to send the invoice.</li>
+<li>Oracle Email Delivery, which relayed the email from a Japan datacenter.</li>
+<li>QIMA/WQS, whose finance identity and payment portal appeared in the message.</li>
+<li>Microsoft, whose anti-spam engine assigned SCL=9 with SFTY:9.25.</li>
+<li>IRONSCALES, whose Themis system classified the message as Invoice Phishing.</li>
 <li>A food and beverage company, where the targeted employee worked.</li>
 </ul>
 
-<p>The article does not name a specific threat actor. It states that the attacker either used a compromised <mark class="tag-hl">QIMA</mark> NetSuite account or created a fabricated invoice within the platform through an authorized user, insider, or social-engineered access, but it leaves the exact scenario unresolved.</p>
+<p>The article does not name a specific threat actor. It states that the attacker either used a compromised QIMA NetSuite account or created a fabricated invoice within the platform through an authorized user, insider, or social-engineered access, but it leaves the exact scenario unresolved.</p>
 
 <h2 id="indicators-listed-in-the-article">Indicators Listed in the Article</h2>
 
@@ -1575,11 +1729,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <ul>
 <li>Sender Address: system@sent-via[.]netsuite[.]com, described as the NetSuite platform sender.</li>
-<li>Reply-To Address: finance@wqscert[.]com, described as a <mark class="tag-hl">QIMA</mark>/<mark class="tag-hl">WQS</mark> finance contact.</li>
-<li>Reply-To Domain: wqscert[.]com, described as a <mark class="tag-hl">QIMA</mark> verification services domain.</li>
-<li>Sending IP: 192[.]29[.]44[.]127, described as <mark class="tag-hl">Oracle Email Delivery</mark> from a <mark class="tag-hl">Japan</mark> datacenter.</li>
-<li>Sending Host: aib29dd127[.]nrt1[.]oracleemaildelivery[.]com, described as an <mark class="tag-hl">Oracle Email Delivery</mark> relay.</li>
-<li>Payment URL: hxxps://my[.]<mark class="tag-hl">qima</mark>[.]com/pay-pre-filled/qimawqs/a0d9464fe506416497b71c4ea7776c18, described as a pre-filled payment token.</li>
+<li>Reply-To Address: finance@wqscert[.]com, described as a QIMA/WQS finance contact.</li>
+<li>Reply-To Domain: wqscert[.]com, described as a QIMA verification services domain.</li>
+<li>Sending IP: 192[.]29[.]44[.]127, described as Oracle Email Delivery from a Japan datacenter.</li>
+<li>Sending Host: aib29dd127[.]nrt1[.]oracleemaildelivery[.]com, described as an Oracle Email Delivery relay.</li>
+<li>Payment URL: hxxps://my[.]qima[.]com/pay-pre-filled/qimawqs/a0d9464fe506416497b71c4ea7776c18, described as a pre-filled payment token.</li>
 <li>NetSuite compId: 4552646, described as a NetSuite company identifier.</li>
 <li>DKIM signing domains: sent-via[.]netsuite[.]com and nrt1[.]rp[.]oracleemaildelivery[.]com.</li>
 </ul>
@@ -1589,36 +1743,37 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The article maps the activity to three MITRE ATT&amp;CK techniques:</p>
 
 <ul>
-<li>T1566.002, Phishing: <mark class="tag-hl">Spearphishing Link</mark>, because the pre-filled payment token was delivered via an email call-to-action.</li>
-<li>T1583.006, Acquire Infrastructure: Web Services, because NetSuite and <mark class="tag-hl">Oracle Email Delivery</mark> were used as the sending platform.</li>
-<li>T1656, <mark class="tag-hl">Impersonation</mark>, because the sender identity was presented as <mark class="tag-hl">QIMA</mark> Finance via NetSuite.</li>
+<li>T1566.002, Phishing: Spearphishing Link, because the pre-filled payment token was delivered via an email call-to-action.</li>
+<li>T1583.006, Acquire Infrastructure: Web Services, because NetSuite and Oracle Email Delivery were used as the sending platform.</li>
+<li>T1656, Impersonation, because the sender identity was presented as QIMA Finance via NetSuite.</li>
 </ul>
 
 <h2 id="significance">Significance</h2>
 
-<p>The article’s main significance is that the email was technically legitimate from an authentication and infrastructure perspective while still being classified as <mark class="tag-hl">invoice phishing</mark>. The sending chain passed SPF, DKIM, DMARC, and <mark class="tag-hl">Microsoft</mark> composite authentication. The payment URL also pointed to a real <mark class="tag-hl">QIMA</mark> payment portal rather than an obviously malicious site.</p>
+<p>The article’s main significance is that the email was technically legitimate from an authentication and infrastructure perspective while still being classified as invoice phishing. The sending chain passed SPF, DKIM, DMARC, and Microsoft composite authentication. The payment URL also pointed to a real QIMA payment portal rather than an obviously malicious site.</p>
 
 <p>The article argues that this kind of case shows the limits of authentication-based phishing detection. Because the message used legitimate SaaS infrastructure and a legitimate payment portal, the decisive detection surface was behavioral: whether the recipient had an established relationship with the NetSuite-generated sender identity.</p>
 </div></div>
-                <div id="insights-98368d337c723b246aa76244963caabd:d31ddbb954d0eb72" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Full SPF, DKIM, and DMARC alignment did not resolve the risk because the attacker used legitimate NetSuite and <mark class="tag-hl">Oracle Email Delivery</mark> infrastructure rather than spoofing it.</span></li><li><span class="kp-text">The payment link was difficult to flag with URL reputation because it pointed to a functioning <mark class="tag-hl">QIMA</mark> payment portal rather than a credential-harvesting or malware-hosting domain.</span></li><li><span class="kp-text">The high <mark class="tag-hl">Microsoft</mark> spam score alongside full authentication passage shows that infrastructure trust and behavioral signals can produce conflicting security assessments.</span></li><li><span class="kp-text">Sender relationship analysis was the decisive detection surface because the recipient had no established communication history with the NetSuite-generated sender identity.</span></li></ul></div>
+                <div id="insights-2fc4639190fe5d5e7d06e0ba98a7a537:d31ddbb954d0eb72" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Full SPF, DKIM, and DMARC alignment did not resolve the risk because the attacker used legitimate NetSuite and Oracle Email Delivery infrastructure rather than spoofing it.</span></li><li><span class="kp-text">The payment link was difficult to flag with URL reputation because it pointed to a functioning QIMA payment portal rather than a credential-harvesting or malware-hosting domain.</span></li><li><span class="kp-text">The high Microsoft spam score alongside full authentication passage shows that infrastructure trust and behavioral signals can produce conflicting security assessments.</span></li><li><span class="kp-text">Sender relationship analysis was the decisive detection surface because the recipient had no established communication history with the NetSuite-generated sender identity.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">An <mark class="tag-hl">invoice phishing</mark> email was delivered through legitimate <mark class="tag-hl">Oracle NetSuite</mark> infrastructure and passed SPF, DKIM, and DMARC authentication checks.</span></li><li><span class="kp-text">The email was sent from system@sent-via[.]netsuite[.]com on behalf of “Finance <mark class="tag-hl">QIMA</mark>/<mark class="tag-hl">WQS</mark>” and relayed through <mark class="tag-hl">Oracle Email Delivery</mark> from a <mark class="tag-hl">Japan</mark> datacenter.</span></li><li><span class="kp-text">The “Click and Pay” call-to-action linked to a real <mark class="tag-hl">QIMA</mark> payment portal containing a pre-filled payment token.</span></li><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark> assigned the message SCL=9 with SFTY:9.25 despite the email passing authentication.</span></li><li><span class="kp-text"><mark class="tag-hl">Themis</mark> classified the message as <mark class="tag-hl">Invoice Phishing</mark> at 63% confidence based on sender relationship analysis and quarantined it across four mailboxes.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">An invoice phishing email was delivered through legitimate Oracle NetSuite infrastructure and passed SPF, DKIM, and DMARC authentication checks.</span></li><li><span class="kp-text">The email was sent from system@sent-via[.]netsuite[.]com on behalf of “Finance QIMA/WQS” and relayed through Oracle Email Delivery from a Japan datacenter.</span></li><li><span class="kp-text">The “Click and Pay” call-to-action linked to a real QIMA payment portal containing a pre-filled payment token.</span></li><li><span class="kp-text">Microsoft assigned the message SCL=9 with SFTY:9.25 despite the email passing authentication.</span></li><li><span class="kp-text">Themis classified the message as Invoice Phishing at 63% confidence based on sender relationship analysis and quarantined it across four mailboxes.</span></li></ul></div>
+            
             <a href="https://ironscales.com/threat-intelligence/netsuite-oracle-eaas-invoice-click-to-pay-token-phishing" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, concrete <mark class="tag-hl">invoice phishing</mark> case using legitimate <mark class="tag-hl">Oracle NetSuite</mark> and <mark class="tag-hl">Oracle Email Delivery</mark> infrastructure with valid authentication, making it broadly relevant to email security teams. It is not a breaking major breach or critical vulnerability, but it highlights a high-impact detection gap around authenticated SaaS-generated payment fraud.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, concrete invoice phishing case using legitimate Oracle NetSuite and Oracle Email Delivery infrastructure with valid authentication, making it broadly relevant to email security teams. It is not a breaking major breach or critical vulnerability, but it highlights a high-impact detection gap around authenticated SaaS-generated payment fraud.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://attack.mitre.org/techniques/T1566/002/" target="_blank" rel="noopener">Phishing: Spearphishing Link</a></div>
   <div class="report-meta">MITRE ATT&amp;CK</div>
-  <div class="report-context">The article maps the <mark class="tag-hl">invoice phishing</mark> email’s pre-filled payment token CTA to MITRE ATT&amp;CK technique T1566.002.</div>
+  <div class="report-context">The article maps the invoice phishing email’s pre-filled payment token CTA to MITRE ATT&amp;CK technique T1566.002.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://attack.mitre.org/techniques/T1583/006/" target="_blank" rel="noopener">Acquire Infrastructure: Web Services</a></div>
   <div class="report-meta">MITRE ATT&amp;CK</div>
-  <div class="report-context">The article maps the use of NetSuite and <mark class="tag-hl">Oracle Email Delivery</mark> as the sending platform to MITRE ATT&amp;CK technique T1583.006.</div>
+  <div class="report-context">The article maps the use of NetSuite and Oracle Email Delivery as the sending platform to MITRE ATT&amp;CK technique T1583.006.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://attack.mitre.org/techniques/T1656/" target="_blank" rel="noopener">Impersonation</a></div>
   <div class="report-meta">MITRE ATT&amp;CK</div>
-  <div class="report-context">The article maps the <mark class="tag-hl">QIMA</mark> Finance sender identity presented via NetSuite to MITRE ATT&amp;CK technique T1656.</div>
+  <div class="report-context">The article maps the QIMA Finance sender identity presented via NetSuite to MITRE ATT&amp;CK technique T1656.</div>
 </li></ul></div>
             
           </div>
@@ -1641,29 +1796,29 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This coverage window highlights two distinct but related security themes: adversary abuse of trusted business infrastructure and exposure created by authentication weaknesses in enterprise platforms. The reported activity shows that technically valid authentication signals, whether email authentication or application login controls, can still coexist with high-impact risk when trust relationships or <mark class="tag-hl">default credentials</mark> are misused.</p>
+        <div class="overview-body prose"><p>This coverage window highlights two distinct but related security themes: adversary abuse of trusted business infrastructure and exposure created by authentication weaknesses in enterprise platforms. The reported activity shows that technically valid authentication signals, whether email authentication or application login controls, can still coexist with high-impact risk when trust relationships or default credentials are misused.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Abuse of Trusted Business Platforms for Invoice Phishing</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">IRONSCALES</mark> reported an <mark class="tag-hl">invoice phishing</mark> email delivered through legitimate <mark class="tag-hl">Oracle NetSuite</mark> infrastructure, using the sender system@sent-via[.]netsuite[.]com on behalf of “Finance <mark class="tag-hl">QIMA</mark>/<mark class="tag-hl">WQS</mark>.” The message was relayed through <mark class="tag-hl">Oracle Email Delivery</mark> from a <mark class="tag-hl">Japan</mark> datacenter and passed SPF, DKIM, and DMARC checks, demonstrating how phishing can evade controls that rely heavily on sender authentication and infrastructure reputation.</p>
+        <div class="overview-body prose"><p>IRONSCALES reported an invoice phishing email delivered through legitimate Oracle NetSuite infrastructure, using the sender system@sent-via[.]netsuite[.]com on behalf of “Finance QIMA/WQS.” The message was relayed through Oracle Email Delivery from a Japan datacenter and passed SPF, DKIM, and DMARC checks, demonstrating how phishing can evade controls that rely heavily on sender authentication and infrastructure reputation.</p>
 
-<p>The phishing lure used a “Click and Pay” call-to-action that directed recipients to a real <mark class="tag-hl">QIMA</mark> payment portal containing a pre-filled payment token. This made the message appear aligned with normal invoice-payment workflows while shifting the risk to the embedded payment token and business-process context rather than an obviously malicious domain or attachment.</p>
+<p>The phishing lure used a “Click and Pay” call-to-action that directed recipients to a real QIMA payment portal containing a pre-filled payment token. This made the message appear aligned with normal invoice-payment workflows while shifting the risk to the embedded payment token and business-process context rather than an obviously malicious domain or attachment.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> assigned the message SCL=9 with SFTY:9.25 despite successful authentication, indicating that downstream content and behavioral signals still flagged the email as highly suspicious. <mark class="tag-hl">Themis</mark> classified the message as <mark class="tag-hl">Invoice Phishing</mark> with 63% confidence based on sender relationship analysis and quarantined it across four mailboxes, underscoring the role of relationship and workflow context in detecting abuse of legitimate SaaS platforms.</p>
+<p>Microsoft assigned the message SCL=9 with SFTY:9.25 despite successful authentication, indicating that downstream content and behavioral signals still flagged the email as highly suspicious. Themis classified the message as Invoice Phishing with 63% confidence based on sender relationship analysis and quarantined it across four mailboxes, underscoring the role of relationship and workflow context in detecting abuse of legitimate SaaS platforms.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Apache Solr CVE-2026-44825 Hardcoded Credential Exposure</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">CyCognito</mark> detailed <mark class="tag-hl">CVE-2026-44825</mark>, a <mark class="tag-hl">hardcoded credentials</mark> vulnerability affecting <mark class="tag-hl">Apache Solr</mark>’s <mark class="tag-hl">Basic Authentication</mark> setup tool, bin/solr auth enable. The flaw has a CVSS v3.1 base score of 8.1 and affects <mark class="tag-hl">Apache Solr</mark> versions 9.4.0 through 9.10.1 and version 10.0.0 in <mark class="tag-hl">SolrCloud</mark> deployments where <mark class="tag-hl">Basic Authentication</mark> was enabled using the affected tool.</p>
+        <div class="overview-body prose"><p>CyCognito detailed CVE-2026-44825, a hardcoded credentials vulnerability affecting Apache Solr’s Basic Authentication setup tool, bin/solr auth enable. The flaw has a CVSS v3.1 base score of 8.1 and affects Apache Solr versions 9.4.0 through 9.10.1 and version 10.0.0 in SolrCloud deployments where Basic Authentication was enabled using the affected tool.</p>
 
-<p>The issue arises when the setup process writes a security.json file containing template accounts named superadmin, admin, search, and index, each with a password matching the username. In affected deployments, authentication as superadmin can provide full administrative control over the <mark class="tag-hl">SolrCloud</mark> cluster, including the ability to read, modify, or delete indexes and alter cluster configuration.</p>
+<p>The issue arises when the setup process writes a security.json file containing template accounts named superadmin, admin, search, and index, each with a password matching the username. In affected deployments, authentication as superadmin can provide full administrative control over the SolrCloud cluster, including the ability to read, modify, or delete indexes and alter cluster configuration.</p>
 
-<p><mark class="tag-hl">Apache</mark> released Solr 9.11.0 and 10.1.0 to address <mark class="tag-hl">CVE-2026-44825</mark>. The reporting also notes that organizations unable to immediately upgrade can identify exposure by examining security.json for the template accounts, making the vulnerability particularly relevant to internet-exposed or broadly accessible <mark class="tag-hl">SolrCloud</mark> environments where administrative authentication is reachable.</p>
+<p>Apache released Solr 9.11.0 and 10.1.0 to address CVE-2026-44825. The reporting also notes that organizations unable to immediately upgrade can identify exposure by examining security.json for the template accounts, making the vulnerability particularly relevant to internet-exposed or broadly accessible SolrCloud environments where administrative authentication is reachable.</p>
 </div>
       </div>
     </div>
@@ -1672,9 +1827,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-07 10:00 UTC · 4 hours window</span>
-  <span class="footer-right">2 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">2 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1687,15 +1845,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1808,12 +2028,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1874,6 +2128,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

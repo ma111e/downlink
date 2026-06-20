@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,117 +1506,118 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:95%"></div></div><span class="score-num score-num-high">95</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:2e7e41d5c87e7df2">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:2e7e41d5c87e7df2')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:2e7e41d5c87e7df2')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:2e7e41d5c87e7df2')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:2e7e41d5c87e7df2')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:2e7e41d5c87e7df2')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:2e7e41d5c87e7df2')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:2e7e41d5c87e7df2')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:2e7e41d5c87e7df2')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:2e7e41d5c87e7df2')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:2e7e41d5c87e7df2')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:2e7e41d5c87e7df2" class="tab-panel active"><div class="prose"><mark class="tag-hl">CISA</mark> is urging <mark class="tag-hl">Fortinet</mark> customers to urgently secure <mark class="tag-hl">FortiGate</mark> devices after the <mark class="tag-hl">FortiBleed</mark> campaign reportedly compromised valid credentials for 86,644 internet-facing firewalls and VPN gateways. Organizations should reset <mark class="tag-hl">Fortinet</mark> admin and VPN passwords, terminate active sessions, enforce PBKDF2 password hashing and phishing-resistant MFA, and review logs for suspicious activity.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:2e7e41d5c87e7df2" class="tab-panel"><div class="prose"><p><mark class="tag-hl">CISA</mark> urged <mark class="tag-hl">Fortinet</mark> customers with <mark class="tag-hl">FortiGate</mark> appliances to harden their devices against ongoing malicious activity targeting thousands of internet-accessible systems. The campaign, codenamed <mark class="tag-hl">FortiBleed</mark> and believed to be the work of Russian-speaking threat actors, had compromised 86,644 devices as of June 19, 2026. The activity focuses on <mark class="tag-hl">Fortinet</mark> remote login endpoints and involves valid credentials for firewalls and VPN gateways.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:2e7e41d5c87e7df2" class="tab-panel active"><div class="prose">CISA is urging Fortinet customers to urgently secure FortiGate devices after the FortiBleed campaign reportedly compromised valid credentials for 86,644 internet-facing firewalls and VPN gateways. Organizations should reset Fortinet admin and VPN passwords, terminate active sessions, enforce PBKDF2 password hashing and phishing-resistant MFA, and review logs for suspicious activity.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:2e7e41d5c87e7df2" class="tab-panel"><div class="prose"><p>CISA urged Fortinet customers with FortiGate appliances to harden their devices against ongoing malicious activity targeting thousands of internet-accessible systems. The campaign, codenamed FortiBleed and believed to be the work of Russian-speaking threat actors, had compromised 86,644 devices as of June 19, 2026. The activity focuses on Fortinet remote login endpoints and involves valid credentials for firewalls and VPN gateways.</p>
 
-<p>SOCRadar said generic admin accounts and built-in <mark class="tag-hl">Fortinet</mark> system accounts together made up most compromised credentials, while organization-specific accounts accounted for 36.7%. The top impacted sectors were telecom, government, and education, with the most exposures located in <mark class="tag-hl">India</mark>, the U.S., <mark class="tag-hl">Mexico</mark>, <mark class="tag-hl">Colombia</mark>, and <mark class="tag-hl">Thailand</mark>. The U.K. <mark class="tag-hl">NCSC</mark> described the campaign as global and said it used <mark class="tag-hl">brute-force</mark>, <mark class="tag-hl">dictionary attack</mark>, and <mark class="tag-hl">credential stuffing</mark> methods.</p>
+<p>SOCRadar said generic admin accounts and built-in Fortinet system accounts together made up most compromised credentials, while organization-specific accounts accounted for 36.7%. The top impacted sectors were telecom, government, and education, with the most exposures located in India, the U.S., Mexico, Colombia, and Thailand. The U.K. NCSC described the campaign as global and said it used brute-force, dictionary attack, and credential stuffing methods.</p>
 
-<p>The article says the attacker mass-scanned for <mark class="tag-hl">Fortinet</mark> remote login endpoints and used a bespoke tool to spray known username and password combinations. Once access was obtained, the attackers allegedly monitored network traffic through the devices to collect additional credentials and expand the campaign. <mark class="tag-hl">CISA</mark> recommended resetting <mark class="tag-hl">Fortinet</mark> VPN and administrative passwords, terminating active sessions, enforcing PBKDF2 credential storage, enabling phishing-resistant MFA, reviewing logs, and reducing exposed management surfaces.</p>
+<p>The article says the attacker mass-scanned for Fortinet remote login endpoints and used a bespoke tool to spray known username and password combinations. Once access was obtained, the attackers allegedly monitored network traffic through the devices to collect additional credentials and expand the campaign. CISA recommended resetting Fortinet VPN and administrative passwords, terminating active sessions, enforcing PBKDF2 credential storage, enabling phishing-resistant MFA, reviewing logs, and reducing exposed management surfaces.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:2e7e41d5c87e7df2" class="tab-panel"><div class="prose"><p><mark class="tag-hl">CISA</mark> warned <mark class="tag-hl">Fortinet</mark> customers with <mark class="tag-hl">FortiGate</mark> appliances to take steps to secure devices against ongoing malicious activity aimed at thousands of internet-accessible systems. The campaign has been codenamed <mark class="tag-hl">FortiBleed</mark> and was said to have affected 86,644 devices as of June 19, 2026. The article says the activity is believed to be the work of Russian-speaking threat actors.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:2e7e41d5c87e7df2" class="tab-panel"><div class="prose"><p>CISA warned Fortinet customers with FortiGate appliances to take steps to secure devices against ongoing malicious activity aimed at thousands of internet-accessible systems. The campaign has been codenamed FortiBleed and was said to have affected 86,644 devices as of June 19, 2026. The article says the activity is believed to be the work of Russian-speaking threat actors.</p>
 
-<p>SOCRadar data showed that generic admin accounts accounted for 35% of compromised credentials and built-in <mark class="tag-hl">Fortinet</mark> system accounts accounted for 28.3%. Organization-specific accounts made up the remaining 36.7%, which SOCRadar said was significant because it indicated the attackers were not only harvesting default credentials. The article links this distribution to failures to rename default accounts, rotate factory credentials, or change passwords after prior compromises.</p>
+<p>SOCRadar data showed that generic admin accounts accounted for 35% of compromised credentials and built-in Fortinet system accounts accounted for 28.3%. Organization-specific accounts made up the remaining 36.7%, which SOCRadar said was significant because it indicated the attackers were not only harvesting default credentials. The article links this distribution to failures to rename default accounts, rotate factory credentials, or change passwords after prior compromises.</p>
 
-<p>The top impacted sectors were telecom, government, and education. The most exposures were located in <mark class="tag-hl">India</mark>, the U.S., <mark class="tag-hl">Mexico</mark>, <mark class="tag-hl">Colombia</mark>, and <mark class="tag-hl">Thailand</mark>. Hudson Rock said the scale of the breach touched nearly every sector of the global economy and that the threat actors had built a verified database of working credentials for large enterprises.</p>
+<p>The top impacted sectors were telecom, government, and education. The most exposures were located in India, the U.S., Mexico, Colombia, and Thailand. Hudson Rock said the scale of the breach touched nearly every sector of the global economy and that the threat actors had built a verified database of working credentials for large enterprises.</p>
 
-<p>The attacker reportedly mass-scanned the internet for <mark class="tag-hl">Fortinet</mark> remote login endpoints and used a bespoke tool to spray known login and password combinations against them. The article describes the campaign as fully automated and self-sustaining: attackers first try leaked <mark class="tag-hl">Fortinet</mark> passwords against internet-facing devices, then passively monitor network traffic through compromised devices to collect more credentials. Those additional credentials are then used to compromise more appliances, and the attackers verify credentials before adding them to a database of confirmed working logins.</p>
+<p>The attacker reportedly mass-scanned the internet for Fortinet remote login endpoints and used a bespoke tool to spray known login and password combinations against them. The article describes the campaign as fully automated and self-sustaining: attackers first try leaked Fortinet passwords against internet-facing devices, then passively monitor network traffic through compromised devices to collect more credentials. Those additional credentials are then used to compromise more appliances, and the attackers verify credentials before adding them to a database of confirmed working logins.</p>
 
-<p>The U.K. <mark class="tag-hl">NCSC</mark> described <mark class="tag-hl">FortiBleed</mark> as a global campaign targeting internet-facing <mark class="tag-hl">Fortinet</mark> firewalls and VPN gateways using <mark class="tag-hl">brute-force</mark>, <mark class="tag-hl">dictionary attack</mark>, and <mark class="tag-hl">credential stuffing</mark>. Arctic Wolf said <mark class="tag-hl">Fortinet</mark> introduced PBKDF2-based password hashing for administrator credentials in FortiOS 7.2.11, 7.4.8, and 7.6.1, but existing administrator passwords remain stored as SHA-256 hashes until the corresponding administrator logs in after an upgrade. <mark class="tag-hl">Fortinet</mark> said the data was likely a resharing of data from previous incidents as well as brute-forcing of credentials, and not related to any current incident or advisory.</p>
+<p>The U.K. NCSC described FortiBleed as a global campaign targeting internet-facing Fortinet firewalls and VPN gateways using brute-force, dictionary attack, and credential stuffing. Arctic Wolf said Fortinet introduced PBKDF2-based password hashing for administrator credentials in FortiOS 7.2.11, 7.4.8, and 7.6.1, but existing administrator passwords remain stored as SHA-256 hashes until the corresponding administrator logs in after an upgrade. Fortinet said the data was likely a resharing of data from previous incidents as well as brute-forcing of credentials, and not related to any current incident or advisory.</p>
 
-<p><mark class="tag-hl">CISA</mark> recommended terminating all active SSL VPN and administrative sessions and resetting all <mark class="tag-hl">Fortinet</mark> VPN and administrative passwords, especially on internet-facing systems. It also urged organizations to enforce strong password policies, ensure PBKDF2 is used to store administrator credentials, remove weaker legacy hashes, review logs for suspicious actions, enable phishing-resistant MFA, and reduce exposed management access. The article says the incident first came to light after security researcher Volodymyr “Bob” Diachenko discovered a server containing a database of working login credentials for thousands of firewalls and VPN gateways across 194 countries.</p>
+<p>CISA recommended terminating all active SSL VPN and administrative sessions and resetting all Fortinet VPN and administrative passwords, especially on internet-facing systems. It also urged organizations to enforce strong password policies, ensure PBKDF2 is used to store administrator credentials, remove weaker legacy hashes, review logs for suspicious actions, enable phishing-resistant MFA, and reduce exposed management access. The article says the incident first came to light after security researcher Volodymyr “Bob” Diachenko discovered a server containing a database of working login credentials for thousands of firewalls and VPN gateways across 194 countries.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:2e7e41d5c87e7df2" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:2e7e41d5c87e7df2" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">CISA</mark> urged <mark class="tag-hl">Fortinet</mark> customers with <mark class="tag-hl">FortiGate</mark> appliances to secure their devices against ongoing malicious activity targeting thousands of internet-accessible systems. The campaign has been codenamed <mark class="tag-hl">FortiBleed</mark> and was reported to have compromised 86,644 devices as of June 19, 2026. The article says the activity is believed to be the work of Russian-speaking threat actors.</p>
+<p>CISA urged Fortinet customers with FortiGate appliances to secure their devices against ongoing malicious activity targeting thousands of internet-accessible systems. The campaign has been codenamed FortiBleed and was reported to have compromised 86,644 devices as of June 19, 2026. The article says the activity is believed to be the work of Russian-speaking threat actors.</p>
 
-<p>The campaign centers on <mark class="tag-hl">Fortinet</mark> remote login endpoints and the use of valid credentials for <mark class="tag-hl">Fortinet</mark> firewalls and VPN gateways. The U.K. National Cyber Security Centre described <mark class="tag-hl">FortiBleed</mark> as a global campaign targeting internet-facing <mark class="tag-hl">Fortinet</mark> firewalls and VPN gateways. <mark class="tag-hl">CISA</mark> issued mitigation guidance focused on password resets, session termination, stronger credential storage, log review, phishing-resistant MFA, and reduced exposure of management interfaces.</p>
+<p>The campaign centers on Fortinet remote login endpoints and the use of valid credentials for Fortinet firewalls and VPN gateways. The U.K. National Cyber Security Centre described FortiBleed as a global campaign targeting internet-facing Fortinet firewalls and VPN gateways. CISA issued mitigation guidance focused on password resets, session termination, stronger credential storage, log review, phishing-resistant MFA, and reduced exposure of management interfaces.</p>
 
 <h2 id="credential-exposure-and-account-types">Credential Exposure and Account Types</h2>
 
-<p>According to SOCRadar, generic admin accounts and built-in <mark class="tag-hl">Fortinet</mark> system accounts represented the majority of compromised credentials. Generic admin accounts accounted for 35% of the compromised credentials, while built-in <mark class="tag-hl">Fortinet</mark> system accounts accounted for 28.3%. Organization-specific accounts made up 36.7% of the remaining breached credentials.</p>
+<p>According to SOCRadar, generic admin accounts and built-in Fortinet system accounts represented the majority of compromised credentials. Generic admin accounts accounted for 35% of the compromised credentials, while built-in Fortinet system accounts accounted for 28.3%. Organization-specific accounts made up 36.7% of the remaining breached credentials.</p>
 
-<p>SOCRadar said this distribution pointed to a widespread failure to rename default accounts or rotate factory credentials. It said this gave the attacker a reliable target list before <mark class="tag-hl">brute force</mark> was needed. SOCRadar also noted that organization-specific accounts were significant because they showed the attacker had compromised accounts created by organizations themselves, possibly sourced from prior breaches where passwords were never changed.</p>
+<p>SOCRadar said this distribution pointed to a widespread failure to rename default accounts or rotate factory credentials. It said this gave the attacker a reliable target list before brute force was needed. SOCRadar also noted that organization-specific accounts were significant because they showed the attacker had compromised accounts created by organizations themselves, possibly sourced from prior breaches where passwords were never changed.</p>
 
 <h2 id="affected-sectors-and-geography">Affected Sectors and Geography</h2>
 
-<p>The article identifies telecom, government, and education as the top three impacted sectors. The most exposures were located in <mark class="tag-hl">India</mark>, the U.S., <mark class="tag-hl">Mexico</mark>, <mark class="tag-hl">Colombia</mark>, and <mark class="tag-hl">Thailand</mark>. Hudson Rock said the scale of the breach touched nearly every sector of the global economy and that the threat actors had built a verified database of working credentials for some of the largest enterprises.</p>
+<p>The article identifies telecom, government, and education as the top three impacted sectors. The most exposures were located in India, the U.S., Mexico, Colombia, and Thailand. Hudson Rock said the scale of the breach touched nearly every sector of the global economy and that the threat actors had built a verified database of working credentials for some of the largest enterprises.</p>
 
 <p>The incident was described as affecting thousands of firewalls and VPN gateways across 194 countries. The article says the campaign first came to light after security researcher Volodymyr “Bob” Diachenko discovered a server containing a database of working login credentials for thousands of firewalls and VPN gateways. SOCRadar also said the server staged the attacker’s tools and automation scripts.</p>
 
 <h2 id="reported-attack-workflow">Reported Attack Workflow</h2>
 
-<p>The article says the threat actor mass-scanned the internet for <mark class="tag-hl">Fortinet</mark> remote login endpoints. After identifying endpoints, the attacker used a bespoke tool to spray known login and password combinations against them. The goal was to break into exposed devices using credentials that were already known or leaked.</p>
+<p>The article says the threat actor mass-scanned the internet for Fortinet remote login endpoints. After identifying endpoints, the attacker used a bespoke tool to spray known login and password combinations against them. The goal was to break into exposed devices using credentials that were already known or leaked.</p>
 
 <p>The attack was described as fully automated and built around a self-sustaining, two-step approach:</p>
 
 <ul>
-<li>The threat actor attempts a curated list of leaked <mark class="tag-hl">Fortinet</mark> passwords against devices across the internet.</li>
+<li>The threat actor attempts a curated list of leaked Fortinet passwords against devices across the internet.</li>
 <li>Once access is obtained, the attacker passively monitors network traffic going through the devices to collect additional credentials, which are then used to compromise more appliances.</li>
 </ul>
 
 <p>The article says the credentials used in the campaign are legitimate and valid. It also says the attackers verify each credential before adding it to a database of confirmed, working logins.</p>
 
-<h2 id="techniques-described-by-ncsc">Techniques Described by <mark class="tag-hl">NCSC</mark></h2>
+<h2 id="techniques-described-by-ncsc">Techniques Described by NCSC</h2>
 
-<p>The U.K. <mark class="tag-hl">NCSC</mark> described <mark class="tag-hl">FortiBleed</mark> as a global campaign targeting internet-facing <mark class="tag-hl">Fortinet</mark> firewalls and VPN gateways. It said the methods included <mark class="tag-hl">brute-force</mark>, <mark class="tag-hl">dictionary attack</mark>, and <mark class="tag-hl">credential stuffing</mark>. The article frames these methods as part of the broader effort to access <mark class="tag-hl">Fortinet</mark> appliances through exposed login surfaces.</p>
+<p>The U.K. NCSC described FortiBleed as a global campaign targeting internet-facing Fortinet firewalls and VPN gateways. It said the methods included brute-force, dictionary attack, and credential stuffing. The article frames these methods as part of the broader effort to access Fortinet appliances through exposed login surfaces.</p>
 
 <h2 id="fortios-password-hashing-detail">FortiOS Password Hashing Detail</h2>
 
-<p>The article says the threat actors may have exploited older credential hashing mechanisms and historical storage practices for credentials in <mark class="tag-hl">FortiGate</mark> configuration files. Arctic Wolf said <mark class="tag-hl">Fortinet</mark> introduced PBKDF2-based password hashing for administrator credentials in FortiOS 7.2.11, 7.4.8, and 7.6.1. This replaced a legacy SHA-256-based storage mechanism.</p>
+<p>The article says the threat actors may have exploited older credential hashing mechanisms and historical storage practices for credentials in FortiGate configuration files. Arctic Wolf said Fortinet introduced PBKDF2-based password hashing for administrator credentials in FortiOS 7.2.11, 7.4.8, and 7.6.1. This replaced a legacy SHA-256-based storage mechanism.</p>
 
-<p>However, Arctic Wolf said that when organizations upgrade from earlier versions, existing administrator passwords remain stored as SHA-256 hashes until the corresponding administrator successfully logs in after the upgrade. As a result, many organizations may still be storing administrator credentials using older SHA-256 with Salt hashing mechanisms. <mark class="tag-hl">CISA</mark>’s recommendations include ensuring PBKDF2 is used to store administrator credentials and removing weaker legacy hashes.</p>
+<p>However, Arctic Wolf said that when organizations upgrade from earlier versions, existing administrator passwords remain stored as SHA-256 hashes until the corresponding administrator successfully logs in after the upgrade. As a result, many organizations may still be storing administrator credentials using older SHA-256 with Salt hashing mechanisms. CISA’s recommendations include ensuring PBKDF2 is used to store administrator credentials and removing weaker legacy hashes.</p>
 
-<h2 id="fortinet-statement"><mark class="tag-hl">Fortinet</mark> Statement</h2>
+<h2 id="fortinet-statement">Fortinet Statement</h2>
 
-<p>A <mark class="tag-hl">Fortinet</mark> spokesperson told The Hacker News that the data involved is likely a resharing of data from previous incidents, as well as brute-forcing of credentials. <mark class="tag-hl">Fortinet</mark> said it was not related to any current incident or advisory. The company urged organizations to follow best practices, including regularly rotating security credentials and enabling multi-factor authentication.</p>
+<p>A Fortinet spokesperson told The Hacker News that the data involved is likely a resharing of data from previous incidents, as well as brute-forcing of credentials. Fortinet said it was not related to any current incident or advisory. The company urged organizations to follow best practices, including regularly rotating security credentials and enabling multi-factor authentication.</p>
 
-<h2 id="cisa-recommendations"><mark class="tag-hl">CISA</mark> Recommendations</h2>
+<h2 id="cisa-recommendations">CISA Recommendations</h2>
 
-<p><mark class="tag-hl">CISA</mark> outlined several defensive steps for <mark class="tag-hl">Fortinet</mark> customers. These include terminating all active SSL VPN and administrative sessions and resetting all <mark class="tag-hl">Fortinet</mark> VPN and administrative passwords, especially on internet-facing systems. <mark class="tag-hl">CISA</mark> also recommended enforcing strong password policies.</p>
+<p>CISA outlined several defensive steps for Fortinet customers. These include terminating all active SSL VPN and administrative sessions and resetting all Fortinet VPN and administrative passwords, especially on internet-facing systems. CISA also recommended enforcing strong password policies.</p>
 
-<p><mark class="tag-hl">CISA</mark> further advised organizations to ensure PBKDF2 is used to store administrator credentials and to remove weaker legacy hashes. It recommended reviewing firewall, VPN, authentication, and domain controller logs for suspicious actions, including unauthorized configuration changes. <mark class="tag-hl">CISA</mark> also urged enabling phishing-resistant MFA on all external gateways and administrative interfaces, reducing the attack surface, and locking down management.</p>
+<p>CISA further advised organizations to ensure PBKDF2 is used to store administrator credentials and to remove weaker legacy hashes. It recommended reviewing firewall, VPN, authentication, and domain controller logs for suspicious actions, including unauthorized configuration changes. CISA also urged enabling phishing-resistant MFA on all external gateways and administrative interfaces, reducing the attack surface, and locking down management.</p>
 
 <h2 id="significance">Significance</h2>
 
-<p>The article presents <mark class="tag-hl">FortiBleed</mark> as a large-scale credential-driven campaign against perimeter security appliances. It emphasizes how credential reuse, default accounts, factory credentials, and poor password hygiene can be weaponized by attackers. It also highlights that internet-facing <mark class="tag-hl">Fortinet</mark> firewalls and VPN gateways remain valuable targets for gaining access to enterprise environments.</p>
+<p>The article presents FortiBleed as a large-scale credential-driven campaign against perimeter security appliances. It emphasizes how credential reuse, default accounts, factory credentials, and poor password hygiene can be weaponized by attackers. It also highlights that internet-facing Fortinet firewalls and VPN gateways remain valuable targets for gaining access to enterprise environments.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:2e7e41d5c87e7df2" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Upgrading FortiOS alone may not eliminate legacy SHA-256-stored administrator credentials, because existing administrator passwords remain in the older format until the corresponding administrator logs in after the upgrade.</span></li><li><span class="kp-text">The campaign appears self-sustaining because attackers allegedly use initial valid <mark class="tag-hl">Fortinet</mark> logins to passively collect additional credentials from network traffic and then use those credentials to compromise more appliances.</span></li><li><span class="kp-text">The high share of generic admin and built-in <mark class="tag-hl">Fortinet</mark> system accounts among compromised credentials indicates that many exposed devices still relied on default or poorly rotated accounts before any brute forcing was needed.</span></li><li><span class="kp-text">Organization-specific accounts accounted for 36.7% of compromised credentials, showing that the activity was not limited to default accounts and also involved credentials created by individual organizations.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:2e7e41d5c87e7df2" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Upgrading FortiOS alone may not eliminate legacy SHA-256-stored administrator credentials, because existing administrator passwords remain in the older format until the corresponding administrator logs in after the upgrade.</span></li><li><span class="kp-text">The campaign appears self-sustaining because attackers allegedly use initial valid Fortinet logins to passively collect additional credentials from network traffic and then use those credentials to compromise more appliances.</span></li><li><span class="kp-text">The high share of generic admin and built-in Fortinet system accounts among compromised credentials indicates that many exposed devices still relied on default or poorly rotated accounts before any brute forcing was needed.</span></li><li><span class="kp-text">Organization-specific accounts accounted for 36.7% of compromised credentials, showing that the activity was not limited to default accounts and also involved credentials created by individual organizations.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">CISA</mark> urged <mark class="tag-hl">Fortinet</mark> customers with <mark class="tag-hl">FortiGate</mark> appliances to secure their devices against ongoing malicious activity targeting thousands of internet-accessible systems.</span></li><li><span class="kp-text">The <mark class="tag-hl">FortiBleed</mark> campaign, believed to involve Russian-speaking threat actors, had compromised 86,644 devices as of June 19, 2026.</span></li><li><span class="kp-text">SOCRadar reported that generic admin accounts and built-in <mark class="tag-hl">Fortinet</mark> system accounts made up most compromised credentials, while organization-specific accounts accounted for 36.7%.</span></li><li><span class="kp-text">The threat actor mass-scanned the internet for <mark class="tag-hl">Fortinet</mark> remote login endpoints and used a bespoke tool to spray known username and password combinations against them.</span></li><li><span class="kp-text"><mark class="tag-hl">CISA</mark> recommended terminating active SSL VPN and administrative sessions, resetting <mark class="tag-hl">Fortinet</mark> VPN and administrative passwords, enforcing PBKDF2 credential storage, reviewing logs, enabling phishing-resistant MFA, and reducing exposed management surfaces.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">CISA urged Fortinet customers with FortiGate appliances to secure their devices against ongoing malicious activity targeting thousands of internet-accessible systems.</span></li><li><span class="kp-text">The FortiBleed campaign, believed to involve Russian-speaking threat actors, had compromised 86,644 devices as of June 19, 2026.</span></li><li><span class="kp-text">SOCRadar reported that generic admin accounts and built-in Fortinet system accounts made up most compromised credentials, while organization-specific accounts accounted for 36.7%.</span></li><li><span class="kp-text">The threat actor mass-scanned the internet for Fortinet remote login endpoints and used a bespoke tool to spray known username and password combinations against them.</span></li><li><span class="kp-text">CISA recommended terminating active SSL VPN and administrative sessions, resetting Fortinet VPN and administrative passwords, enforcing PBKDF2 credential storage, reviewing logs, enabling phishing-resistant MFA, and reducing exposed management surfaces.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/cisa-warns-fortinet-customers-as.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports ongoing malicious activity affecting 86,644 internet-facing <mark class="tag-hl">Fortinet</mark> <mark class="tag-hl">FortiGate</mark> devices, with <mark class="tag-hl">CISA</mark> issuing urgent mitigation guidance. The campaign involves valid credential compromise at large scale across critical sectors and includes actionable steps such as password resets, session termination, PBKDF2 enforcement, MFA, and log review.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports ongoing malicious activity affecting 86,644 internet-facing Fortinet FortiGate devices, with CISA issuing urgent mitigation guidance. The campaign involves valid credential compromise at large scale across critical sectors and includes actionable steps such as password resets, session termination, PBKDF2 enforcement, MFA, and log review.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.cisa.gov/news-events/alerts/2026/06/18/cisa-urges-hardening-fortinet-devices-after-reports-credential-exposure" target="_blank" rel="noopener">CISA Urges Hardening Fortinet Devices After Reports of Credential Exposure</a></div>
   <div class="report-meta">CISA</div>
-  <div class="report-context">The article cites <mark class="tag-hl">CISA</mark>&#39;s alert urging <mark class="tag-hl">Fortinet</mark> customers to harden <mark class="tag-hl">FortiGate</mark> devices against ongoing malicious activity and lists <mark class="tag-hl">CISA</mark>&#39;s recommended mitigations.</div>
+  <div class="report-context">The article cites CISA&#39;s alert urging Fortinet customers to harden FortiGate devices against ongoing malicious activity and lists CISA&#39;s recommended mitigations.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.ncsc.gov.uk/news/advice-following-global-targeting-of-fortinet-firewalls-and-vpn-gateways" target="_blank" rel="noopener">Advice following global targeting of Fortinet firewalls and VPN gateways</a></div>
   <div class="report-meta">U.K. National Cyber Security Centre</div>
-  <div class="report-context">The article references <mark class="tag-hl">NCSC</mark>&#39;s advice describing <mark class="tag-hl">FortiBleed</mark> as a global campaign using <mark class="tag-hl">brute-force</mark>, <mark class="tag-hl">dictionary attack</mark>, and <mark class="tag-hl">credential stuffing</mark> methods.</div>
+  <div class="report-context">The article references NCSC&#39;s advice describing FortiBleed as a global campaign using brute-force, dictionary attack, and credential stuffing methods.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://arcticwolf.com/resources/blog/active-fortibleed-campaign-impacting-fortinet-devices-across-194-countries/" target="_blank" rel="noopener">Active FortiBleed Campaign Impacting Fortinet Devices Across 194 Countries</a></div>
   <div class="report-meta">Arctic Wolf</div>
-  <div class="report-context">The article cites Arctic Wolf&#39;s analysis of <mark class="tag-hl">Fortinet</mark> administrator password hashing changes and legacy SHA-256 credential storage after upgrades.</div>
+  <div class="report-context">The article cites Arctic Wolf&#39;s analysis of Fortinet administrator password hashing changes and legacy SHA-256 credential storage after upgrades.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://community.fortinet.com/fortigate-3/technical-tip-enforcing-pbkdf2-as-hash-function-for-administrator-accounts-in-fortios-v7-2-11-and-later-220652" target="_blank" rel="noopener">Technical Tip: Enforcing PBKDF2 as hash function for administrator accounts in FortiOS v7.2.11 and later</a></div>
   <div class="report-meta">Fortinet</div>
-  <div class="report-context">The article links to <mark class="tag-hl">Fortinet</mark>&#39;s technical guidance while describing <mark class="tag-hl">CISA</mark>&#39;s recommendation to use PBKDF2 for storing administrator credentials.</div>
+  <div class="report-context">The article links to Fortinet&#39;s technical guidance while describing CISA&#39;s recommendation to use PBKDF2 for storing administrator credentials.</div>
 </li></ul></div>
             
           </div>
@@ -1492,80 +1646,80 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:88%"></div></div><span class="score-num score-num-mid">88</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:61a3e81ee060d294">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:61a3e81ee060d294')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:61a3e81ee060d294')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:61a3e81ee060d294')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:61a3e81ee060d294')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:61a3e81ee060d294')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:61a3e81ee060d294')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:61a3e81ee060d294')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:61a3e81ee060d294')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:61a3e81ee060d294')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:61a3e81ee060d294')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:61a3e81ee060d294" class="tab-panel active"><div class="prose">International law enforcement disrupted <mark class="tag-hl">SocGholish</mark> infrastructure under Operation Endgame, taking down 106 servers and cleaning 14,971 infected WordPress sites. The action targets a major fake-update malware delivery ecosystem used to enable ransomware, espionage, and other follow-on attacks.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:61a3e81ee060d294" class="tab-panel"><div class="prose"><p>Dutch law enforcement authorities, together with counterparts from <mark class="tag-hl">Canada</mark>, <mark class="tag-hl">Germany</mark>, and the <mark class="tag-hl">United States</mark>, disrupted malicious infrastructure associated with <mark class="tag-hl">SocGholish</mark>. The action was part of Operation Endgame, an international law enforcement initiative launched in 2024 to combat botnets and related criminal infrastructure. Authorities took down 106 <mark class="tag-hl">SocGholish</mark>-linked servers and cleaned infections from 14,971 WordPress websites.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:61a3e81ee060d294" class="tab-panel active"><div class="prose">International law enforcement disrupted SocGholish infrastructure under Operation Endgame, taking down 106 servers and cleaning 14,971 infected WordPress sites. The action targets a major fake-update malware delivery ecosystem used to enable ransomware, espionage, and other follow-on attacks.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:61a3e81ee060d294" class="tab-panel"><div class="prose"><p>Dutch law enforcement authorities, together with counterparts from Canada, Germany, and the United States, disrupted malicious infrastructure associated with SocGholish. The action was part of Operation Endgame, an international law enforcement initiative launched in 2024 to combat botnets and related criminal infrastructure. Authorities took down 106 SocGholish-linked servers and cleaned infections from 14,971 WordPress websites.</p>
 
-<p><mark class="tag-hl">SocGholish</mark>, also known as FakeUpdates, has been active since 2017 and is a JavaScript-based downloader malware. It is distributed through compromised websites that impersonate browser or software updates, including fake updates for Google Chrome and Mozilla Firefox. The malware has been used as an initial foothold for follow-on activity involving ransomware, espionage, and other payloads.</p>
+<p>SocGholish, also known as FakeUpdates, has been active since 2017 and is a JavaScript-based downloader malware. It is distributed through compromised websites that impersonate browser or software updates, including fake updates for Google Chrome and Mozilla Firefox. The malware has been used as an initial foothold for follow-on activity involving ransomware, espionage, and other payloads.</p>
 
-<p>The article describes <mark class="tag-hl">SocGholish</mark> as part of a broader traffic distribution and affiliate ecosystem. Compromised WordPress sites, <mark class="tag-hl">domain shadowing</mark>, traffic filtering, and conditional redirection have been used to send selected visitors toward malicious payloads. Website owners were notified to update their CMS, change credentials, and delete suspicious accounts.</p>
+<p>The article describes SocGholish as part of a broader traffic distribution and affiliate ecosystem. Compromised WordPress sites, domain shadowing, traffic filtering, and conditional redirection have been used to send selected visitors toward malicious payloads. Website owners were notified to update their CMS, change credentials, and delete suspicious accounts.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:61a3e81ee060d294" class="tab-panel"><div class="prose"><p>Dutch authorities and law enforcement partners from <mark class="tag-hl">Canada</mark>, <mark class="tag-hl">Germany</mark>, and the <mark class="tag-hl">United States</mark> disrupted infrastructure tied to <mark class="tag-hl">SocGholish</mark> under Operation Endgame. The operation resulted in the takedown of 106 servers linked to <mark class="tag-hl">SocGholish</mark> and the cleanup of 14,971 infected WordPress sites. Dutch police said the action was intended to deprive cybercriminals of access to infected systems, prevent further damage, and limit malware spread.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:61a3e81ee060d294" class="tab-panel"><div class="prose"><p>Dutch authorities and law enforcement partners from Canada, Germany, and the United States disrupted infrastructure tied to SocGholish under Operation Endgame. The operation resulted in the takedown of 106 servers linked to SocGholish and the cleanup of 14,971 infected WordPress sites. Dutch police said the action was intended to deprive cybercriminals of access to infected systems, prevent further damage, and limit malware spread.</p>
 
-<p>Operation Endgame is described as an ongoing international initiative launched in 2024 to combat botnets and related criminal infrastructures. Authorities said the <mark class="tag-hl">SocGholish</mark> action marks the beginning of further measures against the malware group. Website owners affected by the cleanup were notified to update their content management systems, change credentials, and remove suspicious accounts.</p>
+<p>Operation Endgame is described as an ongoing international initiative launched in 2024 to combat botnets and related criminal infrastructures. Authorities said the SocGholish action marks the beginning of further measures against the malware group. Website owners affected by the cleanup were notified to update their content management systems, change credentials, and remove suspicious accounts.</p>
 
-<p><mark class="tag-hl">SocGholish</mark>, also called FakeUpdates, is a JavaScript-based downloader malware active since 2017. It is commonly delivered through compromised websites that display deceptive update prompts for web browsers such as Google Chrome and Mozilla Firefox, as well as other popular software. The operators have been tracked under names including Gold Prelude, Mustard Tempest, Purple Vallhund, <mark class="tag-hl">TA569</mark>, and UNC1543.</p>
+<p>SocGholish, also called FakeUpdates, is a JavaScript-based downloader malware active since 2017. It is commonly delivered through compromised websites that display deceptive update prompts for web browsers such as Google Chrome and Mozilla Firefox, as well as other popular software. The operators have been tracked under names including Gold Prelude, Mustard Tempest, Purple Vallhund, TA569, and UNC1543.</p>
 
-<p>The malware has served as an initial access mechanism for multiple threat actors and follow-on payload chains. The article links <mark class="tag-hl">SocGholish</mark> activity to actors and malware or operations including <mark class="tag-hl">Evil Corp</mark>, <mark class="tag-hl">LockBit</mark>, <mark class="tag-hl">RansomHub</mark>, Dridex, <mark class="tag-hl">Raspberry Robin</mark>, <mark class="tag-hl">RomCom</mark>, <mark class="tag-hl">Gholoader</mark>, <mark class="tag-hl">MintsLoader</mark>, GhostWeaver, AsyncRAT, and NetSupport RAT. The FBI said <mark class="tag-hl">SocGholish</mark> establishes an initial foothold in victim computers and can support ransomware campaigns and espionage.</p>
+<p>The malware has served as an initial access mechanism for multiple threat actors and follow-on payload chains. The article links SocGholish activity to actors and malware or operations including Evil Corp, LockBit, RansomHub, Dridex, Raspberry Robin, RomCom, Gholoader, MintsLoader, GhostWeaver, AsyncRAT, and NetSupport RAT. The FBI said SocGholish establishes an initial foothold in victim computers and can support ransomware campaigns and espionage.</p>
 
-<p>The article also describes <mark class="tag-hl">SocGholish</mark> as part of a layered traffic distribution ecosystem involving compromised websites, affiliates, and traffic distribution systems. Shadowserver said the abuse includes <mark class="tag-hl">domain shadowing</mark>, where attackers create subdomains under legitimate domains that point to criminal-operated infrastructure. Infoblox described <mark class="tag-hl">SocGholish</mark> as a multi-stage JavaScript framework involving traffic acquisition, filtering, payload lures, and on-device implant execution, and said about 55% of its cloud customers attempted to reach <mark class="tag-hl">SocGholish</mark> infrastructure this year.</p>
+<p>The article also describes SocGholish as part of a layered traffic distribution ecosystem involving compromised websites, affiliates, and traffic distribution systems. Shadowserver said the abuse includes domain shadowing, where attackers create subdomains under legitimate domains that point to criminal-operated infrastructure. Infoblox described SocGholish as a multi-stage JavaScript framework involving traffic acquisition, filtering, payload lures, and on-device implant execution, and said about 55% of its cloud customers attempted to reach SocGholish infrastructure this year.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:61a3e81ee060d294" class="tab-panel"><div class="prose"><h2 id="core-event">Core event</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:61a3e81ee060d294" class="tab-panel"><div class="prose"><h2 id="core-event">Core event</h2>
 
-<p>Dutch law enforcement authorities, working with counterparts from <mark class="tag-hl">Canada</mark>, <mark class="tag-hl">Germany</mark>, and the <mark class="tag-hl">United States</mark>, disrupted malicious infrastructure associated with <mark class="tag-hl">SocGholish</mark>. The action was conducted under Operation Endgame, an international law enforcement initiative launched in 2024 to combat botnets and associated criminal infrastructures.</p>
+<p>Dutch law enforcement authorities, working with counterparts from Canada, Germany, and the United States, disrupted malicious infrastructure associated with SocGholish. The action was conducted under Operation Endgame, an international law enforcement initiative launched in 2024 to combat botnets and associated criminal infrastructures.</p>
 
-<p>As part of the operation, authorities took down 106 servers linked to <mark class="tag-hl">SocGholish</mark>. They also cleaned 14,971 infected WordPress websites. Website owners were notified to update their content management systems, change credentials, and delete suspicious accounts.</p>
+<p>As part of the operation, authorities took down 106 servers linked to SocGholish. They also cleaned 14,971 infected WordPress websites. Website owners were notified to update their content management systems, change credentials, and delete suspicious accounts.</p>
 
-<p>Maikel Rollman of the <mark class="tag-hl">Netherlands</mark> National High Tech Crime Unit said the actions deprive cybercriminals of access to infected systems, prevent further damage to digital systems, limit malware spread, and reduce the risk that compromised systems could be used in attacks on critical infrastructure and other essential societal processes. Dutch police also described the action as the beginning of further measures against <mark class="tag-hl">SocGholish</mark>.</p>
+<p>Maikel Rollman of the Netherlands National High Tech Crime Unit said the actions deprive cybercriminals of access to infected systems, prevent further damage to digital systems, limit malware spread, and reduce the risk that compromised systems could be used in attacks on critical infrastructure and other essential societal processes. Dutch police also described the action as the beginning of further measures against SocGholish.</p>
 
-<h2 id="socgholish-background"><mark class="tag-hl">SocGholish</mark> background</h2>
+<h2 id="socgholish-background">SocGholish background</h2>
 
-<p><mark class="tag-hl">SocGholish</mark>, also known as FakeUpdates, has been active since 2017. The article describes it as a JavaScript-based downloader malware that typically serves as a conduit for next-stage malware from multiple threat actors.</p>
+<p>SocGholish, also known as FakeUpdates, has been active since 2017. The article describes it as a JavaScript-based downloader malware that typically serves as a conduit for next-stage malware from multiple threat actors.</p>
 
 <p>The malware is distributed through compromised websites by masquerading as deceptive software update prompts. These lures include fake updates for web browsers such as Google Chrome and Mozilla Firefox, as well as other popular software.</p>
 
-<p>The operators of <mark class="tag-hl">SocGholish</mark> have been tracked under several names, including:</p>
+<p>The operators of SocGholish have been tracked under several names, including:</p>
 
 <ul>
 <li>Gold Prelude</li>
 <li>Mustard Tempest</li>
 <li>Purple Vallhund</li>
-<li><mark class="tag-hl">TA569</mark></li>
+<li>TA569</li>
 <li>UNC1543</li>
 </ul>
 
-<p>The FBI’s Cyber Division said <mark class="tag-hl">SocGholish</mark> establishes an initial foothold into victim computers, which collectively form a botnet, and is then used by threat actors for further targeting with ransomware campaigns and espionage.</p>
+<p>The FBI’s Cyber Division said SocGholish establishes an initial foothold into victim computers, which collectively form a botnet, and is then used by threat actors for further targeting with ransomware campaigns and espionage.</p>
 
 <h2 id="follow-on-actors-and-payloads">Follow-on actors and payloads</h2>
 
-<p>The article says <mark class="tag-hl">SocGholish</mark> has been used as a conduit for next-stage malware and activity by various threat actors and operations. These include <mark class="tag-hl">Evil Corp</mark>, also known as DEV-0243, Indrik Spider, and UNC2165, as well as <mark class="tag-hl">LockBit</mark>, <mark class="tag-hl">RansomHub</mark>, Dridex, and <mark class="tag-hl">Raspberry Robin</mark>, also known as Roshtyak.</p>
+<p>The article says SocGholish has been used as a conduit for next-stage malware and activity by various threat actors and operations. These include Evil Corp, also known as DEV-0243, Indrik Spider, and UNC2165, as well as LockBit, RansomHub, Dridex, and Raspberry Robin, also known as Roshtyak.</p>
 
-<p>In November 2025, Arctic Wolf reported that <mark class="tag-hl">SocGholish</mark> was being used by the <mark class="tag-hl">RomCom</mark> threat actors to deliver the Mythic Agent. The article says this highlights the use of the initial access broker’s services by a broad range of actors with varied motivations.</p>
+<p>In November 2025, Arctic Wolf reported that SocGholish was being used by the RomCom threat actors to deliver the Mythic Agent. The article says this highlights the use of the initial access broker’s services by a broad range of actors with varied motivations.</p>
 
-<p>Orange Cyberdefense said it observed <mark class="tag-hl">SocGholish</mark> infections delivering loaders such as <mark class="tag-hl">Gholoader</mark> and <mark class="tag-hl">MintsLoader</mark>. These loaders led to the deployment of additional payloads including GhostWeaver, <mark class="tag-hl">LockBit</mark>, AsyncRAT, and NetSupport RAT.</p>
+<p>Orange Cyberdefense said it observed SocGholish infections delivering loaders such as Gholoader and MintsLoader. These loaders led to the deployment of additional payloads including GhostWeaver, LockBit, AsyncRAT, and NetSupport RAT.</p>
 
-<p>Orange Cyberdefense also said <mark class="tag-hl">SocGholish</mark> uses a layered delivery model and has enabled multiple categories of follow-on payloads. It added that the threat actor collaborates with traffic distribution system operators such as <mark class="tag-hl">TA2726</mark>.</p>
+<p>Orange Cyberdefense also said SocGholish uses a layered delivery model and has enabled multiple categories of follow-on payloads. It added that the threat actor collaborates with traffic distribution system operators such as TA2726.</p>
 
 <h2 id="compromised-websites-and-infection-methods">Compromised websites and infection methods</h2>
 
-<p>Silent Push previously noted that <mark class="tag-hl">SocGholish</mark> infections typically originate from compromised websites infected in multiple different ways. The article describes direct JavaScript injections, where the <mark class="tag-hl">SocGholish</mark> payload delivery is loaded directly from an infected webpage. It also describes a variation in which an intermediate JavaScript file loads the related injection.</p>
+<p>Silent Push previously noted that SocGholish infections typically originate from compromised websites infected in multiple different ways. The article describes direct JavaScript injections, where the SocGholish payload delivery is loaded directly from an infected webpage. It also describes a variation in which an intermediate JavaScript file loads the related injection.</p>
 
-<p>Many compromised WordPress instances were modified to include criminal infrastructure operated by <mark class="tag-hl">SocGholish</mark>, according to the Shadowserver Foundation. The majority of hacked sites were located in the <mark class="tag-hl">United States</mark>, followed by <mark class="tag-hl">Germany</mark>, France, India, Brazil, Singapore, Italy, Indonesia, <mark class="tag-hl">Canada</mark>, and Vietnam.</p>
+<p>Many compromised WordPress instances were modified to include criminal infrastructure operated by SocGholish, according to the Shadowserver Foundation. The majority of hacked sites were located in the United States, followed by Germany, France, India, Brazil, Singapore, Italy, Indonesia, Canada, and Vietnam.</p>
 
-<p>Shadowserver said the abuse also included <mark class="tag-hl">domain shadowing</mark>. In this technique, a threat actor gains access to an authoritative DNS provider or registrar account panel for a legitimate domain and quietly creates additional subdomains beneath the apex domain. These subdomains can use common host names that blend in with legitimate DNS infrastructure while pointing to criminal-operated external infrastructure.</p>
+<p>Shadowserver said the abuse also included domain shadowing. In this technique, a threat actor gains access to an authoritative DNS provider or registrar account panel for a legitimate domain and quietly creates additional subdomains beneath the apex domain. These subdomains can use common host names that blend in with legitimate DNS infrastructure while pointing to criminal-operated external infrastructure.</p>
 
 <h2 id="traffic-distribution-systems-and-affiliate-model">Traffic distribution systems and affiliate model</h2>
 
@@ -1573,7 +1727,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The FBI said cybercriminals use traffic distribution systems to bypass traditional firewall rules that would otherwise block connections to malicious websites. It also said these systems help analyze potential victims by collecting information such as IP address, operating system, location, device, and browser information.</p>
 
-<p>Infoblox described <mark class="tag-hl">SocGholish</mark> as a multi-stage JavaScript framework that converts compromised websites into drive-by download malware delivery vehicles. It said the framework involves four main steps:</p>
+<p>Infoblox described SocGholish as a multi-stage JavaScript framework that converts compromised websites into drive-by download malware delivery vehicles. It said the framework involves four main steps:</p>
 
 <ul>
 <li>Traffic acquisition</li>
@@ -1582,12 +1736,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>On-device implant execution</li>
 </ul>
 
-<p>Infoblox also said <mark class="tag-hl">TA569</mark> compromises a large number of websites directly but also accepts traffic from affiliates. In this commercial relationship, an affiliate fingerprints a visitor and passes potential victims to <mark class="tag-hl">SocGholish</mark> through an embedded link, receiving payment for those leads.</p>
+<p>Infoblox also said TA569 compromises a large number of websites directly but also accepts traffic from affiliates. In this commercial relationship, an affiliate fingerprints a visitor and passes potential victims to SocGholish through an embedded link, receiving payment for those leads.</p>
 
-<p>The article names several prominent affiliates and traffic systems that have sold or filtered traffic for <mark class="tag-hl">SocGholish</mark> over the years, including:</p>
+<p>The article names several prominent affiliates and traffic systems that have sold or filtered traffic for SocGholish over the years, including:</p>
 
 <ul>
-<li><mark class="tag-hl">TA2726</mark></li>
+<li>TA2726</li>
 <li>Parrot TDS</li>
 <li>JunkyTDS</li>
 <li>Keitaro</li>
@@ -1598,9 +1752,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article says infected websites are frequently exploited by multiple threat actors, exposing site visitors to a sophisticated cluster of potential threats. Malicious behavior on these sites is dictated by factors such as the visitor’s country of origin, browser type, and operating system.</p>
 
-<p>Proofpoint said <mark class="tag-hl">TA569</mark> indiscriminately compromises websites and is opportunistic, although sites with higher traffic numbers lead to more victims. It also said the actor has compromised websites across virtually every industry, including nonprofits, schools, healthcare and hospitals, legal organizations, and real estate organizations.</p>
+<p>Proofpoint said TA569 indiscriminately compromises websites and is opportunistic, although sites with higher traffic numbers lead to more victims. It also said the actor has compromised websites across virtually every industry, including nonprofits, schools, healthcare and hospitals, legal organizations, and real estate organizations.</p>
 
-<p>Infoblox said approximately 55% of its cloud customers attempted to reach <mark class="tag-hl">SocGholish</mark> infrastructure this year. It reported that the attacks targeted almost every industry sector over the past five months.</p>
+<p>Infoblox said approximately 55% of its cloud customers attempted to reach SocGholish infrastructure this year. It reported that the attacks targeted almost every industry sector over the past five months.</p>
 
 <p>The most targeted verticals cited by Infoblox included:</p>
 
@@ -1617,27 +1771,28 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Transportation</li>
 </ul>
 
-<p>Infoblox said the distribution shows <mark class="tag-hl">SocGholish</mark> is not limited to one vertical. Instead, its large-scale webinject and traffic distribution ecosystem reaches both public-sector and commercially important environments.</p>
+<p>Infoblox said the distribution shows SocGholish is not limited to one vertical. Instead, its large-scale webinject and traffic distribution ecosystem reaches both public-sector and commercially important environments.</p>
 
 <h2 id="response-and-impact">Response and impact</h2>
 
-<p>The immediate disclosed impact of the law enforcement action was the takedown of 106 <mark class="tag-hl">SocGholish</mark>-linked servers and the cleaning of 14,971 WordPress sites. The article also states that website owners were notified to update CMS installations, change credentials, and delete suspicious accounts.</p>
+<p>The immediate disclosed impact of the law enforcement action was the takedown of 106 SocGholish-linked servers and the cleaning of 14,971 WordPress sites. The article also states that website owners were notified to update CMS installations, change credentials, and delete suspicious accounts.</p>
 
 <p>The action was framed by Dutch authorities as a way to remove cybercriminal access to infected systems, prevent further harm to digital systems, and limit malware spread. The article also notes that reducing access to compromised systems lowers the risk that those systems are used for attacks on critical infrastructure and essential societal processes.</p>
 
-<p>Overall, the article presents <mark class="tag-hl">SocGholish</mark> as both a malware delivery mechanism and part of a wider web compromise, affiliate traffic, and redirection ecosystem. Operation Endgame’s disruption targeted the infrastructure supporting that ecosystem, while the cleanup effort focused on infected WordPress websites used in <mark class="tag-hl">SocGholish</mark> activity.</p>
+<p>Overall, the article presents SocGholish as both a malware delivery mechanism and part of a wider web compromise, affiliate traffic, and redirection ecosystem. Operation Endgame’s disruption targeted the infrastructure supporting that ecosystem, while the cleanup effort focused on infected WordPress websites used in SocGholish activity.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:61a3e81ee060d294" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Website owners affected by the cleanup were specifically told to update their CMS, change credentials, and remove suspicious accounts, indicating remediation must address both vulnerable software and possible account compromise.</span></li><li><span class="kp-text"><mark class="tag-hl">SocGholish</mark> targeting is highly conditional, with malicious behavior varying based on a visitor’s country, browser, and operating system, which can make detection harder during routine site checks.</span></li><li><span class="kp-text"><mark class="tag-hl">SocGholish</mark> abuse includes <mark class="tag-hl">domain shadowing</mark>, where attackers create subdomains under legitimate domains to benefit from the domain’s reputation and evade simple blocklists.</span></li><li><span class="kp-text">Infoblox observed that about 55% of its cloud customers attempted to reach <mark class="tag-hl">SocGholish</mark> infrastructure this year, showing the campaign’s reach extended across many sectors rather than a narrow set of targets.</span></li><li><span class="kp-text"><mark class="tag-hl">SocGholish</mark> operates through a broader traffic marketplace in which affiliates sell filtered visitor traffic to the framework, so defenders may need to look beyond the final malware domain to embedded links and traffic distribution systems on compromised sites.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:61a3e81ee060d294" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Website owners affected by the cleanup were specifically told to update their CMS, change credentials, and remove suspicious accounts, indicating remediation must address both vulnerable software and possible account compromise.</span></li><li><span class="kp-text">SocGholish targeting is highly conditional, with malicious behavior varying based on a visitor’s country, browser, and operating system, which can make detection harder during routine site checks.</span></li><li><span class="kp-text">SocGholish abuse includes domain shadowing, where attackers create subdomains under legitimate domains to benefit from the domain’s reputation and evade simple blocklists.</span></li><li><span class="kp-text">Infoblox observed that about 55% of its cloud customers attempted to reach SocGholish infrastructure this year, showing the campaign’s reach extended across many sectors rather than a narrow set of targets.</span></li><li><span class="kp-text">SocGholish operates through a broader traffic marketplace in which affiliates sell filtered visitor traffic to the framework, so defenders may need to look beyond the final malware domain to embedded links and traffic distribution systems on compromised sites.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Dutch law enforcement authorities, together with counterparts from <mark class="tag-hl">Canada</mark>, <mark class="tag-hl">Germany</mark>, and the <mark class="tag-hl">United States</mark>, disrupted malicious infrastructure associated with <mark class="tag-hl">SocGholish</mark> as part of Operation Endgame.</span></li><li><span class="kp-text">The operation took down 106 servers linked to <mark class="tag-hl">SocGholish</mark> and cleaned infections from 14,971 WordPress websites.</span></li><li><span class="kp-text"><mark class="tag-hl">SocGholish</mark>, also known as FakeUpdates, is a JavaScript-based downloader malware active since 2017 that is distributed through compromised websites posing as browser or software updates.</span></li><li><span class="kp-text">The malware has served as an initial access conduit for threat actors and malware operations including <mark class="tag-hl">Evil Corp</mark>, <mark class="tag-hl">LockBit</mark>, <mark class="tag-hl">RansomHub</mark>, Dridex, <mark class="tag-hl">Raspberry Robin</mark>, <mark class="tag-hl">RomCom</mark>, <mark class="tag-hl">Gholoader</mark>, <mark class="tag-hl">MintsLoader</mark>, GhostWeaver, AsyncRAT, and NetSupport RAT.</span></li><li><span class="kp-text">Shadowserver said <mark class="tag-hl">SocGholish</mark> abuse included <mark class="tag-hl">domain shadowing</mark>, in which attackers create malicious subdomains under legitimate domains to point to criminal-operated infrastructure.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Dutch law enforcement authorities, together with counterparts from Canada, Germany, and the United States, disrupted malicious infrastructure associated with SocGholish as part of Operation Endgame.</span></li><li><span class="kp-text">The operation took down 106 servers linked to SocGholish and cleaned infections from 14,971 WordPress websites.</span></li><li><span class="kp-text">SocGholish, also known as FakeUpdates, is a JavaScript-based downloader malware active since 2017 that is distributed through compromised websites posing as browser or software updates.</span></li><li><span class="kp-text">The malware has served as an initial access conduit for threat actors and malware operations including Evil Corp, LockBit, RansomHub, Dridex, Raspberry Robin, RomCom, Gholoader, MintsLoader, GhostWeaver, AsyncRAT, and NetSupport RAT.</span></li><li><span class="kp-text">Shadowserver said SocGholish abuse included domain shadowing, in which attackers create malicious subdomains under legitimate domains to point to criminal-operated infrastructure.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/operation-endgame-disrupts-socgholish.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, high-impact law enforcement disruption of <mark class="tag-hl">SocGholish</mark> infrastructure, including 106 servers taken down and nearly 15,000 infected WordPress sites cleaned. It is broadly relevant because <mark class="tag-hl">SocGholish</mark> is a long-running initial access and fake-update malware ecosystem tied to ransomware, espionage, traffic distribution systems, and many affected sectors.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, high-impact law enforcement disruption of SocGholish infrastructure, including 106 servers taken down and nearly 15,000 infected WordPress sites cleaned. It is broadly relevant because SocGholish is a long-running initial access and fake-update malware ecosystem tied to ransomware, espionage, traffic distribution systems, and many affected sectors.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.orangecyberdefense.com/global/blog/cert-news/operation-endgame-strikes-socgholish-a-deep-dive-into-a-prolific-initial-access-threat" target="_blank" rel="noopener">Operation Endgame Strikes SocGholish: A Deep Dive into a Prolific Initial Access Threat</a></div>
   <div class="report-meta">Orange Cyberdefense</div>
-  <div class="report-context">The article cites Orange Cyberdefense’s analysis of <mark class="tag-hl">SocGholish</mark>’s layered delivery model, follow-on payloads, and collaboration with traffic distribution system operators.</div>
+  <div class="report-context">The article cites Orange Cyberdefense’s analysis of SocGholish’s layered delivery model, follow-on payloads, and collaboration with traffic distribution system operators.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.ic3.gov/PSA/2026/PSA260618" target="_blank" rel="noopener">Traffic Distribution Systems Used in Cybercrime</a></div>
   <div class="report-meta">FBI Internet Crime Complaint Center</div>
@@ -1645,15 +1800,15 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.shadowserver.org/news/socgholish-compromised-wordpress-sites-special-report/" target="_blank" rel="noopener">SocGholish Compromised WordPress Sites Special Report</a></div>
   <div class="report-meta">The Shadowserver Foundation</div>
-  <div class="report-context">The article cites Shadowserver’s special report on compromised WordPress sites and <mark class="tag-hl">SocGholish</mark>’s use of <mark class="tag-hl">domain shadowing</mark>.</div>
+  <div class="report-context">The article cites Shadowserver’s special report on compromised WordPress sites and SocGholish’s use of domain shadowing.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.proofpoint.com/us/blog/threat-insight/sayonara-socgholish-operation-endgame-disrupts-major-cybercrime-operation" target="_blank" rel="noopener">Sayonara SocGholish: Operation Endgame Disrupts Major Cybercrime Operation</a></div>
   <div class="report-meta">Proofpoint</div>
-  <div class="report-context">The article cites Proofpoint’s threat insight describing <mark class="tag-hl">TA569</mark>’s opportunistic website compromises across many industries.</div>
+  <div class="report-context">The article cites Proofpoint’s threat insight describing TA569’s opportunistic website compromises across many industries.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.infoblox.com/blog/threat-intelligence/hot-take-operation-endgame-vs-socgholish/" target="_blank" rel="noopener">Hot Take: Operation Endgame vs SocGholish</a></div>
   <div class="report-meta">Infoblox</div>
-  <div class="report-context">The article references Infoblox’s threat intelligence analysis describing <mark class="tag-hl">SocGholish</mark> as a multi-stage JavaScript framework and providing data on customer attempts to reach its infrastructure.</div>
+  <div class="report-context">The article references Infoblox’s threat intelligence analysis describing SocGholish as a multi-stage JavaScript framework and providing data on customer attempts to reach its infrastructure.</div>
 </li></ul></div>
             
           </div>
@@ -1676,30 +1831,30 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:82%"></div></div><span class="score-num score-num-mid">82</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:12cc54355addb3b6">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:12cc54355addb3b6')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:12cc54355addb3b6')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:12cc54355addb3b6')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:12cc54355addb3b6')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:12cc54355addb3b6')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:12cc54355addb3b6')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:12cc54355addb3b6')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:12cc54355addb3b6')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:12cc54355addb3b6')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:12cc54355addb3b6')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:12cc54355addb3b6" class="tab-panel active"><div class="prose">The <mark class="tag-hl">Texas Parks and Wildlife Department</mark> says a breach at its hunting and fishing license vendor exposed personal data for 3,087,721 customers, including driver’s license information, passport numbers, contact details, and addresses. Social Security numbers, dates of birth, and financial data were reportedly not affected, but impacted people should watch for phishing and identity fraud.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:12cc54355addb3b6" class="tab-panel"><div class="prose"><p>The <mark class="tag-hl">Texas Parks and Wildlife Department</mark> disclosed a data breach involving its license system vendor that exposed personal information for 3,087,721 <mark class="tag-hl">Texas</mark> hunting and fishing license customers. The intrusion was discovered by the <mark class="tag-hl">Texas Cyber Command</mark>, which launched an investigation into the extent and impact of the unauthorized access. TPWD said Social Security numbers, dates of birth, and financial information such as credit cards were not impacted.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:12cc54355addb3b6" class="tab-panel active"><div class="prose">The Texas Parks and Wildlife Department says a breach at its hunting and fishing license vendor exposed personal data for 3,087,721 customers, including driver’s license information, passport numbers, contact details, and addresses. Social Security numbers, dates of birth, and financial data were reportedly not affected, but impacted people should watch for phishing and identity fraud.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:12cc54355addb3b6" class="tab-panel"><div class="prose"><p>The Texas Parks and Wildlife Department disclosed a data breach involving its license system vendor that exposed personal information for 3,087,721 Texas hunting and fishing license customers. The intrusion was discovered by the Texas Cyber Command, which launched an investigation into the extent and impact of the unauthorized access. TPWD said Social Security numbers, dates of birth, and financial information such as credit cards were not impacted.</p>
 
 <p>The data that may have been obtained includes driver’s license information, passport numbers, email addresses, phone numbers, and residential addresses. The article notes that this information could be used to target impacted individuals with phishing and social engineering attacks, including attempts to distribute malware or collect more sensitive information. TPWD said there is no evidence that customers under 18 were involved or that any specific group was targeted.</p>
 
 <p>TPWD is working with the license system vendor to implement new safeguards and enhanced monitoring services. The agency advised customers to monitor credit reports and financial statements, and said impacted individuals are eligible for one year of free credit monitoring. It also recommended considering a credit freeze or fraud alert and remaining alert for phishing and impersonation scams.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:12cc54355addb3b6" class="tab-panel"><div class="prose"><p>The <mark class="tag-hl">Texas Parks and Wildlife Department</mark> disclosed a data breach at its license system vendor that exposed personal information for more than three million individuals. The incident affected 3,087,721 <mark class="tag-hl">Texas</mark> hunting and fishing license customers. TPWD is the state agency responsible for managing wildlife and fisheries, state parks, conservation programs, hunting and fishing regulations, boating registration, and enforcement by <mark class="tag-hl">Texas Game Wardens</mark>.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:12cc54355addb3b6" class="tab-panel"><div class="prose"><p>The Texas Parks and Wildlife Department disclosed a data breach at its license system vendor that exposed personal information for more than three million individuals. The incident affected 3,087,721 Texas hunting and fishing license customers. TPWD is the state agency responsible for managing wildlife and fisheries, state parks, conservation programs, hunting and fishing regulations, boating registration, and enforcement by Texas Game Wardens.</p>
 
-<p>The <mark class="tag-hl">Texas Cyber Command</mark> discovered the intrusion and began investigating the scope and impact of the unauthorized access. According to the state authority, Social Security numbers, dates of birth, and financial information such as credit cards were not impacted. The article does not name the threat actor behind the intrusion.</p>
+<p>The Texas Cyber Command discovered the intrusion and began investigating the scope and impact of the unauthorized access. According to the state authority, Social Security numbers, dates of birth, and financial information such as credit cards were not impacted. The article does not name the threat actor behind the intrusion.</p>
 
 <p>The exposed information may include driver’s license information, passport numbers, email addresses, phone numbers, and residential addresses. The article states that this dataset is sufficient for hackers to target affected individuals in phishing and social engineering attacks. Such attacks could lead to web pages distributing malware or seeking more sensitive information.</p>
 
@@ -1707,21 +1862,21 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>TPWD said it is working closely with the license system vendor to implement new safeguards and enhanced monitoring services. The agency advised customers to monitor their credit reports and financial statements. Impacted individuals are eligible for one year of free credit monitoring and were advised to consider a credit freeze or fraud alert with major credit bureaus, as well as to remain vigilant for phishing and impersonation scams.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:12cc54355addb3b6" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:12cc54355addb3b6" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The <mark class="tag-hl">Texas Parks and Wildlife Department</mark> disclosed a data breach involving its license system vendor. The breach exposed personal information associated with 3,087,721 <mark class="tag-hl">Texas</mark> hunting and fishing license customers. TPWD issues hunting and fishing licenses and permits, which are sold through an external vendor.</p>
+<p>The Texas Parks and Wildlife Department disclosed a data breach involving its license system vendor. The breach exposed personal information associated with 3,087,721 Texas hunting and fishing license customers. TPWD issues hunting and fishing licenses and permits, which are sold through an external vendor.</p>
 
-<p>The intrusion was discovered by the <mark class="tag-hl">Texas Cyber Command</mark>. After discovery, the <mark class="tag-hl">Texas Cyber Command</mark> launched an investigation to determine the extent and impact of the unauthorized access.</p>
+<p>The intrusion was discovered by the Texas Cyber Command. After discovery, the Texas Cyber Command launched an investigation to determine the extent and impact of the unauthorized access.</p>
 
 <h2 id="affected-organization-and-context">Affected Organization and Context</h2>
 
-<p>TPWD is the <mark class="tag-hl">Texas</mark> state agency responsible for managing wildlife and fisheries, state parks, conservation programs, hunting and fishing regulations, boating registration, and enforcement by <mark class="tag-hl">Texas Game Wardens</mark>. The affected system was tied to hunting and fishing licenses and permits. The article states that those licenses and permits are sold through an external vendor.</p>
+<p>TPWD is the Texas state agency responsible for managing wildlife and fisheries, state parks, conservation programs, hunting and fishing regulations, boating registration, and enforcement by Texas Game Wardens. The affected system was tied to hunting and fishing licenses and permits. The article states that those licenses and permits are sold through an external vendor.</p>
 
 <p>BleepingComputer contacted TPWD for more information about the incident and the name of the third-party service provider. The article states that TPWD had not yet provided a statement in response.</p>
 
 <h2 id="exposed-data">Exposed Data</h2>
 
-<p>The threat actor may have obtained personally identifiable information belonging to <mark class="tag-hl">Texas</mark> hunting and fishing license customers. The article lists the potentially exposed data types as:</p>
+<p>The threat actor may have obtained personally identifiable information belonging to Texas hunting and fishing license customers. The article lists the potentially exposed data types as:</p>
 
 <ul>
 <li>Driver’s license information</li>
@@ -1751,12 +1906,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The agency further advised customers to remain vigilant for phishing and impersonation scams. The article notes that threat actors may try to send communications posing as a company or an official.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:12cc54355addb3b6" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The exposed data is sufficient for phishing and social engineering even though Social Security numbers, dates of birth, and financial information were not impacted.</span></li><li><span class="kp-text">TPWD is advising affected customers to use one year of free credit monitoring and to consider a credit freeze or fraud alert despite the agency saying financial data was not exposed.</span></li><li><span class="kp-text">The breach originated at an external license system vendor, and TPWD had not publicly named the third-party provider at the time of the article.</span></li><li><span class="kp-text">TPWD said there is no evidence that minors under 18 were involved or that any specific group of customers was targeted.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:12cc54355addb3b6" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The exposed data is sufficient for phishing and social engineering even though Social Security numbers, dates of birth, and financial information were not impacted.</span></li><li><span class="kp-text">TPWD is advising affected customers to use one year of free credit monitoring and to consider a credit freeze or fraud alert despite the agency saying financial data was not exposed.</span></li><li><span class="kp-text">The breach originated at an external license system vendor, and TPWD had not publicly named the third-party provider at the time of the article.</span></li><li><span class="kp-text">TPWD said there is no evidence that minors under 18 were involved or that any specific group of customers was targeted.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The <mark class="tag-hl">Texas Parks and Wildlife Department</mark> disclosed a data breach at its license system vendor affecting 3,087,721 <mark class="tag-hl">Texas</mark> hunting and fishing license customers.</span></li><li><span class="kp-text">The exposed information may include driver’s license information, passport numbers, email addresses, phone numbers, and residential addresses.</span></li><li><span class="kp-text">The <mark class="tag-hl">Texas Cyber Command</mark> discovered the intrusion and launched an investigation into the extent and impact of the unauthorized access.</span></li><li><span class="kp-text">The agency said Social Security numbers, dates of birth, and financial information such as credit cards were not impacted.</span></li><li><span class="kp-text">TPWD said it is working with the license system vendor to implement new safeguards and enhanced monitoring services.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The Texas Parks and Wildlife Department disclosed a data breach at its license system vendor affecting 3,087,721 Texas hunting and fishing license customers.</span></li><li><span class="kp-text">The exposed information may include driver’s license information, passport numbers, email addresses, phone numbers, and residential addresses.</span></li><li><span class="kp-text">The Texas Cyber Command discovered the intrusion and launched an investigation into the extent and impact of the unauthorized access.</span></li><li><span class="kp-text">The agency said Social Security numbers, dates of birth, and financial information such as credit cards were not impacted.</span></li><li><span class="kp-text">TPWD said it is working with the license system vendor to implement new safeguards and enhanced monitoring services.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/texas-govt-data-breach-exposes-over-3-million-drivers-licenses/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific, high-impact data breach affecting over 3 million <mark class="tag-hl">Texas</mark> hunting and fishing license customers, with exposure of driver’s license information, passport numbers, contact details, and addresses. It is broadly relevant for security professionals because it highlights third-party vendor risk and likely follow-on phishing and social engineering exposure, though it does not include technical intrusion details or active exploitation of a widely deployed product.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific, high-impact data breach affecting over 3 million Texas hunting and fishing license customers, with exposure of driver’s license information, passport numbers, contact details, and addresses. It is broadly relevant for security professionals because it highlights third-party vendor risk and likely follow-on phishing and social engineering exposure, though it does not include technical intrusion details or active exploitation of a widely deployed product.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://web.archive.org/web/20260619145153/https://tpwd.texas.gov/about/notification-of-data-security-incident" target="_blank" rel="noopener">Notification of Data Security Incident</a></div>
@@ -1784,55 +1940,55 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:78%"></div></div><span class="score-num score-num-mid">78</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:317de22f4dac6034">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:317de22f4dac6034')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:317de22f4dac6034')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:317de22f4dac6034')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:317de22f4dac6034')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:317de22f4dac6034')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:317de22f4dac6034')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:317de22f4dac6034')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:317de22f4dac6034')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:317de22f4dac6034')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:317de22f4dac6034')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:317de22f4dac6034" class="tab-panel active"><div class="prose"><mark class="tag-hl">Microsoft</mark> researchers found <mark class="tag-hl">AutoJack</mark>, an exploit chain in <mark class="tag-hl">AutoGen Studio</mark> pre-release builds that lets a malicious web page loaded by a local AI browsing agent reach an unauthenticated localhost <mark class="tag-hl">WebSocket</mark> and execute commands on the host. Stable <mark class="tag-hl">PyPI</mark> installs are not affected, but users of 0.4.3.dev1 or 0.4.3.dev2 should move to <mark class="tag-hl">GitHub</mark> main at or after commit b047730 and isolate agents from privileged local services.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:317de22f4dac6034" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark> researchers detailed an exploit chain called <mark class="tag-hl">AutoJack</mark> that can turn an AI browsing agent into a path for remote code execution on the host running <mark class="tag-hl">AutoGen Studio</mark>. If an agent loads an attacker-controlled web page, that page’s JavaScript can reach a privileged local service on the same machine and spawn a process. The article says this requires no credentials, sign-in screen, or further user interaction after the agent loads the page.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:317de22f4dac6034" class="tab-panel active"><div class="prose">Microsoft researchers found AutoJack, an exploit chain in AutoGen Studio pre-release builds that lets a malicious web page loaded by a local AI browsing agent reach an unauthenticated localhost WebSocket and execute commands on the host. Stable PyPI installs are not affected, but users of 0.4.3.dev1 or 0.4.3.dev2 should move to GitHub main at or after commit b047730 and isolate agents from privileged local services.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:317de22f4dac6034" class="tab-panel"><div class="prose"><p>Microsoft researchers detailed an exploit chain called AutoJack that can turn an AI browsing agent into a path for remote code execution on the host running AutoGen Studio. If an agent loads an attacker-controlled web page, that page’s JavaScript can reach a privileged local service on the same machine and spawn a process. The article says this requires no credentials, sign-in screen, or further user interaction after the agent loads the page.</p>
 
-<p>The issue affects specific <mark class="tag-hl">AutoGen Studio</mark> pre-release builds rather than the stable <mark class="tag-hl">PyPI</mark> release. A plain <code>pip install autogenstudio</code> installs version 0.4.2.2, which the article says has no MCP route and is not affected. The vulnerable MCP <mark class="tag-hl">WebSocket</mark> handler was present in <mark class="tag-hl">PyPI</mark> pre-release builds 0.4.3.dev1 and 0.4.3.dev2.</p>
+<p>The issue affects specific AutoGen Studio pre-release builds rather than the stable PyPI release. A plain <code>pip install autogenstudio</code> installs version 0.4.2.2, which the article says has no MCP route and is not affected. The vulnerable MCP WebSocket handler was present in PyPI pre-release builds 0.4.3.dev1 and 0.4.3.dev2.</p>
 
-<p>The chain combines a localhost trust check, authentication middleware skipping MCP paths, and an endpoint that ran a command supplied through a request parameter. <mark class="tag-hl">Microsoft</mark> reported no exploitation in the wild, and its proof of concept launched <code>calc.exe</code> through a Web Content Summarizer agent. The source code has been hardened in <mark class="tag-hl">GitHub</mark> main at commit b047730, but the article says no <mark class="tag-hl">PyPI</mark> release yet contains that fix.</p>
+<p>The chain combines a localhost trust check, authentication middleware skipping MCP paths, and an endpoint that ran a command supplied through a request parameter. Microsoft reported no exploitation in the wild, and its proof of concept launched <code>calc.exe</code> through a Web Content Summarizer agent. The source code has been hardened in GitHub main at commit b047730, but the article says no PyPI release yet contains that fix.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:317de22f4dac6034" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark> researchers described <mark class="tag-hl">AutoJack</mark>, an exploit chain that lets a single web page hijack an AI browsing agent to execute code on the host. The article says an attacker only needs the agent to open a malicious page, through a planted link, URL field, or <mark class="tag-hl">prompt injection</mark>. Once loaded, the page’s JavaScript can reach a privileged local service on the same machine and spawn a process under the account running <mark class="tag-hl">AutoGen Studio</mark>.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:317de22f4dac6034" class="tab-panel"><div class="prose"><p>Microsoft researchers described AutoJack, an exploit chain that lets a single web page hijack an AI browsing agent to execute code on the host. The article says an attacker only needs the agent to open a malicious page, through a planted link, URL field, or prompt injection. Once loaded, the page’s JavaScript can reach a privileged local service on the same machine and spawn a process under the account running AutoGen Studio.</p>
 
-<p>The flaw sits in <mark class="tag-hl">AutoGen Studio</mark>, the open-source prototyping interface for <mark class="tag-hl">Microsoft Research</mark>’s <mark class="tag-hl">AutoGen</mark> multi-agent framework. The article stresses that the vulnerable surface was not present in the current stable <mark class="tag-hl">PyPI</mark> release, 0.4.2.2, which is what a plain <code>pip install autogenstudio</code> installs. However, The Hacker News says it inspected <mark class="tag-hl">PyPI</mark> pre-release builds 0.4.3.dev1 and 0.4.3.dev2 and found the vulnerable MCP <mark class="tag-hl">WebSocket</mark> route present in both.</p>
+<p>The flaw sits in AutoGen Studio, the open-source prototyping interface for Microsoft Research’s AutoGen multi-agent framework. The article stresses that the vulnerable surface was not present in the current stable PyPI release, 0.4.2.2, which is what a plain <code>pip install autogenstudio</code> installs. However, The Hacker News says it inspected PyPI pre-release builds 0.4.3.dev1 and 0.4.3.dev2 and found the vulnerable MCP WebSocket route present in both.</p>
 
-<p><mark class="tag-hl">AutoJack</mark> chains three weaknesses in the MCP <mark class="tag-hl">WebSocket</mark>. The socket trusted localhost, but a browsing agent running on the same machine also appears as localhost when it renders attacker-controlled content. The authentication middleware skipped MCP paths on the assumption that the handler would verify tokens, but the handler did not, and the endpoint accepted a command from a request parameter and ran it without an executable allowlist.</p>
+<p>AutoJack chains three weaknesses in the MCP WebSocket. The socket trusted localhost, but a browsing agent running on the same machine also appears as localhost when it renders attacker-controlled content. The authentication middleware skipped MCP paths on the assumption that the handler would verify tokens, but the handler did not, and the endpoint accepted a command from a request parameter and ran it without an executable allowlist.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> characterized the work as research and reported no exploitation in the wild. Its proof of concept used a Web Content Summarizer agent that opened an attacker URL and caused <code>calc.exe</code> to appear on the developer’s desktop, launched by the <mark class="tag-hl">AutoGen Studio</mark> process. The article does not name any active threat actor connected to this behavior.</p>
+<p>Microsoft characterized the work as research and reported no exploitation in the wild. Its proof of concept used a Web Content Summarizer agent that opened an attacker URL and caused <code>calc.exe</code> to appear on the developer’s desktop, launched by the AutoGen Studio process. The article does not name any active threat actor connected to this behavior.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> reported the behavior to the <mark class="tag-hl">Microsoft Security Response Center</mark>, and maintainers hardened the main branch in commit b047730 through PR #7362. The fixed handler no longer reads the command from the URL, stores parameters server-side behind a one-time session ID, refuses unknown IDs, and routes MCP paths through normal authentication. The article says this hardening had not landed in a <mark class="tag-hl">PyPI</mark> release at the time of publication, so affected pre-release users should pull from <mark class="tag-hl">GitHub</mark> main at or after that commit.</p>
+<p>Microsoft reported the behavior to the Microsoft Security Response Center, and maintainers hardened the main branch in commit b047730 through PR #7362. The fixed handler no longer reads the command from the URL, stores parameters server-side behind a one-time session ID, refuses unknown IDs, and routes MCP paths through normal authentication. The article says this hardening had not landed in a PyPI release at the time of publication, so affected pre-release users should pull from GitHub main at or after that commit.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:317de22f4dac6034" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:317de22f4dac6034" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> researchers detailed an exploit chain named <mark class="tag-hl">AutoJack</mark> that can turn an AI browsing agent into a delivery vehicle for remote code execution on the host system. The article says the attack works when an agent is steered to load an attacker-controlled web page. After that page is loaded, its JavaScript can reach a privileged local service on the same machine and spawn a process on the host.</p>
+<p>Microsoft researchers detailed an exploit chain named AutoJack that can turn an AI browsing agent into a delivery vehicle for remote code execution on the host system. The article says the attack works when an agent is steered to load an attacker-controlled web page. After that page is loaded, its JavaScript can reach a privileged local service on the same machine and spawn a process on the host.</p>
 
-<p>The article emphasizes that the attack requires no credentials, no sign-in screen, and no further user interaction once the agent loads the page. It says an attacker only needs to get the agent to open the malicious page, which could happen through a planted link, a URL field, or <mark class="tag-hl">prompt injection</mark>.</p>
+<p>The article emphasizes that the attack requires no credentials, no sign-in screen, and no further user interaction once the agent loads the page. It says an attacker only needs to get the agent to open the malicious page, which could happen through a planted link, a URL field, or prompt injection.</p>
 
 <h2 id="affected-software-and-packaging-details">Affected software and packaging details</h2>
 
-<p>The flaw is in <mark class="tag-hl">AutoGen Studio</mark>, the open-source prototyping interface for <mark class="tag-hl">Microsoft Research</mark>’s <mark class="tag-hl">AutoGen</mark> multi-agent framework. The article makes a distinction between the stable <mark class="tag-hl">PyPI</mark> package and pre-release builds.</p>
+<p>The flaw is in AutoGen Studio, the open-source prototyping interface for Microsoft Research’s AutoGen multi-agent framework. The article makes a distinction between the stable PyPI package and pre-release builds.</p>
 
 <p>According to the article:</p>
 
 <ul>
 <li>A plain <code>pip install autogenstudio</code> installs the current stable release, 0.4.2.2.</li>
-<li><mark class="tag-hl">Microsoft</mark> inspected 0.4.2.2 and found that it has no <mark class="tag-hl">Model Context Protocol</mark>, or MCP, route.</li>
-<li><mark class="tag-hl">Microsoft</mark>’s statement that the vulnerable MCP <mark class="tag-hl">WebSocket</mark> surface “was never included in a <mark class="tag-hl">PyPI</mark> release” is described as accurate for the stable build.</li>
-<li>The vulnerable handler did ship to <mark class="tag-hl">PyPI</mark> in two pre-release builds: 0.4.3.dev1 and 0.4.3.dev2.</li>
-<li>The Hacker News says it downloaded and inspected both pre-release builds and found the MCP <mark class="tag-hl">WebSocket</mark> route present.</li>
+<li>Microsoft inspected 0.4.2.2 and found that it has no Model Context Protocol, or MCP, route.</li>
+<li>Microsoft’s statement that the vulnerable MCP WebSocket surface “was never included in a PyPI release” is described as accurate for the stable build.</li>
+<li>The vulnerable handler did ship to PyPI in two pre-release builds: 0.4.3.dev1 and 0.4.3.dev2.</li>
+<li>The Hacker News says it downloaded and inspected both pre-release builds and found the MCP WebSocket route present.</li>
 <li>The article says neither of the two pre-release builds had been yanked.</li>
 </ul>
 
@@ -1840,7 +1996,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="technical-chain">Technical chain</h2>
 
-<p><mark class="tag-hl">AutoJack</mark> chains three weaknesses in the MCP <mark class="tag-hl">WebSocket</mark>.</p>
+<p>AutoJack chains three weaknesses in the MCP WebSocket.</p>
 
 <h3 id="localhost-trust-check">Localhost trust check</h3>
 
@@ -1854,17 +2010,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The third weakness is that the endpoint took a command directly from a request parameter and ran it. The article says there was no allowlist restricting which executable could be launched.</p>
 
-<p>Together, these conditions meant that a page on the open internet, when rendered by a local agent, could run an attacker-chosen command under the account running <mark class="tag-hl">AutoGen Studio</mark>.</p>
+<p>Together, these conditions meant that a page on the open internet, when rendered by a local agent, could run an attacker-chosen command under the account running AutoGen Studio.</p>
 
 <h2 id="demonstrated-impact">Demonstrated impact</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> described the work as research and reported no exploitation in the wild. The proof of concept used a “Web Content Summarizer” agent. When the agent was fed an attacker URL, it launched <code>calc.exe</code> on the developer’s desktop through the <mark class="tag-hl">AutoGen Studio</mark> process.</p>
+<p>Microsoft described the work as research and reported no exploitation in the wild. The proof of concept used a “Web Content Summarizer” agent. When the agent was fed an attacker URL, it launched <code>calc.exe</code> on the developer’s desktop through the AutoGen Studio process.</p>
 
-<p>The article does not identify any active campaign or named threat actor exploiting <mark class="tag-hl">AutoJack</mark>.</p>
+<p>The article does not identify any active campaign or named threat actor exploiting AutoJack.</p>
 
 <h2 id="response-and-fixes">Response and fixes</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> reported the behavior to the <mark class="tag-hl">Microsoft Security Response Center</mark>. The maintainers hardened the main branch in commit b047730, associated with PR #7362.</p>
+<p>Microsoft reported the behavior to the Microsoft Security Response Center. The maintainers hardened the main branch in commit b047730, associated with PR #7362.</p>
 
 <p>The article says the fixed handler includes several changes:</p>
 
@@ -1875,39 +2031,40 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>MCP routes now run through the normal authentication path.</li>
 </ul>
 
-<p>However, the article says this hardening had not landed in a <mark class="tag-hl">PyPI</mark> release at the time of publication. It states that affected users of the pre-release builds should pull from <mark class="tag-hl">GitHub</mark> main at or after commit b047730.</p>
+<p>However, the article says this hardening had not landed in a PyPI release at the time of publication. It states that affected users of the pre-release builds should pull from GitHub main at or after commit b047730.</p>
 
 <h2 id="mitigation-guidance-in-the-article">Mitigation guidance in the article</h2>
 
 <p>The article says users of the stable 0.4.2.2 release installed through a plain <code>pip install autogenstudio</code> are not affected because that release has no MCP route.</p>
 
-<p>For users who installed a pre-release build, the article says there was no patched <mark class="tag-hl">PyPI</mark> build available and that the real fix is to pull from <mark class="tag-hl">GitHub</mark> main at or after commit b047730.</p>
+<p>For users who installed a pre-release build, the article says there was no patched PyPI build available and that the real fix is to pull from GitHub main at or after commit b047730.</p>
 
-<p>Until a release is available, the article recommends separating the components required for the attack. Specifically, it says not to run <mark class="tag-hl">AutoGen Studio</mark> on the same machine as a browsing or code-execution agent that touches untrusted content, because the chain only works when both share the same localhost. If they must run together, the article recommends isolating them in separate containers or virtual machines and running <mark class="tag-hl">AutoGen Studio</mark> under a low-privilege account.</p>
+<p>Until a release is available, the article recommends separating the components required for the attack. Specifically, it says not to run AutoGen Studio on the same machine as a browsing or code-execution agent that touches untrusted content, because the chain only works when both share the same localhost. If they must run together, the article recommends isolating them in separate containers or virtual machines and running AutoGen Studio under a low-privilege account.</p>
 
 <h2 id="broader-pattern-described">Broader pattern described</h2>
 
-<p>The article says the <mark class="tag-hl">AutoGen Studio</mark> bugs are patched in source, but the broader pattern remains. It says <mark class="tag-hl">Microsoft</mark> expects similar issues in other agent frameworks where a local service has too much power, localhost is treated as a security boundary, and an agent opens untrusted pages.</p>
+<p>The article says the AutoGen Studio bugs are patched in source, but the broader pattern remains. It says Microsoft expects similar issues in other agent frameworks where a local service has too much power, localhost is treated as a security boundary, and an agent opens untrusted pages.</p>
 
-<p>The article compares this pattern to other referenced research and coverage, including <mark class="tag-hl">ChatGPhish</mark>, where ChatGPT page summaries became a phishing vector, and <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">Semantic Kernel</mark> remote code execution research tracked as <mark class="tag-hl">CVE-2026-26030</mark> and <mark class="tag-hl">CVE-2026-25592</mark>.</p>
+<p>The article compares this pattern to other referenced research and coverage, including ChatGPhish, where ChatGPT page summaries became a phishing vector, and Microsoft’s Semantic Kernel remote code execution research tracked as CVE-2026-26030 and CVE-2026-25592.</p>
 
 <p>The article concludes that another localhost check is not enough. It says control planes should be authenticated, process execution should be kept behind an allowlist, and agents should have an identity that is not the developer’s own session.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:317de22f4dac6034" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The exposure depends on packaging details: a normal pip install autogenstudio was not affected, but users who enabled pre-releases with --pre or pinned 0.4.3.dev1 or 0.4.3.dev2 received the vulnerable MCP route.</span></li><li><span class="kp-text">There was no patched <mark class="tag-hl">PyPI</mark> build available for affected pre-release users at the time of the article, making <mark class="tag-hl">GitHub</mark> main at or after commit b047730 the required remediation path.</span></li><li><span class="kp-text">The article highlights that localhost checks fail as a security boundary when an AI browsing agent and a privileged local service run on the same machine, because attacker-controlled web content rendered by the agent can inherit localhost reachability.</span></li><li><span class="kp-text">A practical mitigation before a packaged release is to break the shared-localhost condition by running <mark class="tag-hl">AutoGen Studio</mark> separately from browsing or code-execution agents, such as in different containers or VMs and under a low-privilege account.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:317de22f4dac6034" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The exposure depends on packaging details: a normal pip install autogenstudio was not affected, but users who enabled pre-releases with --pre or pinned 0.4.3.dev1 or 0.4.3.dev2 received the vulnerable MCP route.</span></li><li><span class="kp-text">There was no patched PyPI build available for affected pre-release users at the time of the article, making GitHub main at or after commit b047730 the required remediation path.</span></li><li><span class="kp-text">The article highlights that localhost checks fail as a security boundary when an AI browsing agent and a privileged local service run on the same machine, because attacker-controlled web content rendered by the agent can inherit localhost reachability.</span></li><li><span class="kp-text">A practical mitigation before a packaged release is to break the shared-localhost condition by running AutoGen Studio separately from browsing or code-execution agents, such as in different containers or VMs and under a low-privilege account.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark> researchers detailed <mark class="tag-hl">AutoJack</mark>, an exploit chain that can let a malicious web page loaded by an AI browsing agent execute commands on the host running <mark class="tag-hl">AutoGen Studio</mark>.</span></li><li><span class="kp-text">The vulnerable MCP <mark class="tag-hl">WebSocket</mark> handler was not included in the stable <mark class="tag-hl">PyPI</mark> release 0.4.2.2, but it was present in the <mark class="tag-hl">PyPI</mark> pre-release builds 0.4.3.dev1 and 0.4.3.dev2.</span></li><li><span class="kp-text">The exploit chain relied on a localhost trust check, MCP paths bypassing authentication middleware, and an endpoint that ran a command supplied directly in a request parameter.</span></li><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark> reported no exploitation in the wild, and its proof of concept used a Web Content Summarizer agent to launch calc.exe from the <mark class="tag-hl">AutoGen Studio</mark> process.</span></li><li><span class="kp-text">The maintainers hardened the <mark class="tag-hl">GitHub</mark> main branch in commit b047730, but the article states that this fix had not yet landed in a <mark class="tag-hl">PyPI</mark> release.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft researchers detailed AutoJack, an exploit chain that can let a malicious web page loaded by an AI browsing agent execute commands on the host running AutoGen Studio.</span></li><li><span class="kp-text">The vulnerable MCP WebSocket handler was not included in the stable PyPI release 0.4.2.2, but it was present in the PyPI pre-release builds 0.4.3.dev1 and 0.4.3.dev2.</span></li><li><span class="kp-text">The exploit chain relied on a localhost trust check, MCP paths bypassing authentication middleware, and an endpoint that ran a command supplied directly in a request parameter.</span></li><li><span class="kp-text">Microsoft reported no exploitation in the wild, and its proof of concept used a Web Content Summarizer agent to launch calc.exe from the AutoGen Studio process.</span></li><li><span class="kp-text">The maintainers hardened the GitHub main branch in commit b047730, but the article states that this fix had not yet landed in a PyPI release.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/autojack-attack-lets-one-web-page.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific technical finding in an AI agent framework that demonstrates host code execution from a single malicious web page and has broad relevance to developers and security teams evaluating agent architectures. Urgency is moderated because the vulnerable route was limited to two pre-release <mark class="tag-hl">AutoGen Studio</mark> builds, stable <mark class="tag-hl">PyPI</mark> installs were not affected, and <mark class="tag-hl">Microsoft</mark> reported no exploitation in the wild.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific technical finding in an AI agent framework that demonstrates host code execution from a single malicious web page and has broad relevance to developers and security teams evaluating agent architectures. Urgency is moderated because the vulnerable route was limited to two pre-release AutoGen Studio builds, stable PyPI installs were not affected, and Microsoft reported no exploitation in the wild.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.microsoft.com/en-us/security/blog/2026/06/18/autojack-single-page-rce-host-running-ai-agent/" target="_blank" rel="noopener">AutoJack: Single-page RCE on host running AI agent</a></div>
   <div class="report-meta">Microsoft</div>
-  <div class="report-context">The article says <mark class="tag-hl">Microsoft</mark> researchers detailed the <mark class="tag-hl">AutoJack</mark> exploit chain in this linked research post.</div>
+  <div class="report-context">The article says Microsoft researchers detailed the AutoJack exploit chain in this linked research post.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.microsoft.com/en-us/security/blog/2026/05/07/prompts-become-shells-rce-vulnerabilities-ai-agent-frameworks/" target="_blank" rel="noopener">Prompts Become Shells: RCE vulnerabilities in AI agent frameworks</a></div>
   <div class="report-meta">Microsoft</div>
-  <div class="report-context">The article references this <mark class="tag-hl">Microsoft</mark> <mark class="tag-hl">Semantic Kernel</mark> RCE research as related work making a similar localhost trust-boundary argument.</div>
+  <div class="report-context">The article references this Microsoft Semantic Kernel RCE research as related work making a similar localhost trust-boundary argument.</div>
 </li></ul></div>
             
           </div>
@@ -1930,36 +2087,36 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest covers a concentrated set of developments involving internet-facing access infrastructure, malware delivery ecosystems, emerging AI-agent attack surfaces, and public-sector data exposure. The most operationally significant items are the reported compromise of tens of thousands of <mark class="tag-hl">FortiGate</mark> devices in the <mark class="tag-hl">FortiBleed</mark> campaign and the multinational disruption of <mark class="tag-hl">SocGholish</mark> infrastructure, both tied to initial access at scale.</p>
+        <div class="overview-body prose"><p>This digest covers a concentrated set of developments involving internet-facing access infrastructure, malware delivery ecosystems, emerging AI-agent attack surfaces, and public-sector data exposure. The most operationally significant items are the reported compromise of tens of thousands of FortiGate devices in the FortiBleed campaign and the multinational disruption of SocGholish infrastructure, both tied to initial access at scale.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Internet-Scale Initial Access: FortiBleed and SocGholish</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">CISA</mark> warned <mark class="tag-hl">Fortinet</mark> customers about ongoing malicious activity targeting internet-accessible <mark class="tag-hl">FortiGate</mark> appliances, with the <mark class="tag-hl">FortiBleed</mark> campaign reported to have compromised 86,644 devices as of June 19, 2026. SOCRadar attributed the activity to Russian-speaking threat actors and reported that the campaign involved mass scanning for <mark class="tag-hl">Fortinet</mark> remote login endpoints followed by <mark class="tag-hl">password spraying</mark> using known username and password combinations. Generic administrative accounts and built-in <mark class="tag-hl">Fortinet</mark> system accounts reportedly made up most compromised credentials, while organization-specific accounts accounted for 36.7%.</p>
+        <div class="overview-body prose"><p>CISA warned Fortinet customers about ongoing malicious activity targeting internet-accessible FortiGate appliances, with the FortiBleed campaign reported to have compromised 86,644 devices as of June 19, 2026. SOCRadar attributed the activity to Russian-speaking threat actors and reported that the campaign involved mass scanning for Fortinet remote login endpoints followed by password spraying using known username and password combinations. Generic administrative accounts and built-in Fortinet system accounts reportedly made up most compromised credentials, while organization-specific accounts accounted for 36.7%.</p>
 
-<p>In a separate but related initial-access development, Dutch law enforcement and counterparts from <mark class="tag-hl">Canada</mark>, <mark class="tag-hl">Germany</mark>, and the <mark class="tag-hl">United States</mark> disrupted infrastructure associated with <mark class="tag-hl">SocGholish</mark>, also known as FakeUpdates, under Operation Endgame. Authorities took down 106 servers and cleaned infections from 14,971 WordPress websites. <mark class="tag-hl">SocGholish</mark> has operated since 2017 as a JavaScript-based downloader delivered through compromised websites impersonating browser or software updates.</p>
+<p>In a separate but related initial-access development, Dutch law enforcement and counterparts from Canada, Germany, and the United States disrupted infrastructure associated with SocGholish, also known as FakeUpdates, under Operation Endgame. Authorities took down 106 servers and cleaned infections from 14,971 WordPress websites. SocGholish has operated since 2017 as a JavaScript-based downloader delivered through compromised websites impersonating browser or software updates.</p>
 
-<p>The <mark class="tag-hl">SocGholish</mark> ecosystem has been significant because of its role as a conduit into downstream criminal operations. Reported beneficiaries or associated malware families include <mark class="tag-hl">Evil Corp</mark>, <mark class="tag-hl">LockBit</mark>, <mark class="tag-hl">RansomHub</mark>, Dridex, <mark class="tag-hl">Raspberry Robin</mark>, <mark class="tag-hl">RomCom</mark>, <mark class="tag-hl">Gholoader</mark>, <mark class="tag-hl">MintsLoader</mark>, GhostWeaver, AsyncRAT, and NetSupport RAT. Shadowserver also noted use of <mark class="tag-hl">domain shadowing</mark>, where attackers create malicious subdomains under legitimate domains to point to criminal-controlled infrastructure.</p>
+<p>The SocGholish ecosystem has been significant because of its role as a conduit into downstream criminal operations. Reported beneficiaries or associated malware families include Evil Corp, LockBit, RansomHub, Dridex, Raspberry Robin, RomCom, Gholoader, MintsLoader, GhostWeaver, AsyncRAT, and NetSupport RAT. Shadowserver also noted use of domain shadowing, where attackers create malicious subdomains under legitimate domains to point to criminal-controlled infrastructure.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">AI Agent Attack Surface: AutoJack in AutoGen Studio</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Microsoft</mark> researchers detailed <mark class="tag-hl">AutoJack</mark>, an exploit chain showing how a malicious web page loaded by an AI browsing agent could execute commands on the host running <mark class="tag-hl">AutoGen Studio</mark>. The proof of concept used a Web Content Summarizer agent to launch calc.exe from the <mark class="tag-hl">AutoGen Studio</mark> process, demonstrating host command execution through agent-driven web interaction. <mark class="tag-hl">Microsoft</mark> reported no exploitation in the wild.</p>
+        <div class="overview-body prose"><p>Microsoft researchers detailed AutoJack, an exploit chain showing how a malicious web page loaded by an AI browsing agent could execute commands on the host running AutoGen Studio. The proof of concept used a Web Content Summarizer agent to launch calc.exe from the AutoGen Studio process, demonstrating host command execution through agent-driven web interaction. Microsoft reported no exploitation in the wild.</p>
 
-<p>The issue centered on a vulnerable MCP <mark class="tag-hl">WebSocket</mark> handler present in <mark class="tag-hl">AutoGen Studio</mark> <mark class="tag-hl">PyPI</mark> pre-release builds 0.4.3.dev1 and 0.4.3.dev2, but not in the stable <mark class="tag-hl">PyPI</mark> release 0.4.2.2. The exploit chain relied on a localhost trust check, MCP paths bypassing authentication middleware, and an endpoint that executed a command supplied directly in a request parameter. Maintainers hardened the <mark class="tag-hl">GitHub</mark> main branch in commit b047730, though the article stated that the fix had not yet appeared in a <mark class="tag-hl">PyPI</mark> release.</p>
+<p>The issue centered on a vulnerable MCP WebSocket handler present in AutoGen Studio PyPI pre-release builds 0.4.3.dev1 and 0.4.3.dev2, but not in the stable PyPI release 0.4.2.2. The exploit chain relied on a localhost trust check, MCP paths bypassing authentication middleware, and an endpoint that executed a command supplied directly in a request parameter. Maintainers hardened the GitHub main branch in commit b047730, though the article stated that the fix had not yet appeared in a PyPI release.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">03</span>
           <span class="overview-title">Public-Sector Data Exposure: Texas TPWD Vendor Breach</span>
         </div>
-        <div class="overview-body prose"><p>The <mark class="tag-hl">Texas Parks and Wildlife Department</mark> disclosed a breach affecting 3,087,721 hunting and fishing license customers through its license system vendor. Exposed information may include driver’s license information, passport numbers, email addresses, phone numbers, and residential addresses. The agency stated that Social Security numbers, dates of birth, and financial information such as credit card data were not impacted.</p>
+        <div class="overview-body prose"><p>The Texas Parks and Wildlife Department disclosed a breach affecting 3,087,721 hunting and fishing license customers through its license system vendor. Exposed information may include driver’s license information, passport numbers, email addresses, phone numbers, and residential addresses. The agency stated that Social Security numbers, dates of birth, and financial information such as credit card data were not impacted.</p>
 
-<p><mark class="tag-hl">Texas Cyber Command</mark> discovered the intrusion and opened an investigation into the extent and impact of the unauthorized access. TPWD said it is working with the vendor to add new safeguards and enhanced monitoring services. The incident highlights continued exposure risk in third-party systems that handle government licensing and identity-related data at large scale.</p>
+<p>Texas Cyber Command discovered the intrusion and opened an investigation into the extent and impact of the unauthorized access. TPWD said it is working with the vendor to add new safeguards and enhanced monitoring services. The incident highlights continued exposure risk in third-party systems that handle government licensing and identity-related data at large scale.</p>
 </div>
       </div>
     </div>
@@ -1968,9 +2125,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-19 14:00 UTC · 4 hours window</span>
-  <span class="footer-right">4 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">4 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1983,15 +2143,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2104,12 +2326,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2170,6 +2426,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

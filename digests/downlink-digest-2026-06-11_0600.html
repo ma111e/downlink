@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,46 +1506,46 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:96%"></div></div><span class="score-num score-num-high">96</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:aebbfe6afe494849">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:aebbfe6afe494849')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:aebbfe6afe494849')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:aebbfe6afe494849')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:aebbfe6afe494849')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:aebbfe6afe494849')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:aebbfe6afe494849')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:aebbfe6afe494849')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:aebbfe6afe494849')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:aebbfe6afe494849')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:aebbfe6afe494849')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:aebbfe6afe494849" class="tab-panel active"><div class="prose">Attackers are exploiting the newly patched max-severity <mark class="tag-hl">Ivanti Sentry</mark> flaw <mark class="tag-hl">CVE-2026-10520</mark> to gain root-level code execution on exposed gateways. <mark class="tag-hl">Shadowserver</mark> warns that unpatched internet-facing Sentry systems are likely already compromised and should be patched and investigated immediately.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:aebbfe6afe494849" class="tab-panel"><div class="prose"><p>Attackers are targeting <mark class="tag-hl">CVE-2026-10520</mark>, a recently patched maximum-severity vulnerability in <mark class="tag-hl">Ivanti Sentry</mark>. The flaw enables code execution with root privileges on Internet-exposed secure mobile gateways. <mark class="tag-hl">Ivanti Sentry</mark>, formerly <mark class="tag-hl">MobileIron Sentry</mark>, secures traffic between back-end corporate systems and remote mobile devices.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:aebbfe6afe494849" class="tab-panel active"><div class="prose">Attackers are exploiting the newly patched max-severity Ivanti Sentry flaw CVE-2026-10520 to gain root-level code execution on exposed gateways. Shadowserver warns that unpatched internet-facing Sentry systems are likely already compromised and should be patched and investigated immediately.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:aebbfe6afe494849" class="tab-panel"><div class="prose"><p>Attackers are targeting CVE-2026-10520, a recently patched maximum-severity vulnerability in Ivanti Sentry. The flaw enables code execution with root privileges on Internet-exposed secure mobile gateways. Ivanti Sentry, formerly MobileIron Sentry, secures traffic between back-end corporate systems and remote mobile devices.</p>
 
-<p><mark class="tag-hl">Ivanti</mark> patched the <mark class="tag-hl">OS command injection</mark> weakness on Tuesday with Sentry versions R10.5.2, R10.6.2, and R10.7.1. Although <mark class="tag-hl">Ivanti</mark> said at disclosure that it had no evidence of in-the-wild exploitation, <mark class="tag-hl">Shadowserver</mark> reported the next day that attackers had already backdoored most exposed Sentry gateways it could observe. <mark class="tag-hl">Shadowserver</mark> warned that organizations that have not patched are most likely compromised.</p>
+<p>Ivanti patched the OS command injection weakness on Tuesday with Sentry versions R10.5.2, R10.6.2, and R10.7.1. Although Ivanti said at disclosure that it had no evidence of in-the-wild exploitation, Shadowserver reported the next day that attackers had already backdoored most exposed Sentry gateways it could observe. Shadowserver warned that organizations that have not patched are most likely compromised.</p>
 
-<p><mark class="tag-hl">Shadowserver</mark> said it saw 19 vulnerable instances in its scans, with at least 2 backdoored, while noting that its visibility may be limited because some <mark class="tag-hl">Ivanti Sentry</mark> instances were not reachable in its scans. The article also notes that <mark class="tag-hl">Ivanti</mark> products have repeatedly been targeted in recent years, including vulnerabilities exploited against government agencies and flaws listed by <mark class="tag-hl">CISA</mark> as actively exploited.</p>
+<p>Shadowserver said it saw 19 vulnerable instances in its scans, with at least 2 backdoored, while noting that its visibility may be limited because some Ivanti Sentry instances were not reachable in its scans. The article also notes that Ivanti products have repeatedly been targeted in recent years, including vulnerabilities exploited against government agencies and flaws listed by CISA as actively exploited.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:aebbfe6afe494849" class="tab-panel"><div class="prose"><p>Attackers are exploiting <mark class="tag-hl">CVE-2026-10520</mark>, a maximum-severity <mark class="tag-hl">Ivanti Sentry</mark> vulnerability that allows code execution with root privileges on Internet-exposed secure mobile gateways. <mark class="tag-hl">Ivanti Sentry</mark>, previously known as <mark class="tag-hl">MobileIron Sentry</mark>, is a security gateway appliance used to secure traffic between back-end corporate systems and remote mobile devices. The vulnerability stems from an <mark class="tag-hl">OS command injection</mark> weakness.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:aebbfe6afe494849" class="tab-panel"><div class="prose"><p>Attackers are exploiting CVE-2026-10520, a maximum-severity Ivanti Sentry vulnerability that allows code execution with root privileges on Internet-exposed secure mobile gateways. Ivanti Sentry, previously known as MobileIron Sentry, is a security gateway appliance used to secure traffic between back-end corporate systems and remote mobile devices. The vulnerability stems from an OS command injection weakness.</p>
 
-<p><mark class="tag-hl">Ivanti</mark> patched the flaw on Tuesday with the release of Sentry versions R10.5.2, R10.6.2, and R10.7.1. At the time, the company said it had no evidence of exploitation in the wild. However, <mark class="tag-hl">Shadowserver</mark> reported the next day that attackers had already backdoored most of the Sentry gateways exposed online.</p>
+<p>Ivanti patched the flaw on Tuesday with the release of Sentry versions R10.5.2, R10.6.2, and R10.7.1. At the time, the company said it had no evidence of exploitation in the wild. However, Shadowserver reported the next day that attackers had already backdoored most of the Sentry gateways exposed online.</p>
 
-<p><mark class="tag-hl">Shadowserver</mark> said it was observing a large amount of exploitation attempts based on a public proof of concept. It reported seeing 19 vulnerable instances in its own scans, with at least 2 backdoored, and credited <mark class="tag-hl">Saudi NCA</mark> for a tip. <mark class="tag-hl">Shadowserver</mark> also warned that its detection was limited because multiple <mark class="tag-hl">Ivanti Sentry</mark> instances were not reachable in its scans, possibly because its search engine was blocklisted.</p>
+<p>Shadowserver said it was observing a large amount of exploitation attempts based on a public proof of concept. It reported seeing 19 vulnerable instances in its own scans, with at least 2 backdoored, and credited Saudi NCA for a tip. Shadowserver also warned that its detection was limited because multiple Ivanti Sentry instances were not reachable in its scans, possibly because its search engine was blocklisted.</p>
 
-<p><mark class="tag-hl">Ivanti</mark> had not updated its Tuesday advisory at the time of the article, and the advisory still stated that the company was not aware of any customers being exploited at the time of disclosure. BleepingComputer said an <mark class="tag-hl">Ivanti</mark> spokesperson was not immediately available for comment when contacted for further details. The article emphasizes that unpatched Internet-exposed Sentry systems are at high risk according to <mark class="tag-hl">Shadowserver</mark>’s warning.</p>
+<p>Ivanti had not updated its Tuesday advisory at the time of the article, and the advisory still stated that the company was not aware of any customers being exploited at the time of disclosure. BleepingComputer said an Ivanti spokesperson was not immediately available for comment when contacted for further details. The article emphasizes that unpatched Internet-exposed Sentry systems are at high risk according to Shadowserver’s warning.</p>
 
-<p>The article places the Sentry exploitation in the broader context of repeated attacks against <mark class="tag-hl">Ivanti</mark> products. It notes that multiple <mark class="tag-hl">Ivanti</mark> zero-days have been exploited in recent years to breach targets including government agencies worldwide, and that <mark class="tag-hl">CISA</mark> recently ordered U.S. federal agencies to patch <mark class="tag-hl">Ivanti</mark> systems after another exploited EPMM flaw. <mark class="tag-hl">CISA</mark> has flagged 34 vulnerabilities across <mark class="tag-hl">Ivanti</mark> products as actively exploited in the wild, with 12 also targeted in ransomware attacks.</p>
+<p>The article places the Sentry exploitation in the broader context of repeated attacks against Ivanti products. It notes that multiple Ivanti zero-days have been exploited in recent years to breach targets including government agencies worldwide, and that CISA recently ordered U.S. federal agencies to patch Ivanti systems after another exploited EPMM flaw. CISA has flagged 34 vulnerabilities across Ivanti products as actively exploited in the wild, with 12 also targeted in ransomware attacks.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:aebbfe6afe494849" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:aebbfe6afe494849" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Attackers are targeting <mark class="tag-hl">CVE-2026-10520</mark>, a newly patched maximum-severity vulnerability in <mark class="tag-hl">Ivanti Sentry</mark>. The flaw allows attackers to execute code with root privileges on Internet-exposed secure mobile gateways.</p>
+<p>Attackers are targeting CVE-2026-10520, a newly patched maximum-severity vulnerability in Ivanti Sentry. The flaw allows attackers to execute code with root privileges on Internet-exposed secure mobile gateways.</p>
 
-<p><mark class="tag-hl">Ivanti Sentry</mark>, formerly known as <mark class="tag-hl">MobileIron Sentry</mark>, is a security gateway appliance that secures traffic between back-end corporate systems and remote mobile devices. The vulnerability is described as an <mark class="tag-hl">OS command injection</mark> weakness.</p>
+<p>Ivanti Sentry, formerly known as MobileIron Sentry, is a security gateway appliance that secures traffic between back-end corporate systems and remote mobile devices. The vulnerability is described as an OS command injection weakness.</p>
 
 <h2 id="patch-and-disclosure-timeline">Patch and disclosure timeline</h2>
 
-<p><mark class="tag-hl">Ivanti</mark> patched <mark class="tag-hl">CVE-2026-10520</mark> on Tuesday with the release of the following Sentry versions:</p>
+<p>Ivanti patched CVE-2026-10520 on Tuesday with the release of the following Sentry versions:</p>
 
 <ul>
 <li>R10.5.2</li>
@@ -1400,77 +1553,78 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>R10.7.1</li>
 </ul>
 
-<p>At the time of disclosure, <mark class="tag-hl">Ivanti</mark> said it had no evidence of in-the-wild exploitation. The company’s advisory still stated, at the time of the article, that it was not aware of any customers being exploited by the vulnerabilities at disclosure.</p>
+<p>At the time of disclosure, Ivanti said it had no evidence of in-the-wild exploitation. The company’s advisory still stated, at the time of the article, that it was not aware of any customers being exploited by the vulnerabilities at disclosure.</p>
 
-<h2 id="exploitation-activity-reported-by-shadowserver">Exploitation activity reported by <mark class="tag-hl">Shadowserver</mark></h2>
+<h2 id="exploitation-activity-reported-by-shadowserver">Exploitation activity reported by Shadowserver</h2>
 
-<p>The <mark class="tag-hl">Shadowserver</mark> nonprofit security organization reported the next day that attackers had already backdoored most of the Sentry gateways exposed online. <mark class="tag-hl">Shadowserver</mark> said it was observing a large number of <mark class="tag-hl">Ivanti Sentry</mark> <mark class="tag-hl">CVE-2026-10520</mark> exploitation attempts based on a public proof of concept.</p>
+<p>The Shadowserver nonprofit security organization reported the next day that attackers had already backdoored most of the Sentry gateways exposed online. Shadowserver said it was observing a large number of Ivanti Sentry CVE-2026-10520 exploitation attempts based on a public proof of concept.</p>
 
-<p>According to <mark class="tag-hl">Shadowserver</mark>:</p>
+<p>According to Shadowserver:</p>
 
 <ul>
 <li>It saw 19 vulnerable instances in its own scans.</li>
 <li>At least 2 of those instances were backdoored.</li>
-<li>It credited <mark class="tag-hl">Saudi NCA</mark> for the tip.</li>
+<li>It credited Saudi NCA for the tip.</li>
 <li>It warned that the remaining vulnerable systems were likely compromised as well.</li>
 </ul>
 
-<p><mark class="tag-hl">Shadowserver</mark> also noted that its detection count may be low because multiple <mark class="tag-hl">Ivanti Sentry</mark> instances were not reachable in its scans, possibly due to its search engine being blocklisted. It warned that if organizations had not patched, they were most likely compromised.</p>
+<p>Shadowserver also noted that its detection count may be low because multiple Ivanti Sentry instances were not reachable in its scans, possibly due to its search engine being blocklisted. It warned that if organizations had not patched, they were most likely compromised.</p>
 
 <h2 id="vendor-response-status">Vendor response status</h2>
 
-<p>At the time of the article, <mark class="tag-hl">Ivanti</mark> had not updated the security advisory it issued on Tuesday. The advisory still said, “We are not aware of any customers being exploited by these vulnerabilities at the time of disclosure.”</p>
+<p>At the time of the article, Ivanti had not updated the security advisory it issued on Tuesday. The advisory still said, “We are not aware of any customers being exploited by these vulnerabilities at the time of disclosure.”</p>
 
-<p>BleepingComputer said an <mark class="tag-hl">Ivanti</mark> spokesperson was not immediately available for comment when contacted for more details about the ongoing attacks.</p>
+<p>BleepingComputer said an Ivanti spokesperson was not immediately available for comment when contacted for more details about the ongoing attacks.</p>
 
 <h2 id="impact-and-significance">Impact and significance</h2>
 
-<p>The vulnerability is significant because it enables code execution as root on Internet-exposed <mark class="tag-hl">Ivanti Sentry</mark> gateways. These gateways sit between corporate back-end systems and remote mobile devices, making them valuable targets for attackers seeking access to enterprise environments.</p>
+<p>The vulnerability is significant because it enables code execution as root on Internet-exposed Ivanti Sentry gateways. These gateways sit between corporate back-end systems and remote mobile devices, making them valuable targets for attackers seeking access to enterprise environments.</p>
 
-<p>The article notes that hackers often target <mark class="tag-hl">Ivanti</mark> security flaws because they provide an entry point into enterprise networks and can enable the theft of sensitive customer and corporate data.</p>
+<p>The article notes that hackers often target Ivanti security flaws because they provide an entry point into enterprise networks and can enable the theft of sensitive customer and corporate data.</p>
 
-<h2 id="broader-ivanti-exploitation-history">Broader <mark class="tag-hl">Ivanti</mark> exploitation history</h2>
+<h2 id="broader-ivanti-exploitation-history">Broader Ivanti exploitation history</h2>
 
-<p>The article places <mark class="tag-hl">CVE-2026-10520</mark> within a broader pattern of exploitation affecting <mark class="tag-hl">Ivanti</mark> products. It states that multiple <mark class="tag-hl">Ivanti</mark> zero-days have been exploited in recent years to breach a wide range of targets, including government agencies worldwide.</p>
+<p>The article places CVE-2026-10520 within a broader pattern of exploitation affecting Ivanti products. It states that multiple Ivanti zero-days have been exploited in recent years to breach a wide range of targets, including government agencies worldwide.</p>
 
 <p>Examples cited in the article include:</p>
 
 <ul>
-<li>Two critical <mark class="tag-hl">Ivanti</mark> Endpoint Manager Mobile vulnerabilities addressed in January after exploitation as zero-days against a “very limited number of customers.”</li>
-<li>A high-severity <mark class="tag-hl">remote code execution</mark> EPMM flaw that <mark class="tag-hl">Ivanti</mark> warned was abused in zero-day attacks.</li>
-<li>A <mark class="tag-hl">CISA</mark> order last month requiring U.S. federal agencies to patch <mark class="tag-hl">Ivanti</mark> systems on their networks.</li>
+<li>Two critical Ivanti Endpoint Manager Mobile vulnerabilities addressed in January after exploitation as zero-days against a “very limited number of customers.”</li>
+<li>A high-severity remote code execution EPMM flaw that Ivanti warned was abused in zero-day attacks.</li>
+<li>A CISA order last month requiring U.S. federal agencies to patch Ivanti systems on their networks.</li>
 </ul>
 
-<p>The article also states that <mark class="tag-hl">CISA</mark> has flagged 34 vulnerabilities across various <mark class="tag-hl">Ivanti</mark> products as actively exploited in the wild, with 12 of them also targeted in ransomware attacks.</p>
+<p>The article also states that CISA has flagged 34 vulnerabilities across various Ivanti products as actively exploited in the wild, with 12 of them also targeted in ransomware attacks.</p>
 
 <h2 id="organizations-and-entities-mentioned">Organizations and entities mentioned</h2>
 
 <p>Key entities mentioned in connection with the article include:</p>
 
 <ul>
-<li><mark class="tag-hl">Ivanti</mark>, the vendor of <mark class="tag-hl">Ivanti Sentry</mark> and other IT asset management products.</li>
-<li><mark class="tag-hl">Shadowserver</mark>, which reported exploitation attempts and backdoored exposed Sentry gateways.</li>
-<li><mark class="tag-hl">Saudi NCA</mark>, which <mark class="tag-hl">Shadowserver</mark> credited for a tip.</li>
-<li><mark class="tag-hl">CISA</mark>, which has previously ordered U.S. federal agencies to patch <mark class="tag-hl">Ivanti</mark> systems and maintains data on known exploited <mark class="tag-hl">Ivanti</mark> vulnerabilities.</li>
-<li>U.S. federal agencies, which were previously ordered by <mark class="tag-hl">CISA</mark> to patch <mark class="tag-hl">Ivanti</mark> systems.</li>
-<li>Government agencies worldwide, which the article cites as among the types of targets previously breached through <mark class="tag-hl">Ivanti</mark> zero-days.</li>
+<li>Ivanti, the vendor of Ivanti Sentry and other IT asset management products.</li>
+<li>Shadowserver, which reported exploitation attempts and backdoored exposed Sentry gateways.</li>
+<li>Saudi NCA, which Shadowserver credited for a tip.</li>
+<li>CISA, which has previously ordered U.S. federal agencies to patch Ivanti systems and maintains data on known exploited Ivanti vulnerabilities.</li>
+<li>U.S. federal agencies, which were previously ordered by CISA to patch Ivanti systems.</li>
+<li>Government agencies worldwide, which the article cites as among the types of targets previously breached through Ivanti zero-days.</li>
 </ul>
 
 <h2 id="company-footprint">Company footprint</h2>
 
-<p>The article states that <mark class="tag-hl">Ivanti</mark> has more than 7,000 partners and over 3,000 employees. It also says <mark class="tag-hl">Ivanti</mark>’s IT asset management solutions are used by more than 40,000 customers worldwide.</p>
+<p>The article states that Ivanti has more than 7,000 partners and over 3,000 employees. It also says Ivanti’s IT asset management solutions are used by more than 40,000 customers worldwide.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:aebbfe6afe494849" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Organizations should not rely solely on <mark class="tag-hl">Ivanti</mark>’s advisory status because <mark class="tag-hl">Shadowserver</mark> reported active exploitation and backdoored systems while <mark class="tag-hl">Ivanti</mark>’s advisory still stated it was unaware of exploited customers.</span></li><li><span class="kp-text"><mark class="tag-hl">Shadowserver</mark>’s low count of exposed Sentry instances may underrepresent the real exposure because the organization said multiple <mark class="tag-hl">Ivanti Sentry</mark> instances were likely unreachable in its scans due to blocklisting.</span></li><li><span class="kp-text">The exploitation window appears very short, with <mark class="tag-hl">Shadowserver</mark> reporting widespread exploitation attempts based on a public proof of concept the day after <mark class="tag-hl">Ivanti</mark> released patches.</span></li><li><span class="kp-text"><mark class="tag-hl">Ivanti</mark> products remain a recurring target for attackers, with <mark class="tag-hl">CISA</mark> having listed 34 <mark class="tag-hl">Ivanti</mark> vulnerabilities as actively exploited in the wild and 12 also targeted in ransomware attacks.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:aebbfe6afe494849" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Organizations should not rely solely on Ivanti’s advisory status because Shadowserver reported active exploitation and backdoored systems while Ivanti’s advisory still stated it was unaware of exploited customers.</span></li><li><span class="kp-text">Shadowserver’s low count of exposed Sentry instances may underrepresent the real exposure because the organization said multiple Ivanti Sentry instances were likely unreachable in its scans due to blocklisting.</span></li><li><span class="kp-text">The exploitation window appears very short, with Shadowserver reporting widespread exploitation attempts based on a public proof of concept the day after Ivanti released patches.</span></li><li><span class="kp-text">Ivanti products remain a recurring target for attackers, with CISA having listed 34 Ivanti vulnerabilities as actively exploited in the wild and 12 also targeted in ransomware attacks.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Attackers are targeting <mark class="tag-hl">CVE-2026-10520</mark>, a maximum-severity <mark class="tag-hl">OS command injection</mark> vulnerability in <mark class="tag-hl">Ivanti Sentry</mark> that enables code execution with root privileges on Internet-exposed secure mobile gateways.</span></li><li><span class="kp-text"><mark class="tag-hl">Ivanti</mark> patched <mark class="tag-hl">CVE-2026-10520</mark> on Tuesday with the release of Sentry versions R10.5.2, R10.6.2, and R10.7.1.</span></li><li><span class="kp-text"><mark class="tag-hl">Shadowserver</mark> reported the next day that attackers had already backdoored most of the Sentry gateways exposed online, despite <mark class="tag-hl">Ivanti</mark> initially saying it had no evidence of in-the-wild exploitation.</span></li><li><span class="kp-text"><mark class="tag-hl">Shadowserver</mark> said it observed 19 vulnerable <mark class="tag-hl">Ivanti Sentry</mark> instances in its scans, with at least 2 backdoored, and warned that unpatched systems are most likely compromised.</span></li><li><span class="kp-text"><mark class="tag-hl">CISA</mark> has flagged 34 vulnerabilities across <mark class="tag-hl">Ivanti</mark> products as actively exploited in the wild, including 12 that were also targeted in ransomware attacks.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Attackers are targeting CVE-2026-10520, a maximum-severity OS command injection vulnerability in Ivanti Sentry that enables code execution with root privileges on Internet-exposed secure mobile gateways.</span></li><li><span class="kp-text">Ivanti patched CVE-2026-10520 on Tuesday with the release of Sentry versions R10.5.2, R10.6.2, and R10.7.1.</span></li><li><span class="kp-text">Shadowserver reported the next day that attackers had already backdoored most of the Sentry gateways exposed online, despite Ivanti initially saying it had no evidence of in-the-wild exploitation.</span></li><li><span class="kp-text">Shadowserver said it observed 19 vulnerable Ivanti Sentry instances in its scans, with at least 2 backdoored, and warned that unpatched systems are most likely compromised.</span></li><li><span class="kp-text">CISA has flagged 34 vulnerabilities across Ivanti products as actively exploited in the wild, including 12 that were also targeted in ransomware attacks.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/max-severity-ivanti-sentry-vulnerability-now-exploited-in-attacks/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a maximum-severity <mark class="tag-hl">Ivanti Sentry</mark> vulnerability that enables root-level code execution on Internet-exposed gateways. The article includes urgent operational impact, with <mark class="tag-hl">Shadowserver</mark> warning that unpatched exposed systems are most likely compromised.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a maximum-severity Ivanti Sentry vulnerability that enables root-level code execution on Internet-exposed gateways. The article includes urgent operational impact, with Shadowserver warning that unpatched exposed systems are most likely compromised.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog?search=&amp;field_date_added_wrapper=all&amp;field_cve=&amp;sort_by=field_date_added&amp;items_per_page=All&amp;url=&amp;f%5B0%5D=vendor_project%3A817" target="_blank" rel="noopener">Known Exploited Vulnerabilities Catalog</a></div>
   <div class="report-meta">Cybersecurity and Infrastructure Security Agency</div>
-  <div class="report-context">The article references <mark class="tag-hl">CISA</mark>’s catalog to state that 34 <mark class="tag-hl">Ivanti</mark> product vulnerabilities have been flagged as actively exploited in the wild.</div>
+  <div class="report-context">The article references CISA’s catalog to state that 34 Ivanti product vulnerabilities have been flagged as actively exploited in the wild.</div>
 </li></ul></div>
             
           </div>
@@ -1493,50 +1647,50 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:94%"></div></div><span class="score-num score-num-high">94</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:688533530ee91f26">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:688533530ee91f26')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:688533530ee91f26')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:688533530ee91f26')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:688533530ee91f26')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:688533530ee91f26')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:688533530ee91f26')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:688533530ee91f26')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:688533530ee91f26')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:688533530ee91f26')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:688533530ee91f26')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:688533530ee91f26" class="tab-panel active"><div class="prose">The <mark class="tag-hl">University of Nottingham</mark> confirmed a data breach of its student records system affecting about 454,600 current and former students, exposing extensive personal, academic, and payment-related information. <mark class="tag-hl">ShinyHunters</mark> claimed responsibility, linking the incident to a broader campaign targeting <mark class="tag-hl">Oracle PeopleSoft</mark> systems.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:688533530ee91f26" class="tab-panel"><div class="prose"><p>The <mark class="tag-hl">University of Nottingham</mark> confirmed that a hacking group accessed its student records system in a cyber incident affecting current students and alumni. The university said a “significant amount of data” was accessed and that it reported the incident to <mark class="tag-hl">Action Fraud</mark> and the UK Information Commissioner’s Office. <mark class="tag-hl">Have I Been Pwned</mark> said the breach affects 454,600 former and current students.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:688533530ee91f26" class="tab-panel active"><div class="prose">The University of Nottingham confirmed a data breach of its student records system affecting about 454,600 current and former students, exposing extensive personal, academic, and payment-related information. ShinyHunters claimed responsibility, linking the incident to a broader campaign targeting Oracle PeopleSoft systems.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:688533530ee91f26" class="tab-panel"><div class="prose"><p>The University of Nottingham confirmed that a hacking group accessed its student records system in a cyber incident affecting current students and alumni. The university said a “significant amount of data” was accessed and that it reported the incident to Action Fraud and the UK Information Commissioner’s Office. Have I Been Pwned said the breach affects 454,600 former and current students.</p>
 
-<p><mark class="tag-hl">ShinyHunters</mark> claimed responsibility for the attack and posted an archive of allegedly stolen documents as proof on its dark web leak site. The group claimed to have stolen over 40GB of documents containing student finance data, billing and payment information, credit card and payment details, and campus portal exports from the <mark class="tag-hl">University of Nottingham</mark> and its <mark class="tag-hl">Malaysia</mark> and <mark class="tag-hl">China</mark> campuses. <mark class="tag-hl">Have I Been Pwned</mark> said the exposed data includes email addresses, names, addresses, phone numbers, ethnicities, disabilities, passport numbers, academic enrolment information, and fee payment information.</p>
+<p>ShinyHunters claimed responsibility for the attack and posted an archive of allegedly stolen documents as proof on its dark web leak site. The group claimed to have stolen over 40GB of documents containing student finance data, billing and payment information, credit card and payment details, and campus portal exports from the University of Nottingham and its Malaysia and China campuses. Have I Been Pwned said the exposed data includes email addresses, names, addresses, phone numbers, ethnicities, disabilities, passport numbers, academic enrolment information, and fee payment information.</p>
 
-<p>BleepingComputer reported that the attack is part of a broader <mark class="tag-hl">ShinyHunters</mark> data theft campaign targeting cloud and on-premises <mark class="tag-hl">Oracle PeopleSoft</mark> instances at more than 100 organizations worldwide. <mark class="tag-hl">ShinyHunters</mark> told BleepingComputer that it is using a “<mark class="tag-hl">gadget chain</mark>” of zero-days and old vulnerabilities, though the technique does not work on all systems. The university said it is working with the third party that maintains the platform to lead a forensic investigation.</p>
+<p>BleepingComputer reported that the attack is part of a broader ShinyHunters data theft campaign targeting cloud and on-premises Oracle PeopleSoft instances at more than 100 organizations worldwide. ShinyHunters told BleepingComputer that it is using a “gadget chain” of zero-days and old vulnerabilities, though the technique does not work on all systems. The university said it is working with the third party that maintains the platform to lead a forensic investigation.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:688533530ee91f26" class="tab-panel"><div class="prose"><p>The <mark class="tag-hl">University of Nottingham</mark> confirmed that a hacking group gained access to its student records system, affecting both current students and alumni. The university described the incident as involving a “significant amount of data” and said it has reported the breach to <mark class="tag-hl">Action Fraud</mark> and the UK Information Commissioner’s Office. Nottingham University is a public research university with 7,000 staff and more than 46,000 students.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:688533530ee91f26" class="tab-panel"><div class="prose"><p>The University of Nottingham confirmed that a hacking group gained access to its student records system, affecting both current students and alumni. The university described the incident as involving a “significant amount of data” and said it has reported the breach to Action Fraud and the UK Information Commissioner’s Office. Nottingham University is a public research university with 7,000 staff and more than 46,000 students.</p>
 
-<p><mark class="tag-hl">ShinyHunters</mark> claimed responsibility for the breach and shared an archive of allegedly stolen documents as proof. In a post on its dark web leak site, the group claimed to have stolen more than 40GB of documents from the <mark class="tag-hl">University of Nottingham</mark> and its <mark class="tag-hl">Malaysia</mark> and <mark class="tag-hl">China</mark> campuses. The claimed data includes student finance data, billing and payment information, credit card and payment details, and campus portal exports.</p>
+<p>ShinyHunters claimed responsibility for the breach and shared an archive of allegedly stolen documents as proof. In a post on its dark web leak site, the group claimed to have stolen more than 40GB of documents from the University of Nottingham and its Malaysia and China campuses. The claimed data includes student finance data, billing and payment information, credit card and payment details, and campus portal exports.</p>
 
-<p><mark class="tag-hl">Have I Been Pwned</mark> analyzed the leaked data and said the breach affects 454,600 former and current students. According to <mark class="tag-hl">Have I Been Pwned</mark>, the exposed information includes email addresses and extensive personal information such as names, addresses, phone numbers, ethnicities, disabilities, passport numbers, academic enrolment information, and fee payment information. <mark class="tag-hl">ShinyHunters</mark> also said the documents contain full names, home addresses, IP addresses, phone numbers, and dates of birth.</p>
+<p>Have I Been Pwned analyzed the leaked data and said the breach affects 454,600 former and current students. According to Have I Been Pwned, the exposed information includes email addresses and extensive personal information such as names, addresses, phone numbers, ethnicities, disabilities, passport numbers, academic enrolment information, and fee payment information. ShinyHunters also said the documents contain full names, home addresses, IP addresses, phone numbers, and dates of birth.</p>
 
-<p>The university said it is working with the third party that maintains the platform to lead a forensic investigation. It stated that it takes the privacy and security of the data it holds seriously. The article does not state that the university has attributed the attack to <mark class="tag-hl">ShinyHunters</mark>, even though the group claimed responsibility.</p>
+<p>The university said it is working with the third party that maintains the platform to lead a forensic investigation. It stated that it takes the privacy and security of the data it holds seriously. The article does not state that the university has attributed the attack to ShinyHunters, even though the group claimed responsibility.</p>
 
-<p>BleepingComputer reported that the Nottingham incident is part of a widespread <mark class="tag-hl">ShinyHunters</mark> campaign involving data theft from more than 100 organizations worldwide. The campaign targets cloud and on-premises <mark class="tag-hl">Oracle PeopleSoft</mark> instances, a software suite used for areas including human resources, finance, payroll, supply chain, procurement, and campus administration. <mark class="tag-hl">ShinyHunters</mark> told BleepingComputer that it is using a “<mark class="tag-hl">gadget chain</mark>” of zero-days and old vulnerabilities, and that the attack does not work on all systems, likely because success depends on each instance’s configuration.</p>
+<p>BleepingComputer reported that the Nottingham incident is part of a widespread ShinyHunters campaign involving data theft from more than 100 organizations worldwide. The campaign targets cloud and on-premises Oracle PeopleSoft instances, a software suite used for areas including human resources, finance, payroll, supply chain, procurement, and campus administration. ShinyHunters told BleepingComputer that it is using a “gadget chain” of zero-days and old vulnerabilities, and that the attack does not work on all systems, likely because success depends on each instance’s configuration.</p>
 
-<p>The article also notes that Nottingham is the second UK university to disclose a data breach in recent days. The <mark class="tag-hl">University of Oxford</mark> disclosed a breach of its CareerConnect career services platform, and it also reported a separate Canvas-related incident in early May following <mark class="tag-hl">ShinyHunters</mark>’ breach of Instructure’s Canvas learning management system. BleepingComputer said it contacted <mark class="tag-hl">Oracle</mark> about whether the company is aware of an actively exploited PeopleSoft zero-day but had not received a reply.</p>
+<p>The article also notes that Nottingham is the second UK university to disclose a data breach in recent days. The University of Oxford disclosed a breach of its CareerConnect career services platform, and it also reported a separate Canvas-related incident in early May following ShinyHunters’ breach of Instructure’s Canvas learning management system. BleepingComputer said it contacted Oracle about whether the company is aware of an actively exploited PeopleSoft zero-day but had not received a reply.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:688533530ee91f26" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:688533530ee91f26" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The <mark class="tag-hl">University of Nottingham</mark> confirmed that it was the victim of a cyber incident in which a hacking group accessed its student records system. The breach affects both current students and alumni, and the university said a “significant amount of data” was accessed. The incident has been reported to <mark class="tag-hl">Action Fraud</mark> and the UK Information Commissioner’s Office.</p>
+<p>The University of Nottingham confirmed that it was the victim of a cyber incident in which a hacking group accessed its student records system. The breach affects both current students and alumni, and the university said a “significant amount of data” was accessed. The incident has been reported to Action Fraud and the UK Information Commissioner’s Office.</p>
 
-<p>Nottingham University is described in the article as a public research university with 7,000 staff and more than 46,000 students. It ranks in the Top 20 in the <mark class="tag-hl">United Kingdom</mark> and the Top 100 worldwide.</p>
+<p>Nottingham University is described in the article as a public research university with 7,000 staff and more than 46,000 students. It ranks in the Top 20 in the United Kingdom and the Top 100 worldwide.</p>
 
 <h2 id="claimed-actor-and-stolen-data">Claimed actor and stolen data</h2>
 
-<p>The university had not attributed the attack at the time of the article, but the <mark class="tag-hl">ShinyHunters</mark> extortion gang claimed responsibility. <mark class="tag-hl">ShinyHunters</mark> shared an archive of allegedly stolen documents as proof and posted about the university on its dark web leak site.</p>
+<p>The university had not attributed the attack at the time of the article, but the ShinyHunters extortion gang claimed responsibility. ShinyHunters shared an archive of allegedly stolen documents as proof and posted about the university on its dark web leak site.</p>
 
-<p><mark class="tag-hl">ShinyHunters</mark> claimed to have stolen more than 40GB of documents from the <mark class="tag-hl">University of Nottingham</mark> and its <mark class="tag-hl">Malaysia</mark> and <mark class="tag-hl">China</mark> campuses. The group said the stolen material includes:</p>
+<p>ShinyHunters claimed to have stolen more than 40GB of documents from the University of Nottingham and its Malaysia and China campuses. The group said the stolen material includes:</p>
 
 <ul>
 <li>Student finance data.</li>
@@ -1552,9 +1706,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="confirmed-scale-and-exposed-information">Confirmed scale and exposed information</h2>
 
-<p><mark class="tag-hl">Have I Been Pwned</mark> analyzed the leaked data and said the breach affects 454,600 former and current students. According to <mark class="tag-hl">Have I Been Pwned</mark>, the exposed data includes email addresses along with extensive personal information.</p>
+<p>Have I Been Pwned analyzed the leaked data and said the breach affects 454,600 former and current students. According to Have I Been Pwned, the exposed data includes email addresses along with extensive personal information.</p>
 
-<p>The data described by <mark class="tag-hl">Have I Been Pwned</mark> includes:</p>
+<p>The data described by Have I Been Pwned includes:</p>
 
 <ul>
 <li>Names.</li>
@@ -1569,13 +1723,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="university-response">University response</h2>
 
-<p>The <mark class="tag-hl">University of Nottingham</mark> said it is working with the third party that maintains the affected platform to lead a forensic investigation. The university said it takes the privacy and security of the data it holds seriously.</p>
+<p>The University of Nottingham said it is working with the third party that maintains the affected platform to lead a forensic investigation. The university said it takes the privacy and security of the data it holds seriously.</p>
 
-<p>The university also said it reported the incident to <mark class="tag-hl">Action Fraud</mark> and the Information Commissioner’s Office.</p>
+<p>The university also said it reported the incident to Action Fraud and the Information Commissioner’s Office.</p>
 
 <h2 id="link-to-peoplesoft-data-theft-campaign">Link to PeopleSoft data theft campaign</h2>
 
-<p>BleepingComputer reported that the Nottingham breach is part of a wider data theft campaign by <mark class="tag-hl">ShinyHunters</mark>. According to the article, the group has stolen data from more than 100 organizations worldwide after breaching cloud and on-premises <mark class="tag-hl">Oracle PeopleSoft</mark> instances.</p>
+<p>BleepingComputer reported that the Nottingham breach is part of a wider data theft campaign by ShinyHunters. According to the article, the group has stolen data from more than 100 organizations worldwide after breaching cloud and on-premises Oracle PeopleSoft instances.</p>
 
 <p>PeopleSoft is described as an enterprise business software suite used to manage large-scale operations, including:</p>
 
@@ -1590,22 +1744,23 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="technical-details-described-in-the-article">Technical details described in the article</h2>
 
-<p><mark class="tag-hl">ShinyHunters</mark> told BleepingComputer that it is using a “<mark class="tag-hl">gadget chain</mark>” of zero-days and old vulnerabilities in the attacks. The group also said the attack does not work on all systems. BleepingComputer wrote that this is likely because successful exploitation depends on each instance’s configuration.</p>
+<p>ShinyHunters told BleepingComputer that it is using a “gadget chain” of zero-days and old vulnerabilities in the attacks. The group also said the attack does not work on all systems. BleepingComputer wrote that this is likely because successful exploitation depends on each instance’s configuration.</p>
 
-<p>BleepingComputer said it contacted <mark class="tag-hl">Oracle</mark> to confirm whether the company is aware of an actively exploited PeopleSoft zero-day. At the time of the article, <mark class="tag-hl">Oracle</mark> had not replied.</p>
+<p>BleepingComputer said it contacted Oracle to confirm whether the company is aware of an actively exploited PeopleSoft zero-day. At the time of the article, Oracle had not replied.</p>
 
 <h2 id="other-university-breaches-mentioned">Other university breaches mentioned</h2>
 
-<p>The article notes that Nottingham University is the second UK university to disclose a data breach in recent days. The <mark class="tag-hl">University of Oxford</mark> revealed the previous week that its CareerConnect career services platform had been compromised on May 28.</p>
+<p>The article notes that Nottingham University is the second UK university to disclose a data breach in recent days. The University of Oxford revealed the previous week that its CareerConnect career services platform had been compromised on May 28.</p>
 
-<p>Oxford University also reported a second data breach in early May following <mark class="tag-hl">ShinyHunters</mark>’ breach of Instructure’s Canvas learning management system. The article references that incident as separate from the Nottingham breach but related through the <mark class="tag-hl">ShinyHunters</mark> activity described.</p>
+<p>Oxford University also reported a second data breach in early May following ShinyHunters’ breach of Instructure’s Canvas learning management system. The article references that incident as separate from the Nottingham breach but related through the ShinyHunters activity described.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:688533530ee91f26" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The incident highlights third-party platform risk because the university said it is working with the third party that maintains the student records platform to lead the forensic investigation.</span></li><li><span class="kp-text"><mark class="tag-hl">ShinyHunters</mark> told BleepingComputer that exploitation does not work on all PeopleSoft systems, indicating that individual PeopleSoft configuration can influence whether an instance is successfully compromised.</span></li><li><span class="kp-text">The alleged stolen data spans Nottingham’s UK, <mark class="tag-hl">Malaysia</mark>, and <mark class="tag-hl">China</mark> campuses, showing that a single student records platform compromise can have multi-campus and cross-border exposure.</span></li><li><span class="kp-text">The compromised data reportedly includes highly sensitive attributes such as ethnicities, disabilities, passport numbers, and fee payment information, making the breach more severe than exposure of basic contact details alone.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:688533530ee91f26" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The incident highlights third-party platform risk because the university said it is working with the third party that maintains the student records platform to lead the forensic investigation.</span></li><li><span class="kp-text">ShinyHunters told BleepingComputer that exploitation does not work on all PeopleSoft systems, indicating that individual PeopleSoft configuration can influence whether an instance is successfully compromised.</span></li><li><span class="kp-text">The alleged stolen data spans Nottingham’s UK, Malaysia, and China campuses, showing that a single student records platform compromise can have multi-campus and cross-border exposure.</span></li><li><span class="kp-text">The compromised data reportedly includes highly sensitive attributes such as ethnicities, disabilities, passport numbers, and fee payment information, making the breach more severe than exposure of basic contact details alone.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The <mark class="tag-hl">University of Nottingham</mark> confirmed that a hacking group accessed its student records system, affecting both current students and alumni.</span></li><li><span class="kp-text"><mark class="tag-hl">Have I Been Pwned</mark> said the breach affects 454,600 former and current students and includes email addresses, names, addresses, phone numbers, ethnicities, disabilities, passport numbers, academic enrolment information, and fee payment information.</span></li><li><span class="kp-text">The <mark class="tag-hl">ShinyHunters</mark> extortion gang claimed responsibility for the attack and said it stole over 40GB of documents from the <mark class="tag-hl">University of Nottingham</mark> and its <mark class="tag-hl">Malaysia</mark> and <mark class="tag-hl">China</mark> campuses.</span></li><li><span class="kp-text">The university said it is working with the third party that maintains the platform on a forensic investigation and has reported the incident to <mark class="tag-hl">Action Fraud</mark> and the UK Information Commissioner&#39;s Office.</span></li><li><span class="kp-text">BleepingComputer reported that the attack is part of a wider <mark class="tag-hl">ShinyHunters</mark> campaign targeting cloud and on-premises <mark class="tag-hl">Oracle PeopleSoft</mark> instances at over 100 organizations worldwide.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The University of Nottingham confirmed that a hacking group accessed its student records system, affecting both current students and alumni.</span></li><li><span class="kp-text">Have I Been Pwned said the breach affects 454,600 former and current students and includes email addresses, names, addresses, phone numbers, ethnicities, disabilities, passport numbers, academic enrolment information, and fee payment information.</span></li><li><span class="kp-text">The ShinyHunters extortion gang claimed responsibility for the attack and said it stole over 40GB of documents from the University of Nottingham and its Malaysia and China campuses.</span></li><li><span class="kp-text">The university said it is working with the third party that maintains the platform on a forensic investigation and has reported the incident to Action Fraud and the UK Information Commissioner&#39;s Office.</span></li><li><span class="kp-text">BleepingComputer reported that the attack is part of a wider ShinyHunters campaign targeting cloud and on-premises Oracle PeopleSoft instances at over 100 organizations worldwide.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/nottingham-university-data-breach-affects-over-450-000-students/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a high-impact, specific breach involving 454,600 current and former <mark class="tag-hl">University of Nottingham</mark> students and extensive personal, academic, and payment-related data. It is especially important because <mark class="tag-hl">ShinyHunters</mark> claims the attack is part of a broader campaign compromising <mark class="tag-hl">Oracle PeopleSoft</mark> instances at over 100 organizations using a claimed chain of zero-days and older vulnerabilities.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a high-impact, specific breach involving 454,600 current and former University of Nottingham students and extensive personal, academic, and payment-related data. It is especially important because ShinyHunters claims the attack is part of a broader campaign compromising Oracle PeopleSoft instances at over 100 organizations using a claimed chain of zero-days and older vulnerabilities.</p>
 </div></div>
             
             
@@ -1635,52 +1790,52 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:84%"></div></div><span class="score-num score-num-mid">84</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:86b1db111a1f65cb">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:86b1db111a1f65cb')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:86b1db111a1f65cb')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:86b1db111a1f65cb')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:86b1db111a1f65cb')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:86b1db111a1f65cb')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:86b1db111a1f65cb')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:86b1db111a1f65cb')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:86b1db111a1f65cb')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:86b1db111a1f65cb')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:86b1db111a1f65cb')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:86b1db111a1f65cb" class="tab-panel active"><div class="prose"><mark class="tag-hl">GitHub</mark> will disable <mark class="tag-hl">npm install</mark> lifecycle scripts by default in <mark class="tag-hl">npm v12</mark> to reduce supply chain attacks where malicious dependencies execute code during installation. Developers will need to explicitly approve trusted scripts, Git dependencies, and remote URL dependencies before they run or resolve.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:86b1db111a1f65cb" class="tab-panel"><div class="prose"><p><mark class="tag-hl">GitHub</mark> announced breaking changes coming to <mark class="tag-hl">npm</mark> version 12, including disabling install scripts by default. The change is intended to combat software supply chain threats that abuse the <code><mark class="tag-hl">npm install</mark></code> command to execute malicious code through <mark class="tag-hl">npm</mark> lifecycle hooks. Version 12 is scheduled for release next month.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:86b1db111a1f65cb" class="tab-panel active"><div class="prose">GitHub will disable npm install lifecycle scripts by default in npm v12 to reduce supply chain attacks where malicious dependencies execute code during installation. Developers will need to explicitly approve trusted scripts, Git dependencies, and remote URL dependencies before they run or resolve.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:86b1db111a1f65cb" class="tab-panel"><div class="prose"><p>GitHub announced breaking changes coming to npm version 12, including disabling install scripts by default. The change is intended to combat software supply chain threats that abuse the <code>npm install</code> command to execute malicious code through npm lifecycle hooks. Version 12 is scheduled for release next month.</p>
 
-<p><mark class="tag-hl">GitHub</mark> described install-time lifecycle scripts as the “single largest code-execution surface in the <mark class="tag-hl">npm</mark> ecosystem.” It said <code><mark class="tag-hl">npm install</mark></code> currently runs scripts from every transitive dependency, meaning a compromised package anywhere in the dependency tree can run arbitrary code on a developer machine or CI runner. The new behavior makes script execution opt-in rather than trusted by default.</p>
+<p>GitHub described install-time lifecycle scripts as the “single largest code-execution surface in the npm ecosystem.” It said <code>npm install</code> currently runs scripts from every transitive dependency, meaning a compromised package anywhere in the dependency tree can run arbitrary code on a developer machine or CI runner. The new behavior makes script execution opt-in rather than trusted by default.</p>
 
-<p>The changes also block Git dependencies and remote URL dependencies by default unless explicitly allowed. <mark class="tag-hl">GitHub</mark> recommends developers prepare by upgrading to <mark class="tag-hl">npm 11.16.0</mark> or newer, reviewing warnings, and using <code><mark class="tag-hl">npm approve-scripts</mark> --allow-scripts-pending</code> to approve trusted packages. Unapproved scripts will stop running after the upgrade.</p>
+<p>The changes also block Git dependencies and remote URL dependencies by default unless explicitly allowed. GitHub recommends developers prepare by upgrading to npm 11.16.0 or newer, reviewing warnings, and using <code>npm approve-scripts --allow-scripts-pending</code> to approve trusted packages. Unapproved scripts will stop running after the upgrade.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:86b1db111a1f65cb" class="tab-panel"><div class="prose"><p><mark class="tag-hl">GitHub</mark> announced upcoming breaking changes for <mark class="tag-hl">npm</mark> version 12, with the central change being that install scripts will be turned off by default. The company said the changes are meant to reduce software supply chain threats that use <code><mark class="tag-hl">npm install</mark></code> to trigger malicious code execution. Version 12 is scheduled for release next month.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:86b1db111a1f65cb" class="tab-panel"><div class="prose"><p>GitHub announced upcoming breaking changes for npm version 12, with the central change being that install scripts will be turned off by default. The company said the changes are meant to reduce software supply chain threats that use <code>npm install</code> to trigger malicious code execution. Version 12 is scheduled for release next month.</p>
 
-<p>The issue centers on <mark class="tag-hl">npm</mark> lifecycle hooks such as <code>preinstall</code>, <code>install</code>, and <code>postinstall</code>. <mark class="tag-hl">GitHub</mark> said <code><mark class="tag-hl">npm install</mark></code> runs scripts from every transitive dependency, so a single compromised package anywhere in the dependency tree can execute arbitrary code on a developer machine or CI runner. <mark class="tag-hl">GitHub</mark> characterized install-time lifecycle scripts as the “single largest code-execution surface in the <mark class="tag-hl">npm</mark> ecosystem.”</p>
+<p>The issue centers on npm lifecycle hooks such as <code>preinstall</code>, <code>install</code>, and <code>postinstall</code>. GitHub said <code>npm install</code> runs scripts from every transitive dependency, so a single compromised package anywhere in the dependency tree can execute arbitrary code on a developer machine or CI runner. GitHub characterized install-time lifecycle scripts as the “single largest code-execution surface in the npm ecosystem.”</p>
 
-<p>Under the new behavior, <code><mark class="tag-hl">npm install</mark></code> will no longer execute dependency install scripts unless those scripts are explicitly allowed in the project. The change includes native <code><mark class="tag-hl">node-gyp</mark></code> builds, where a package with a <code>binding.gyp</code> and no explicit install script is still blocked because <mark class="tag-hl">npm</mark> runs an implicit <code><mark class="tag-hl">node-gyp</mark> rebuild</code>. Git, file, and link dependency <code>prepare</code> scripts are also blocked in the same way.</p>
+<p>Under the new behavior, <code>npm install</code> will no longer execute dependency install scripts unless those scripts are explicitly allowed in the project. The change includes native <code>node-gyp</code> builds, where a package with a <code>binding.gyp</code> and no explicit install script is still blocked because npm runs an implicit <code>node-gyp rebuild</code>. Git, file, and link dependency <code>prepare</code> scripts are also blocked in the same way.</p>
 
-<p><mark class="tag-hl">GitHub</mark> also said <mark class="tag-hl">npm</mark> version 12 will no longer resolve Git dependencies unless explicitly allowed with <code>--allow-git</code>. It will also no longer resolve dependencies from remote URLs, such as HTTPS tarballs, unless explicitly allowed with <code>--allow-remote</code>. <mark class="tag-hl">GitHub</mark> said defaulting <code>--allow-git</code> to <code>none</code> closes a code execution path involving a Git dependency’s <code>.npmrc</code> configuration overriding the Git executable, even with <code>--ignore-scripts</code>.</p>
+<p>GitHub also said npm version 12 will no longer resolve Git dependencies unless explicitly allowed with <code>--allow-git</code>. It will also no longer resolve dependencies from remote URLs, such as HTTPS tarballs, unless explicitly allowed with <code>--allow-remote</code>. GitHub said defaulting <code>--allow-git</code> to <code>none</code> closes a code execution path involving a Git dependency’s <code>.npmrc</code> configuration overriding the Git executable, even with <code>--ignore-scripts</code>.</p>
 
-<p>To prepare, <mark class="tag-hl">GitHub</mark> recommends that developers upgrade to <mark class="tag-hl">npm 11.16.0</mark> or newer, run a normal install, and review the warnings displayed. Developers can use <code><mark class="tag-hl">npm approve-scripts</mark> --allow-scripts-pending</code> to see which packages have scripts, approve trusted ones, and commit the updated <code>package.json</code>. <mark class="tag-hl">GitHub</mark> said approved scripts will continue running after the upgrade, while unapproved scripts will stop.</p>
+<p>To prepare, GitHub recommends that developers upgrade to npm 11.16.0 or newer, run a normal install, and review the warnings displayed. Developers can use <code>npm approve-scripts --allow-scripts-pending</code> to see which packages have scripts, approve trusted ones, and commit the updated <code>package.json</code>. GitHub said approved scripts will continue running after the upgrade, while unapproved scripts will stop.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:86b1db111a1f65cb" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:86b1db111a1f65cb" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">GitHub</mark> announced a set of breaking changes planned for <mark class="tag-hl">npm</mark> version 12, which is scheduled for release next month. The most significant change is that <mark class="tag-hl">npm install</mark> scripts will be disabled by default. <mark class="tag-hl">GitHub</mark> said the goal is to reduce software supply chain threats that abuse the <code><mark class="tag-hl">npm install</mark></code> command to run malicious code through <mark class="tag-hl">npm</mark> lifecycle hooks.</p>
+<p>GitHub announced a set of breaking changes planned for npm version 12, which is scheduled for release next month. The most significant change is that npm install scripts will be disabled by default. GitHub said the goal is to reduce software supply chain threats that abuse the <code>npm install</code> command to run malicious code through npm lifecycle hooks.</p>
 
-<p>The change shifts <mark class="tag-hl">npm</mark> behavior from trusting automatic install-time execution by default to requiring explicit approval. <mark class="tag-hl">GitHub</mark> said the intent is to block automatic code execution during installation unless a project has specifically allowed it. The company described this as keeping script execution “one command away” for packages that developers trust.</p>
+<p>The change shifts npm behavior from trusting automatic install-time execution by default to requiring explicit approval. GitHub said the intent is to block automatic code execution during installation unless a project has specifically allowed it. The company described this as keeping script execution “one command away” for packages that developers trust.</p>
 
-<h2 id="why-github-is-making-the-change">Why <mark class="tag-hl">GitHub</mark> Is Making the Change</h2>
+<h2 id="why-github-is-making-the-change">Why GitHub Is Making the Change</h2>
 
-<p><mark class="tag-hl">GitHub</mark> described install-time lifecycle scripts as the “single largest code-execution surface in the <mark class="tag-hl">npm</mark> ecosystem.” The article explains that <code><mark class="tag-hl">npm install</mark></code> downloads and installs the necessary dependencies for a <mark class="tag-hl">Node.js</mark> project. During that process, <mark class="tag-hl">npm</mark> can run scripts from every transitive dependency.</p>
+<p>GitHub described install-time lifecycle scripts as the “single largest code-execution surface in the npm ecosystem.” The article explains that <code>npm install</code> downloads and installs the necessary dependencies for a Node.js project. During that process, npm can run scripts from every transitive dependency.</p>
 
-<p>According to <mark class="tag-hl">GitHub</mark>, this creates a risk because a single compromised package anywhere in the dependency tree can run arbitrary code on a developer machine or CI runner. The changes are designed to combat attack techniques that use <code><mark class="tag-hl">npm install</mark></code> to trigger malicious code execution through lifecycle hooks.</p>
+<p>According to GitHub, this creates a risk because a single compromised package anywhere in the dependency tree can run arbitrary code on a developer machine or CI runner. The changes are designed to combat attack techniques that use <code>npm install</code> to trigger malicious code execution through lifecycle hooks.</p>
 
-<h2 id="install-script-behavior-in-npm-version-12">Install Script Behavior in <mark class="tag-hl">npm</mark> Version 12</h2>
+<h2 id="install-script-behavior-in-npm-version-12">Install Script Behavior in npm Version 12</h2>
 
-<p>In <mark class="tag-hl">npm</mark> version 12, <code><mark class="tag-hl">npm install</mark></code> will no longer execute dependency install scripts unless they are explicitly allowed in the project. The blocked lifecycle scripts include:</p>
+<p>In npm version 12, <code>npm install</code> will no longer execute dependency install scripts unless they are explicitly allowed in the project. The blocked lifecycle scripts include:</p>
 
 <ul>
 <li><code>preinstall</code></li>
@@ -1692,44 +1847,45 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="impact-on-native-builds-and-prepare-scripts">Impact on Native Builds and Prepare Scripts</h2>
 
-<p><mark class="tag-hl">GitHub</mark> said the default <code>allowScripts</code> behavior also affects native <code><mark class="tag-hl">node-gyp</mark></code> builds. A package with a <code>binding.gyp</code> file and no explicit install script will still be blocked because <mark class="tag-hl">npm</mark> runs an implicit <code><mark class="tag-hl">node-gyp</mark> rebuild</code> for it.</p>
+<p>GitHub said the default <code>allowScripts</code> behavior also affects native <code>node-gyp</code> builds. A package with a <code>binding.gyp</code> file and no explicit install script will still be blocked because npm runs an implicit <code>node-gyp rebuild</code> for it.</p>
 
-<p>The same blocking approach applies to <code>prepare</code> scripts from certain dependency types. <mark class="tag-hl">GitHub</mark> said <code>prepare</code> scripts from Git, file, and link dependencies are blocked in the same way.</p>
+<p>The same blocking approach applies to <code>prepare</code> scripts from certain dependency types. GitHub said <code>prepare</code> scripts from Git, file, and link dependencies are blocked in the same way.</p>
 
 <h2 id="git-and-remote-url-dependency-changes">Git and Remote URL Dependency Changes</h2>
 
-<p><mark class="tag-hl">npm</mark> version 12 will also change how Git dependencies and remote URL dependencies are handled. By default, <code><mark class="tag-hl">npm install</mark></code> will no longer resolve Git dependencies unless they are explicitly allowed with <code>--allow-git</code>.</p>
+<p>npm version 12 will also change how Git dependencies and remote URL dependencies are handled. By default, <code>npm install</code> will no longer resolve Git dependencies unless they are explicitly allowed with <code>--allow-git</code>.</p>
 
-<p>The change applies to both direct and transitive Git dependencies. <mark class="tag-hl">GitHub</mark> said defaulting <code>--allow-git</code> to <code>none</code> closes a code execution path where a Git dependency’s <code>.npmrc</code> configuration file could override the Git executable, even when <code>--ignore-scripts</code> is used.</p>
+<p>The change applies to both direct and transitive Git dependencies. GitHub said defaulting <code>--allow-git</code> to <code>none</code> closes a code execution path where a Git dependency’s <code>.npmrc</code> configuration file could override the Git executable, even when <code>--ignore-scripts</code> is used.</p>
 
-<p>Remote URL dependencies will also be blocked by default. <mark class="tag-hl">npm</mark> will no longer resolve dependencies from remote URLs, including HTTPS tarballs, unless they are explicitly allowed with <code>--allow-remote</code>.</p>
+<p>Remote URL dependencies will also be blocked by default. npm will no longer resolve dependencies from remote URLs, including HTTPS tarballs, unless they are explicitly allowed with <code>--allow-remote</code>.</p>
 
 <h2 id="developer-preparation-and-recommended-response">Developer Preparation and Recommended Response</h2>
 
-<p><mark class="tag-hl">GitHub</mark> recommends that developers prepare by upgrading to <mark class="tag-hl">npm 11.16.0</mark> or newer. After upgrading, developers should run the normal install process and review the warnings that <mark class="tag-hl">npm</mark> displays.</p>
+<p>GitHub recommends that developers prepare by upgrading to npm 11.16.0 or newer. After upgrading, developers should run the normal install process and review the warnings that npm displays.</p>
 
-<p><mark class="tag-hl">GitHub</mark> also recommends using:</p>
+<p>GitHub also recommends using:</p>
 
 <ul>
-<li><code><mark class="tag-hl">npm approve-scripts</mark> --allow-scripts-pending</code></li>
+<li><code>npm approve-scripts --allow-scripts-pending</code></li>
 </ul>
 
 <p>This command shows which packages have scripts. Developers can then approve the packages they trust and commit the updated <code>package.json</code>.</p>
 
-<p><mark class="tag-hl">GitHub</mark> said that after this preparation, approved scripts will continue running once developers upgrade to <mark class="tag-hl">npm</mark> version 12. Any scripts left unapproved will stop running.</p>
+<p>GitHub said that after this preparation, approved scripts will continue running once developers upgrade to npm version 12. Any scripts left unapproved will stop running.</p>
 
-<h2 id="related-npm-security-setting">Related <mark class="tag-hl">npm</mark> Security Setting</h2>
+<h2 id="related-npm-security-setting">Related npm Security Setting</h2>
 
-<p>The article also notes that <mark class="tag-hl">npm</mark> earlier introduced <code><mark class="tag-hl">min-release-age</mark></code>. This setting tells <mark class="tag-hl">npm</mark> to reject any package version published less than a specified number of days earlier.</p>
+<p>The article also notes that npm earlier introduced <code>min-release-age</code>. This setting tells npm to reject any package version published less than a specified number of days earlier.</p>
 
-<p>The article describes <code><mark class="tag-hl">min-release-age</mark></code> as a safeguard against newly published malicious packages.</p>
+<p>The article describes <code>min-release-age</code> as a safeguard against newly published malicious packages.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:86b1db111a1f65cb" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Native <mark class="tag-hl">node-gyp</mark> builds will be blocked even when a package has no explicit install script because <mark class="tag-hl">npm</mark> runs an implicit <mark class="tag-hl">node-gyp</mark> rebuild for packages with binding.gyp.</span></li><li><span class="kp-text">The --allow-git default of none addresses a code execution path where a Git dependency’s .npmrc configuration could override the Git executable even when --ignore-scripts is used.</span></li><li><span class="kp-text">Developers can prepare before <mark class="tag-hl">npm v12</mark> by using <mark class="tag-hl">npm 11.16.0</mark> or newer to surface warnings and commit approvals into package.json with <mark class="tag-hl">npm approve-scripts</mark> --allow-scripts-pending.</span></li><li><span class="kp-text">Unapproved scripts will stop running after the upgrade, so package maintainers and teams need to distinguish trusted install-time behavior from unnecessary lifecycle scripts before moving to <mark class="tag-hl">npm v12</mark>.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:86b1db111a1f65cb" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Native node-gyp builds will be blocked even when a package has no explicit install script because npm runs an implicit node-gyp rebuild for packages with binding.gyp.</span></li><li><span class="kp-text">The --allow-git default of none addresses a code execution path where a Git dependency’s .npmrc configuration could override the Git executable even when --ignore-scripts is used.</span></li><li><span class="kp-text">Developers can prepare before npm v12 by using npm 11.16.0 or newer to surface warnings and commit approvals into package.json with npm approve-scripts --allow-scripts-pending.</span></li><li><span class="kp-text">Unapproved scripts will stop running after the upgrade, so package maintainers and teams need to distinguish trusted install-time behavior from unnecessary lifecycle scripts before moving to npm v12.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">GitHub</mark> announced breaking changes for <mark class="tag-hl">npm</mark> version 12, including disabling install scripts by default to reduce software supply chain threats.</span></li><li><span class="kp-text"><mark class="tag-hl">GitHub</mark> said <mark class="tag-hl">npm install</mark> currently runs scripts from every transitive dependency, allowing a compromised package anywhere in the dependency tree to execute arbitrary code on a developer machine or CI runner.</span></li><li><span class="kp-text">In <mark class="tag-hl">npm</mark> version 12, <mark class="tag-hl">npm install</mark> will not execute preinstall, install, or postinstall scripts from dependencies unless they are explicitly allowed in the project.</span></li><li><span class="kp-text">In <mark class="tag-hl">npm</mark> version 12, <mark class="tag-hl">npm install</mark> will not resolve Git dependencies or dependencies from remote URLs unless they are explicitly allowed with the relevant options.</span></li><li><span class="kp-text"><mark class="tag-hl">GitHub</mark> recommends developers upgrade to <mark class="tag-hl">npm 11.16.0</mark> or newer, review install warnings, and use <mark class="tag-hl">npm approve-scripts</mark> --allow-scripts-pending to approve trusted packages before upgrading.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">GitHub announced breaking changes for npm version 12, including disabling install scripts by default to reduce software supply chain threats.</span></li><li><span class="kp-text">GitHub said npm install currently runs scripts from every transitive dependency, allowing a compromised package anywhere in the dependency tree to execute arbitrary code on a developer machine or CI runner.</span></li><li><span class="kp-text">In npm version 12, npm install will not execute preinstall, install, or postinstall scripts from dependencies unless they are explicitly allowed in the project.</span></li><li><span class="kp-text">In npm version 12, npm install will not resolve Git dependencies or dependencies from remote URLs unless they are explicitly allowed with the relevant options.</span></li><li><span class="kp-text">GitHub recommends developers upgrade to npm 11.16.0 or newer, review install warnings, and use npm approve-scripts --allow-scripts-pending to approve trusted packages before upgrading.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/github-to-disable-npm-install-scripts.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific upcoming breaking change in <mark class="tag-hl">npm v12</mark> that affects a widely used software ecosystem and directly changes supply chain security behavior for developers and CI environments. It is broadly relevant and actionable for security professionals, though not an active exploitation report or emergency patch.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific upcoming breaking change in npm v12 that affects a widely used software ecosystem and directly changes supply chain security behavior for developers and CI environments. It is broadly relevant and actionable for security professionals, though not an active exploitation report or emergency patch.</p>
 </div></div>
             
             
@@ -1759,123 +1915,124 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:72%"></div></div><span class="score-num score-num-low">72</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:3c22dad552d6bb2f">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:3c22dad552d6bb2f')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:3c22dad552d6bb2f')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:3c22dad552d6bb2f')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:3c22dad552d6bb2f')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:3c22dad552d6bb2f')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:3c22dad552d6bb2f')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:3c22dad552d6bb2f')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:3c22dad552d6bb2f')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:3c22dad552d6bb2f')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:3c22dad552d6bb2f')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:3c22dad552d6bb2f" class="tab-panel active"><div class="prose"><mark class="tag-hl">Microsoft</mark> fixed a <mark class="tag-hl">Windows Server 2025</mark> issue that caused some <mark class="tag-hl">BitLocker</mark>-enabled systems with specific TPM/<mark class="tag-hl">PCR7</mark> Group Policy settings to prompt for a recovery key after April 2026 updates. The fix is included in the June 2026 cumulative updates, with mitigations available for admins who cannot deploy them yet.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:3c22dad552d6bb2f" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark> has resolved a known issue that caused some <mark class="tag-hl">Windows Server 2025</mark> devices to boot into <mark class="tag-hl">BitLocker</mark> recovery after installing the April 2026 security update. The problem affected systems with specific, unrecommended <mark class="tag-hl">BitLocker</mark> Group Policy settings involving TPM platform validation and <mark class="tag-hl">PCR7</mark>. <mark class="tag-hl">Microsoft</mark> fixed the bug in the June 2026 cumulative updates for <mark class="tag-hl">Windows Server 2025</mark> and <mark class="tag-hl">Windows 11 23H2</mark>.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:3c22dad552d6bb2f" class="tab-panel active"><div class="prose">Microsoft fixed a Windows Server 2025 issue that caused some BitLocker-enabled systems with specific TPM/PCR7 Group Policy settings to prompt for a recovery key after April 2026 updates. The fix is included in the June 2026 cumulative updates, with mitigations available for admins who cannot deploy them yet.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:3c22dad552d6bb2f" class="tab-panel"><div class="prose"><p>Microsoft has resolved a known issue that caused some Windows Server 2025 devices to boot into BitLocker recovery after installing the April 2026 security update. The problem affected systems with specific, unrecommended BitLocker Group Policy settings involving TPM platform validation and PCR7. Microsoft fixed the bug in the June 2026 cumulative updates for Windows Server 2025 and Windows 11 23H2.</p>
 
-<p>The issue was significant because affected administrators could be prompted to enter a <mark class="tag-hl">BitLocker</mark> recovery key after the first restart following the update. <mark class="tag-hl">Microsoft</mark> said the recovery key should only need to be entered once, and later restarts should not trigger the recovery screen if the Group Policy configuration remains unchanged. The company also said personal devices were unlikely to be affected because the impacted configurations are typically found on enterprise-managed systems.</p>
+<p>The issue was significant because affected administrators could be prompted to enter a BitLocker recovery key after the first restart following the update. Microsoft said the recovery key should only need to be entered once, and later restarts should not trigger the recovery screen if the Group Policy configuration remains unchanged. The company also said personal devices were unlikely to be affected because the impacted configurations are typically found on enterprise-managed systems.</p>
 
-<p><mark class="tag-hl">Microsoft</mark>’s fix prevents devices with the incompatible Group Policy configuration from installing the 2023-signed <mark class="tag-hl">Windows Boot Manager</mark>, which could trigger the unexpected <mark class="tag-hl">BitLocker</mark> recovery prompt. Affected devices may show Event ID 1032 in the System event log when installing Windows updates. Administrators who cannot deploy the June updates are advised to remove the relevant Group Policy configuration or use <mark class="tag-hl">Known Issue Rollback</mark> to prevent the automatic switch to the 2023 Boot Manager.</p>
+<p>Microsoft’s fix prevents devices with the incompatible Group Policy configuration from installing the 2023-signed Windows Boot Manager, which could trigger the unexpected BitLocker recovery prompt. Affected devices may show Event ID 1032 in the System event log when installing Windows updates. Administrators who cannot deploy the June updates are advised to remove the relevant Group Policy configuration or use Known Issue Rollback to prevent the automatic switch to the 2023 Boot Manager.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:3c22dad552d6bb2f" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark> fixed a <mark class="tag-hl">BitLocker</mark> recovery issue affecting some <mark class="tag-hl">Windows Server 2025</mark> devices after installation of the April 2026 security update. The issue caused certain systems to boot into <mark class="tag-hl">BitLocker</mark> recovery and require entry of the recovery key on the first restart after the update. <mark class="tag-hl">Microsoft</mark> addressed the problem in the <mark class="tag-hl">KB5094125</mark> cumulative update for <mark class="tag-hl">Windows Server 2025</mark> and the <mark class="tag-hl">KB5093998</mark> cumulative update for <mark class="tag-hl">Windows 11 23H2</mark>.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:3c22dad552d6bb2f" class="tab-panel"><div class="prose"><p>Microsoft fixed a BitLocker recovery issue affecting some Windows Server 2025 devices after installation of the April 2026 security update. The issue caused certain systems to boot into BitLocker recovery and require entry of the recovery key on the first restart after the update. Microsoft addressed the problem in the KB5094125 cumulative update for Windows Server 2025 and the KB5093998 cumulative update for Windows 11 23H2.</p>
 
-<p><mark class="tag-hl">BitLocker</mark> is a Windows security feature that encrypts storage drives to protect data from theft. Windows systems can enter <mark class="tag-hl">BitLocker</mark> recovery after certain hardware or platform changes, such as TPM updates, when protected drives cannot be unlocked through the default mechanism. In this case, <mark class="tag-hl">Microsoft</mark> tied the unexpected recovery prompts to specific <mark class="tag-hl">Trusted Platform Module</mark> validation settings and invalid <mark class="tag-hl">PCR7</mark> configurations.</p>
+<p>BitLocker is a Windows security feature that encrypts storage drives to protect data from theft. Windows systems can enter BitLocker recovery after certain hardware or platform changes, such as TPM updates, when protected drives cannot be unlocked through the default mechanism. In this case, Microsoft tied the unexpected recovery prompts to specific Trusted Platform Module validation settings and invalid PCR7 configurations.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> said the issue only occurs under a narrow set of conditions. Affected devices must have <mark class="tag-hl">BitLocker</mark> enabled on the OS drive, a configured Group Policy for TPM platform validation on native UEFI firmware with <mark class="tag-hl">PCR7</mark> included, and a <mark class="tag-hl">Secure Boot</mark> State <mark class="tag-hl">PCR7</mark> Binding reported as “Not Possible” in System Information. The device must also have the <mark class="tag-hl">Windows UEFI CA 2023</mark> certificate in the <mark class="tag-hl">Secure Boot</mark> Signature Database and must not already be running the 2023-signed <mark class="tag-hl">Windows Boot Manager</mark>.</p>
+<p>Microsoft said the issue only occurs under a narrow set of conditions. Affected devices must have BitLocker enabled on the OS drive, a configured Group Policy for TPM platform validation on native UEFI firmware with PCR7 included, and a Secure Boot State PCR7 Binding reported as “Not Possible” in System Information. The device must also have the Windows UEFI CA 2023 certificate in the Secure Boot Signature Database and must not already be running the 2023-signed Windows Boot Manager.</p>
 
-<p>Although some Windows 11 systems may also be affected, <mark class="tag-hl">Microsoft</mark> said personal devices are unlikely to be impacted. The affected configurations are generally found on enterprise systems managed by corporate IT teams. <mark class="tag-hl">Microsoft</mark> also said the <mark class="tag-hl">BitLocker</mark> recovery key only needs to be entered once if the Group Policy configuration remains unchanged.</p>
+<p>Although some Windows 11 systems may also be affected, Microsoft said personal devices are unlikely to be impacted. The affected configurations are generally found on enterprise systems managed by corporate IT teams. Microsoft also said the BitLocker recovery key only needs to be entered once if the Group Policy configuration remains unchanged.</p>
 
-<p><mark class="tag-hl">Microsoft</mark>’s update prevents devices with the incompatible Group Policy configuration from installing the 2023-signed <mark class="tag-hl">Windows Boot Manager</mark>. The company said this is intended to prevent unexpected <mark class="tag-hl">BitLocker</mark> recovery key prompts. If a device was affected by this protective behavior, administrators may see Event ID 1032 in the System event log when installing Windows updates.</p>
+<p>Microsoft’s update prevents devices with the incompatible Group Policy configuration from installing the 2023-signed Windows Boot Manager. The company said this is intended to prevent unexpected BitLocker recovery key prompts. If a device was affected by this protective behavior, administrators may see Event ID 1032 in the System event log when installing Windows updates.</p>
 
-<p>For administrators who cannot immediately deploy the June updates, <mark class="tag-hl">Microsoft</mark> advised removing the relevant Group Policy configuration before installing <mark class="tag-hl">KB5082063</mark> and later updates. <mark class="tag-hl">Microsoft</mark> also said administrators who cannot remove the policy before deployment can apply a <mark class="tag-hl">Known Issue Rollback</mark> on affected devices. The rollback prevents the automatic switch to the 2023 Boot Manager that triggers the <mark class="tag-hl">BitLocker</mark> recovery prompts.</p>
+<p>For administrators who cannot immediately deploy the June updates, Microsoft advised removing the relevant Group Policy configuration before installing KB5082063 and later updates. Microsoft also said administrators who cannot remove the policy before deployment can apply a Known Issue Rollback on affected devices. The rollback prevents the automatic switch to the 2023 Boot Manager that triggers the BitLocker recovery prompts.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:3c22dad552d6bb2f" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:3c22dad552d6bb2f" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> resolved a known <mark class="tag-hl">BitLocker</mark> recovery issue affecting some <mark class="tag-hl">Windows Server 2025</mark> devices after installation of the April 2026 security update. The issue caused certain systems to boot into <mark class="tag-hl">BitLocker</mark> recovery and prompt administrators for the <mark class="tag-hl">BitLocker</mark> recovery key after the first restart.</p>
+<p>Microsoft resolved a known BitLocker recovery issue affecting some Windows Server 2025 devices after installation of the April 2026 security update. The issue caused certain systems to boot into BitLocker recovery and prompt administrators for the BitLocker recovery key after the first restart.</p>
 
-<p>The fix was delivered during the June 2026 Patch Tuesday cycle. <mark class="tag-hl">Microsoft</mark> addressed the bug in <mark class="tag-hl">KB5094125</mark> for <mark class="tag-hl">Windows Server 2025</mark> and <mark class="tag-hl">KB5093998</mark> for <mark class="tag-hl">Windows 11 23H2</mark>.</p>
+<p>The fix was delivered during the June 2026 Patch Tuesday cycle. Microsoft addressed the bug in KB5094125 for Windows Server 2025 and KB5093998 for Windows 11 23H2.</p>
 
 <h2 id="what-happened">What happened</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> had previously acknowledged that some devices with an unrecommended <mark class="tag-hl">BitLocker</mark> Group Policy configuration might be required to enter their <mark class="tag-hl">BitLocker</mark> recovery key after installing the April 2026 update. The recovery prompt occurred on the first restart after the update.</p>
+<p>Microsoft had previously acknowledged that some devices with an unrecommended BitLocker Group Policy configuration might be required to enter their BitLocker recovery key after installing the April 2026 update. The recovery prompt occurred on the first restart after the update.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> said that, in this scenario, the <mark class="tag-hl">BitLocker</mark> recovery key only needs to be entered once. Subsequent restarts should not trigger the <mark class="tag-hl">BitLocker</mark> recovery screen as long as the Group Policy configuration remains unchanged.</p>
+<p>Microsoft said that, in this scenario, the BitLocker recovery key only needs to be entered once. Subsequent restarts should not trigger the BitLocker recovery screen as long as the Group Policy configuration remains unchanged.</p>
 
 <h2 id="technical-conditions-for-impact">Technical conditions for impact</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> said the issue occurs only on devices meeting all of the following conditions:</p>
+<p>Microsoft said the issue occurs only on devices meeting all of the following conditions:</p>
 
 <ul>
-<li><mark class="tag-hl">BitLocker</mark> is enabled on the operating system drive.</li>
-<li>The Group Policy “Configure TPM platform validation profile for native UEFI firmware configurations” is configured, and <mark class="tag-hl">PCR7</mark> is included in the validation profile, or the equivalent registry key is set manually.</li>
-<li>System Information, through msinfo32.exe, reports that <mark class="tag-hl">Secure Boot</mark> State <mark class="tag-hl">PCR7</mark> Binding is “Not Possible.”</li>
-<li>The <mark class="tag-hl">Windows UEFI CA 2023</mark> certificate is present in the device’s <mark class="tag-hl">Secure Boot</mark> Signature Database, making the device eligible for the 2023-signed <mark class="tag-hl">Windows Boot Manager</mark> to become the default.</li>
-<li>The device is not already running the 2023-signed <mark class="tag-hl">Windows Boot Manager</mark>.</li>
+<li>BitLocker is enabled on the operating system drive.</li>
+<li>The Group Policy “Configure TPM platform validation profile for native UEFI firmware configurations” is configured, and PCR7 is included in the validation profile, or the equivalent registry key is set manually.</li>
+<li>System Information, through msinfo32.exe, reports that Secure Boot State PCR7 Binding is “Not Possible.”</li>
+<li>The Windows UEFI CA 2023 certificate is present in the device’s Secure Boot Signature Database, making the device eligible for the 2023-signed Windows Boot Manager to become the default.</li>
+<li>The device is not already running the 2023-signed Windows Boot Manager.</li>
 </ul>
 
-<p><mark class="tag-hl">Microsoft</mark> described the issue as involving certain <mark class="tag-hl">Trusted Platform Module</mark> validation settings, including invalid <mark class="tag-hl">PCR7</mark> configurations. The problem was associated with updating boot files and the automatic switch to the 2023-signed <mark class="tag-hl">Windows Boot Manager</mark>.</p>
+<p>Microsoft described the issue as involving certain Trusted Platform Module validation settings, including invalid PCR7 configurations. The problem was associated with updating boot files and the automatic switch to the 2023-signed Windows Boot Manager.</p>
 
 <h2 id="affected-systems">Affected systems</h2>
 
-<p>The article focuses on <mark class="tag-hl">Windows Server 2025</mark> systems affected after the April 2026 security update. <mark class="tag-hl">Microsoft</mark> also said the issue may affect some Windows 11 systems.</p>
+<p>The article focuses on Windows Server 2025 systems affected after the April 2026 security update. Microsoft also said the issue may affect some Windows 11 systems.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> stated that the issue is unlikely to affect personal devices. The impacted configurations are typically found on enterprise systems managed by corporate IT teams.</p>
+<p>Microsoft stated that the issue is unlikely to affect personal devices. The impacted configurations are typically found on enterprise systems managed by corporate IT teams.</p>
 
-<h2 id="microsoft-s-fix"><mark class="tag-hl">Microsoft</mark>’s fix</h2>
+<h2 id="microsoft-s-fix">Microsoft’s fix</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> fixed the issue in the June 2026 cumulative updates:</p>
+<p>Microsoft fixed the issue in the June 2026 cumulative updates:</p>
 
 <ul>
-<li><mark class="tag-hl">KB5094125</mark> for <mark class="tag-hl">Windows Server 2025</mark>.</li>
-<li><mark class="tag-hl">KB5093998</mark> for <mark class="tag-hl">Windows 11 23H2</mark>.</li>
+<li>KB5094125 for Windows Server 2025.</li>
+<li>KB5093998 for Windows 11 23H2.</li>
 </ul>
 
-<p><mark class="tag-hl">Microsoft</mark> said the update addresses an issue where some devices might enter <mark class="tag-hl">BitLocker</mark> Recovery after updating boot files on systems with certain TPM validation settings. These settings include invalid <mark class="tag-hl">PCR7</mark> configurations.</p>
+<p>Microsoft said the update addresses an issue where some devices might enter BitLocker Recovery after updating boot files on systems with certain TPM validation settings. These settings include invalid PCR7 configurations.</p>
 
 <h2 id="how-the-fix-works">How the fix works</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> said devices with the incompatible Group Policy configuration are prevented from installing the 2023-signed <mark class="tag-hl">Windows Boot Manager</mark>. This is intended to prevent the unexpected <mark class="tag-hl">BitLocker</mark> recovery key prompt.</p>
+<p>Microsoft said devices with the incompatible Group Policy configuration are prevented from installing the 2023-signed Windows Boot Manager. This is intended to prevent the unexpected BitLocker recovery key prompt.</p>
 
 <p>If a device is affected by this behavior, administrators may see Event ID 1032 in the System event log when installing Windows updates.</p>
 
 <h2 id="guidance-for-administrators">Guidance for administrators</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> advised IT administrators who cannot yet deploy the June updates to remove the relevant Group Policy configuration before installing <mark class="tag-hl">KB5082063</mark> and later updates. <mark class="tag-hl">Microsoft</mark> also advised ensuring that <mark class="tag-hl">BitLocker</mark> bindings use the <mark class="tag-hl">PCR7</mark> profile.</p>
+<p>Microsoft advised IT administrators who cannot yet deploy the June updates to remove the relevant Group Policy configuration before installing KB5082063 and later updates. Microsoft also advised ensuring that BitLocker bindings use the PCR7 profile.</p>
 
-<p>For administrators who cannot remove the Group Policy before deployment, <mark class="tag-hl">Microsoft</mark> said they can apply a <mark class="tag-hl">Known Issue Rollback</mark> on affected devices. This prevents the automatic switch to the 2023 Boot Manager, which triggers the <mark class="tag-hl">BitLocker</mark> recovery prompts.</p>
+<p>For administrators who cannot remove the Group Policy before deployment, Microsoft said they can apply a Known Issue Rollback on affected devices. This prevents the automatic switch to the 2023 Boot Manager, which triggers the BitLocker recovery prompts.</p>
 
-<h2 id="related-prior-bitlocker-recovery-issues">Related prior <mark class="tag-hl">BitLocker</mark> recovery issues</h2>
+<h2 id="related-prior-bitlocker-recovery-issues">Related prior BitLocker recovery issues</h2>
 
-<p>The article notes that <mark class="tag-hl">Microsoft</mark> has addressed similar <mark class="tag-hl">BitLocker</mark> recovery problems in previous Windows update cycles. In August 2024, <mark class="tag-hl">Microsoft</mark> fixed a known issue that triggered <mark class="tag-hl">BitLocker</mark> recovery prompts across all supported Windows versions after the July 2024 security updates.</p>
+<p>The article notes that Microsoft has addressed similar BitLocker recovery problems in previous Windows update cycles. In August 2024, Microsoft fixed a known issue that triggered BitLocker recovery prompts across all supported Windows versions after the July 2024 security updates.</p>
 
-<p>In May 2025, <mark class="tag-hl">Microsoft</mark> released emergency updates to address a similar issue that caused Windows 10 systems to enter <mark class="tag-hl">BitLocker</mark> recovery after the May 2025 security updates.</p>
+<p>In May 2025, Microsoft released emergency updates to address a similar issue that caused Windows 10 systems to enter BitLocker recovery after the May 2025 security updates.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:3c22dad552d6bb2f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The <mark class="tag-hl">BitLocker</mark> recovery prompt is expected to appear only once on affected devices, and later restarts should not trigger it again if the Group Policy configuration is not changed.</span></li><li><span class="kp-text">The issue is unlikely to affect personal devices because the impacted <mark class="tag-hl">BitLocker</mark> configuration is typically found on enterprise systems managed by corporate IT teams.</span></li><li><span class="kp-text">Event ID 1032 in the System event log indicates that a device with the incompatible Group Policy configuration was prevented from installing the 2023-signed <mark class="tag-hl">Windows Boot Manager</mark>.</span></li><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark>’s fix avoids the recovery prompt by blocking installation of the 2023-signed <mark class="tag-hl">Windows Boot Manager</mark> on devices with the incompatible TPM validation configuration, rather than simply suppressing <mark class="tag-hl">BitLocker</mark> recovery.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:3c22dad552d6bb2f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The BitLocker recovery prompt is expected to appear only once on affected devices, and later restarts should not trigger it again if the Group Policy configuration is not changed.</span></li><li><span class="kp-text">The issue is unlikely to affect personal devices because the impacted BitLocker configuration is typically found on enterprise systems managed by corporate IT teams.</span></li><li><span class="kp-text">Event ID 1032 in the System event log indicates that a device with the incompatible Group Policy configuration was prevented from installing the 2023-signed Windows Boot Manager.</span></li><li><span class="kp-text">Microsoft’s fix avoids the recovery prompt by blocking installation of the 2023-signed Windows Boot Manager on devices with the incompatible TPM validation configuration, rather than simply suppressing BitLocker recovery.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark> resolved a known issue that caused some <mark class="tag-hl">Windows Server 2025</mark> devices to boot into <mark class="tag-hl">BitLocker</mark> recovery after installing the April 2026 security update.</span></li><li><span class="kp-text">The issue affected devices with <mark class="tag-hl">BitLocker</mark> enabled on the OS drive and a specific unrecommended <mark class="tag-hl">BitLocker</mark> Group Policy configuration involving TPM platform validation and <mark class="tag-hl">PCR7</mark>.</span></li><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark> fixed the bug in the <mark class="tag-hl">KB5094125</mark> cumulative update for <mark class="tag-hl">Windows Server 2025</mark> and the <mark class="tag-hl">KB5093998</mark> cumulative update for <mark class="tag-hl">Windows 11 23H2</mark>.</span></li><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark> said affected devices with the incompatible group policy configuration are now prevented from installing the 2023-signed <mark class="tag-hl">Windows Boot Manager</mark> to avoid unexpected <mark class="tag-hl">BitLocker</mark> recovery prompts.</span></li><li><span class="kp-text">IT admins who cannot deploy the June updates are advised to remove the relevant Group Policy configuration before installing <mark class="tag-hl">KB5082063</mark> and later updates, or apply a <mark class="tag-hl">Known Issue Rollback</mark> to prevent the automatic switch to the 2023 Boot Manager.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft resolved a known issue that caused some Windows Server 2025 devices to boot into BitLocker recovery after installing the April 2026 security update.</span></li><li><span class="kp-text">The issue affected devices with BitLocker enabled on the OS drive and a specific unrecommended BitLocker Group Policy configuration involving TPM platform validation and PCR7.</span></li><li><span class="kp-text">Microsoft fixed the bug in the KB5094125 cumulative update for Windows Server 2025 and the KB5093998 cumulative update for Windows 11 23H2.</span></li><li><span class="kp-text">Microsoft said affected devices with the incompatible group policy configuration are now prevented from installing the 2023-signed Windows Boot Manager to avoid unexpected BitLocker recovery prompts.</span></li><li><span class="kp-text">IT admins who cannot deploy the June updates are advised to remove the relevant Group Policy configuration before installing KB5082063 and later updates, or apply a Known Issue Rollback to prevent the automatic switch to the 2023 Boot Manager.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/microsoft/microsoft-fixes-bitlocker-recovery-bug-on-windows-server-2025/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific <mark class="tag-hl">Microsoft</mark> patch issue affecting some <mark class="tag-hl">Windows Server 2025</mark> and Windows 11 systems with particular <mark class="tag-hl">BitLocker</mark> and TPM/<mark class="tag-hl">PCR7</mark> configurations, making it relevant for enterprise Windows administrators. Its impact is narrow and mitigations exist, but affected systems may require <mark class="tag-hl">BitLocker</mark> recovery keys or policy changes during update deployment.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific Microsoft patch issue affecting some Windows Server 2025 and Windows 11 systems with particular BitLocker and TPM/PCR7 configurations, making it relevant for enterprise Windows administrators. Its impact is narrow and mitigations exist, but affected systems may require BitLocker recovery keys or policy changes during update deployment.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://support.microsoft.com/help/5094125" target="_blank" rel="noopener">June 9, 2026—KB5094125 (OS Build 26100.32995)</a></div>
   <div class="report-meta">Microsoft</div>
-  <div class="report-context">The article cites this <mark class="tag-hl">Microsoft</mark> cumulative update advisory as the <mark class="tag-hl">Windows Server 2025</mark> fix for the <mark class="tag-hl">BitLocker</mark> recovery issue.</div>
+  <div class="report-context">The article cites this Microsoft cumulative update advisory as the Windows Server 2025 fix for the BitLocker recovery issue.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://support.microsoft.com/help/5093998" target="_blank" rel="noopener">KB5093998</a></div>
   <div class="report-meta">Microsoft</div>
-  <div class="report-context">The article cites this <mark class="tag-hl">Microsoft</mark> cumulative update advisory as the <mark class="tag-hl">Windows 11 23H2</mark> fix for the <mark class="tag-hl">BitLocker</mark> recovery issue.</div>
+  <div class="report-context">The article cites this Microsoft cumulative update advisory as the Windows 11 23H2 fix for the BitLocker recovery issue.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://admin.cloud.microsoft/Adminportal/Home?source=applauncher#/windowsreleasehealth/:/issue/WI1280139" target="_blank" rel="noopener">Windows release health service alert WI1280139</a></div>
   <div class="report-meta">Microsoft</div>
-  <div class="report-context">The article references this <mark class="tag-hl">Microsoft</mark> service alert for details that affected devices may log Event ID 1032 and be blocked from installing the 2023-signed <mark class="tag-hl">Windows Boot Manager</mark>.</div>
+  <div class="report-context">The article references this Microsoft service alert for details that affected devices may log Event ID 1032 and be blocked from installing the 2023-signed Windows Boot Manager.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="http://support.microsoft.com/en-us/topic/april-14-2026-kb5082063-os-build-26100-32690-c57e289d-27c9-47cd-a183-72fabc62c5d7#:~:text=Option%201,-%3A%20Remove" target="_blank" rel="noopener">April 14, 2026—KB5082063 (OS Build 26100.32690)</a></div>
   <div class="report-meta">Microsoft</div>
-  <div class="report-context">The article links to this <mark class="tag-hl">Microsoft</mark> advisory for mitigation guidance on removing the relevant Group Policy configuration before installing <mark class="tag-hl">KB5082063</mark> and later updates.</div>
+  <div class="report-context">The article links to this Microsoft advisory for mitigation guidance on removing the relevant Group Policy configuration before installing KB5082063 and later updates.</div>
 </li></ul></div>
             
           </div>
@@ -1904,30 +2061,31 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:20%"></div></div><span class="score-num score-num-low">20</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="6d5811bcef32fa51afaf0a4fe289ab02:d609265e3f81a6f8">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-a93cc0016af889b604119fb1164494a6:d609265e3f81a6f8')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-a93cc0016af889b604119fb1164494a6:d609265e3f81a6f8')">Brief</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-6d5811bcef32fa51afaf0a4fe289ab02:d609265e3f81a6f8')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-6d5811bcef32fa51afaf0a4fe289ab02:d609265e3f81a6f8')">Brief</button>
                   
                   
                   
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-a93cc0016af889b604119fb1164494a6:d609265e3f81a6f8" class="tab-panel active"><div class="prose">A webinar will discuss how organizations can close visibility gaps in <mark class="tag-hl">operational technology</mark> environments and move from blind spots to <mark class="tag-hl">continuous protection</mark>.</div></div>
-                <div id="brief-a93cc0016af889b604119fb1164494a6:d609265e3f81a6f8" class="tab-panel"><div class="prose"></div></div>
+                <div id="tldr-6d5811bcef32fa51afaf0a4fe289ab02:d609265e3f81a6f8" class="tab-panel active"><div class="prose">A webinar will discuss how organizations can close visibility gaps in operational technology environments and move from blind spots to continuous protection.</div></div>
+                <div id="brief-6d5811bcef32fa51afaf0a4fe289ab02:d609265e3f81a6f8" class="tab-panel"><div class="prose"></div></div>
                 
                 
                 
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The article is about a webinar titled “Closing the <mark class="tag-hl">OT Security</mark> Visibility Gap: From Blind Spots to <mark class="tag-hl">Continuous Protection</mark>.”</span></li><li><span class="kp-text">The webinar focuses on closing the visibility gap in <mark class="tag-hl">operational technology</mark> security.</span></li><li><span class="kp-text">The webinar’s title frames the topic as a shift from security blind spots to <mark class="tag-hl">continuous protection</mark>.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The article is about a webinar titled “Closing the OT Security Visibility Gap: From Blind Spots to Continuous Protection.”</span></li><li><span class="kp-text">The webinar focuses on closing the visibility gap in operational technology security.</span></li><li><span class="kp-text">The webinar’s title frames the topic as a shift from security blind spots to continuous protection.</span></li></ul></div>
+            
             <a href="https://register.gotowebinar.com/register/7618879363370778966#new_tab" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a webinar promotion about <mark class="tag-hl">OT security</mark> visibility rather than reporting a specific incident, vulnerability, threat actor operation, or technical finding. It is low priority for security professionals unless they are specifically interested in the event topic.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a webinar promotion about OT security visibility rather than reporting a specific incident, vulnerability, threat actor operation, or technical finding. It is low priority for security professionals unless they are specifically interested in the event topic.</p>
 </div></div>
             
             
@@ -1951,38 +2109,38 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest window is dominated by active exploitation of a critical edge-device vulnerability, a large education-sector data breach tied to <mark class="tag-hl">ShinyHunters</mark>, and major ecosystem-level changes intended to reduce JavaScript supply chain risk. The reporting also includes Windows platform reliability updates affecting BitLocker recovery behavior and continued attention to operational technology visibility gaps.</p>
+        <div class="overview-body prose"><p>This digest window is dominated by active exploitation of a critical edge-device vulnerability, a large education-sector data breach tied to ShinyHunters, and major ecosystem-level changes intended to reduce JavaScript supply chain risk. The reporting also includes Windows platform reliability updates affecting BitLocker recovery behavior and continued attention to operational technology visibility gaps.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Edge Device Exploitation and Ivanti Sentry Compromise</span>
         </div>
-        <div class="overview-body prose"><p>Attackers are reportedly targeting <mark class="tag-hl">CVE-2026-10520</mark>, a maximum-severity <mark class="tag-hl">OS command injection</mark> flaw in <mark class="tag-hl">Ivanti Sentry</mark> that enables code execution with root privileges on Internet-exposed secure mobile gateways. <mark class="tag-hl">Ivanti</mark> patched the vulnerability in Sentry versions R10.5.2, R10.6.2, and R10.7.1, but <mark class="tag-hl">Shadowserver</mark> reported soon after that exposed vulnerable systems had already been backdoored in some cases.</p>
+        <div class="overview-body prose"><p>Attackers are reportedly targeting CVE-2026-10520, a maximum-severity OS command injection flaw in Ivanti Sentry that enables code execution with root privileges on Internet-exposed secure mobile gateways. Ivanti patched the vulnerability in Sentry versions R10.5.2, R10.6.2, and R10.7.1, but Shadowserver reported soon after that exposed vulnerable systems had already been backdoored in some cases.</p>
 
-<p><mark class="tag-hl">Shadowserver</mark> observed 19 vulnerable <mark class="tag-hl">Ivanti Sentry</mark> instances during scanning and said at least two were backdoored, warning that unpatched exposed systems were likely compromised. The report adds to a broader <mark class="tag-hl">Ivanti</mark> risk pattern: <mark class="tag-hl">CISA</mark> has flagged 34 vulnerabilities across <mark class="tag-hl">Ivanti</mark> products as actively exploited in the wild, including 12 that were also targeted in ransomware attacks.</p>
+<p>Shadowserver observed 19 vulnerable Ivanti Sentry instances during scanning and said at least two were backdoored, warning that unpatched exposed systems were likely compromised. The report adds to a broader Ivanti risk pattern: CISA has flagged 34 vulnerabilities across Ivanti products as actively exploited in the wild, including 12 that were also targeted in ransomware attacks.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">ShinyHunters and Large-Scale Higher Education Data Exposure</span>
         </div>
-        <div class="overview-body prose"><p>The <mark class="tag-hl">University of Nottingham</mark> confirmed unauthorized access to its student records system, affecting current students and alumni. <mark class="tag-hl">Have I Been Pwned</mark> reported that 454,600 individuals were impacted, with exposed data including email addresses, names, addresses, phone numbers, ethnicities, disabilities, passport numbers, academic enrolment information, and fee payment information.</p>
+        <div class="overview-body prose"><p>The University of Nottingham confirmed unauthorized access to its student records system, affecting current students and alumni. Have I Been Pwned reported that 454,600 individuals were impacted, with exposed data including email addresses, names, addresses, phone numbers, ethnicities, disabilities, passport numbers, academic enrolment information, and fee payment information.</p>
 
-<p>The <mark class="tag-hl">ShinyHunters</mark> extortion gang claimed responsibility and said it stole more than 40GB of documents from the <mark class="tag-hl">University of Nottingham</mark> and its <mark class="tag-hl">Malaysia</mark> and <mark class="tag-hl">China</mark> campuses. The university said it is working with the third party that maintains the affected platform on a forensic investigation and has reported the incident to <mark class="tag-hl">Action Fraud</mark> and the UK Information Commissioner’s Office.</p>
+<p>The ShinyHunters extortion gang claimed responsibility and said it stole more than 40GB of documents from the University of Nottingham and its Malaysia and China campuses. The university said it is working with the third party that maintains the affected platform on a forensic investigation and has reported the incident to Action Fraud and the UK Information Commissioner’s Office.</p>
 
-<p>BleepingComputer linked the intrusion to a wider <mark class="tag-hl">ShinyHunters</mark> campaign targeting cloud and on-premises <mark class="tag-hl">Oracle PeopleSoft</mark> instances at more than 100 organizations globally. The incident highlights continued actor interest in enterprise student information systems and third-party-maintained platforms containing high-volume personal and administrative records.</p>
+<p>BleepingComputer linked the intrusion to a wider ShinyHunters campaign targeting cloud and on-premises Oracle PeopleSoft instances at more than 100 organizations globally. The incident highlights continued actor interest in enterprise student information systems and third-party-maintained platforms containing high-volume personal and administrative records.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">03</span>
           <span class="overview-title">Software Supply Chain and Platform Integrity Controls</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">GitHub</mark> announced breaking changes planned for <mark class="tag-hl">npm</mark> version 12 that will disable dependency install scripts by default. The change targets a long-standing supply chain risk in which <mark class="tag-hl">npm install</mark> can execute preinstall, install, and postinstall scripts from transitive dependencies, allowing a compromised package anywhere in the dependency tree to run arbitrary code on developer systems or CI runners.</p>
+        <div class="overview-body prose"><p>GitHub announced breaking changes planned for npm version 12 that will disable dependency install scripts by default. The change targets a long-standing supply chain risk in which npm install can execute preinstall, install, and postinstall scripts from transitive dependencies, allowing a compromised package anywhere in the dependency tree to run arbitrary code on developer systems or CI runners.</p>
 
-<p>Under the <mark class="tag-hl">npm</mark> 12 model, dependency install scripts will not execute unless explicitly approved at the project level. <mark class="tag-hl">npm install</mark> will also stop resolving Git dependencies or dependencies from remote URLs unless those behaviors are explicitly allowed with relevant options, narrowing default execution and resolution pathways commonly abused in dependency-chain compromise scenarios.</p>
+<p>Under the npm 12 model, dependency install scripts will not execute unless explicitly approved at the project level. npm install will also stop resolving Git dependencies or dependencies from remote URLs unless those behaviors are explicitly allowed with relevant options, narrowing default execution and resolution pathways commonly abused in dependency-chain compromise scenarios.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> also resolved a Windows platform issue that caused some Windows Server 2025 systems to boot into BitLocker recovery after the April 2026 security update. The bug affected devices with BitLocker enabled on the OS drive and a specific unrecommended Group Policy configuration involving TPM platform validation and PCR7; fixes were released in KB5094125 for Windows Server 2025 and KB5093998 for Windows 11 23H2.</p>
+<p>Microsoft also resolved a Windows platform issue that caused some Windows Server 2025 systems to boot into BitLocker recovery after the April 2026 security update. The bug affected devices with BitLocker enabled on the OS drive and a specific unrecommended Group Policy configuration involving TPM platform validation and PCR7; fixes were released in KB5094125 for Windows Server 2025 and KB5093998 for Windows 11 23H2.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
@@ -2000,9 +2158,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-11 06:00 UTC · 4 hours window</span>
-  <span class="footer-right">5 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">5 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -2015,15 +2176,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2136,12 +2359,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2202,6 +2459,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,113 +1506,114 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:94%"></div></div><span class="score-num score-num-high">94</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:2aa223dfbdcbf3bd">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:2aa223dfbdcbf3bd')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:2aa223dfbdcbf3bd')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:2aa223dfbdcbf3bd')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:2aa223dfbdcbf3bd')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:2aa223dfbdcbf3bd')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:2aa223dfbdcbf3bd')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:2aa223dfbdcbf3bd')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:2aa223dfbdcbf3bd')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:2aa223dfbdcbf3bd')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:2aa223dfbdcbf3bd')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:2aa223dfbdcbf3bd" class="tab-panel active"><div class="prose"><mark class="tag-hl">Cisco</mark> warned that an unpatched Catalyst SD-WAN Manager zero-day, <mark class="tag-hl">CVE-2026-20245</mark>, is being exploited to let low-privileged local attackers with netadmin access escalate to root via crafted file uploads. No patch is available yet, so customers should upgrade for related fixed flaws and check logs for indicators of compromise.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:2aa223dfbdcbf3bd" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Cisco</mark> warned of a high-severity, unpatched zero-day vulnerability in <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, tracked as <mark class="tag-hl">CVE-2026-20245</mark>, that is being actively exploited in attacks. The flaw enables local attackers with low privileges to execute arbitrary commands as root. <mark class="tag-hl">Cisco</mark> said the vulnerability affects all deployment types, including on-premises, cloud, <mark class="tag-hl">Cisco</mark>-managed cloud, and government FedRAMP deployments.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:2aa223dfbdcbf3bd" class="tab-panel active"><div class="prose">Cisco warned that an unpatched Catalyst SD-WAN Manager zero-day, CVE-2026-20245, is being exploited to let low-privileged local attackers with netadmin access escalate to root via crafted file uploads. No patch is available yet, so customers should upgrade for related fixed flaws and check logs for indicators of compromise.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:2aa223dfbdcbf3bd" class="tab-panel"><div class="prose"><p>Cisco warned of a high-severity, unpatched zero-day vulnerability in Cisco Catalyst SD-WAN Manager, tracked as CVE-2026-20245, that is being actively exploited in attacks. The flaw enables local attackers with low privileges to execute arbitrary commands as root. Cisco said the vulnerability affects all deployment types, including on-premises, cloud, Cisco-managed cloud, and government FedRAMP deployments.</p>
 
-<p><mark class="tag-hl">Cisco</mark> said the issue is caused by insufficient validation of user-supplied input and can be exploited by uploading a crafted file to an affected system. To exploit the flaw, an attacker must have netadmin privileges, which <mark class="tag-hl">Cisco</mark> said would require valid credentials or exploitation of <mark class="tag-hl">CVE-2026-20182</mark> or <mark class="tag-hl">CVE-2026-20127</mark>. <mark class="tag-hl">Cisco</mark> has observed limited cases where exploitation resulted in configuration changes being pushed to edge devices.</p>
+<p>Cisco said the issue is caused by insufficient validation of user-supplied input and can be exploited by uploading a crafted file to an affected system. To exploit the flaw, an attacker must have netadmin privileges, which Cisco said would require valid credentials or exploitation of CVE-2026-20182 or CVE-2026-20127. Cisco has observed limited cases where exploitation resulted in configuration changes being pushed to edge devices.</p>
 
-<p><mark class="tag-hl">Cisco</mark> has not yet released patches for <mark class="tag-hl">CVE-2026-20245</mark>, but advised customers to upgrade to the software fixed for <mark class="tag-hl">CVE-2026-20182</mark> on May 14. The company shared indicators of compromise and told administrators to check the SD-WAN /var/log/scripts.log file for attempts to upload tenant configuration data to <mark class="tag-hl">vSmart</mark> controllers. <mark class="tag-hl">Cisco</mark> also said customers can open a case with <mark class="tag-hl">Cisco</mark> TAC and should generate an admin-tech file first to support review.</p>
+<p>Cisco has not yet released patches for CVE-2026-20245, but advised customers to upgrade to the software fixed for CVE-2026-20182 on May 14. The company shared indicators of compromise and told administrators to check the SD-WAN /var/log/scripts.log file for attempts to upload tenant configuration data to vSmart controllers. Cisco also said customers can open a case with Cisco TAC and should generate an admin-tech file first to support review.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:2aa223dfbdcbf3bd" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Cisco</mark> warned that <mark class="tag-hl">CVE-2026-20245</mark>, a high-severity zero-day in <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, is unpatched and being actively exploited in attacks. The vulnerability can enable <mark class="tag-hl">root privilege escalation</mark> on affected systems. <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, formerly known as SD-WAN vManage, is used by administrators to monitor and manage up to 6,000 Catalyst SD-WAN devices from a single dashboard.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:2aa223dfbdcbf3bd" class="tab-panel"><div class="prose"><p>Cisco warned that CVE-2026-20245, a high-severity zero-day in Cisco Catalyst SD-WAN Manager, is unpatched and being actively exploited in attacks. The vulnerability can enable root privilege escalation on affected systems. Cisco Catalyst SD-WAN Manager, formerly known as SD-WAN vManage, is used by administrators to monitor and manage up to 6,000 Catalyst SD-WAN devices from a single dashboard.</p>
 
-<p>The flaw affects all deployment types listed by <mark class="tag-hl">Cisco</mark>, including On-Prem Deployment, <mark class="tag-hl">Cisco</mark> SD-WAN Cloud-Pro, <mark class="tag-hl">Cisco</mark> SD-WAN Cloud (<mark class="tag-hl">Cisco</mark> Managed), and <mark class="tag-hl">Cisco</mark> SD-WAN for Government (FedRAMP). <mark class="tag-hl">Cisco</mark> said the vulnerability stems from insufficient validation of user-supplied input. A local attacker with low privileges can exploit it to execute arbitrary commands as root.</p>
+<p>The flaw affects all deployment types listed by Cisco, including On-Prem Deployment, Cisco SD-WAN Cloud-Pro, Cisco SD-WAN Cloud (Cisco Managed), and Cisco SD-WAN for Government (FedRAMP). Cisco said the vulnerability stems from insufficient validation of user-supplied input. A local attacker with low privileges can exploit it to execute arbitrary commands as root.</p>
 
-<p><mark class="tag-hl">Cisco</mark> explained that exploitation involves uploading a crafted file to the affected system, enabling <mark class="tag-hl">command injection</mark> and privilege escalation to the root user. The company said attackers must have netadmin privileges on the affected system to exploit <mark class="tag-hl">CVE-2026-20245</mark>. <mark class="tag-hl">Cisco</mark> stated that such access would require valid credentials or exploitation of <mark class="tag-hl">CVE-2026-20182</mark> or <mark class="tag-hl">CVE-2026-20127</mark>, and that it is not aware of successful exploitation by other methods.</p>
+<p>Cisco explained that exploitation involves uploading a crafted file to the affected system, enabling command injection and privilege escalation to the root user. The company said attackers must have netadmin privileges on the affected system to exploit CVE-2026-20245. Cisco stated that such access would require valid credentials or exploitation of CVE-2026-20182 or CVE-2026-20127, and that it is not aware of successful exploitation by other methods.</p>
 
-<p><mark class="tag-hl">Cisco</mark>’s Product Security Incident Response Team became aware of exploitation in June after <mark class="tag-hl">Mandiant</mark>, a <mark class="tag-hl">Google Cloud</mark> cybersecurity subsidiary, reported the flaw. The article says <mark class="tag-hl">Mandiant</mark> did not share any details. <mark class="tag-hl">Cisco</mark> said it observed limited cases where exploitation of the bug resulted in a configuration change pushed to edge devices.</p>
+<p>Cisco’s Product Security Incident Response Team became aware of exploitation in June after Mandiant, a Google Cloud cybersecurity subsidiary, reported the flaw. The article says Mandiant did not share any details. Cisco said it observed limited cases where exploitation of the bug resulted in a configuration change pushed to edge devices.</p>
 
-<p><mark class="tag-hl">Cisco</mark> has not yet released patches for <mark class="tag-hl">CVE-2026-20245</mark>. It advised customers to upgrade to the software fixed for <mark class="tag-hl">CVE-2026-20182</mark> on May 14 and shared indicators of compromise. Administrators were advised to check the SD-WAN /var/log/scripts.log file for attempts to upload tenant configuration data to <mark class="tag-hl">vSmart</mark> controllers, and <mark class="tag-hl">Cisco</mark> said customers can open a case with <mark class="tag-hl">Cisco</mark> TAC after generating an admin-tech file.</p>
+<p>Cisco has not yet released patches for CVE-2026-20245. It advised customers to upgrade to the software fixed for CVE-2026-20182 on May 14 and shared indicators of compromise. Administrators were advised to check the SD-WAN /var/log/scripts.log file for attempts to upload tenant configuration data to vSmart controllers, and Cisco said customers can open a case with Cisco TAC after generating an admin-tech file.</p>
 
-<p>The article places <mark class="tag-hl">CVE-2026-20245</mark> alongside several other recently exploited <mark class="tag-hl">Cisco</mark> Catalyst SD-WAN vulnerabilities. These include <mark class="tag-hl">CVE-2026-20182</mark>, <mark class="tag-hl">CVE-2026-20133</mark>, CVE-2026-20128, CVE-2026-20122, and <mark class="tag-hl">CVE-2026-20127</mark>. It also states that <mark class="tag-hl">CISA</mark> has tagged 90 <mark class="tag-hl">Cisco</mark> vulnerabilities as abused in the wild over the last several years, including four in <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> and six exploited by ransomware operations.</p>
+<p>The article places CVE-2026-20245 alongside several other recently exploited Cisco Catalyst SD-WAN vulnerabilities. These include CVE-2026-20182, CVE-2026-20133, CVE-2026-20128, CVE-2026-20122, and CVE-2026-20127. It also states that CISA has tagged 90 Cisco vulnerabilities as abused in the wild over the last several years, including four in Cisco Catalyst SD-WAN Manager and six exploited by ransomware operations.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:2aa223dfbdcbf3bd" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:2aa223dfbdcbf3bd" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Cisco</mark> warned of a high-severity, unpatched zero-day vulnerability in <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> that is being actively exploited in attacks. The vulnerability is tracked as <mark class="tag-hl">CVE-2026-20245</mark> and can enable <mark class="tag-hl">root privilege escalation</mark> on affected systems.</p>
+<p>Cisco warned of a high-severity, unpatched zero-day vulnerability in Cisco Catalyst SD-WAN Manager that is being actively exploited in attacks. The vulnerability is tracked as CVE-2026-20245 and can enable root privilege escalation on affected systems.</p>
 
-<p><mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, formerly known as SD-WAN vManage, is network management software used by administrators to monitor and manage up to 6,000 Catalyst SD-WAN devices from a single dashboard.</p>
+<p>Cisco Catalyst SD-WAN Manager, formerly known as SD-WAN vManage, is network management software used by administrators to monitor and manage up to 6,000 Catalyst SD-WAN devices from a single dashboard.</p>
 
 <h2 id="affected-deployments">Affected deployments</h2>
 
-<p><mark class="tag-hl">Cisco</mark> said <mark class="tag-hl">CVE-2026-20245</mark> affects all deployment types of <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, including:</p>
+<p>Cisco said CVE-2026-20245 affects all deployment types of Cisco Catalyst SD-WAN Manager, including:</p>
 
 <ul>
 <li>On-Prem Deployment</li>
-<li><mark class="tag-hl">Cisco</mark> SD-WAN Cloud-Pro</li>
-<li><mark class="tag-hl">Cisco</mark> SD-WAN Cloud (<mark class="tag-hl">Cisco</mark> Managed)</li>
-<li><mark class="tag-hl">Cisco</mark> SD-WAN for Government (FedRAMP)</li>
+<li>Cisco SD-WAN Cloud-Pro</li>
+<li>Cisco SD-WAN Cloud (Cisco Managed)</li>
+<li>Cisco SD-WAN for Government (FedRAMP)</li>
 </ul>
 
 <h2 id="technical-details">Technical details</h2>
 
-<p><mark class="tag-hl">Cisco</mark> said the vulnerability stems from insufficient validation of user-supplied input. The company said the flaw can allow local attackers with low privileges to execute arbitrary commands as root.</p>
+<p>Cisco said the vulnerability stems from insufficient validation of user-supplied input. The company said the flaw can allow local attackers with low privileges to execute arbitrary commands as root.</p>
 
-<p>According to <mark class="tag-hl">Cisco</mark>, an attacker can exploit the vulnerability by uploading a crafted file to an affected system. A successful exploit can allow <mark class="tag-hl">command injection</mark> attacks and privilege escalation to the root user.</p>
+<p>According to Cisco, an attacker can exploit the vulnerability by uploading a crafted file to an affected system. A successful exploit can allow command injection attacks and privilege escalation to the root user.</p>
 
-<p><mark class="tag-hl">Cisco</mark> also stated that exploitation requires netadmin privileges on the affected system. The company said this would require valid credentials or exploitation of <mark class="tag-hl">CVE-2026-20182</mark> or <mark class="tag-hl">CVE-2026-20127</mark>. <mark class="tag-hl">Cisco</mark> said it is not aware of successful exploitation by other methods.</p>
+<p>Cisco also stated that exploitation requires netadmin privileges on the affected system. The company said this would require valid credentials or exploitation of CVE-2026-20182 or CVE-2026-20127. Cisco said it is not aware of successful exploitation by other methods.</p>
 
 <h2 id="exploitation-and-observed-impact">Exploitation and observed impact</h2>
 
-<p><mark class="tag-hl">Cisco</mark> said <mark class="tag-hl">CVE-2026-20245</mark> is being actively exploited in attacks. <mark class="tag-hl">Cisco</mark>’s Product Security Incident Response Team became aware of exploitation in June after <mark class="tag-hl">Mandiant</mark>, a <mark class="tag-hl">Google Cloud</mark> cybersecurity subsidiary, reported the flaw. The article says <mark class="tag-hl">Mandiant</mark> did not share any details.</p>
+<p>Cisco said CVE-2026-20245 is being actively exploited in attacks. Cisco’s Product Security Incident Response Team became aware of exploitation in June after Mandiant, a Google Cloud cybersecurity subsidiary, reported the flaw. The article says Mandiant did not share any details.</p>
 
-<p><mark class="tag-hl">Cisco</mark> said it has observed limited cases where exploitation of the bug resulted in a configuration change being pushed to edge devices.</p>
+<p>Cisco said it has observed limited cases where exploitation of the bug resulted in a configuration change being pushed to edge devices.</p>
 
 <h2 id="indicators-of-compromise">Indicators of compromise</h2>
 
-<p><mark class="tag-hl">Cisco</mark> shared indicators of compromise and warned administrators to review the SD-WAN <code>/var/log/scripts.log</code> file. The article says administrators should look for attempts to upload tenant configuration data to <mark class="tag-hl">vSmart</mark> controllers in order to escalate privileges through legitimate commands.</p>
+<p>Cisco shared indicators of compromise and warned administrators to review the SD-WAN <code>/var/log/scripts.log</code> file. The article says administrators should look for attempts to upload tenant configuration data to vSmart controllers in order to escalate privileges through legitimate commands.</p>
 
 <p>The article provides the following example log entry:</p>
 
-<pre><code class="language-text">Apr 15 09:44:57 vmanage vScript: Tenant list upload per <mark class="tag-hl">vsmart</mark> serial number: /usr/bin/vconfd_script_upload_tenant_list.sh -cli path /home/admin/malicious.csv vpn 0
+<pre><code class="language-text">Apr 15 09:44:57 vmanage vScript: Tenant list upload per vsmart serial number: /usr/bin/vconfd_script_upload_tenant_list.sh -cli path /home/admin/malicious.csv vpn 0
 </code></pre>
 
-<p><mark class="tag-hl">Cisco</mark> said customers who need help determining whether a <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> has been compromised may open a case with <mark class="tag-hl">Cisco</mark> TAC. The company advised administrators to generate an admin-tech file first to assist with the review.</p>
+<p>Cisco said customers who need help determining whether a Cisco Catalyst SD-WAN Manager has been compromised may open a case with Cisco TAC. The company advised administrators to generate an admin-tech file first to assist with the review.</p>
 
 <h2 id="patch-status-and-response-guidance">Patch status and response guidance</h2>
 
-<p><mark class="tag-hl">Cisco</mark> has not yet released patches for <mark class="tag-hl">CVE-2026-20245</mark>. While patches for this vulnerability are not available, <mark class="tag-hl">Cisco</mark> advised customers to upgrade to the software fixed for <mark class="tag-hl">CVE-2026-20182</mark> on May 14.</p>
+<p>Cisco has not yet released patches for CVE-2026-20245. While patches for this vulnerability are not available, Cisco advised customers to upgrade to the software fixed for CVE-2026-20182 on May 14.</p>
 
-<p>The article notes that <mark class="tag-hl">CVE-2026-20182</mark> is a maximum-severity Catalyst SD-WAN Controller <mark class="tag-hl">authentication bypass</mark> flaw that <mark class="tag-hl">Cisco</mark> previously tagged as actively exploited as a zero-day to gain administrative privileges on unpatched devices.</p>
+<p>The article notes that CVE-2026-20182 is a maximum-severity Catalyst SD-WAN Controller authentication bypass flaw that Cisco previously tagged as actively exploited as a zero-day to gain administrative privileges on unpatched devices.</p>
 
-<h2 id="related-cisco-sd-wan-exploitation-activity">Related <mark class="tag-hl">Cisco</mark> SD-WAN exploitation activity</h2>
+<h2 id="related-cisco-sd-wan-exploitation-activity">Related Cisco SD-WAN exploitation activity</h2>
 
-<p>The article describes several other <mark class="tag-hl">Cisco</mark> Catalyst SD-WAN vulnerabilities that have recently been flagged as exploited:</p>
+<p>The article describes several other Cisco Catalyst SD-WAN vulnerabilities that have recently been flagged as exploited:</p>
 
 <ul>
-<li>In February, <mark class="tag-hl">Cisco</mark> patched <mark class="tag-hl">CVE-2026-20133</mark>, a Catalyst SD-WAN Manager information disclosure flaw that <mark class="tag-hl">CISA</mark> later flagged as actively exploited in late April.</li>
-<li>Two weeks after that <mark class="tag-hl">CISA</mark> warning, <mark class="tag-hl">Cisco</mark> warned that CVE-2026-20128 and CVE-2026-20122 were being abused in the wild.</li>
-<li>In March, <mark class="tag-hl">Cisco</mark> addressed and flagged <mark class="tag-hl">CVE-2026-20127</mark>, a critical <mark class="tag-hl">authentication-bypass</mark> vulnerability that had been exploited in zero-day attacks since at least 2023.</li>
-<li>Last month, <mark class="tag-hl">Cisco</mark> tagged <mark class="tag-hl">CVE-2026-20182</mark> as an actively exploited zero-day affecting Catalyst SD-WAN Controller.</li>
+<li>In February, Cisco patched CVE-2026-20133, a Catalyst SD-WAN Manager information disclosure flaw that CISA later flagged as actively exploited in late April.</li>
+<li>Two weeks after that CISA warning, Cisco warned that CVE-2026-20128 and CVE-2026-20122 were being abused in the wild.</li>
+<li>In March, Cisco addressed and flagged CVE-2026-20127, a critical authentication-bypass vulnerability that had been exploited in zero-day attacks since at least 2023.</li>
+<li>Last month, Cisco tagged CVE-2026-20182 as an actively exploited zero-day affecting Catalyst SD-WAN Controller.</li>
 </ul>
 
-<h2 id="broader-cisco-vulnerability-context">Broader <mark class="tag-hl">Cisco</mark> vulnerability context</h2>
+<h2 id="broader-cisco-vulnerability-context">Broader Cisco vulnerability context</h2>
 
-<p>The article states that, over the last several years, <mark class="tag-hl">CISA</mark> has tagged 90 <mark class="tag-hl">Cisco</mark> vulnerabilities as abused in the wild. Four of those were in <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, and six others were exploited by ransomware operations.</p>
+<p>The article states that, over the last several years, CISA has tagged 90 Cisco vulnerabilities as abused in the wild. Four of those were in Cisco Catalyst SD-WAN Manager, and six others were exploited by ransomware operations.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:2aa223dfbdcbf3bd" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Exploitation of <mark class="tag-hl">CVE-2026-20245</mark> requires netadmin privileges, and <mark class="tag-hl">Cisco</mark> said attackers may obtain those privileges through valid credentials or by exploiting <mark class="tag-hl">CVE-2026-20182</mark> or <mark class="tag-hl">CVE-2026-20127</mark>.</span></li><li><span class="kp-text"><mark class="tag-hl">Cisco</mark> observed limited cases where exploitation resulted in configuration changes being pushed to edge devices, making downstream device configuration review relevant after suspected compromise.</span></li><li><span class="kp-text">Administrators can look for a specific compromise pattern in /var/log/scripts.log involving tenant configuration data uploads to <mark class="tag-hl">vSmart</mark> controllers, such as use of vconfd_script_upload_tenant_list.sh with a suspicious CSV path.</span></li><li><span class="kp-text"><mark class="tag-hl">Cisco</mark> recommended generating an admin-tech file before opening a <mark class="tag-hl">Cisco</mark> TAC case to help determine whether a Catalyst SD-WAN Manager has been compromised.</span></li><li><span class="kp-text">The new unpatched zero-day appears in a broader pattern of recent Catalyst SD-WAN Manager exploitation, with <mark class="tag-hl">Cisco</mark> and <mark class="tag-hl">CISA</mark> previously flagging multiple related SD-WAN flaws as exploited in the wild.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:2aa223dfbdcbf3bd" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Exploitation of CVE-2026-20245 requires netadmin privileges, and Cisco said attackers may obtain those privileges through valid credentials or by exploiting CVE-2026-20182 or CVE-2026-20127.</span></li><li><span class="kp-text">Cisco observed limited cases where exploitation resulted in configuration changes being pushed to edge devices, making downstream device configuration review relevant after suspected compromise.</span></li><li><span class="kp-text">Administrators can look for a specific compromise pattern in /var/log/scripts.log involving tenant configuration data uploads to vSmart controllers, such as use of vconfd_script_upload_tenant_list.sh with a suspicious CSV path.</span></li><li><span class="kp-text">Cisco recommended generating an admin-tech file before opening a Cisco TAC case to help determine whether a Catalyst SD-WAN Manager has been compromised.</span></li><li><span class="kp-text">The new unpatched zero-day appears in a broader pattern of recent Catalyst SD-WAN Manager exploitation, with Cisco and CISA previously flagging multiple related SD-WAN flaws as exploited in the wild.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Cisco</mark> warned that <mark class="tag-hl">CVE-2026-20245</mark> is a high-severity, unpatched zero-day in <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> that is being actively exploited to enable <mark class="tag-hl">root privilege escalation</mark>.</span></li><li><span class="kp-text">The vulnerability affects all deployment types, including On-Prem Deployment, <mark class="tag-hl">Cisco</mark> SD-WAN Cloud-Pro, <mark class="tag-hl">Cisco</mark> SD-WAN Cloud (<mark class="tag-hl">Cisco</mark> Managed), and <mark class="tag-hl">Cisco</mark> SD-WAN for Government (FedRAMP).</span></li><li><span class="kp-text"><mark class="tag-hl">Cisco</mark> said the flaw stems from insufficient validation of user-supplied input and can allow local attackers with netadmin privileges to upload a crafted file and execute arbitrary commands as root.</span></li><li><span class="kp-text"><mark class="tag-hl">Cisco</mark> has not yet released patches for <mark class="tag-hl">CVE-2026-20245</mark>, but advised customers to upgrade to the software fixed for <mark class="tag-hl">CVE-2026-20182</mark> on May 14.</span></li><li><span class="kp-text"><mark class="tag-hl">Cisco</mark> shared indicators of compromise and advised administrators to check the SD-WAN /var/log/scripts.log file for attempts to upload tenant configuration data to <mark class="tag-hl">vSmart</mark> controllers.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Cisco warned that CVE-2026-20245 is a high-severity, unpatched zero-day in Cisco Catalyst SD-WAN Manager that is being actively exploited to enable root privilege escalation.</span></li><li><span class="kp-text">The vulnerability affects all deployment types, including On-Prem Deployment, Cisco SD-WAN Cloud-Pro, Cisco SD-WAN Cloud (Cisco Managed), and Cisco SD-WAN for Government (FedRAMP).</span></li><li><span class="kp-text">Cisco said the flaw stems from insufficient validation of user-supplied input and can allow local attackers with netadmin privileges to upload a crafted file and execute arbitrary commands as root.</span></li><li><span class="kp-text">Cisco has not yet released patches for CVE-2026-20245, but advised customers to upgrade to the software fixed for CVE-2026-20182 on May 14.</span></li><li><span class="kp-text">Cisco shared indicators of compromise and advised administrators to check the SD-WAN /var/log/scripts.log file for attempts to upload tenant configuration data to vSmart controllers.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/new-cisco-sd-wan-flaw-exploited-in-zero-day-attacks-to-gain-root/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of an unpatched <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> zero-day that can lead to <mark class="tag-hl">root privilege escalation</mark>. The article includes affected deployment types, exploitation prerequisites, indicators of compromise, and interim response guidance while no patch is available.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of an unpatched Cisco Catalyst SD-WAN Manager zero-day that can lead to root privilege escalation. The article includes affected deployment types, exploitation prerequisites, indicators of compromise, and interim response guidance while no patch is available.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-sdwan-privesc-4uxFrdzx" target="_blank" rel="noopener">Cisco Catalyst SD-WAN Manager Privilege Escalation Vulnerability</a></div>
   <div class="report-meta">Cisco</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Cisco</mark>&#39;s security advisory as the source explaining how <mark class="tag-hl">CVE-2026-20245</mark> can be exploited and what privileges are required.</div>
+  <div class="report-context">The article cites Cisco&#39;s security advisory as the source explaining how CVE-2026-20245 can be exploited and what privileges are required.</div>
 </li></ul></div>
             
           </div>
@@ -1482,48 +1636,48 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:92%"></div></div><span class="score-num score-num-high">92</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:b290527c461d0b41">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:b290527c461d0b41')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:b290527c461d0b41')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:b290527c461d0b41')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:b290527c461d0b41')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:b290527c461d0b41')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:b290527c461d0b41')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:b290527c461d0b41')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:b290527c461d0b41')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:b290527c461d0b41')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:b290527c461d0b41')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:b290527c461d0b41" class="tab-panel active"><div class="prose">Attackers are actively exploiting <mark class="tag-hl">CVE-2026-3300</mark>, a critical unauthenticated RCE flaw in <mark class="tag-hl">Everest Forms Pro</mark> for <mark class="tag-hl">WordPress</mark>, to take over vulnerable sites by creating rogue admin accounts and deploying persistence. Site owners should update to version 1.9.13 or later immediately and check for signs of compromise.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:b290527c461d0b41" class="tab-panel"><div class="prose"><p>Threat actors are actively exploiting <mark class="tag-hl">CVE-2026-3300</mark>, a critical remote code execution vulnerability in <mark class="tag-hl">Everest Forms Pro</mark>, a <mark class="tag-hl">WordPress</mark> plugin with about 4,000 active installations. The flaw affects all versions up to and including 1.9.12, and a patch was released on March 18, 2026, in version 1.9.13. <mark class="tag-hl">Wordfence</mark> said exploitation has been observed since April 13, 2026, with more than 29,300 exploit attempts blocked to date.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:b290527c461d0b41" class="tab-panel active"><div class="prose">Attackers are actively exploiting CVE-2026-3300, a critical unauthenticated RCE flaw in Everest Forms Pro for WordPress, to take over vulnerable sites by creating rogue admin accounts and deploying persistence. Site owners should update to version 1.9.13 or later immediately and check for signs of compromise.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:b290527c461d0b41" class="tab-panel"><div class="prose"><p>Threat actors are actively exploiting CVE-2026-3300, a critical remote code execution vulnerability in Everest Forms Pro, a WordPress plugin with about 4,000 active installations. The flaw affects all versions up to and including 1.9.12, and a patch was released on March 18, 2026, in version 1.9.13. Wordfence said exploitation has been observed since April 13, 2026, with more than 29,300 exploit attempts blocked to date.</p>
 
-<p>The vulnerability stems from the Calculation Addon&rsquo;s process_filter() function concatenating user-submitted form field values into a PHP code string without proper escaping before passing it to eval(). <mark class="tag-hl">Wordfence</mark> said unauthenticated attackers can inject and execute arbitrary PHP code when a form uses the &ldquo;Complex Calculation&rdquo; feature and accepts crafted values in string-type fields. Successful exploitation can enable rogue administrator account creation, web shell deployment, and persistence on compromised servers.</p>
+<p>The vulnerability stems from the Calculation Addon&rsquo;s process_filter() function concatenating user-submitted form field values into a PHP code string without proper escaping before passing it to eval(). Wordfence said unauthenticated attackers can inject and execute arbitrary PHP code when a form uses the &ldquo;Complex Calculation&rdquo; feature and accepts crafted values in string-type fields. Successful exploitation can enable rogue administrator account creation, web shell deployment, and persistence on compromised servers.</p>
 
-<p>The article also describes <mark class="tag-hl">Sansec</mark> research on skimmer campaigns abusing trusted services such as <mark class="tag-hl">Stripe</mark>, <mark class="tag-hl">Google Tag Manager</mark>, and <mark class="tag-hl">Google Firestore</mark> for command-and-control and data exfiltration. One campaign uses <mark class="tag-hl">Stripe</mark> customer metadata to host skimmer code and stores stolen payment data as <mark class="tag-hl">Stripe</mark> customer records. <mark class="tag-hl">Sansec</mark> also reported the <mark class="tag-hl">GorgonAgora</mark> operation, involving 5,714 fake .shop storefronts impersonating major brands and exfiltrating card data to a single skimmer server in <mark class="tag-hl">Moldova</mark>.</p>
+<p>The article also describes Sansec research on skimmer campaigns abusing trusted services such as Stripe, Google Tag Manager, and Google Firestore for command-and-control and data exfiltration. One campaign uses Stripe customer metadata to host skimmer code and stores stolen payment data as Stripe customer records. Sansec also reported the GorgonAgora operation, involving 5,714 fake .shop storefronts impersonating major brands and exfiltrating card data to a single skimmer server in Moldova.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:b290527c461d0b41" class="tab-panel"><div class="prose"><p>Threat actors are actively exploiting a critical vulnerability in <mark class="tag-hl">Everest Forms Pro</mark>, a <mark class="tag-hl">WordPress</mark> plugin with about 4,000 active installations. The flaw is tracked as <mark class="tag-hl">CVE-2026-3300</mark> and has a CVSS score of 9.8. It affects all plugin versions up to and including 1.9.12, while version 1.9.13, released on March 18, 2026, contains the patch.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:b290527c461d0b41" class="tab-panel"><div class="prose"><p>Threat actors are actively exploiting a critical vulnerability in Everest Forms Pro, a WordPress plugin with about 4,000 active installations. The flaw is tracked as CVE-2026-3300 and has a CVSS score of 9.8. It affects all plugin versions up to and including 1.9.12, while version 1.9.13, released on March 18, 2026, contains the patch.</p>
 
-<p><mark class="tag-hl">Wordfence</mark> attributed the bug to the Calculation Addon&rsquo;s process_filter() function, which concatenates user-submitted form field values into a PHP code string without proper escaping before passing it to eval(). The article states that sanitize_text_field() does not escape single quotes or other PHP code context characters. As a result, unauthenticated attackers can inject and execute arbitrary PHP code by submitting crafted values in string-type form fields when a form uses the &ldquo;Complex Calculation&rdquo; feature.</p>
+<p>Wordfence attributed the bug to the Calculation Addon&rsquo;s process_filter() function, which concatenates user-submitted form field values into a PHP code string without proper escaping before passing it to eval(). The article states that sanitize_text_field() does not escape single quotes or other PHP code context characters. As a result, unauthenticated attackers can inject and execute arbitrary PHP code by submitting crafted values in string-type form fields when a form uses the &ldquo;Complex Calculation&rdquo; feature.</p>
 
-<p>Successful exploitation can lead to complete site compromise. The article says attackers could create rogue administrator accounts, deploy web shells, and open other ways to burrow deeper into the server and establish persistent footholds. <mark class="tag-hl">Wordfence</mark> reported that attackers have been observed exploiting the flaw since April 13, 2026.</p>
+<p>Successful exploitation can lead to complete site compromise. The article says attackers could create rogue administrator accounts, deploy web shells, and open other ways to burrow deeper into the server and establish persistent footholds. Wordfence reported that attackers have been observed exploiting the flaw since April 13, 2026.</p>
 
-<p>According to <mark class="tag-hl">Wordfence</mark>, more than 29,300 exploit attempts targeting the vulnerability have been blocked to date, including 16 attempts in the most recent 24-hour period cited by the article. The most common payload attempts to create an administrator account named &ldquo;diksimarina&rdquo; with the email address &ldquo;diksimarina@gmail.com.&rdquo; The article lists several source IP addresses associated with attack attempts, including 202.56.2.126, 209.146.60.26, 15.235.166.18, 2402:1f00:8000:800::40db, and 185.78.165.153.</p>
+<p>According to Wordfence, more than 29,300 exploit attempts targeting the vulnerability have been blocked to date, including 16 attempts in the most recent 24-hour period cited by the article. The most common payload attempts to create an administrator account named &ldquo;diksimarina&rdquo; with the email address &ldquo;diksimarina@gmail.com.&rdquo; The article lists several source IP addresses associated with attack attempts, including 202.56.2.126, 209.146.60.26, 15.235.166.18, 2402:1f00:8000:800::40db, and 185.78.165.153.</p>
 
-<p>The disclosure is paired with <mark class="tag-hl">Sansec</mark> findings on multiple web skimmer campaigns that abuse trusted services for command-and-control and exfiltration. One campaign uses <mark class="tag-hl">Google Tag Manager</mark> and <mark class="tag-hl">Stripe</mark> domains, specifically googletagmanager.com and api.<mark class="tag-hl">stripe</mark>.com, which the article says are often trusted by online stores. On <mark class="tag-hl">Magento</mark> and <mark class="tag-hl">Adobe Commerce</mark> checkout pages, the malicious code extracts an obfuscated skimmer from a <mark class="tag-hl">Stripe</mark> customer account metadata field and exfiltrates captured payment and billing data back to the attacker&rsquo;s <mark class="tag-hl">Stripe</mark> account.</p>
+<p>The disclosure is paired with Sansec findings on multiple web skimmer campaigns that abuse trusted services for command-and-control and exfiltration. One campaign uses Google Tag Manager and Stripe domains, specifically googletagmanager.com and api.stripe.com, which the article says are often trusted by online stores. On Magento and Adobe Commerce checkout pages, the malicious code extracts an obfuscated skimmer from a Stripe customer account metadata field and exfiltrates captured payment and billing data back to the attacker&rsquo;s Stripe account.</p>
 
-<p><mark class="tag-hl">Sansec</mark> also identified a second loader variant that uses <mark class="tag-hl">Google Firestore</mark> instead of <mark class="tag-hl">Stripe</mark>, with the same broader goal of abusing trusted services as covert channels. The article additionally describes <mark class="tag-hl">GorgonAgora</mark>, a campaign involving 5,714 fake .shop storefronts impersonating brands including Starbucks, Ford, Sony, Mattel, Hasbro, Lego, Disney, and Toyota. Those stores use the same Medusa.js commerce stack and a custom checkout SDK that renders a fake <mark class="tag-hl">Stripe</mark> iframe and sends stolen card data over an encrypted WebSocket to a single server in <mark class="tag-hl">Moldova</mark>.</p>
+<p>Sansec also identified a second loader variant that uses Google Firestore instead of Stripe, with the same broader goal of abusing trusted services as covert channels. The article additionally describes GorgonAgora, a campaign involving 5,714 fake .shop storefronts impersonating brands including Starbucks, Ford, Sony, Mattel, Hasbro, Lego, Disney, and Toyota. Those stores use the same Medusa.js commerce stack and a custom checkout SDK that renders a fake Stripe iframe and sends stolen card data over an encrypted WebSocket to a single server in Moldova.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:b290527c461d0b41" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:b290527c461d0b41" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Threat actors are actively exploiting a critical security flaw in <mark class="tag-hl">Everest Forms Pro</mark>, a <mark class="tag-hl">WordPress</mark> plugin with about 4,000 active installations. The vulnerability is tracked as <mark class="tag-hl">CVE-2026-3300</mark> and carries a CVSS score of 9.8. It is a remote code execution bug affecting all versions of the plugin up to and including 1.9.12.</p>
+<p>Threat actors are actively exploiting a critical security flaw in Everest Forms Pro, a WordPress plugin with about 4,000 active installations. The vulnerability is tracked as CVE-2026-3300 and carries a CVSS score of 9.8. It is a remote code execution bug affecting all versions of the plugin up to and including 1.9.12.</p>
 
-<p>A patch for the flaw was released on March 18, 2026, in <mark class="tag-hl">Everest Forms Pro</mark> version 1.9.13. <mark class="tag-hl">Wordfence</mark> said attackers have been observed exploiting the vulnerability starting April 13, 2026. The article states that exploitation can lead to complete site compromise.</p>
+<p>A patch for the flaw was released on March 18, 2026, in Everest Forms Pro version 1.9.13. Wordfence said attackers have been observed exploiting the vulnerability starting April 13, 2026. The article states that exploitation can lead to complete site compromise.</p>
 
-<h2 id="technical-cause-of-cve-2026-3300">Technical Cause of <mark class="tag-hl">CVE-2026-3300</mark></h2>
+<h2 id="technical-cause-of-cve-2026-3300">Technical Cause of CVE-2026-3300</h2>
 
-<p><mark class="tag-hl">Wordfence</mark> said the vulnerability is caused by the Calculation Addon&rsquo;s process_filter() function. According to the article, the function concatenates user-submitted form field values into a PHP code string without proper escaping before passing the string to eval().</p>
+<p>Wordfence said the vulnerability is caused by the Calculation Addon&rsquo;s process_filter() function. According to the article, the function concatenates user-submitted form field values into a PHP code string without proper escaping before passing the string to eval().</p>
 
 <p>The article states that the sanitize_text_field() function applied to input does not escape single quotes or other PHP code context characters. This makes it possible for unauthenticated attackers to inject and execute arbitrary PHP code on the server. The attack path involves submitting a crafted value in a string-type form field when a form uses the &ldquo;Complex Calculation&rdquo; feature.</p>
 
@@ -1539,7 +1693,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="impact-of-successful-exploitation">Impact of Successful Exploitation</h2>
 
-<p>The article says successful exploitation could allow unauthenticated attackers to execute arbitrary PHP code on the server. This can permit attackers to take actions that lead to full compromise of the <mark class="tag-hl">WordPress</mark> site.</p>
+<p>The article says successful exploitation could allow unauthenticated attackers to execute arbitrary PHP code on the server. This can permit attackers to take actions that lead to full compromise of the WordPress site.</p>
 
 <p>Specific post-exploitation outcomes described in the article include:</p>
 
@@ -1550,9 +1704,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>establishing persistent footholds</li>
 </ul>
 
-<h2 id="exploitation-activity-reported-by-wordfence">Exploitation Activity Reported by <mark class="tag-hl">Wordfence</mark></h2>
+<h2 id="exploitation-activity-reported-by-wordfence">Exploitation Activity Reported by Wordfence</h2>
 
-<p><mark class="tag-hl">Wordfence</mark> reported that attackers have been exploiting the flaw since April 13, 2026. More than 29,300 exploit attempts targeting the defect have been blocked to date. Of those, 16 attack attempts occurred in the last 24 hours referenced by the article.</p>
+<p>Wordfence reported that attackers have been exploiting the flaw since April 13, 2026. More than 29,300 exploit attempts targeting the defect have been blocked to date. Of those, 16 attack attempts occurred in the last 24 hours referenced by the article.</p>
 
 <p>The article says the most common payload involves attempts to create an administrator account with the following details:</p>
 
@@ -1573,21 +1727,21 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="affected-product-and-response">Affected Product and Response</h2>
 
-<p>The affected product is <mark class="tag-hl">Everest Forms Pro</mark> for <mark class="tag-hl">WordPress</mark>. The vulnerability impacts all versions up to and including 1.9.12. Version 1.9.13, released on March 18, 2026, patches the flaw.</p>
+<p>The affected product is Everest Forms Pro for WordPress. The vulnerability impacts all versions up to and including 1.9.12. Version 1.9.13, released on March 18, 2026, patches the flaw.</p>
 
-<p>The article does not name a specific threat actor or group behind the <mark class="tag-hl">Everest Forms Pro</mark> exploitation. It describes the activity broadly as being carried out by threat actors and unauthenticated attackers.</p>
+<p>The article does not name a specific threat actor or group behind the Everest Forms Pro exploitation. It describes the activity broadly as being carried out by threat actors and unauthenticated attackers.</p>
 
-<h2 id="sansec-findings-on-skimmer-campaigns"><mark class="tag-hl">Sansec</mark> Findings on Skimmer Campaigns</h2>
+<h2 id="sansec-findings-on-skimmer-campaigns">Sansec Findings on Skimmer Campaigns</h2>
 
-<p>The article also discusses <mark class="tag-hl">Sansec</mark> research on multiple skimmer campaigns. One campaign uses <mark class="tag-hl">Stripe</mark> as both a command-and-control server and a data exfiltration sink. <mark class="tag-hl">Sansec</mark> said the attacker treats <mark class="tag-hl">Stripe</mark> as free infrastructure rather than as a way to launder charges.</p>
+<p>The article also discusses Sansec research on multiple skimmer campaigns. One campaign uses Stripe as both a command-and-control server and a data exfiltration sink. Sansec said the attacker treats Stripe as free infrastructure rather than as a way to launder charges.</p>
 
-<p>According to <mark class="tag-hl">Sansec</mark>, <mark class="tag-hl">Stripe</mark> provides the attackers with a writable database for stolen cards and a code-hosting endpoint for the skimmer. The article says both are behind a domain that Content Security Policy rules and network filters often trust by default.</p>
+<p>According to Sansec, Stripe provides the attackers with a writable database for stolen cards and a code-hosting endpoint for the skimmer. The article says both are behind a domain that Content Security Policy rules and network filters often trust by default.</p>
 
-<h2 id="stripe-and-google-tag-manager-abuse"><mark class="tag-hl">Stripe</mark> and <mark class="tag-hl">Google Tag Manager</mark> Abuse</h2>
+<h2 id="stripe-and-google-tag-manager-abuse">Stripe and Google Tag Manager Abuse</h2>
 
-<p>The skimmer campaign relies on <mark class="tag-hl">Google Tag Manager</mark> and <mark class="tag-hl">Stripe</mark> domains. The specific domains named are googletagmanager.com and api.<mark class="tag-hl">stripe</mark>.com. The article says these domains are both trusted implicitly by online stores.</p>
+<p>The skimmer campaign relies on Google Tag Manager and Stripe domains. The specific domains named are googletagmanager.com and api.stripe.com. The article says these domains are both trusted implicitly by online stores.</p>
 
-<p>The malicious code is loaded from a <mark class="tag-hl">Google Tag Manager</mark> container and executed on every page that loads it. On <mark class="tag-hl">Magento</mark> and <mark class="tag-hl">Adobe Commerce</mark> checkout pages, the code extracts an obfuscated skimmer from a <mark class="tag-hl">Stripe</mark> customer account metadata field. The <mark class="tag-hl">Stripe</mark> customer account identifier cited in the article is &ldquo;cus_TfFjAAZQNOYENR.&rdquo;</p>
+<p>The malicious code is loaded from a Google Tag Manager container and executed on every page that loads it. On Magento and Adobe Commerce checkout pages, the code extracts an obfuscated skimmer from a Stripe customer account metadata field. The Stripe customer account identifier cited in the article is &ldquo;cus_TfFjAAZQNOYENR.&rdquo;</p>
 
 <p>The campaign captures information entered by users, including:</p>
 
@@ -1598,53 +1752,54 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>phone numbers</li>
 </ul>
 
-<p>The article says this data is saved to localStorage and then exfiltrated back to the attacker&rsquo;s <mark class="tag-hl">Stripe</mark> account. <mark class="tag-hl">Sansec</mark> said every stolen card becomes a &ldquo;customer&rdquo; in the attacker&rsquo;s account. On successful exfiltration, the loader deletes the localStorage entry so the same record is not sent twice.</p>
+<p>The article says this data is saved to localStorage and then exfiltrated back to the attacker&rsquo;s Stripe account. Sansec said every stolen card becomes a &ldquo;customer&rdquo; in the attacker&rsquo;s account. On successful exfiltration, the loader deletes the localStorage entry so the same record is not sent twice.</p>
 
-<p><mark class="tag-hl">Sansec</mark> said the attacker can later list stolen cards by calling the same API with the same key. The article states that the <mark class="tag-hl">Stripe</mark> customer database becomes a free, durable exfiltration sink.</p>
+<p>Sansec said the attacker can later list stolen cards by calling the same API with the same key. The article states that the Stripe customer database becomes a free, durable exfiltration sink.</p>
 
-<h2 id="timeline-and-variant-using-google-firestore">Timeline and Variant Using <mark class="tag-hl">Google Firestore</mark></h2>
+<h2 id="timeline-and-variant-using-google-firestore">Timeline and Variant Using Google Firestore</h2>
 
-<p>The <mark class="tag-hl">Stripe</mark> customer record containing the skimmer was created on December 24, 2025. The article says this indicates the operation may have been active since then.</p>
+<p>The Stripe customer record containing the skimmer was created on December 24, 2025. The article says this indicates the operation may have been active since then.</p>
 
-<p><mark class="tag-hl">Sansec</mark> also identified a second variant of the loader that uses <mark class="tag-hl">Google Firestore</mark> instead of <mark class="tag-hl">Stripe</mark>. The article says the end goal is the same: abusing a trusted service as a covert channel that is unlikely to be blocked by e-commerce stores.</p>
+<p>Sansec also identified a second variant of the loader that uses Google Firestore instead of Stripe. The article says the end goal is the same: abusing a trusted service as a covert channel that is unlikely to be blocked by e-commerce stores.</p>
 
-<h2 id="gorgonagora-fake-storefront-operation"><mark class="tag-hl">GorgonAgora</mark> Fake Storefront Operation</h2>
+<h2 id="gorgonagora-fake-storefront-operation">GorgonAgora Fake Storefront Operation</h2>
 
-<p>The article also describes a large-scale operation dubbed <mark class="tag-hl">GorgonAgora</mark>. <mark class="tag-hl">Sansec</mark> said the operation used a cluster of 5,714 fake .shop storefronts impersonating major brands. The brands named include Starbucks, Ford, Sony, Mattel, Hasbro, Lego, Disney, and Toyota.</p>
+<p>The article also describes a large-scale operation dubbed GorgonAgora. Sansec said the operation used a cluster of 5,714 fake .shop storefronts impersonating major brands. The brands named include Starbucks, Ford, Sony, Mattel, Hasbro, Lego, Disney, and Toyota.</p>
 
-<p>The checkout pages on these fake storefronts funnel stolen card data to a single skimmer server in <mark class="tag-hl">Moldova</mark>. The campaign has been ongoing since August 2025, according to the article.</p>
+<p>The checkout pages on these fake storefronts funnel stolen card data to a single skimmer server in Moldova. The campaign has been ongoing since August 2025, according to the article.</p>
 
-<p><mark class="tag-hl">Sansec</mark> said every store in the operation runs the same Medusa.js commerce stack and loads the same custom checkout SDK. The SDK renders a fake <mark class="tag-hl">Stripe</mark> iframe and exfiltrates card data over an encrypted WebSocket to a single server in <mark class="tag-hl">Moldova</mark>.</p>
+<p>Sansec said every store in the operation runs the same Medusa.js commerce stack and loads the same custom checkout SDK. The SDK renders a fake Stripe iframe and exfiltrates card data over an encrypted WebSocket to a single server in Moldova.</p>
 
-<h2 id="3d-secure-relay-technique-in-gorgonagora"><mark class="tag-hl">3D Secure</mark> Relay Technique in <mark class="tag-hl">GorgonAgora</mark></h2>
+<h2 id="3d-secure-relay-technique-in-gorgonagora">3D Secure Relay Technique in GorgonAgora</h2>
 
-<p>The article says <mark class="tag-hl">GorgonAgora</mark> uses WebSocket exfiltration with an AES-256-GCM payload. It also states that the command-and-control system maintains a live <mark class="tag-hl">3D Secure</mark> relay.</p>
+<p>The article says GorgonAgora uses WebSocket exfiltration with an AES-256-GCM payload. It also states that the command-and-control system maintains a live 3D Secure relay.</p>
 
-<p>When a victim bank returns a <mark class="tag-hl">3D Secure</mark> challenge, the operator proxies it back to the shopper through the fake iframe. <mark class="tag-hl">Sansec</mark> said this allows the transaction to complete and keeps the theft invisible.</p>
+<p>When a victim bank returns a 3D Secure challenge, the operator proxies it back to the shopper through the fake iframe. Sansec said this allows the transaction to complete and keeps the theft invisible.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:b290527c461d0b41" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Only <mark class="tag-hl">Everest Forms Pro</mark> forms using the &#34;Complex Calculation&#34; feature are described as enabling exploitation, making that feature a specific configuration to review in addition to updating the plugin.</span></li><li><span class="kp-text">Defenders can look for the rogue administrator account name &#34;diksimarina&#34; and email address &#34;diksimarina@gmail.com&#34; as concrete indicators of compromise tied to observed exploitation.</span></li><li><span class="kp-text">The <mark class="tag-hl">Stripe</mark> skimmer campaign abuses api.<mark class="tag-hl">stripe</mark>.com and <mark class="tag-hl">Google Tag Manager</mark> because online stores often implicitly trust those domains in Content Security Policy rules and network filters.</span></li><li><span class="kp-text"><mark class="tag-hl">Sansec</mark> reported that the <mark class="tag-hl">Stripe</mark> skimmer stores stolen card records as <mark class="tag-hl">Stripe</mark> &#34;customers&#34; and deletes the localStorage entry after successful exfiltration to avoid sending the same record twice.</span></li><li><span class="kp-text">The <mark class="tag-hl">GorgonAgora</mark> fake storefront campaign includes a live <mark class="tag-hl">3D Secure</mark> relay that proxies bank challenges back to victims through a fake <mark class="tag-hl">Stripe</mark> iframe so transactions can complete while card theft remains hidden.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:b290527c461d0b41" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Only Everest Forms Pro forms using the &#34;Complex Calculation&#34; feature are described as enabling exploitation, making that feature a specific configuration to review in addition to updating the plugin.</span></li><li><span class="kp-text">Defenders can look for the rogue administrator account name &#34;diksimarina&#34; and email address &#34;diksimarina@gmail.com&#34; as concrete indicators of compromise tied to observed exploitation.</span></li><li><span class="kp-text">The Stripe skimmer campaign abuses api.stripe.com and Google Tag Manager because online stores often implicitly trust those domains in Content Security Policy rules and network filters.</span></li><li><span class="kp-text">Sansec reported that the Stripe skimmer stores stolen card records as Stripe &#34;customers&#34; and deletes the localStorage entry after successful exfiltration to avoid sending the same record twice.</span></li><li><span class="kp-text">The GorgonAgora fake storefront campaign includes a live 3D Secure relay that proxies bank challenges back to victims through a fake Stripe iframe so transactions can complete while card theft remains hidden.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Threat actors are actively exploiting <mark class="tag-hl">CVE-2026-3300</mark>, a critical remote code execution flaw in the <mark class="tag-hl">Everest Forms Pro</mark> <mark class="tag-hl">WordPress</mark> plugin, which affects versions up to and including 1.9.12.</span></li><li><span class="kp-text"><mark class="tag-hl">Everest Forms Pro</mark> version 1.9.13, released on March 18, 2026, patches the vulnerability.</span></li><li><span class="kp-text"><mark class="tag-hl">Wordfence</mark> said exploitation is possible because the Calculation Addon&#39;s process_filter() function concatenates user-submitted form field values into a PHP code string without proper escaping before passing it to eval().</span></li><li><span class="kp-text">Successful exploitation can allow unauthenticated attackers to execute arbitrary PHP code, create rogue administrator accounts, deploy web shells, and establish persistence on compromised servers.</span></li><li><span class="kp-text"><mark class="tag-hl">Sansec</mark> reported separate skimmer campaigns that abuse trusted services such as <mark class="tag-hl">Stripe</mark>, <mark class="tag-hl">Google Tag Manager</mark>, and <mark class="tag-hl">Google Firestore</mark> for command-and-control and data exfiltration.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Threat actors are actively exploiting CVE-2026-3300, a critical remote code execution flaw in the Everest Forms Pro WordPress plugin, which affects versions up to and including 1.9.12.</span></li><li><span class="kp-text">Everest Forms Pro version 1.9.13, released on March 18, 2026, patches the vulnerability.</span></li><li><span class="kp-text">Wordfence said exploitation is possible because the Calculation Addon&#39;s process_filter() function concatenates user-submitted form field values into a PHP code string without proper escaping before passing it to eval().</span></li><li><span class="kp-text">Successful exploitation can allow unauthenticated attackers to execute arbitrary PHP code, create rogue administrator accounts, deploy web shells, and establish persistence on compromised servers.</span></li><li><span class="kp-text">Sansec reported separate skimmer campaigns that abuse trusted services such as Stripe, Google Tag Manager, and Google Firestore for command-and-control and data exfiltration.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/hackers-exploit-critical-everest-forms.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active in-the-wild exploitation of <mark class="tag-hl">CVE-2026-3300</mark>, a critical unauthenticated RCE flaw in a <mark class="tag-hl">WordPress</mark> plugin that can lead to full site compromise. The article also provides concrete exploitation details, indicators such as a rogue admin account and source IPs, and related skimmer activity abusing trusted services like <mark class="tag-hl">Stripe</mark> and <mark class="tag-hl">Google Tag Manager</mark>.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active in-the-wild exploitation of CVE-2026-3300, a critical unauthenticated RCE flaw in a WordPress plugin that can lead to full site compromise. The article also provides concrete exploitation details, indicators such as a rogue admin account and source IPs, and related skimmer activity abusing trusted services like Stripe and Google Tag Manager.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.wordfence.com/blog/2026/06/attackers-actively-exploiting-critical-vulnerability-in-everest-forms-pro-plugin/" target="_blank" rel="noopener">Attackers Actively Exploiting Critical Vulnerability in Everest Forms Pro Plugin</a></div>
   <div class="report-meta">Wordfence</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Wordfence</mark> for the technical cause of <mark class="tag-hl">CVE-2026-3300</mark> and details of active exploitation against <mark class="tag-hl">Everest Forms Pro</mark>.</div>
+  <div class="report-context">The article cites Wordfence for the technical cause of CVE-2026-3300 and details of active exploitation against Everest Forms Pro.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.wordfence.com/threat-intel/vulnerabilities/wordpress-plugins/everest-forms-pro/everest-forms-pro-1912-unauthenticated-remote-code-execution-via-calculation-field" target="_blank" rel="noopener">Everest Forms Pro &lt;= 1.9.12 - Unauthenticated Remote Code Execution via Calculation Field</a></div>
   <div class="report-meta">Wordfence</div>
-  <div class="report-context">The article links to <mark class="tag-hl">Wordfence</mark>&#39;s vulnerability entry when discussing recent attack attempts targeting the <mark class="tag-hl">Everest Forms Pro</mark> flaw.</div>
+  <div class="report-context">The article links to Wordfence&#39;s vulnerability entry when discussing recent attack attempts targeting the Everest Forms Pro flaw.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://sansec.io/research/stripe-api-skimmer-infrastructure" target="_blank" rel="noopener">Stripe API Skimmer Infrastructure</a></div>
   <div class="report-meta">Sansec</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Sansec</mark>&#39;s research on skimmer campaigns abusing <mark class="tag-hl">Stripe</mark> as command-and-control infrastructure and a data exfiltration sink.</div>
+  <div class="report-context">The article cites Sansec&#39;s research on skimmer campaigns abusing Stripe as command-and-control infrastructure and a data exfiltration sink.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://sansec.io/research/gorgonagora-fake-storefront-skimming-network" target="_blank" rel="noopener">GorgonAgora Fake Storefront Skimming Network</a></div>
   <div class="report-meta">Sansec</div>
-  <div class="report-context">The article references <mark class="tag-hl">Sansec</mark>&#39;s research on the <mark class="tag-hl">GorgonAgora</mark> operation involving thousands of fake .shop storefronts used for payment-card skimming.</div>
+  <div class="report-context">The article references Sansec&#39;s research on the GorgonAgora operation involving thousands of fake .shop storefronts used for payment-card skimming.</div>
 </li></ul></div>
             
           </div>
@@ -1673,56 +1828,56 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:82%"></div></div><span class="score-num score-num-mid">82</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:ba671eb286bfab25">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:ba671eb286bfab25')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:ba671eb286bfab25')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:ba671eb286bfab25')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:ba671eb286bfab25')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:ba671eb286bfab25')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:ba671eb286bfab25')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:ba671eb286bfab25')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:ba671eb286bfab25')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:ba671eb286bfab25')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:ba671eb286bfab25')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:ba671eb286bfab25" class="tab-panel active"><div class="prose">Scammers are already exploiting <mark class="tag-hl">FIFA</mark> World Cup 2026 demand with fake ticket sites, cloned <mark class="tag-hl">FIFA</mark> logins, counterfeit merch, phishing ads, and Android streaming apps carrying banking malware. Fans should use only official <mark class="tag-hl">FIFA</mark> channels, avoid crypto or unofficial sellers, and never install sideloaded streaming apps that request accessibility access.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:ba671eb286bfab25" class="tab-panel"><div class="prose"><p>Security researchers and the <mark class="tag-hl">FBI</mark> are warning that <mark class="tag-hl">FIFA</mark> World Cup 2026 fans are already being targeted by a broad fraud wave ahead of the June 11 kickoff. The activity includes thousands of lookalike <mark class="tag-hl">FIFA</mark> domains, cloned login pages, fake ticket offers, counterfeit merchandise, bogus streaming sites, fake betting sites, and lottery emails. The tournament is an attractive target because tickets are scarce, more than six million fans are expected across 16 cities in the <mark class="tag-hl">United States</mark>, <mark class="tag-hl">Canada</mark>, and <mark class="tag-hl">Mexico</mark>, and <mark class="tag-hl">FIFA</mark> received more than 150 million ticket requests in the first 15 days.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:ba671eb286bfab25" class="tab-panel active"><div class="prose">Scammers are already exploiting FIFA World Cup 2026 demand with fake ticket sites, cloned FIFA logins, counterfeit merch, phishing ads, and Android streaming apps carrying banking malware. Fans should use only official FIFA channels, avoid crypto or unofficial sellers, and never install sideloaded streaming apps that request accessibility access.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:ba671eb286bfab25" class="tab-panel"><div class="prose"><p>Security researchers and the FBI are warning that FIFA World Cup 2026 fans are already being targeted by a broad fraud wave ahead of the June 11 kickoff. The activity includes thousands of lookalike FIFA domains, cloned login pages, fake ticket offers, counterfeit merchandise, bogus streaming sites, fake betting sites, and lottery emails. The tournament is an attractive target because tickets are scarce, more than six million fans are expected across 16 cities in the United States, Canada, and Mexico, and FIFA received more than 150 million ticket requests in the first 15 days.</p>
 
-<p>Group-IB reported more than 4,300 fraudulent <mark class="tag-hl">FIFA</mark> domains registered since August 2025 and linked more than 300 cloned sites to a Chinese-speaking operation it calls <mark class="tag-hl">GHOST STADIUM</mark>. Those phishing pages closely copy <mark class="tag-hl">FIFA</mark>’s real login experience, mimic its PingIdentity single sign-on flow, and ask victims to reset passwords, which can allow attackers to lock users out and resell tickets tied to their accounts. The operation also uses Facebook ads, Telegram, WhatsApp, search results, and several payment methods, including crypto, which the article identifies as a scam indicator because <mark class="tag-hl">FIFA</mark>’s official ticketing never accepts it.</p>
+<p>Group-IB reported more than 4,300 fraudulent FIFA domains registered since August 2025 and linked more than 300 cloned sites to a Chinese-speaking operation it calls GHOST STADIUM. Those phishing pages closely copy FIFA’s real login experience, mimic its PingIdentity single sign-on flow, and ask victims to reset passwords, which can allow attackers to lock users out and resell tickets tied to their accounts. The operation also uses Facebook ads, Telegram, WhatsApp, search results, and several payment methods, including crypto, which the article identifies as a scam indicator because FIFA’s official ticketing never accepts it.</p>
 
-<p>The article also highlights mobile banking risk from malicious unofficial streaming apps. ThreatFabric and Kaspersky tied fake streaming apps, including apps pretending to be RojaDirecta, to Android banking trojans such as <mark class="tag-hl">Massiv</mark> and <mark class="tag-hl">Perseus</mark>, which can abuse Android accessibility features to overlay fake login screens, record input, intercept codes, and remotely control the screen. The article advises fans to use only <mark class="tag-hl">fifa</mark>.com, avoid crypto payments and unofficial sellers, be wary of sideloaded streaming apps requesting accessibility access, and avoid sensitive logins on open Wi-Fi in host cities.</p>
+<p>The article also highlights mobile banking risk from malicious unofficial streaming apps. ThreatFabric and Kaspersky tied fake streaming apps, including apps pretending to be RojaDirecta, to Android banking trojans such as Massiv and Perseus, which can abuse Android accessibility features to overlay fake login screens, record input, intercept codes, and remotely control the screen. The article advises fans to use only fifa.com, avoid crypto payments and unofficial sellers, be wary of sideloaded streaming apps requesting accessibility access, and avoid sensitive logins on open Wi-Fi in host cities.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:ba671eb286bfab25" class="tab-panel"><div class="prose"><p>Security researchers and the <mark class="tag-hl">FBI</mark> are warning that <mark class="tag-hl">FIFA</mark> World Cup 2026 fraud is already active days before the June 11 kickoff. The article describes fake <mark class="tag-hl">FIFA</mark> domains, cloned login pages, counterfeit merchandise stores, bogus streaming sites, fake betting sites, lottery emails, and social media scams. The risk is amplified by high demand, with more than six million fans expected across 16 cities in the <mark class="tag-hl">United States</mark>, <mark class="tag-hl">Canada</mark>, and <mark class="tag-hl">Mexico</mark>, and more than 150 million ticket requests submitted to <mark class="tag-hl">FIFA</mark> in the first 15 days.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:ba671eb286bfab25" class="tab-panel"><div class="prose"><p>Security researchers and the FBI are warning that FIFA World Cup 2026 fraud is already active days before the June 11 kickoff. The article describes fake FIFA domains, cloned login pages, counterfeit merchandise stores, bogus streaming sites, fake betting sites, lottery emails, and social media scams. The risk is amplified by high demand, with more than six million fans expected across 16 cities in the United States, Canada, and Mexico, and more than 150 million ticket requests submitted to FIFA in the first 15 days.</p>
 
-<p>Group-IB reported more than 4,300 fraudulent <mark class="tag-hl">FIFA</mark> domains registered since August 2025. It identified a Chinese-speaking, financially motivated operation called <mark class="tag-hl">GHOST STADIUM</mark> that runs one phishing kit across more than 300 cloned <mark class="tag-hl">FIFA</mark> sites. The cloned pages are described as near-perfect copies of <mark class="tag-hl">fifa</mark>.com and mimic <mark class="tag-hl">FIFA</mark>’s PingIdentity single sign-on login, including a genuine client ID copied from the live site and images loaded from <mark class="tag-hl">FIFA</mark>’s own servers.</p>
+<p>Group-IB reported more than 4,300 fraudulent FIFA domains registered since August 2025. It identified a Chinese-speaking, financially motivated operation called GHOST STADIUM that runs one phishing kit across more than 300 cloned FIFA sites. The cloned pages are described as near-perfect copies of fifa.com and mimic FIFA’s PingIdentity single sign-on login, including a genuine client ID copied from the live site and images loaded from FIFA’s own servers.</p>
 
-<p>The <mark class="tag-hl">GHOST STADIUM</mark> login pages ask victims to reset their passwords after entering credentials. According to the article, that can let attackers lock victims out of their <mark class="tag-hl">FIFA</mark> accounts and resell tickets tied to them. Group-IB said most traffic comes from Facebook ads, with additional links on Telegram, WhatsApp, and search results, and the sites support payment through card entry, outside gateways, money-transfer apps, <mark class="tag-hl">Mexico</mark>-only processors, and a crypto option.</p>
+<p>The GHOST STADIUM login pages ask victims to reset their passwords after entering credentials. According to the article, that can let attackers lock victims out of their FIFA accounts and resell tickets tied to them. Group-IB said most traffic comes from Facebook ads, with additional links on Telegram, WhatsApp, and search results, and the sites support payment through card entry, outside gateways, money-transfer apps, Mexico-only processors, and a crypto option.</p>
 
-<p>Other researchers described additional infrastructure and scam types. FortiGuard Labs counted more than 13,000 World Cup-themed domains registered between January and May, with about 8.8% labeled malicious or suspicious, while the <mark class="tag-hl">FBI</mark> advisory listed fake <mark class="tag-hl">FIFA</mark> domains and warned more were coming. Bitdefender found <mark class="tag-hl">FIFA</mark> lottery emails and social media ad campaigns for counterfeit goods and phishing pages, and Fortinet found more than 1,700 spoofed <mark class="tag-hl">FIFA</mark> accounts plus stolen <mark class="tag-hl">FIFA</mark>-related logins in data collected by <mark class="tag-hl">Vidar</mark>, <mark class="tag-hl">LummaC2</mark>, and <mark class="tag-hl">RedLine</mark>.</p>
+<p>Other researchers described additional infrastructure and scam types. FortiGuard Labs counted more than 13,000 World Cup-themed domains registered between January and May, with about 8.8% labeled malicious or suspicious, while the FBI advisory listed fake FIFA domains and warned more were coming. Bitdefender found FIFA lottery emails and social media ad campaigns for counterfeit goods and phishing pages, and Fortinet found more than 1,700 spoofed FIFA accounts plus stolen FIFA-related logins in data collected by Vidar, LummaC2, and RedLine.</p>
 
-<p>The article also highlights malware distributed through unofficial streaming apps. ThreatFabric observed malicious apps pretending to be RojaDirecta, and Kaspersky tied similar fake IPTV apps to Android banking trojans named <mark class="tag-hl">Massiv</mark> and <mark class="tag-hl">Perseus</mark>. These apps can abuse Android accessibility tools to overlay fake bank logins, record typed information, intercept one-time codes from texts and login apps, and control the screen remotely.</p>
+<p>The article also highlights malware distributed through unofficial streaming apps. ThreatFabric observed malicious apps pretending to be RojaDirecta, and Kaspersky tied similar fake IPTV apps to Android banking trojans named Massiv and Perseus. These apps can abuse Android accessibility tools to overlay fake bank logins, record typed information, intercept one-time codes from texts and login apps, and control the screen remotely.</p>
 
-<p>The recommended user precautions are to buy only through <mark class="tag-hl">fifa</mark>.com, type the address manually, enable multi-factor login, treat crypto payment requests as scams, avoid sideloaded streaming apps that request accessibility access, and avoid logging into bank or email accounts on open Wi-Fi. For security teams, the article recommends monitoring new <mark class="tag-hl">FIFA</mark>-themed domains and lookalike login pages, checking staff and customer logins against <mark class="tag-hl">Vidar</mark>, <mark class="tag-hl">LummaC2</mark>, and <mark class="tag-hl">RedLine</mark> stealer logs, and preparing fraud teams for ticket and chargeback spikes through mid-July. Meta said it is showing warning pop-ups for <mark class="tag-hl">FIFA</mark> ticket searches on Facebook and worked with Visa to take down a Facebook network linked to fake World Cup sites pushing bogus gambling, while the <mark class="tag-hl">FBI</mark> is asking victims to report scams to IC3.</p>
+<p>The recommended user precautions are to buy only through fifa.com, type the address manually, enable multi-factor login, treat crypto payment requests as scams, avoid sideloaded streaming apps that request accessibility access, and avoid logging into bank or email accounts on open Wi-Fi. For security teams, the article recommends monitoring new FIFA-themed domains and lookalike login pages, checking staff and customer logins against Vidar, LummaC2, and RedLine stealer logs, and preparing fraud teams for ticket and chargeback spikes through mid-July. Meta said it is showing warning pop-ups for FIFA ticket searches on Facebook and worked with Visa to take down a Facebook network linked to fake World Cup sites pushing bogus gambling, while the FBI is asking victims to report scams to IC3.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:ba671eb286bfab25" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:ba671eb286bfab25" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Security researchers and the <mark class="tag-hl">FBI</mark> are warning that <mark class="tag-hl">FIFA</mark> World Cup 2026 scams are already active ahead of the June 11 kickoff. The article describes a broad fraud ecosystem targeting fans through fake <mark class="tag-hl">FIFA</mark> sites, stolen logins, fraudulent ticket offers, counterfeit merchandise shops, bogus streaming apps, fake betting sites, lottery emails, spoofed social accounts, and risky public Wi-Fi.</p>
+<p>Security researchers and the FBI are warning that FIFA World Cup 2026 scams are already active ahead of the June 11 kickoff. The article describes a broad fraud ecosystem targeting fans through fake FIFA sites, stolen logins, fraudulent ticket offers, counterfeit merchandise shops, bogus streaming apps, fake betting sites, lottery emails, spoofed social accounts, and risky public Wi-Fi.</p>
 
-<p>The tournament is described as a high-value target because demand is extremely high. More than six million fans are expected across 16 cities in the <mark class="tag-hl">United States</mark>, <mark class="tag-hl">Canada</mark>, and <mark class="tag-hl">Mexico</mark>, and <mark class="tag-hl">FIFA</mark> said it received more than 150 million ticket requests in the first 15 days. The article says scarce tickets, anxious fans, and fast-moving money create conditions that favor fraud.</p>
+<p>The tournament is described as a high-value target because demand is extremely high. More than six million fans are expected across 16 cities in the United States, Canada, and Mexico, and FIFA said it received more than 150 million ticket requests in the first 15 days. The article says scarce tickets, anxious fans, and fast-moving money create conditions that favor fraud.</p>
 
-<h2 id="ghost-stadium-and-cloned-fifa-login-sites"><mark class="tag-hl">GHOST STADIUM</mark> and Cloned <mark class="tag-hl">FIFA</mark> Login Sites</h2>
+<h2 id="ghost-stadium-and-cloned-fifa-login-sites">GHOST STADIUM and Cloned FIFA Login Sites</h2>
 
-<p>Group-IB reported more than 4,300 fraudulent <mark class="tag-hl">FIFA</mark> domains registered since August 2025. At the center of its findings is a Chinese-speaking, financially motivated group it calls <mark class="tag-hl">GHOST STADIUM</mark>, which runs one phishing kit across more than 300 cloned <mark class="tag-hl">FIFA</mark> sites.</p>
+<p>Group-IB reported more than 4,300 fraudulent FIFA domains registered since August 2025. At the center of its findings is a Chinese-speaking, financially motivated group it calls GHOST STADIUM, which runs one phishing kit across more than 300 cloned FIFA sites.</p>
 
-<p>The fake pages are described as near-perfect copies of <mark class="tag-hl">fifa</mark>.com. They mimic <mark class="tag-hl">FIFA</mark>’s real single sign-on login, operated by PingIdentity, and copy the genuine client ID from the live site. The pages also load images directly from <mark class="tag-hl">FIFA</mark>’s servers, which makes them look authentic and helps them avoid tools that flag copied images.</p>
+<p>The fake pages are described as near-perfect copies of fifa.com. They mimic FIFA’s real single sign-on login, operated by PingIdentity, and copy the genuine client ID from the live site. The pages also load images directly from FIFA’s servers, which makes them look authentic and helps them avoid tools that flag copied images.</p>
 
-<p>The key account takeover mechanism described in the article is password reset phishing. The fake login page asks victims to reset their passwords after they enter their details. Once victims do that, attackers can lock them out of their <mark class="tag-hl">FIFA</mark> accounts and resell any tickets tied to those accounts.</p>
+<p>The key account takeover mechanism described in the article is password reset phishing. The fake login page asks victims to reset their passwords after they enter their details. Once victims do that, attackers can lock them out of their FIFA accounts and resell any tickets tied to those accounts.</p>
 
 <h2 id="traffic-sources-and-payment-methods">Traffic Sources and Payment Methods</h2>
 
-<p>Group-IB said most traffic to the <mark class="tag-hl">GHOST STADIUM</mark> cluster comes from Facebook ads. The same tracking codes were reused across the cluster, and additional links appeared on Telegram, WhatsApp, and in search results.</p>
+<p>Group-IB said most traffic to the GHOST STADIUM cluster comes from Facebook ads. The same tracking codes were reused across the cluster, and additional links appeared on Telegram, WhatsApp, and in search results.</p>
 
 <p>The fake sites take payment in several ways:</p>
 
@@ -1730,25 +1885,25 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Direct card entry.</li>
 <li>Outside payment gateways.</li>
 <li>Money-transfer apps such as Chime and Nequi.</li>
-<li><mark class="tag-hl">Mexico</mark>-only payment processors.</li>
+<li>Mexico-only payment processors.</li>
 <li>A crypto option that converts a card payment into cryptocurrency.</li>
 </ul>
 
-<p>The article identifies cryptocurrency payment as a strong warning sign because <mark class="tag-hl">FIFA</mark>’s official ticketing never accepts crypto. Group-IB estimated that losses from premium and hospitality ticket fraud alone could range from <span class="math inline">\(71 million to \)</span>474 million, while noting those figures are estimates based on visible infrastructure rather than confirmed losses.</p>
+<p>The article identifies cryptocurrency payment as a strong warning sign because FIFA’s official ticketing never accepts crypto. Group-IB estimated that losses from premium and hospitality ticket fraud alone could range from <span class="math inline">\(71 million to \)</span>474 million, while noting those figures are estimates based on visible infrastructure rather than confirmed losses.</p>
 
-<h2 id="wider-fifa-themed-domain-and-social-media-fraud">Wider <mark class="tag-hl">FIFA</mark>-Themed Domain and Social Media Fraud</h2>
+<h2 id="wider-fifa-themed-domain-and-social-media-fraud">Wider FIFA-Themed Domain and Social Media Fraud</h2>
 
-<p>The activity is not limited to <mark class="tag-hl">GHOST STADIUM</mark>. FortiGuard Labs counted more than 13,000 World Cup-themed domains registered between January and May, about 8.8% of which were malicious or suspicious. The <mark class="tag-hl">FBI</mark> advisory listed dozens of fake <mark class="tag-hl">FIFA</mark> domains, including misspelled lookalikes and phony <mark class="tag-hl">FIFA</mark> jobs pages, and warned that more were expected.</p>
+<p>The activity is not limited to GHOST STADIUM. FortiGuard Labs counted more than 13,000 World Cup-themed domains registered between January and May, about 8.8% of which were malicious or suspicious. The FBI advisory listed dozens of fake FIFA domains, including misspelled lookalikes and phony FIFA jobs pages, and warned that more were expected.</p>
 
 <p>Other researchers mapped thousands of additional lookalike sites and more than a thousand fake social accounts. Group-IB also found counterfeit merchandise shops, bogus streaming sites, and fake betting sites that collect passport scans and selfies for identity theft.</p>
 
-<p>Bitdefender separately tracked <mark class="tag-hl">FIFA</mark> lottery emails promising payouts of up to $2 million. The article also notes that a <mark class="tag-hl">phishing-as-a-service</mark> market is selling ready-made scam kits and ticket-buying bots, making takedowns of individual operators less effective.</p>
+<p>Bitdefender separately tracked FIFA lottery emails promising payouts of up to $2 million. The article also notes that a phishing-as-a-service market is selling ready-made scam kits and ticket-buying bots, making takedowns of individual operators less effective.</p>
 
 <h2 id="streaming-apps-and-android-banking-trojans">Streaming Apps and Android Banking Trojans</h2>
 
 <p>The article highlights malicious unofficial streaming apps as a major risk for fans searching for free match streams. ThreatFabric observed a spike in malicious unofficial streaming apps around the recent Champions League final, many pretending to be the popular RojaDirecta, and expects similar activity at the World Cup on a larger scale.</p>
 
-<p>Kaspersky tied those same apps to Android banking trojans built to steal from banking and crypto apps. The named malware families are <mark class="tag-hl">Massiv</mark> and <mark class="tag-hl">Perseus</mark>. These apps are not on Google Play, so installing them requires users to click past warnings that would normally block them.</p>
+<p>Kaspersky tied those same apps to Android banking trojans built to steal from banking and crypto apps. The named malware families are Massiv and Perseus. These apps are not on Google Play, so installing them requires users to click past warnings that would normally block them.</p>
 
 <p>After installation, the malware can abuse Android accessibility tools. The article says it can:</p>
 
@@ -1759,19 +1914,19 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Remotely control the screen.</li>
 </ul>
 
-<p><mark class="tag-hl">Perseus</mark> is described as being built on leaked code from an older Trojan called <mark class="tag-hl">Cerberus</mark>. It can also read note-taking apps for saved passwords and crypto recovery phrases. ThreatFabric’s simplest red flag is a streaming app asking for accessibility access, because such an app has no honest reason to need it.</p>
+<p>Perseus is described as being built on leaked code from an older Trojan called Cerberus. It can also read note-taking apps for saved passwords and crypto recovery phrases. ThreatFabric’s simplest red flag is a streaming app asking for accessibility access, because such an app has no honest reason to need it.</p>
 
 <h2 id="social-scams-and-stolen-credentials">Social Scams and Stolen Credentials</h2>
 
 <p>Bitdefender found more than 55 football-themed ad campaigns on Facebook and Instagram. These campaigns promoted counterfeit kits, fake Panini stickers, and phishing pages. Two merchandise operations were traced back to Chinese operators through ad-tracking tags.</p>
 
-<p>Fortinet counted more than 1,700 spoofed <mark class="tag-hl">FIFA</mark> accounts, nearly 90% of them on Facebook and Instagram. It also found a scheme using fake <mark class="tag-hl">FIFA</mark> job ads and calendar invites to send applicants to a lookalike Google login page.</p>
+<p>Fortinet counted more than 1,700 spoofed FIFA accounts, nearly 90% of them on Facebook and Instagram. It also found a scheme using fake FIFA job ads and calendar invites to send applicants to a lookalike Google login page.</p>
 
-<p>The article says stolen <mark class="tag-hl">FIFA</mark> logins are already circulating. Fortinet found hundreds of thousands of user logins and more than 4,600 <mark class="tag-hl">FIFA</mark> web addresses in data collected by credential-stealing malware including <mark class="tag-hl">Vidar</mark>, <mark class="tag-hl">LummaC2</mark>, and <mark class="tag-hl">RedLine</mark>.</p>
+<p>The article says stolen FIFA logins are already circulating. Fortinet found hundreds of thousands of user logins and more than 4,600 FIFA web addresses in data collected by credential-stealing malware including Vidar, LummaC2, and RedLine.</p>
 
 <h2 id="host-city-wi-fi-risks">Host-City Wi-Fi Risks</h2>
 
-<p>The article also discusses public Wi-Fi exposure in host cities. A Kaspersky survey drove around <mark class="tag-hl">Mexico</mark> City, Monterrey, and Guadalajara and found that 10% to 12% of networks were open and password-free. It also found WPS pairing still enabled across nearly half of networks.</p>
+<p>The article also discusses public Wi-Fi exposure in host cities. A Kaspersky survey drove around Mexico City, Monterrey, and Guadalajara and found that 10% to 12% of networks were open and password-free. It also found WPS pairing still enabled across nearly half of networks.</p>
 
 <p>According to the article, both open networks and WPS exposure create opportunities for rogue “evil twin” hotspots. These hotspots can copy a real network and quietly read its traffic.</p>
 
@@ -1780,10 +1935,10 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The article gives several direct recommendations for fans:</p>
 
 <ul>
-<li>Buy tickets only through <mark class="tag-hl">fifa</mark>.com.</li>
+<li>Buy tickets only through fifa.com.</li>
 <li>Type the address manually instead of trusting an ad or search result.</li>
 <li>Enable multi-factor login.</li>
-<li>Treat any seller requesting cryptocurrency as a scam, because <mark class="tag-hl">FIFA</mark>’s ticketing does not accept crypto.</li>
+<li>Treat any seller requesting cryptocurrency as a scam, because FIFA’s ticketing does not accept crypto.</li>
 <li>Avoid sideloaded streaming apps, especially those requesting Android accessibility access.</li>
 <li>Use mobile data where possible on open Wi-Fi in host cities.</li>
 <li>Avoid logging into bank or email accounts on open Wi-Fi.</li>
@@ -1791,43 +1946,44 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="recommendations-for-security-teams">Recommendations for Security Teams</h2>
 
-<p>For security teams, the article describes a straightforward monitoring and fraud-preparation task. Teams should watch for new <mark class="tag-hl">FIFA</mark>-themed domains and lookalike login pages. They should also flag staff or customer logins that appear in <mark class="tag-hl">Vidar</mark>, <mark class="tag-hl">LummaC2</mark>, or <mark class="tag-hl">RedLine</mark> stealer logs.</p>
+<p>For security teams, the article describes a straightforward monitoring and fraud-preparation task. Teams should watch for new FIFA-themed domains and lookalike login pages. They should also flag staff or customer logins that appear in Vidar, LummaC2, or RedLine stealer logs.</p>
 
 <p>The article further recommends preparing fraud teams for ticket and chargeback spikes through mid-July. This aligns with the tournament window described in the article, from June 11 to July 19, when searches for tickets, streams, and travel are expected to peak.</p>
 
 <h2 id="responses-and-remaining-risk">Responses and Remaining Risk</h2>
 
-<p>Meta said it is responding by showing warning pop-ups when people search Facebook for <mark class="tag-hl">FIFA</mark> tickets. It also said it worked with Visa to take down a Facebook network linked to fake World Cup sites pushing bogus gambling. The <mark class="tag-hl">FBI</mark> is asking scam victims to report incidents through IC3.</p>
+<p>Meta said it is responding by showing warning pop-ups when people search Facebook for FIFA tickets. It also said it worked with Visa to take down a Facebook network linked to fake World Cup sites pushing bogus gambling. The FBI is asking scam victims to report incidents through IC3.</p>
 
-<p>The article ends by emphasizing that the fraud wave may not have fully activated yet. Group-IB counted roughly 3,800 fraudulent <mark class="tag-hl">FIFA</mark> domains that were parked and unused, ready to be switched on. With ready-made scam kits and bots already for sale, the article identifies June 11 to July 19 as the likely peak period for ticket, streaming, and travel-related scams.</p>
+<p>The article ends by emphasizing that the fraud wave may not have fully activated yet. Group-IB counted roughly 3,800 fraudulent FIFA domains that were parked and unused, ready to be switched on. With ready-made scam kits and bots already for sale, the article identifies June 11 to July 19 as the likely peak period for ticket, streaming, and travel-related scams.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:ba671eb286bfab25" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">FIFA</mark>-themed phishing pages can look unusually convincing because some cloned sites load images directly from <mark class="tag-hl">FIFA</mark>’s own servers and copy details from <mark class="tag-hl">FIFA</mark>’s real PingIdentity single sign-on flow.</span></li><li><span class="kp-text">A request for cryptocurrency payment is a strong fraud indicator because the article states that <mark class="tag-hl">FIFA</mark>’s official ticketing never accepts crypto.</span></li><li><span class="kp-text">For Android users seeking match streams, a streaming app requesting accessibility access is a clear red flag because the article says such apps have no legitimate reason to need it.</span></li><li><span class="kp-text">The scam wave may expand quickly during the tournament because Group-IB found roughly 3,800 fraudulent <mark class="tag-hl">FIFA</mark> domains parked and unused, ready to be activated.</span></li><li><span class="kp-text">Security teams can act before account abuse occurs by checking whether staff or customer logins appear in <mark class="tag-hl">Vidar</mark>, <mark class="tag-hl">LummaC2</mark>, or <mark class="tag-hl">RedLine</mark> stealer logs, as the article says <mark class="tag-hl">FIFA</mark>-related credentials are already circulating there.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:ba671eb286bfab25" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">FIFA-themed phishing pages can look unusually convincing because some cloned sites load images directly from FIFA’s own servers and copy details from FIFA’s real PingIdentity single sign-on flow.</span></li><li><span class="kp-text">A request for cryptocurrency payment is a strong fraud indicator because the article states that FIFA’s official ticketing never accepts crypto.</span></li><li><span class="kp-text">For Android users seeking match streams, a streaming app requesting accessibility access is a clear red flag because the article says such apps have no legitimate reason to need it.</span></li><li><span class="kp-text">The scam wave may expand quickly during the tournament because Group-IB found roughly 3,800 fraudulent FIFA domains parked and unused, ready to be activated.</span></li><li><span class="kp-text">Security teams can act before account abuse occurs by checking whether staff or customer logins appear in Vidar, LummaC2, or RedLine stealer logs, as the article says FIFA-related credentials are already circulating there.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Researchers and the <mark class="tag-hl">FBI</mark> warn that <mark class="tag-hl">FIFA</mark> World Cup 2026 fans are already being targeted by fake <mark class="tag-hl">FIFA</mark> domains, phishing pages, fraudulent ticket offers, counterfeit merchandise shops, bogus streaming sites, and fake betting sites.</span></li><li><span class="kp-text">Group-IB tracked more than 4,300 fraudulent <mark class="tag-hl">FIFA</mark> domains registered since August 2025 and linked more than 300 cloned <mark class="tag-hl">FIFA</mark> sites to a Chinese-speaking operation it calls <mark class="tag-hl">GHOST STADIUM</mark>.</span></li><li><span class="kp-text">The <mark class="tag-hl">GHOST STADIUM</mark> phishing pages closely copy <mark class="tag-hl">FIFA</mark>’s real login flow and ask victims to reset their passwords, allowing attackers to lock users out of <mark class="tag-hl">FIFA</mark> accounts and potentially resell tickets tied to them.</span></li><li><span class="kp-text">ThreatFabric and Kaspersky reported malicious unofficial Android streaming apps impersonating services such as RojaDirecta and delivering banking trojans including <mark class="tag-hl">Massiv</mark> and <mark class="tag-hl">Perseus</mark>, which can abuse Android accessibility features to steal credentials and intercept codes.</span></li><li><span class="kp-text">Fortinet found hundreds of thousands of user logins and more than 4,600 <mark class="tag-hl">FIFA</mark> web addresses in data collected by credential-stealing malware such as <mark class="tag-hl">Vidar</mark>, <mark class="tag-hl">LummaC2</mark>, and <mark class="tag-hl">RedLine</mark>.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Researchers and the FBI warn that FIFA World Cup 2026 fans are already being targeted by fake FIFA domains, phishing pages, fraudulent ticket offers, counterfeit merchandise shops, bogus streaming sites, and fake betting sites.</span></li><li><span class="kp-text">Group-IB tracked more than 4,300 fraudulent FIFA domains registered since August 2025 and linked more than 300 cloned FIFA sites to a Chinese-speaking operation it calls GHOST STADIUM.</span></li><li><span class="kp-text">The GHOST STADIUM phishing pages closely copy FIFA’s real login flow and ask victims to reset their passwords, allowing attackers to lock users out of FIFA accounts and potentially resell tickets tied to them.</span></li><li><span class="kp-text">ThreatFabric and Kaspersky reported malicious unofficial Android streaming apps impersonating services such as RojaDirecta and delivering banking trojans including Massiv and Perseus, which can abuse Android accessibility features to steal credentials and intercept codes.</span></li><li><span class="kp-text">Fortinet found hundreds of thousands of user logins and more than 4,600 FIFA web addresses in data collected by credential-stealing malware such as Vidar, LummaC2, and RedLine.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/fifa-world-cup-2026-scams-are-already.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a should-read item because it reports active, concrete <mark class="tag-hl">FIFA</mark> World Cup 2026 fraud infrastructure, including thousands of domains, a named phishing operation, stolen logins, and Android banking malware tied to unofficial streaming apps. It has broad relevance for fraud, SOC, brand protection, and consumer-security teams, though it is not a critical patch or single major breach.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a should-read item because it reports active, concrete FIFA World Cup 2026 fraud infrastructure, including thousands of domains, a named phishing operation, stolen logins, and Android banking malware tied to unofficial streaming apps. It has broad relevance for fraud, SOC, brand protection, and consumer-security teams, though it is not a critical patch or single major breach.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.group-ib.com/blog/ghost-stadium-football-fraud/" target="_blank" rel="noopener">Ghost Stadium: Football Fraud</a></div>
   <div class="report-meta">Group-IB</div>
-  <div class="report-context">The article cites Group-IB as providing the most detailed findings on fraudulent <mark class="tag-hl">FIFA</mark> domains and the <mark class="tag-hl">GHOST STADIUM</mark> phishing operation.</div>
+  <div class="report-context">The article cites Group-IB as providing the most detailed findings on fraudulent FIFA domains and the GHOST STADIUM phishing operation.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.fortinet.com/blog/threat-research/cybercriminals-are-targeting-the-fifa-world-cup-2026" target="_blank" rel="noopener">Cybercriminals Are Targeting the FIFA World Cup 2026</a></div>
   <div class="report-meta">FortiGuard Labs</div>
-  <div class="report-context">The article cites FortiGuard Labs for counts of World Cup-themed domains, spoofed <mark class="tag-hl">FIFA</mark> accounts, fake job ads, and stolen <mark class="tag-hl">FIFA</mark>-related logins.</div>
+  <div class="report-context">The article cites FortiGuard Labs for counts of World Cup-themed domains, spoofed FIFA accounts, fake job ads, and stolen FIFA-related logins.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.ic3.gov/PSA/2026/PSA260527" target="_blank" rel="noopener">FBI IC3 Public Service Announcement on FIFA World Cup 2026 Scams</a></div>
   <div class="report-meta">FBI Internet Crime Complaint Center</div>
-  <div class="report-context">The article references an <mark class="tag-hl">FBI</mark> advisory warning about fake <mark class="tag-hl">FIFA</mark> domains and asking victims to report scams to IC3.</div>
+  <div class="report-context">The article references an FBI advisory warning about fake FIFA domains and asking victims to report scams to IC3.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://thehackernews.com/expert-insights/2026/05/before-whistle-ctm360-reveals-how.html" target="_blank" rel="noopener">Before the Whistle: CTM360 Reveals How Cybercriminals Are Targeting the FIFA World Cup 2026</a></div>
   <div class="report-meta">CTM360</div>
-  <div class="report-context">The article refers to other researchers mapping thousands of lookalike <mark class="tag-hl">FIFA</mark> sites and more than a thousand fake social accounts.</div>
+  <div class="report-context">The article refers to other researchers mapping thousands of lookalike FIFA sites and more than a thousand fake social accounts.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.bitdefender.com/en-us/blog/labs/football-fever-fuels-scam-campaigns-across-email-and-social-media" target="_blank" rel="noopener">Football Fever Fuels Scam Campaigns Across Email and Social Media</a></div>
   <div class="report-meta">Bitdefender</div>
-  <div class="report-context">The article cites Bitdefender research on <mark class="tag-hl">FIFA</mark> lottery emails and football-themed Facebook and Instagram scam campaigns.</div>
+  <div class="report-context">The article cites Bitdefender research on FIFA lottery emails and football-themed Facebook and Instagram scam campaigns.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.threatfabric.com/blogs/own-goal-piracy-as-an-attack-vector-to-target-football-fans" target="_blank" rel="noopener">Own Goal: Piracy as an Attack Vector to Target Football Fans</a></div>
   <div class="report-meta">ThreatFabric</div>
@@ -1835,7 +1991,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.kaspersky.com/blog/fake-iptv-apps-spread-android-malware/55872/" target="_blank" rel="noopener">Fake IPTV Apps Spread Android Malware</a></div>
   <div class="report-meta">Kaspersky</div>
-  <div class="report-context">The article cites Kaspersky analysis linking fake streaming apps to Android banking trojans including <mark class="tag-hl">Massiv</mark> and <mark class="tag-hl">Perseus</mark>.</div>
+  <div class="report-context">The article cites Kaspersky analysis linking fake streaming apps to Android banking trojans including Massiv and Perseus.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://securelist.com/wardriving-assessment-in-mexico-fifa-world-cup-2026/119996/" target="_blank" rel="noopener">Wardriving Assessment in Mexico: FIFA World Cup 2026</a></div>
   <div class="report-meta">Kaspersky</div>
@@ -1862,38 +2018,38 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This coverage window is dominated by active exploitation of edge and web-facing platforms, alongside large-scale fraud activity tied to the <mark class="tag-hl">FIFA</mark> World Cup 2026. The most technically significant items are an unauthenticated <mark class="tag-hl">WordPress</mark> plugin RCE affecting <mark class="tag-hl">Everest Forms Pro</mark> and an unpatched <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> zero-day used for <mark class="tag-hl">root privilege escalation</mark>.</p>
+        <div class="overview-body prose"><p>This coverage window is dominated by active exploitation of edge and web-facing platforms, alongside large-scale fraud activity tied to the FIFA World Cup 2026. The most technically significant items are an unauthenticated WordPress plugin RCE affecting Everest Forms Pro and an unpatched Cisco Catalyst SD-WAN Manager zero-day used for root privilege escalation.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Active Exploitation of Web and Network Management Platforms</span>
         </div>
-        <div class="overview-body prose"><p>Threat actors are actively exploiting <mark class="tag-hl">CVE-2026-3300</mark>, a critical remote code execution vulnerability in the <mark class="tag-hl">Everest Forms Pro</mark> <mark class="tag-hl">WordPress</mark> plugin affecting versions up to and including 1.9.12. <mark class="tag-hl">Wordfence</mark> attributed the flaw to unsafe handling in the Calculation Addon&rsquo;s process_filter() function, where user-submitted form values are concatenated into PHP code without proper escaping before being passed to eval().</p>
+        <div class="overview-body prose"><p>Threat actors are actively exploiting CVE-2026-3300, a critical remote code execution vulnerability in the Everest Forms Pro WordPress plugin affecting versions up to and including 1.9.12. Wordfence attributed the flaw to unsafe handling in the Calculation Addon&rsquo;s process_filter() function, where user-submitted form values are concatenated into PHP code without proper escaping before being passed to eval().</p>
 
-<p>Successful exploitation allows unauthenticated attackers to execute arbitrary PHP code on vulnerable <mark class="tag-hl">WordPress</mark> sites. Reported post-exploitation outcomes include creation of rogue administrator accounts, deployment of web shells, and persistence on compromised servers. <mark class="tag-hl">Everest Forms Pro</mark> 1.9.13, released on March 18, 2026, contains the fix for the vulnerability.</p>
+<p>Successful exploitation allows unauthenticated attackers to execute arbitrary PHP code on vulnerable WordPress sites. Reported post-exploitation outcomes include creation of rogue administrator accounts, deployment of web shells, and persistence on compromised servers. Everest Forms Pro 1.9.13, released on March 18, 2026, contains the fix for the vulnerability.</p>
 
-<p><mark class="tag-hl">Cisco</mark> separately warned that <mark class="tag-hl">CVE-2026-20245</mark>, a high-severity zero-day in <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, is being actively exploited and remains unpatched. The flaw affects all deployment models, including on-premises, <mark class="tag-hl">Cisco</mark>-managed cloud, Cloud-Pro, and FedRAMP environments, and allows local attackers with netadmin privileges to upload crafted files and execute arbitrary commands as root. <mark class="tag-hl">Cisco</mark> linked the issue to insufficient validation of user-supplied input and published indicators involving activity in /var/log/scripts.log related to attempts to upload tenant configuration data to <mark class="tag-hl">vSmart</mark> controllers.</p>
+<p>Cisco separately warned that CVE-2026-20245, a high-severity zero-day in Cisco Catalyst SD-WAN Manager, is being actively exploited and remains unpatched. The flaw affects all deployment models, including on-premises, Cisco-managed cloud, Cloud-Pro, and FedRAMP environments, and allows local attackers with netadmin privileges to upload crafted files and execute arbitrary commands as root. Cisco linked the issue to insufficient validation of user-supplied input and published indicators involving activity in /var/log/scripts.log related to attempts to upload tenant configuration data to vSmart controllers.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">FIFA World Cup 2026-Themed Fraud, Credential Theft, and Mobile Malware</span>
         </div>
-        <div class="overview-body prose"><p>Researchers and law enforcement are reporting an early wave of <mark class="tag-hl">FIFA</mark> World Cup 2026-themed cybercrime, including fake <mark class="tag-hl">FIFA</mark> domains, cloned login portals, fraudulent ticket offers, counterfeit merchandise stores, bogus streaming sites, and fake betting platforms. Group-IB tracked more than 4,300 fraudulent <mark class="tag-hl">FIFA</mark>-related domains registered since August 2025 and linked over 300 cloned <mark class="tag-hl">FIFA</mark> sites to a Chinese-speaking operation it tracks as <mark class="tag-hl">GHOST STADIUM</mark>.</p>
+        <div class="overview-body prose"><p>Researchers and law enforcement are reporting an early wave of FIFA World Cup 2026-themed cybercrime, including fake FIFA domains, cloned login portals, fraudulent ticket offers, counterfeit merchandise stores, bogus streaming sites, and fake betting platforms. Group-IB tracked more than 4,300 fraudulent FIFA-related domains registered since August 2025 and linked over 300 cloned FIFA sites to a Chinese-speaking operation it tracks as GHOST STADIUM.</p>
 
-<p><mark class="tag-hl">GHOST STADIUM</mark> phishing pages closely imitate <mark class="tag-hl">FIFA</mark>’s legitimate login flow and prompt victims to reset passwords, enabling attackers to seize accounts and potentially monetize tickets associated with them. The campaign illustrates how major global sporting events continue to drive early credential-harvesting infrastructure long before the event itself, especially where account access, ticket resale, and fan payment activity intersect.</p>
+<p>GHOST STADIUM phishing pages closely imitate FIFA’s legitimate login flow and prompt victims to reset passwords, enabling attackers to seize accounts and potentially monetize tickets associated with them. The campaign illustrates how major global sporting events continue to drive early credential-harvesting infrastructure long before the event itself, especially where account access, ticket resale, and fan payment activity intersect.</p>
 
-<p>Mobile malware is also appearing in the <mark class="tag-hl">FIFA</mark>-themed threat ecosystem. ThreatFabric and Kaspersky reported unofficial Android streaming apps impersonating services such as RojaDirecta and delivering banking trojans including <mark class="tag-hl">Massiv</mark> and <mark class="tag-hl">Perseus</mark>, both of which can abuse Android accessibility features to steal credentials and intercept verification codes. Fortinet also found hundreds of thousands of user logins and more than 4,600 <mark class="tag-hl">FIFA</mark> web addresses in data gathered by credential-stealing malware families including <mark class="tag-hl">Vidar</mark>, <mark class="tag-hl">LummaC2</mark>, and <mark class="tag-hl">RedLine</mark>.</p>
+<p>Mobile malware is also appearing in the FIFA-themed threat ecosystem. ThreatFabric and Kaspersky reported unofficial Android streaming apps impersonating services such as RojaDirecta and delivering banking trojans including Massiv and Perseus, both of which can abuse Android accessibility features to steal credentials and intercept verification codes. Fortinet also found hundreds of thousands of user logins and more than 4,600 FIFA web addresses in data gathered by credential-stealing malware families including Vidar, LummaC2, and RedLine.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">03</span>
           <span class="overview-title">Abuse of Trusted Services for Skimming and Exfiltration</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Sansec</mark> reported separate skimmer campaigns that abuse trusted services including <mark class="tag-hl">Stripe</mark>, <mark class="tag-hl">Google Tag Manager</mark>, and <mark class="tag-hl">Google Firestore</mark> for command-and-control and data exfiltration. This activity reflects an ongoing pattern in which attackers embed malicious commerce infrastructure within services that defenders and customers are less likely to distrust by default.</p>
+        <div class="overview-body prose"><p>Sansec reported separate skimmer campaigns that abuse trusted services including Stripe, Google Tag Manager, and Google Firestore for command-and-control and data exfiltration. This activity reflects an ongoing pattern in which attackers embed malicious commerce infrastructure within services that defenders and customers are less likely to distrust by default.</p>
 
-<p>The skimmer reporting sits adjacent to the <mark class="tag-hl">Everest Forms Pro</mark> exploitation because both affect the broader web commerce and CMS ecosystem, where attackers can convert site compromise into credential theft, payment data theft, or persistent access. Together, these reports show continued pressure on web-facing applications, plugins, and third-party service integrations that sit directly in user transaction flows.</p>
+<p>The skimmer reporting sits adjacent to the Everest Forms Pro exploitation because both affect the broader web commerce and CMS ecosystem, where attackers can convert site compromise into credential theft, payment data theft, or persistent access. Together, these reports show continued pressure on web-facing applications, plugins, and third-party service integrations that sit directly in user transaction flows.</p>
 </div>
       </div>
     </div>
@@ -1902,9 +2058,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-05 06:00 UTC · 4 hours window</span>
-  <span class="footer-right">3 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">3 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1917,15 +2076,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2038,12 +2259,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2104,6 +2359,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

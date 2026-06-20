@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,92 +1506,92 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <span class="score-tip" data-tip="Severity 3/4 · Specificity 3/4 · Breadth 3/4 · Actionability 3/4 · Novelty 3/4 · Credibility 4/4"><div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:78%"></div></div><span class="score-num score-num-mid">78</span></div></span>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="963307d64f2914fcf1b04398430639dc:775223f3fc196114">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-f732e09045c423869026262257a8ecf2:775223f3fc196114')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-f732e09045c423869026262257a8ecf2:775223f3fc196114')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-f732e09045c423869026262257a8ecf2:775223f3fc196114')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-f732e09045c423869026262257a8ecf2:775223f3fc196114')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-f732e09045c423869026262257a8ecf2:775223f3fc196114')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-963307d64f2914fcf1b04398430639dc:775223f3fc196114')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-963307d64f2914fcf1b04398430639dc:775223f3fc196114')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-963307d64f2914fcf1b04398430639dc:775223f3fc196114')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-963307d64f2914fcf1b04398430639dc:775223f3fc196114')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-963307d64f2914fcf1b04398430639dc:775223f3fc196114')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-f732e09045c423869026262257a8ecf2:775223f3fc196114" class="tab-panel active"><div class="prose"><mark class="tag-hl">Socket Firewall</mark> now supports blocking malicious <mark class="tag-hl">VS Code Marketplace</mark> and <mark class="tag-hl">Open VSX</mark> extensions at install and update time, before they can run in developer environments. The beta feature is aimed at preventing poisoned editor extensions like the malicious <mark class="tag-hl">Nx Console</mark> release and <mark class="tag-hl">GlassWorm</mark> campaigns from reaching developers.</div></div>
-                <div id="brief-f732e09045c423869026262257a8ecf2:775223f3fc196114" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Socket</mark> announced that <mark class="tag-hl">Socket Firewall</mark> now supports blocking malicious <mark class="tag-hl">VS Code Marketplace</mark> and <mark class="tag-hl">Open VSX</mark> extensions before they install or update in developer environments. The company frames the feature as a response to incidents such as <mark class="tag-hl">GitHub</mark>’s May 2026 disclosure involving a poisoned third-party VS Code extension and repeated <mark class="tag-hl">GlassWorm</mark> attacks across <mark class="tag-hl">Open VSX</mark>. The key significance is that editor extensions run as third-party code inside developer environments and may have access to source code, terminals, files, credentials, tokens, and internal systems.</p>
+                <div id="tldr-963307d64f2914fcf1b04398430639dc:775223f3fc196114" class="tab-panel active"><div class="prose">Socket Firewall now supports blocking malicious VS Code Marketplace and Open VSX extensions at install and update time, before they can run in developer environments. The beta feature is aimed at preventing poisoned editor extensions like the malicious Nx Console release and GlassWorm campaigns from reaching developers.</div></div>
+                <div id="brief-963307d64f2914fcf1b04398430639dc:775223f3fc196114" class="tab-panel"><div class="prose"><p>Socket announced that Socket Firewall now supports blocking malicious VS Code Marketplace and Open VSX extensions before they install or update in developer environments. The company frames the feature as a response to incidents such as GitHub’s May 2026 disclosure involving a poisoned third-party VS Code extension and repeated GlassWorm attacks across Open VSX. The key significance is that editor extensions run as third-party code inside developer environments and may have access to source code, terminals, files, credentials, tokens, and internal systems.</p>
 
-<p>The new protection routes editor marketplace traffic through <mark class="tag-hl">Socket</mark>’s proxy, forwards requests to the real registry, and filters marketplace results or blocks downloads based on threat verdicts. <mark class="tag-hl">Socket</mark> says the control applies during browsing, installation, updating, and VSIX download flows, creating an install-time and update-time enforcement point rather than relying only on after-the-fact inventory. The feature is available in beta for <mark class="tag-hl">Socket</mark> Enterprise customers and supports rollout through editor configuration, DNS override, and enterprise egress forwarding.</p>
+<p>The new protection routes editor marketplace traffic through Socket’s proxy, forwards requests to the real registry, and filters marketplace results or blocks downloads based on threat verdicts. Socket says the control applies during browsing, installation, updating, and VSIX download flows, creating an install-time and update-time enforcement point rather than relying only on after-the-fact inventory. The feature is available in beta for Socket Enterprise customers and supports rollout through editor configuration, DNS override, and enterprise egress forwarding.</p>
 </div></div>
-                <div id="standard-f732e09045c423869026262257a8ecf2:775223f3fc196114" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Socket</mark> announced an expansion of <mark class="tag-hl">Socket Firewall</mark> to cover editor extension installs from the <mark class="tag-hl">VS Code Marketplace</mark> and <mark class="tag-hl">Open VSX</mark>. The company says the feature helps organizations block malicious editor extensions before they reach developer environments. <mark class="tag-hl">Socket</mark> positions the release as an extension of its existing package-install protection model across ecosystems such as npm, PyPI, Go, and Maven.</p>
+                <div id="standard-963307d64f2914fcf1b04398430639dc:775223f3fc196114" class="tab-panel"><div class="prose"><p>Socket announced an expansion of Socket Firewall to cover editor extension installs from the VS Code Marketplace and Open VSX. The company says the feature helps organizations block malicious editor extensions before they reach developer environments. Socket positions the release as an extension of its existing package-install protection model across ecosystems such as npm, PyPI, Go, and Maven.</p>
 
-<p>The article cites <mark class="tag-hl">GitHub</mark>’s May 2026 disclosure that attackers compromised an employee device through a poisoned third-party VS Code extension and exfiltrated roughly 3,800 <mark class="tag-hl">GitHub</mark>-internal repositories. It identifies the extension as <mark class="tag-hl">Nx Console</mark> 18.95.0, a malicious release that reached both the <mark class="tag-hl">Visual Studio Marketplace</mark> and <mark class="tag-hl">Open VSX</mark> before removal. The article also notes <mark class="tag-hl">Socket</mark> researchers have documented repeated <mark class="tag-hl">GlassWorm</mark> attacks across <mark class="tag-hl">Open VSX</mark> involving malicious and compromised extensions designed to steal developer credentials and spread through trusted editor marketplaces.</p>
+<p>The article cites GitHub’s May 2026 disclosure that attackers compromised an employee device through a poisoned third-party VS Code extension and exfiltrated roughly 3,800 GitHub-internal repositories. It identifies the extension as Nx Console 18.95.0, a malicious release that reached both the Visual Studio Marketplace and Open VSX before removal. The article also notes Socket researchers have documented repeated GlassWorm attacks across Open VSX involving malicious and compromised extensions designed to steal developer credentials and spread through trusted editor marketplaces.</p>
 
-<p><mark class="tag-hl">Socket</mark> emphasizes that code editor extensions can have broad access inside developer environments. According to the article, they may access source code, terminals, files, credentials, tokens, and internal systems. The company argues that organizations using AI-first editors inherit a marketplace they cannot fully gate, making install and update time the key moments for intervention.</p>
+<p>Socket emphasizes that code editor extensions can have broad access inside developer environments. According to the article, they may access source code, terminals, files, credentials, tokens, and internal systems. The company argues that organizations using AI-first editors inherit a marketplace they cannot fully gate, making install and update time the key moments for intervention.</p>
 
-<p>Technically, <mark class="tag-hl">Socket Firewall</mark> places a proxy in front of editor marketplace traffic. When an editor browses, installs, or updates an extension, the request flows through <mark class="tag-hl">Socket</mark>’s proxy, which forwards it to the real registry and filters the response against threat verdicts. <mark class="tag-hl">Socket</mark> says the proxy also sits in front of extension asset domains and checks verdicts before forwarding VSIX downloads, adding a second enforcement point beyond marketplace search results.</p>
+<p>Technically, Socket Firewall places a proxy in front of editor marketplace traffic. When an editor browses, installs, or updates an extension, the request flows through Socket’s proxy, which forwards it to the real registry and filters the response against threat verdicts. Socket says the proxy also sits in front of extension asset domains and checks verdicts before forwarding VSIX downloads, adding a second enforcement point beyond marketplace search results.</p>
 
-<p>The new beta supports the <mark class="tag-hl">VS Code Marketplace</mark> used by <mark class="tag-hl">Visual Studio Code</mark> and <mark class="tag-hl">Open VSX</mark> used by <mark class="tag-hl">Cursor</mark>, <mark class="tag-hl">Windsurf</mark>, <mark class="tag-hl">VSCodium</mark>, <mark class="tag-hl">Antigravity</mark>, and other VS Code-based editors. <mark class="tag-hl">Socket</mark> says clean extensions remain available while flagged extensions are blocked before installation or update. Extension Firewall is available in beta for <mark class="tag-hl">Socket</mark> Enterprise customers and supports marketplace filtering, VSIX download blocking, and rollout paths through editor configuration, DNS override, and enterprise egress forwarding.</p>
+<p>The new beta supports the VS Code Marketplace used by Visual Studio Code and Open VSX used by Cursor, Windsurf, VSCodium, Antigravity, and other VS Code-based editors. Socket says clean extensions remain available while flagged extensions are blocked before installation or update. Extension Firewall is available in beta for Socket Enterprise customers and supports marketplace filtering, VSIX download blocking, and rollout paths through editor configuration, DNS override, and enterprise egress forwarding.</p>
 </div></div>
-                <div id="comprehensive-f732e09045c423869026262257a8ecf2:775223f3fc196114" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-963307d64f2914fcf1b04398430639dc:775223f3fc196114" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Socket</mark> announced that <mark class="tag-hl">Socket Firewall</mark> now supports protection for editor extension installs from the <mark class="tag-hl">VS Code Marketplace</mark> and <mark class="tag-hl">Open VSX</mark>. The feature is intended to block malicious editor extensions before they are installed or updated in developer environments. <mark class="tag-hl">Socket</mark> describes this as an expansion of the same enforcement layer it already uses to protect package installs across ecosystems such as npm, PyPI, Go, Maven, and others.</p>
+<p>Socket announced that Socket Firewall now supports protection for editor extension installs from the VS Code Marketplace and Open VSX. The feature is intended to block malicious editor extensions before they are installed or updated in developer environments. Socket describes this as an expansion of the same enforcement layer it already uses to protect package installs across ecosystems such as npm, PyPI, Go, Maven, and others.</p>
 
-<p>The article’s central argument is that editor extensions should be treated as a software supply chain risk because they are third-party code running inside development environments. <mark class="tag-hl">Socket</mark> says these extensions often have access to source code, terminals, files, credentials, tokens, and internal systems. The company states that install and update time are the critical moments to intervene.</p>
+<p>The article’s central argument is that editor extensions should be treated as a software supply chain risk because they are third-party code running inside development environments. Socket says these extensions often have access to source code, terminals, files, credentials, tokens, and internal systems. The company states that install and update time are the critical moments to intervene.</p>
 
 <h2 id="context-and-incidents-cited">Context and incidents cited</h2>
 
-<p>The article cites <mark class="tag-hl">GitHub</mark>’s May 2026 disclosure that attackers compromised an employee device through a poisoned third-party VS Code extension. According to the article, the attackers exfiltrated roughly 3,800 <mark class="tag-hl">GitHub</mark>-internal repositories.</p>
+<p>The article cites GitHub’s May 2026 disclosure that attackers compromised an employee device through a poisoned third-party VS Code extension. According to the article, the attackers exfiltrated roughly 3,800 GitHub-internal repositories.</p>
 
-<p>The malicious extension named in the article was <mark class="tag-hl">Nx Console</mark> 18.95.0. <mark class="tag-hl">Socket</mark> says that release reached both the <mark class="tag-hl">Visual Studio Marketplace</mark> and <mark class="tag-hl">Open VSX</mark> before it was removed.</p>
+<p>The malicious extension named in the article was Nx Console 18.95.0. Socket says that release reached both the Visual Studio Marketplace and Open VSX before it was removed.</p>
 
-<p>The article also references repeated <mark class="tag-hl">GlassWorm</mark> attacks documented by <mark class="tag-hl">Socket</mark> researchers across <mark class="tag-hl">Open VSX</mark>. Those attacks involved malicious and compromised extensions designed to steal developer credentials and spread through trusted editor marketplaces.</p>
+<p>The article also references repeated GlassWorm attacks documented by Socket researchers across Open VSX. Those attacks involved malicious and compromised extensions designed to steal developer credentials and spread through trusted editor marketplaces.</p>
 
-<h2 id="problem-socket-says-it-is-addressing">Problem <mark class="tag-hl">Socket</mark> says it is addressing</h2>
+<h2 id="problem-socket-says-it-is-addressing">Problem Socket says it is addressing</h2>
 
-<p><mark class="tag-hl">Socket</mark> argues that most extension security starts too late. Inventory tools can show which extensions are already installed and can help with visibility, cleanup, and compliance. However, the article states that by the time a malicious extension appears in inventory, the code has already run.</p>
+<p>Socket argues that most extension security starts too late. Inventory tools can show which extensions are already installed and can help with visibility, cleanup, and compliance. However, the article states that by the time a malicious extension appears in inventory, the code has already run.</p>
 
-<p><mark class="tag-hl">Socket</mark> positions Firewall as a way to close that gap by creating an install-time and update-time control point. Instead of only detecting installed extensions after the fact, the firewall is designed to filter or block marketplace activity while the editor is browsing, installing, or updating an extension.</p>
+<p>Socket positions Firewall as a way to close that gap by creating an install-time and update-time control point. Instead of only detecting installed extensions after the fact, the firewall is designed to filter or block marketplace activity while the editor is browsing, installing, or updating an extension.</p>
 
 <h2 id="how-the-firewall-works">How the firewall works</h2>
 
-<p>According to the article, editor marketplace requests flow through <mark class="tag-hl">Socket</mark>’s proxy. <mark class="tag-hl">Socket</mark> forwards requests to the real registry, checks extension verdicts, and filters or blocks flagged extensions during the marketplace flow.</p>
+<p>According to the article, editor marketplace requests flow through Socket’s proxy. Socket forwards requests to the real registry, checks extension verdicts, and filters or blocks flagged extensions during the marketplace flow.</p>
 
 <p>The enforcement applies in multiple places:</p>
 
 <ul>
 <li>Marketplace browsing and search results are filtered against threat verdicts.</li>
-<li>Extension install and update requests are routed through <mark class="tag-hl">Socket</mark>’s proxy.</li>
+<li>Extension install and update requests are routed through Socket’s proxy.</li>
 <li>The proxy sits in front of extension asset domains.</li>
 <li>Verdicts are checked before VSIX downloads are forwarded.</li>
 </ul>
 
-<p><mark class="tag-hl">Socket</mark> says this gives organizations a second enforcement point beyond marketplace search results. The article emphasizes that malicious extensions can be blocked even when an install flow reaches the underlying download URL.</p>
+<p>Socket says this gives organizations a second enforcement point beyond marketplace search results. The article emphasizes that malicious extensions can be blocked even when an install flow reaches the underlying download URL.</p>
 
 <h2 id="supported-ecosystems-and-affected-developer-tools">Supported ecosystems and affected developer tools</h2>
 
-<p><mark class="tag-hl">Socket Firewall</mark> now supports two major editor extension ecosystems:</p>
+<p>Socket Firewall now supports two major editor extension ecosystems:</p>
 
 <ul>
-<li><mark class="tag-hl">VS Code Marketplace</mark>, used by <mark class="tag-hl">Visual Studio Code</mark>.</li>
-<li><mark class="tag-hl">Open VSX</mark>, used by <mark class="tag-hl">Cursor</mark>, <mark class="tag-hl">Windsurf</mark>, <mark class="tag-hl">VSCodium</mark>, <mark class="tag-hl">Antigravity</mark>, and other VS Code-based editors.</li>
+<li>VS Code Marketplace, used by Visual Studio Code.</li>
+<li>Open VSX, used by Cursor, Windsurf, VSCodium, Antigravity, and other VS Code-based editors.</li>
 </ul>
 
-<p>The article notes that developer extension risk is not limited to one editor. It specifically highlights that many organizations support multiple coding environments, including AI-native editors and VS Code forks that rely on <mark class="tag-hl">Open VSX</mark>.</p>
+<p>The article notes that developer extension risk is not limited to one editor. It specifically highlights that many organizations support multiple coding environments, including AI-native editors and VS Code forks that rely on Open VSX.</p>
 
 <h2 id="developer-and-organizational-impact">Developer and organizational impact</h2>
 
-<p><mark class="tag-hl">Socket</mark> says the developer workflow remains simple because clean extensions continue to work. Flagged extensions are blocked from installation or update by the firewall in the path between the editor and the extension registry.</p>
+<p>Socket says the developer workflow remains simple because clean extensions continue to work. Flagged extensions are blocked from installation or update by the firewall in the path between the editor and the extension registry.</p>
 
-<p>For organizations, the feature provides a centralized enforcement model without requiring endpoint software on every developer device. <mark class="tag-hl">Socket</mark> states that enforcement happens at the proxy rather than through an agent.</p>
+<p>For organizations, the feature provides a centralized enforcement model without requiring endpoint software on every developer device. Socket states that enforcement happens at the proxy rather than through an agent.</p>
 
 <h2 id="availability-and-rollout">Availability and rollout</h2>
 
-<p>Extension Firewall is available in beta for <mark class="tag-hl">Socket</mark> Enterprise customers. The feature supports marketplace filtering and VSIX download blocking.</p>
+<p>Extension Firewall is available in beta for Socket Enterprise customers. The feature supports marketplace filtering and VSIX download blocking.</p>
 
-<p><mark class="tag-hl">Socket</mark> says organizations can roll it out through several paths:</p>
+<p>Socket says organizations can roll it out through several paths:</p>
 
 <ul>
 <li>Editor configuration.</li>
@@ -1446,23 +1599,24 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Enterprise egress forwarding.</li>
 </ul>
 
-<p>The article directs interested customers to contact <mark class="tag-hl">Socket</mark>’s sales team to turn on access and learn more about deployment.</p>
+<p>The article directs interested customers to contact Socket’s sales team to turn on access and learn more about deployment.</p>
 </div></div>
-                <div id="insights-f732e09045c423869026262257a8ecf2:775223f3fc196114" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The article frames extension security as a timing problem: inventory tools may support visibility and cleanup, but they act after an extension has already had a chance to execute.</span></li><li><span class="kp-text"><mark class="tag-hl">Socket</mark> is treating editor extensions like software supply chain dependencies by applying the same install-time enforcement model it uses for package managers such as npm, PyPI, Go, and Maven.</span></li><li><span class="kp-text">The proxy design adds enforcement not only at marketplace search results but also at extension asset and VSIX download paths, addressing cases where installation reaches the underlying download URL directly.</span></li><li><span class="kp-text">The article highlights <mark class="tag-hl">Open VSX</mark> as a critical control point because AI-first and VS Code-based editors such as <mark class="tag-hl">Cursor</mark>, <mark class="tag-hl">Windsurf</mark>, <mark class="tag-hl">VSCodium</mark>, and <mark class="tag-hl">Antigravity</mark> depend on it rather than only the <mark class="tag-hl">VS Code Marketplace</mark>.</span></li></ul></div>
+                <div id="insights-963307d64f2914fcf1b04398430639dc:775223f3fc196114" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The article frames extension security as a timing problem: inventory tools may support visibility and cleanup, but they act after an extension has already had a chance to execute.</span></li><li><span class="kp-text">Socket is treating editor extensions like software supply chain dependencies by applying the same install-time enforcement model it uses for package managers such as npm, PyPI, Go, and Maven.</span></li><li><span class="kp-text">The proxy design adds enforcement not only at marketplace search results but also at extension asset and VSIX download paths, addressing cases where installation reaches the underlying download URL directly.</span></li><li><span class="kp-text">The article highlights Open VSX as a critical control point because AI-first and VS Code-based editors such as Cursor, Windsurf, VSCodium, and Antigravity depend on it rather than only the VS Code Marketplace.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Socket Firewall</mark> now supports <mark class="tag-hl">VS Code Marketplace</mark> and <mark class="tag-hl">Open VSX</mark> extension installs, allowing organizations to block malicious editor extensions before they reach developer environments.</span></li><li><span class="kp-text">The article cites <mark class="tag-hl">GitHub</mark>’s May 2026 disclosure that attackers compromised an employee device through the malicious <mark class="tag-hl">Nx Console</mark> 18.95.0 VS Code extension and exfiltrated roughly 3,800 <mark class="tag-hl">GitHub</mark>-internal repositories.</span></li><li><span class="kp-text"><mark class="tag-hl">Socket</mark> says editor extensions can have access to source code, terminals, files, credentials, tokens, and internal systems inside developer environments.</span></li><li><span class="kp-text"><mark class="tag-hl">Socket Firewall</mark> routes editor marketplace requests through <mark class="tag-hl">Socket</mark>’s proxy, forwards them to the real registry, and filters or blocks flagged extensions based on threat verdicts during search, install, update, and VSIX download flows.</span></li><li><span class="kp-text">Extension Firewall is available in beta for <mark class="tag-hl">Socket</mark> Enterprise customers and supports marketplace filtering, VSIX download blocking, and rollout paths through editor configuration, DNS override, and enterprise egress forwarding.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Socket Firewall now supports VS Code Marketplace and Open VSX extension installs, allowing organizations to block malicious editor extensions before they reach developer environments.</span></li><li><span class="kp-text">The article cites GitHub’s May 2026 disclosure that attackers compromised an employee device through the malicious Nx Console 18.95.0 VS Code extension and exfiltrated roughly 3,800 GitHub-internal repositories.</span></li><li><span class="kp-text">Socket says editor extensions can have access to source code, terminals, files, credentials, tokens, and internal systems inside developer environments.</span></li><li><span class="kp-text">Socket Firewall routes editor marketplace requests through Socket’s proxy, forwards them to the real registry, and filters or blocks flagged extensions based on threat verdicts during search, install, update, and VSIX download flows.</span></li><li><span class="kp-text">Extension Firewall is available in beta for Socket Enterprise customers and supports marketplace filtering, VSIX download blocking, and rollout paths through editor configuration, DNS override, and enterprise egress forwarding.</span></li></ul></div>
+            
             <a href="https://socket.dev/blog/socket-firewall-blocks-malicious-code-extensions?utm_medium=feed" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article is a primary-source product announcement about <mark class="tag-hl">Socket Firewall</mark> adding install-time blocking for <mark class="tag-hl">VS Code Marketplace</mark> and <mark class="tag-hl">Open VSX</mark> extensions, grounded in named incidents such as <mark class="tag-hl">Nx Console</mark> 18.95.0 and <mark class="tag-hl">GlassWorm</mark>. The risk is significant for developer environments and broadly relevant to VS Code-based editor ecosystems, but the article does not provide IOCs, detection rules, or a patch-style urgent action beyond adopting the beta protection.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article is a primary-source product announcement about Socket Firewall adding install-time blocking for VS Code Marketplace and Open VSX extensions, grounded in named incidents such as Nx Console 18.95.0 and GlassWorm. The risk is significant for developer environments and broadly relevant to VS Code-based editor ecosystems, but the article does not provide IOCs, detection rules, or a patch-style urgent action beyond adopting the beta protection.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://github.blog/security/investigating-unauthorized-access-to-githubs-internal-repositories/" target="_blank" rel="noopener">Investigating unauthorized access to GitHub’s internal repositories</a></div>
   <div class="report-meta">GitHub</div>
-  <div class="report-context">The article cites <mark class="tag-hl">GitHub</mark>’s disclosure that attackers compromised an employee device through a poisoned third-party VS Code extension and exfiltrated internal repositories.</div>
+  <div class="report-context">The article cites GitHub’s disclosure that attackers compromised an employee device through a poisoned third-party VS Code extension and exfiltrated internal repositories.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://github.com/nrwl/nx-console/security/advisories/GHSA-c9j4-9m59-847w" target="_blank" rel="noopener">Nx Console 18.95.0 security advisory</a></div>
   <div class="report-meta">Nrwl/Nx Console</div>
-  <div class="report-context">The article links to the advisory for the malicious <mark class="tag-hl">Nx Console</mark> 18.95.0 release that reached the <mark class="tag-hl">Visual Studio Marketplace</mark> and <mark class="tag-hl">Open VSX</mark>.</div>
+  <div class="report-context">The article links to the advisory for the malicious Nx Console 18.95.0 release that reached the Visual Studio Marketplace and Open VSX.</div>
 </li></ul></div>
             
           </div>
@@ -1485,86 +1639,86 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <span class="score-tip" data-tip="Severity 3/4 · Specificity 4/4 · Breadth 2/4 · Actionability 2/4 · Novelty 4/4 · Credibility 4/4"><div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:76%"></div></div><span class="score-num score-num-mid">76</span></div></span>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:81b47fc1ea487d6a">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:81b47fc1ea487d6a')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:81b47fc1ea487d6a')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:81b47fc1ea487d6a')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:81b47fc1ea487d6a')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:81b47fc1ea487d6a')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:81b47fc1ea487d6a')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:81b47fc1ea487d6a')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:81b47fc1ea487d6a')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:81b47fc1ea487d6a')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:81b47fc1ea487d6a')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:81b47fc1ea487d6a" class="tab-panel active"><div class="prose">Check Point reports a campaign distributing a Rust-based crypto clipboard hijacker disguised as <mark class="tag-hl">Solana</mark>/Pump.fun bots and gambling prediction tools. The attackers build false trust using fake reviews, inflated downloads, AI-narrated <mark class="tag-hl">YouTube</mark> tutorials, <mark class="tag-hl">GitHub</mark>/<mark class="tag-hl">SourceForge</mark> promotion, and coordinated <mark class="tag-hl">VirusTotal</mark> comments to make the malware appear legitimate.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:81b47fc1ea487d6a" class="tab-panel"><div class="prose"><p>An unknown threat actor has been observed using paid or promoted posts on legitimate news websites to generate attention for malicious warez, according to <mark class="tag-hl">Check Point Research</mark>. The campaign promotes tools that are actually tied to a cryptocurrency clipboard hijacker. The actor uses a dedicated <mark class="tag-hl">WordPress</mark> phishing page as a central hub and also relies on <mark class="tag-hl">GitHub</mark>, <mark class="tag-hl">SourceForge</mark>, <mark class="tag-hl">YouTube</mark>, and <mark class="tag-hl">VirusTotal</mark> activity to build credibility.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:81b47fc1ea487d6a" class="tab-panel active"><div class="prose">Check Point reports a campaign distributing a Rust-based crypto clipboard hijacker disguised as Solana/Pump.fun bots and gambling prediction tools. The attackers build false trust using fake reviews, inflated downloads, AI-narrated YouTube tutorials, GitHub/SourceForge promotion, and coordinated VirusTotal comments to make the malware appear legitimate.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:81b47fc1ea487d6a" class="tab-panel"><div class="prose"><p>An unknown threat actor has been observed using paid or promoted posts on legitimate news websites to generate attention for malicious warez, according to Check Point Research. The campaign promotes tools that are actually tied to a cryptocurrency clipboard hijacker. The actor uses a dedicated WordPress phishing page as a central hub and also relies on GitHub, SourceForge, YouTube, and VirusTotal activity to build credibility.</p>
 
-<p>The malware is hidden inside <mark class="tag-hl">Solana</mark> and Pump.fun sniper bots and crash-game predictors, indicating that cryptocurrency asset holders and online gamblers seeking shortcuts or quick profits are the targets. The Rust-based clipper affects <mark class="tag-hl">Windows</mark> and <mark class="tag-hl">macOS</mark> systems. It monitors clipboard contents for cryptocurrency wallet address patterns and replaces matching addresses with attacker-controlled wallet addresses from a hard-coded list.</p>
+<p>The malware is hidden inside Solana and Pump.fun sniper bots and crash-game predictors, indicating that cryptocurrency asset holders and online gamblers seeking shortcuts or quick profits are the targets. The Rust-based clipper affects Windows and macOS systems. It monitors clipboard contents for cryptocurrency wallet address patterns and replaces matching addresses with attacker-controlled wallet addresses from a hard-coded list.</p>
 
-<p>A notable element of the campaign is its use of fake reputation signals across trusted platforms. Check Point said the actor used inflated download counts, coordinated five-star reviews, AI-generated tutorial narrators, <mark class="tag-hl">GitHub</mark> stars and forks, <mark class="tag-hl">SourceForge</mark> downloads, and positive <mark class="tag-hl">VirusTotal</mark> comments to make malicious files appear safe. The actor also used <mark class="tag-hl">EIN Presswire</mark> to market the tool’s claimed capabilities, resulting in syndication across partner news websites, primarily in the <mark class="tag-hl">USA TODAY Network</mark>.</p>
+<p>A notable element of the campaign is its use of fake reputation signals across trusted platforms. Check Point said the actor used inflated download counts, coordinated five-star reviews, AI-generated tutorial narrators, GitHub stars and forks, SourceForge downloads, and positive VirusTotal comments to make malicious files appear safe. The actor also used EIN Presswire to market the tool’s claimed capabilities, resulting in syndication across partner news websites, primarily in the USA TODAY Network.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:81b47fc1ea487d6a" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Check Point Research</mark> reported that an unknown threat actor is promoting malicious warez through paid or promoted posts on legitimate news websites. The actor’s goal is to distribute a cryptocurrency clipboard hijacker disguised as tools such as <mark class="tag-hl">Solana</mark> and Pump.fun sniper bots and crash-game predictors. The campaign appears aimed at cryptocurrency asset holders and online gamblers looking for shortcuts and quick profits.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:81b47fc1ea487d6a" class="tab-panel"><div class="prose"><p>Check Point Research reported that an unknown threat actor is promoting malicious warez through paid or promoted posts on legitimate news websites. The actor’s goal is to distribute a cryptocurrency clipboard hijacker disguised as tools such as Solana and Pump.fun sniper bots and crash-game predictors. The campaign appears aimed at cryptocurrency asset holders and online gamblers looking for shortcuts and quick profits.</p>
 
-<p>The operation uses a dedicated <mark class="tag-hl">WordPress</mark> phishing page as a central hub, along with <mark class="tag-hl">GitHub</mark> and <mark class="tag-hl">SourceForge</mark> projects promoted by fake accounts. It also includes a <mark class="tag-hl">YouTube</mark> channel and coordinated activity on <mark class="tag-hl">VirusTotal</mark>. Check Point described the campaign as a “fake reputation economy” spanning platforms that potential victims might check before downloading a tool.</p>
+<p>The operation uses a dedicated WordPress phishing page as a central hub, along with GitHub and SourceForge projects promoted by fake accounts. It also includes a YouTube channel and coordinated activity on VirusTotal. Check Point described the campaign as a “fake reputation economy” spanning platforms that potential victims might check before downloading a tool.</p>
 
-<p>The clipboard hijacker is written in Rust and targets both <mark class="tag-hl">Windows</mark> and <mark class="tag-hl">macOS</mark> systems. It continuously monitors the clipboard for content matching cryptocurrency wallet address patterns. When it finds a match, it replaces the wallet address with one controlled by the attacker from a hard-coded list, redirecting digital assets to the attacker.</p>
+<p>The clipboard hijacker is written in Rust and targets both Windows and macOS systems. It continuously monitors the clipboard for content matching cryptocurrency wallet address patterns. When it finds a match, it replaces the wallet address with one controlled by the attacker from a hard-coded list, redirecting digital assets to the attacker.</p>
 
-<p>The actor uses what the article describes as <mark class="tag-hl">Ghost Networks</mark> to manipulate reputation-driven systems such as <mark class="tag-hl">VirusTotal</mark>. This includes upvotes and highly positive comments intended to misclassify malicious files as safe or reduce suspicion. Similar tactics appear on <mark class="tag-hl">GitHub</mark>, where at least six accounts are used to cross-promote and distribute the malware, including one repository with 146 stars and 62 forks.</p>
+<p>The actor uses what the article describes as Ghost Networks to manipulate reputation-driven systems such as VirusTotal. This includes upvotes and highly positive comments intended to misclassify malicious files as safe or reduce suspicion. Similar tactics appear on GitHub, where at least six accounts are used to cross-promote and distribute the malware, including one repository with 146 stars and 62 forks.</p>
 
-<p>The campaign also manipulates download and engagement metrics on <mark class="tag-hl">SourceForge</mark> and <mark class="tag-hl">YouTube</mark>. Check Point noted that <mark class="tag-hl">SourceForge</mark> showed 44,485 downloads, including 37,460 supposedly from Android devices despite only <mark class="tag-hl">Windows</mark> and <mark class="tag-hl">macOS</mark> versions being available, which it said could be explained by an Android farm inflating counts. The tools are also promoted on a <mark class="tag-hl">YouTube</mark> channel with over 91,000 subscribers, where tutorial-style videos feature AI-generated narrators and positive comments.</p>
+<p>The campaign also manipulates download and engagement metrics on SourceForge and YouTube. Check Point noted that SourceForge showed 44,485 downloads, including 37,460 supposedly from Android devices despite only Windows and macOS versions being available, which it said could be explained by an Android farm inflating counts. The tools are also promoted on a YouTube channel with over 91,000 subscribers, where tutorial-style videos feature AI-generated narrators and positive comments.</p>
 
-<p>Another unusual element is the use of <mark class="tag-hl">EIN Presswire</mark> to promote the tool’s claimed capabilities. The press release was syndicated across partner news websites, primarily within the <mark class="tag-hl">USA TODAY Network</mark>. Check Point said manipulation of sentiment and reputation across crowd-sourced platforms represents a meaningful shift in how attackers build trust and warned that the same approach could be used to distribute information stealers or ransomware to higher-value targets over time.</p>
+<p>Another unusual element is the use of EIN Presswire to promote the tool’s claimed capabilities. The press release was syndicated across partner news websites, primarily within the USA TODAY Network. Check Point said manipulation of sentiment and reputation across crowd-sourced platforms represents a meaningful shift in how attackers build trust and warned that the same approach could be used to distribute information stealers or ransomware to higher-value targets over time.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:81b47fc1ea487d6a" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:81b47fc1ea487d6a" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Check Point Research</mark> reported a campaign in which an unknown threat actor is using reputation manipulation and cross-platform promotion to distribute a cryptocurrency clipboard hijacker. The actor promotes malicious warez through paid or promoted posts on legitimate news websites and supports the campaign with a dedicated <mark class="tag-hl">WordPress</mark> phishing page, <mark class="tag-hl">GitHub</mark> and <mark class="tag-hl">SourceForge</mark> projects, a <mark class="tag-hl">YouTube</mark> channel, and coordinated activity on <mark class="tag-hl">VirusTotal</mark>.</p>
+<p>Check Point Research reported a campaign in which an unknown threat actor is using reputation manipulation and cross-platform promotion to distribute a cryptocurrency clipboard hijacker. The actor promotes malicious warez through paid or promoted posts on legitimate news websites and supports the campaign with a dedicated WordPress phishing page, GitHub and SourceForge projects, a YouTube channel, and coordinated activity on VirusTotal.</p>
 
 <p>The campaign is built around making malicious tools appear popular, legitimate, and safe. Check Point described the operation as borrowing tactics from legitimate brands, including inflated download counts, coordinated five-star reviews, tutorial-style videos, and promotion on platforms that users tend to trust.</p>
 
 <h2 id="targeting-and-lures">Targeting and Lures</h2>
 
-<p>The malware is concealed within tools advertised as <mark class="tag-hl">Solana</mark> and Pump.fun sniper bots and crash-game predictors. According to the article, this suggests the campaign targets cryptocurrency asset holders and online gamblers who are searching for shortcuts or quick profits.</p>
+<p>The malware is concealed within tools advertised as Solana and Pump.fun sniper bots and crash-game predictors. According to the article, this suggests the campaign targets cryptocurrency asset holders and online gamblers who are searching for shortcuts or quick profits.</p>
 
 <p>The tools are promoted across multiple channels to reinforce the appearance of legitimacy. These channels include:</p>
 
 <ul>
-<li>A dedicated <mark class="tag-hl">WordPress</mark> phishing page used as a central hub.</li>
-<li><mark class="tag-hl">GitHub</mark> repositories promoted by fake accounts.</li>
-<li><mark class="tag-hl">SourceForge</mark> projects with inflated download metrics.</li>
-<li>A <mark class="tag-hl">YouTube</mark> channel with tutorial-style videos.</li>
-<li>Coordinated <mark class="tag-hl">VirusTotal</mark> comments and upvotes.</li>
+<li>A dedicated WordPress phishing page used as a central hub.</li>
+<li>GitHub repositories promoted by fake accounts.</li>
+<li>SourceForge projects with inflated download metrics.</li>
+<li>A YouTube channel with tutorial-style videos.</li>
+<li>Coordinated VirusTotal comments and upvotes.</li>
 <li>Paid or promoted posts on legitimate news websites.</li>
-<li>A press release distributed through <mark class="tag-hl">EIN Presswire</mark> and syndicated to partner news websites.</li>
+<li>A press release distributed through EIN Presswire and syndicated to partner news websites.</li>
 </ul>
 
 <h2 id="malware-behavior">Malware Behavior</h2>
 
-<p>The payload is a Rust-based cryptocurrency clipboard hijacker. It targets both <mark class="tag-hl">Windows</mark> and <mark class="tag-hl">macOS</mark> systems.</p>
+<p>The payload is a Rust-based cryptocurrency clipboard hijacker. It targets both Windows and macOS systems.</p>
 
 <p>The malware continuously monitors clipboard contents for patterns that match cryptocurrency wallet addresses. When it detects a matching wallet address, it replaces the copied address with an attacker-controlled address selected from a hard-coded list. This enables the attacker to redirect cryptocurrency transactions to wallets under their control.</p>
 
 <h2 id="reputation-manipulation-tactics">Reputation Manipulation Tactics</h2>
 
-<p>A central feature of the campaign is the manipulation of reputation-driven platforms. Check Point said the actor uses <mark class="tag-hl">Ghost Networks</mark> to poison systems such as <mark class="tag-hl">VirusTotal</mark> by adding upvotes and positive comments intended to reduce suspicion around malicious files.</p>
+<p>A central feature of the campaign is the manipulation of reputation-driven platforms. Check Point said the actor uses Ghost Networks to poison systems such as VirusTotal by adding upvotes and positive comments intended to reduce suspicion around malicious files.</p>
 
-<p>The same reputation-building approach extends to <mark class="tag-hl">GitHub</mark>. The threat actor operates at least six <mark class="tag-hl">GitHub</mark> accounts to cross-promote and distribute the malware. One repository cited in the article had 146 stars and 62 forks, signals that could make the project appear more trustworthy to potential victims.</p>
+<p>The same reputation-building approach extends to GitHub. The threat actor operates at least six GitHub accounts to cross-promote and distribute the malware. One repository cited in the article had 146 stars and 62 forks, signals that could make the project appear more trustworthy to potential victims.</p>
 
-<p><mark class="tag-hl">SourceForge</mark> metrics also showed signs of artificial boosting. Check Point said the <mark class="tag-hl">SourceForge</mark> download counter reached 44,485 downloads, with 37,460 supposedly coming from Android devices even though the developer only offered <mark class="tag-hl">Windows</mark> and <mark class="tag-hl">macOS</mark> versions. Check Point said a plausible explanation was the use of an Android farm to artificially inflate the <mark class="tag-hl">SourceForge</mark> download count.</p>
+<p>SourceForge metrics also showed signs of artificial boosting. Check Point said the SourceForge download counter reached 44,485 downloads, with 37,460 supposedly coming from Android devices even though the developer only offered Windows and macOS versions. Check Point said a plausible explanation was the use of an Android farm to artificially inflate the SourceForge download count.</p>
 
-<h2 id="youtube-and-ai-narration"><mark class="tag-hl">YouTube</mark> and AI Narration</h2>
+<h2 id="youtube-and-ai-narration">YouTube and AI Narration</h2>
 
-<p>The malicious tools are also promoted through a dedicated <mark class="tag-hl">YouTube</mark> channel with more than 91,000 subscribers. The channel was created in July 2020 and claims that its content is “strictly for educational purposes only.”</p>
+<p>The malicious tools are also promoted through a dedicated YouTube channel with more than 91,000 subscribers. The channel was created in July 2020 and claims that its content is “strictly for educational purposes only.”</p>
 
 <p>The article says the tutorial-style videos use AI-generated narrators. Positive comments on the videos further reinforce the illusion that the tools are popular and trustworthy.</p>
 
 <h2 id="use-of-press-release-distribution">Use of Press Release Distribution</h2>
 
-<p>One of the more unusual parts of the campaign is the actor’s use of <mark class="tag-hl">EIN Presswire</mark> to market the tool’s purported capabilities. The cited press release promoted a hash analysis platform and crash-game predictor-related claims.</p>
+<p>One of the more unusual parts of the campaign is the actor’s use of EIN Presswire to market the tool’s purported capabilities. The cited press release promoted a hash analysis platform and crash-game predictor-related claims.</p>
 
-<p>The press release was syndicated across partner news websites, primarily in the <mark class="tag-hl">USA TODAY Network</mark>. This gave the campaign additional visibility through sites that readers may perceive as legitimate news outlets.</p>
+<p>The press release was syndicated across partner news websites, primarily in the USA TODAY Network. This gave the campaign additional visibility through sites that readers may perceive as legitimate news outlets.</p>
 
 <h2 id="significance">Significance</h2>
 
@@ -1572,17 +1726,18 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article also notes that the same playbook of fake reputation and aggressive cross-platform promotion could be used to distribute information stealers or ransomware to higher-value targets over time.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:81b47fc1ea487d6a" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The campaign shows that attackers are manipulating reputation signals across multiple trusted platforms at once, so positive <mark class="tag-hl">VirusTotal</mark> comments, <mark class="tag-hl">GitHub</mark> stars, <mark class="tag-hl">SourceForge</mark> download counts, and <mark class="tag-hl">YouTube</mark> engagement should not be treated as independent evidence of legitimacy.</span></li><li><span class="kp-text">The suspicious <mark class="tag-hl">SourceForge</mark> traffic pattern, with 37,460 of 44,485 downloads allegedly coming from Android devices despite only <mark class="tag-hl">Windows</mark> and <mark class="tag-hl">macOS</mark> builds being offered, illustrates how mismatched platform telemetry can reveal artificial promotion.</span></li><li><span class="kp-text">The use of <mark class="tag-hl">EIN Presswire</mark> and syndication through partner news sites demonstrates that press release distribution can be abused to give malicious tools a veneer of mainstream legitimacy.</span></li><li><span class="kp-text">The malware’s targeting of users seeking crypto trading shortcuts and gambling predictors highlights that “profit-enhancing” tools in these niches are a high-risk lure for wallet theft.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:81b47fc1ea487d6a" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The campaign shows that attackers are manipulating reputation signals across multiple trusted platforms at once, so positive VirusTotal comments, GitHub stars, SourceForge download counts, and YouTube engagement should not be treated as independent evidence of legitimacy.</span></li><li><span class="kp-text">The suspicious SourceForge traffic pattern, with 37,460 of 44,485 downloads allegedly coming from Android devices despite only Windows and macOS builds being offered, illustrates how mismatched platform telemetry can reveal artificial promotion.</span></li><li><span class="kp-text">The use of EIN Presswire and syndication through partner news sites demonstrates that press release distribution can be abused to give malicious tools a veneer of mainstream legitimacy.</span></li><li><span class="kp-text">The malware’s targeting of users seeking crypto trading shortcuts and gambling predictors highlights that “profit-enhancing” tools in these niches are a high-risk lure for wallet theft.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Check Point Research</mark> observed an unknown threat actor using paid or promoted posts on legitimate news websites to promote malicious warez.</span></li><li><span class="kp-text">The campaign distributes a Rust-based cryptocurrency clipboard hijacker hidden inside <mark class="tag-hl">Solana</mark> and Pump.fun sniper bots and crash-game predictors targeting cryptocurrency asset holders and online gamblers.</span></li><li><span class="kp-text">The malware targets <mark class="tag-hl">Windows</mark> and <mark class="tag-hl">macOS</mark> systems, monitors clipboard contents for cryptocurrency wallet address patterns, and replaces matching addresses with attacker-controlled addresses from a hard-coded list.</span></li><li><span class="kp-text">The threat actor uses fake reputation tactics across <mark class="tag-hl">VirusTotal</mark>, <mark class="tag-hl">GitHub</mark>, <mark class="tag-hl">SourceForge</mark>, and <mark class="tag-hl">YouTube</mark>, including coordinated positive comments, upvotes, stars, forks, inflated downloads, AI-generated narrators, and positive comments.</span></li><li><span class="kp-text">Check Point said the actor also used <mark class="tag-hl">EIN Presswire</mark> to market the tool&#39;s purported capabilities, leading to syndication across partner news websites primarily in the <mark class="tag-hl">USA TODAY Network</mark>.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Check Point Research observed an unknown threat actor using paid or promoted posts on legitimate news websites to promote malicious warez.</span></li><li><span class="kp-text">The campaign distributes a Rust-based cryptocurrency clipboard hijacker hidden inside Solana and Pump.fun sniper bots and crash-game predictors targeting cryptocurrency asset holders and online gamblers.</span></li><li><span class="kp-text">The malware targets Windows and macOS systems, monitors clipboard contents for cryptocurrency wallet address patterns, and replaces matching addresses with attacker-controlled addresses from a hard-coded list.</span></li><li><span class="kp-text">The threat actor uses fake reputation tactics across VirusTotal, GitHub, SourceForge, and YouTube, including coordinated positive comments, upvotes, stars, forks, inflated downloads, AI-generated narrators, and positive comments.</span></li><li><span class="kp-text">Check Point said the actor also used EIN Presswire to market the tool&#39;s purported capabilities, leading to syndication across partner news websites primarily in the USA TODAY Network.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/crypto-clipper-campaign-abuses-fake.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific malware distribution campaign based on <mark class="tag-hl">Check Point Research</mark>’s original findings, with concrete details about platforms, lures, and <mark class="tag-hl">clipboard-hijacking</mark> behavior. The impact is significant for targeted cryptocurrency and online gambling users, but the article does not provide patching steps, IOCs, or detection rules, making it mainly awareness-driven for defenders.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific malware distribution campaign based on Check Point Research’s original findings, with concrete details about platforms, lures, and clipboard-hijacking behavior. The impact is significant for targeted cryptocurrency and online gambling users, but the article does not provide patching steps, IOCs, or detection rules, making it mainly awareness-driven for defenders.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://research.checkpoint.com/2026/from-stars-to-upvotes-fake-reputation-fueling-a-crypto-clipboard-hijacker/" target="_blank" rel="noopener">From Stars to Upvotes: Fake Reputation Fueling a Crypto Clipboard Hijacker</a></div>
   <div class="report-meta">Check Point Research</div>
-  <div class="report-context">The article is based on <mark class="tag-hl">Check Point Research</mark> findings about a campaign using fake reputation signals to distribute a cryptocurrency clipboard hijacker.</div>
+  <div class="report-context">The article is based on Check Point Research findings about a campaign using fake reputation signals to distribute a cryptocurrency clipboard hijacker.</div>
 </li></ul></div>
             
           </div>
@@ -1605,48 +1760,48 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <span class="score-tip" data-tip="Severity 2/4 · Specificity 4/4 · Breadth 4/4 · Actionability 2/4 · Novelty 3/4 · Credibility 3/4"><div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:75%"></div></div><span class="score-num score-num-mid">75</span></div></span>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:0453d68a113fe74c">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:0453d68a113fe74c')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:0453d68a113fe74c')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:0453d68a113fe74c')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:0453d68a113fe74c')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:0453d68a113fe74c')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:0453d68a113fe74c')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:0453d68a113fe74c')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:0453d68a113fe74c')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:0453d68a113fe74c')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:0453d68a113fe74c')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:0453d68a113fe74c" class="tab-panel active"><div class="prose"><mark class="tag-hl">Google</mark> will start using UK, EEA, and Swiss users’ IP addresses for ad measurement and personalization from around August 3, 2026, making IP-based device identification part of its advertising stack in regions where IPs are regulated as personal data. The change raises consent and fingerprinting concerns, with <mark class="tag-hl">Google</mark> placing responsibility on advertisers to obtain valid user consent.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:0453d68a113fe74c" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Google</mark> has begun notifying advertisers that it will start using IP addresses for ad measurement and personalization across the <mark class="tag-hl">European Economic Area</mark>, the UK, and <mark class="tag-hl">Switzerland</mark> on or shortly after August 3, 2026. The article says <mark class="tag-hl">Google</mark> already receives these IP addresses through customer tags, SDKs, HTTP calls, and uploads, but the change is that the addresses will be used to identify devices for measurement and ad personalization. In the affected regions, that use triggers consent requirements because IP addresses are regulated as personal data.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:0453d68a113fe74c" class="tab-panel active"><div class="prose">Google will start using UK, EEA, and Swiss users’ IP addresses for ad measurement and personalization from around August 3, 2026, making IP-based device identification part of its advertising stack in regions where IPs are regulated as personal data. The change raises consent and fingerprinting concerns, with Google placing responsibility on advertisers to obtain valid user consent.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:0453d68a113fe74c" class="tab-panel"><div class="prose"><p>Google has begun notifying advertisers that it will start using IP addresses for ad measurement and personalization across the European Economic Area, the UK, and Switzerland on or shortly after August 3, 2026. The article says Google already receives these IP addresses through customer tags, SDKs, HTTP calls, and uploads, but the change is that the addresses will be used to identify devices for measurement and ad personalization. In the affected regions, that use triggers consent requirements because IP addresses are regulated as personal data.</p>
 
-<p><mark class="tag-hl">Google</mark> will register under <mark class="tag-hl">IAB Europe</mark>’s <mark class="tag-hl">Transparency and Consent Framework</mark> for Feature 3, which covers identifying devices based on automatically transmitted information such as IP addresses. The article frames this as significant because IP-based device identification is a building block of fingerprinting, especially where cookies are blocked or cleared. <mark class="tag-hl">Google</mark> says advertisers remain responsible for obtaining valid consent under its EU User Consent Policy, while user-facing choices for IP-based personalization will come later in the rollout.</p>
+<p>Google will register under IAB Europe’s Transparency and Consent Framework for Feature 3, which covers identifying devices based on automatically transmitted information such as IP addresses. The article frames this as significant because IP-based device identification is a building block of fingerprinting, especially where cookies are blocked or cleared. Google says advertisers remain responsible for obtaining valid consent under its EU User Consent Policy, while user-facing choices for IP-based personalization will come later in the rollout.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:0453d68a113fe74c" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Google</mark> has begun telling advertisers that it plans to use IP addresses for ad measurement and personalization in the <mark class="tag-hl">European Economic Area</mark>, the UK, and <mark class="tag-hl">Switzerland</mark> on or shortly after August 3, 2026. The article says IP addresses are routinely received by online services and that <mark class="tag-hl">Google</mark> already receives them to route traffic and deliver ads. The notable change is the purpose: the same IP addresses will be used to identify devices for measurement and ad personalization.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:0453d68a113fe74c" class="tab-panel"><div class="prose"><p>Google has begun telling advertisers that it plans to use IP addresses for ad measurement and personalization in the European Economic Area, the UK, and Switzerland on or shortly after August 3, 2026. The article says IP addresses are routinely received by online services and that Google already receives them to route traffic and deliver ads. The notable change is the purpose: the same IP addresses will be used to identify devices for measurement and ad personalization.</p>
 
-<p><mark class="tag-hl">Google</mark> will register under <mark class="tag-hl">IAB Europe</mark>’s <mark class="tag-hl">Transparency and Consent Framework</mark> for Feature 3, described as identifying devices based on information transmitted automatically. Under the framework, Feature 3 covers distinguishing a device from automatically sent data, including the IP address. The article says Feature 3 is not itself a consent step, but attaches to personalization purposes that require user consent rather than legitimate interest.</p>
+<p>Google will register under IAB Europe’s Transparency and Consent Framework for Feature 3, described as identifying devices based on information transmitted automatically. Under the framework, Feature 3 covers distinguishing a device from automatically sent data, including the IP address. The article says Feature 3 is not itself a consent step, but attaches to personalization purposes that require user consent rather than legitimate interest.</p>
 
-<p>The article emphasizes that the EEA, UK, and <mark class="tag-hl">Switzerland</mark> are different from other regions because an IP address is personal data under <mark class="tag-hl">GDPR</mark>, and using it to identify a device is a building block of fingerprinting. It notes that <mark class="tag-hl">Google</mark>’s then <mark class="tag-hl">Chrome</mark> engineering director Justin Schuh wrote in 2019 that fingerprinting subverts user choice because users cannot clear it like cookies. <mark class="tag-hl">Google</mark> reversed that stance in December 2024 by dropping its prohibition on fingerprinting for advertisers, and the UK Information Commissioner’s Office called the reversal “irresponsible.”</p>
+<p>The article emphasizes that the EEA, UK, and Switzerland are different from other regions because an IP address is personal data under GDPR, and using it to identify a device is a building block of fingerprinting. It notes that Google’s then Chrome engineering director Justin Schuh wrote in 2019 that fingerprinting subverts user choice because users cannot clear it like cookies. Google reversed that stance in December 2024 by dropping its prohibition on fingerprinting for advertisers, and the UK Information Commissioner’s Office called the reversal “irresponsible.”</p>
 
 <p>The timing is tied to the UK ICO’s May 18, 2026 advice to the UK government on possible changes to online advertising consent rules. According to the article, the ICO’s preferred approach would allow some advertising without consent only when based on the context being viewed, while keeping consent mandatory for tracking that profiles people across services. The article states that IP-based personalization across surfaces sits on the consent-required side of that line.</p>
 
-<p><mark class="tag-hl">Google</mark>’s customer email places the compliance burden on advertisers by reminding them that they remain bound by <mark class="tag-hl">Google</mark>’s EU User Consent Policy and must obtain valid consent from users in the affected regions. <mark class="tag-hl">Google</mark> also frames the change around privacy-enhancing technologies, including on-device processing, trusted execution environments, and secure multi-party computation. Until <mark class="tag-hl">Google</mark> later provides a user-facing choice for IP-based personalization, the article says users can decline non-essential cookies and consent prompts and review ad personalization settings at myadcenter.<mark class="tag-hl">google</mark>.com.</p>
+<p>Google’s customer email places the compliance burden on advertisers by reminding them that they remain bound by Google’s EU User Consent Policy and must obtain valid consent from users in the affected regions. Google also frames the change around privacy-enhancing technologies, including on-device processing, trusted execution environments, and secure multi-party computation. Until Google later provides a user-facing choice for IP-based personalization, the article says users can decline non-essential cookies and consent prompts and review ad personalization settings at myadcenter.google.com.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:0453d68a113fe74c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:0453d68a113fe74c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Google</mark> has begun notifying advertisers that it will start using IP addresses for ad measurement and personalization across the <mark class="tag-hl">European Economic Area</mark>, the UK, and <mark class="tag-hl">Switzerland</mark> on or shortly after August 3, 2026. The article says this is new for those regions because IP addresses are regulated as personal data there.</p>
+<p>Google has begun notifying advertisers that it will start using IP addresses for ad measurement and personalization across the European Economic Area, the UK, and Switzerland on or shortly after August 3, 2026. The article says this is new for those regions because IP addresses are regulated as personal data there.</p>
 
-<p><mark class="tag-hl">Google</mark> already receives IP addresses through customer tags, SDKs, HTTP calls, and uploads to route traffic and deliver ads. The change described in the article is the purpose for which those addresses will be used: <mark class="tag-hl">Google</mark> will use them to identify devices for measurement and ad personalization.</p>
+<p>Google already receives IP addresses through customer tags, SDKs, HTTP calls, and uploads to route traffic and deliver ads. The change described in the article is the purpose for which those addresses will be used: Google will use them to identify devices for measurement and ad personalization.</p>
 
 <h2 id="technical-and-compliance-change">Technical and compliance change</h2>
 
-<p>The article says <mark class="tag-hl">Google</mark> will register under <mark class="tag-hl">IAB Europe</mark>’s <mark class="tag-hl">Transparency and Consent Framework</mark> for Feature 3, “Identify devices based on information transmitted automatically.” Under that framework, Feature 3 is the method for distinguishing a device from automatically transmitted data, including the IP address.</p>
+<p>The article says Google will register under IAB Europe’s Transparency and Consent Framework for Feature 3, “Identify devices based on information transmitted automatically.” Under that framework, Feature 3 is the method for distinguishing a device from automatically transmitted data, including the IP address.</p>
 
 <p>The article specifies that Feature 3 is not a consent step by itself. Instead, it attaches to personalization purposes, which require user consent rather than legitimate interest.</p>
 
-<p><mark class="tag-hl">Google</mark> frames the change around privacy-enhancing technologies. The article lists examples provided by <mark class="tag-hl">Google</mark>, including:</p>
+<p>Google frames the change around privacy-enhancing technologies. The article lists examples provided by Google, including:</p>
 
 <ul>
 <li>On-device processing</li>
@@ -1654,21 +1809,21 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Secure multi-party computation</li>
 </ul>
 
-<p>Some personalization features will not arrive until later this year or early next, according to the article. <mark class="tag-hl">Google</mark> says that at that point it will let users on its own properties make a choice about IP-based personalization.</p>
+<p>Some personalization features will not arrive until later this year or early next, according to the article. Google says that at that point it will let users on its own properties make a choice about IP-based personalization.</p>
 
 <h2 id="why-the-change-matters">Why the change matters</h2>
 
-<p>The article states that <mark class="tag-hl">Google</mark> has used IP signals in advertising elsewhere in the world for spam and fraud prevention and has maintained that IP use is already common across the ads ecosystem. However, the EEA, UK, and <mark class="tag-hl">Switzerland</mark> are treated differently because an IP address is personal data under <mark class="tag-hl">GDPR</mark>.</p>
+<p>The article states that Google has used IP signals in advertising elsewhere in the world for spam and fraud prevention and has maintained that IP use is already common across the ads ecosystem. However, the EEA, UK, and Switzerland are treated differently because an IP address is personal data under GDPR.</p>
 
 <p>The article also notes that using an IP address to identify a device is a building block of fingerprinting. It describes fingerprinting as tracking a device when cookies are blocked or cleared.</p>
 
-<p>The article highlights that <mark class="tag-hl">Google</mark> once took a different public position on fingerprinting. In 2019, then <mark class="tag-hl">Chrome</mark> engineering director Justin Schuh wrote that fingerprinting subverts user choice and is wrong because users cannot clear it the way they can clear cookies.</p>
+<p>The article highlights that Google once took a different public position on fingerprinting. In 2019, then Chrome engineering director Justin Schuh wrote that fingerprinting subverts user choice and is wrong because users cannot clear it the way they can clear cookies.</p>
 
-<p><mark class="tag-hl">Google</mark> reversed that stance in December 2024 by dropping its prohibition on fingerprinting for advertisers. The UK Information Commissioner’s Office called the reversal “irresponsible” within a day.</p>
+<p>Google reversed that stance in December 2024 by dropping its prohibition on fingerprinting for advertisers. The UK Information Commissioner’s Office called the reversal “irresponsible” within a day.</p>
 
 <h2 id="regulatory-context">Regulatory context</h2>
 
-<p>The article ties the timing of <mark class="tag-hl">Google</mark>’s rollout to recent UK regulatory advice. On May 18, 2026, the UK Information Commissioner’s Office published advice to the UK government on possible changes to online advertising consent rules.</p>
+<p>The article ties the timing of Google’s rollout to recent UK regulatory advice. On May 18, 2026, the UK Information Commissioner’s Office published advice to the UK government on possible changes to online advertising consent rules.</p>
 
 <p>According to the article, the ICO’s preferred approach would allow some advertising without consent only when it is based on the context being viewed. The ICO’s approach would keep consent mandatory for tracking that profiles people across services.</p>
 
@@ -1676,26 +1831,27 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="affected-parties">Affected parties</h2>
 
-<p>The affected users are people in the <mark class="tag-hl">European Economic Area</mark>, the UK, and <mark class="tag-hl">Switzerland</mark> whose IP addresses may be used for <mark class="tag-hl">Google</mark> ad measurement and personalization. The affected business parties include advertisers using <mark class="tag-hl">Google</mark> advertising systems, because <mark class="tag-hl">Google</mark>’s notice reminds them they remain responsible for consent compliance.</p>
+<p>The affected users are people in the European Economic Area, the UK, and Switzerland whose IP addresses may be used for Google ad measurement and personalization. The affected business parties include advertisers using Google advertising systems, because Google’s notice reminds them they remain responsible for consent compliance.</p>
 
-<p><mark class="tag-hl">Google</mark>’s customer email says advertisers remain bound by the company’s EU User Consent Policy. The article states that advertisers must obtain valid consent from users in the affected regions.</p>
+<p>Google’s customer email says advertisers remain bound by the company’s EU User Consent Policy. The article states that advertisers must obtain valid consent from users in the affected regions.</p>
 
 <h2 id="user-options-described-in-the-article">User options described in the article</h2>
 
-<p>The article says the user-facing choice over IP-based personalization will not arrive until later in <mark class="tag-hl">Google</mark>’s rollout. Until then, it lists the available controls as the familiar ones.</p>
+<p>The article says the user-facing choice over IP-based personalization will not arrive until later in Google’s rollout. Until then, it lists the available controls as the familiar ones.</p>
 
-<p>Users can decline non-essential cookies and consent prompts. They can also review ad personalization settings under their <mark class="tag-hl">Google</mark> account at myadcenter.<mark class="tag-hl">google</mark>.com.</p>
+<p>Users can decline non-essential cookies and consent prompts. They can also review ad personalization settings under their Google account at myadcenter.google.com.</p>
 
 <h2 id="core-takeaway">Core takeaway</h2>
 
-<p><mark class="tag-hl">Google</mark> is changing how it uses IP addresses in the EEA, UK, and <mark class="tag-hl">Switzerland</mark> by applying them to ad measurement and personalization, not merely to routing traffic or delivering ads. Because IP addresses are treated as personal data in those regions and device identification is tied to fingerprinting concerns, the rollout raises a consent issue that <mark class="tag-hl">Google</mark> places on advertisers under its EU User Consent Policy.</p>
+<p>Google is changing how it uses IP addresses in the EEA, UK, and Switzerland by applying them to ad measurement and personalization, not merely to routing traffic or delivering ads. Because IP addresses are treated as personal data in those regions and device identification is tied to fingerprinting concerns, the rollout raises a consent issue that Google places on advertisers under its EU User Consent Policy.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:0453d68a113fe74c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Google</mark> is not newly collecting IP addresses for this rollout; the article says the significant change is that already-received IP addresses will be repurposed for device identification, measurement, and ad personalization.</span></li><li><span class="kp-text"><mark class="tag-hl">Google</mark>’s registration for <mark class="tag-hl">IAB Europe</mark> TCF Feature 3 does not itself create a separate consent step, but it links IP-based device identification to personalization purposes that require user consent.</span></li><li><span class="kp-text">The rollout comes after the UK ICO criticized <mark class="tag-hl">Google</mark>’s 2024 reversal on fingerprinting and shortly after the ICO advised that consent should remain mandatory for cross-service profiling.</span></li><li><span class="kp-text"><mark class="tag-hl">Google</mark>’s user-facing choice for IP-based personalization will arrive later in the rollout, while advertisers are immediately being reminded that they must obtain valid consent under <mark class="tag-hl">Google</mark>’s EU User Consent Policy.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:0453d68a113fe74c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Google is not newly collecting IP addresses for this rollout; the article says the significant change is that already-received IP addresses will be repurposed for device identification, measurement, and ad personalization.</span></li><li><span class="kp-text">Google’s registration for IAB Europe TCF Feature 3 does not itself create a separate consent step, but it links IP-based device identification to personalization purposes that require user consent.</span></li><li><span class="kp-text">The rollout comes after the UK ICO criticized Google’s 2024 reversal on fingerprinting and shortly after the ICO advised that consent should remain mandatory for cross-service profiling.</span></li><li><span class="kp-text">Google’s user-facing choice for IP-based personalization will arrive later in the rollout, while advertisers are immediately being reminded that they must obtain valid consent under Google’s EU User Consent Policy.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Google</mark> has begun notifying advertisers that it will start using IP addresses for ad measurement and personalization across the <mark class="tag-hl">European Economic Area</mark>, the UK, and <mark class="tag-hl">Switzerland</mark> on or shortly after August 3, 2026.</span></li><li><span class="kp-text">The change means IP addresses that <mark class="tag-hl">Google</mark> already receives for traffic routing and ad delivery will also be used to identify devices for measurement and ad personalization.</span></li><li><span class="kp-text"><mark class="tag-hl">Google</mark> will register under <mark class="tag-hl">IAB Europe</mark>’s <mark class="tag-hl">Transparency and Consent Framework</mark> for Feature 3, which covers identifying devices based on automatically transmitted information such as IP addresses.</span></li><li><span class="kp-text">The article states that IP addresses are personal data under <mark class="tag-hl">GDPR</mark> in the EEA, the UK, and <mark class="tag-hl">Switzerland</mark>, and that using them to identify devices is a building block of fingerprinting.</span></li><li><span class="kp-text"><mark class="tag-hl">Google</mark>’s customer email says advertisers remain bound by its EU User Consent Policy and must obtain valid consent from users in the affected regions.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Google has begun notifying advertisers that it will start using IP addresses for ad measurement and personalization across the European Economic Area, the UK, and Switzerland on or shortly after August 3, 2026.</span></li><li><span class="kp-text">The change means IP addresses that Google already receives for traffic routing and ad delivery will also be used to identify devices for measurement and ad personalization.</span></li><li><span class="kp-text">Google will register under IAB Europe’s Transparency and Consent Framework for Feature 3, which covers identifying devices based on automatically transmitted information such as IP addresses.</span></li><li><span class="kp-text">The article states that IP addresses are personal data under GDPR in the EEA, the UK, and Switzerland, and that using them to identify devices is a building block of fingerprinting.</span></li><li><span class="kp-text">Google’s customer email says advertisers remain bound by its EU User Consent Policy and must obtain valid consent from users in the affected regions.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/google-to-use-uk-and-eu-user-ip-addresses-for-ad-personalization/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific <mark class="tag-hl">Google</mark> policy and rollout date affecting IP-based ad personalization in the EEA, UK, and <mark class="tag-hl">Switzerland</mark>, but the security impact is mainly privacy and consent-related rather than an active exploit or breach. It affects a very broad user population and gives limited user and advertiser actions, while sourcing includes <mark class="tag-hl">Google</mark>&rsquo;s advertiser notice and regulatory references but is not itself a formal advisory.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific Google policy and rollout date affecting IP-based ad personalization in the EEA, UK, and Switzerland, but the security impact is mainly privacy and consent-related rather than an active exploit or breach. It affects a very broad user population and gives limited user and advertiser actions, while sourcing includes Google&rsquo;s advertiser notice and regulatory references but is not itself a formal advisory.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2026/05/our-advice-to-government-on-potential-changes-to-online-advertising-rules/" target="_blank" rel="noopener">Our advice to government on potential changes to online advertising rules</a></div>
@@ -1729,48 +1885,48 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <span class="score-tip" data-tip="Severity 1/4 · Specificity 2/4 · Breadth 3/4 · Actionability 2/4 · Novelty 2/4 · Credibility 3/4"><div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:51%"></div></div><span class="score-num score-num-low">51</span></div></span>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="3a2bfb8f44b0d99e3d8ebc1dce590d8b:1bebb376fdbe32a6">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-4c1e927217ce0c1d321420709fe7b2a8:1bebb376fdbe32a6')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-4c1e927217ce0c1d321420709fe7b2a8:1bebb376fdbe32a6')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-4c1e927217ce0c1d321420709fe7b2a8:1bebb376fdbe32a6')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-4c1e927217ce0c1d321420709fe7b2a8:1bebb376fdbe32a6')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-4c1e927217ce0c1d321420709fe7b2a8:1bebb376fdbe32a6')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-3a2bfb8f44b0d99e3d8ebc1dce590d8b:1bebb376fdbe32a6')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-3a2bfb8f44b0d99e3d8ebc1dce590d8b:1bebb376fdbe32a6')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-3a2bfb8f44b0d99e3d8ebc1dce590d8b:1bebb376fdbe32a6')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-3a2bfb8f44b0d99e3d8ebc1dce590d8b:1bebb376fdbe32a6')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-3a2bfb8f44b0d99e3d8ebc1dce590d8b:1bebb376fdbe32a6')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-4c1e927217ce0c1d321420709fe7b2a8:1bebb376fdbe32a6" class="tab-panel active"><div class="prose"><mark class="tag-hl">Tenable</mark> says <mark class="tag-hl">CISA</mark> <mark class="tag-hl">BOD 26-04</mark> pushes federal agencies from static CVSS-based patching to continuous, risk-based exposure management using asset exposure, KEV status, exploit automation and technical impact. The article argues <mark class="tag-hl">Tenable One</mark> can operationalize those requirements through continuous asset discovery, threat intelligence, automation, cloud coverage and CDM-aligned tagging.</div></div>
-                <div id="brief-4c1e927217ce0c1d321420709fe7b2a8:1bebb376fdbe32a6" class="tab-panel"><div class="prose"><p><mark class="tag-hl">CISA</mark>’s Binding Operational Directive 26-04 supersedes <mark class="tag-hl">BOD 19-02</mark> and <mark class="tag-hl">BOD 22-01</mark> and shifts federal vulnerability management away from static severity scores such as CVSS. The article says agencies must now prioritize remediation using a dynamic model based on asset exposure, KEV status, exploit automation, and technical impact. <mark class="tag-hl">Tenable</mark> presents <mark class="tag-hl">Tenable One</mark> as a platform for operationalizing these requirements through continuous asset discovery, threat validation, and automated orchestration.</p>
+                <div id="tldr-3a2bfb8f44b0d99e3d8ebc1dce590d8b:1bebb376fdbe32a6" class="tab-panel active"><div class="prose">Tenable says CISA BOD 26-04 pushes federal agencies from static CVSS-based patching to continuous, risk-based exposure management using asset exposure, KEV status, exploit automation and technical impact. The article argues Tenable One can operationalize those requirements through continuous asset discovery, threat intelligence, automation, cloud coverage and CDM-aligned tagging.</div></div>
+                <div id="brief-3a2bfb8f44b0d99e3d8ebc1dce590d8b:1bebb376fdbe32a6" class="tab-panel"><div class="prose"><p>CISA’s Binding Operational Directive 26-04 supersedes BOD 19-02 and BOD 22-01 and shifts federal vulnerability management away from static severity scores such as CVSS. The article says agencies must now prioritize remediation using a dynamic model based on asset exposure, KEV status, exploit automation, and technical impact. Tenable presents Tenable One as a platform for operationalizing these requirements through continuous asset discovery, threat validation, and automated orchestration.</p>
 
-<p>The article emphasizes that <mark class="tag-hl">BOD 26-04</mark> timelines are not static because they can change when a vulnerability is added to the KEV catalog, an asset becomes internet-exposed, or Vulnrichment metadata changes. <mark class="tag-hl">Tenable</mark> says asset exposure is the highest-leverage compliance variable, stating that removing assets from public exposure can shift 76.7% of CVEs from compressed remediation timelines to the deferral tier. It also states that 83% of actively exploited CVEs yield total system control, making forensic triage a routine operational concern under the directive.</p>
+<p>The article emphasizes that BOD 26-04 timelines are not static because they can change when a vulnerability is added to the KEV catalog, an asset becomes internet-exposed, or Vulnrichment metadata changes. Tenable says asset exposure is the highest-leverage compliance variable, stating that removing assets from public exposure can shift 76.7% of CVEs from compressed remediation timelines to the deferral tier. It also states that 83% of actively exploited CVEs yield total system control, making forensic triage a routine operational concern under the directive.</p>
 
-<p><mark class="tag-hl">Tenable</mark> argues that federal agencies need platform-scale automation to meet <mark class="tag-hl">BOD 26-04</mark>’s phased requirements, including policy updates, process updates, remediation, and asset metadata tagging. The article highlights <mark class="tag-hl">Tenable Hexa AI</mark>, API integrations, <mark class="tag-hl">CDM Dashboard</mark> support, Attack Surface Management, Vulnerability Priority Rating, and <mark class="tag-hl">Tenable One</mark> Cloud Exposure as capabilities intended to support the directive. It also says <mark class="tag-hl">BOD 26-04</mark> applies to federal information systems in third-party and cloud environments, including <mark class="tag-hl">FedRAMP</mark>-certified and non-certified cloud infrastructure.</p>
+<p>Tenable argues that federal agencies need platform-scale automation to meet BOD 26-04’s phased requirements, including policy updates, process updates, remediation, and asset metadata tagging. The article highlights Tenable Hexa AI, API integrations, CDM Dashboard support, Attack Surface Management, Vulnerability Priority Rating, and Tenable One Cloud Exposure as capabilities intended to support the directive. It also says BOD 26-04 applies to federal information systems in third-party and cloud environments, including FedRAMP-certified and non-certified cloud infrastructure.</p>
 </div></div>
-                <div id="standard-4c1e927217ce0c1d321420709fe7b2a8:1bebb376fdbe32a6" class="tab-panel"><div class="prose"><p><mark class="tag-hl">CISA</mark>’s <mark class="tag-hl">BOD 26-04</mark> is described as a major change in federal vulnerability management because it supersedes <mark class="tag-hl">BOD 19-02</mark> and <mark class="tag-hl">BOD 22-01</mark> and moves agencies away from prioritizing remediation based on static scores such as CVSS. The article says the directive was driven by AI-powered threats and sophisticated adversary campaigns, and it requires agencies to use real-world asset and threat context. <mark class="tag-hl">Tenable</mark> frames the directive as an acceleration from vulnerability management toward exposure management.</p>
+                <div id="standard-3a2bfb8f44b0d99e3d8ebc1dce590d8b:1bebb376fdbe32a6" class="tab-panel"><div class="prose"><p>CISA’s BOD 26-04 is described as a major change in federal vulnerability management because it supersedes BOD 19-02 and BOD 22-01 and moves agencies away from prioritizing remediation based on static scores such as CVSS. The article says the directive was driven by AI-powered threats and sophisticated adversary campaigns, and it requires agencies to use real-world asset and threat context. Tenable frames the directive as an acceleration from vulnerability management toward exposure management.</p>
 
-<p>The article identifies four risk variables that drive remediation timelines under <mark class="tag-hl">BOD 26-04</mark>: asset exposure, KEV status, exploit automation, and technical impact. <mark class="tag-hl">Tenable One</mark> is presented as mapping to these variables through continuous discovery of internet-facing assets, integration with <mark class="tag-hl">CISA</mark>’s KEV catalog, VPR-based assessment of exploit maturity, and CVSS-based technical impact context. The article stresses that compliance is continuous because these variables can change over time.</p>
+<p>The article identifies four risk variables that drive remediation timelines under BOD 26-04: asset exposure, KEV status, exploit automation, and technical impact. Tenable One is presented as mapping to these variables through continuous discovery of internet-facing assets, integration with CISA’s KEV catalog, VPR-based assessment of exploit maturity, and CVSS-based technical impact context. The article stresses that compliance is continuous because these variables can change over time.</p>
 
-<p><mark class="tag-hl">Tenable</mark> highlights asset exposure as the most powerful operational lever in its analysis of the <mark class="tag-hl">CISA Vulnrichment</mark> corpus. The article states that removing an asset from public exposure can shift 76.7% of CVEs from compressed remediation timelines to the deferral tier. It positions Attack Surface Management and asset exposure context as central to both security and compliance under <mark class="tag-hl">BOD 26-04</mark>.</p>
+<p>Tenable highlights asset exposure as the most powerful operational lever in its analysis of the CISA Vulnrichment corpus. The article states that removing an asset from public exposure can shift 76.7% of CVEs from compressed remediation timelines to the deferral tier. It positions Attack Surface Management and asset exposure context as central to both security and compliance under BOD 26-04.</p>
 
-<p>The article also emphasizes threat intelligence and vulnerability research as a way to anticipate compressed remediation timelines. It says <mark class="tag-hl">Tenable</mark> Vulnerability Watch can identify exploited vulnerabilities before they appear in <mark class="tag-hl">CISA</mark>’s KEV catalog, and that <mark class="tag-hl">Tenable</mark> has identified more than 4,400 vulnerabilities with automatable, total-system-control, proof-of-concept profiles that are not yet on KEV. It further states that 61% of actively exploited vulnerabilities cannot be automated, so remediation based only on automatable exploitation would miss many active threats.</p>
+<p>The article also emphasizes threat intelligence and vulnerability research as a way to anticipate compressed remediation timelines. It says Tenable Vulnerability Watch can identify exploited vulnerabilities before they appear in CISA’s KEV catalog, and that Tenable has identified more than 4,400 vulnerabilities with automatable, total-system-control, proof-of-concept profiles that are not yet on KEV. It further states that 61% of actively exploited vulnerabilities cannot be automated, so remediation based only on automatable exploitation would miss many active threats.</p>
 
-<p><mark class="tag-hl">BOD 26-04</mark> introduces a forensic triage requirement for KEV-listed vulnerabilities that yield total system control, and the article says this is not a niche case because 83% of actively exploited CVEs yield total system control. <mark class="tag-hl">Tenable</mark> says its threat attribution and campaign context can help forensic teams determine what to look for, including actor activity, tools, infrastructure signatures, and sector targeting. The article describes this as turning a compliance requirement into an informed investigation.</p>
+<p>BOD 26-04 introduces a forensic triage requirement for KEV-listed vulnerabilities that yield total system control, and the article says this is not a niche case because 83% of actively exploited CVEs yield total system control. Tenable says its threat attribution and campaign context can help forensic teams determine what to look for, including actor activity, tools, infrastructure signatures, and sector targeting. The article describes this as turning a compliance requirement into an informed investigation.</p>
 
-<p>The article presents <mark class="tag-hl">Tenable One</mark>, <mark class="tag-hl">Tenable Hexa AI</mark>, API integrations, CDM metadata tagging, Attack Surface Management, Vulnerability Management, Security Center, and Cloud Exposure as capabilities relevant to <mark class="tag-hl">BOD 26-04</mark> implementation. It says agencies must update policies immediately, update processes within 60 days, and remediate assets and tag metadata within 180 days. It also notes that <mark class="tag-hl">BOD 26-04</mark> applies to all federal information systems, including third-party and cloud environments, and says <mark class="tag-hl">Tenable One</mark> Cloud Exposure helps validate CSP infrastructure alignment with the directive.</p>
+<p>The article presents Tenable One, Tenable Hexa AI, API integrations, CDM metadata tagging, Attack Surface Management, Vulnerability Management, Security Center, and Cloud Exposure as capabilities relevant to BOD 26-04 implementation. It says agencies must update policies immediately, update processes within 60 days, and remediate assets and tag metadata within 180 days. It also notes that BOD 26-04 applies to all federal information systems, including third-party and cloud environments, and says Tenable One Cloud Exposure helps validate CSP infrastructure alignment with the directive.</p>
 </div></div>
-                <div id="comprehensive-4c1e927217ce0c1d321420709fe7b2a8:1bebb376fdbe32a6" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-3a2bfb8f44b0d99e3d8ebc1dce590d8b:1bebb376fdbe32a6" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The article explains how <mark class="tag-hl">CISA</mark>’s Binding Operational Directive 26-04 changes federal vulnerability management requirements and presents <mark class="tag-hl">Tenable One</mark> as a platform for operationalizing them. It states that <mark class="tag-hl">BOD 26-04</mark> supersedes <mark class="tag-hl">BOD 19-02</mark> and <mark class="tag-hl">BOD 22-01</mark>, consolidating previous federal guidance into a single framework. The directive moves agencies away from using static vulnerability severity scores, such as CVSS, as the main basis for patch urgency.</p>
+<p>The article explains how CISA’s Binding Operational Directive 26-04 changes federal vulnerability management requirements and presents Tenable One as a platform for operationalizing them. It states that BOD 26-04 supersedes BOD 19-02 and BOD 22-01, consolidating previous federal guidance into a single framework. The directive moves agencies away from using static vulnerability severity scores, such as CVSS, as the main basis for patch urgency.</p>
 
-<p>According to the article, <mark class="tag-hl">BOD 26-04</mark> requires a dynamic, risk-based vulnerability prioritization model driven by real-world asset and threat context. <mark class="tag-hl">Tenable</mark> says this shift is driven by the rapid acceleration of AI-powered threats and increasingly sophisticated adversary campaigns. The article frames the directive as a move from traditional vulnerability management to exposure management.</p>
+<p>According to the article, BOD 26-04 requires a dynamic, risk-based vulnerability prioritization model driven by real-world asset and threat context. Tenable says this shift is driven by the rapid acceleration of AI-powered threats and increasingly sophisticated adversary campaigns. The article frames the directive as a move from traditional vulnerability management to exposure management.</p>
 
-<h2 id="core-bod-26-04-risk-variables">Core <mark class="tag-hl">BOD 26-04</mark> risk variables</h2>
+<h2 id="core-bod-26-04-risk-variables">Core BOD 26-04 risk variables</h2>
 
-<p>The article says <mark class="tag-hl">BOD 26-04</mark> requires remediation timelines to be driven by four specific risk variables:</p>
+<p>The article says BOD 26-04 requires remediation timelines to be driven by four specific risk variables:</p>
 
 <ul>
 <li>Asset exposure</li>
@@ -1779,57 +1935,57 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Technical impact</li>
 </ul>
 
-<p><mark class="tag-hl">Tenable</mark> presents <mark class="tag-hl">Tenable One</mark> as mapping directly to these variables by providing continuous visibility, asset discovery, threat validation, vulnerability prioritization, and automation.</p>
+<p>Tenable presents Tenable One as mapping directly to these variables by providing continuous visibility, asset discovery, threat validation, vulnerability prioritization, and automation.</p>
 
 <h2 id="asset-exposure">Asset exposure</h2>
 
-<p>For asset exposure, the directive asks whether the vulnerable asset is publicly exposed to the internet. The article says <mark class="tag-hl">Tenable One</mark> uses sensors and third-party data connectors to determine whether a device is internet-facing or has a public IP address. It also says <mark class="tag-hl">Tenable</mark>’s Asset Criticality Rating incorporates external exposure context by considering asset location, network connectivity, and security controls.</p>
+<p>For asset exposure, the directive asks whether the vulnerable asset is publicly exposed to the internet. The article says Tenable One uses sensors and third-party data connectors to determine whether a device is internet-facing or has a public IP address. It also says Tenable’s Asset Criticality Rating incorporates external exposure context by considering asset location, network connectivity, and security controls.</p>
 
-<p><mark class="tag-hl">Tenable One</mark> Attack Surface Management is described as providing continuous discovery and identification of internet-facing assets. The article contrasts this with point-in-time snapshots and says <mark class="tag-hl">Tenable One</mark> gives agencies an always-on, outside-in view of public exposure.</p>
+<p>Tenable One Attack Surface Management is described as providing continuous discovery and identification of internet-facing assets. The article contrasts this with point-in-time snapshots and says Tenable One gives agencies an always-on, outside-in view of public exposure.</p>
 
-<p>The article presents asset exposure as the highest-leverage compliance variable based on <mark class="tag-hl">Tenable</mark>’s analysis of the <mark class="tag-hl">CISA Vulnrichment</mark> corpus against <mark class="tag-hl">BOD 26-04</mark>’s tiered model. It states that removing an asset from public exposure can shift 76.7% of CVEs from compressed remediation timelines to the deferral tier. The article argues that attack surface reduction is both a security measure and the most efficient path to compliance under <mark class="tag-hl">BOD 26-04</mark>.</p>
+<p>The article presents asset exposure as the highest-leverage compliance variable based on Tenable’s analysis of the CISA Vulnrichment corpus against BOD 26-04’s tiered model. It states that removing an asset from public exposure can shift 76.7% of CVEs from compressed remediation timelines to the deferral tier. The article argues that attack surface reduction is both a security measure and the most efficient path to compliance under BOD 26-04.</p>
 
 <h2 id="kev-status">KEV status</h2>
 
-<p>For KEV status, the directive asks whether a vulnerability is tracked in <mark class="tag-hl">CISA</mark>’s Known Exploited Vulnerabilities catalog. The article says <mark class="tag-hl">Tenable</mark> integrates <mark class="tag-hl">CISA</mark>’s KEV catalog into Vulnerability Priority Rating scoring and compliance workflows. It also says <mark class="tag-hl">Tenable</mark> Vulnerability Watch provides early identification of vulnerabilities exploited in the wild before they appear in the KEV catalog.</p>
+<p>For KEV status, the directive asks whether a vulnerability is tracked in CISA’s Known Exploited Vulnerabilities catalog. The article says Tenable integrates CISA’s KEV catalog into Vulnerability Priority Rating scoring and compliance workflows. It also says Tenable Vulnerability Watch provides early identification of vulnerabilities exploited in the wild before they appear in the KEV catalog.</p>
 
-<p>The article describes this early warning as a compliance advantage because <mark class="tag-hl">BOD 26-04</mark> timelines compress immediately when a CVE is added to KEV. It says organizations with advance warning can begin remediation before the mandatory clock starts.</p>
+<p>The article describes this early warning as a compliance advantage because BOD 26-04 timelines compress immediately when a CVE is added to KEV. It says organizations with advance warning can begin remediation before the mandatory clock starts.</p>
 
 <h2 id="exploit-automation">Exploit automation</h2>
 
-<p>For exploit automation, the directive asks whether an adversary can fully automate all steps needed to exploit the vulnerability. The article says <mark class="tag-hl">Tenable</mark> VPR scoring assesses exploit maturity by evaluating whether functional exploit code exists, whether exploitation has been observed at scale, and how accessible the exploitation path is. It also says <mark class="tag-hl">Tenable</mark>’s Asset Exposure Score contextualizes risk by evaluating an asset’s exposure posture in the organization’s environment.</p>
+<p>For exploit automation, the directive asks whether an adversary can fully automate all steps needed to exploit the vulnerability. The article says Tenable VPR scoring assesses exploit maturity by evaluating whether functional exploit code exists, whether exploitation has been observed at scale, and how accessible the exploitation path is. It also says Tenable’s Asset Exposure Score contextualizes risk by evaluating an asset’s exposure posture in the organization’s environment.</p>
 
-<p>The article includes a notable finding from <mark class="tag-hl">Tenable</mark>’s analysis of more than 154,000 enriched CVEs in the <mark class="tag-hl">CISA Vulnrichment</mark> corpus. It states that 61% of actively exploited vulnerabilities cannot be automated. The article says this means organizations that focus exclusively on automatable vulnerabilities will miss the majority of active threats, and it says <mark class="tag-hl">Tenable</mark> accounts for this by incorporating threat actor context, campaign intelligence, and exploitation breadth alongside automation maturity.</p>
+<p>The article includes a notable finding from Tenable’s analysis of more than 154,000 enriched CVEs in the CISA Vulnrichment corpus. It states that 61% of actively exploited vulnerabilities cannot be automated. The article says this means organizations that focus exclusively on automatable vulnerabilities will miss the majority of active threats, and it says Tenable accounts for this by incorporating threat actor context, campaign intelligence, and exploitation breadth alongside automation maturity.</p>
 
 <h2 id="technical-impact">Technical impact</h2>
 
-<p>For technical impact, the directive asks whether exploitation gives an attacker partial or total control of an asset. The article says <mark class="tag-hl">Tenable</mark> integrates CVSS base scores and severity assessments for every CVE to provide impact context for this distinction. It also says <mark class="tag-hl">Tenable One</mark> can identify technical impact at platform scale and isolate vulnerabilities that fall into the highest-severity compliance tiers.</p>
+<p>For technical impact, the directive asks whether exploitation gives an attacker partial or total control of an asset. The article says Tenable integrates CVSS base scores and severity assessments for every CVE to provide impact context for this distinction. It also says Tenable One can identify technical impact at platform scale and isolate vulnerabilities that fall into the highest-severity compliance tiers.</p>
 
-<p>The article states that <mark class="tag-hl">Tenable</mark>’s operational assessment found that 83% of actively exploited CVEs yield total system control. It says total control combined with KEV status on an internet-facing asset triggers the most aggressive compliance tier: three days with mandatory forensic triage. Because the article describes total control as common among exploited vulnerabilities, it says agencies should plan for forensic triage as a routine operational demand rather than an edge case.</p>
+<p>The article states that Tenable’s operational assessment found that 83% of actively exploited CVEs yield total system control. It says total control combined with KEV status on an internet-facing asset triggers the most aggressive compliance tier: three days with mandatory forensic triage. Because the article describes total control as common among exploited vulnerabilities, it says agencies should plan for forensic triage as a routine operational demand rather than an edge case.</p>
 
 <h2 id="continuous-compliance-and-changing-timelines">Continuous compliance and changing timelines</h2>
 
-<p>The article stresses that <mark class="tag-hl">BOD 26-04</mark> timelines are not static. It says timelines shift whenever a risk variable changes, such as when a CVE is added to KEV, an asset becomes newly exposed to the internet, or a Vulnrichment assessment changes from non-automatable to automatable. It states that compliance is a continuous state rather than a point-in-time assessment.</p>
+<p>The article stresses that BOD 26-04 timelines are not static. It says timelines shift whenever a risk variable changes, such as when a CVE is added to KEV, an asset becomes newly exposed to the internet, or a Vulnrichment assessment changes from non-automatable to automatable. It states that compliance is a continuous state rather than a point-in-time assessment.</p>
 
-<p><mark class="tag-hl">Tenable</mark> says <mark class="tag-hl">Tenable One</mark>’s continuous monitoring capabilities allow an agency’s prioritization to shift in real time when variables change, rather than waiting for the next scan cycle.</p>
+<p>Tenable says Tenable One’s continuous monitoring capabilities allow an agency’s prioritization to shift in real time when variables change, rather than waiting for the next scan cycle.</p>
 
-<h2 id="tenable-vulnerability-research-and-predictive-prioritization"><mark class="tag-hl">Tenable</mark> vulnerability research and predictive prioritization</h2>
+<h2 id="tenable-vulnerability-research-and-predictive-prioritization">Tenable vulnerability research and predictive prioritization</h2>
 
-<p>The article says <mark class="tag-hl">Tenable</mark> has identified more than 4,400 vulnerabilities with the highest-risk technical profile: automatable, total system control, and proof-of-concept available. These vulnerabilities are not yet on the KEV catalog, according to the article. It states that if any of these CVEs receive confirmed exploitation evidence, they immediately move into the most aggressive BOD timeline of three days with mandatory forensic triage.</p>
+<p>The article says Tenable has identified more than 4,400 vulnerabilities with the highest-risk technical profile: automatable, total system control, and proof-of-concept available. These vulnerabilities are not yet on the KEV catalog, according to the article. It states that if any of these CVEs receive confirmed exploitation evidence, they immediately move into the most aggressive BOD timeline of three days with mandatory forensic triage.</p>
 
-<p><mark class="tag-hl">Tenable</mark> Vulnerability Watch and VPR scoring are described as flagging CVEs based on exploit maturity, proof-of-concept availability, and technical impact severity. The article says this gives security teams a prioritized remediation queue that anticipates KEV additions instead of reacting only after they occur.</p>
+<p>Tenable Vulnerability Watch and VPR scoring are described as flagging CVEs based on exploit maturity, proof-of-concept availability, and technical impact severity. The article says this gives security teams a prioritized remediation queue that anticipates KEV additions instead of reacting only after they occur.</p>
 
-<p>The article also says <mark class="tag-hl">Tenable</mark>’s intelligence is produced through a structured methodology that assesses vulnerabilities, threat actors, campaigns, and environmental exposures as independent but interrelated risk dimensions. <mark class="tag-hl">Tenable</mark>’s research team is described as tracking persistent exploitation at the levels of individual CVEs, vendor product lines, and entire technology classes.</p>
+<p>The article also says Tenable’s intelligence is produced through a structured methodology that assesses vulnerabilities, threat actors, campaigns, and environmental exposures as independent but interrelated risk dimensions. Tenable’s research team is described as tracking persistent exploitation at the levels of individual CVEs, vendor product lines, and entire technology classes.</p>
 
 <h2 id="forensic-triage-requirement">Forensic triage requirement</h2>
 
-<p>The article says <mark class="tag-hl">BOD 26-04</mark> introduces a forensic triage requirement that did not exist in prior directives. For CVEs that are both on KEV and yield total system control, agencies must assess whether compromise has already occurred while remediating within three days. The article points to Table 1 rows 1, 3, and 9 within the BOD for these cases.</p>
+<p>The article says BOD 26-04 introduces a forensic triage requirement that did not exist in prior directives. For CVEs that are both on KEV and yield total system control, agencies must assess whether compromise has already occurred while remediating within three days. The article points to Table 1 rows 1, 3, and 9 within the BOD for these cases.</p>
 
-<p><mark class="tag-hl">Tenable</mark> says this is not a niche compliance edge case because 83% of actively exploited CVEs yield total system control. The article states that effective forensic triage requires knowing what to look for. It says <mark class="tag-hl">Tenable</mark> provides threat attribution and campaign context, including which actor is exploiting the vulnerability, what tools and infrastructure signatures are used, and whether exploitation is part of a coordinated campaign targeting the agency’s sector.</p>
+<p>Tenable says this is not a niche compliance edge case because 83% of actively exploited CVEs yield total system control. The article states that effective forensic triage requires knowing what to look for. It says Tenable provides threat attribution and campaign context, including which actor is exploiting the vulnerability, what tools and infrastructure signatures are used, and whether exploitation is part of a coordinated campaign targeting the agency’s sector.</p>
 
 <h2 id="phased-implementation-and-automation">Phased implementation and automation</h2>
 
-<p>The article describes <mark class="tag-hl">BOD 26-04</mark> as having strict phased implementation timelines:</p>
+<p>The article describes BOD 26-04 as having strict phased implementation timelines:</p>
 
 <ul>
 <li>Phase 1 requires agencies to update policies immediately.</li>
@@ -1837,54 +1993,55 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Phase 3 requires agencies to actively remediate assets and tag metadata within 180 days.</li>
 </ul>
 
-<p>The article argues that manually evaluating four complex variables across thousands of vulnerabilities and thousands of assets is not feasible for human analysts. It presents <mark class="tag-hl">Tenable Hexa AI</mark> as an agentic AI engine in <mark class="tag-hl">Tenable One</mark> that orchestrates automated security workflows at machine speed. It says <mark class="tag-hl">Tenable Hexa AI</mark> applies risk intelligence at platform scale and surfaces the vulnerabilities that matter most so agencies can meet compressed timelines without scaling their teams linearly.</p>
+<p>The article argues that manually evaluating four complex variables across thousands of vulnerabilities and thousands of assets is not feasible for human analysts. It presents Tenable Hexa AI as an agentic AI engine in Tenable One that orchestrates automated security workflows at machine speed. It says Tenable Hexa AI applies risk intelligence at platform scale and surfaces the vulnerabilities that matter most so agencies can meet compressed timelines without scaling their teams linearly.</p>
 
-<p>The article also says Phase 3 requires agencies to continuously identify and tag all assets reachable outside the internal network with metadata covering organization, environment, exposure, and asset type. <mark class="tag-hl">Tenable</mark> says its API integrations can automate this metadata tagging and feed structured data into the federal Continuous Diagnostics and Mitigation Dashboard.</p>
+<p>The article also says Phase 3 requires agencies to continuously identify and tag all assets reachable outside the internal network with metadata covering organization, environment, exposure, and asset type. Tenable says its API integrations can automate this metadata tagging and feed structured data into the federal Continuous Diagnostics and Mitigation Dashboard.</p>
 
 <h2 id="third-party-and-cloud-environments">Third-party and cloud environments</h2>
 
-<p>The article states that <mark class="tag-hl">BOD 26-04</mark> applies to all federal information systems, including systems hosted in third-party and cloud environments. It says agencies are responsible for ensuring underlying infrastructure follows the directive, whether they work with the <mark class="tag-hl">FedRAMP</mark> PMO for certified offerings or directly with cloud service providers for non-certified environments.</p>
+<p>The article states that BOD 26-04 applies to all federal information systems, including systems hosted in third-party and cloud environments. It says agencies are responsible for ensuring underlying infrastructure follows the directive, whether they work with the FedRAMP PMO for certified offerings or directly with cloud service providers for non-certified environments.</p>
 
-<p><mark class="tag-hl">Tenable One</mark> Cloud Exposure is presented as helping agencies audit and validate that CSP infrastructures align with <mark class="tag-hl">BOD 26-04</mark> guidelines. The article says <mark class="tag-hl">Tenable One</mark> unifies data across internet-facing assets, traditional IT, and cloud to provide centralized exposure oversight.</p>
+<p>Tenable One Cloud Exposure is presented as helping agencies audit and validate that CSP infrastructures align with BOD 26-04 guidelines. The article says Tenable One unifies data across internet-facing assets, traditional IT, and cloud to provide centralized exposure oversight.</p>
 
-<h2 id="tenable-products-and-capabilities-discussed"><mark class="tag-hl">Tenable</mark> products and capabilities discussed</h2>
+<h2 id="tenable-products-and-capabilities-discussed">Tenable products and capabilities discussed</h2>
 
-<p>The article describes several <mark class="tag-hl">Tenable</mark> offerings and capabilities in relation to <mark class="tag-hl">BOD 26-04</mark>:</p>
+<p>The article describes several Tenable offerings and capabilities in relation to BOD 26-04:</p>
 
 <ul>
-<li><mark class="tag-hl">Tenable One</mark> Exposure Management Platform for continuous asset discovery, threat validation, and automated orchestration.</li>
-<li><mark class="tag-hl">Tenable One</mark> Attack Surface Management for continuous discovery of internet-facing assets.</li>
+<li>Tenable One Exposure Management Platform for continuous asset discovery, threat validation, and automated orchestration.</li>
+<li>Tenable One Attack Surface Management for continuous discovery of internet-facing assets.</li>
 <li>Asset Criticality Rating for incorporating exposure context.</li>
 <li>Vulnerability Priority Rating for prioritization and KEV integration.</li>
 <li>Asset Exposure Score for contextualizing asset exposure posture.</li>
-<li><mark class="tag-hl">Tenable</mark> Vulnerability Watch for early identification of exploited vulnerabilities.</li>
-<li><mark class="tag-hl">Tenable Hexa AI</mark> for AI-powered workflow automation.</li>
-<li><mark class="tag-hl">Tenable</mark> API integrations for metadata tagging and <mark class="tag-hl">CDM Dashboard</mark> integration.</li>
-<li><mark class="tag-hl">Tenable One</mark> Cloud Exposure for cloud and third-party infrastructure oversight.</li>
-<li><mark class="tag-hl">Tenable</mark> Security Center and <mark class="tag-hl">Tenable One</mark> Vulnerability Management for baseline KEV identification and asset segmentation.</li>
+<li>Tenable Vulnerability Watch for early identification of exploited vulnerabilities.</li>
+<li>Tenable Hexa AI for AI-powered workflow automation.</li>
+<li>Tenable API integrations for metadata tagging and CDM Dashboard integration.</li>
+<li>Tenable One Cloud Exposure for cloud and third-party infrastructure oversight.</li>
+<li>Tenable Security Center and Tenable One Vulnerability Management for baseline KEV identification and asset segmentation.</li>
 </ul>
 
 <h2 id="limits-of-baseline-vulnerability-management-tools">Limits of baseline vulnerability management tools</h2>
 
-<p>The article says <mark class="tag-hl">Tenable</mark> Security Center and <mark class="tag-hl">Tenable One</mark> Vulnerability Management natively handle core baseline requirements such as KEV status integration and asset segmentation. However, it argues that <mark class="tag-hl">BOD 26-04</mark> requires localized context and tracking of <mark class="tag-hl">CISA</mark> Stakeholder Specific Vulnerability Categorization Vulnrichment metadata, including exploit automation and technical impact keys.</p>
+<p>The article says Tenable Security Center and Tenable One Vulnerability Management natively handle core baseline requirements such as KEV status integration and asset segmentation. However, it argues that BOD 26-04 requires localized context and tracking of CISA Stakeholder Specific Vulnerability Categorization Vulnrichment metadata, including exploit automation and technical impact keys.</p>
 
-<p>The article says manually importing, filtering, and cross-referencing public Vulnrichment data against an enterprise network requires the scale that <mark class="tag-hl">Tenable One</mark> provides. It presents <mark class="tag-hl">Tenable One</mark> as an ingestion and orchestration engine for advanced <mark class="tag-hl">BOD 26-04</mark> data requirements, including native Vulnrichment filtering and dynamic merging of internal vulnerability data with Attack Surface Management data.</p>
+<p>The article says manually importing, filtering, and cross-referencing public Vulnrichment data against an enterprise network requires the scale that Tenable One provides. It presents Tenable One as an ingestion and orchestration engine for advanced BOD 26-04 data requirements, including native Vulnrichment filtering and dynamic merging of internal vulnerability data with Attack Surface Management data.</p>
 
 <h2 id="overall-significance">Overall significance</h2>
 
-<p>The article’s central message is that <mark class="tag-hl">BOD 26-04</mark> requires federal agencies to prioritize vulnerability remediation using continuously changing risk context rather than static severity scores. It presents asset exposure, KEV status, exploit automation, and technical impact as the directive’s key operational variables. <mark class="tag-hl">Tenable</mark> argues that <mark class="tag-hl">Tenable One</mark> provides the platform-scale visibility, intelligence, automation, cloud coverage, and metadata integration needed to meet the directive’s compliance timelines and turn compliance activity into exposure reduction.</p>
+<p>The article’s central message is that BOD 26-04 requires federal agencies to prioritize vulnerability remediation using continuously changing risk context rather than static severity scores. It presents asset exposure, KEV status, exploit automation, and technical impact as the directive’s key operational variables. Tenable argues that Tenable One provides the platform-scale visibility, intelligence, automation, cloud coverage, and metadata integration needed to meet the directive’s compliance timelines and turn compliance activity into exposure reduction.</p>
 </div></div>
-                <div id="insights-4c1e927217ce0c1d321420709fe7b2a8:1bebb376fdbe32a6" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Reducing public internet exposure is presented as the most efficient compliance lever because <mark class="tag-hl">Tenable</mark> found it can move 76.7% of CVEs out of compressed remediation timelines and into the deferral tier.</span></li><li><span class="kp-text">The article warns that prioritizing only automatable exploits would miss many real-world threats because <mark class="tag-hl">Tenable</mark> found that 61% of actively exploited vulnerabilities cannot be automated.</span></li><li><span class="kp-text">Federal agencies should treat forensic triage as a routine operational requirement rather than an exception because <mark class="tag-hl">Tenable</mark> says 83% of actively exploited CVEs yield total system control.</span></li><li><span class="kp-text"><mark class="tag-hl">Tenable</mark> identifies more than 4,400 vulnerabilities with an automatable, total-control, proof-of-concept profile that are not yet in <mark class="tag-hl">CISA</mark>’s KEV catalog but could immediately trigger the most aggressive BOD timeline if exploitation is confirmed.</span></li><li><span class="kp-text">The article emphasizes that <mark class="tag-hl">BOD 26-04</mark> compliance can change immediately when variables such as KEV status, internet exposure, or Vulnrichment automation assessments change, making periodic scan-based prioritization insufficient.</span></li></ul></div>
+                <div id="insights-3a2bfb8f44b0d99e3d8ebc1dce590d8b:1bebb376fdbe32a6" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Reducing public internet exposure is presented as the most efficient compliance lever because Tenable found it can move 76.7% of CVEs out of compressed remediation timelines and into the deferral tier.</span></li><li><span class="kp-text">The article warns that prioritizing only automatable exploits would miss many real-world threats because Tenable found that 61% of actively exploited vulnerabilities cannot be automated.</span></li><li><span class="kp-text">Federal agencies should treat forensic triage as a routine operational requirement rather than an exception because Tenable says 83% of actively exploited CVEs yield total system control.</span></li><li><span class="kp-text">Tenable identifies more than 4,400 vulnerabilities with an automatable, total-control, proof-of-concept profile that are not yet in CISA’s KEV catalog but could immediately trigger the most aggressive BOD timeline if exploitation is confirmed.</span></li><li><span class="kp-text">The article emphasizes that BOD 26-04 compliance can change immediately when variables such as KEV status, internet exposure, or Vulnrichment automation assessments change, making periodic scan-based prioritization insufficient.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">CISA</mark> <mark class="tag-hl">BOD 26-04</mark> supersedes <mark class="tag-hl">BOD 19-02</mark> and <mark class="tag-hl">BOD 22-01</mark> and shifts federal vulnerability management away from static severity scores toward dynamic prioritization based on real-world asset and threat context.</span></li><li><span class="kp-text"><mark class="tag-hl">BOD 26-04</mark> requires remediation timelines to be driven by four risk variables: asset exposure, KEV status, exploit automation and technical impact.</span></li><li><span class="kp-text"><mark class="tag-hl">Tenable One</mark> is presented as mapping to <mark class="tag-hl">BOD 26-04</mark> requirements by providing continuous asset discovery, attack surface management, threat validation, vulnerability prioritization and automated orchestration.</span></li><li><span class="kp-text">The article states that <mark class="tag-hl">Tenable</mark> analysis found asset exposure is the highest-leverage compliance variable, with removal from public exposure shifting 76.7% of CVEs from compressed remediation timelines to the deferral tier.</span></li><li><span class="kp-text"><mark class="tag-hl">BOD 26-04</mark> introduces a forensic triage requirement for KEV-listed vulnerabilities that yield total system control, and <mark class="tag-hl">Tenable</mark> says 83% of actively exploited CVEs yield total system control.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">CISA BOD 26-04 supersedes BOD 19-02 and BOD 22-01 and shifts federal vulnerability management away from static severity scores toward dynamic prioritization based on real-world asset and threat context.</span></li><li><span class="kp-text">BOD 26-04 requires remediation timelines to be driven by four risk variables: asset exposure, KEV status, exploit automation and technical impact.</span></li><li><span class="kp-text">Tenable One is presented as mapping to BOD 26-04 requirements by providing continuous asset discovery, attack surface management, threat validation, vulnerability prioritization and automated orchestration.</span></li><li><span class="kp-text">The article states that Tenable analysis found asset exposure is the highest-leverage compliance variable, with removal from public exposure shifting 76.7% of CVEs from compressed remediation timelines to the deferral tier.</span></li><li><span class="kp-text">BOD 26-04 introduces a forensic triage requirement for KEV-listed vulnerabilities that yield total system control, and Tenable says 83% of actively exploited CVEs yield total system control.</span></li></ul></div>
+            
             <a href="https://www.tenable.com/blog/cisa-bod-26-04-tenable-helps-federal-agencies-comply" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article centers on a specific named <mark class="tag-hl">CISA</mark> directive, <mark class="tag-hl">BOD 26-04</mark>, but it is primarily a vendor-oriented operationalization and product positioning piece rather than reporting a single incident, CVE, or patch. It has broad relevance to U.S. federal agencies and includes some <mark class="tag-hl">Tenable</mark> analysis and concrete compliance timelines, but the defensive actions are mostly general platform/process recommendations rather than immediate technical steps.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article centers on a specific named CISA directive, BOD 26-04, but it is primarily a vendor-oriented operationalization and product positioning piece rather than reporting a single incident, CVE, or patch. It has broad relevance to U.S. federal agencies and includes some Tenable analysis and concrete compliance timelines, but the defensive actions are mostly general platform/process recommendations rather than immediate technical steps.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk" target="_blank" rel="noopener">Binding Operational Directive 26-04: Prioritizing Security Updates Based on Risk</a></div>
   <div class="report-meta">CISA</div>
-  <div class="report-context">The article is built around <mark class="tag-hl">CISA</mark>’s <mark class="tag-hl">BOD 26-04</mark> and explains how <mark class="tag-hl">Tenable One</mark> can help federal agencies operationalize its risk-based vulnerability remediation requirements.</div>
+  <div class="report-context">The article is built around CISA’s BOD 26-04 and explains how Tenable One can help federal agencies operationalize its risk-based vulnerability remediation requirements.</div>
 </li></ul></div>
             
           </div>
@@ -1907,25 +2064,25 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This coverage window centers on trust boundaries that attackers and platform operators are increasingly exploiting or redefining: developer tooling, reputation systems, vulnerability prioritization, and user-identifying network metadata. The most security-relevant items involve malicious editor extensions reaching privileged developer environments and a <mark class="tag-hl">crypto clipper</mark> campaign using coordinated fake legitimacy signals across software-hosting and media platforms.</p>
+        <div class="overview-body prose"><p>This coverage window centers on trust boundaries that attackers and platform operators are increasingly exploiting or redefining: developer tooling, reputation systems, vulnerability prioritization, and user-identifying network metadata. The most security-relevant items involve malicious editor extensions reaching privileged developer environments and a crypto clipper campaign using coordinated fake legitimacy signals across software-hosting and media platforms.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Developer Tooling and Software Supply Chain Abuse</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Socket</mark> announced beta support in <mark class="tag-hl">Socket Firewall</mark> for blocking malicious <mark class="tag-hl">VS Code Marketplace</mark> and <mark class="tag-hl">Open VSX</mark> extensions before they reach developer workstations. The capability routes editor marketplace requests through <mark class="tag-hl">Socket</mark>’s proxy and filters search, install, update, and VSIX download flows based on threat verdicts, extending supply chain controls into IDE extension ecosystems.</p>
+        <div class="overview-body prose"><p>Socket announced beta support in Socket Firewall for blocking malicious VS Code Marketplace and Open VSX extensions before they reach developer workstations. The capability routes editor marketplace requests through Socket’s proxy and filters search, install, update, and VSIX download flows based on threat verdicts, extending supply chain controls into IDE extension ecosystems.</p>
 
-<p>The announcement cites <mark class="tag-hl">GitHub</mark>’s May 2026 disclosure that attackers compromised an employee device through the malicious <mark class="tag-hl">Nx Console</mark> 18.95.0 VS Code extension and exfiltrated roughly 3,800 <mark class="tag-hl">GitHub</mark>-internal repositories. <mark class="tag-hl">Socket</mark> emphasized that editor extensions may access source code, terminals, files, credentials, tokens, and internal systems, making compromised extensions a high-impact intrusion path inside development environments.</p>
+<p>The announcement cites GitHub’s May 2026 disclosure that attackers compromised an employee device through the malicious Nx Console 18.95.0 VS Code extension and exfiltrated roughly 3,800 GitHub-internal repositories. Socket emphasized that editor extensions may access source code, terminals, files, credentials, tokens, and internal systems, making compromised extensions a high-impact intrusion path inside development environments.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Crypto Malware and Manipulated Reputation Signals</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Check Point Research</mark> reported a <mark class="tag-hl">crypto clipper</mark> campaign distributing a Rust-based clipboard hijacker disguised as <mark class="tag-hl">Solana</mark> and Pump.fun sniper bots and crash-game predictors. The malware targets <mark class="tag-hl">Windows</mark> and <mark class="tag-hl">macOS</mark> users, monitors clipboard contents for cryptocurrency wallet address patterns, and replaces matching entries with attacker-controlled addresses from a hard-coded list.</p>
+        <div class="overview-body prose"><p>Check Point Research reported a crypto clipper campaign distributing a Rust-based clipboard hijacker disguised as Solana and Pump.fun sniper bots and crash-game predictors. The malware targets Windows and macOS users, monitors clipboard contents for cryptocurrency wallet address patterns, and replaces matching entries with attacker-controlled addresses from a hard-coded list.</p>
 
-<p>The campaign’s distribution model relies heavily on manufactured credibility. The actor used paid or promoted posts on legitimate news websites, coordinated positive comments on <mark class="tag-hl">VirusTotal</mark>, <mark class="tag-hl">GitHub</mark>, <mark class="tag-hl">SourceForge</mark>, and <mark class="tag-hl">YouTube</mark>, and inflated indicators such as stars, forks, downloads, upvotes, and AI-generated narrator content. Check Point also reported use of <mark class="tag-hl">EIN Presswire</mark> to market the tools’ claimed capabilities, resulting in syndication across partner news sites, primarily in the <mark class="tag-hl">USA TODAY Network</mark>.</p>
+<p>The campaign’s distribution model relies heavily on manufactured credibility. The actor used paid or promoted posts on legitimate news websites, coordinated positive comments on VirusTotal, GitHub, SourceForge, and YouTube, and inflated indicators such as stars, forks, downloads, upvotes, and AI-generated narrator content. Check Point also reported use of EIN Presswire to market the tools’ claimed capabilities, resulting in syndication across partner news sites, primarily in the USA TODAY Network.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
@@ -1941,9 +2098,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">04</span>
           <span class="overview-title">IP Address Use, Ad Personalization, and Privacy Governance</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Google</mark> has begun notifying advertisers that it will start using IP addresses for ad measurement and personalization across the <mark class="tag-hl">European Economic Area</mark>, the UK, and <mark class="tag-hl">Switzerland</mark> on or shortly after August 3, 2026. The company said IP addresses it already receives for traffic routing and ad delivery will also be used to identify devices for measurement and personalization.</p>
+        <div class="overview-body prose"><p>Google has begun notifying advertisers that it will start using IP addresses for ad measurement and personalization across the European Economic Area, the UK, and Switzerland on or shortly after August 3, 2026. The company said IP addresses it already receives for traffic routing and ad delivery will also be used to identify devices for measurement and personalization.</p>
 
-<p>The article notes that IP addresses are considered personal data under <mark class="tag-hl">GDPR</mark> in the EEA, the UK, and <mark class="tag-hl">Switzerland</mark>, and that using automatically transmitted information such as IP addresses to identify devices is a building block of fingerprinting. <mark class="tag-hl">Google</mark> plans to register under <mark class="tag-hl">IAB Europe</mark>’s <mark class="tag-hl">Transparency and Consent Framework</mark> for Feature 3, while its customer email states that advertisers remain bound by <mark class="tag-hl">Google</mark>’s EU User Consent Policy and must obtain valid consent from users in affected regions.</p>
+<p>The article notes that IP addresses are considered personal data under GDPR in the EEA, the UK, and Switzerland, and that using automatically transmitted information such as IP addresses to identify devices is a building block of fingerprinting. Google plans to register under IAB Europe’s Transparency and Consent Framework for Feature 3, while its customer email states that advertisers remain bound by Google’s EU User Consent Policy and must obtain valid consent from users in affected regions.</p>
 </div>
       </div>
     </div>
@@ -1952,9 +2109,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-17 18:00 UTC · 4 hours window</span>
-  <span class="footer-right">4 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">4 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1967,15 +2127,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2088,12 +2310,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2154,6 +2410,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,88 +1506,88 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:96%"></div></div><span class="score-num score-num-high">96</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:b612fb7154fba9f4">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:b612fb7154fba9f4')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:b612fb7154fba9f4')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:b612fb7154fba9f4')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:b612fb7154fba9f4')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:b612fb7154fba9f4')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:b612fb7154fba9f4')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:b612fb7154fba9f4')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:b612fb7154fba9f4')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:b612fb7154fba9f4')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:b612fb7154fba9f4')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:b612fb7154fba9f4" class="tab-panel active"><div class="prose"><mark class="tag-hl">Cisco</mark> says <mark class="tag-hl">CVE-2026-20245</mark> in Catalyst SD-WAN Manager is being actively exploited to let authenticated netadmin users execute commands as root, and no patch or mitigation is currently available. Customers should ensure fixes for related auth-bypass flaws are applied and check logs for indicators of compromise, especially on internet-exposed systems.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:b612fb7154fba9f4" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Cisco</mark> warned that a high-severity flaw in <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, tracked as <mark class="tag-hl">CVE-2026-20245</mark>, is being actively exploited. The vulnerability has a CVSS score of 7.8 and affects on-premises, <mark class="tag-hl">Cisco SD-WAN</mark> Cloud-Pro, <mark class="tag-hl">Cisco SD-WAN</mark> Cloud, and <mark class="tag-hl">Cisco SD-WAN</mark> for Government deployments. <mark class="tag-hl">Cisco</mark> said there are currently no patches or mitigations available for the flaw.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:b612fb7154fba9f4" class="tab-panel active"><div class="prose">Cisco says CVE-2026-20245 in Catalyst SD-WAN Manager is being actively exploited to let authenticated netadmin users execute commands as root, and no patch or mitigation is currently available. Customers should ensure fixes for related auth-bypass flaws are applied and check logs for indicators of compromise, especially on internet-exposed systems.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:b612fb7154fba9f4" class="tab-panel"><div class="prose"><p>Cisco warned that a high-severity flaw in Cisco Catalyst SD-WAN Manager, tracked as CVE-2026-20245, is being actively exploited. The vulnerability has a CVSS score of 7.8 and affects on-premises, Cisco SD-WAN Cloud-Pro, Cisco SD-WAN Cloud, and Cisco SD-WAN for Government deployments. Cisco said there are currently no patches or mitigations available for the flaw.</p>
 
-<p>The vulnerability exists in the CLI of <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, formerly SD-WAN vManage, and stems from insufficient validation of user-supplied input. An authenticated local attacker with netadmin privileges could upload a crafted file to execute arbitrary commands as root. <mark class="tag-hl">Cisco</mark> said exploitation requires valid credentials or exploitation of <mark class="tag-hl">CVE-2026-20182</mark> or <mark class="tag-hl">CVE-2026-20127</mark>.</p>
+<p>The vulnerability exists in the CLI of Cisco Catalyst SD-WAN Manager, formerly SD-WAN vManage, and stems from insufficient validation of user-supplied input. An authenticated local attacker with netadmin privileges could upload a crafted file to execute arbitrary commands as root. Cisco said exploitation requires valid credentials or exploitation of CVE-2026-20182 or CVE-2026-20127.</p>
 
-<p><mark class="tag-hl">Cisco</mark> reported limited cases where exploitation of <mark class="tag-hl">CVE-2026-20245</mark> resulted in configuration changes being pushed to edge devices. The company warned that internet-exposed systems are at heightened risk of compromise and advised customers to check /var/log/scripts.log for indicators of compromise. Customers are also advised to upgrade SD-WAN software to ensure fixes for <mark class="tag-hl">CVE-2026-20182</mark> released on May 14, 2026, have been applied.</p>
+<p>Cisco reported limited cases where exploitation of CVE-2026-20245 resulted in configuration changes being pushed to edge devices. The company warned that internet-exposed systems are at heightened risk of compromise and advised customers to check /var/log/scripts.log for indicators of compromise. Customers are also advised to upgrade SD-WAN software to ensure fixes for CVE-2026-20182 released on May 14, 2026, have been applied.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:b612fb7154fba9f4" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Cisco</mark> disclosed that <mark class="tag-hl">CVE-2026-20245</mark>, a high-severity vulnerability in <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, is being actively exploited. The flaw carries a CVSS score of 7.8 and affects multiple deployment types, including on-premises deployments, <mark class="tag-hl">Cisco SD-WAN</mark> Cloud-Pro, <mark class="tag-hl">Cisco SD-WAN</mark> Cloud, and <mark class="tag-hl">Cisco SD-WAN</mark> for Government. <mark class="tag-hl">Cisco</mark> said no patches or mitigations are currently available for <mark class="tag-hl">CVE-2026-20245</mark>.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:b612fb7154fba9f4" class="tab-panel"><div class="prose"><p>Cisco disclosed that CVE-2026-20245, a high-severity vulnerability in Cisco Catalyst SD-WAN Manager, is being actively exploited. The flaw carries a CVSS score of 7.8 and affects multiple deployment types, including on-premises deployments, Cisco SD-WAN Cloud-Pro, Cisco SD-WAN Cloud, and Cisco SD-WAN for Government. Cisco said no patches or mitigations are currently available for CVE-2026-20245.</p>
 
-<p>The vulnerability affects the CLI of <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, formerly SD-WAN vManage. <mark class="tag-hl">Cisco</mark> said the issue could allow an authenticated local attacker to execute arbitrary commands as root by supplying a crafted file to an affected system. The company attributed the flaw to insufficient validation of user-supplied input, enabling <mark class="tag-hl">command injection</mark> and <mark class="tag-hl">privilege escalation</mark>.</p>
+<p>The vulnerability affects the CLI of Cisco Catalyst SD-WAN Manager, formerly SD-WAN vManage. Cisco said the issue could allow an authenticated local attacker to execute arbitrary commands as root by supplying a crafted file to an affected system. The company attributed the flaw to insufficient validation of user-supplied input, enabling command injection and privilege escalation.</p>
 
-<p><mark class="tag-hl">Cisco</mark> stated that exploitation requires the attacker to have netadmin privileges on the affected system. According to <mark class="tag-hl">Cisco</mark>, this would require valid credentials or exploitation of <mark class="tag-hl">CVE-2026-20182</mark> or <mark class="tag-hl">CVE-2026-20127</mark>. <mark class="tag-hl">Cisco</mark> said it is not aware of successful exploitation by other methods.</p>
+<p>Cisco stated that exploitation requires the attacker to have netadmin privileges on the affected system. According to Cisco, this would require valid credentials or exploitation of CVE-2026-20182 or CVE-2026-20127. Cisco said it is not aware of successful exploitation by other methods.</p>
 
-<p><mark class="tag-hl">CVE-2026-20182</mark> was disclosed by <mark class="tag-hl">Rapid7</mark> and described as an <mark class="tag-hl">authentication bypass</mark> that could allow unauthenticated remote attackers to obtain administrative privileges on vulnerable systems. The article also says it is similar to <mark class="tag-hl">CVE-2026-20127</mark>, another <mark class="tag-hl">authentication bypass</mark> affecting the same component. Both vulnerabilities have been exploited in the wild as zero-days, and a threat activity cluster called <mark class="tag-hl">UAT-8616</mark> has been linked to abuse of <mark class="tag-hl">CVE-2026-20127</mark> as far back as 2023.</p>
+<p>CVE-2026-20182 was disclosed by Rapid7 and described as an authentication bypass that could allow unauthenticated remote attackers to obtain administrative privileges on vulnerable systems. The article also says it is similar to CVE-2026-20127, another authentication bypass affecting the same component. Both vulnerabilities have been exploited in the wild as zero-days, and a threat activity cluster called UAT-8616 has been linked to abuse of CVE-2026-20127 as far back as 2023.</p>
 
-<p><mark class="tag-hl">Cisco</mark> said it observed limited cases where exploitation of <mark class="tag-hl">CVE-2026-20245</mark> led to a configuration change pushed to edge devices. The company credited <mark class="tag-hl">Google Mandiant</mark> researchers Chester Sng, Pete Boonyakarn, and Logeswaran Nadarajan with discovering and reporting the vulnerability. <mark class="tag-hl">Cisco</mark> said it is unknown who is behind the latest exploitation activity.</p>
+<p>Cisco said it observed limited cases where exploitation of CVE-2026-20245 led to a configuration change pushed to edge devices. The company credited Google Mandiant researchers Chester Sng, Pete Boonyakarn, and Logeswaran Nadarajan with discovering and reporting the vulnerability. Cisco said it is unknown who is behind the latest exploitation activity.</p>
 
-<p><mark class="tag-hl">Cisco</mark> advised customers to upgrade SD-WAN software to ensure they have applied fixes released for <mark class="tag-hl">CVE-2026-20182</mark> on May 14, 2026. It also warned that internet-exposed systems are at heightened risk of compromise and recommended checking /var/log/scripts.log for specific script upload entries as possible indicators of compromise. The article notes that <mark class="tag-hl">CVE-2026-20245</mark> is the seventh <mark class="tag-hl">Cisco SD-WAN</mark> flaw flagged as actively exploited this year.</p>
+<p>Cisco advised customers to upgrade SD-WAN software to ensure they have applied fixes released for CVE-2026-20182 on May 14, 2026. It also warned that internet-exposed systems are at heightened risk of compromise and recommended checking /var/log/scripts.log for specific script upload entries as possible indicators of compromise. The article notes that CVE-2026-20245 is the seventh Cisco SD-WAN flaw flagged as actively exploited this year.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:b612fb7154fba9f4" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:b612fb7154fba9f4" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Cisco</mark> warned that a high-severity security flaw affecting <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> is being actively exploited. The vulnerability is tracked as <mark class="tag-hl">CVE-2026-20245</mark> and has a CVSS score of 7.8. <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> was formerly known as SD-WAN vManage.</p>
+<p>Cisco warned that a high-severity security flaw affecting Cisco Catalyst SD-WAN Manager is being actively exploited. The vulnerability is tracked as CVE-2026-20245 and has a CVSS score of 7.8. Cisco Catalyst SD-WAN Manager was formerly known as SD-WAN vManage.</p>
 
-<p><mark class="tag-hl">Cisco</mark> said there are currently no patches or mitigations available for <mark class="tag-hl">CVE-2026-20245</mark>. The company recommended that customers upgrade their SD-WAN software to ensure they have applied fixes released for <mark class="tag-hl">CVE-2026-20182</mark> on May 14, 2026.</p>
+<p>Cisco said there are currently no patches or mitigations available for CVE-2026-20245. The company recommended that customers upgrade their SD-WAN software to ensure they have applied fixes released for CVE-2026-20182 on May 14, 2026.</p>
 
 <h2 id="affected-deployment-types">Affected deployment types</h2>
 
-<p>The article states that <mark class="tag-hl">CVE-2026-20245</mark> affects the following <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> deployment types:</p>
+<p>The article states that CVE-2026-20245 affects the following Cisco Catalyst SD-WAN Manager deployment types:</p>
 
 <ul>
 <li>On-Prem Deployment</li>
-<li><mark class="tag-hl">Cisco SD-WAN</mark> Cloud-Pro</li>
-<li><mark class="tag-hl">Cisco SD-WAN</mark> Cloud (<mark class="tag-hl">Cisco</mark> Managed)</li>
-<li><mark class="tag-hl">Cisco SD-WAN</mark> for Government (<mark class="tag-hl">FedRAMP</mark>)</li>
+<li>Cisco SD-WAN Cloud-Pro</li>
+<li>Cisco SD-WAN Cloud (Cisco Managed)</li>
+<li>Cisco SD-WAN for Government (FedRAMP)</li>
 </ul>
 
 <h2 id="technical-details">Technical details</h2>
 
-<p><mark class="tag-hl">Cisco</mark> described <mark class="tag-hl">CVE-2026-20245</mark> as a vulnerability in the CLI of <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>. The flaw could allow an authenticated local attacker to execute arbitrary commands as root by supplying a crafted file to an affected system.</p>
+<p>Cisco described CVE-2026-20245 as a vulnerability in the CLI of Cisco Catalyst SD-WAN Manager. The flaw could allow an authenticated local attacker to execute arbitrary commands as root by supplying a crafted file to an affected system.</p>
 
-<p><mark class="tag-hl">Cisco</mark> said the vulnerability is caused by insufficient validation of user-supplied input. An attacker could exploit it by uploading a crafted file to the affected system. Successful exploitation could allow <mark class="tag-hl">command injection</mark> and <mark class="tag-hl">privilege escalation</mark> to the root user.</p>
+<p>Cisco said the vulnerability is caused by insufficient validation of user-supplied input. An attacker could exploit it by uploading a crafted file to the affected system. Successful exploitation could allow command injection and privilege escalation to the root user.</p>
 
 <h2 id="exploit-requirements">Exploit requirements</h2>
 
-<p><mark class="tag-hl">Cisco</mark> said an attacker must have netadmin privileges on the affected system to exploit <mark class="tag-hl">CVE-2026-20245</mark>. The company stated that this would require valid credentials or exploitation of <mark class="tag-hl">CVE-2026-20182</mark> or <mark class="tag-hl">CVE-2026-20127</mark>.</p>
+<p>Cisco said an attacker must have netadmin privileges on the affected system to exploit CVE-2026-20245. The company stated that this would require valid credentials or exploitation of CVE-2026-20182 or CVE-2026-20127.</p>
 
-<p><mark class="tag-hl">Cisco</mark> also said it is not aware of successful exploitation by other methods. This makes <mark class="tag-hl">CVE-2026-20245</mark> notable in the article because it can follow authentication-related compromises described elsewhere in the <mark class="tag-hl">Cisco SD-WAN</mark> ecosystem.</p>
+<p>Cisco also said it is not aware of successful exploitation by other methods. This makes CVE-2026-20245 notable in the article because it can follow authentication-related compromises described elsewhere in the Cisco SD-WAN ecosystem.</p>
 
 <h2 id="related-vulnerabilities">Related vulnerabilities</h2>
 
-<p>The article links <mark class="tag-hl">CVE-2026-20245</mark> to two related <mark class="tag-hl">Cisco SD-WAN</mark> vulnerabilities:</p>
+<p>The article links CVE-2026-20245 to two related Cisco SD-WAN vulnerabilities:</p>
 
 <ul>
-<li><mark class="tag-hl">CVE-2026-20182</mark>, with a CVSS score of 10.0, was disclosed by <mark class="tag-hl">Rapid7</mark> and described as an <mark class="tag-hl">authentication bypass</mark> that could allow unauthenticated remote attackers to obtain administrative privileges on susceptible systems.</li>
-<li><mark class="tag-hl">CVE-2026-20127</mark> is described as another <mark class="tag-hl">authentication bypass</mark> affecting the same component and as similar to <mark class="tag-hl">CVE-2026-20182</mark>.</li>
+<li>CVE-2026-20182, with a CVSS score of 10.0, was disclosed by Rapid7 and described as an authentication bypass that could allow unauthenticated remote attackers to obtain administrative privileges on susceptible systems.</li>
+<li>CVE-2026-20127 is described as another authentication bypass affecting the same component and as similar to CVE-2026-20182.</li>
 </ul>
 
-<p>Both <mark class="tag-hl">CVE-2026-20182</mark> and <mark class="tag-hl">CVE-2026-20127</mark> have been exploited in the wild as zero-days. The article says a threat activity cluster named <mark class="tag-hl">UAT-8616</mark> has been linked to abuse of <mark class="tag-hl">CVE-2026-20127</mark> as far back as 2023.</p>
+<p>Both CVE-2026-20182 and CVE-2026-20127 have been exploited in the wild as zero-days. The article says a threat activity cluster named UAT-8616 has been linked to abuse of CVE-2026-20127 as far back as 2023.</p>
 
 <h2 id="observed-impact">Observed impact</h2>
 
-<p><mark class="tag-hl">Cisco</mark> said it observed limited cases in which exploitation of <mark class="tag-hl">CVE-2026-20245</mark> resulted in a configuration change being pushed to edge devices. The article does not identify who is behind the latest exploitation efforts.</p>
+<p>Cisco said it observed limited cases in which exploitation of CVE-2026-20245 resulted in a configuration change being pushed to edge devices. The article does not identify who is behind the latest exploitation efforts.</p>
 
-<p>The vulnerability was discovered and reported by <mark class="tag-hl">Google Mandiant</mark> researchers Chester Sng, Pete Boonyakarn, and Logeswaran Nadarajan, according to <mark class="tag-hl">Cisco</mark>.</p>
+<p>The vulnerability was discovered and reported by Google Mandiant researchers Chester Sng, Pete Boonyakarn, and Logeswaran Nadarajan, according to Cisco.</p>
 
 <h2 id="detection-guidance-and-risk-warning">Detection guidance and risk warning</h2>
 
-<p><mark class="tag-hl">Cisco</mark> warned that internet-exposed systems are at heightened risk of compromise. To look for indicators of compromise, <mark class="tag-hl">Cisco</mark> advised users to check the <code>/var/log/scripts.log</code> file.</p>
+<p>Cisco warned that internet-exposed systems are at heightened risk of compromise. To look for indicators of compromise, Cisco advised users to check the <code>/var/log/scripts.log</code> file.</p>
 
 <p>The article gives examples of log entries involving script uploads, including:</p>
 
@@ -1444,32 +1597,33 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>ZTP upload chassis numbers using <code>/usr/bin/vconfd_script_upload_chassis_number_file.sh</code></li>
 </ul>
 
-<h2 id="broader-cisco-sd-wan-exploitation-context">Broader <mark class="tag-hl">Cisco SD-WAN</mark> exploitation context</h2>
+<h2 id="broader-cisco-sd-wan-exploitation-context">Broader Cisco SD-WAN exploitation context</h2>
 
-<p>The article states that <mark class="tag-hl">CVE-2026-20245</mark> is the seventh <mark class="tag-hl">Cisco SD-WAN</mark> flaw to be flagged as actively exploited this year. The other cited flaws are:</p>
+<p>The article states that CVE-2026-20245 is the seventh Cisco SD-WAN flaw to be flagged as actively exploited this year. The other cited flaws are:</p>
 
 <ul>
-<li><mark class="tag-hl">CVE-2026-20182</mark></li>
-<li><mark class="tag-hl">CVE-2026-20127</mark></li>
+<li>CVE-2026-20182</li>
+<li>CVE-2026-20127</li>
 <li>CVE-2026-20122</li>
 <li>CVE-2026-20128</li>
 <li>CVE-2026-20133</li>
 <li>CVE-2022-20775</li>
 </ul>
 
-<p>The disclosure also follows <mark class="tag-hl">Cisco</mark> addressing another high-severity flaw in Unified Communications Manager, <mark class="tag-hl">CVE-2026-20230</mark>, which has a CVSS score of 8.6. <mark class="tag-hl">Cisco</mark> said proof-of-concept exploit code is public for <mark class="tag-hl">CVE-2026-20230</mark>, but there is no evidence that it has been actively exploited.</p>
+<p>The disclosure also follows Cisco addressing another high-severity flaw in Unified Communications Manager, CVE-2026-20230, which has a CVSS score of 8.6. Cisco said proof-of-concept exploit code is public for CVE-2026-20230, but there is no evidence that it has been actively exploited.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:b612fb7154fba9f4" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">CVE-2026-20245</mark> is especially concerning because <mark class="tag-hl">Cisco</mark> says it can be chained after <mark class="tag-hl">CVE-2026-20182</mark> or <mark class="tag-hl">CVE-2026-20127</mark>, turning prior <mark class="tag-hl">authentication-bypass</mark> exposure into root-level command execution on affected systems.</span></li><li><span class="kp-text">The most actionable detection step <mark class="tag-hl">Cisco</mark> provides is to inspect /var/log/scripts.log for suspicious script upload entries involving tenant lists, vSmart serial numbers, or chassis number files.</span></li><li><span class="kp-text">Internet-exposed <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> systems face heightened risk, even though the flaw itself requires netadmin privileges, because related <mark class="tag-hl">authentication-bypass</mark> vulnerabilities have already been exploited in the wild.</span></li><li><span class="kp-text"><mark class="tag-hl">Cisco</mark> observed exploitation leading to configuration changes pushed to edge devices, indicating that compromise of SD-WAN Manager can affect downstream network infrastructure rather than remaining limited to the manager system.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:b612fb7154fba9f4" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">CVE-2026-20245 is especially concerning because Cisco says it can be chained after CVE-2026-20182 or CVE-2026-20127, turning prior authentication-bypass exposure into root-level command execution on affected systems.</span></li><li><span class="kp-text">The most actionable detection step Cisco provides is to inspect /var/log/scripts.log for suspicious script upload entries involving tenant lists, vSmart serial numbers, or chassis number files.</span></li><li><span class="kp-text">Internet-exposed Cisco Catalyst SD-WAN Manager systems face heightened risk, even though the flaw itself requires netadmin privileges, because related authentication-bypass vulnerabilities have already been exploited in the wild.</span></li><li><span class="kp-text">Cisco observed exploitation leading to configuration changes pushed to edge devices, indicating that compromise of SD-WAN Manager can affect downstream network infrastructure rather than remaining limited to the manager system.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Cisco</mark> warned that <mark class="tag-hl">CVE-2026-20245</mark>, a high-severity flaw in <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark>, is being actively exploited.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2026-20245</mark> allows an authenticated local attacker with netadmin privileges to execute arbitrary commands as root by uploading a crafted file to an affected system.</span></li><li><span class="kp-text"><mark class="tag-hl">Cisco</mark> said exploitation of <mark class="tag-hl">CVE-2026-20245</mark> requires valid credentials or prior exploitation of <mark class="tag-hl">CVE-2026-20182</mark> or <mark class="tag-hl">CVE-2026-20127</mark>.</span></li><li><span class="kp-text"><mark class="tag-hl">Cisco</mark> observed limited cases where exploitation of <mark class="tag-hl">CVE-2026-20245</mark> resulted in a configuration change pushed to edge devices.</span></li><li><span class="kp-text"><mark class="tag-hl">Cisco</mark> said there are currently no patches or mitigations available for <mark class="tag-hl">CVE-2026-20245</mark> and advised customers to upgrade SD-WAN software to apply fixes for <mark class="tag-hl">CVE-2026-20182</mark>.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Cisco warned that CVE-2026-20245, a high-severity flaw in Cisco Catalyst SD-WAN Manager, is being actively exploited.</span></li><li><span class="kp-text">CVE-2026-20245 allows an authenticated local attacker with netadmin privileges to execute arbitrary commands as root by uploading a crafted file to an affected system.</span></li><li><span class="kp-text">Cisco said exploitation of CVE-2026-20245 requires valid credentials or prior exploitation of CVE-2026-20182 or CVE-2026-20127.</span></li><li><span class="kp-text">Cisco observed limited cases where exploitation of CVE-2026-20245 resulted in a configuration change pushed to edge devices.</span></li><li><span class="kp-text">Cisco said there are currently no patches or mitigations available for CVE-2026-20245 and advised customers to upgrade SD-WAN software to apply fixes for CVE-2026-20182.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/cisco-catalyst-sd-wan-manager-cve-2026.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a high-severity <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> flaw with no patch or mitigation available. The issue can enable root-level command execution after netadmin access and affects multiple <mark class="tag-hl">Cisco SD-WAN</mark> deployment types, with <mark class="tag-hl">Cisco</mark> warning that internet-exposed systems are at heightened risk.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a high-severity Cisco Catalyst SD-WAN Manager flaw with no patch or mitigation available. The issue can enable root-level command execution after netadmin access and affects multiple Cisco SD-WAN deployment types, with Cisco warning that internet-exposed systems are at heightened risk.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-sdwan-privesc-4uxFrdzx" target="_blank" rel="noopener">Cisco Catalyst SD-WAN Manager Software Command Injection Vulnerability</a></div>
   <div class="report-meta">Cisco</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Cisco</mark>&#39;s advisory as the source for details on <mark class="tag-hl">CVE-2026-20245</mark>, including affected deployments, exploit requirements, impact, and lack of patches or mitigations.</div>
+  <div class="report-context">The article cites Cisco&#39;s advisory as the source for details on CVE-2026-20245, including affected deployments, exploit requirements, impact, and lack of patches or mitigations.</div>
 </li></ul></div>
             
           </div>
@@ -1492,25 +1646,25 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>During this coverage window, reporting centered on active exploitation of a high-severity <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> vulnerability with no patch currently available. The activity is notable because exploitation can lead to root-level command execution on affected management systems and, in limited observed cases, configuration changes propagated to SD-WAN edge devices.</p>
+        <div class="overview-body prose"><p>During this coverage window, reporting centered on active exploitation of a high-severity Cisco Catalyst SD-WAN Manager vulnerability with no patch currently available. The activity is notable because exploitation can lead to root-level command execution on affected management systems and, in limited observed cases, configuration changes propagated to SD-WAN edge devices.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Active Exploitation of Cisco Catalyst SD-WAN Manager</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Cisco</mark> disclosed that <mark class="tag-hl">CVE-2026-20245</mark> in <mark class="tag-hl">Cisco Catalyst SD-WAN Manager</mark> is being actively exploited. The flaw allows an authenticated local attacker with netadmin privileges to upload a crafted file and execute arbitrary commands as root on an affected system.</p>
+        <div class="overview-body prose"><p>Cisco disclosed that CVE-2026-20245 in Cisco Catalyst SD-WAN Manager is being actively exploited. The flaw allows an authenticated local attacker with netadmin privileges to upload a crafted file and execute arbitrary commands as root on an affected system.</p>
 
-<p>The exploitation path is constrained by credential and access requirements: <mark class="tag-hl">Cisco</mark> stated that successful exploitation requires valid credentials or prior exploitation of related vulnerabilities, specifically <mark class="tag-hl">CVE-2026-20182</mark> or <mark class="tag-hl">CVE-2026-20127</mark>. This places <mark class="tag-hl">CVE-2026-20245</mark> within a broader intrusion chain in which attackers may first obtain access through other flaws or compromised accounts before escalating control over the SD-WAN management plane.</p>
+<p>The exploitation path is constrained by credential and access requirements: Cisco stated that successful exploitation requires valid credentials or prior exploitation of related vulnerabilities, specifically CVE-2026-20182 or CVE-2026-20127. This places CVE-2026-20245 within a broader intrusion chain in which attackers may first obtain access through other flaws or compromised accounts before escalating control over the SD-WAN management plane.</p>
 
-<p><mark class="tag-hl">Cisco</mark> reported limited cases in which exploitation of <mark class="tag-hl">CVE-2026-20245</mark> resulted in a configuration change being pushed to edge devices. That detail is significant for defenders because SD-WAN Manager occupies a central orchestration role, and unauthorized changes at the management layer can have downstream operational impact across distributed network infrastructure.</p>
+<p>Cisco reported limited cases in which exploitation of CVE-2026-20245 resulted in a configuration change being pushed to edge devices. That detail is significant for defenders because SD-WAN Manager occupies a central orchestration role, and unauthorized changes at the management layer can have downstream operational impact across distributed network infrastructure.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Patch Status and Exposure Context</span>
         </div>
-        <div class="overview-body prose"><p>At the time of reporting, <mark class="tag-hl">Cisco</mark> said there were no patches or mitigations available for <mark class="tag-hl">CVE-2026-20245</mark>. The company linked exposure to the broader vulnerability set affecting SD-WAN software and referenced fixes for <mark class="tag-hl">CVE-2026-20182</mark> as part of the surrounding risk context.</p>
+        <div class="overview-body prose"><p>At the time of reporting, Cisco said there were no patches or mitigations available for CVE-2026-20245. The company linked exposure to the broader vulnerability set affecting SD-WAN software and referenced fixes for CVE-2026-20182 as part of the surrounding risk context.</p>
 
 <p>The reported exploitation remains described as limited, but the vulnerability’s location in a network management platform increases its strategic importance. For threat hunters, detection engineers, SOC analysts, and incident responders, the key intelligence value is the combination of active exploitation, root-level execution potential, authenticated access requirements, and observed propagation of configuration changes to managed edge infrastructure.</p>
 </div>
@@ -1521,9 +1675,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-06 02:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1536,15 +1693,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1657,12 +1876,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1723,6 +1976,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

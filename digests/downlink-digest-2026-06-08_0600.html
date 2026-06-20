@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,44 +1506,44 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:96%"></div></div><span class="score-num score-num-high">96</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="ae9067a09556aec77039afd5995795d5:85a69619cf421c14">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d5ba5c2d979259df2a32448fab113605:85a69619cf421c14')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d5ba5c2d979259df2a32448fab113605:85a69619cf421c14')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d5ba5c2d979259df2a32448fab113605:85a69619cf421c14')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d5ba5c2d979259df2a32448fab113605:85a69619cf421c14')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d5ba5c2d979259df2a32448fab113605:85a69619cf421c14')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-ae9067a09556aec77039afd5995795d5:85a69619cf421c14')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-ae9067a09556aec77039afd5995795d5:85a69619cf421c14')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-ae9067a09556aec77039afd5995795d5:85a69619cf421c14')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-ae9067a09556aec77039afd5995795d5:85a69619cf421c14')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-ae9067a09556aec77039afd5995795d5:85a69619cf421c14')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d5ba5c2d979259df2a32448fab113605:85a69619cf421c14" class="tab-panel active"><div class="prose">A sophisticated <mark class="tag-hl">PyPI</mark> supply-chain campaign dubbed Hades compromised multiple scientific and graph ML packages, using a <mark class="tag-hl">Bun</mark>-based payload to steal credentials, scrape <mark class="tag-hl">GitHub Actions</mark> runner memory across Linux, macOS, and Windows, spread through CI/CD and developer environments, and maintain GitHub-based C2. The malware also includes AI-analysis <mark class="tag-hl">prompt injection</mark> and a token-revocation wiper deterrent, making immediate detection and incident response more difficult.</div></div>
-                <div id="brief-d5ba5c2d979259df2a32448fab113605:85a69619cf421c14" class="tab-panel"><div class="prose"><p>On June 8, 2026, version 0.8.101 of the graph machine learning package <code><mark class="tag-hl">ensmallen</mark></code> on <mark class="tag-hl">PyPI</mark> was identified as containing a sophisticated supply chain compromise. Related packages in the computational biology, bioinformatics, and genotype-phenotype analysis ecosystem were also found to carry the same malicious payload. The operation is tracked in the article as the <mark class="tag-hl">Hades Campaign</mark> and is described as the latest evolution of the <mark class="tag-hl">Miasma</mark> threat actor.</p>
+                <div id="tldr-ae9067a09556aec77039afd5995795d5:85a69619cf421c14" class="tab-panel active"><div class="prose">A sophisticated PyPI supply-chain campaign dubbed Hades compromised multiple scientific and graph ML packages, using a Bun-based payload to steal credentials, scrape GitHub Actions runner memory across Linux, macOS, and Windows, spread through CI/CD and developer environments, and maintain GitHub-based C2. The malware also includes AI-analysis prompt injection and a token-revocation wiper deterrent, making immediate detection and incident response more difficult.</div></div>
+                <div id="brief-ae9067a09556aec77039afd5995795d5:85a69619cf421c14" class="tab-panel"><div class="prose"><p>On June 8, 2026, version 0.8.101 of the graph machine learning package <code>ensmallen</code> on PyPI was identified as containing a sophisticated supply chain compromise. Related packages in the computational biology, bioinformatics, and genotype-phenotype analysis ecosystem were also found to carry the same malicious payload. The operation is tracked in the article as the Hades Campaign and is described as the latest evolution of the Miasma threat actor.</p>
 
-<p>The compromised packages execute a malicious Python import hook that downloads a standalone <mark class="tag-hl">Bun</mark> runtime and runs an obfuscated JavaScript payload from <code>_index.js</code>. The payload decrypts multiple functional modules and includes cross-platform memory scrapers for Linux, macOS, and Windows, targeting <mark class="tag-hl">GitHub Actions</mark> <code>Runner.Worker</code> process memory to extract plaintext secrets and tokens. The article also describes GitHub-based command-and-control channels, encrypted exfiltration repositories, worm propagation, IDE and AI assistant backdoors, and persistence mechanisms.</p>
+<p>The compromised packages execute a malicious Python import hook that downloads a standalone Bun runtime and runs an obfuscated JavaScript payload from <code>_index.js</code>. The payload decrypts multiple functional modules and includes cross-platform memory scrapers for Linux, macOS, and Windows, targeting GitHub Actions <code>Runner.Worker</code> process memory to extract plaintext secrets and tokens. The article also describes GitHub-based command-and-control channels, encrypted exfiltration repositories, worm propagation, IDE and AI assistant backdoors, and persistence mechanisms.</p>
 
-<p>A notable feature of the campaign is a plain-text <mark class="tag-hl">prompt injection</mark> placed at the start of the JavaScript bundle to misdirect automated LLM-based security analysis. The malware also installs a <code>gh-token-monitor</code> service that checks whether a stolen GitHub token has been revoked and triggers destructive file deletion if it receives a 4xx response. The article states that StepSecurity Harden-Runner detects attempts to read <code>Runner.Worker</code> memory and enters lockdown mode to terminate the malicious process.</p>
+<p>A notable feature of the campaign is a plain-text prompt injection placed at the start of the JavaScript bundle to misdirect automated LLM-based security analysis. The malware also installs a <code>gh-token-monitor</code> service that checks whether a stolen GitHub token has been revoked and triggers destructive file deletion if it receives a 4xx response. The article states that StepSecurity Harden-Runner detects attempts to read <code>Runner.Worker</code> memory and enters lockdown mode to terminate the malicious process.</p>
 </div></div>
-                <div id="standard-d5ba5c2d979259df2a32448fab113605:85a69619cf421c14" class="tab-panel"><div class="prose"><p>On June 8, 2026, the article says version 0.8.101 of the <mark class="tag-hl">PyPI</mark> package <code><mark class="tag-hl">ensmallen</mark></code> was identified as compromised. Multiple related packages were also listed as affected, including <code>mflux-streamlit</code>, <code>nhmpy</code>, <code>ppkt2synergy</code>, <code><mark class="tag-hl">embiggen</mark></code>, <code>gpsea</code>, and <code><mark class="tag-hl">pyphetools</mark></code>. The campaign is named Hades and is described as the latest evolution of the <mark class="tag-hl">Miasma</mark> threat actor, with overlap in credential harvesting, self-replicating worm logic, and GitHub-based exfiltration from prior campaigns.</p>
+                <div id="standard-ae9067a09556aec77039afd5995795d5:85a69619cf421c14" class="tab-panel"><div class="prose"><p>On June 8, 2026, the article says version 0.8.101 of the PyPI package <code>ensmallen</code> was identified as compromised. Multiple related packages were also listed as affected, including <code>mflux-streamlit</code>, <code>nhmpy</code>, <code>ppkt2synergy</code>, <code>embiggen</code>, <code>gpsea</code>, and <code>pyphetools</code>. The campaign is named Hades and is described as the latest evolution of the Miasma threat actor, with overlap in credential harvesting, self-replicating worm logic, and GitHub-based exfiltration from prior campaigns.</p>
 
-<p>The infection path begins with an obfuscated import hook embedded in <code>__init__.py</code>. When imported, the code checks for <code>/tmp/.bun_ran</code>, searches Python module paths for <code>_index.js</code>, downloads <mark class="tag-hl">Bun</mark> v1.3.14 from GitHub if needed, and runs the JavaScript payload with <code><mark class="tag-hl">bun</mark> run</code>. The article says this allows complex JavaScript tasks to run even in environments without Node.js.</p>
+<p>The infection path begins with an obfuscated import hook embedded in <code>__init__.py</code>. When imported, the code checks for <code>/tmp/.bun_ran</code>, searches Python module paths for <code>_index.js</code>, downloads Bun v1.3.14 from GitHub if needed, and runs the JavaScript payload with <code>bun run</code>. The article says this allows complex JavaScript tasks to run even in environments without Node.js.</p>
 
-<p>The <code>_index.js</code> bundle begins with a plain-text <mark class="tag-hl">prompt injection</mark> intended to manipulate automated LLM-based analysis systems into ignoring the obfuscated code and producing a safe report. The bundle then acts as a bootstrapper that decrypts sixteen gzip-compressed AES-256-GCM encrypted blobs. These modules include OS-specific memory readers, IDE and CI/CD backdoor setup logic, and command-and-control components.</p>
+<p>The <code>_index.js</code> bundle begins with a plain-text prompt injection intended to manipulate automated LLM-based analysis systems into ignoring the obfuscated code and producing a safe report. The bundle then acts as a bootstrapper that decrypts sixteen gzip-compressed AES-256-GCM encrypted blobs. These modules include OS-specific memory readers, IDE and CI/CD backdoor setup logic, and command-and-control components.</p>
 
-<p>A central capability of the <mark class="tag-hl">Hades Campaign</mark> is cross-platform scraping of <mark class="tag-hl">GitHub Actions</mark> runner memory. On Linux, the malware reads <code>/proc/{pid}/maps</code> and <code>/proc/{pid}/mem</code>; on macOS, it uses Mach VM APIs through Python <code>ctypes</code>; and on Windows, it compiles C# through PowerShell to call APIs such as <code>VirtualQueryEx</code> and <code>ReadProcessMemory</code>. The article states this is used to extract unmasked variables and tokens from <code>Runner.Worker</code> across heterogeneous build environments.</p>
+<p>A central capability of the Hades Campaign is cross-platform scraping of GitHub Actions runner memory. On Linux, the malware reads <code>/proc/{pid}/maps</code> and <code>/proc/{pid}/mem</code>; on macOS, it uses Mach VM APIs through Python <code>ctypes</code>; and on Windows, it compiles C# through PowerShell to call APIs such as <code>VirtualQueryEx</code> and <code>ReadProcessMemory</code>. The article states this is used to extract unmasked variables and tokens from <code>Runner.Worker</code> across heterogeneous build environments.</p>
 
-<p>The malware uses GitHub infrastructure for command and control and exfiltration, including commit-search keywords <code>DontRevokeOrItGoesBoom</code>, <code>TheBeautifulSnadsOfTime</code>, and <code>firedalazer</code>. Stolen credentials are encrypted using gzip, AES-256-GCM, and RSA-2048 before being pushed to public GitHub repositories with Hades-themed names and the description “Hades - The End for the Damned.” The campaign also attempts SSH/SCP lateral movement, <mark class="tag-hl">PyPI</mark> and npm <mark class="tag-hl">OIDC</mark> trust exploitation with <mark class="tag-hl">Sigstore</mark> <mark class="tag-hl">SLSA</mark> provenance bundles, <mark class="tag-hl">GitHub Actions</mark> workflow injection for secrets extraction, and AI coding assistant or IDE rules hijacking.</p>
+<p>The malware uses GitHub infrastructure for command and control and exfiltration, including commit-search keywords <code>DontRevokeOrItGoesBoom</code>, <code>TheBeautifulSnadsOfTime</code>, and <code>firedalazer</code>. Stolen credentials are encrypted using gzip, AES-256-GCM, and RSA-2048 before being pushed to public GitHub repositories with Hades-themed names and the description “Hades - The End for the Damned.” The campaign also attempts SSH/SCP lateral movement, PyPI and npm OIDC trust exploitation with Sigstore SLSA provenance bundles, GitHub Actions workflow injection for secrets extraction, and AI coding assistant or IDE rules hijacking.</p>
 
 <p>For persistence, the article says the malware installs an <code>update-monitor</code> C2 polling daemon and a <code>gh-token-monitor</code> service. The token monitor polls GitHub with a stolen token and, if it detects revocation through a 4xx HTTP response, executes a destructive command that removes user directories. The article lists indicators of compromise and states that StepSecurity Harden-Runner can detect and terminate attempts to read <code>Runner.Worker</code> memory before secrets are extracted.</p>
 </div></div>
-                <div id="comprehensive-d5ba5c2d979259df2a32448fab113605:85a69619cf421c14" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-ae9067a09556aec77039afd5995795d5:85a69619cf421c14" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>On June 8, 2026, the article reports that version 0.8.101 of the popular graph machine learning package <code><mark class="tag-hl">ensmallen</mark></code> on <mark class="tag-hl">PyPI</mark> was identified as compromised. The same malicious payload was also found in related packages from the computational biology, bioinformatics, and genotype-phenotype analysis ecosystem. The article tracks the operation as the <strong><mark class="tag-hl">Hades Campaign</mark></strong>.</p>
+<p>On June 8, 2026, the article reports that version 0.8.101 of the popular graph machine learning package <code>ensmallen</code> on PyPI was identified as compromised. The same malicious payload was also found in related packages from the computational biology, bioinformatics, and genotype-phenotype analysis ecosystem. The article tracks the operation as the <strong>Hades Campaign</strong>.</p>
 
-<p>The campaign is described as the latest evolution of the <mark class="tag-hl">Miasma</mark> threat actor. The article links the Hades activity to previously documented <mark class="tag-hl">Miasma</mark> behaviors, including multi-cloud credential harvesting, self-replicating worm logic, GitHub-based exfiltration, repository infection targeting IDEs and AI assistants, and Linux process memory reading.</p>
+<p>The campaign is described as the latest evolution of the Miasma threat actor. The article links the Hades activity to previously documented Miasma behaviors, including multi-cloud credential harvesting, self-replicating worm logic, GitHub-based exfiltration, repository infection targeting IDEs and AI assistants, and Linux process memory reading.</p>
 
 <h2 id="affected-packages">Affected packages</h2>
 
@@ -1400,35 +1553,35 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li><code>mflux-streamlit</code> versions 0.0.3 and 0.0.4</li>
 <li><code>nhmpy</code> version 2.4.7</li>
 <li><code>ppkt2synergy</code> version 0.1.1</li>
-<li><code><mark class="tag-hl">embiggen</mark></code> version 0.11.97</li>
+<li><code>embiggen</code> version 0.11.97</li>
 <li><code>gpsea</code> version 0.9.14</li>
-<li><code><mark class="tag-hl">pyphetools</mark></code> version 0.9.120</li>
-<li><code><mark class="tag-hl">ensmallen</mark></code> version 0.8.101</li>
+<li><code>pyphetools</code> version 0.9.120</li>
+<li><code>ensmallen</code> version 0.8.101</li>
 </ul>
 
 <h2 id="execution-through-a-python-import-hook">Execution through a Python import hook</h2>
 
-<p>The delivery mechanism differs from earlier npm campaigns described in the article. Instead of running through installation lifecycle scripts or native build hooks, the <mark class="tag-hl">Hades Campaign</mark> runs during Python code execution through an obfuscated single-line import hook embedded in <code>__init__.py</code>.</p>
+<p>The delivery mechanism differs from earlier npm campaigns described in the article. Instead of running through installation lifecycle scripts or native build hooks, the Hades Campaign runs during Python code execution through an obfuscated single-line import hook embedded in <code>__init__.py</code>.</p>
 
-<p>The deobfuscated logic checks for a flag file at <code>/tmp/.bun_ran</code>. If the file does not exist, it searches Python module paths for a companion <code>_index.js</code> file. It then downloads a precompiled <mark class="tag-hl">Bun</mark> v1.3.14 runtime from GitHub, extracts it to a temporary directory, and executes the JavaScript payload using <code><mark class="tag-hl">bun</mark> run _index.js</code>.</p>
+<p>The deobfuscated logic checks for a flag file at <code>/tmp/.bun_ran</code>. If the file does not exist, it searches Python module paths for a companion <code>_index.js</code> file. It then downloads a precompiled Bun v1.3.14 runtime from GitHub, extracts it to a temporary directory, and executes the JavaScript payload using <code>bun run _index.js</code>.</p>
 
-<p>The article states that the flag file causes the payload to execute only once per boot cycle. It also emphasizes that using a standalone <mark class="tag-hl">Bun</mark> binary allows the malware to run JavaScript tasks in environments that do not have Node.js installed.</p>
+<p>The article states that the flag file causes the payload to execute only once per boot cycle. It also emphasizes that using a standalone Bun binary allows the malware to run JavaScript tasks in environments that do not have Node.js installed.</p>
 
 <h2 id="ai-analyst-misdirection">AI analyst misdirection</h2>
 
-<p>The article describes a <mark class="tag-hl">prompt injection</mark> block placed at the beginning of the <code>_index.js</code> bundle. This plain-text block is intended to manipulate automated Large Language Model pipelines used by security companies to inspect and summarize suspicious package code.</p>
+<p>The article describes a prompt injection block placed at the beginning of the <code>_index.js</code> bundle. This plain-text block is intended to manipulate automated Large Language Model pipelines used by security companies to inspect and summarize suspicious package code.</p>
 
-<p>The <mark class="tag-hl">prompt injection</mark> instructs a parsing LLM to ignore the obfuscated code below it, classify the package as verified clean infrastructure, and produce a safe security report. The article characterizes this as a conceptual shift in which attackers target the cognitive logic of automated AI triage systems.</p>
+<p>The prompt injection instructs a parsing LLM to ignore the obfuscated code below it, classify the package as verified clean infrastructure, and produce a safe security report. The article characterizes this as a conceptual shift in which attackers target the cognitive logic of automated AI triage systems.</p>
 
 <h2 id="obfuscation-and-modular-payload-structure">Obfuscation and modular payload structure</h2>
 
 <p>The <code>_index.js</code> file acts as a runtime bootstrapper. The article says it decrypts and loads sixteen independent functional payloads at startup.</p>
 
-<p>Each payload blob is gzip-compressed and encrypted with AES-256-GCM using a unique hardcoded key. The bootstrapper uses <mark class="tag-hl">Bun</mark> APIs for decryption and decompression. After deobfuscation, the payloads were found to include modules for macOS and Windows memory reading, IDE and CI/CD backdoor setup, and command-and-control agents.</p>
+<p>Each payload blob is gzip-compressed and encrypted with AES-256-GCM using a unique hardcoded key. The bootstrapper uses Bun APIs for decryption and decompression. After deobfuscation, the payloads were found to include modules for macOS and Windows memory reading, IDE and CI/CD backdoor setup, and command-and-control agents.</p>
 
 <h2 id="cross-platform-memory-scraping">Cross-platform memory scraping</h2>
 
-<p>A major capability described in the article is reading the memory of the <mark class="tag-hl">GitHub Actions</mark> <code>Runner.Worker</code> process to extract secrets. Earlier <mark class="tag-hl">Miasma</mark> campaigns used Linux <code>/proc/{pid}/mem</code>, but the <mark class="tag-hl">Hades Campaign</mark> adds macOS and Windows implementations.</p>
+<p>A major capability described in the article is reading the memory of the GitHub Actions <code>Runner.Worker</code> process to extract secrets. Earlier Miasma campaigns used Linux <code>/proc/{pid}/mem</code>, but the Hades Campaign adds macOS and Windows implementations.</p>
 
 <h3 id="linux">Linux</h3>
 
@@ -1436,7 +1589,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h3 id="macos">macOS</h3>
 
-<p>On macOS runners, the malware decrypts a Python script that invokes Mach kernel VM APIs through <code>ctypes</code>. The article states that because the <mark class="tag-hl">runner worker</mark> and execution process run under the same UID, the script can obtain a task port without root privileges. It then enumerates readable memory regions and writes their contents to standard output.</p>
+<p>On macOS runners, the malware decrypts a Python script that invokes Mach kernel VM APIs through <code>ctypes</code>. The article states that because the runner worker and execution process run under the same UID, the script can obtain a task port without root privileges. It then enumerates readable memory regions and writes their contents to standard output.</p>
 
 <h3 id="windows">Windows</h3>
 
@@ -1485,13 +1638,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>On successful access, it stages a loader script and the primary payload in a temporary directory on the remote host, runs the loader, and deletes the staging directory.</p>
 
-<h3 id="pypi-and-npm-oidc-trust-exploitation"><mark class="tag-hl">PyPI</mark> and npm <mark class="tag-hl">OIDC</mark> trust exploitation</h3>
+<h3 id="pypi-and-npm-oidc-trust-exploitation">PyPI and npm OIDC trust exploitation</h3>
 
-<p>When running inside a <mark class="tag-hl">GitHub Actions</mark> workflow runner, the malware checks for <mark class="tag-hl">OIDC</mark> variables such as <code>ACTIONS_ID_TOKEN_REQUEST_TOKEN</code> and <code>ACTIONS_ID_TOKEN_REQUEST_URL</code>. If available, it attempts to mint <mark class="tag-hl">PyPI</mark> or npm publishing tokens by calling the <mark class="tag-hl">OIDC</mark> endpoint with registry audiences.</p>
+<p>When running inside a GitHub Actions workflow runner, the malware checks for OIDC variables such as <code>ACTIONS_ID_TOKEN_REQUEST_TOKEN</code> and <code>ACTIONS_ID_TOKEN_REQUEST_URL</code>. If available, it attempts to mint PyPI or npm publishing tokens by calling the OIDC endpoint with registry audiences.</p>
 
-<p>The article says the malware also generates <mark class="tag-hl">Sigstore</mark> <mark class="tag-hl">SLSA</mark> provenance bundles. It requests a signing certificate from <mark class="tag-hl">Fulcio</mark>, formats a <mark class="tag-hl">SLSA</mark> provenance statement, DSSE-signs it, uploads it to <mark class="tag-hl">Rekor</mark>, and packages the certificate, signatures, and inclusion proof into a <mark class="tag-hl">Sigstore</mark> bundle. It then injects its payload into target libraries and publishes compromised versions to <mark class="tag-hl">PyPI</mark> and npm using the organization’s automated publishing credentials and the generated provenance bundle.</p>
+<p>The article says the malware also generates Sigstore SLSA provenance bundles. It requests a signing certificate from Fulcio, formats a SLSA provenance statement, DSSE-signs it, uploads it to Rekor, and packages the certificate, signatures, and inclusion proof into a Sigstore bundle. It then injects its payload into target libraries and publishes compromised versions to PyPI and npm using the organization’s automated publishing credentials and the generated provenance bundle.</p>
 
-<h3 id="github-actions-workflow-injection"><mark class="tag-hl">GitHub Actions</mark> workflow injection</h3>
+<h3 id="github-actions-workflow-injection">GitHub Actions workflow injection</h3>
 
 <p>The malware targets GitHub repositories to extract organization secrets if a harvested token has suitable permissions.</p>
 
@@ -1516,7 +1669,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li><code>mcp.json</code></li>
 </ul>
 
-<p>By planting prompt instructions or hooks in these configuration assets, the malware attempts to trigger a <code><mark class="tag-hl">bun</mark> run bootstrap</code> command when developers load or consult the workspace with AI assistants.</p>
+<p>By planting prompt instructions or hooks in these configuration assets, the malware attempts to trigger a <code>bun run bootstrap</code> command when developers load or consult the workspace with AI assistants.</p>
 
 <h2 id="persistence-and-wiper-deterrent">Persistence and wiper deterrent</h2>
 
@@ -1551,16 +1704,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="stepsecurity-harden-runner-response">StepSecurity Harden-Runner response</h2>
 
-<p>The article includes a section on StepSecurity Harden-Runner, described as a CI/CD runner security agent that monitors network events, process executions, file access, and outbound connections at the step level in <mark class="tag-hl">GitHub Actions</mark>.</p>
+<p>The article includes a section on StepSecurity Harden-Runner, described as a CI/CD runner security agent that monitors network events, process executions, file access, and outbound connections at the step level in GitHub Actions.</p>
 
 <p>In this campaign, the malicious payload attempts to read <code>Runner.Worker</code> process memory to extract plaintext secrets, including <code>GITHUB_TOKEN</code> and other workflow-injected secrets. The article states that Harden-Runner detects this behavior, enters lockdown mode, terminates the malicious process before the memory read completes, halts the workflow run, and records a suspicious process event in the runtime trace.</p>
 </div></div>
-                <div id="insights-d5ba5c2d979259df2a32448fab113605:85a69619cf421c14" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The malware’s plain-text <mark class="tag-hl">prompt injection</mark> shows that attackers are deliberately targeting automated LLM-based triage workflows, so scanners that pass raw package contents to LLMs without strict isolation can be manipulated into false-negative reports.</span></li><li><span class="kp-text">The campaign’s use of a standalone <mark class="tag-hl">Bun</mark> runtime lets the payload run complex JavaScript even on systems without Node.js, reducing reliance on conventional JavaScript package-manager execution paths.</span></li><li><span class="kp-text">The malware attempts to generate <mark class="tag-hl">Sigstore</mark> <mark class="tag-hl">SLSA</mark> provenance bundles from compromised <mark class="tag-hl">GitHub Actions</mark> <mark class="tag-hl">OIDC</mark> identities, meaning malicious package releases can appear to come from a legitimate verified build pipeline.</span></li><li><span class="kp-text">The token-revocation monitor creates an operational dilemma for responders because revoking a stolen GitHub token may trigger destructive file deletion on infected developer workstations within the malware’s 72-hour monitoring window.</span></li><li><span class="kp-text">The deployment-triggered workflow technique allows secret theft even when a token lacks the GitHub workflow scope, by briefly committing and deleting a workflow before triggering it through a deployment event.</span></li></ul></div>
+                <div id="insights-ae9067a09556aec77039afd5995795d5:85a69619cf421c14" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The malware’s plain-text prompt injection shows that attackers are deliberately targeting automated LLM-based triage workflows, so scanners that pass raw package contents to LLMs without strict isolation can be manipulated into false-negative reports.</span></li><li><span class="kp-text">The campaign’s use of a standalone Bun runtime lets the payload run complex JavaScript even on systems without Node.js, reducing reliance on conventional JavaScript package-manager execution paths.</span></li><li><span class="kp-text">The malware attempts to generate Sigstore SLSA provenance bundles from compromised GitHub Actions OIDC identities, meaning malicious package releases can appear to come from a legitimate verified build pipeline.</span></li><li><span class="kp-text">The token-revocation monitor creates an operational dilemma for responders because revoking a stolen GitHub token may trigger destructive file deletion on infected developer workstations within the malware’s 72-hour monitoring window.</span></li><li><span class="kp-text">The deployment-triggered workflow technique allows secret theft even when a token lacks the GitHub workflow scope, by briefly committing and deleting a workflow before triggering it through a deployment event.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Version 0.8.101 of the <mark class="tag-hl">PyPI</mark> package <mark class="tag-hl">ensmallen</mark> and several related computational biology, bioinformatics, and genotype-phenotype packages were identified as compromised with the same malicious payload.</span></li><li><span class="kp-text">The malicious Python import hook downloads a standalone <mark class="tag-hl">Bun</mark> runtime and executes a companion _index.js payload once per boot cycle using a /tmp/.bun_ran flag file.</span></li><li><span class="kp-text">The _index.js bundle contains a <mark class="tag-hl">prompt-injection</mark> block intended to mislead automated LLM-based security analysis into classifying the package as clean.</span></li><li><span class="kp-text">The malware includes Linux, macOS, and Windows memory scrapers designed to read <mark class="tag-hl">GitHub Actions</mark> Runner.Worker process memory and extract plaintext variables and tokens.</span></li><li><span class="kp-text">The campaign uses GitHub-based command-and-control channels, encrypted exfiltration repositories, worm propagation through SSH/SCP and package publishing workflows, and persistence services including a GitHub token revocation wiper deterrent.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Version 0.8.101 of the PyPI package ensmallen and several related computational biology, bioinformatics, and genotype-phenotype packages were identified as compromised with the same malicious payload.</span></li><li><span class="kp-text">The malicious Python import hook downloads a standalone Bun runtime and executes a companion _index.js payload once per boot cycle using a /tmp/.bun_ran flag file.</span></li><li><span class="kp-text">The _index.js bundle contains a prompt-injection block intended to mislead automated LLM-based security analysis into classifying the package as clean.</span></li><li><span class="kp-text">The malware includes Linux, macOS, and Windows memory scrapers designed to read GitHub Actions Runner.Worker process memory and extract plaintext variables and tokens.</span></li><li><span class="kp-text">The campaign uses GitHub-based command-and-control channels, encrypted exfiltration repositories, worm propagation through SSH/SCP and package publishing workflows, and persistence services including a GitHub token revocation wiper deterrent.</span></li></ul></div>
+            
             <a href="https://www.stepsecurity.io/blog/the-hades-campaign-pypi-packages" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports a specific, high-impact <mark class="tag-hl">PyPI</mark> supply-chain compromise affecting multiple packages and attributed to the <mark class="tag-hl">Miasma</mark> threat actor’s <mark class="tag-hl">Hades Campaign</mark>. The article includes concrete affected versions, cross-platform credential theft techniques, <mark class="tag-hl">GitHub Actions</mark> memory scraping, worm propagation, persistence, C2 mechanisms, and actionable indicators of compromise.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports a specific, high-impact PyPI supply-chain compromise affecting multiple packages and attributed to the Miasma threat actor’s Hades Campaign. The article includes concrete affected versions, cross-platform credential theft techniques, GitHub Actions memory scraping, worm propagation, persistence, C2 mechanisms, and actionable indicators of compromise.</p>
 </div></div>
             
             
@@ -1584,48 +1738,48 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:92%"></div></div><span class="score-num score-num-high">92</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:38ab7398bcd330ff">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:38ab7398bcd330ff')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:38ab7398bcd330ff')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:38ab7398bcd330ff')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:38ab7398bcd330ff')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:38ab7398bcd330ff')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:38ab7398bcd330ff')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:38ab7398bcd330ff')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:38ab7398bcd330ff')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:38ab7398bcd330ff')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:38ab7398bcd330ff')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:38ab7398bcd330ff" class="tab-panel active"><div class="prose"><mark class="tag-hl">UNC3753</mark> is using <mark class="tag-hl">vishing</mark>, screen-sharing sessions, legitimate remote access tools, and even in-person impersonation of IT staff to steal sensitive data from U.S. legal, financial, and professional services firms. The group moves quickly from initial contact to exfiltration and extortion, often completing the operation within a single business day.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:38ab7398bcd330ff" class="tab-panel"><div class="prose"><p>Google Mandiant and Google Threat Intelligence Group disclosed a financially motivated data theft extortion campaign targeting dozens of U.S. organizations in professional, legal, and financial services between January and May 2026. The activity is attributed to <mark class="tag-hl">UNC3753</mark>, also known as <mark class="tag-hl">Chatty Spider</mark>, <mark class="tag-hl">Luna Moth</mark>, and <mark class="tag-hl">Silent Ransom Group</mark>. The group uses <mark class="tag-hl">vishing</mark> and social engineering to gain remote access to corporate environments.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:38ab7398bcd330ff" class="tab-panel active"><div class="prose">UNC3753 is using vishing, screen-sharing sessions, legitimate remote access tools, and even in-person impersonation of IT staff to steal sensitive data from U.S. legal, financial, and professional services firms. The group moves quickly from initial contact to exfiltration and extortion, often completing the operation within a single business day.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:38ab7398bcd330ff" class="tab-panel"><div class="prose"><p>Google Mandiant and Google Threat Intelligence Group disclosed a financially motivated data theft extortion campaign targeting dozens of U.S. organizations in professional, legal, and financial services between January and May 2026. The activity is attributed to UNC3753, also known as Chatty Spider, Luna Moth, and Silent Ransom Group. The group uses vishing and social engineering to gain remote access to corporate environments.</p>
 
-<p><mark class="tag-hl">UNC3753</mark> commonly sends benign invoice-themed emails from actor-controlled consumer email accounts, then follows up with phone calls while posing as IT support. Victims are convinced to join screen-sharing sessions over platforms such as Zoom, Microsoft Teams, or Quick Assist and to install legitimate remote monitoring and management tools including <mark class="tag-hl">AnyDesk</mark>, <mark class="tag-hl">Bomgar</mark>, <mark class="tag-hl">SuperOps RMM</mark>, or <mark class="tag-hl">Zoho Assist</mark>. The attackers then search for and exfiltrate sensitive data, including legal agreements, personally identifiable information, and financial records.</p>
+<p>UNC3753 commonly sends benign invoice-themed emails from actor-controlled consumer email accounts, then follows up with phone calls while posing as IT support. Victims are convinced to join screen-sharing sessions over platforms such as Zoom, Microsoft Teams, or Quick Assist and to install legitimate remote monitoring and management tools including AnyDesk, Bomgar, SuperOps RMM, or Zoho Assist. The attackers then search for and exfiltrate sensitive data, including legal agreements, personally identifiable information, and financial records.</p>
 
 <p>The campaign is notable for its speed and escalation into physical intrusions. The FBI said SRG actors have posed as IT technicians to enter corporate offices and steal data using external hard drives or USB drives. Google reported that many incidents progressed from initial contact to extortion within a single business day, with data searches, staging, and theft beginning in under an hour.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:38ab7398bcd330ff" class="tab-panel"><div class="prose"><p>Cybersecurity researchers reported a financially motivated data theft extortion campaign that targeted dozens of U.S. organizations across professional, legal, and financial services between January and May 2026. Google Mandiant and Google Threat Intelligence Group attributed the activity to <mark class="tag-hl">UNC3753</mark>, also known as <mark class="tag-hl">Chatty Spider</mark>, <mark class="tag-hl">Luna Moth</mark>, and <mark class="tag-hl">Silent Ransom Group</mark>. The group’s operations rely heavily on voice phishing, social engineering, and the abuse of legitimate remote access tools.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:38ab7398bcd330ff" class="tab-panel"><div class="prose"><p>Cybersecurity researchers reported a financially motivated data theft extortion campaign that targeted dozens of U.S. organizations across professional, legal, and financial services between January and May 2026. Google Mandiant and Google Threat Intelligence Group attributed the activity to UNC3753, also known as Chatty Spider, Luna Moth, and Silent Ransom Group. The group’s operations rely heavily on voice phishing, social engineering, and the abuse of legitimate remote access tools.</p>
 
 <p>The attackers initiate campaigns using benign invoice-themed emails sent from actor-controlled consumer email accounts. These emails contain no active links or malicious attachments and are used to establish a pretext before follow-up phone calls. During calls, the actors pose as IT support and persuade targets to join screen-sharing sessions under pretexts such as data migration, invoice issues, or security support.</p>
 
-<p>Once a screen-sharing session is established through platforms such as Zoom, Microsoft Teams, or Quick Assist, <mark class="tag-hl">UNC3753</mark> guides victims to install legitimate remote desktop or remote monitoring and management software. Tools named in the article include <mark class="tag-hl">AnyDesk</mark>, <mark class="tag-hl">Bomgar</mark>, <mark class="tag-hl">SuperOps RMM</mark>, and <mark class="tag-hl">Zoho Assist</mark>, with installation instructions sometimes shared through Privnote. The attackers have also established Zoom sessions on targets’ personal laptops to access corporate virtual desktop infrastructure and deeper corporate file systems.</p>
+<p>Once a screen-sharing session is established through platforms such as Zoom, Microsoft Teams, or Quick Assist, UNC3753 guides victims to install legitimate remote desktop or remote monitoring and management software. Tools named in the article include AnyDesk, Bomgar, SuperOps RMM, and Zoho Assist, with installation instructions sometimes shared through Privnote. The attackers have also established Zoom sessions on targets’ personal laptops to access corporate virtual desktop infrastructure and deeper corporate file systems.</p>
 
 <p>The group searches local and cloud directories, crawls mapped network drives, and targets highly sensitive folders. Data described in the article includes proprietary legal agreements, personally identifiable information, financial records, tax filings, audits, corporate client agreements, and Social Security numbers. Exfiltration is performed using WinSCP, Rclone, or email addresses controlled by the threat actor from the target’s mailbox.</p>
 
 <p>The campaign also includes physical intrusions, according to an FBI advisory cited in the article. In those cases, actors pose as IT technicians to enter corporate offices and steal data using removable USB media, external hard drives, or USB drives inserted into victims’ computers. After leaving the environment, attackers typically send an extortion email within 30 minutes, giving victims three days to begin negotiations and threatening to contact employees, external clients, or publish stolen data.</p>
 
-<p>Google said <mark class="tag-hl">UNC3753</mark> shares tactical overlaps with <mark class="tag-hl">UNC2686</mark> and assessed both clusters as offshoots of the now-defunct <mark class="tag-hl">Conti</mark> ransomware gang. The group previously deployed <mark class="tag-hl">LockBit Black</mark> ransomware but has mainly focused on extortion-only operations since 2022. Resecurity also reported that SRG uses DNS <mark class="tag-hl">fast-flux</mark> infrastructure for domains including business-data-leaks[.]com and ep6pheij[.]com, backed by a botnet spread across 18 countries and 22 ISPs.</p>
+<p>Google said UNC3753 shares tactical overlaps with UNC2686 and assessed both clusters as offshoots of the now-defunct Conti ransomware gang. The group previously deployed LockBit Black ransomware but has mainly focused on extortion-only operations since 2022. Resecurity also reported that SRG uses DNS fast-flux infrastructure for domains including business-data-leaks[.]com and ep6pheij[.]com, backed by a botnet spread across 18 countries and 22 ISPs.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:38ab7398bcd330ff" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:38ab7398bcd330ff" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Cybersecurity researchers disclosed a financially motivated data theft extortion campaign targeting dozens of organizations in the <mark class="tag-hl">United States</mark> between January and May 2026. The victims were in professional, legal, and financial services. Google Mandiant and Google Threat Intelligence Group attributed the activity to <mark class="tag-hl">UNC3753</mark>, a threat actor also known as <mark class="tag-hl">Chatty Spider</mark>, <mark class="tag-hl">Luna Moth</mark>, and <mark class="tag-hl">Silent Ransom Group</mark>.</p>
+<p>Cybersecurity researchers disclosed a financially motivated data theft extortion campaign targeting dozens of organizations in the United States between January and May 2026. The victims were in professional, legal, and financial services. Google Mandiant and Google Threat Intelligence Group attributed the activity to UNC3753, a threat actor also known as Chatty Spider, Luna Moth, and Silent Ransom Group.</p>
 
 <p>The campaign centers on voice phishing and social engineering rather than malware-first intrusion methods. The actors pose as IT support, use pretexts such as data migration or invoice-related issues, and convince victims to participate in screen-sharing sessions. Once access is established, the group searches for sensitive files or manipulates victims into performing actions on the attackers’ behalf.</p>
 
 <h2 id="targeting-and-impact">Targeting and impact</h2>
 
-<p>The article states that <mark class="tag-hl">UNC3753</mark> targeted dozens of U.S. organizations across professional, legal, and financial services from January to May 2026. Legal services firms are described as especially valuable targets because they maintain concentrated repositories of sensitive client transaction files, merger and acquisition plans, client trade secrets, and corporate regulatory reports.</p>
+<p>The article states that UNC3753 targeted dozens of U.S. organizations across professional, legal, and financial services from January to May 2026. Legal services firms are described as especially valuable targets because they maintain concentrated repositories of sensitive client transaction files, merger and acquisition plans, client trade secrets, and corporate regulatory reports.</p>
 
 <p>Stolen information includes:</p>
 
@@ -1643,7 +1797,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="initial-contact-and-social-engineering-methods">Initial contact and social engineering methods</h2>
 
-<p><mark class="tag-hl">UNC3753</mark> frequently begins campaigns with benign, invoice-themed emails sent from actor-controlled consumer email accounts. These messages contain no active links or malicious attachments. According to Google, their purpose is to establish a pretext and raise the target’s internal security concerns, making the target more receptive to follow-up phone calls.</p>
+<p>UNC3753 frequently begins campaigns with benign, invoice-themed emails sent from actor-controlled consumer email accounts. These messages contain no active links or malicious attachments. According to Google, their purpose is to establish a pretext and raise the target’s internal security concerns, making the target more receptive to follow-up phone calls.</p>
 
 <p>During follow-up calls, the threat actors pose as internal corporate IT help desk staff or IT support. They convince targets to join screen-sharing sessions on enterprise communication platforms such as Zoom, Microsoft Teams, or Quick Assist. The stated pretexts include addressing a security issue, helping with a corporate data migration project, or dealing with invoice-related concerns.</p>
 
@@ -1651,18 +1805,18 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="remote-access-and-persistence">Remote access and persistence</h2>
 
-<p>After establishing a screen-sharing session, <mark class="tag-hl">UNC3753</mark> attempts to gain a persistent foothold by guiding victims to install legitimate remote desktop or remote monitoring and management utilities. The article names the following tools:</p>
+<p>After establishing a screen-sharing session, UNC3753 attempts to gain a persistent foothold by guiding victims to install legitimate remote desktop or remote monitoring and management utilities. The article names the following tools:</p>
 
 <ul>
-<li><mark class="tag-hl">AnyDesk</mark>.</li>
-<li><mark class="tag-hl">Bomgar</mark>.</li>
-<li><mark class="tag-hl">SuperOps RMM</mark>.</li>
-<li><mark class="tag-hl">Zoho Assist</mark>.</li>
+<li>AnyDesk.</li>
+<li>Bomgar.</li>
+<li>SuperOps RMM.</li>
+<li>Zoho Assist.</li>
 </ul>
 
 <p>Instructions for installing these programs are shared via Privnote, a legitimate service that allows users to send notes that self-destruct after being read by the recipient.</p>
 
-<p><mark class="tag-hl">UNC3753</mark> has also been observed establishing Zoom sessions directly on targets’ personal laptops. From there, the actors access corporate virtual desktop infrastructure and move deeper into corporate file systems. Their activity includes enumerating local and cloud directories, crawling mapped network drives, and harvesting data from sensitive folders.</p>
+<p>UNC3753 has also been observed establishing Zoom sessions directly on targets’ personal laptops. From there, the actors access corporate virtual desktop infrastructure and move deeper into corporate file systems. Their activity includes enumerating local and cloud directories, crawling mapped network drives, and harvesting data from sensitive folders.</p>
 
 <h2 id="data-theft-and-extortion-workflow">Data theft and extortion workflow</h2>
 
@@ -1674,7 +1828,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Google said many incidents investigated by its threat intelligence and incident response teams progressed from initial contact to data extortion within a single business day. The group’s operational tempo is highlighted by the fact that data searches, staging, and theft can begin in under an hour.</p>
 
-<h2 id="physical-intrusion-component"><mark class="tag-hl">Physical intrusion</mark> component</h2>
+<h2 id="physical-intrusion-component">Physical intrusion component</h2>
 
 <p>The article describes an escalation into physical intrusions, echoing an FBI advisory issued the previous month. In these incidents, threat actors pose as IT technicians to enter corporate offices. They then attempt to steal data using removable USB media.</p>
 
@@ -1682,15 +1836,15 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="actor-history-and-overlaps">Actor history and overlaps</h2>
 
-<p>Google said <mark class="tag-hl">UNC3753</mark> shares tactical overlaps with <mark class="tag-hl">UNC2686</mark>, a threat cluster previously associated with BazarCall-style campaigns in 2021. Those earlier campaigns used callback phishing techniques that aimed to install remote access software on victims’ machines.</p>
+<p>Google said UNC3753 shares tactical overlaps with UNC2686, a threat cluster previously associated with BazarCall-style campaigns in 2021. Those earlier campaigns used callback phishing techniques that aimed to install remote access software on victims’ machines.</p>
 
-<p>Both <mark class="tag-hl">UNC3753</mark> and <mark class="tag-hl">UNC2686</mark> are assessed to be offshoots of the now-defunct <mark class="tag-hl">Conti</mark> ransomware gang. Early versions of the campaigns used subscription cancellation lures as part of callback phishing attacks.</p>
+<p>Both UNC3753 and UNC2686 are assessed to be offshoots of the now-defunct Conti ransomware gang. Early versions of the campaigns used subscription cancellation lures as part of callback phishing attacks.</p>
 
-<p>Although <mark class="tag-hl">UNC3753</mark> has been observed deploying <mark class="tag-hl">LockBit Black</mark> ransomware in the past, the group has mainly focused on extortion-only operations since 2022. In that model, the attackers pressure victims to pay or risk having their data published on the LEAKEDDATA data leak site.</p>
+<p>Although UNC3753 has been observed deploying LockBit Black ransomware in the past, the group has mainly focused on extortion-only operations since 2022. In that model, the attackers pressure victims to pay or risk having their data published on the LEAKEDDATA data leak site.</p>
 
 <h2 id="infrastructure-findings">Infrastructure findings</h2>
 
-<p>The article also cites a Resecurity report about the group’s use of DNS <mark class="tag-hl">fast-flux</mark> network infrastructure. Resecurity said the infrastructure is used across various countries in Latin America, Eastern Europe, Central Asia, the Middle East and Africa, East Asia, and the Caribbean to make domains harder to block.</p>
+<p>The article also cites a Resecurity report about the group’s use of DNS fast-flux network infrastructure. Resecurity said the infrastructure is used across various countries in Latin America, Eastern Europe, Central Asia, the Middle East and Africa, East Asia, and the Caribbean to make domains harder to block.</p>
 
 <p>The domains named are:</p>
 
@@ -1699,29 +1853,30 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>ep6pheij[.]com, described as staging stolen data per victim.</li>
 </ul>
 
-<p>Resecurity said the domains operate on a <mark class="tag-hl">fast-flux</mark> network backed by a botnet spread across 18 countries and 22 ISPs. The two domains reportedly share 50% to 60% of their bot pool, which Resecurity said confirms that a single threat actor operates both. The infrastructure contains no datacenter or hosting IPs, with every node tracing back to a consumer ISP and being flagged as a residential or mobile IP address.</p>
+<p>Resecurity said the domains operate on a fast-flux network backed by a botnet spread across 18 countries and 22 ISPs. The two domains reportedly share 50% to 60% of their bot pool, which Resecurity said confirms that a single threat actor operates both. The infrastructure contains no datacenter or hosting IPs, with every node tracing back to a consumer ISP and being flagged as a residential or mobile IP address.</p>
 
 <h2 id="significance">Significance</h2>
 
-<p>The article presents <mark class="tag-hl">UNC3753</mark> as a fast-moving extortion actor that relies on deception, legitimate tools, and direct human interaction. Its methods include benign pretext emails, voice phishing, screen-sharing sessions, legitimate remote access software, access through personal laptops into corporate VDI, rapid data exfiltration, and in-person impersonation of IT technicians.</p>
+<p>The article presents UNC3753 as a fast-moving extortion actor that relies on deception, legitimate tools, and direct human interaction. Its methods include benign pretext emails, voice phishing, screen-sharing sessions, legitimate remote access software, access through personal laptops into corporate VDI, rapid data exfiltration, and in-person impersonation of IT technicians.</p>
 
 <p>The most significant aspect of the campaign is that the group can move from initial contact to extortion within a single business day. The targeted sectors hold highly sensitive legal, financial, and client information, which increases the pressure created by threats to contact employees and clients or publish stolen data.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:38ab7398bcd330ff" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">UNC3753</mark>’s use of benign invoice-themed emails with no links or attachments shows that initial messages may evade traditional email security controls while still setting up successful follow-on <mark class="tag-hl">vishing</mark> calls.</span></li><li><span class="kp-text">The group’s reliance on legitimate collaboration and remote access platforms such as Zoom, Microsoft Teams, Quick Assist, <mark class="tag-hl">AnyDesk</mark>, <mark class="tag-hl">Bomgar</mark>, <mark class="tag-hl">SuperOps RMM</mark>, and <mark class="tag-hl">Zoho Assist</mark> makes user behavior and help desk verification processes more important detection points than malware signatures.</span></li><li><span class="kp-text"><mark class="tag-hl">UNC3753</mark>’s extortion timeline is unusually compressed, with Google observing full operations from initial contact to extortion within a single business day and data search, staging, and theft starting in under an hour.</span></li><li><span class="kp-text">The reported in-person impersonation of IT technicians indicates that physical security procedures and visitor verification are part of the defense surface for this campaign, not just endpoint and network controls.</span></li><li><span class="kp-text">Resecurity’s finding that the actor’s leak and staging domains use <mark class="tag-hl">fast-flux</mark> infrastructure backed entirely by residential or mobile ISP nodes suggests that blocking static hosting or datacenter IPs alone would be insufficient against this infrastructure.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:38ab7398bcd330ff" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">UNC3753’s use of benign invoice-themed emails with no links or attachments shows that initial messages may evade traditional email security controls while still setting up successful follow-on vishing calls.</span></li><li><span class="kp-text">The group’s reliance on legitimate collaboration and remote access platforms such as Zoom, Microsoft Teams, Quick Assist, AnyDesk, Bomgar, SuperOps RMM, and Zoho Assist makes user behavior and help desk verification processes more important detection points than malware signatures.</span></li><li><span class="kp-text">UNC3753’s extortion timeline is unusually compressed, with Google observing full operations from initial contact to extortion within a single business day and data search, staging, and theft starting in under an hour.</span></li><li><span class="kp-text">The reported in-person impersonation of IT technicians indicates that physical security procedures and visitor verification are part of the defense surface for this campaign, not just endpoint and network controls.</span></li><li><span class="kp-text">Resecurity’s finding that the actor’s leak and staging domains use fast-flux infrastructure backed entirely by residential or mobile ISP nodes suggests that blocking static hosting or datacenter IPs alone would be insufficient against this infrastructure.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Google Mandiant and Google Threat Intelligence Group attributed a financially motivated data theft extortion campaign targeting U.S. professional, legal, and financial services organizations between January and May 2026 to <mark class="tag-hl">UNC3753</mark>.</span></li><li><span class="kp-text"><mark class="tag-hl">UNC3753</mark> uses <mark class="tag-hl">vishing</mark> and social engineering to pose as IT support, persuade victims to join screen-sharing sessions, and guide them to install legitimate remote monitoring and management tools such as <mark class="tag-hl">AnyDesk</mark>, <mark class="tag-hl">Bomgar</mark>, <mark class="tag-hl">SuperOps RMM</mark>, or <mark class="tag-hl">Zoho Assist</mark>.</span></li><li><span class="kp-text">The FBI reported that <mark class="tag-hl">UNC3753</mark> has also conducted physical intrusions by posing as IT technicians to enter corporate offices and steal data using external hard drives or USB drives.</span></li><li><span class="kp-text">Stolen data includes proprietary legal agreements, personally identifiable information, financial records, tax filings, audits, corporate client agreements, and Social Security numbers.</span></li><li><span class="kp-text">Google said many <mark class="tag-hl">UNC3753</mark> operations progressed from initial contact to data extortion within a single business day, with data searches, staging, and theft beginning in under an hour.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Google Mandiant and Google Threat Intelligence Group attributed a financially motivated data theft extortion campaign targeting U.S. professional, legal, and financial services organizations between January and May 2026 to UNC3753.</span></li><li><span class="kp-text">UNC3753 uses vishing and social engineering to pose as IT support, persuade victims to join screen-sharing sessions, and guide them to install legitimate remote monitoring and management tools such as AnyDesk, Bomgar, SuperOps RMM, or Zoho Assist.</span></li><li><span class="kp-text">The FBI reported that UNC3753 has also conducted physical intrusions by posing as IT technicians to enter corporate offices and steal data using external hard drives or USB drives.</span></li><li><span class="kp-text">Stolen data includes proprietary legal agreements, personally identifiable information, financial records, tax filings, audits, corporate client agreements, and Social Security numbers.</span></li><li><span class="kp-text">Google said many UNC3753 operations progressed from initial contact to data extortion within a single business day, with data searches, staging, and theft beginning in under an hour.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/unc3753-used-vishing-and-physical.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports an active, named threat actor operation targeting U.S. legal, financial, and professional services organizations with rapid data theft extortion. The campaign is notable for combining <mark class="tag-hl">vishing</mark>, legitimate remote access tools, and physical intrusions, making it directly relevant to security teams defending against social engineering-driven breaches.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports an active, named threat actor operation targeting U.S. legal, financial, and professional services organizations with rapid data theft extortion. The campaign is notable for combining vishing, legitimate remote access tools, and physical intrusions, making it directly relevant to security teams defending against social engineering-driven breaches.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://cloud.google.com/blog/topics/threat-intelligence/targeted-campaign-us-law-firms" target="_blank" rel="noopener">Targeted Campaign Against U.S. Law Firms</a></div>
   <div class="report-meta">Google Mandiant and Google Threat Intelligence Group</div>
-  <div class="report-context">The article cites Google Mandiant and GTIG research attributing the data theft extortion campaign to <mark class="tag-hl">UNC3753</mark> and describing its <mark class="tag-hl">vishing</mark>, social engineering, and remote access tactics.</div>
+  <div class="report-context">The article cites Google Mandiant and GTIG research attributing the data theft extortion campaign to UNC3753 and describing its vishing, social engineering, and remote access tactics.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.resecurity.com/blog/article/silent-ransom-group-srg-uncovering-dns-fast-flux-infrastructure" target="_blank" rel="noopener">Silent Ransom Group (SRG): Uncovering DNS Fast-Flux Infrastructure</a></div>
   <div class="report-meta">Resecurity</div>
-  <div class="report-context">The article references a Resecurity report describing <mark class="tag-hl">Silent Ransom Group</mark>’s use of DNS <mark class="tag-hl">fast-flux</mark> infrastructure for its leak and staging domains.</div>
+  <div class="report-context">The article references a Resecurity report describing Silent Ransom Group’s use of DNS fast-flux infrastructure for its leak and staging domains.</div>
 </li></ul></div>
             
           </div>
@@ -1750,73 +1905,73 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:86%"></div></div><span class="score-num score-num-mid">86</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:b3da4125bc01c47f">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:b3da4125bc01c47f')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:b3da4125bc01c47f')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:b3da4125bc01c47f')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:b3da4125bc01c47f')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:b3da4125bc01c47f')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:b3da4125bc01c47f')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:b3da4125bc01c47f')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:b3da4125bc01c47f')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:b3da4125bc01c47f')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:b3da4125bc01c47f')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:b3da4125bc01c47f" class="tab-panel active"><div class="prose"><mark class="tag-hl">Meta</mark> says attackers abused a flaw in <mark class="tag-hl">Instagram</mark>’s AI-assisted <mark class="tag-hl">High Touch Support</mark> account recovery tool to reset passwords and hijack more than 20,000 accounts that lacked 2FA. <mark class="tag-hl">Meta</mark> disabled the tool, invalidated reset links, secured affected accounts, and plans to add proper email verification before relaunching it.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:b3da4125bc01c47f" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Meta</mark> revealed that over 20,000 <mark class="tag-hl">Instagram</mark> users had their accounts hijacked after attackers abused an AI-powered account recovery support system. The incident involved <mark class="tag-hl">Meta</mark>’s <mark class="tag-hl">High Touch Support</mark> tool, which helps users regain access after being locked out of <mark class="tag-hl">Instagram</mark> accounts. <mark class="tag-hl">Meta</mark> said the issue has been resolved and that it is securing impacted accounts.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:b3da4125bc01c47f" class="tab-panel active"><div class="prose">Meta says attackers abused a flaw in Instagram’s AI-assisted High Touch Support account recovery tool to reset passwords and hijack more than 20,000 accounts that lacked 2FA. Meta disabled the tool, invalidated reset links, secured affected accounts, and plans to add proper email verification before relaunching it.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:b3da4125bc01c47f" class="tab-panel"><div class="prose"><p>Meta revealed that over 20,000 Instagram users had their accounts hijacked after attackers abused an AI-powered account recovery support system. The incident involved Meta’s High Touch Support tool, which helps users regain access after being locked out of Instagram accounts. Meta said the issue has been resolved and that it is securing impacted accounts.</p>
 
-<p>The attackers exploited the tool because it did not verify whether email addresses were associated with the targeted <mark class="tag-hl">Instagram</mark> accounts. This allowed them to obtain password reset links and log in to accounts that did not have two-factor authentication enabled. <mark class="tag-hl">Meta</mark> said attackers may have accessed contact information, dates of birth, posts, photos, videos, stories, direct messages, account activity, profile details, linked services, and other connected accounts.</p>
+<p>The attackers exploited the tool because it did not verify whether email addresses were associated with the targeted Instagram accounts. This allowed them to obtain password reset links and log in to accounts that did not have two-factor authentication enabled. Meta said attackers may have accessed contact information, dates of birth, posts, photos, videos, stories, direct messages, account activity, profile details, linked services, and other connected accounts.</p>
 
-<p><mark class="tag-hl">Meta</mark> discovered the vulnerability on May 31, 2026, while <mark class="tag-hl">Maine</mark>’s breach filing lists April 17 as the breach date. After discovering the incident, <mark class="tag-hl">Meta</mark> disabled the <mark class="tag-hl">High Touch Support</mark> system and all password reset links it had generated. The company also enrolled potentially stolen accounts into a mandatory security checkpoint and said it will fix the authentication check before relaunching the tool.</p>
+<p>Meta discovered the vulnerability on May 31, 2026, while Maine’s breach filing lists April 17 as the breach date. After discovering the incident, Meta disabled the High Touch Support system and all password reset links it had generated. The company also enrolled potentially stolen accounts into a mandatory security checkpoint and said it will fix the authentication check before relaunching the tool.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:b3da4125bc01c47f" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Meta</mark> disclosed that over 20,000 <mark class="tag-hl">Instagram</mark> accounts were hijacked in an incident involving its AI-powered <mark class="tag-hl">High Touch Support</mark> account recovery tool. The tool was designed to help users regain access to <mark class="tag-hl">Instagram</mark> accounts after being locked out. According to <mark class="tag-hl">Meta</mark>, unauthorized third parties exploited a vulnerability in the system to perform password resets on <mark class="tag-hl">Instagram</mark> user accounts.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:b3da4125bc01c47f" class="tab-panel"><div class="prose"><p>Meta disclosed that over 20,000 Instagram accounts were hijacked in an incident involving its AI-powered High Touch Support account recovery tool. The tool was designed to help users regain access to Instagram accounts after being locked out. According to Meta, unauthorized third parties exploited a vulnerability in the system to perform password resets on Instagram user accounts.</p>
 
-<p>The core technical issue was that the <mark class="tag-hl">High Touch Support</mark> tool did not verify whether email addresses were associated with the targeted <mark class="tag-hl">Instagram</mark> accounts. By exploiting that weakness, attackers obtained password reset links that let them log in and hijack accounts without two-factor authentication enabled. The article does not name the attackers beyond describing them as unauthorized third parties and threat actors.</p>
+<p>The core technical issue was that the High Touch Support tool did not verify whether email addresses were associated with the targeted Instagram accounts. By exploiting that weakness, attackers obtained password reset links that let them log in and hijack accounts without two-factor authentication enabled. The article does not name the attackers beyond describing them as unauthorized third parties and threat actors.</p>
 
-<p>The incident became public after a wave of user reports appeared on social media platforms. Andy Stone, <mark class="tag-hl">Meta</mark>’s vice president of communications, replied to one affected user that the issue had been resolved and that <mark class="tag-hl">Meta</mark> was securing impacted accounts. BleepingComputer said it contacted <mark class="tag-hl">Meta</mark> for comment but had not received a response at the time of publication.</p>
+<p>The incident became public after a wave of user reports appeared on social media platforms. Andy Stone, Meta’s vice president of communications, replied to one affected user that the issue had been resolved and that Meta was securing impacted accounts. BleepingComputer said it contacted Meta for comment but had not received a response at the time of publication.</p>
 
-<p>In a breach letter filed with <mark class="tag-hl">Maine</mark>’s Office of the Attorney General, <mark class="tag-hl">Meta</mark> said the vulnerability was used to potentially compromise 30 <mark class="tag-hl">Instagram</mark> accounts in that jurisdiction. <mark class="tag-hl">Meta</mark> said it discovered the issue on May 31, 2026, while the <mark class="tag-hl">Maine</mark> filing lists April 17 as the breach date, which the article says is likely the date of the first attack exploiting the flaw. <mark class="tag-hl">Meta</mark> said all accounts in the filing had been secured to prevent continued unauthorized access.</p>
+<p>In a breach letter filed with Maine’s Office of the Attorney General, Meta said the vulnerability was used to potentially compromise 30 Instagram accounts in that jurisdiction. Meta said it discovered the issue on May 31, 2026, while the Maine filing lists April 17 as the breach date, which the article says is likely the date of the first attack exploiting the flaw. Meta said all accounts in the filing had been secured to prevent continued unauthorized access.</p>
 
-<p><mark class="tag-hl">Meta</mark> said it does not know what personal information may have been accessed or stolen from compromised accounts. However, it listed categories attackers could have accessed, including email addresses or phone numbers, dates of birth, social media posts and content, direct messages, account activity, profile information, linked services, and other connected accounts.</p>
+<p>Meta said it does not know what personal information may have been accessed or stolen from compromised accounts. However, it listed categories attackers could have accessed, including email addresses or phone numbers, dates of birth, social media posts and content, direct messages, account activity, profile information, linked services, and other connected accounts.</p>
 
-<p>After discovering the incident, <mark class="tag-hl">Meta</mark> disabled the <mark class="tag-hl">High Touch Support</mark> AI-powered support system and invalidated all password reset links it had generated. It also placed potentially stolen accounts into a mandatory security checkpoint and required affected users to reset passwords and re-authenticate. <mark class="tag-hl">Meta</mark> said it will fix the authentication check before relaunching the tool and is reviewing similar account recovery flows across its platforms.</p>
+<p>After discovering the incident, Meta disabled the High Touch Support AI-powered support system and invalidated all password reset links it had generated. It also placed potentially stolen accounts into a mandatory security checkpoint and required affected users to reset passwords and re-authenticate. Meta said it will fix the authentication check before relaunching the tool and is reviewing similar account recovery flows across its platforms.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:b3da4125bc01c47f" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:b3da4125bc01c47f" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Meta</mark> revealed that over 20,000 <mark class="tag-hl">Instagram</mark> users had their accounts hijacked in an incident involving its AI-powered <mark class="tag-hl">High Touch Support</mark> account recovery tool. The tool, referred to as HTS, helps users regain access after being locked out of their <mark class="tag-hl">Instagram</mark> accounts. Attackers abused the system to obtain password reset links and take over accounts.</p>
+<p>Meta revealed that over 20,000 Instagram users had their accounts hijacked in an incident involving its AI-powered High Touch Support account recovery tool. The tool, referred to as HTS, helps users regain access after being locked out of their Instagram accounts. Attackers abused the system to obtain password reset links and take over accounts.</p>
 
-<p>The article says the incident followed a wave of user reports on social media platforms. Andy Stone, <mark class="tag-hl">Meta</mark>’s vice president of communications, replied to one affected user that the issue had been resolved and that <mark class="tag-hl">Meta</mark> was securing impacted accounts. BleepingComputer said it contacted <mark class="tag-hl">Meta</mark> for comment the previous week but had not yet received a response.</p>
+<p>The article says the incident followed a wave of user reports on social media platforms. Andy Stone, Meta’s vice president of communications, replied to one affected user that the issue had been resolved and that Meta was securing impacted accounts. BleepingComputer said it contacted Meta for comment the previous week but had not yet received a response.</p>
 
 <h2 id="technical-details">Technical Details</h2>
 
-<p>The vulnerability involved <mark class="tag-hl">Meta</mark>’s <mark class="tag-hl">High Touch Support</mark> tool, an AI-assisted account recovery system for <mark class="tag-hl">Instagram</mark>. The article states that the tool did not verify whether email addresses were associated with the targeted <mark class="tag-hl">Instagram</mark> accounts. Attackers exploited that weakness to generate password reset links.</p>
+<p>The vulnerability involved Meta’s High Touch Support tool, an AI-assisted account recovery system for Instagram. The article states that the tool did not verify whether email addresses were associated with the targeted Instagram accounts. Attackers exploited that weakness to generate password reset links.</p>
 
 <p>Those password reset links allowed the attackers to log in and hijack accounts without two-factor authentication enabled. The article identifies the attackers only as threat actors and unauthorized third parties. No named threat actor or group is attributed in the article.</p>
 
-<p><mark class="tag-hl">Meta</mark> described the issue in a data breach letter filed with <mark class="tag-hl">Maine</mark>’s Office of the Attorney General. In that letter, <mark class="tag-hl">Meta</mark> said that on May 31, 2026, it discovered a vulnerability in the AI-assisted account recovery system for <mark class="tag-hl">Instagram</mark> that had been exploited to perform password resets on user accounts.</p>
+<p>Meta described the issue in a data breach letter filed with Maine’s Office of the Attorney General. In that letter, Meta said that on May 31, 2026, it discovered a vulnerability in the AI-assisted account recovery system for Instagram that had been exploited to perform password resets on user accounts.</p>
 
 <h2 id="timeline-and-disclosure">Timeline and Disclosure</h2>
 
 <p>The article reports two dates associated with the incident:</p>
 
 <ul>
-<li><mark class="tag-hl">Meta</mark> said it discovered the vulnerability on May 31, 2026.</li>
-<li><mark class="tag-hl">Maine</mark>’s Office of the Attorney General filing lists April 17 as the breach date.</li>
+<li>Meta said it discovered the vulnerability on May 31, 2026.</li>
+<li>Maine’s Office of the Attorney General filing lists April 17 as the breach date.</li>
 </ul>
 
-<p>The article says April 17 is likely the date of the first attack exploiting the HTS flaw. <mark class="tag-hl">Meta</mark>’s breach letter did not specify when the attacks began.</p>
+<p>The article says April 17 is likely the date of the first attack exploiting the HTS flaw. Meta’s breach letter did not specify when the attacks began.</p>
 
 <h2 id="affected-users-and-jurisdictions">Affected Users and Jurisdictions</h2>
 
-<p><mark class="tag-hl">Meta</mark> revealed that over 20,000 <mark class="tag-hl">Instagram</mark> users had their accounts hijacked overall. In the breach letter filed with <mark class="tag-hl">Maine</mark>’s Office of the Attorney General, <mark class="tag-hl">Meta</mark> said the vulnerability was used to potentially compromise the <mark class="tag-hl">Instagram</mark> accounts of 30 users in that jurisdiction. <mark class="tag-hl">Meta</mark> said all accounts referenced in that filing had been secured to prevent continued unauthorized access.</p>
+<p>Meta revealed that over 20,000 Instagram users had their accounts hijacked overall. In the breach letter filed with Maine’s Office of the Attorney General, Meta said the vulnerability was used to potentially compromise the Instagram accounts of 30 users in that jurisdiction. Meta said all accounts referenced in that filing had been secured to prevent continued unauthorized access.</p>
 
 <p>The article also notes that the affected accounts were those hijacked through the abused account recovery process. It specifically states that the password reset links allowed attackers to hijack accounts without two-factor authentication enabled.</p>
 
 <h2 id="potentially-accessed-information">Potentially Accessed Information</h2>
 
-<p><mark class="tag-hl">Meta</mark> said it has no information on what personal information may have been accessed or stolen from the compromised accounts. However, it stated that attackers could have gained access to several categories of account information and content.</p>
+<p>Meta said it has no information on what personal information may have been accessed or stolen from the compromised accounts. However, it stated that attackers could have gained access to several categories of account information and content.</p>
 
 <p>The potentially accessible information included:</p>
 
@@ -1830,33 +1985,34 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Other connected accounts and linked services.</li>
 </ul>
 
-<h2 id="meta-s-response"><mark class="tag-hl">Meta</mark>’s Response</h2>
+<h2 id="meta-s-response">Meta’s Response</h2>
 
-<p>After discovering the incident, <mark class="tag-hl">Meta</mark> disabled the HTS AI-powered support system. It also disabled all password reset links generated by that system to block future hijack attempts tied to the same malicious campaign.</p>
+<p>After discovering the incident, Meta disabled the HTS AI-powered support system. It also disabled all password reset links generated by that system to block future hijack attempts tied to the same malicious campaign.</p>
 
-<p><mark class="tag-hl">Meta</mark> also enrolled all potentially stolen accounts into a mandatory security checkpoint. Affected users were asked to reset their passwords again and re-authenticate to secure and regain control of the compromised accounts.</p>
+<p>Meta also enrolled all potentially stolen accounts into a mandatory security checkpoint. Affected users were asked to reset their passwords again and re-authenticate to secure and regain control of the compromised accounts.</p>
 
-<p>Before relaunching the tool, <mark class="tag-hl">Meta</mark> said it will fix the authentication check in the <mark class="tag-hl">Instagram</mark> recovery entry point. The stated purpose of the fix is to ensure proper verification of email addresses against existing account information before any password reset is initiated.</p>
+<p>Before relaunching the tool, Meta said it will fix the authentication check in the Instagram recovery entry point. The stated purpose of the fix is to ensure proper verification of email addresses against existing account information before any password reset is initiated.</p>
 
-<p><mark class="tag-hl">Meta</mark> also said it is conducting a comprehensive review of similar account recovery flows across its platforms to identify and remediate any potential issues.</p>
+<p>Meta also said it is conducting a comprehensive review of similar account recovery flows across its platforms to identify and remediate any potential issues.</p>
 
-<h2 id="related-meta-security-and-privacy-context-mentioned-in-the-article">Related <mark class="tag-hl">Meta</mark> Security and Privacy Context Mentioned in the Article</h2>
+<h2 id="related-meta-security-and-privacy-context-mentioned-in-the-article">Related Meta Security and Privacy Context Mentioned in the Article</h2>
 
-<p>The article notes prior regulatory penalties involving <mark class="tag-hl">Meta</mark>. <mark class="tag-hl">Ireland</mark> fined <mark class="tag-hl">Meta</mark> $264 million over a 2018 Facebook data breach that exposed names, email addresses, phone numbers, and physical locations of over 29 million Facebook accounts.</p>
+<p>The article notes prior regulatory penalties involving Meta. Ireland fined Meta $264 million over a 2018 Facebook data breach that exposed names, email addresses, phone numbers, and physical locations of over 29 million Facebook accounts.</p>
 
-<p>The article also states that <mark class="tag-hl">Meta</mark> was fined €265 million, or <span class="math inline">\(275.5 million, in November 2022 for failing to protect Facebook users’ data from scrapers. It further notes another €91 million, or \)</span>100 million, fine for storing the passwords of hundreds of millions of users in plaintext.</p>
+<p>The article also states that Meta was fined €265 million, or <span class="math inline">\(275.5 million, in November 2022 for failing to protect Facebook users’ data from scrapers. It further notes another €91 million, or \)</span>100 million, fine for storing the passwords of hundreds of millions of users in plaintext.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:b3da4125bc01c47f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The incident shows that an account recovery tool can become a high-impact takeover path when it can generate password reset links without validating that the requester’s email matches the targeted account.</span></li><li><span class="kp-text">Accounts without two-factor authentication were specifically vulnerable to full hijacking once attackers obtained the password reset links.</span></li><li><span class="kp-text"><mark class="tag-hl">Meta</mark>’s <mark class="tag-hl">Maine</mark> breach notice referenced only 30 users in that jurisdiction, while the article reports more than 20,000 affected <mark class="tag-hl">Instagram</mark> accounts overall, highlighting that individual regulatory filings may describe only a local subset of a larger incident.</span></li><li><span class="kp-text"><mark class="tag-hl">Meta</mark>’s plan to review similar account recovery flows across its platforms indicates the company considers this authentication-check weakness potentially repeatable beyond the affected <mark class="tag-hl">Instagram</mark> HTS entry point.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:b3da4125bc01c47f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The incident shows that an account recovery tool can become a high-impact takeover path when it can generate password reset links without validating that the requester’s email matches the targeted account.</span></li><li><span class="kp-text">Accounts without two-factor authentication were specifically vulnerable to full hijacking once attackers obtained the password reset links.</span></li><li><span class="kp-text">Meta’s Maine breach notice referenced only 30 users in that jurisdiction, while the article reports more than 20,000 affected Instagram accounts overall, highlighting that individual regulatory filings may describe only a local subset of a larger incident.</span></li><li><span class="kp-text">Meta’s plan to review similar account recovery flows across its platforms indicates the company considers this authentication-check weakness potentially repeatable beyond the affected Instagram HTS entry point.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Meta</mark> revealed that over 20,000 <mark class="tag-hl">Instagram</mark> users had their accounts hijacked after attackers abused its AI-powered <mark class="tag-hl">High Touch Support</mark> account recovery tool to reset passwords.</span></li><li><span class="kp-text">The flaw allowed attackers to obtain password reset links because the <mark class="tag-hl">High Touch Support</mark> tool did not verify whether email addresses were associated with the targeted <mark class="tag-hl">Instagram</mark> accounts.</span></li><li><span class="kp-text"><mark class="tag-hl">Meta</mark> said in a breach letter that it discovered the vulnerability on May 31, 2026, and that <mark class="tag-hl">Maine</mark>’s filing lists April 17 as the breach date.</span></li><li><span class="kp-text"><mark class="tag-hl">Meta</mark> disabled the <mark class="tag-hl">High Touch Support</mark> system and all password reset links it generated, enrolled potentially stolen accounts into a mandatory security checkpoint, and required affected users to reset passwords and re-authenticate.</span></li><li><span class="kp-text"><mark class="tag-hl">Meta</mark> said attackers may have accessed affected users’ contact information, dates of birth, posts, photos, videos, stories, direct messages, account activity, profile information, and linked accounts or services.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Meta revealed that over 20,000 Instagram users had their accounts hijacked after attackers abused its AI-powered High Touch Support account recovery tool to reset passwords.</span></li><li><span class="kp-text">The flaw allowed attackers to obtain password reset links because the High Touch Support tool did not verify whether email addresses were associated with the targeted Instagram accounts.</span></li><li><span class="kp-text">Meta said in a breach letter that it discovered the vulnerability on May 31, 2026, and that Maine’s filing lists April 17 as the breach date.</span></li><li><span class="kp-text">Meta disabled the High Touch Support system and all password reset links it generated, enrolled potentially stolen accounts into a mandatory security checkpoint, and required affected users to reset passwords and re-authenticate.</span></li><li><span class="kp-text">Meta said attackers may have accessed affected users’ contact information, dates of birth, posts, photos, videos, stories, direct messages, account activity, profile information, and linked accounts or services.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/meta-ai-support-data-breach-affects-20-000-instagram-accounts/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, recent incident involving active exploitation of <mark class="tag-hl">Meta</mark>’s AI-assisted <mark class="tag-hl">Instagram</mark> account recovery tool and more than 20,000 account hijackings. It is broadly relevant to security professionals because it highlights a high-impact account recovery authentication failure, potential exposure of user data, and remediation steps by a major platform.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, recent incident involving active exploitation of Meta’s AI-assisted Instagram account recovery tool and more than 20,000 account hijackings. It is broadly relevant to security professionals because it highlights a high-impact account recovery authentication failure, potential exposure of user data, and remediation steps by a major platform.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://legacy.www.documentcloud.org/documents/28211657-meta-ai-support-tool-incident-ag-notification-bc-me/" target="_blank" rel="noopener">Meta AI Support Tool Incident AG Notification</a></div>
   <div class="report-meta">Meta</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Meta</mark>’s data breach letter filed with <mark class="tag-hl">Maine</mark>’s Office of the Attorney General to describe the HTS vulnerability, discovery date, affected users in <mark class="tag-hl">Maine</mark>, and remediation steps.</div>
+  <div class="report-context">The article cites Meta’s data breach letter filed with Maine’s Office of the Attorney General to describe the HTS vulnerability, discovery date, affected users in Maine, and remediation steps.</div>
 </li></ul></div>
             
           </div>
@@ -1879,46 +2035,46 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:78%"></div></div><span class="score-num score-num-mid">78</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:78745e075c4cffd4">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:78745e075c4cffd4')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:78745e075c4cffd4')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:78745e075c4cffd4')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:78745e075c4cffd4')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:78745e075c4cffd4')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:78745e075c4cffd4')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:78745e075c4cffd4')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:78745e075c4cffd4')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:78745e075c4cffd4')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:78745e075c4cffd4')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:78745e075c4cffd4" class="tab-panel active"><div class="prose"><mark class="tag-hl">Microsoft</mark> is adding a two-hour delay to automatic VS Code extension updates to reduce exposure to malicious or compromised releases in software supply chain attacks. Users can still manually update immediately, and trusted publishers like <mark class="tag-hl">Microsoft</mark>, <mark class="tag-hl">GitHub</mark>, and <mark class="tag-hl">OpenAI</mark> are exempt from the delay.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:78745e075c4cffd4" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark> announced that <mark class="tag-hl">Visual Studio Code</mark> will delay automatic extension updates by two hours when automatic updates are enabled. The change is intended to add protection against problematic or potentially compromised releases. The feature is available starting in VS Code 1.123.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:78745e075c4cffd4" class="tab-panel active"><div class="prose">Microsoft is adding a two-hour delay to automatic VS Code extension updates to reduce exposure to malicious or compromised releases in software supply chain attacks. Users can still manually update immediately, and trusted publishers like Microsoft, GitHub, and OpenAI are exempt from the delay.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:78745e075c4cffd4" class="tab-panel"><div class="prose"><p>Microsoft announced that Visual Studio Code will delay automatic extension updates by two hours when automatic updates are enabled. The change is intended to add protection against problematic or potentially compromised releases. The feature is available starting in VS Code 1.123.</p>
 
-<p>Users can still update any extension immediately by selecting the “Update” button. For pending extension updates, VS Code will show why the update has not yet been applied and when the automatic update is scheduled. The two-hour delay does not apply to extensions from trusted publishers such as <mark class="tag-hl">Microsoft</mark>, <mark class="tag-hl">GitHub</mark>, and <mark class="tag-hl">OpenAI</mark>.</p>
+<p>Users can still update any extension immediately by selecting the “Update” button. For pending extension updates, VS Code will show why the update has not yet been applied and when the automatic update is scheduled. The two-hour delay does not apply to extensions from trusted publishers such as Microsoft, GitHub, and OpenAI.</p>
 
-<p>The move follows similar time-based controls added across developer ecosystems, including <mark class="tag-hl">Bundler</mark>, <mark class="tag-hl">Bun</mark>, <mark class="tag-hl">npm</mark>, <mark class="tag-hl">pnpm</mark>, and <mark class="tag-hl">Yarn</mark>. These controls are designed to reduce exposure to newly published malicious versions before they are detected and removed by registry maintainers. The article frames the change as part of a broader response to increased software supply chain incidents targeting developer systems and downstream users.</p>
+<p>The move follows similar time-based controls added across developer ecosystems, including Bundler, Bun, npm, pnpm, and Yarn. These controls are designed to reduce exposure to newly published malicious versions before they are detected and removed by registry maintainers. The article frames the change as part of a broader response to increased software supply chain incidents targeting developer systems and downstream users.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:78745e075c4cffd4" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark> has announced a two-hour delay before <mark class="tag-hl">Visual Studio Code</mark> extensions are automatically updated to newer versions. The change applies when automatic updates are enabled and is intended to limit exposure to problematic or potentially compromised extension releases. <mark class="tag-hl">Microsoft</mark> said the delay adds an additional layer of protection against such releases. The feature is available starting in VS Code 1.123.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:78745e075c4cffd4" class="tab-panel"><div class="prose"><p>Microsoft has announced a two-hour delay before Visual Studio Code extensions are automatically updated to newer versions. The change applies when automatic updates are enabled and is intended to limit exposure to problematic or potentially compromised extension releases. Microsoft said the delay adds an additional layer of protection against such releases. The feature is available starting in VS Code 1.123.</p>
 
 <p>The delay affects automatic updates, but users retain the ability to update extensions immediately. The article states that any extension can still be updated at any time by using the “Update” button. When an update is pending, the extension details view will show the reason it has not yet updated and when the automatic update will occur.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> also identified an exception to the new delay. Extensions from trusted publishers such as <mark class="tag-hl">Microsoft</mark>, <mark class="tag-hl">GitHub</mark>, and <mark class="tag-hl">OpenAI</mark> will continue to be updated immediately. The article does not describe any specific compromised VS Code extension or named threat actor behind the change.</p>
+<p>Microsoft also identified an exception to the new delay. Extensions from trusted publishers such as Microsoft, GitHub, and OpenAI will continue to be updated immediately. The article does not describe any specific compromised VS Code extension or named threat actor behind the change.</p>
 
-<p>The VS Code update comes shortly after <mark class="tag-hl">RubyGems</mark> added an opt-in cooldown feature to <mark class="tag-hl">Bundler</mark> 4.0.13. That feature allows developers to configure a time-based delay before newly published gem versions are installed. The stated goal is to reduce exposure to newly published malicious versions.</p>
+<p>The VS Code update comes shortly after RubyGems added an opt-in cooldown feature to Bundler 4.0.13. That feature allows developers to configure a time-based delay before newly published gem versions are installed. The stated goal is to reduce exposure to newly published malicious versions.</p>
 
-<p>The article also notes that similar installation controls have been introduced over the past year in <mark class="tag-hl">Bun</mark>, <mark class="tag-hl">npm</mark>, <mark class="tag-hl">pnpm</mark>, and <mark class="tag-hl">Yarn</mark>. These include <mark class="tag-hl">Bun</mark>’s minimumReleaseAge, <mark class="tag-hl">npm</mark>’s min-release-age, <mark class="tag-hl">pnpm</mark>’s minimumReleaseAge, and <mark class="tag-hl">Yarn</mark>’s npmMinimalAgeGate. The broader purpose of these minimum-age thresholds is to narrow the time window in which malicious packages can spread before registry maintainers identify and remove them.</p>
+<p>The article also notes that similar installation controls have been introduced over the past year in Bun, npm, pnpm, and Yarn. These include Bun’s minimumReleaseAge, npm’s min-release-age, pnpm’s minimumReleaseAge, and Yarn’s npmMinimalAgeGate. The broader purpose of these minimum-age thresholds is to narrow the time window in which malicious packages can spread before registry maintainers identify and remove them.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:78745e075c4cffd4" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:78745e075c4cffd4" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> announced that <mark class="tag-hl">Visual Studio Code</mark> will introduce a two-hour delay before extensions are automatically updated to newer versions. The change is designed to help address software supply chain threats by reducing the chance that users immediately receive problematic or potentially compromised extension releases. <mark class="tag-hl">Microsoft</mark> said that when automatic updates are enabled, new versions will be auto-updated two hours after publication.</p>
+<p>Microsoft announced that Visual Studio Code will introduce a two-hour delay before extensions are automatically updated to newer versions. The change is designed to help address software supply chain threats by reducing the chance that users immediately receive problematic or potentially compromised extension releases. Microsoft said that when automatic updates are enabled, new versions will be auto-updated two hours after publication.</p>
 
 <p>The feature is available starting in VS Code 1.123. The article presents the change as a defensive control for the IDE’s extension update process rather than as a response to a specific named incident.</p>
 
 <h2 id="how-the-vs-code-update-delay-works">How the VS Code update delay works</h2>
 
-<p>When automatic extension updates are enabled, VS Code will not immediately install newly published extension versions. Instead, it will wait two hours before applying the update automatically. <mark class="tag-hl">Microsoft</mark> described this as an added layer of protection against problematic or potentially compromised releases.</p>
+<p>When automatic extension updates are enabled, VS Code will not immediately install newly published extension versions. Instead, it will wait two hours before applying the update automatically. Microsoft described this as an added layer of protection against problematic or potentially compromised releases.</p>
 
 <p>Users are not forced to wait if they choose to update manually. The article states that users can still update any extension immediately at any time by using the “Update” button.</p>
 
@@ -1926,21 +2082,21 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="exceptions-for-trusted-publishers">Exceptions for trusted publishers</h2>
 
-<p>The two-hour delay does not apply to extensions from trusted publishers. <mark class="tag-hl">Microsoft</mark> specifically named <mark class="tag-hl">Microsoft</mark>, <mark class="tag-hl">GitHub</mark>, and <mark class="tag-hl">OpenAI</mark> as examples of trusted publishers. Extensions from those publishers will continue to be updated immediately.</p>
+<p>The two-hour delay does not apply to extensions from trusted publishers. Microsoft specifically named Microsoft, GitHub, and OpenAI as examples of trusted publishers. Extensions from those publishers will continue to be updated immediately.</p>
 
 <p>The article does not provide additional criteria for how trusted publishers are selected. It only states that extensions from trusted publishers are exempt from the delay.</p>
 
 <h2 id="related-ecosystem-changes">Related ecosystem changes</h2>
 
-<p>The article places <mark class="tag-hl">Microsoft</mark>’s VS Code change in the context of similar time-based controls added to other developer tooling ecosystems. It notes that <mark class="tag-hl">RubyGems</mark> recently added an opt-in cooldown feature to <mark class="tag-hl">Bundler</mark> 4.0.13. That feature allows developers to configure <mark class="tag-hl">Bundler</mark> to delay installation of newly published gem versions for a predefined period.</p>
+<p>The article places Microsoft’s VS Code change in the context of similar time-based controls added to other developer tooling ecosystems. It notes that RubyGems recently added an opt-in cooldown feature to Bundler 4.0.13. That feature allows developers to configure Bundler to delay installation of newly published gem versions for a predefined period.</p>
 
 <p>The article also lists similar controls added over the past year:</p>
 
 <ul>
-<li><mark class="tag-hl">Bun</mark> 1.3 and later: <code>minimumReleaseAge</code>.</li>
-<li><mark class="tag-hl">npm</mark> v11.10.0 and later: <code>min-release-age</code>.</li>
-<li><mark class="tag-hl">pnpm</mark> 10.16 and later: <code>minimumReleaseAge</code>.</li>
-<li><mark class="tag-hl">Yarn</mark> Berry 4.10.0 and later: <code>npmMinimalAgeGate</code>.</li>
+<li>Bun 1.3 and later: <code>minimumReleaseAge</code>.</li>
+<li>npm v11.10.0 and later: <code>min-release-age</code>.</li>
+<li>pnpm 10.16 and later: <code>minimumReleaseAge</code>.</li>
+<li>Yarn Berry 4.10.0 and later: <code>npmMinimalAgeGate</code>.</li>
 </ul>
 
 <p>These controls share a common purpose: delaying the adoption or installation of newly published versions so that malicious releases have less opportunity to spread before being detected.</p>
@@ -1955,12 +2111,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>For VS Code users with automatic extension updates enabled, the main impact is that some extension updates will be delayed by two hours. Users who want a specific update immediately can still install it manually. Users will also be able to see the reason for a pending update and the scheduled automatic update time in the extension details view.</p>
 
-<p>For publishers considered trusted by <mark class="tag-hl">Microsoft</mark>, including <mark class="tag-hl">Microsoft</mark>, <mark class="tag-hl">GitHub</mark>, and <mark class="tag-hl">OpenAI</mark>, extension updates will continue to happen immediately. The article does not describe any required action for extension publishers or administrators beyond the new behavior in VS Code 1.123.</p>
+<p>For publishers considered trusted by Microsoft, including Microsoft, GitHub, and OpenAI, extension updates will continue to happen immediately. The article does not describe any required action for extension publishers or administrators beyond the new behavior in VS Code 1.123.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:78745e075c4cffd4" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">VS Code’s delay model mirrors a broader ecosystem shift in which package managers and developer tools are adding minimum-age controls to reduce exposure to newly published malicious versions.</span></li><li><span class="kp-text">The protection is not absolute because users can bypass the delay by manually clicking the Update button for any pending extension.</span></li><li><span class="kp-text">The trusted-publisher exemption means extensions from <mark class="tag-hl">Microsoft</mark>, <mark class="tag-hl">GitHub</mark>, and <mark class="tag-hl">OpenAI</mark> will not receive the same two-hour waiting period before automatic updates.</span></li><li><span class="kp-text">VS Code will show users why an extension update is pending and when it will be applied, making the delay visible rather than silent.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:78745e075c4cffd4" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">VS Code’s delay model mirrors a broader ecosystem shift in which package managers and developer tools are adding minimum-age controls to reduce exposure to newly published malicious versions.</span></li><li><span class="kp-text">The protection is not absolute because users can bypass the delay by manually clicking the Update button for any pending extension.</span></li><li><span class="kp-text">The trusted-publisher exemption means extensions from Microsoft, GitHub, and OpenAI will not receive the same two-hour waiting period before automatic updates.</span></li><li><span class="kp-text">VS Code will show users why an extension update is pending and when it will be applied, making the delay visible rather than silent.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark> announced that <mark class="tag-hl">Visual Studio Code</mark> will delay automatic extension updates by two hours to help address software supply chain threats.</span></li><li><span class="kp-text">The delayed automatic update feature is available starting in <mark class="tag-hl">Visual Studio Code</mark> 1.123.</span></li><li><span class="kp-text">Users can still manually update any extension immediately by using the Update button.</span></li><li><span class="kp-text">The two-hour delay does not apply to extensions from trusted publishers such as <mark class="tag-hl">Microsoft</mark>, <mark class="tag-hl">GitHub</mark>, and <mark class="tag-hl">OpenAI</mark>, which will continue to update immediately.</span></li><li><span class="kp-text">Similar time-based installation delay controls have been added to <mark class="tag-hl">Bundler</mark>, <mark class="tag-hl">Bun</mark>, <mark class="tag-hl">npm</mark>, <mark class="tag-hl">pnpm</mark>, and <mark class="tag-hl">Yarn</mark>.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft announced that Visual Studio Code will delay automatic extension updates by two hours to help address software supply chain threats.</span></li><li><span class="kp-text">The delayed automatic update feature is available starting in Visual Studio Code 1.123.</span></li><li><span class="kp-text">Users can still manually update any extension immediately by using the Update button.</span></li><li><span class="kp-text">The two-hour delay does not apply to extensions from trusted publishers such as Microsoft, GitHub, and OpenAI, which will continue to update immediately.</span></li><li><span class="kp-text">Similar time-based installation delay controls have been added to Bundler, Bun, npm, pnpm, and Yarn.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/vs-code-adds-2-hour-extension-auto.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific security-relevant product change in VS Code, a widely used developer tool, aimed at reducing software supply chain risk from compromised extensions. It is broadly relevant for security professionals and developer tooling administrators, but it is not an active exploitation report, breach, or critical patch.</p>
 </div></div>
@@ -1992,38 +2149,38 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:52%"></div></div><span class="score-num score-num-low">52</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="4ce5f593711dadd45bbdeb3ba17881cf:e5e5ae8d25326bb1">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-e8c7716c0b1cfc9efbde912d6a5acefe:e5e5ae8d25326bb1')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-e8c7716c0b1cfc9efbde912d6a5acefe:e5e5ae8d25326bb1')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-e8c7716c0b1cfc9efbde912d6a5acefe:e5e5ae8d25326bb1')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-e8c7716c0b1cfc9efbde912d6a5acefe:e5e5ae8d25326bb1')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-e8c7716c0b1cfc9efbde912d6a5acefe:e5e5ae8d25326bb1')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-4ce5f593711dadd45bbdeb3ba17881cf:e5e5ae8d25326bb1')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-4ce5f593711dadd45bbdeb3ba17881cf:e5e5ae8d25326bb1')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-4ce5f593711dadd45bbdeb3ba17881cf:e5e5ae8d25326bb1')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-4ce5f593711dadd45bbdeb3ba17881cf:e5e5ae8d25326bb1')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-4ce5f593711dadd45bbdeb3ba17881cf:e5e5ae8d25326bb1')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-e8c7716c0b1cfc9efbde912d6a5acefe:e5e5ae8d25326bb1" class="tab-panel active"><div class="prose">Executive identities are increasingly targeted because their authority, trust, and public visibility make them ideal for impersonation, fraud, and broader compromise. Organizations should treat executive identity exposure as an enterprise risk and monitor, measure, and reduce it proactively.</div></div>
-                <div id="brief-e8c7716c0b1cfc9efbde912d6a5acefe:e5e5ae8d25326bb1" class="tab-panel"><div class="prose"><p>The article argues that executive identity exposure has become a board-level cybersecurity issue because attackers increasingly target CEOs, CFOs, board members, and senior leaders. These individuals may not have the most technical access, but they carry influence, authority, and trust. That combination makes executive identities valuable for impersonation, fraud, data theft, and broader organizational compromise.</p>
+                <div id="tldr-4ce5f593711dadd45bbdeb3ba17881cf:e5e5ae8d25326bb1" class="tab-panel active"><div class="prose">Executive identities are increasingly targeted because their authority, trust, and public visibility make them ideal for impersonation, fraud, and broader compromise. Organizations should treat executive identity exposure as an enterprise risk and monitor, measure, and reduce it proactively.</div></div>
+                <div id="brief-4ce5f593711dadd45bbdeb3ba17881cf:e5e5ae8d25326bb1" class="tab-panel"><div class="prose"><p>The article argues that executive identity exposure has become a board-level cybersecurity issue because attackers increasingly target CEOs, CFOs, board members, and senior leaders. These individuals may not have the most technical access, but they carry influence, authority, and trust. That combination makes executive identities valuable for impersonation, fraud, data theft, and broader organizational compromise.</p>
 
-<p>The article emphasizes that executive exposure extends beyond corporate systems into personal email accounts, social media, professional networking platforms, public records, media coverage, conference appearances, and board memberships. Attackers can use this public and personal information to build detailed profiles and launch convincing attacks. AI is described as increasing the sophistication of these efforts by enabling personalized <mark class="tag-hl">phishing</mark>, realistic impersonation content, and convincing executive communications.</p>
+<p>The article emphasizes that executive exposure extends beyond corporate systems into personal email accounts, social media, professional networking platforms, public records, media coverage, conference appearances, and board memberships. Attackers can use this public and personal information to build detailed profiles and launch convincing attacks. AI is described as increasing the sophistication of these efforts by enabling personalized phishing, realistic impersonation content, and convincing executive communications.</p>
 
 <p>The article recommends treating executive identity risk as an enterprise risk management concern rather than a personal security issue. It highlights metrics such as executive exposure rate, high-risk executive identities, impersonation incidents, time-to-remediation, and exposure trend analysis. It also calls for continuous identity monitoring, exposure assessment, executive awareness, incident response planning, and board reporting.</p>
 </div></div>
-                <div id="standard-e8c7716c0b1cfc9efbde912d6a5acefe:e5e5ae8d25326bb1" class="tab-panel"><div class="prose"><p>The article presents executive identity exposure as a growing cybersecurity and governance concern. It says attackers are increasingly focusing on executives, including CEOs, CFOs, board members, and senior leadership. The reason is not necessarily technical privilege, but the influence, authority, and trust attached to executive roles. The article frames these identities as high-value assets and attractive targets in the modern threat landscape.</p>
+                <div id="standard-4ce5f593711dadd45bbdeb3ba17881cf:e5e5ae8d25326bb1" class="tab-panel"><div class="prose"><p>The article presents executive identity exposure as a growing cybersecurity and governance concern. It says attackers are increasingly focusing on executives, including CEOs, CFOs, board members, and senior leadership. The reason is not necessarily technical privilege, but the influence, authority, and trust attached to executive roles. The article frames these identities as high-value assets and attractive targets in the modern threat landscape.</p>
 
-<p>The article explains that identity-based attacks have shifted attention away from only infrastructure, endpoints, networks, applications, and privileged technical accounts. Attackers now seek access through trust by using stolen credentials, <mark class="tag-hl">session hijacking</mark>, <mark class="tag-hl">social engineering</mark>, impersonation, <mark class="tag-hl">credential reuse</mark>, and identity intelligence. Executive identities are especially useful because they can support <mark class="tag-hl">business email compromise</mark>, financial fraud, data theft, reputational damage, insider threat scenarios, and broader organizational compromise.</p>
+<p>The article explains that identity-based attacks have shifted attention away from only infrastructure, endpoints, networks, applications, and privileged technical accounts. Attackers now seek access through trust by using stolen credentials, session hijacking, social engineering, impersonation, credential reuse, and identity intelligence. Executive identities are especially useful because they can support business email compromise, financial fraud, data theft, reputational damage, insider threat scenarios, and broader organizational compromise.</p>
 
-<p>A key point in the article is that executive identity exposure is not limited to corporate environments. Executives often have large digital footprints across personal email accounts, professional networking platforms, social media profiles, public records, conference appearances, board memberships, and media coverage. This publicly available information can help attackers create detailed profiles and make attacks more convincing. The article links this exposure to the rise of <mark class="tag-hl">executive impersonation</mark>.</p>
+<p>A key point in the article is that executive identity exposure is not limited to corporate environments. Executives often have large digital footprints across personal email accounts, professional networking platforms, social media profiles, public records, conference appearances, board memberships, and media coverage. This publicly available information can help attackers create detailed profiles and make attacks more convincing. The article links this exposure to the rise of executive impersonation.</p>
 
-<p>The article describes common <mark class="tag-hl">executive impersonation</mark> tactics such as fake email communications, <mark class="tag-hl">deepfake audio</mark> and video, <mark class="tag-hl">executive impersonation</mark> scams, fraudulent payment requests, and investor and vendor fraud. It also states that artificial intelligence is making executive targeting more effective. AI can help attackers generate personalized <mark class="tag-hl">phishing</mark> campaigns, create convincing executive communications, analyze public information at scale, and develop realistic impersonation content.</p>
+<p>The article describes common executive impersonation tactics such as fake email communications, deepfake audio and video, executive impersonation scams, fraudulent payment requests, and investor and vendor fraud. It also states that artificial intelligence is making executive targeting more effective. AI can help attackers generate personalized phishing campaigns, create convincing executive communications, analyze public information at scale, and develop realistic impersonation content.</p>
 
 <p>The article says executive identity exposure has become a board-level issue because the impacts can extend across financial, operational, reputational, regulatory, legal, and strategic risk. Boards are increasingly asking how exposed executives are, which identities present elevated risk, how compromise could affect the organization, and what controls exist to reduce exposure. The recommended response includes measuring executive exposure, monitoring identity risk, improving awareness, planning for executive-focused incidents, and reporting risk to the board.</p>
 </div></div>
-                <div id="comprehensive-e8c7716c0b1cfc9efbde912d6a5acefe:e5e5ae8d25326bb1" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-4ce5f593711dadd45bbdeb3ba17881cf:e5e5ae8d25326bb1" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
 <p>The article argues that executive identity exposure has become a major cybersecurity and enterprise risk issue. It says attackers increasingly target executives such as CEOs, CFOs, board members, and senior leaders because these individuals possess influence, authority, and trust. The article emphasizes that executives may not have the most technical access in an organization, but their identities can be highly valuable to attackers.</p>
 
@@ -2037,10 +2194,10 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <ul>
 <li>Stolen credentials</li>
-<li><mark class="tag-hl">Session hijacking</mark></li>
-<li><mark class="tag-hl">Social engineering</mark></li>
+<li>Session hijacking</li>
+<li>Social engineering</li>
 <li>Impersonation</li>
-<li><mark class="tag-hl">Credential reuse</mark></li>
+<li>Credential reuse</li>
 <li>Identity intelligence</li>
 </ul>
 
@@ -2053,7 +2210,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>From the attacker’s perspective, compromising or impersonating an executive can create opportunities beyond those associated with an ordinary user account. The article lists potential outcomes of executive compromise, including:</p>
 
 <ul>
-<li><mark class="tag-hl">Business email compromise</mark></li>
+<li>Business email compromise</li>
 <li>Financial fraud</li>
 <li>Data theft</li>
 <li>Reputational damage</li>
@@ -2081,16 +2238,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article explains that this visibility creates publicly available information that attackers can use to build detailed profiles. It states that the more information available about an executive, the easier it becomes to launch convincing attacks.</p>
 
-<h2 id="executive-impersonation"><mark class="tag-hl">Executive Impersonation</mark></h2>
+<h2 id="executive-impersonation">Executive Impersonation</h2>
 
-<p>The article identifies <mark class="tag-hl">executive impersonation</mark> as one of the fastest-growing forms of identity-based attack. Attackers use publicly available information to mimic executives and exploit trust relationships. The article states that people are conditioned to trust executives, and attackers exploit that trust.</p>
+<p>The article identifies executive impersonation as one of the fastest-growing forms of identity-based attack. Attackers use publicly available information to mimic executives and exploit trust relationships. The article states that people are conditioned to trust executives, and attackers exploit that trust.</p>
 
 <p>Common tactics mentioned in the article include:</p>
 
 <ul>
 <li>Fake email communications</li>
-<li><mark class="tag-hl">Deepfake audio</mark> and video</li>
-<li><mark class="tag-hl">Executive impersonation</mark> scams</li>
+<li>Deepfake audio and video</li>
+<li>Executive impersonation scams</li>
 <li>Fraudulent payment requests</li>
 <li>Investor and vendor fraud</li>
 </ul>
@@ -2104,7 +2261,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>AI-enabled capabilities described in the article include:</p>
 
 <ul>
-<li>Generating highly personalized <mark class="tag-hl">phishing</mark> campaigns</li>
+<li>Generating highly personalized phishing campaigns</li>
 <li>Creating convincing executive communications</li>
 <li>Analyzing public information at scale</li>
 <li>Developing realistic impersonation content</li>
@@ -2124,7 +2281,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h3 id="financial-loss">Financial Loss</h3>
 
-<p><mark class="tag-hl">Business email compromise</mark> is described as one of the most costly forms of cybercrime. The article states that <mark class="tag-hl">executive impersonation</mark> frequently serves as the catalyst.</p>
+<p>Business email compromise is described as one of the most costly forms of cybercrime. The article states that executive impersonation frequently serves as the catalyst.</p>
 
 <h3 id="operational-disruption">Operational Disruption</h3>
 
@@ -2151,7 +2308,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <ul>
 <li>Executive exposure rate, meaning the percentage of executive identities appearing in exposure datasets.</li>
 <li>High-risk executive identities, meaning executives associated with elevated exposure indicators.</li>
-<li><mark class="tag-hl">Executive impersonation</mark> incidents, meaning attempts to misuse executive identities.</li>
+<li>Executive impersonation incidents, meaning attempts to misuse executive identities.</li>
 <li>Time-to-remediation, meaning the speed at which executive identity risks are addressed.</li>
 <li>Exposure trend analysis, meaning changes in executive exposure over time.</li>
 </ul>
@@ -2188,7 +2345,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h3 id="executive-awareness">Executive Awareness</h3>
 
-<p>Leadership should be educated on identity-based threats and <mark class="tag-hl">social engineering</mark> tactics.</p>
+<p>Leadership should be educated on identity-based threats and social engineering tactics.</p>
 
 <h3 id="incident-response-planning">Incident Response Planning</h3>
 
@@ -2204,16 +2361,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article states that executive identity exposure is not a temporary trend. As organizations become more digital and interconnected, executive identities will continue to attract attacker attention.</p>
 
-<p>It also states that AI-powered attacks, <mark class="tag-hl">social engineering</mark>, and identity-based threats will become more sophisticated. Organizations that proactively manage executive identity risk are described as better positioned to protect both their leaders and the business itself.</p>
+<p>It also states that AI-powered attacks, social engineering, and identity-based threats will become more sophisticated. Organizations that proactively manage executive identity risk are described as better positioned to protect both their leaders and the business itself.</p>
 
 <h2 id="final-takeaway">Final Takeaway</h2>
 
 <p>The article concludes that executive identities are among the most valuable and most targeted assets in modern cybersecurity. What was once treated as a personal security issue is now presented as a business risk issue. The article says the key question is not whether executives are exposed, but whether organizations have the visibility needed to understand and reduce that exposure.</p>
 </div></div>
-                <div id="insights-e8c7716c0b1cfc9efbde912d6a5acefe:e5e5ae8d25326bb1" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Executive protection should account for personal and public digital footprints, not only corporate accounts, because the article identifies personal email, social media, public records, media coverage, and board memberships as sources attackers can use for targeting.</span></li><li><span class="kp-text">Board reporting on executive identity risk can be supported with measurable indicators such as exposure rate, impersonation incidents, time-to-remediation, and exposure trends, making the risk easier to govern rather than treating it as anecdotal.</span></li><li><span class="kp-text">The article frames executive identities as high-value assets even when they do not have the most technical privileges, because their authority can be used to trigger financial approvals, influence employees, and exploit trusted relationships.</span></li><li><span class="kp-text">AI meaningfully changes the executive-risk model by enabling attackers to generate personalized <mark class="tag-hl">phishing</mark>, convincing executive communications, and realistic impersonation content at scale.</span></li></ul></div>
+                <div id="insights-4ce5f593711dadd45bbdeb3ba17881cf:e5e5ae8d25326bb1" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Executive protection should account for personal and public digital footprints, not only corporate accounts, because the article identifies personal email, social media, public records, media coverage, and board memberships as sources attackers can use for targeting.</span></li><li><span class="kp-text">Board reporting on executive identity risk can be supported with measurable indicators such as exposure rate, impersonation incidents, time-to-remediation, and exposure trends, making the risk easier to govern rather than treating it as anecdotal.</span></li><li><span class="kp-text">The article frames executive identities as high-value assets even when they do not have the most technical privileges, because their authority can be used to trigger financial approvals, influence employees, and exploit trusted relationships.</span></li><li><span class="kp-text">AI meaningfully changes the executive-risk model by enabling attackers to generate personalized phishing, convincing executive communications, and realistic impersonation content at scale.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Attackers increasingly target executives such as CEOs, CFOs, board members, and senior leaders because they possess influence, authority, and trust rather than necessarily the most technical access.</span></li><li><span class="kp-text">Executive identity exposure extends beyond corporate systems to personal email accounts, professional networking platforms, social media profiles, public records, conference appearances, board memberships, and media coverage.</span></li><li><span class="kp-text"><mark class="tag-hl">Executive impersonation</mark> is increasing as attackers use publicly available information to mimic executives through fake emails, <mark class="tag-hl">deepfake audio</mark> and video, fraudulent payment requests, and investor or vendor fraud.</span></li><li><span class="kp-text">The article states that executive identity exposure has become a board-level issue because executive compromise can create financial, operational, reputational, regulatory, legal, and strategic risks.</span></li><li><span class="kp-text">Organizations can measure and manage executive identity risk through metrics such as executive exposure rate, high-risk executive identities, impersonation incidents, time-to-remediation, and exposure trend analysis.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Attackers increasingly target executives such as CEOs, CFOs, board members, and senior leaders because they possess influence, authority, and trust rather than necessarily the most technical access.</span></li><li><span class="kp-text">Executive identity exposure extends beyond corporate systems to personal email accounts, professional networking platforms, social media profiles, public records, conference appearances, board memberships, and media coverage.</span></li><li><span class="kp-text">Executive impersonation is increasing as attackers use publicly available information to mimic executives through fake emails, deepfake audio and video, fraudulent payment requests, and investor or vendor fraud.</span></li><li><span class="kp-text">The article states that executive identity exposure has become a board-level issue because executive compromise can create financial, operational, reputational, regulatory, legal, and strategic risks.</span></li><li><span class="kp-text">Organizations can measure and manage executive identity risk through metrics such as executive exposure rate, high-risk executive identities, impersonation incidents, time-to-remediation, and exposure trend analysis.</span></li></ul></div>
+            
             <a href="https://constella.ai/blog/executive-identity-exposure-has-become-a-board-level-issue/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article is a broad trend and best-practice perspective on executive identity exposure rather than a report on a specific incident, named threat actor, vulnerability, or new research finding. It may be useful for governance and risk discussions, but as evergreen guidance it is low priority under the scoring rules.</p>
 </div></div>
@@ -2239,29 +2397,29 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest highlights a coverage window dominated by software supply chain compromise, identity-centric intrusion, and abuse of trusted support or administrative workflows. The most technically significant reporting centers on the Hades <mark class="tag-hl">PyPI</mark> campaign, which combined cross-platform memory scraping, <mark class="tag-hl">GitHub</mark>-based command-and-control, and <mark class="tag-hl">prompt-injection</mark> intended to mislead automated analysis. Separately, reporting on <mark class="tag-hl">UNC3753</mark> and <mark class="tag-hl">Meta</mark>’s <mark class="tag-hl">Instagram</mark> account recovery breach illustrates how attackers continue to exploit human trust, support processes, and identity exposure to accelerate data theft and account compromise.</p>
+        <div class="overview-body prose"><p>This digest highlights a coverage window dominated by software supply chain compromise, identity-centric intrusion, and abuse of trusted support or administrative workflows. The most technically significant reporting centers on the Hades PyPI campaign, which combined cross-platform memory scraping, GitHub-based command-and-control, and prompt-injection intended to mislead automated analysis. Separately, reporting on UNC3753 and Meta’s Instagram account recovery breach illustrates how attackers continue to exploit human trust, support processes, and identity exposure to accelerate data theft and account compromise.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Software Supply Chain and Developer Ecosystem Abuse</span>
         </div>
-        <div class="overview-body prose"><p>StepSecurity reported that version 0.8.101 of the <mark class="tag-hl">PyPI</mark> package <code><mark class="tag-hl">ensmallen</mark></code> and related computational biology, bioinformatics, and genotype-phenotype packages were compromised with a shared malicious payload. The malware used a Python import hook to download a standalone <mark class="tag-hl">Bun</mark> runtime and execute a companion <code>_index.js</code> payload once per boot cycle, tracked through a <code>/tmp/.bun_ran</code> flag file.</p>
+        <div class="overview-body prose"><p>StepSecurity reported that version 0.8.101 of the PyPI package <code>ensmallen</code> and related computational biology, bioinformatics, and genotype-phenotype packages were compromised with a shared malicious payload. The malware used a Python import hook to download a standalone Bun runtime and execute a companion <code>_index.js</code> payload once per boot cycle, tracked through a <code>/tmp/.bun_ran</code> flag file.</p>
 
-<p>The <mark class="tag-hl">Hades campaign</mark> payload included Linux, macOS, and Windows memory scrapers designed to read <mark class="tag-hl">GitHub Actions</mark> <code>Runner.Worker</code> process memory and extract plaintext variables and tokens. Reporting also described <mark class="tag-hl">GitHub</mark>-based command-and-control, encrypted exfiltration repositories, worm propagation through SSH/SCP and package publishing workflows, and persistence mechanisms that included a <mark class="tag-hl">GitHub</mark> token revocation wiper deterrent.</p>
+<p>The Hades campaign payload included Linux, macOS, and Windows memory scrapers designed to read GitHub Actions <code>Runner.Worker</code> process memory and extract plaintext variables and tokens. Reporting also described GitHub-based command-and-control, encrypted exfiltration repositories, worm propagation through SSH/SCP and package publishing workflows, and persistence mechanisms that included a GitHub token revocation wiper deterrent.</p>
 
-<p>The same report noted a <mark class="tag-hl">prompt-injection</mark> block inside the JavaScript bundle intended to influence automated LLM-based security analysis into classifying the package as benign. In related developer ecosystem news, <mark class="tag-hl">Microsoft</mark> announced that <mark class="tag-hl">Visual Studio Code</mark> 1.123 will delay automatic extension updates by two hours to limit exposure to supply chain attacks, while still allowing manual immediate updates and exempting trusted publishers such as <mark class="tag-hl">Microsoft</mark>, <mark class="tag-hl">GitHub</mark>, and <mark class="tag-hl">OpenAI</mark>. Similar time-based installation delay controls have also appeared across <mark class="tag-hl">Bundler</mark>, <mark class="tag-hl">Bun</mark>, <mark class="tag-hl">npm</mark>, <mark class="tag-hl">pnpm</mark>, and <mark class="tag-hl">Yarn</mark>.</p>
+<p>The same report noted a prompt-injection block inside the JavaScript bundle intended to influence automated LLM-based security analysis into classifying the package as benign. In related developer ecosystem news, Microsoft announced that Visual Studio Code 1.123 will delay automatic extension updates by two hours to limit exposure to supply chain attacks, while still allowing manual immediate updates and exempting trusted publishers such as Microsoft, GitHub, and OpenAI. Similar time-based installation delay controls have also appeared across Bundler, Bun, npm, pnpm, and Yarn.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Identity, Social Engineering, and Support Workflow Exploitation</span>
         </div>
-        <div class="overview-body prose"><p>Google Mandiant and Google Threat Intelligence Group attributed a financially motivated U.S. data theft extortion campaign to <mark class="tag-hl">UNC3753</mark>, targeting professional, legal, and financial services organizations between January and May 2026. The actor used <mark class="tag-hl">vishing</mark> and social engineering to impersonate IT support, move victims into screen-sharing sessions, and guide installation of legitimate remote monitoring and management tools including <mark class="tag-hl">AnyDesk</mark>, <mark class="tag-hl">Bomgar</mark>, <mark class="tag-hl">SuperOps RMM</mark>, and <mark class="tag-hl">Zoho Assist</mark>.</p>
+        <div class="overview-body prose"><p>Google Mandiant and Google Threat Intelligence Group attributed a financially motivated U.S. data theft extortion campaign to UNC3753, targeting professional, legal, and financial services organizations between January and May 2026. The actor used vishing and social engineering to impersonate IT support, move victims into screen-sharing sessions, and guide installation of legitimate remote monitoring and management tools including AnyDesk, Bomgar, SuperOps RMM, and Zoho Assist.</p>
 
-<p>The FBI also reported that <mark class="tag-hl">UNC3753</mark> conducted physical intrusions by posing as IT technicians to enter corporate offices and steal data using external hard drives or USB drives. Reported stolen data included proprietary legal agreements, personally identifiable information, financial records, tax filings, audits, corporate client agreements, and Social Security numbers. Google said many operations moved from initial contact to extortion within a single business day, with searches, staging, and theft beginning in under an hour.</p>
+<p>The FBI also reported that UNC3753 conducted physical intrusions by posing as IT technicians to enter corporate offices and steal data using external hard drives or USB drives. Reported stolen data included proprietary legal agreements, personally identifiable information, financial records, tax filings, audits, corporate client agreements, and Social Security numbers. Google said many operations moved from initial contact to extortion within a single business day, with searches, staging, and theft beginning in under an hour.</p>
 
-<p><mark class="tag-hl">Meta</mark> disclosed that more than 20,000 <mark class="tag-hl">Instagram</mark> users had their accounts hijacked after attackers abused its AI-powered <mark class="tag-hl">High Touch Support</mark> account recovery tool to reset passwords. The flaw allowed attackers to obtain password reset links because the tool did not verify whether email addresses were associated with the targeted <mark class="tag-hl">Instagram</mark> accounts. <mark class="tag-hl">Meta</mark> said affected data may have included contact information, dates of birth, posts, photos, videos, stories, direct messages, account activity, profile information, and linked accounts or services.</p>
+<p>Meta disclosed that more than 20,000 Instagram users had their accounts hijacked after attackers abused its AI-powered High Touch Support account recovery tool to reset passwords. The flaw allowed attackers to obtain password reset links because the tool did not verify whether email addresses were associated with the targeted Instagram accounts. Meta said affected data may have included contact information, dates of birth, posts, photos, videos, stories, direct messages, account activity, profile information, and linked accounts or services.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
@@ -2279,9 +2437,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-08 06:00 UTC · 4 hours window</span>
-  <span class="footer-right">5 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">5 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -2294,15 +2455,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2415,12 +2638,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2481,6 +2738,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

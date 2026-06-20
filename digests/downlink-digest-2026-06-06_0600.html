@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,90 +1506,90 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:94%"></div></div><span class="score-num score-num-high">94</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:ed7cb5908ca7edf7">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:ed7cb5908ca7edf7')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:ed7cb5908ca7edf7')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:ed7cb5908ca7edf7')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:ed7cb5908ca7edf7')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:ed7cb5908ca7edf7')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:ed7cb5908ca7edf7')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:ed7cb5908ca7edf7')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:ed7cb5908ca7edf7')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:ed7cb5908ca7edf7')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:ed7cb5908ca7edf7')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:ed7cb5908ca7edf7" class="tab-panel active"><div class="prose">The <mark class="tag-hl">Miasma</mark> self-replicating supply chain worm has compromised 73 <mark class="tag-hl">Microsoft</mark> <mark class="tag-hl">GitHub</mark> repositories, including <mark class="tag-hl">Azure</mark> and Durable Task projects, prompting <mark class="tag-hl">GitHub</mark> to disable access. The campaign is spreading through trusted developer channels like <mark class="tag-hl">npm</mark>, <mark class="tag-hl">PyPI</mark>, <mark class="tag-hl">GitHub</mark> commits, and AI coding tool configurations, exposing how compromised maintainer credentials can turn legitimate publishing workflows into propagation paths.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:ed7cb5908ca7edf7" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">GitHub</mark> repositories were hit by the ongoing <mark class="tag-hl">Miasma</mark> self-replicating supply chain campaign. OpenSourceMalware reported that 73 repositories across the <mark class="tag-hl">Azure</mark>, <mark class="tag-hl">Azure</mark>-Samples, <mark class="tag-hl">Microsoft</mark>, and MicrosoftDocs <mark class="tag-hl">GitHub</mark> organizations were impacted. <mark class="tag-hl">GitHub</mark> disabled access to affected repositories, with a notice citing a violation of <mark class="tag-hl">GitHub</mark>’s terms of service.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:ed7cb5908ca7edf7" class="tab-panel active"><div class="prose">The Miasma self-replicating supply chain worm has compromised 73 Microsoft GitHub repositories, including Azure and Durable Task projects, prompting GitHub to disable access. The campaign is spreading through trusted developer channels like npm, PyPI, GitHub commits, and AI coding tool configurations, exposing how compromised maintainer credentials can turn legitimate publishing workflows into propagation paths.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:ed7cb5908ca7edf7" class="tab-panel"><div class="prose"><p>Microsoft’s GitHub repositories were hit by the ongoing Miasma self-replicating supply chain campaign. OpenSourceMalware reported that 73 repositories across the Azure, Azure-Samples, Microsoft, and MicrosoftDocs GitHub organizations were impacted. GitHub disabled access to affected repositories, with a notice citing a violation of GitHub’s terms of service.</p>
 
-<p>The article highlights the re-compromise of the <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> package, which had been infected the previous month by <mark class="tag-hl">TeamPCP</mark> to deliver an information stealer on Linux systems. Security researcher Paul McCarty said the takedown of the Durable Task ecosystem suggested the same “wound” had reopened. <mark class="tag-hl">Miasma</mark> is assessed to be a variant of the <mark class="tag-hl">Mini Shai-Hulud</mark> worm publicly released by <mark class="tag-hl">TeamPCP</mark> in mid-May 2026.</p>
+<p>The article highlights the re-compromise of the durabletask PyPI package, which had been infected the previous month by TeamPCP to deliver an information stealer on Linux systems. Security researcher Paul McCarty said the takedown of the Durable Task ecosystem suggested the same “wound” had reopened. Miasma is assessed to be a variant of the Mini Shai-Hulud worm publicly released by TeamPCP in mid-May 2026.</p>
 
-<p><mark class="tag-hl">Miasma</mark> has continued to mutate, infect more packages, and create public repositories containing stolen secrets under names such as “<mark class="tag-hl">Miasma</mark>: The Spreading Blight” and “Hades - The End for the Damned.” The campaign has also skipped the <mark class="tag-hl">npm</mark> registry in some cases by pushing malicious code directly to <mark class="tag-hl">GitHub</mark> repositories. SafeDep said one commit planted a 4.3 MB payload runner and wired execution through Claude Code, Gemini CLI, Cursor, VS Code, and the <mark class="tag-hl">npm</mark> test script.</p>
+<p>Miasma has continued to mutate, infect more packages, and create public repositories containing stolen secrets under names such as “Miasma: The Spreading Blight” and “Hades - The End for the Damned.” The campaign has also skipped the npm registry in some cases by pushing malicious code directly to GitHub repositories. SafeDep said one commit planted a 4.3 MB payload runner and wired execution through Claude Code, Gemini CLI, Cursor, VS Code, and the npm test script.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:ed7cb5908ca7edf7" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">GitHub</mark> repositories became the latest victims of the ongoing <mark class="tag-hl">Miasma</mark> self-replicating supply chain attack campaign. According to OpenSourceMalware, the incident affected 73 <mark class="tag-hl">Microsoft</mark> repositories across the <mark class="tag-hl">Azure</mark>, <mark class="tag-hl">Azure</mark>-Samples, <mark class="tag-hl">Microsoft</mark>, and MicrosoftDocs <mark class="tag-hl">GitHub</mark> organizations. <mark class="tag-hl">GitHub</mark> disabled access to impacted repositories, including <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">azure-functions-host</mark>, with a message saying access was disabled due to a violation of <mark class="tag-hl">GitHub</mark>’s terms of service.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:ed7cb5908ca7edf7" class="tab-panel"><div class="prose"><p>Microsoft’s GitHub repositories became the latest victims of the ongoing Miasma self-replicating supply chain attack campaign. According to OpenSourceMalware, the incident affected 73 Microsoft repositories across the Azure, Azure-Samples, Microsoft, and MicrosoftDocs GitHub organizations. GitHub disabled access to impacted repositories, including Azure/azure-functions-host, with a message saying access was disabled due to a violation of GitHub’s terms of service.</p>
 
-<p>The article lists several affected repositories, including <mark class="tag-hl">azure</mark>-search-openai-demo-purviewdatasecurity, Connectors-NET-LSP, Connectors-NET-SDK, <mark class="tag-hl">durabletask</mark>, <mark class="tag-hl">durabletask</mark>-dotnet, <mark class="tag-hl">durabletask</mark>-go, <mark class="tag-hl">durabletask</mark>-js, <mark class="tag-hl">durabletask</mark>-mssql, functions-container-action, homebrew-functions, llm-fine-tuning, and windows-driver-docs. A notable element of the campaign is the re-compromise of the <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> package. That package had been infected the previous month by <mark class="tag-hl">TeamPCP</mark> to deliver an information stealer on Linux systems.</p>
+<p>The article lists several affected repositories, including azure-search-openai-demo-purviewdatasecurity, Connectors-NET-LSP, Connectors-NET-SDK, durabletask, durabletask-dotnet, durabletask-go, durabletask-js, durabletask-mssql, functions-container-action, homebrew-functions, llm-fine-tuning, and windows-driver-docs. A notable element of the campaign is the re-compromise of the durabletask PyPI package. That package had been infected the previous month by TeamPCP to deliver an information stealer on Linux systems.</p>
 
-<p>Security researcher Paul McCarty, also known as 6mile, said the latest takedown included not only <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">durabletask</mark> but sibling repositories across the Durable Task ecosystem. He described the recurrence as “the same wound reopening” and said whoever held the credentials in May plausibly never fully lost them. The article does not state that this has been confirmed, but presents it as McCarty’s assessment.</p>
+<p>Security researcher Paul McCarty, also known as 6mile, said the latest takedown included not only Azure/durabletask but sibling repositories across the Durable Task ecosystem. He described the recurrence as “the same wound reopening” and said whoever held the credentials in May plausibly never fully lost them. The article does not state that this has been confirmed, but presents it as McCarty’s assessment.</p>
 
-<p><mark class="tag-hl">Miasma</mark> is assessed to be a variant of the <mark class="tag-hl">Mini Shai-Hulud</mark> worm that <mark class="tag-hl">TeamPCP</mark> publicly released in mid-May 2026. The campaign has continued to mutate and refine its tactics while infecting more packages. The article says newly created public repositories containing stolen secrets used descriptions including “<mark class="tag-hl">Miasma</mark>: The Spreading Blight,” “<mark class="tag-hl">Miasma</mark> : The Spreading Blight,” “<mark class="tag-hl">Miasma</mark> - The Spreading Blight,” and “Hades - The End for the Damned.”</p>
+<p>Miasma is assessed to be a variant of the Mini Shai-Hulud worm that TeamPCP publicly released in mid-May 2026. The campaign has continued to mutate and refine its tactics while infecting more packages. The article says newly created public repositories containing stolen secrets used descriptions including “Miasma: The Spreading Blight,” “Miasma : The Spreading Blight,” “Miasma - The Spreading Blight,” and “Hades - The End for the Damned.”</p>
 
-<p><mark class="tag-hl">Miasma</mark> has also been observed skipping the <mark class="tag-hl">npm</mark> registry entirely by pushing malicious code directly to icflorescu/<mark class="tag-hl">mantine-datatable</mark> and related repositories. SafeDep said the commit added no dependencies but planted a 4.3 MB payload runner and wired it to execute automatically through Claude Code, Gemini CLI, Cursor, VS Code, and the <mark class="tag-hl">npm</mark> test script. FalconFeeds.io said the worm operates within legitimate channels by exploiting the trust model behind platforms such as <mark class="tag-hl">npm</mark> and <mark class="tag-hl">GitHub</mark> rather than exploiting a vulnerability in them.</p>
+<p>Miasma has also been observed skipping the npm registry entirely by pushing malicious code directly to icflorescu/mantine-datatable and related repositories. SafeDep said the commit added no dependencies but planted a 4.3 MB payload runner and wired it to execute automatically through Claude Code, Gemini CLI, Cursor, VS Code, and the npm test script. FalconFeeds.io said the worm operates within legitimate channels by exploiting the trust model behind platforms such as npm and GitHub rather than exploiting a vulnerability in them.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:ed7cb5908ca7edf7" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:ed7cb5908ca7edf7" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">GitHub</mark> repositories were affected by the ongoing <mark class="tag-hl">Miasma</mark> self-replicating supply chain attack campaign. OpenSourceMalware reported that the incident impacted 73 <mark class="tag-hl">Microsoft</mark> repositories across four <mark class="tag-hl">GitHub</mark> organizations: <mark class="tag-hl">Azure</mark>, <mark class="tag-hl">Azure</mark>-Samples, <mark class="tag-hl">Microsoft</mark>, and MicrosoftDocs. <mark class="tag-hl">GitHub</mark> disabled access to the affected repositories.</p>
+<p>Microsoft’s GitHub repositories were affected by the ongoing Miasma self-replicating supply chain attack campaign. OpenSourceMalware reported that the incident impacted 73 Microsoft repositories across four GitHub organizations: Azure, Azure-Samples, Microsoft, and MicrosoftDocs. GitHub disabled access to the affected repositories.</p>
 
-<p>When attempting to access the <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">azure-functions-host</mark> repository, <mark class="tag-hl">GitHub</mark> displayed a notice stating that access had been disabled by <mark class="tag-hl">GitHub</mark> Staff due to a violation of <mark class="tag-hl">GitHub</mark>’s terms of service. The notice also said repository owners could contact <mark class="tag-hl">GitHub</mark> Support for more information.</p>
+<p>When attempting to access the Azure/azure-functions-host repository, GitHub displayed a notice stating that access had been disabled by GitHub Staff due to a violation of GitHub’s terms of service. The notice also said repository owners could contact GitHub Support for more information.</p>
 
-<h2 id="affected-microsoft-repositories">Affected <mark class="tag-hl">Microsoft</mark> repositories</h2>
+<h2 id="affected-microsoft-repositories">Affected Microsoft repositories</h2>
 
 <p>The article says some of the repositories impacted by the incident include:</p>
 
 <ul>
-<li><mark class="tag-hl">azure</mark>-search-openai-demo-purviewdatasecurity</li>
+<li>azure-search-openai-demo-purviewdatasecurity</li>
 <li>Connectors-NET-LSP</li>
 <li>Connectors-NET-SDK</li>
-<li><mark class="tag-hl">durabletask</mark></li>
-<li><mark class="tag-hl">durabletask</mark>-dotnet</li>
-<li><mark class="tag-hl">durabletask</mark>-go</li>
-<li><mark class="tag-hl">durabletask</mark>-js</li>
-<li><mark class="tag-hl">durabletask</mark>-mssql</li>
+<li>durabletask</li>
+<li>durabletask-dotnet</li>
+<li>durabletask-go</li>
+<li>durabletask-js</li>
+<li>durabletask-mssql</li>
 <li>functions-container-action</li>
 <li>homebrew-functions</li>
 <li>llm-fine-tuning</li>
 <li>windows-driver-docs</li>
 </ul>
 
-<p>The affected repositories span <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">Azure</mark>, <mark class="tag-hl">Azure</mark>-Samples, <mark class="tag-hl">Microsoft</mark>, and MicrosoftDocs <mark class="tag-hl">GitHub</mark> organizations.</p>
+<p>The affected repositories span Microsoft’s Azure, Azure-Samples, Microsoft, and MicrosoftDocs GitHub organizations.</p>
 
 <h2 id="durable-task-re-compromise">Durable Task re-compromise</h2>
 
-<p>A notable aspect of the latest campaign is the re-compromise of the <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> package. The article states that <mark class="tag-hl">durabletask</mark> had been infected the previous month by <mark class="tag-hl">TeamPCP</mark> to deliver an information stealer on Linux systems.</p>
+<p>A notable aspect of the latest campaign is the re-compromise of the durabletask PyPI package. The article states that durabletask had been infected the previous month by TeamPCP to deliver an information stealer on Linux systems.</p>
 
-<p>Security researcher Paul McCarty, also known as 6mile, said that a month after the earlier compromise, <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">durabletask</mark> was gone along with sibling repositories in the Durable Task ecosystem. He identified affected ecosystem components including .NET, Go, Java, JS, MSSQL, Netherite, protobuf implementations, and the Durable Functions monitor.</p>
+<p>Security researcher Paul McCarty, also known as 6mile, said that a month after the earlier compromise, Azure/durabletask was gone along with sibling repositories in the Durable Task ecosystem. He identified affected ecosystem components including .NET, Go, Java, JS, MSSQL, Netherite, protobuf implementations, and the Durable Functions monitor.</p>
 
 <p>McCarty said the recurrence was “not a coincidence” and described it as “the same wound reopening.” He also said whoever held the credentials in May plausibly never fully lost them.</p>
 
-<h2 id="miasma-and-mini-shai-hulud"><mark class="tag-hl">Miasma</mark> and <mark class="tag-hl">Mini Shai-Hulud</mark></h2>
+<h2 id="miasma-and-mini-shai-hulud">Miasma and Mini Shai-Hulud</h2>
 
-<p>The article says <mark class="tag-hl">Miasma</mark> is assessed to be a variant of the <mark class="tag-hl">Mini Shai-Hulud</mark> worm that <mark class="tag-hl">TeamPCP</mark> publicly released in mid-May 2026. Since then, <mark class="tag-hl">Miasma</mark> has continued to mutate and refine its tactics. The article says it has infected more packages over the past couple of days.</p>
+<p>The article says Miasma is assessed to be a variant of the Mini Shai-Hulud worm that TeamPCP publicly released in mid-May 2026. Since then, Miasma has continued to mutate and refine its tactics. The article says it has infected more packages over the past couple of days.</p>
 
 <p>The campaign has used several descriptions for newly created public repositories containing stolen secrets, including:</p>
 
 <ul>
-<li>“<mark class="tag-hl">Miasma</mark>: The Spreading Blight”</li>
-<li>“<mark class="tag-hl">Miasma</mark> : The Spreading Blight”</li>
-<li>“<mark class="tag-hl">Miasma</mark> - The Spreading Blight”</li>
+<li>“Miasma: The Spreading Blight”</li>
+<li>“Miasma : The Spreading Blight”</li>
+<li>“Miasma - The Spreading Blight”</li>
 <li>“Hades - The End for the Damned”</li>
 </ul>
 
-<p>At the time of writing, the article says there were 13 repositories with the description “Hades - The End for the Damned” and 82 repositories using the remaining three <mark class="tag-hl">Miasma</mark>-related naming patterns.</p>
+<p>At the time of writing, the article says there were 13 repositories with the description “Hades - The End for the Damned” and 82 repositories using the remaining three Miasma-related naming patterns.</p>
 
-<h2 id="direct-github-repository-compromise-and-developer-tool-execution">Direct <mark class="tag-hl">GitHub</mark> repository compromise and developer tool execution</h2>
+<h2 id="direct-github-repository-compromise-and-developer-tool-execution">Direct GitHub repository compromise and developer tool execution</h2>
 
-<p><mark class="tag-hl">Miasma</mark> has also been observed skipping the <mark class="tag-hl">npm</mark> registry entirely. In those cases, the threat actors pushed malicious code directly to icflorescu/<mark class="tag-hl">mantine-datatable</mark> and four related repositories: mantine-contextmenu, next-server-actions-parallel, <mark class="tag-hl">mantine-datatable</mark>-v6, and mantine-contextmenu-v6.</p>
+<p>Miasma has also been observed skipping the npm registry entirely. In those cases, the threat actors pushed malicious code directly to icflorescu/mantine-datatable and four related repositories: mantine-contextmenu, next-server-actions-parallel, mantine-datatable-v6, and mantine-contextmenu-v6.</p>
 
 <p>SafeDep said the malicious commit added no dependencies. Instead, it planted a 4.3 MB payload runner and wired it to execute automatically through five developer tools or workflows:</p>
 
@@ -1445,42 +1598,43 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Gemini CLI</li>
 <li>Cursor</li>
 <li>VS Code</li>
-<li><mark class="tag-hl">npm</mark> test script</li>
+<li>npm test script</li>
 </ul>
 
-<p>SafeDep said the attack detonates when a developer clones one of the affected repositories and opens it in an AI coding agent. It described the dropper as the same staged <mark class="tag-hl">Bun loader</mark>, repurposed for <mark class="tag-hl">GitHub</mark> source-repository persistence rather than registry poisoning.</p>
+<p>SafeDep said the attack detonates when a developer clones one of the affected repositories and opens it in an AI coding agent. It described the dropper as the same staged Bun loader, repurposed for GitHub source-repository persistence rather than registry poisoning.</p>
 
 <h2 id="significance-of-the-campaign">Significance of the campaign</h2>
 
 <p>The article frames the campaign as one of the most significant and sustained software supply chain campaigns observed to date. It says these attacks expose weaknesses in the trust model that underpins software delivery in open-source ecosystems.</p>
 
-<p>The article emphasizes that the activity differs from other incidents because it can propagate across the ecosystem by compromising downstream users and repeating the same cycle. FalconFeeds.io said the worm operates entirely within legitimate channels and does not exploit a vulnerability in <mark class="tag-hl">npm</mark> or <mark class="tag-hl">GitHub</mark>.</p>
+<p>The article emphasizes that the activity differs from other incidents because it can propagate across the ecosystem by compromising downstream users and repeating the same cycle. FalconFeeds.io said the worm operates entirely within legitimate channels and does not exploit a vulnerability in npm or GitHub.</p>
 
-<p>According to FalconFeeds.io, the worm exploits the trust model those platforms are built on: the assumption that a package signed with a valid key and published by an authenticated maintainer is safe. FalconFeeds.io said <mark class="tag-hl">Shai-Hulud</mark> compromises the key and the maintainer, then acts as a legitimate publisher would, making malicious publish events indistinguishable from routine updates from the registry’s perspective.</p>
+<p>According to FalconFeeds.io, the worm exploits the trust model those platforms are built on: the assumption that a package signed with a valid key and published by an authenticated maintainer is safe. FalconFeeds.io said Shai-Hulud compromises the key and the maintainer, then acts as a legitimate publisher would, making malicious publish events indistinguishable from routine updates from the registry’s perspective.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:ed7cb5908ca7edf7" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The re-compromise of the <mark class="tag-hl">durabletask</mark> ecosystem suggests that remediation after the prior <mark class="tag-hl">TeamPCP</mark> incident may not have fully removed the attacker’s access to relevant credentials or publishing paths.</span></li><li><span class="kp-text"><mark class="tag-hl">Miasma</mark>’s use of legitimate <mark class="tag-hl">GitHub</mark>, <mark class="tag-hl">npm</mark>, and <mark class="tag-hl">PyPI</mark> workflows makes malicious activity difficult to distinguish from normal maintainer actions when credentials are compromised.</span></li><li><span class="kp-text">The campaign’s shift to direct <mark class="tag-hl">GitHub</mark> source-repository persistence shows that package registry monitoring alone is insufficient to detect this worm’s propagation methods.</span></li><li><span class="kp-text">The malicious commit targeting AI coding agents demonstrates that opening a cloned repository in tools such as Claude Code, Gemini CLI, Cursor, or VS Code can become an execution trigger in this campaign.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:ed7cb5908ca7edf7" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The re-compromise of the durabletask ecosystem suggests that remediation after the prior TeamPCP incident may not have fully removed the attacker’s access to relevant credentials or publishing paths.</span></li><li><span class="kp-text">Miasma’s use of legitimate GitHub, npm, and PyPI workflows makes malicious activity difficult to distinguish from normal maintainer actions when credentials are compromised.</span></li><li><span class="kp-text">The campaign’s shift to direct GitHub source-repository persistence shows that package registry monitoring alone is insufficient to detect this worm’s propagation methods.</span></li><li><span class="kp-text">The malicious commit targeting AI coding agents demonstrates that opening a cloned repository in tools such as Claude Code, Gemini CLI, Cursor, or VS Code can become an execution trigger in this campaign.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The <mark class="tag-hl">Miasma</mark> self-replicating supply chain campaign impacted 73 <mark class="tag-hl">Microsoft</mark> <mark class="tag-hl">GitHub</mark> repositories across the <mark class="tag-hl">Azure</mark>, <mark class="tag-hl">Azure</mark>-Samples, <mark class="tag-hl">Microsoft</mark>, and MicrosoftDocs organizations.</span></li><li><span class="kp-text"><mark class="tag-hl">GitHub</mark> disabled access to affected repositories, including <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">azure-functions-host</mark>, citing a violation of <mark class="tag-hl">GitHub</mark>&#39;s terms of service.</span></li><li><span class="kp-text">The campaign included a re-compromise of the <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> package, which had been infected by <mark class="tag-hl">TeamPCP</mark> the previous month to deliver an information stealer on Linux systems.</span></li><li><span class="kp-text"><mark class="tag-hl">Miasma</mark> is assessed to be a variant of the <mark class="tag-hl">Mini Shai-Hulud</mark> worm that <mark class="tag-hl">TeamPCP</mark> publicly released in mid-May 2026.</span></li><li><span class="kp-text"><mark class="tag-hl">Miasma</mark> has also been observed pushing malicious code directly to <mark class="tag-hl">GitHub</mark> repositories and wiring execution through developer tools including Claude Code, Gemini CLI, Cursor, VS Code, and the <mark class="tag-hl">npm</mark> test script.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The Miasma self-replicating supply chain campaign impacted 73 Microsoft GitHub repositories across the Azure, Azure-Samples, Microsoft, and MicrosoftDocs organizations.</span></li><li><span class="kp-text">GitHub disabled access to affected repositories, including Azure/azure-functions-host, citing a violation of GitHub&#39;s terms of service.</span></li><li><span class="kp-text">The campaign included a re-compromise of the durabletask PyPI package, which had been infected by TeamPCP the previous month to deliver an information stealer on Linux systems.</span></li><li><span class="kp-text">Miasma is assessed to be a variant of the Mini Shai-Hulud worm that TeamPCP publicly released in mid-May 2026.</span></li><li><span class="kp-text">Miasma has also been observed pushing malicious code directly to GitHub repositories and wiring execution through developer tools including Claude Code, Gemini CLI, Cursor, VS Code, and the npm test script.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/miasma-worm-hits-73-microsoft-github.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read report on an active, self-replicating software supply chain campaign affecting 73 <mark class="tag-hl">Microsoft</mark> <mark class="tag-hl">GitHub</mark> repositories and involving <mark class="tag-hl">npm</mark>, <mark class="tag-hl">PyPI</mark>, <mark class="tag-hl">GitHub</mark>, and developer tooling. The breadth of affected trusted ecosystems and the worm’s use of legitimate maintainer workflows make it highly relevant and urgent for security professionals.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read report on an active, self-replicating software supply chain campaign affecting 73 Microsoft GitHub repositories and involving npm, PyPI, GitHub, and developer tooling. The breadth of affected trusted ecosystems and the worm’s use of legitimate maintainer workflows make it highly relevant and urgent for security professionals.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://opensourcemalware.com/blog/miasma-reaches-azure" target="_blank" rel="noopener">Miasma Reaches Azure</a></div>
   <div class="report-meta">OpenSourceMalware</div>
-  <div class="report-context">The article cites OpenSourceMalware for the finding that 73 <mark class="tag-hl">Microsoft</mark> repositories across four <mark class="tag-hl">GitHub</mark> organizations were impacted.</div>
+  <div class="report-context">The article cites OpenSourceMalware for the finding that 73 Microsoft repositories across four GitHub organizations were impacted.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.akamai.com/blog/security-research/mini-shai-hulud-worm-returns-goes-public" target="_blank" rel="noopener">Mini Shai-Hulud Worm Returns, Goes Public</a></div>
   <div class="report-meta">Akamai</div>
-  <div class="report-context">The article references Akamai&#39;s security research when describing <mark class="tag-hl">Miasma</mark> as a variant of the <mark class="tag-hl">Mini Shai-Hulud</mark> worm publicly released in mid-May 2026.</div>
+  <div class="report-context">The article references Akamai&#39;s security research when describing Miasma as a variant of the Mini Shai-Hulud worm publicly released in mid-May 2026.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.ox.security/blog/600000-monthly-downloads-affected-miasma-supply-chain-attack-is-back-on-npm/" target="_blank" rel="noopener">600,000 Monthly Downloads Affected: Miasma Supply Chain Attack Is Back on NPM</a></div>
   <div class="report-meta">OX Security</div>
-  <div class="report-context">The article cites OX Security&#39;s research for <mark class="tag-hl">Miasma</mark> infecting more packages over the past couple of days.</div>
+  <div class="report-context">The article cites OX Security&#39;s research for Miasma infecting more packages over the past couple of days.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://safedep.io/miasma-worm-ai-coding-agent-config-injection/" target="_blank" rel="noopener">Miasma Worm: AI Coding Agent Config Injection</a></div>
   <div class="report-meta">SafeDep</div>
-  <div class="report-context">The article quotes SafeDep&#39;s analysis of malicious code being pushed directly to <mark class="tag-hl">GitHub</mark> repositories and wired to execute through AI coding agents and developer tools.</div>
+  <div class="report-context">The article quotes SafeDep&#39;s analysis of malicious code being pushed directly to GitHub repositories and wired to execute through AI coding agents and developer tools.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.uvcyber.com/resources/reports/threat-advisory-tanstack-supply-chain-attack" target="_blank" rel="noopener">Threat Advisory: TanStack Supply Chain Attack</a></div>
   <div class="report-meta">UVCyber</div>
@@ -1488,7 +1642,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://falconfeeds.io/blogs/shai-hulud-npm-pypi-supply-chain-worm-analysis/" target="_blank" rel="noopener">Shai-Hulud NPM/PyPI Supply Chain Worm Analysis</a></div>
   <div class="report-meta">FalconFeeds.io</div>
-  <div class="report-context">The article quotes FalconFeeds.io&#39;s analysis explaining that the worm abuses trusted maintainer and registry workflows rather than exploiting <mark class="tag-hl">npm</mark> or <mark class="tag-hl">GitHub</mark> vulnerabilities.</div>
+  <div class="report-context">The article quotes FalconFeeds.io&#39;s analysis explaining that the worm abuses trusted maintainer and registry workflows rather than exploiting npm or GitHub vulnerabilities.</div>
 </li></ul></div>
             
           </div>
@@ -1511,97 +1665,97 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:92%"></div></div><span class="score-num score-num-high">92</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:28ecb8d88842de5f">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:28ecb8d88842de5f')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:28ecb8d88842de5f')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:28ecb8d88842de5f')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:28ecb8d88842de5f')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:28ecb8d88842de5f')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:28ecb8d88842de5f')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:28ecb8d88842de5f')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:28ecb8d88842de5f')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:28ecb8d88842de5f')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:28ecb8d88842de5f')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:28ecb8d88842de5f" class="tab-panel active"><div class="prose">AI-driven vulnerability discovery is accelerating sharply, with an autonomous agent finding 21 zero-days in <mark class="tag-hl">FFmpeg</mark> while Chrome patched a record 429 bugs amid rising AI-generated report volume. The key challenge is no longer just finding flaws, but triaging, fixing, and deploying patches fast enough across widely embedded software.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:28ecb8d88842de5f" class="tab-panel"><div class="prose"><p>Security startup <mark class="tag-hl">depthfirst</mark> reported 21 previously unknown vulnerabilities in <mark class="tag-hl">FFmpeg</mark>, all found by an autonomous AI agent scanning about 1.5 million lines of C. The run reportedly cost around $1,000 and produced confirmed zero-days with reproducible proof-of-concept inputs. Several bugs had been present for 15 to 20 years, including a stack overflow in service-description-table code dating to 2003.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:28ecb8d88842de5f" class="tab-panel active"><div class="prose">AI-driven vulnerability discovery is accelerating sharply, with an autonomous agent finding 21 zero-days in FFmpeg while Chrome patched a record 429 bugs amid rising AI-generated report volume. The key challenge is no longer just finding flaws, but triaging, fixing, and deploying patches fast enough across widely embedded software.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:28ecb8d88842de5f" class="tab-panel"><div class="prose"><p>Security startup depthfirst reported 21 previously unknown vulnerabilities in FFmpeg, all found by an autonomous AI agent scanning about 1.5 million lines of C. The run reportedly cost around $1,000 and produced confirmed zero-days with reproducible proof-of-concept inputs. Several bugs had been present for 15 to 20 years, including a stack overflow in service-description-table code dating to 2003.</p>
 
-<p>In the same week, <mark class="tag-hl">Google</mark> released <mark class="tag-hl">Chrome 149</mark> with patches for 429 security bugs, the most ever in a single release. More than 100 of the Chrome issues were critical or high severity, including <mark class="tag-hl">CVE-2026-10881</mark>, an <mark class="tag-hl">ANGLE</mark> graphics engine flaw that can allow <mark class="tag-hl">sandbox escape</mark> and code execution on the host. The article says the broader significance is that AI is increasing vulnerability volume and pressure on triage, patching, and deployment workflows.</p>
+<p>In the same week, Google released Chrome 149 with patches for 429 security bugs, the most ever in a single release. More than 100 of the Chrome issues were critical or high severity, including CVE-2026-10881, an ANGLE graphics engine flaw that can allow sandbox escape and code execution on the host. The article says the broader significance is that AI is increasing vulnerability volume and pressure on triage, patching, and deployment workflows.</p>
 
-<p>The article recommends pulling fixed upstream <mark class="tag-hl">FFmpeg</mark> builds or distribution security updates, including for embedded copies in media pipelines, Python wheels, container images, and appliances. It also advises updating Chrome to 149.0.7827.53 on Linux or 149.0.7827.<sup>53</sup>&frasl;<sub>54</sub> on Windows and macOS. The article emphasizes shorter patch cycles, auto-update where available, and treating dependency bumps with CVE fixes as security work.</p>
+<p>The article recommends pulling fixed upstream FFmpeg builds or distribution security updates, including for embedded copies in media pipelines, Python wheels, container images, and appliances. It also advises updating Chrome to 149.0.7827.53 on Linux or 149.0.7827.<sup>53</sup>&frasl;<sub>54</sub> on Windows and macOS. The article emphasizes shorter patch cycles, auto-update where available, and treating dependency bumps with CVE fixes as security work.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:28ecb8d88842de5f" class="tab-panel"><div class="prose"><p>Two major vulnerability developments landed in the same week: <mark class="tag-hl">depthfirst</mark> reported 21 <mark class="tag-hl">FFmpeg</mark> zero-days found by an autonomous AI agent, and <mark class="tag-hl">Google</mark> shipped <mark class="tag-hl">Chrome 149</mark> with fixes for 429 security bugs. Only the <mark class="tag-hl">FFmpeg</mark> bugs were found by AI, while Chrome’s record patch volume followed <mark class="tag-hl">Google</mark>’s overhaul of its bounty program to handle a flood of AI-generated submissions. The article frames both events as evidence that AI is putting more vulnerabilities in front of maintainers and triagers faster than before.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:28ecb8d88842de5f" class="tab-panel"><div class="prose"><p>Two major vulnerability developments landed in the same week: depthfirst reported 21 FFmpeg zero-days found by an autonomous AI agent, and Google shipped Chrome 149 with fixes for 429 security bugs. Only the FFmpeg bugs were found by AI, while Chrome’s record patch volume followed Google’s overhaul of its bounty program to handle a flood of AI-generated submissions. The article frames both events as evidence that AI is putting more vulnerabilities in front of maintainers and triagers faster than before.</p>
 
-<p>The <mark class="tag-hl">FFmpeg</mark> findings came from <mark class="tag-hl">depthfirst</mark>, whose autonomous security agent scanned roughly 1.5 million lines of C and produced 21 confirmed zero-days. Each vulnerability had a reproducible proof-of-concept input, and the run reportedly cost about $1,000. Several of the issues had been latent for 15 to 20 years, with one stack overflow in service-description-table code dating to 2003.</p>
+<p>The FFmpeg findings came from depthfirst, whose autonomous security agent scanned roughly 1.5 million lines of C and produced 21 confirmed zero-days. Each vulnerability had a reproducible proof-of-concept input, and the run reportedly cost about $1,000. Several of the issues had been latent for 15 to 20 years, with one stack overflow in service-description-table code dating to 2003.</p>
 
-<p>Most of the <mark class="tag-hl">FFmpeg</mark> issues are heap or stack overflows in parsers and demuxers, including areas such as the TS demuxer and VP9 decoder. <mark class="tag-hl">depthfirst</mark> said some already have CVE identifiers, listing CVE-2026-39210 through CVE-2026-39218, while the remaining fixed issues had not yet been numbered. The company also published a proof of concept for one of the vulnerabilities.</p>
+<p>Most of the FFmpeg issues are heap or stack overflows in parsers and demuxers, including areas such as the TS demuxer and VP9 decoder. depthfirst said some already have CVE identifiers, listing CVE-2026-39210 through CVE-2026-39218, while the remaining fixed issues had not yet been numbered. The company also published a proof of concept for one of the vulnerabilities.</p>
 
-<p><mark class="tag-hl">Chrome 149</mark> fixed 429 vulnerabilities, with more than 100 rated critical or high severity. The most severe issue, <mark class="tag-hl">CVE-2026-10881</mark>, is an out-of-bounds read and write in the <mark class="tag-hl">ANGLE</mark> graphics engine that can let a crafted page escape the sandbox and run code on the host. <mark class="tag-hl">Google</mark> paid $97,000 for that bug, and the article notes that most of the highest-severity Chrome bugs were found internally.</p>
+<p>Chrome 149 fixed 429 vulnerabilities, with more than 100 rated critical or high severity. The most severe issue, CVE-2026-10881, is an out-of-bounds read and write in the ANGLE graphics engine that can let a crafted page escape the sandbox and run code on the host. Google paid $97,000 for that bug, and the article notes that most of the highest-severity Chrome bugs were found internally.</p>
 
-<p>The article also cites earlier AI-assisted vulnerability work, including <mark class="tag-hl">Google</mark>’s <mark class="tag-hl">Big Sleep</mark> bugs in <mark class="tag-hl">FFmpeg</mark>, <mark class="tag-hl">Anthropic</mark>’s <mark class="tag-hl">Mythos</mark> model finding old <mark class="tag-hl">FFmpeg</mark> flaws, an autonomous tool finding an authenticated RCE in <mark class="tag-hl">Redis</mark>, and a February study on <mark class="tag-hl">Linux kernel</mark> N-day bugs. For response, it urges organizations to update <mark class="tag-hl">FFmpeg</mark> through upstream or distribution fixes, patch embedded <mark class="tag-hl">FFmpeg</mark> copies, and update Chrome to the listed 149 builds. The article concludes that finding bugs is becoming cheaper, but triage, fixes, shipping, and installation remain the bottleneck.</p>
+<p>The article also cites earlier AI-assisted vulnerability work, including Google’s Big Sleep bugs in FFmpeg, Anthropic’s Mythos model finding old FFmpeg flaws, an autonomous tool finding an authenticated RCE in Redis, and a February study on Linux kernel N-day bugs. For response, it urges organizations to update FFmpeg through upstream or distribution fixes, patch embedded FFmpeg copies, and update Chrome to the listed 149 builds. The article concludes that finding bugs is becoming cheaper, but triage, fixes, shipping, and installation remain the bottleneck.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:28ecb8d88842de5f" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:28ecb8d88842de5f" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The article describes two vulnerability developments that occurred within days of each other. Security startup <mark class="tag-hl">depthfirst</mark> reported 21 previously unknown vulnerabilities in <mark class="tag-hl">FFmpeg</mark>, all found by an autonomous AI agent. In the same week, <mark class="tag-hl">Google</mark> released <mark class="tag-hl">Chrome 149</mark> with fixes for 429 security bugs, which the article says is the most ever in a single Chrome release.</p>
+<p>The article describes two vulnerability developments that occurred within days of each other. Security startup depthfirst reported 21 previously unknown vulnerabilities in FFmpeg, all found by an autonomous AI agent. In the same week, Google released Chrome 149 with fixes for 429 security bugs, which the article says is the most ever in a single Chrome release.</p>
 
-<p>The article distinguishes the two events: only the <mark class="tag-hl">FFmpeg</mark> vulnerabilities were found by AI. Chrome’s record patch volume is connected to AI through <mark class="tag-hl">Google</mark>’s earlier bounty-program overhaul, which was prompted by a flood of AI-generated submissions. The shared theme is that AI is increasing the volume and speed of vulnerability discovery and reporting.</p>
+<p>The article distinguishes the two events: only the FFmpeg vulnerabilities were found by AI. Chrome’s record patch volume is connected to AI through Google’s earlier bounty-program overhaul, which was prompted by a flood of AI-generated submissions. The shared theme is that AI is increasing the volume and speed of vulnerability discovery and reporting.</p>
 
-<h2 id="ffmpeg-zero-days-found-by-depthfirst"><mark class="tag-hl">FFmpeg</mark> zero-days found by <mark class="tag-hl">depthfirst</mark></h2>
+<h2 id="ffmpeg-zero-days-found-by-depthfirst">FFmpeg zero-days found by depthfirst</h2>
 
-<p>The <mark class="tag-hl">FFmpeg</mark> findings came from <mark class="tag-hl">depthfirst</mark>, whose autonomous security agent scanned the project’s roughly 1.5 million lines of C. The agent produced 21 confirmed zero-days, each with a reproducible proof-of-concept input. <mark class="tag-hl">depthfirst</mark> put the cost of the run at around $1,000.</p>
+<p>The FFmpeg findings came from depthfirst, whose autonomous security agent scanned the project’s roughly 1.5 million lines of C. The agent produced 21 confirmed zero-days, each with a reproducible proof-of-concept input. depthfirst put the cost of the run at around $1,000.</p>
 
-<p>Several of the <mark class="tag-hl">FFmpeg</mark> bugs had reportedly existed for 15 to 20 years. One stack overflow in service-description-table code dates to 2003 and had remained untouched for 23 years. The article emphasizes that these were previously unknown vulnerabilities in a media library widely used in software that handles video.</p>
+<p>Several of the FFmpeg bugs had reportedly existed for 15 to 20 years. One stack overflow in service-description-table code dates to 2003 and had remained untouched for 23 years. The article emphasizes that these were previously unknown vulnerabilities in a media library widely used in software that handles video.</p>
 
-<p>Most of the <mark class="tag-hl">FFmpeg</mark> issues are described as heap or stack overflows in parsers and demuxers. Affected areas include components from the TS demuxer to the VP9 decoder. <mark class="tag-hl">depthfirst</mark> said some of the bugs already had CVE identifiers and listed CVE-2026-39210 through CVE-2026-39218, while the rest were fixed but not yet numbered.</p>
+<p>Most of the FFmpeg issues are described as heap or stack overflows in parsers and demuxers. Affected areas include components from the TS demuxer to the VP9 decoder. depthfirst said some of the bugs already had CVE identifiers and listed CVE-2026-39210 through CVE-2026-39218, while the rest were fixed but not yet numbered.</p>
 
-<p>The article also says <mark class="tag-hl">depthfirst</mark> published a proof of concept. <mark class="tag-hl">FFmpeg</mark> users are advised to pull the fixed upstream build or distribution security update as soon as it lands.</p>
+<p>The article also says depthfirst published a proof of concept. FFmpeg users are advised to pull the fixed upstream build or distribution security update as soon as it lands.</p>
 
-<h2 id="chrome-149-patch-release"><mark class="tag-hl">Chrome 149</mark> patch release</h2>
+<h2 id="chrome-149-patch-release">Chrome 149 patch release</h2>
 
-<p><mark class="tag-hl">Google</mark> shipped <mark class="tag-hl">Chrome 149</mark> with patches for 429 vulnerabilities. The article identifies this as a record for a single Chrome release. More than 100 of the fixed issues are described as critical or high severity, mostly <mark class="tag-hl">use-after-free</mark> and insufficient input validation bugs.</p>
+<p>Google shipped Chrome 149 with patches for 429 vulnerabilities. The article identifies this as a record for a single Chrome release. More than 100 of the fixed issues are described as critical or high severity, mostly use-after-free and insufficient input validation bugs.</p>
 
-<p>The most severe Chrome issue is <mark class="tag-hl">CVE-2026-10881</mark>, with a CVSS score of 9.6. It is an out-of-bounds read and write in the <mark class="tag-hl">ANGLE</mark> graphics engine. The article says the flaw allows a crafted page to escape the sandbox and run code on the host, and that <mark class="tag-hl">Google</mark> paid $97,000 for it.</p>
+<p>The most severe Chrome issue is CVE-2026-10881, with a CVSS score of 9.6. It is an out-of-bounds read and write in the ANGLE graphics engine. The article says the flaw allows a crafted page to escape the sandbox and run code on the host, and that Google paid $97,000 for it.</p>
 
-<p>The highest-severity Chrome bugs were mostly found internally. Of roughly 90 high-severity bugs, only 10 came from outside researchers. Of 22 critical bugs, 19 were <mark class="tag-hl">Google</mark>’s own findings.</p>
+<p>The highest-severity Chrome bugs were mostly found internally. Of roughly 90 high-severity bugs, only 10 came from outside researchers. Of 22 critical bugs, 19 were Google’s own findings.</p>
 
-<p><mark class="tag-hl">Google</mark> has not tied the 429 Chrome vulnerabilities directly to AI. The article says the on-record AI-related signal is <mark class="tag-hl">Google</mark>’s April bounty overhaul, which was prompted by a flood of AI-generated submissions. That overhaul asks for concise reproducers instead of long writeups generated by AI.</p>
+<p>Google has not tied the 429 Chrome vulnerabilities directly to AI. The article says the on-record AI-related signal is Google’s April bounty overhaul, which was prompted by a flood of AI-generated submissions. That overhaul asks for concise reproducers instead of long writeups generated by AI.</p>
 
 <h2 id="other-ai-assisted-vulnerability-examples-cited">Other AI-assisted vulnerability examples cited</h2>
 
-<p>The article places the <mark class="tag-hl">depthfirst</mark> and Chrome developments in a broader pattern of AI-assisted vulnerability discovery and reporting. It cites <mark class="tag-hl">Google</mark>’s <mark class="tag-hl">Big Sleep</mark> agent, which reported several <mark class="tag-hl">FFmpeg</mark> bugs last year that are now visible on <mark class="tag-hl">FFmpeg</mark>’s security page with the BIGSLEEP tag.</p>
+<p>The article places the depthfirst and Chrome developments in a broader pattern of AI-assisted vulnerability discovery and reporting. It cites Google’s Big Sleep agent, which reported several FFmpeg bugs last year that are now visible on FFmpeg’s security page with the BIGSLEEP tag.</p>
 
-<p>The article also references <mark class="tag-hl">Anthropic</mark>’s <mark class="tag-hl">Mythos</mark> model, which found a 16-year-old H.264 flaw and other <mark class="tag-hl">FFmpeg</mark> bugs for about $10,000. According to the article, three of those issues shipped in <mark class="tag-hl">FFmpeg</mark> 8.1.</p>
+<p>The article also references Anthropic’s Mythos model, which found a 16-year-old H.264 flaw and other FFmpeg bugs for about $10,000. According to the article, three of those issues shipped in FFmpeg 8.1.</p>
 
-<p>Another autonomous tool reportedly found an authenticated remote code execution issue in <mark class="tag-hl">Redis</mark> that had been present since version 7.2.0 and unnoticed for more than two years. The article also cites a February study in which an agent reproduced working proofs of concept for more than half of 100 real <mark class="tag-hl">Linux kernel</mark> N-day bugs, beating fuzzing.</p>
+<p>Another autonomous tool reportedly found an authenticated remote code execution issue in Redis that had been present since version 7.2.0 and unnoticed for more than two years. The article also cites a February study in which an agent reproduced working proofs of concept for more than half of 100 real Linux kernel N-day bugs, beating fuzzing.</p>
 
 <h2 id="affected-software-and-stakeholders">Affected software and stakeholders</h2>
 
 <p>The directly discussed affected software includes:</p>
 
 <ul>
-<li><mark class="tag-hl">FFmpeg</mark>, including components such as parsers, demuxers, the TS demuxer, the VP9 decoder, service-description-table code, and AV1-over-RTP ingestion paths.</li>
-<li><mark class="tag-hl">Google Chrome</mark> 149.</li>
-<li>The <mark class="tag-hl">ANGLE</mark> graphics engine in Chrome.</li>
-<li><mark class="tag-hl">Redis</mark>, in a separate cited example involving an authenticated RCE.</li>
-<li><mark class="tag-hl">Linux kernel</mark> N-day bugs, in a cited February study.</li>
+<li>FFmpeg, including components such as parsers, demuxers, the TS demuxer, the VP9 decoder, service-description-table code, and AV1-over-RTP ingestion paths.</li>
+<li>Google Chrome 149.</li>
+<li>The ANGLE graphics engine in Chrome.</li>
+<li>Redis, in a separate cited example involving an authenticated RCE.</li>
+<li>Linux kernel N-day bugs, in a cited February study.</li>
 </ul>
 
 <p>The named organizations and entities include:</p>
 
 <ul>
-<li><mark class="tag-hl">depthfirst</mark>, which reported the 21 <mark class="tag-hl">FFmpeg</mark> zero-days.</li>
-<li><mark class="tag-hl">Google</mark>, which released <mark class="tag-hl">Chrome 149</mark> and previously overhauled its bounty program.</li>
-<li><mark class="tag-hl">FFmpeg</mark>, whose project code and security page are referenced.</li>
-<li><mark class="tag-hl">Anthropic</mark>, whose <mark class="tag-hl">Mythos</mark> model is cited for earlier <mark class="tag-hl">FFmpeg</mark> findings.</li>
+<li>depthfirst, which reported the 21 FFmpeg zero-days.</li>
+<li>Google, which released Chrome 149 and previously overhauled its bounty program.</li>
+<li>FFmpeg, whose project code and security page are referenced.</li>
+<li>Anthropic, whose Mythos model is cited for earlier FFmpeg findings.</li>
 </ul>
 
 <p>The article does not identify malicious threat actors behind these events. The actors discussed are security researchers, vendors, autonomous tools, and AI agents involved in vulnerability discovery, reporting, and patching.</p>
 
 <h2 id="recommended-response">Recommended response</h2>
 
-<p>For <mark class="tag-hl">FFmpeg</mark>, the article recommends pulling the fixed upstream build or applying distribution security updates as soon as they become available. It specifically says to prioritize environments that ingest untrusted RTSP or AV1-over-RTP. It also warns that <mark class="tag-hl">FFmpeg</mark> is widely bundled in media pipelines, Python wheels, container images, and appliances, so updating only system packages is not enough.</p>
+<p>For FFmpeg, the article recommends pulling the fixed upstream build or applying distribution security updates as soon as they become available. It specifically says to prioritize environments that ingest untrusted RTSP or AV1-over-RTP. It also warns that FFmpeg is widely bundled in media pipelines, Python wheels, container images, and appliances, so updating only system packages is not enough.</p>
 
 <p>For Chrome, the article recommends updating to:</p>
 
@@ -1616,37 +1770,38 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article’s main conclusion is that AI has made vulnerability discovery cheaper and faster, but remediation has not accelerated in the same way. It says the hard work is shifting toward triaging reports, shipping fixes, and getting patches installed. Much of that work still falls to volunteers and a thin layer of human triagers who are now expected to keep pace with machines.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:28ecb8d88842de5f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The economics of vulnerability discovery are shifting because <mark class="tag-hl">depthfirst</mark>’s autonomous agent reportedly found 21 confirmed <mark class="tag-hl">FFmpeg</mark> zero-days for about $1,000, while <mark class="tag-hl">Anthropic</mark>’s <mark class="tag-hl">Mythos</mark> found older <mark class="tag-hl">FFmpeg</mark> flaws for about $10,000.</span></li><li><span class="kp-text">AI is increasing pressure on vulnerability handling even when it is not directly responsible for the bugs found, as shown by Chrome’s record patch volume following <mark class="tag-hl">Google</mark>’s bounty-program changes for AI-generated submissions.</span></li><li><span class="kp-text">Embedded <mark class="tag-hl">FFmpeg</mark> copies in media pipelines, Python wheels, container images, and appliances are a significant patching risk because updating only system packages may leave vulnerable code in place.</span></li><li><span class="kp-text">The article highlights triage and remediation as the bottleneck, noting that finding bugs has become cheaper while fixing, shipping, and installing patches still depends heavily on human triagers and volunteers.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:28ecb8d88842de5f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The economics of vulnerability discovery are shifting because depthfirst’s autonomous agent reportedly found 21 confirmed FFmpeg zero-days for about $1,000, while Anthropic’s Mythos found older FFmpeg flaws for about $10,000.</span></li><li><span class="kp-text">AI is increasing pressure on vulnerability handling even when it is not directly responsible for the bugs found, as shown by Chrome’s record patch volume following Google’s bounty-program changes for AI-generated submissions.</span></li><li><span class="kp-text">Embedded FFmpeg copies in media pipelines, Python wheels, container images, and appliances are a significant patching risk because updating only system packages may leave vulnerable code in place.</span></li><li><span class="kp-text">The article highlights triage and remediation as the bottleneck, noting that finding bugs has become cheaper while fixing, shipping, and installing patches still depends heavily on human triagers and volunteers.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Security startup <mark class="tag-hl">depthfirst</mark> reported 21 previously unknown vulnerabilities in <mark class="tag-hl">FFmpeg</mark> that were found by an autonomous AI agent, with the run costing about $1,000.</span></li><li><span class="kp-text">Several of the <mark class="tag-hl">FFmpeg</mark> bugs had existed for 15 to 20 years, including a stack overflow in service-description-table code dating to 2003.</span></li><li><span class="kp-text"><mark class="tag-hl">Google</mark> released <mark class="tag-hl">Chrome 149</mark> with fixes for 429 security vulnerabilities, including more than 100 critical or high-severity issues.</span></li><li><span class="kp-text">The most severe Chrome flaw, <mark class="tag-hl">CVE-2026-10881</mark>, is an out-of-bounds read and write in the <mark class="tag-hl">ANGLE</mark> graphics engine that can let a crafted page escape the sandbox and run code on the host.</span></li><li><span class="kp-text">The article says organizations should update <mark class="tag-hl">FFmpeg</mark> from upstream or distribution security releases, patch embedded <mark class="tag-hl">FFmpeg</mark> copies, and update Chrome to version 149.0.7827.53 on Linux or 149.0.7827.53/54 on Windows and macOS.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Security startup depthfirst reported 21 previously unknown vulnerabilities in FFmpeg that were found by an autonomous AI agent, with the run costing about $1,000.</span></li><li><span class="kp-text">Several of the FFmpeg bugs had existed for 15 to 20 years, including a stack overflow in service-description-table code dating to 2003.</span></li><li><span class="kp-text">Google released Chrome 149 with fixes for 429 security vulnerabilities, including more than 100 critical or high-severity issues.</span></li><li><span class="kp-text">The most severe Chrome flaw, CVE-2026-10881, is an out-of-bounds read and write in the ANGLE graphics engine that can let a crafted page escape the sandbox and run code on the host.</span></li><li><span class="kp-text">The article says organizations should update FFmpeg from upstream or distribution security releases, patch embedded FFmpeg copies, and update Chrome to version 149.0.7827.53 on Linux or 149.0.7827.53/54 on Windows and macOS.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/ai-agent-uncovers-21-zero-days-in.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports critical patches for widely deployed software, including <mark class="tag-hl">Chrome 149</mark> fixing a record 429 bugs and <mark class="tag-hl">FFmpeg</mark> receiving fixes for 21 AI-discovered zero-days. The <mark class="tag-hl">FFmpeg</mark> exposure is especially relevant because the library is widely embedded in media pipelines, containers, Python wheels, and appliances, making patch verification nontrivial.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports critical patches for widely deployed software, including Chrome 149 fixing a record 429 bugs and FFmpeg receiving fixes for 21 AI-discovered zero-days. The FFmpeg exposure is especially relevant because the library is widely embedded in media pipelines, containers, Python wheels, and appliances, making patch verification nontrivial.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://depthfirst.com/research/21-zero-days-in-ffmpeg" target="_blank" rel="noopener">21 Zero-Days in FFmpeg</a></div>
   <div class="report-meta">depthfirst</div>
-  <div class="report-context">The article cites <mark class="tag-hl">depthfirst</mark>’s research as the source for the 21 confirmed <mark class="tag-hl">FFmpeg</mark> zero-days found by an autonomous security agent.</div>
+  <div class="report-context">The article cites depthfirst’s research as the source for the 21 confirmed FFmpeg zero-days found by an autonomous security agent.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://chromereleases.googleblog.com/2026/06/stable-channel-update-for-desktop.html" target="_blank" rel="noopener">Stable Channel Update for Desktop</a></div>
   <div class="report-meta">Google Chrome Releases</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Google</mark>’s Chrome release post as the source for <mark class="tag-hl">Chrome 149</mark> and its security fixes.</div>
+  <div class="report-context">The article cites Google’s Chrome release post as the source for Chrome 149 and its security fixes.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://bughunters.google.com/blog/evolving-the-android-chrome-vrps-for-the-ai-era" target="_blank" rel="noopener">Evolving the Android &amp; Chrome VRPs for the AI Era</a></div>
   <div class="report-meta">Google Bug Hunters</div>
-  <div class="report-context">The article references <mark class="tag-hl">Google</mark>’s bounty-program overhaul as an on-record signal that AI-generated vulnerability submissions are affecting triage workflows.</div>
+  <div class="report-context">The article references Google’s bounty-program overhaul as an on-record signal that AI-generated vulnerability submissions are affecting triage workflows.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://ffmpeg.org/security.html" target="_blank" rel="noopener">FFmpeg Security</a></div>
   <div class="report-meta">FFmpeg</div>
-  <div class="report-context">The article references <mark class="tag-hl">FFmpeg</mark>’s security page for previously reported BIGSLEEP-tagged <mark class="tag-hl">FFmpeg</mark> bugs.</div>
+  <div class="report-context">The article references FFmpeg’s security page for previously reported BIGSLEEP-tagged FFmpeg bugs.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://red.anthropic.com/2026/mythos-preview/" target="_blank" rel="noopener">Mythos Preview</a></div>
   <div class="report-meta">Anthropic</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Anthropic</mark>’s own writeup about its <mark class="tag-hl">Mythos</mark> model finding older <mark class="tag-hl">FFmpeg</mark> flaws.</div>
+  <div class="report-context">The article cites Anthropic’s own writeup about its Mythos model finding older FFmpeg flaws.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://arxiv.org/abs/2602.07287" target="_blank" rel="noopener">100 Real Linux Kernel N-Day Bugs</a></div>
   <div class="report-meta">arXiv</div>
-  <div class="report-context">The article cites a February study in which an agent reproduced working proofs of concept for more than half of 100 real <mark class="tag-hl">Linux kernel</mark> N-day bugs.</div>
+  <div class="report-context">The article cites a February study in which an agent reproduced working proofs of concept for more than half of 100 real Linux kernel N-day bugs.</div>
 </li></ul></div>
             
           </div>
@@ -1669,90 +1824,91 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:92%"></div></div><span class="score-num score-num-high">92</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:74eb74663a9229d9">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:74eb74663a9229d9')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:74eb74663a9229d9')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:74eb74663a9229d9')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:74eb74663a9229d9')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:74eb74663a9229d9')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:74eb74663a9229d9')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:74eb74663a9229d9')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:74eb74663a9229d9')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:74eb74663a9229d9')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:74eb74663a9229d9')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:74eb74663a9229d9" class="tab-panel active"><div class="prose"><mark class="tag-hl">CISA</mark> added <mark class="tag-hl">CVE-2026-28318</mark>, an actively exploited <mark class="tag-hl">SolarWinds Serv-U</mark> denial-of-service flaw, to its KEV catalog and ordered federal agencies to remediate it by June 19, 2026. <mark class="tag-hl">SolarWinds</mark> has patched the issue in Serv-U 15.5.4 HF1 and recommends limiting access or blocking requests with Content-Encoding.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:74eb74663a9229d9" class="tab-panel"><div class="prose"><p><mark class="tag-hl">CISA</mark> has added <mark class="tag-hl">CVE-2026-28318</mark>, a high-severity flaw affecting <mark class="tag-hl">SolarWinds Serv-U</mark> multi-protocol file server software, to its <mark class="tag-hl">Known Exploited Vulnerabilities catalog</mark>. The agency cited evidence of active exploitation. The vulnerability has a CVSS score of 7.5 and can cause the Serv-U service to crash.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:74eb74663a9229d9" class="tab-panel active"><div class="prose">CISA added CVE-2026-28318, an actively exploited SolarWinds Serv-U denial-of-service flaw, to its KEV catalog and ordered federal agencies to remediate it by June 19, 2026. SolarWinds has patched the issue in Serv-U 15.5.4 HF1 and recommends limiting access or blocking requests with Content-Encoding.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:74eb74663a9229d9" class="tab-panel"><div class="prose"><p>CISA has added CVE-2026-28318, a high-severity flaw affecting SolarWinds Serv-U multi-protocol file server software, to its Known Exploited Vulnerabilities catalog. The agency cited evidence of active exploitation. The vulnerability has a CVSS score of 7.5 and can cause the Serv-U service to crash.</p>
 
-<p><mark class="tag-hl">SolarWinds</mark> described the issue as involving specially crafted unauthenticated POST requests using Content-Encoding: deflate. <mark class="tag-hl">CISA</mark> characterized it as an uncontrolled resource consumption vulnerability that results in a denial-of-service condition. <mark class="tag-hl">SolarWinds</mark> addressed the flaw in Serv-U version 15.5.4 HF1 and advised limiting access to known addresses and blocking requests containing &ldquo;content-encoding.&rdquo;</p>
+<p>SolarWinds described the issue as involving specially crafted unauthenticated POST requests using Content-Encoding: deflate. CISA characterized it as an uncontrolled resource consumption vulnerability that results in a denial-of-service condition. SolarWinds addressed the flaw in Serv-U version 15.5.4 HF1 and advised limiting access to known addresses and blocking requests containing &ldquo;content-encoding.&rdquo;</p>
 
-<p>The article says there are no details on how the vulnerability is being exploited in real-world attacks or who is behind the activity. It is also unclear how many internet-exposed Serv-U instances, if any, are compromised. <mark class="tag-hl">CISA</mark> ordered Federal Civilian Executive Branch agencies to address the flaw by June 19, 2026.</p>
+<p>The article says there are no details on how the vulnerability is being exploited in real-world attacks or who is behind the activity. It is also unclear how many internet-exposed Serv-U instances, if any, are compromised. CISA ordered Federal Civilian Executive Branch agencies to address the flaw by June 19, 2026.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:74eb74663a9229d9" class="tab-panel"><div class="prose"><p>The U.S. Cybersecurity and Infrastructure Security Agency added a <mark class="tag-hl">SolarWinds Serv-U</mark> vulnerability to its <mark class="tag-hl">Known Exploited Vulnerabilities catalog</mark>. The flaw is tracked as <mark class="tag-hl">CVE-2026-28318</mark> and is described as a high-severity denial-of-service issue. <mark class="tag-hl">CISA</mark> added it because of evidence of active exploitation.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:74eb74663a9229d9" class="tab-panel"><div class="prose"><p>The U.S. Cybersecurity and Infrastructure Security Agency added a SolarWinds Serv-U vulnerability to its Known Exploited Vulnerabilities catalog. The flaw is tracked as CVE-2026-28318 and is described as a high-severity denial-of-service issue. CISA added it because of evidence of active exploitation.</p>
 
-<p><mark class="tag-hl">CVE-2026-28318</mark> has a CVSS score of 7.5 and affects <mark class="tag-hl">SolarWinds Serv-U</mark> multi-protocol file server software. <mark class="tag-hl">CISA</mark> described the bug as an uncontrolled resource consumption vulnerability that results in a denial-of-service condition. The article states that the flaw causes the service to crash under certain conditions.</p>
+<p>CVE-2026-28318 has a CVSS score of 7.5 and affects SolarWinds Serv-U multi-protocol file server software. CISA described the bug as an uncontrolled resource consumption vulnerability that results in a denial-of-service condition. The article states that the flaw causes the service to crash under certain conditions.</p>
 
-<p><mark class="tag-hl">SolarWinds</mark> said Serv-U is susceptible to <mark class="tag-hl">specially crafted POST requests</mark> that crash the Serv-U service without authentication. The requests use Content-Encoding: deflate. The company released an advisory earlier in the week with this description.</p>
+<p>SolarWinds said Serv-U is susceptible to specially crafted POST requests that crash the Serv-U service without authentication. The requests use Content-Encoding: deflate. The company released an advisory earlier in the week with this description.</p>
 
-<p><mark class="tag-hl">SolarWinds</mark> fixed the vulnerability in Serv-U version 15.5.4 HF1. As mitigations, the article says organizations are advised to limit access to known addresses and block any request containing &ldquo;content-encoding.&rdquo; <mark class="tag-hl">SolarWinds</mark> said the vulnerable service does not require this functionality.</p>
+<p>SolarWinds fixed the vulnerability in Serv-U version 15.5.4 HF1. As mitigations, the article says organizations are advised to limit access to known addresses and block any request containing &ldquo;content-encoding.&rdquo; SolarWinds said the vulnerable service does not require this functionality.</p>
 
-<p>The article states that no details are currently available on how the flaw is being exploited in real-world attacks or who is behind them. It is also unclear how many internet-exposed Serv-U instances are compromised, if any. <mark class="tag-hl">CISA</mark> ordered Federal Civilian Executive Branch agencies to address the flaw by June 19, 2026.</p>
+<p>The article states that no details are currently available on how the flaw is being exploited in real-world attacks or who is behind them. It is also unclear how many internet-exposed Serv-U instances are compromised, if any. CISA ordered Federal Civilian Executive Branch agencies to address the flaw by June 19, 2026.</p>
 
-<p>The article notes that multiple Serv-U flaws have previously been exploited by bad actors. It specifically mentions actors associated with the <mark class="tag-hl">Cl0p</mark> ransomware gang in connection with prior Serv-U exploitation. No actor is identified for exploitation of <mark class="tag-hl">CVE-2026-28318</mark>.</p>
+<p>The article notes that multiple Serv-U flaws have previously been exploited by bad actors. It specifically mentions actors associated with the Cl0p ransomware gang in connection with prior Serv-U exploitation. No actor is identified for exploitation of CVE-2026-28318.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:74eb74663a9229d9" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:74eb74663a9229d9" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">CISA</mark> has added <mark class="tag-hl">CVE-2026-28318</mark> to its <mark class="tag-hl">Known Exploited Vulnerabilities catalog</mark> after citing evidence of active exploitation. The vulnerability affects <mark class="tag-hl">SolarWinds Serv-U</mark>, a multi-protocol file server software product. The article describes the flaw as high severity and says it can cause the Serv-U service to crash.</p>
+<p>CISA has added CVE-2026-28318 to its Known Exploited Vulnerabilities catalog after citing evidence of active exploitation. The vulnerability affects SolarWinds Serv-U, a multi-protocol file server software product. The article describes the flaw as high severity and says it can cause the Serv-U service to crash.</p>
 
-<p><mark class="tag-hl">CVE-2026-28318</mark> has a CVSS score of 7.5. <mark class="tag-hl">CISA</mark> described it as an uncontrolled resource consumption vulnerability that results in a denial-of-service condition. The issue is significant because it has been added to <mark class="tag-hl">CISA</mark>’s KEV catalog, which is used for vulnerabilities known to be exploited in the wild.</p>
+<p>CVE-2026-28318 has a CVSS score of 7.5. CISA described it as an uncontrolled resource consumption vulnerability that results in a denial-of-service condition. The issue is significant because it has been added to CISA’s KEV catalog, which is used for vulnerabilities known to be exploited in the wild.</p>
 
 <h2 id="technical-details">Technical Details</h2>
 
-<p><mark class="tag-hl">SolarWinds</mark> said the vulnerability can be triggered by <mark class="tag-hl">specially crafted POST requests</mark>. The requests can crash the Serv-U service without authentication when they use Content-Encoding: deflate. The article states that the vulnerable condition causes the service to crash under certain conditions.</p>
+<p>SolarWinds said the vulnerability can be triggered by specially crafted POST requests. The requests can crash the Serv-U service without authentication when they use Content-Encoding: deflate. The article states that the vulnerable condition causes the service to crash under certain conditions.</p>
 
 <p>The article does not provide additional technical details about the exploitation process. It says there are currently no details on how the vulnerability is being exploited in real-world attacks. It also says there are no details on who is behind the exploitation.</p>
 
 <h2 id="affected-product">Affected Product</h2>
 
-<p>The affected product is <mark class="tag-hl">SolarWinds Serv-U</mark> multi-protocol file server software. The vulnerable service is described as not requiring the Content-Encoding functionality referenced in the exploit condition. The article does not specify affected versions beyond stating that the issue has been addressed in <mark class="tag-hl">SolarWinds Serv-U</mark> version 15.5.4 HF1.</p>
+<p>The affected product is SolarWinds Serv-U multi-protocol file server software. The vulnerable service is described as not requiring the Content-Encoding functionality referenced in the exploit condition. The article does not specify affected versions beyond stating that the issue has been addressed in SolarWinds Serv-U version 15.5.4 HF1.</p>
 
 <h2 id="response-and-mitigation">Response and Mitigation</h2>
 
-<p><mark class="tag-hl">SolarWinds</mark> addressed the vulnerability in Serv-U version 15.5.4 HF1. The article identifies this version as the fixed release. Organizations using Serv-U are therefore directed to that update as the vendor-provided remediation.</p>
+<p>SolarWinds addressed the vulnerability in Serv-U version 15.5.4 HF1. The article identifies this version as the fixed release. Organizations using Serv-U are therefore directed to that update as the vendor-provided remediation.</p>
 
 <p>The article also lists mitigations. It advises limiting access to known addresses. It also advises blocking any request containing &ldquo;content-encoding&rdquo; because the vulnerable service does not require this functionality.</p>
 
 <h2 id="government-action">Government Action</h2>
 
-<p><mark class="tag-hl">CISA</mark> ordered Federal Civilian Executive Branch agencies to address <mark class="tag-hl">CVE-2026-28318</mark> by June 19, 2026. This requirement follows the vulnerability’s addition to the <mark class="tag-hl">Known Exploited Vulnerabilities catalog</mark>. The article frames the <mark class="tag-hl">CISA</mark> action as based on evidence of active exploitation.</p>
+<p>CISA ordered Federal Civilian Executive Branch agencies to address CVE-2026-28318 by June 19, 2026. This requirement follows the vulnerability’s addition to the Known Exploited Vulnerabilities catalog. The article frames the CISA action as based on evidence of active exploitation.</p>
 
 <h2 id="known-impact-and-unknowns">Known Impact and Unknowns</h2>
 
 <p>The disclosed impact is denial of service through crashing the Serv-U service. The article does not report confirmed compromise counts. It states that it is unclear how many internet-exposed Serv-U instances are compromised, if any.</p>
 
-<p>The article also does not identify the attackers exploiting <mark class="tag-hl">CVE-2026-28318</mark>. It says there are no current details on the real-world exploitation activity or the party behind it.</p>
+<p>The article also does not identify the attackers exploiting CVE-2026-28318. It says there are no current details on the real-world exploitation activity or the party behind it.</p>
 
 <h2 id="historical-context-mentioned-in-the-article">Historical Context Mentioned in the Article</h2>
 
-<p>The article notes that multiple Serv-U flaws have been exploited by bad actors in the past. It specifically mentions actors associated with the <mark class="tag-hl">Cl0p</mark> ransomware gang in relation to previous Serv-U exploitation. However, the article does not connect <mark class="tag-hl">Cl0p</mark> or any other actor to current exploitation of <mark class="tag-hl">CVE-2026-28318</mark>.</p>
+<p>The article notes that multiple Serv-U flaws have been exploited by bad actors in the past. It specifically mentions actors associated with the Cl0p ransomware gang in relation to previous Serv-U exploitation. However, the article does not connect Cl0p or any other actor to current exploitation of CVE-2026-28318.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:74eb74663a9229d9" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">A practical mitigation is available because <mark class="tag-hl">SolarWinds</mark> says the vulnerable service does not require the Content-Encoding functionality, so organizations can block requests containing &#34;content-encoding&#34; while applying the patch.</span></li><li><span class="kp-text">The flaw is exploitable without authentication, which makes access restrictions to known addresses especially important for internet-exposed Serv-U deployments.</span></li><li><span class="kp-text">Although <mark class="tag-hl">CISA</mark> cites active exploitation, the article states there are no public details on exploitation methods, responsible actors, or the number of compromised internet-exposed Serv-U instances.</span></li><li><span class="kp-text">Serv-U has a history of exploitation by bad actors, including those associated with the <mark class="tag-hl">Cl0p</mark> ransomware gang, making rapid remediation particularly important for organizations running the product.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:74eb74663a9229d9" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">A practical mitigation is available because SolarWinds says the vulnerable service does not require the Content-Encoding functionality, so organizations can block requests containing &#34;content-encoding&#34; while applying the patch.</span></li><li><span class="kp-text">The flaw is exploitable without authentication, which makes access restrictions to known addresses especially important for internet-exposed Serv-U deployments.</span></li><li><span class="kp-text">Although CISA cites active exploitation, the article states there are no public details on exploitation methods, responsible actors, or the number of compromised internet-exposed Serv-U instances.</span></li><li><span class="kp-text">Serv-U has a history of exploitation by bad actors, including those associated with the Cl0p ransomware gang, making rapid remediation particularly important for organizations running the product.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">CISA</mark> added <mark class="tag-hl">CVE-2026-28318</mark>, a high-severity flaw affecting <mark class="tag-hl">SolarWinds Serv-U</mark>, to its <mark class="tag-hl">Known Exploited Vulnerabilities catalog</mark> due to evidence of active exploitation.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2026-28318</mark> has a CVSS score of 7.5 and is an uncontrolled resource consumption vulnerability that can cause a denial-of-service condition.</span></li><li><span class="kp-text"><mark class="tag-hl">SolarWinds</mark> said Serv-U can be crashed without authentication by <mark class="tag-hl">specially crafted POST requests</mark> using Content-Encoding: deflate.</span></li><li><span class="kp-text"><mark class="tag-hl">SolarWinds</mark> fixed the issue in Serv-U version 15.5.4 HF1 and advised limiting access to known addresses and blocking requests containing &#34;content-encoding&#34; as mitigations.</span></li><li><span class="kp-text"><mark class="tag-hl">CISA</mark> ordered Federal Civilian Executive Branch agencies to address the flaw by June 19, 2026.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">CISA added CVE-2026-28318, a high-severity flaw affecting SolarWinds Serv-U, to its Known Exploited Vulnerabilities catalog due to evidence of active exploitation.</span></li><li><span class="kp-text">CVE-2026-28318 has a CVSS score of 7.5 and is an uncontrolled resource consumption vulnerability that can cause a denial-of-service condition.</span></li><li><span class="kp-text">SolarWinds said Serv-U can be crashed without authentication by specially crafted POST requests using Content-Encoding: deflate.</span></li><li><span class="kp-text">SolarWinds fixed the issue in Serv-U version 15.5.4 HF1 and advised limiting access to known addresses and blocking requests containing &#34;content-encoding&#34; as mitigations.</span></li><li><span class="kp-text">CISA ordered Federal Civilian Executive Branch agencies to address the flaw by June 19, 2026.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/cisa-adds-actively-exploited-solarwinds.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a specific <mark class="tag-hl">SolarWinds Serv-U</mark> vulnerability now added to <mark class="tag-hl">CISA</mark>’s KEV catalog, with a federal remediation deadline. The flaw is unauthenticated and affects internet-facing file server software, and the article includes concrete patch and mitigation guidance.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a specific SolarWinds Serv-U vulnerability now added to CISA’s KEV catalog, with a federal remediation deadline. The flaw is unauthenticated and affects internet-facing file server software, and the article includes concrete patch and mitigation guidance.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.cisa.gov/news-events/alerts/2026/06/05/cisa-adds-one-known-exploited-vulnerability-catalog" target="_blank" rel="noopener">CISA Adds One Known Exploited Vulnerability to Catalog</a></div>
   <div class="report-meta">CISA</div>
-  <div class="report-context">The article references <mark class="tag-hl">CISA</mark>&#39;s alert as the source for adding the <mark class="tag-hl">SolarWinds Serv-U</mark> flaw to the <mark class="tag-hl">Known Exploited Vulnerabilities catalog</mark>.</div>
+  <div class="report-context">The article references CISA&#39;s alert as the source for adding the SolarWinds Serv-U flaw to the Known Exploited Vulnerabilities catalog.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.solarwinds.com/trust-center/security-advisories/cve-2026-28318" target="_blank" rel="noopener">CVE-2026-28318</a></div>
   <div class="report-meta">SolarWinds</div>
-  <div class="report-context">The article cites <mark class="tag-hl">SolarWinds</mark>&#39; advisory for details on the unauthenticated <mark class="tag-hl">specially crafted POST requests</mark> that can crash Serv-U and for patch and mitigation information.</div>
+  <div class="report-context">The article cites SolarWinds&#39; advisory for details on the unauthenticated specially crafted POST requests that can crash Serv-U and for patch and mitigation information.</div>
 </li></ul></div>
             
           </div>
@@ -1781,56 +1937,56 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:82%"></div></div><span class="score-num score-num-mid">82</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:da2fca79c0c6d04c">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:da2fca79c0c6d04c')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:da2fca79c0c6d04c')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:da2fca79c0c6d04c')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:da2fca79c0c6d04c')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:da2fca79c0c6d04c')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:da2fca79c0c6d04c')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:da2fca79c0c6d04c')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:da2fca79c0c6d04c')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:da2fca79c0c6d04c')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:da2fca79c0c6d04c')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:da2fca79c0c6d04c" class="tab-panel active"><div class="prose"><mark class="tag-hl">Bright Data</mark>’s SDK, embedded in some free apps including smart TV apps, can turn consumer devices into residential proxy exit nodes for web scraping traffic used by AI data businesses. The key risk is that users’ home IP addresses and bandwidth may be used for third-party scraping under consent screens that researchers say do not clearly reflect the scale or behavior of the traffic.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:da2fca79c0c6d04c" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Include Security</mark> and independent researcher <mark class="tag-hl">Buchodi</mark> published findings on <mark class="tag-hl">Bright Data</mark>’s SDK, which is embedded in some consumer apps and can turn devices into exit nodes for web-scraping traffic. The article says this includes the potential use of always-on smart TVs as residential proxies for a data business <mark class="tag-hl">Bright Data</mark> markets to the AI industry. The main risk described is not stolen data or a hacked account, but the use of a user’s home IP address and bandwidth as someone else’s scraping infrastructure.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:da2fca79c0c6d04c" class="tab-panel active"><div class="prose">Bright Data’s SDK, embedded in some free apps including smart TV apps, can turn consumer devices into residential proxy exit nodes for web scraping traffic used by AI data businesses. The key risk is that users’ home IP addresses and bandwidth may be used for third-party scraping under consent screens that researchers say do not clearly reflect the scale or behavior of the traffic.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:da2fca79c0c6d04c" class="tab-panel"><div class="prose"><p>Include Security and independent researcher Buchodi published findings on Bright Data’s SDK, which is embedded in some consumer apps and can turn devices into exit nodes for web-scraping traffic. The article says this includes the potential use of always-on smart TVs as residential proxies for a data business Bright Data markets to the AI industry. The main risk described is not stolen data or a hacked account, but the use of a user’s home IP address and bandwidth as someone else’s scraping infrastructure.</p>
 
-<p>The deepest technical evidence comes from reverse-engineering <mark class="tag-hl">Bright Data</mark>’s iOS SDK, while the smart-TV reach is based on <mark class="tag-hl">Bright Data</mark>’s platform support, public partner list, and earlier reporting. The research found that the peer channel carrying scraping jobs has no real authentication, and that on iOS the traffic bypasses a configured VPN. The article also says the SDK’s loaded settings can allow far more traffic than some opt-in wording suggests, including up to 200 GB per month in one cited case.</p>
+<p>The deepest technical evidence comes from reverse-engineering Bright Data’s iOS SDK, while the smart-TV reach is based on Bright Data’s platform support, public partner list, and earlier reporting. The research found that the peer channel carrying scraping jobs has no real authentication, and that on iOS the traffic bypasses a configured VPN. The article also says the SDK’s loaded settings can allow far more traffic than some opt-in wording suggests, including up to 200 GB per month in one cited case.</p>
 
-<p><mark class="tag-hl">Bright Data</mark> says its residential proxy network includes consent-sourced IPs through an SDK placed behind an opt-in screen, and the article frames the meaningfulness of that consent as the central issue. Google, Amazon, and <mark class="tag-hl">Roku</mark> have restricted background proxy SDKs, and <mark class="tag-hl">Bright Data</mark> has dropped those platforms, though Samsung’s Tizen and LG’s webOS are still listed. The article recommends blocking specific <mark class="tag-hl">Bright Data</mark> SDK domains with router-level tools such as Pi-hole or NextDNS to stop affected devices from acting as relays.</p>
+<p>Bright Data says its residential proxy network includes consent-sourced IPs through an SDK placed behind an opt-in screen, and the article frames the meaningfulness of that consent as the central issue. Google, Amazon, and Roku have restricted background proxy SDKs, and Bright Data has dropped those platforms, though Samsung’s Tizen and LG’s webOS are still listed. The article recommends blocking specific Bright Data SDK domains with router-level tools such as Pi-hole or NextDNS to stop affected devices from acting as relays.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:da2fca79c0c6d04c" class="tab-panel"><div class="prose"><p>A researcher reverse-engineered <mark class="tag-hl">Bright Data</mark>’s iOS SDK and documented how it can turn consumer devices into exit nodes that relay web-scraping traffic. The findings were published on June 5 by <mark class="tag-hl">Include Security</mark> and independent researcher <mark class="tag-hl">Buchodi</mark>. The article says <mark class="tag-hl">Bright Data</mark>, the successor to <mark class="tag-hl">Luminati</mark>, operates what it calls the largest residential proxy network in the world and markets data services heavily to the AI industry.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:da2fca79c0c6d04c" class="tab-panel"><div class="prose"><p>A researcher reverse-engineered Bright Data’s iOS SDK and documented how it can turn consumer devices into exit nodes that relay web-scraping traffic. The findings were published on June 5 by Include Security and independent researcher Buchodi. The article says Bright Data, the successor to Luminati, operates what it calls the largest residential proxy network in the world and markets data services heavily to the AI industry.</p>
 
 <p>The significance is that scraping traffic comes from the user’s home IP address rather than from the customer’s infrastructure. The article says the immediate risk is not a hacked account or stolen data, but that a home connection and bandwidth are used as someone else’s scraping infrastructure. Smart TVs are described as particularly suitable because they are usually plugged in, on fast connections, effectively unmetered, and unwatched.</p>
 
 <p>The strongest technical evidence discussed in the article concerns the iOS SDK. The research found that the peer channel carrying scraping jobs has no real authentication, and the article says the controls were described as weaker than those in most malware. On iOS, the researcher found that SDK traffic bypasses a configured VPN and that much of the app activity does not appear in tools security teams normally use to monitor apps.</p>
 
-<p>The article also highlights a gap between opt-in consent language and SDK behavior. In one <mark class="tag-hl">Roku</mark> app, <mark class="tag-hl">Petflix</mark>, the opt-in screen said the device and connection would be used “occasionally,” while SDK settings allowed up to 200 GB of traffic per month. In some countries, including <mark class="tag-hl">Uzbekistan</mark> and <mark class="tag-hl">Oman</mark>, limits were set far higher, and the SDK could also link a person’s phone and computers running the same company’s apps as one user.</p>
+<p>The article also highlights a gap between opt-in consent language and SDK behavior. In one Roku app, Petflix, the opt-in screen said the device and connection would be used “occasionally,” while SDK settings allowed up to 200 GB of traffic per month. In some countries, including Uzbekistan and Oman, limits were set far higher, and the SDK could also link a person’s phone and computers running the same company’s apps as one user.</p>
 
-<p><mark class="tag-hl">Bright Data</mark> publishes a public list of app partners that includes makers of smart-TV apps such as <mark class="tag-hl">PlayWorks Digital</mark>, <mark class="tag-hl">CloudTV</mark>, and Longvision, though the researcher notes that being listed only shows a company worked with <mark class="tag-hl">Bright Data</mark> at some point. Lowpass, syndicated by The Verge, first surfaced the smart-TV angle in February, and the article presents the <mark class="tag-hl">Include Security</mark> work as the technical teardown. Google, Amazon, and <mark class="tag-hl">Roku</mark> have since restricted background proxy SDKs, and <mark class="tag-hl">Bright Data</mark> dropped those platforms, though it still lists Samsung’s Tizen and LG’s webOS.</p>
+<p>Bright Data publishes a public list of app partners that includes makers of smart-TV apps such as PlayWorks Digital, CloudTV, and Longvision, though the researcher notes that being listed only shows a company worked with Bright Data at some point. Lowpass, syndicated by The Verge, first surfaced the smart-TV angle in February, and the article presents the Include Security work as the technical teardown. Google, Amazon, and Roku have since restricted background proxy SDKs, and Bright Data dropped those platforms, though it still lists Samsung’s Tizen and LG’s webOS.</p>
 
-<p>For mitigation, the article says the SDK traffic is easy to spot and block on a home network. It recommends blocking domains such as proxyjs.brdtnet.com, proxyjs.luminatinet.com, proxyjs.bright-sdk.com, clientsdk.bright-sdk.com, and clientsdk.brdtnet.com using router-level tools like Pi-hole or NextDNS. The article notes that companies managing staff phones can scan for apps carrying the SDK, but network blocking may not catch mobile traffic and <mark class="tag-hl">Bright Data</mark> could change how the SDK connects in the future.</p>
+<p>For mitigation, the article says the SDK traffic is easy to spot and block on a home network. It recommends blocking domains such as proxyjs.brdtnet.com, proxyjs.luminatinet.com, proxyjs.bright-sdk.com, clientsdk.bright-sdk.com, and clientsdk.brdtnet.com using router-level tools like Pi-hole or NextDNS. The article notes that companies managing staff phones can scan for apps carrying the SDK, but network blocking may not catch mobile traffic and Bright Data could change how the SDK connects in the future.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:da2fca79c0c6d04c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:da2fca79c0c6d04c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Include Security</mark> and independent researcher <mark class="tag-hl">Buchodi</mark> published findings on June 5 about <mark class="tag-hl">Bright Data</mark>’s SDK and how it can turn consumer devices into residential proxy exit nodes. The article says the SDK is embedded in free apps behind an opt-in screen and can relay web-scraping traffic for <mark class="tag-hl">Bright Data</mark>’s data business, which is marketed heavily to the AI industry.</p>
+<p>Include Security and independent researcher Buchodi published findings on June 5 about Bright Data’s SDK and how it can turn consumer devices into residential proxy exit nodes. The article says the SDK is embedded in free apps behind an opt-in screen and can relay web-scraping traffic for Bright Data’s data business, which is marketed heavily to the AI industry.</p>
 
-<p><mark class="tag-hl">Bright Data</mark> is described as the successor to <mark class="tag-hl">Luminati</mark> and as operating what it calls the largest residential proxy network in the world, advertised at more than 400 million residential IPs. The article says part of that supply comes from the SDK and is described by <mark class="tag-hl">Bright Data</mark> as a consent-sourced pool of more than 150 million IPs.</p>
+<p>Bright Data is described as the successor to Luminati and as operating what it calls the largest residential proxy network in the world, advertised at more than 400 million residential IPs. The article says part of that supply comes from the SDK and is described by Bright Data as a consent-sourced pool of more than 150 million IPs.</p>
 
 <p>The central issue is that scraping traffic originates from the user’s home IP address rather than from the customer using the proxy service. The article says the immediate risk is not stolen data or a hacked account, but the use of a home internet connection and bandwidth as someone else’s scraping infrastructure.</p>
 
 <h2 id="why-smart-tvs-matter">Why smart TVs matter</h2>
 
-<p>The article says connected TVs are close to ideal for this type of proxy use because they are usually plugged in, connected to fast networks, effectively unmetered, and unwatched. The smart-TV reach described in the article rests on <mark class="tag-hl">Bright Data</mark>’s platform support, public partner list, and earlier reporting, while the deepest technical evidence comes from the iOS SDK analysis.</p>
+<p>The article says connected TVs are close to ideal for this type of proxy use because they are usually plugged in, connected to fast networks, effectively unmetered, and unwatched. The smart-TV reach described in the article rests on Bright Data’s platform support, public partner list, and earlier reporting, while the deepest technical evidence comes from the iOS SDK analysis.</p>
 
-<p><mark class="tag-hl">Bright Data</mark>’s public app partner list is said to include makers of smart-TV apps such as <mark class="tag-hl">PlayWorks Digital</mark>, <mark class="tag-hl">CloudTV</mark>, and Longvision. The researcher is careful to note that being listed only shows that a company worked with <mark class="tag-hl">Bright Data</mark> at some point, not that its app currently contains the SDK. Each app would need to be checked individually.</p>
+<p>Bright Data’s public app partner list is said to include makers of smart-TV apps such as PlayWorks Digital, CloudTV, and Longvision. The researcher is careful to note that being listed only shows that a company worked with Bright Data at some point, not that its app currently contains the SDK. Each app would need to be checked individually.</p>
 
 <h2 id="technical-findings">Technical findings</h2>
 
-<p>The research found that when an app opens, the SDK contacts one of <mark class="tag-hl">Bright Data</mark>’s servers and receives instructions without meaningful verification of who is asking. After that, the server can instruct the device to fetch pages from other websites using the user’s home internet connection.</p>
+<p>The research found that when an app opens, the SDK contacts one of Bright Data’s servers and receives instructions without meaningful verification of who is asking. After that, the server can instruct the device to fetch pages from other websites using the user’s home internet connection.</p>
 
 <p>The article says the peer channel carrying scraping jobs has no real authentication. The researcher described that channel as weaker than controls built into most malware.</p>
 
@@ -1838,25 +1994,25 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="consent-and-usage-limits">Consent and usage limits</h2>
 
-<p>The article says the opt-in screen does not match what the SDK actually allows. In one <mark class="tag-hl">Roku</mark> app, <mark class="tag-hl">Petflix</mark>, the screen said it would use the device and connection “occasionally.” However, the SDK settings allowed up to 200 GB of traffic per month.</p>
+<p>The article says the opt-in screen does not match what the SDK actually allows. In one Roku app, Petflix, the screen said it would use the device and connection “occasionally.” However, the SDK settings allowed up to 200 GB of traffic per month.</p>
 
-<p>The article also states that in a few countries, including <mark class="tag-hl">Uzbekistan</mark> and <mark class="tag-hl">Oman</mark>, traffic limits are set far higher. In those cases, the device is cleared to keep working almost until the battery runs flat.</p>
+<p>The article also states that in a few countries, including Uzbekistan and Oman, traffic limits are set far higher. In those cases, the device is cleared to keep working almost until the battery runs flat.</p>
 
-<p>The SDK can also tie together a person’s phone and computers that run the same company’s apps, treating them as one user. The article frames the meaningfulness of user consent as the key question separating <mark class="tag-hl">Bright Data</mark>’s model from criminal proxy networks that hijack consumer devices.</p>
+<p>The SDK can also tie together a person’s phone and computers that run the same company’s apps, treating them as one user. The article frames the meaningfulness of user consent as the key question separating Bright Data’s model from criminal proxy networks that hijack consumer devices.</p>
 
 <h2 id="broader-context">Broader context</h2>
 
-<p>The article says the model is not new in shape, only in scale. <mark class="tag-hl">Bright Data</mark> is the successor to <mark class="tag-hl">Luminati</mark>, the paid proxy service that grew out of <mark class="tag-hl">Hola VPN</mark>. In 2015, Hola was reported to have sold free users’ bandwidth as exit nodes through <mark class="tag-hl">Luminati</mark> at $20 per gigabyte.</p>
+<p>The article says the model is not new in shape, only in scale. Bright Data is the successor to Luminati, the paid proxy service that grew out of Hola VPN. In 2015, Hola was reported to have sold free users’ bandwidth as exit nodes through Luminati at $20 per gigabyte.</p>
 
-<p>The article says the buyer has changed because AI scrapers need residential connections to get around anti-bot defenses from companies such as Cloudflare and DataDome. It cites reporting from Krebs in October 2025 that proxies from botnets such as <mark class="tag-hl">Aisuru</mark> were fueling large-scale AI data harvesting. It also notes that Google dismantled the criminal <mark class="tag-hl">IPIDEA</mark> proxy network in January.</p>
+<p>The article says the buyer has changed because AI scrapers need residential connections to get around anti-bot defenses from companies such as Cloudflare and DataDome. It cites reporting from Krebs in October 2025 that proxies from botnets such as Aisuru were fueling large-scale AI data harvesting. It also notes that Google dismantled the criminal IPIDEA proxy network in January.</p>
 
-<p>The article distinguishes those criminal operations from <mark class="tag-hl">Bright Data</mark>’s stated model by noting that botnets hijack consumer devices, while <mark class="tag-hl">Bright Data</mark> says its exit nodes opt in through a consent screen. The article says whether that consent is meaningful remains the open question.</p>
+<p>The article distinguishes those criminal operations from Bright Data’s stated model by noting that botnets hijack consumer devices, while Bright Data says its exit nodes opt in through a consent screen. The article says whether that consent is meaningful remains the open question.</p>
 
 <h2 id="platform-response">Platform response</h2>
 
-<p>Lowpass, syndicated by The Verge, first surfaced the smart-TV angle in February, according to the article. The <mark class="tag-hl">Include Security</mark> work is described as the technical teardown.</p>
+<p>Lowpass, syndicated by The Verge, first surfaced the smart-TV angle in February, according to the article. The Include Security work is described as the technical teardown.</p>
 
-<p>The article says Google, Amazon, and <mark class="tag-hl">Roku</mark> have since restricted background proxy SDKs. <mark class="tag-hl">Bright Data</mark> has dropped those platforms, though the article says it still lists Samsung’s Tizen and LG’s webOS.</p>
+<p>The article says Google, Amazon, and Roku have since restricted background proxy SDKs. Bright Data has dropped those platforms, though the article says it still lists Samsung’s Tizen and LG’s webOS.</p>
 
 <h2 id="mitigation-guidance-in-the-article">Mitigation guidance in the article</h2>
 
@@ -1872,21 +2028,22 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>clientsdk.brdtnet.com</li>
 </ul>
 
-<p>According to the research cited in the article, blocking these domains stops the device from acting as a relay without affecting <mark class="tag-hl">Bright Data</mark>’s paid service, which uses separate addresses.</p>
+<p>According to the research cited in the article, blocking these domains stops the device from acting as a relay without affecting Bright Data’s paid service, which uses separate addresses.</p>
 
-<p>For companies managing staff phones, the article says they can scan for apps that carry the SDK. It also notes a limitation: on mobile connections, traffic sidesteps office Wi-Fi, so network blocking alone will not always catch it. The article adds that <mark class="tag-hl">Bright Data</mark> could change how the SDK connects in the future, meaning blocklists may need updates.</p>
+<p>For companies managing staff phones, the article says they can scan for apps that carry the SDK. It also notes a limitation: on mobile connections, traffic sidesteps office Wi-Fi, so network blocking alone will not always catch it. The article adds that Bright Data could change how the SDK connects in the future, meaning blocklists may need updates.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:da2fca79c0c6d04c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Smart TVs are especially attractive proxy nodes because they are usually plugged in, connected to fast home networks, effectively unmetered, and often not actively monitored by users.</span></li><li><span class="kp-text">The practical harm is reputational and operational rather than direct data theft: scraping activity appears to originate from the user’s residential IP address instead of <mark class="tag-hl">Bright Data</mark>’s customer.</span></li><li><span class="kp-text">Blocking the <mark class="tag-hl">Bright Data</mark> SDK domains at the router level can stop affected devices from acting as relays without disrupting <mark class="tag-hl">Bright Data</mark>’s separate paid proxy service infrastructure.</span></li><li><span class="kp-text">Enterprise network blocking may miss affected mobile devices because the SDK traffic can use cellular connections and, on iOS, can bypass a configured VPN.</span></li><li><span class="kp-text">The article highlights that “opt-in” consent is the central distinction <mark class="tag-hl">Bright Data</mark> draws from criminal botnet proxy networks, but the reported mismatch between consent text and SDK traffic limits makes that consent question operationally important.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:da2fca79c0c6d04c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Smart TVs are especially attractive proxy nodes because they are usually plugged in, connected to fast home networks, effectively unmetered, and often not actively monitored by users.</span></li><li><span class="kp-text">The practical harm is reputational and operational rather than direct data theft: scraping activity appears to originate from the user’s residential IP address instead of Bright Data’s customer.</span></li><li><span class="kp-text">Blocking the Bright Data SDK domains at the router level can stop affected devices from acting as relays without disrupting Bright Data’s separate paid proxy service infrastructure.</span></li><li><span class="kp-text">Enterprise network blocking may miss affected mobile devices because the SDK traffic can use cellular connections and, on iOS, can bypass a configured VPN.</span></li><li><span class="kp-text">The article highlights that “opt-in” consent is the central distinction Bright Data draws from criminal botnet proxy networks, but the reported mismatch between consent text and SDK traffic limits makes that consent question operationally important.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Include Security</mark> and independent researcher <mark class="tag-hl">Buchodi</mark> reverse-engineered <mark class="tag-hl">Bright Data</mark>’s iOS SDK and found it can turn consumer devices into exit nodes that relay web-scraping traffic through users’ home internet connections.</span></li><li><span class="kp-text">The research found that the peer channel carrying scraping jobs has no real authentication, and on iOS the SDK’s traffic can bypass a configured VPN.</span></li><li><span class="kp-text"><mark class="tag-hl">Bright Data</mark> says its residential proxy supply includes consent-sourced IPs from an SDK embedded in free apps behind an opt-in screen, but the article says the screen may not match what the SDK actually allows.</span></li><li><span class="kp-text">In one <mark class="tag-hl">Roku</mark> app called <mark class="tag-hl">Petflix</mark>, the opt-in screen said the device and connection would be used “occasionally,” while SDK settings allowed up to 200 GB of traffic per month.</span></li><li><span class="kp-text">The article says users can block several <mark class="tag-hl">Bright Data</mark> SDK domains, including proxyjs.brdtnet.com and clientsdk.bright-sdk.com, with router-level tools such as Pi-hole or NextDNS to stop devices from acting as relays.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Include Security and independent researcher Buchodi reverse-engineered Bright Data’s iOS SDK and found it can turn consumer devices into exit nodes that relay web-scraping traffic through users’ home internet connections.</span></li><li><span class="kp-text">The research found that the peer channel carrying scraping jobs has no real authentication, and on iOS the SDK’s traffic can bypass a configured VPN.</span></li><li><span class="kp-text">Bright Data says its residential proxy supply includes consent-sourced IPs from an SDK embedded in free apps behind an opt-in screen, but the article says the screen may not match what the SDK actually allows.</span></li><li><span class="kp-text">In one Roku app called Petflix, the opt-in screen said the device and connection would be used “occasionally,” while SDK settings allowed up to 200 GB of traffic per month.</span></li><li><span class="kp-text">The article says users can block several Bright Data SDK domains, including proxyjs.brdtnet.com and clientsdk.bright-sdk.com, with router-level tools such as Pi-hole or NextDNS to stop devices from acting as relays.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/free-apps-are-quietly-turning-smart-tvs.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific technical finding about <mark class="tag-hl">Bright Data</mark>’s SDK turning consumer devices, including smart TVs, into residential proxy nodes, with concrete evidence around weak authentication, VPN bypass on iOS, and actionable blocking domains. It has broad relevance for security professionals because it affects home and managed devices, network monitoring assumptions, and consent-based proxy infrastructure, though it is not described as active exploitation or a critical patch event.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific technical finding about Bright Data’s SDK turning consumer devices, including smart TVs, into residential proxy nodes, with concrete evidence around weak authentication, VPN bypass on iOS, and actionable blocking domains. It has broad relevance for security professionals because it affects home and managed devices, network monitoring assumptions, and consent-based proxy infrastructure, though it is not described as active exploitation or a critical patch event.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://blog.includesecurity.com/2026/06/the-smart-tv-in-your-livingroom-is-a-node-in-the-aiscraping-economy/" target="_blank" rel="noopener">The Smart TV in Your Livingroom Is a Node in the AI/Scraping Economy</a></div>
   <div class="report-meta">Include Security</div>
-  <div class="report-context">The article says <mark class="tag-hl">Include Security</mark> and independent researcher <mark class="tag-hl">Buchodi</mark> published the technical findings from reverse-engineering <mark class="tag-hl">Bright Data</mark>’s iOS SDK.</div>
+  <div class="report-context">The article says Include Security and independent researcher Buchodi published the technical findings from reverse-engineering Bright Data’s iOS SDK.</div>
 </li></ul></div>
             
           </div>
@@ -1909,42 +2066,42 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest is led by software supply chain risk, actively exploited enterprise vulnerabilities, and emerging evidence of AI accelerating vulnerability discovery. The most operationally significant items are the <mark class="tag-hl">Miasma</mark> worm’s impact across <mark class="tag-hl">Microsoft</mark> <mark class="tag-hl">GitHub</mark> repositories, <mark class="tag-hl">CISA</mark>’s addition of <mark class="tag-hl">SolarWinds Serv-U</mark> <mark class="tag-hl">CVE-2026-28318</mark> to the KEV catalog, and large vulnerability disclosures affecting <mark class="tag-hl">FFmpeg</mark> and Chrome.</p>
+        <div class="overview-body prose"><p>This digest is led by software supply chain risk, actively exploited enterprise vulnerabilities, and emerging evidence of AI accelerating vulnerability discovery. The most operationally significant items are the Miasma worm’s impact across Microsoft GitHub repositories, CISA’s addition of SolarWinds Serv-U CVE-2026-28318 to the KEV catalog, and large vulnerability disclosures affecting FFmpeg and Chrome.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Software Supply Chain and Developer Tooling Abuse</span>
         </div>
-        <div class="overview-body prose"><p>The <mark class="tag-hl">Miasma</mark> self-replicating supply chain campaign reportedly affected 73 <mark class="tag-hl">Microsoft</mark> <mark class="tag-hl">GitHub</mark> repositories across the <mark class="tag-hl">Azure</mark>, <mark class="tag-hl">Azure</mark>-Samples, <mark class="tag-hl">Microsoft</mark>, and MicrosoftDocs organizations. <mark class="tag-hl">GitHub</mark> disabled access to affected repositories, including <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">azure-functions-host</mark>, citing a violation of its terms of service.</p>
+        <div class="overview-body prose"><p>The Miasma self-replicating supply chain campaign reportedly affected 73 Microsoft GitHub repositories across the Azure, Azure-Samples, Microsoft, and MicrosoftDocs organizations. GitHub disabled access to affected repositories, including Azure/azure-functions-host, citing a violation of its terms of service.</p>
 
-<p>The campaign included a re-compromise of the <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> package, which had previously been infected by <mark class="tag-hl">TeamPCP</mark> to deliver an information stealer on Linux systems. <mark class="tag-hl">Miasma</mark> is assessed to be a variant of the <mark class="tag-hl">Mini Shai-Hulud</mark> worm that <mark class="tag-hl">TeamPCP</mark> publicly released in mid-May 2026, indicating reuse or adaptation of publicly available worming tradecraft.</p>
+<p>The campaign included a re-compromise of the durabletask PyPI package, which had previously been infected by TeamPCP to deliver an information stealer on Linux systems. Miasma is assessed to be a variant of the Mini Shai-Hulud worm that TeamPCP publicly released in mid-May 2026, indicating reuse or adaptation of publicly available worming tradecraft.</p>
 
-<p>Reported behavior includes pushing malicious code directly to <mark class="tag-hl">GitHub</mark> repositories and wiring execution through developer tooling such as Claude Code, Gemini CLI, Cursor, VS Code, and the <mark class="tag-hl">npm</mark> test script. This positions the campaign at the intersection of repository compromise, package ecosystem abuse, and AI-assisted developer workflow exploitation.</p>
+<p>Reported behavior includes pushing malicious code directly to GitHub repositories and wiring execution through developer tooling such as Claude Code, Gemini CLI, Cursor, VS Code, and the npm test script. This positions the campaign at the intersection of repository compromise, package ecosystem abuse, and AI-assisted developer workflow exploitation.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Actively Exploited and Newly Disclosed Software Vulnerabilities</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">CISA</mark> added <mark class="tag-hl">CVE-2026-28318</mark>, a high-severity <mark class="tag-hl">SolarWinds Serv-U</mark> vulnerability, to the <mark class="tag-hl">Known Exploited Vulnerabilities catalog</mark> after evidence of active exploitation. The flaw is an uncontrolled resource consumption issue with a CVSS score of 7.5 that can allow an unauthenticated attacker to crash Serv-U using <mark class="tag-hl">specially crafted POST requests</mark> with Content-Encoding: deflate.</p>
+        <div class="overview-body prose"><p>CISA added CVE-2026-28318, a high-severity SolarWinds Serv-U vulnerability, to the Known Exploited Vulnerabilities catalog after evidence of active exploitation. The flaw is an uncontrolled resource consumption issue with a CVSS score of 7.5 that can allow an unauthenticated attacker to crash Serv-U using specially crafted POST requests with Content-Encoding: deflate.</p>
 
-<p><mark class="tag-hl">SolarWinds</mark> fixed the issue in Serv-U version 15.5.4 HF1 and described mitigations including limiting access to known addresses and blocking requests containing &ldquo;content-encoding.&rdquo; <mark class="tag-hl">CISA</mark> directed Federal Civilian Executive Branch agencies to address the vulnerability by June 19, 2026.</p>
+<p>SolarWinds fixed the issue in Serv-U version 15.5.4 HF1 and described mitigations including limiting access to known addresses and blocking requests containing &ldquo;content-encoding.&rdquo; CISA directed Federal Civilian Executive Branch agencies to address the vulnerability by June 19, 2026.</p>
 
-<p>Separate vulnerability research highlighted the growing role of autonomous systems in bug discovery. Security startup <mark class="tag-hl">depthfirst</mark> reported that an autonomous AI agent found 21 previously unknown vulnerabilities in <mark class="tag-hl">FFmpeg</mark> during a run costing about $1,000, with some flaws dating back 15 to 20 years, including a stack overflow in service-description-table code from 2003.</p>
+<p>Separate vulnerability research highlighted the growing role of autonomous systems in bug discovery. Security startup depthfirst reported that an autonomous AI agent found 21 previously unknown vulnerabilities in FFmpeg during a run costing about $1,000, with some flaws dating back 15 to 20 years, including a stack overflow in service-description-table code from 2003.</p>
 
-<p><mark class="tag-hl">Google</mark> also released <mark class="tag-hl">Chrome 149</mark> with fixes for 429 security vulnerabilities, including more than 100 rated critical or high severity. The most severe issue, <mark class="tag-hl">CVE-2026-10881</mark>, is an out-of-bounds read and write in the <mark class="tag-hl">ANGLE</mark> graphics engine that can allow a crafted page to escape the browser sandbox and execute code on the host.</p>
+<p>Google also released Chrome 149 with fixes for 429 security vulnerabilities, including more than 100 rated critical or high severity. The most severe issue, CVE-2026-10881, is an out-of-bounds read and write in the ANGLE graphics engine that can allow a crafted page to escape the browser sandbox and execute code on the host.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">03</span>
           <span class="overview-title">Consumer Device Proxy Monetization and Residential Traffic Abuse</span>
         </div>
-        <div class="overview-body prose"><p>Research by <mark class="tag-hl">Include Security</mark> and independent researcher <mark class="tag-hl">Buchodi</mark> found that <mark class="tag-hl">Bright Data</mark>’s iOS SDK can turn consumer devices into exit nodes for web-scraping traffic routed through users’ home internet connections. The analysis found that the peer channel carrying scraping jobs had no real authentication and that, on iOS, SDK traffic could bypass a configured VPN.</p>
+        <div class="overview-body prose"><p>Research by Include Security and independent researcher Buchodi found that Bright Data’s iOS SDK can turn consumer devices into exit nodes for web-scraping traffic routed through users’ home internet connections. The analysis found that the peer channel carrying scraping jobs had no real authentication and that, on iOS, SDK traffic could bypass a configured VPN.</p>
 
-<p><mark class="tag-hl">Bright Data</mark> says its residential proxy supply includes consent-sourced IPs from an SDK embedded in free apps behind an opt-in screen. The reporting raises questions about whether disclosed consent accurately reflects SDK capabilities, citing a <mark class="tag-hl">Roku</mark> app called <mark class="tag-hl">Petflix</mark> whose opt-in screen described only occasional device and connection use while SDK settings allowed up to 200 GB of traffic per month.</p>
+<p>Bright Data says its residential proxy supply includes consent-sourced IPs from an SDK embedded in free apps behind an opt-in screen. The reporting raises questions about whether disclosed consent accurately reflects SDK capabilities, citing a Roku app called Petflix whose opt-in screen described only occasional device and connection use while SDK settings allowed up to 200 GB of traffic per month.</p>
 
-<p>The report identified several <mark class="tag-hl">Bright Data</mark> SDK domains associated with the relay function, including proxyjs.brdtnet.com and clientsdk.bright-sdk.com. The findings broaden the residential proxy risk model beyond traditional malware-driven botnets to include app-mediated monetization channels on consumer smart devices.</p>
+<p>The report identified several Bright Data SDK domains associated with the relay function, including proxyjs.brdtnet.com and clientsdk.bright-sdk.com. The findings broaden the residential proxy risk model beyond traditional malware-driven botnets to include app-mediated monetization channels on consumer smart devices.</p>
 </div>
       </div>
     </div>
@@ -1953,9 +2110,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-06 06:00 UTC · 4 hours window</span>
-  <span class="footer-right">4 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">4 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1968,15 +2128,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2089,12 +2311,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2155,6 +2411,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

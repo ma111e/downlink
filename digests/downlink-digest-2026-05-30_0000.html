@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1347,14 +1500,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                 </div><div class="toc-row-tags"><span class="toc-tags-label">TAGS</span><span class="meta-tag" data-tag="authentication-bypass" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">authentication-bypass</span><span class="meta-tag" data-tag="cve-2026-0257" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">cve-2026-0257</span><span class="meta-tag" data-tag="exploitation" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">exploitation</span><span class="meta-tag" data-tag="forged-cookie" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">forged-cookie</span><span class="meta-tag" data-tag="globalprotect" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">globalprotect</span><span class="meta-tag" data-tag="pan-os" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">pan-os</span><span class="meta-tag" data-tag="vpn" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">vpn</span></div>
               </div>
               <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:95%"></div></div><span class="score-num score-num-high">95</span></div>
-              <span class="toc-row-chevron" id="chevron-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
+              <span class="toc-row-chevron" id="chevron-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
             </summary>
             <ul class="toc-cluster-members">
               <li class="toc-cluster-member" data-category="">
                 <span class="toc-child-indent">└</span>
                 <div style="flex:1;min-width:0">
                   
-                  <div class="toc-child-title" onclick="toggleTocMember(this,'member-body-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58')" style="cursor:pointer">PAN-OS GlobalProtect Authentication Bypass (CVE-2026-0257) Under Active Exploitation</div>
+                  <div class="toc-child-title" onclick="toggleTocMember(this,'member-body-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58')" style="cursor:pointer">PAN-OS GlobalProtect Authentication Bypass (CVE-2026-0257) Under Active Exploitation</div>
                   <div class="toc-row-meta">
                     <span class="source-dot" style="background:var(--p8)"></span>
                     <span class="source-name" style="color:var(--p8)">thehackernews.com</span>
@@ -1362,27 +1515,27 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                     <span class="meta-time">2026-05-30 06:41</span>
                     <span class="meta-provider">openai / deepseek-v4-pro</span>
                   </div>
-                  <div class="article-body" id="member-body-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58">
+                  <div class="article-body" id="member-body-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58" data-article-id="2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58">
                     
                     
                     
                     <div class="panel-section">
                       <div class="panel-subhead panel-subhead--summary">Summary
                         <div class="summary-switch">
-                          <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58')">TL;DR</button>
-                          <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58')">Brief</button>
-                          <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58')">Standard</button>
-                          <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58')">Comprehensive</button>
-                          <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58')">Insights</button>
+                          <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58')">TL;DR</button>
+                          <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58')">Brief</button>
+                          <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58')">Standard</button>
+                          <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58')">Comprehensive</button>
+                          <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58')">Insights</button>
                         </div>
                       </div>
                       <div class="summary-body">
-                        <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58" class="tab-panel active"><div class="prose">A medium-severity authentication bypass in Palo Alto Networks PAN-OS GlobalProtect is being actively exploited to establish unauthorized VPN connections, requiring urgent patching or mitigation.</div></div>
-                        <div id="brief-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58" class="tab-panel"><div class="prose"><p>Palo Alto Networks warned on May 13, 2026 that a medium-severity authentication bypass vulnerability (CVE-2026-0257, CVSS 7.8) in PAN-OS GlobalProtect is under active exploitation. The flaw enables attackers to bypass security restrictions and establish unauthorized VPN connections on affected firewalls. Exploitation was confirmed by Rapid7, which observed successful attacks across multiple customers beginning May 17, 2026, with a second wave on May 21 carried out by the same threat actor.</p>
+                        <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58" class="tab-panel active"><div class="prose">A medium-severity authentication bypass in Palo Alto Networks PAN-OS GlobalProtect is being actively exploited to establish unauthorized VPN connections, requiring urgent patching or mitigation.</div></div>
+                        <div id="brief-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58" class="tab-panel"><div class="prose"><p>Palo Alto Networks warned on May 13, 2026 that a medium-severity authentication bypass vulnerability (CVE-2026-0257, CVSS 7.8) in PAN-OS GlobalProtect is under active exploitation. The flaw enables attackers to bypass security restrictions and establish unauthorized VPN connections on affected firewalls. Exploitation was confirmed by Rapid7, which observed successful attacks across multiple customers beginning May 17, 2026, with a second wave on May 21 carried out by the same threat actor.</p>
 
 <p>The vulnerability impacts devices where the GlobalProtect portal or gateway is configured, authentication override cookies are enabled, and a specific certificate configuration exists. In at least two cases during the second wave, attackers leveraged the bypass to obtain VPN IP assignment and gain internal network access, though no post-access activity was detected. Palo Alto Networks urges organizations to apply the available patch immediately or, as a temporary measure, to disable the authentication override feature or generate a new dedicated certificate for that feature.</p>
 </div></div>
-                        <div id="standard-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58" class="tab-panel"><div class="prose"><p>Palo Alto Networks disclosed a medium-severity authentication bypass vulnerability, CVE-2026-0257 (CVSS 7.8), affecting PAN-OS software and Prisma Access in an advisory on May 13, 2026. The flaw resides in the GlobalProtect portal and gateway components and allows an attacker to circumvent security restrictions to set up an unauthorized VPN connection. An update to the advisory on May 29, 2026, confirmed that limited exploit attempts had been detected against unpatched devices without applied mitigations.</p>
+                        <div id="standard-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58" class="tab-panel"><div class="prose"><p>Palo Alto Networks disclosed a medium-severity authentication bypass vulnerability, CVE-2026-0257 (CVSS 7.8), affecting PAN-OS software and Prisma Access in an advisory on May 13, 2026. The flaw resides in the GlobalProtect portal and gateway components and allows an attacker to circumvent security restrictions to set up an unauthorized VPN connection. An update to the advisory on May 29, 2026, confirmed that limited exploit attempts had been detected against unpatched devices without applied mitigations.</p>
 
 <p>The vulnerability is exploitable only under a specific set of conditions: when the GlobalProtect portal or gateway is configured, authentication override cookies are enabled, and a particular certificate configuration is in place. Under these circumstances, an authentication bypass can be performed, effectively granting the attacker the same network access as an authenticated VPN user. The vulnerability was assigned a CVSS score of 7.8, categorized as medium severity, but its active exploitation underscores the danger of edge-facing VPN appliance flaws regardless of the severity rating.</p>
 
@@ -1392,7 +1545,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The exploitation of CVE-2026-0257 comes amid a broader wave of attacks targeting VPN infrastructure. The article references a prior report from Arctic Wolf about threat actors exploiting a critical FortiClient Endpoint Management Server vulnerability (CVE-2026-35616) to deliver the EKZ Infostealer credential-theft malware. This context highlights a sustained campaign against remote access solutions, making timely patching and defense-in-depth strategies critical for organizations that rely on these technologies.</p>
 </div></div>
-                        <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                        <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
 <ul>
 <li>Palo Alto Networks disclosed an authentication bypass vulnerability (CVE-2026-0257, CVSS 7.8, medium severity) in PAN-OS GlobalProtect and Prisma Access on May 13, 2026.</li>
@@ -1456,10 +1609,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>The parallel exploitation of VPN and remote management appliances underscores a heightened threat environment targeting enterprise remote access infrastructure.</li>
 </ul>
 </div></div>
-                        <div id="insights-d529ee07a31d4053c3d3914adab6a72a:5420e05836399b58" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Despite its CVSS score of 7.8 (medium severity), CVE-2026-0257 has been actively exploited in the wild, demonstrating that severity ratings do not always reflect real-world exploitation risk.</span></li><li><span class="kp-text">The attack activity occurred in two distinct waves beginning May 17 and May 21, 2026, assessed by Rapid7 to be the work of the same threat actor, indicating a targeted intrusion effort rather than indiscriminate scanning.</span></li><li><span class="kp-text">In at least two cases where unauthorized VPN sessions were established after cookie authentication, no follow-on activity was observed, leaving the attacker&#39;s post-access objectives unclear.</span></li><li><span class="kp-text">Exploitation only succeeds when authentication override cookies are enabled and a specific certificate configuration exists, meaning many organizations with affected appliances may be unaware of their exposure if they assume the medium severity implies low risk.</span></li></ul></div>
+                        <div id="insights-2c649f836c802c9bcc9197615b1d78bf:5420e05836399b58" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Despite its CVSS score of 7.8 (medium severity), CVE-2026-0257 has been actively exploited in the wild, demonstrating that severity ratings do not always reflect real-world exploitation risk.</span></li><li><span class="kp-text">The attack activity occurred in two distinct waves beginning May 17 and May 21, 2026, assessed by Rapid7 to be the work of the same threat actor, indicating a targeted intrusion effort rather than indiscriminate scanning.</span></li><li><span class="kp-text">In at least two cases where unauthorized VPN sessions were established after cookie authentication, no follow-on activity was observed, leaving the attacker&#39;s post-access objectives unclear.</span></li><li><span class="kp-text">Exploitation only succeeds when authentication override cookies are enabled and a specific certificate configuration exists, meaning many organizations with affected appliances may be unaware of their exposure if they assume the medium severity implies low risk.</span></li></ul></div>
                       </div>
                     </div>
                     <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">A medium-severity authentication bypass vulnerability (CVE-2026-0257, CVSS 7.8) in PAN-OS GlobalProtect allows attackers to bypass security restrictions and establish unauthorized VPN connections.</span></li><li><span class="kp-text">The vulnerability affects firewalls where the GlobalProtect portal or gateway is configured, authentication override cookies are enabled, and a specific certificate configuration exists.</span></li><li><span class="kp-text">Palo Alto Networks confirmed limited exploit attempts on unpatched devices, and Rapid7 observed successful exploitation across multiple customer environments starting May 17, 2026.</span></li><li><span class="kp-text">In two cases during the second exploitation wave, attackers gained VPN IP assignment after cookie authentication, granting access to the internal network.</span></li><li><span class="kp-text">Organizations are urged to apply the vendor patch urgently or, as a temporary mitigation, disable the authentication override feature or generate a new certificate for it.</span></li></ul></div>
+                    
                     <a href="https://thehackernews.com/2026/05/pan-os-globalprotect-authentication.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
                     <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports active, in-the-wild exploitation of a newly disclosed authentication bypass in PAN-OS GlobalProtect—a widely deployed edge-facing VPN appliance—with confirmed unauthorized network access at multiple customer environments, making it a high-urgency must-read for operational defenders.</p>
 </div></div>
@@ -1479,76 +1633,76 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </li>
             </ul>
           </details>
-          <div class="toc-row-body" id="canon-body-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f">
+          <div class="toc-row-body" id="canon-body-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f" class="tab-panel active"><div class="prose">A <mark class="tag-hl">PAN-OS</mark> <mark class="tag-hl">authentication bypass</mark> vulnerability (<mark class="tag-hl">CVE-2026-0257</mark>) in <mark class="tag-hl">GlobalProtect</mark> <mark class="tag-hl">VPN</mark> is being actively exploited to gain unauthorized network access; admins must immediately apply patches or disable authentication override cookies to prevent intrusion.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f" class="tab-panel"><div class="prose"><p>Palo Alto Networks has warned that an <mark class="tag-hl">authentication bypass</mark> flaw in <mark class="tag-hl">PAN-OS</mark> <mark class="tag-hl">GlobalProtect</mark> <mark class="tag-hl">VPN</mark>, tracked as <mark class="tag-hl">CVE-2026-0257</mark>, is now being actively exploited in attacks against unpatched devices. Originally rated medium severity, the vulnerability’s rating was raised to high after confirmation of in‑the‑wild <mark class="tag-hl">exploitation</mark>.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f" class="tab-panel active"><div class="prose">A PAN-OS authentication bypass vulnerability (CVE-2026-0257) in GlobalProtect VPN is being actively exploited to gain unauthorized network access; admins must immediately apply patches or disable authentication override cookies to prevent intrusion.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f" class="tab-panel"><div class="prose"><p>Palo Alto Networks has warned that an authentication bypass flaw in PAN-OS GlobalProtect VPN, tracked as CVE-2026-0257, is now being actively exploited in attacks against unpatched devices. Originally rated medium severity, the vulnerability’s rating was raised to high after confirmation of in‑the‑wild exploitation.</p>
 
-<p>The flaw arises because <mark class="tag-hl">PAN-OS</mark> decrypts authentication override cookies using a configured private key and trusts the decrypted contents without signature verification. If the same certificate is used for both HTTPS and authentication override cookies, attackers can retrieve the public key over HTTPS and forge cookies to authenticate as any user, including the local administrator.</p>
+<p>The flaw arises because PAN-OS decrypts authentication override cookies using a configured private key and trusts the decrypted contents without signature verification. If the same certificate is used for both HTTPS and authentication override cookies, attackers can retrieve the public key over HTTPS and forge cookies to authenticate as any user, including the local administrator.</p>
 
-<p>Rapid7 detected <mark class="tag-hl">exploitation</mark> beginning May 17, 2026, with attack waves originating from Vultr and Dromatics Systems infrastructure. While successful <mark class="tag-hl">exploitation</mark> could grant full <mark class="tag-hl">VPN</mark> access to internal networks, many incidents saw the device accept the <mark class="tag-hl">forged cookie</mark> without establishing a complete <mark class="tag-hl">VPN</mark> session. Organizations are urged to apply updates, disable authentication override, or use separate certificates, and CISA has mandated federal agencies to remediate by June 1, 2026.</p>
+<p>Rapid7 detected exploitation beginning May 17, 2026, with attack waves originating from Vultr and Dromatics Systems infrastructure. While successful exploitation could grant full VPN access to internal networks, many incidents saw the device accept the forged cookie without establishing a complete VPN session. Organizations are urged to apply updates, disable authentication override, or use separate certificates, and CISA has mandated federal agencies to remediate by June 1, 2026.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f" class="tab-panel"><div class="prose"><p>Palo Alto Networks disclosed that <mark class="tag-hl">CVE-2026-0257</mark>, a vulnerability in <mark class="tag-hl">PAN-OS</mark> <mark class="tag-hl">GlobalProtect</mark>, is under active <mark class="tag-hl">exploitation</mark>. The flaw allows attackers to bypass authentication and establish unauthorized <mark class="tag-hl">VPN</mark> connections to corporate networks. Initially classified as medium severity because <mark class="tag-hl">exploitation</mark> required authentication override cookies to be enabled and a specific certificate setup, the severity was elevated to high once <mark class="tag-hl">exploitation</mark> was confirmed.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f" class="tab-panel"><div class="prose"><p>Palo Alto Networks disclosed that CVE-2026-0257, a vulnerability in PAN-OS GlobalProtect, is under active exploitation. The flaw allows attackers to bypass authentication and establish unauthorized VPN connections to corporate networks. Initially classified as medium severity because exploitation required authentication override cookies to be enabled and a specific certificate setup, the severity was elevated to high once exploitation was confirmed.</p>
 
-<p>Rapid7 provided technical details on the root cause: <mark class="tag-hl">PAN-OS</mark> decrypts authentication override cookies with a private key and trusts the decrypted values without performing signature verification. When the same certificate is reused for both HTTPS services and authentication override cookies, an attacker can extract the corresponding public key from an HTTPS session, forge a valid authentication override cookie, and impersonate arbitrary users, including the local administrator account.</p>
+<p>Rapid7 provided technical details on the root cause: PAN-OS decrypts authentication override cookies with a private key and trusts the decrypted values without performing signature verification. When the same certificate is reused for both HTTPS services and authentication override cookies, an attacker can extract the corresponding public key from an HTTPS session, forge a valid authentication override cookie, and impersonate arbitrary users, including the local administrator account.</p>
 
-<p>The <mark class="tag-hl">exploitation</mark> timeline began on May 17, 2026, with Rapid7 observing successful attacks across multiple customers. The first wave was seen on May 18 from infrastructure hosted by Vultr, and a second wave appeared on May 21 from Dromatics Systems. In some cases, attackers connected via <mark class="tag-hl">VPN</mark> and gained access to internal networks, although Rapid7 noted that they did not witness lateral movement from the compromised devices. In many other instances, the appliance accepted the <mark class="tag-hl">forged cookie</mark> but did not allow the establishment of a full <mark class="tag-hl">VPN</mark> session.</p>
+<p>The exploitation timeline began on May 17, 2026, with Rapid7 observing successful attacks across multiple customers. The first wave was seen on May 18 from infrastructure hosted by Vultr, and a second wave appeared on May 21 from Dromatics Systems. In some cases, attackers connected via VPN and gained access to internal networks, although Rapid7 noted that they did not witness lateral movement from the compromised devices. In many other instances, the appliance accepted the forged cookie but did not allow the establishment of a full VPN session.</p>
 
-<p>Affected parties include any organization running unpatched <mark class="tag-hl">PAN-OS</mark> devices with <mark class="tag-hl">GlobalProtect</mark> authentication override cookies enabled and a shared certificate configuration. The attackers&rsquo; motivation appears to be initial network access, though the absence of observed lateral movement suggests varied outcomes. No specific threat actor group was attributed; only the hosting infrastructure providers were mentioned.</p>
+<p>Affected parties include any organization running unpatched PAN-OS devices with GlobalProtect authentication override cookies enabled and a shared certificate configuration. The attackers&rsquo; motivation appears to be initial network access, though the absence of observed lateral movement suggests varied outcomes. No specific threat actor group was attributed; only the hosting infrastructure providers were mentioned.</p>
 
-<p>Palo Alto Networks updated its security advisory on Friday to reflect active <mark class="tag-hl">exploitation</mark>, and CISA added <mark class="tag-hl">CVE-2026-0257</mark> to its Known Exploited Vulnerabilities catalog on May 29, 2026, mandating federal agencies to patch by June 1, 2026. Mitigations include applying the latest security updates, disabling the authentication override feature, or ensuring a unique certificate is used for authentication override cookies that is not shared with other services on the device.</p>
+<p>Palo Alto Networks updated its security advisory on Friday to reflect active exploitation, and CISA added CVE-2026-0257 to its Known Exploited Vulnerabilities catalog on May 29, 2026, mandating federal agencies to patch by June 1, 2026. Mitigations include applying the latest security updates, disabling the authentication override feature, or ensuring a unique certificate is used for authentication override cookies that is not shared with other services on the device.</p>
 
-<p>The article also references a Rapid7 technical analysis and a proof-of-concept exploit that demoed how an attacker retrieves the public certificate, forges an authentication override cookie, and authenticates without valid credentials. This practical demonstration underscores the ease of <mark class="tag-hl">exploitation</mark> once the misconfiguration is present.</p>
+<p>The article also references a Rapid7 technical analysis and a proof-of-concept exploit that demoed how an attacker retrieves the public certificate, forges an authentication override cookie, and authenticates without valid credentials. This practical demonstration underscores the ease of exploitation once the misconfiguration is present.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
 <ul>
-<li>Palo Alto Networks issued a warning about active <mark class="tag-hl">exploitation</mark> of <mark class="tag-hl">CVE-2026-0257</mark>, an <mark class="tag-hl">authentication bypass</mark> vulnerability in <mark class="tag-hl">PAN-OS</mark> <mark class="tag-hl">GlobalProtect</mark> <mark class="tag-hl">VPN</mark>.</li>
+<li>Palo Alto Networks issued a warning about active exploitation of CVE-2026-0257, an authentication bypass vulnerability in PAN-OS GlobalProtect VPN.</li>
 <li>The flaw was patched earlier in the month of the article&rsquo;s publication and initially rated as Medium severity because it required specific configuration conditions: authentication override cookies enabled and a particular certificate setup.</li>
 <li>After confirming in‑the‑wild attacks, Palo Alto Networks raised the severity to High on Friday (the update date).</li>
-<li>Rapid7 observed <mark class="tag-hl">exploitation</mark> starting May 17, 2026, across numerous customers, and CISA added the flaw to its Known Exploited Vulnerabilities catalog on May 29, 2026.</li>
+<li>Rapid7 observed exploitation starting May 17, 2026, across numerous customers, and CISA added the flaw to its Known Exploited Vulnerabilities catalog on May 29, 2026.</li>
 </ul>
 
 <h2 id="vulnerability-technical-details">Vulnerability Technical Details</h2>
 
 <ul>
-<li>The root cause lies in how <mark class="tag-hl">PAN-OS</mark> handles authentication override cookies.</li>
-<li>When a <mark class="tag-hl">GlobalProtect</mark> portal or gateway receives an authentication override cookie, it decrypts it using a configured private key and then trusts the decrypted contents without performing any signature verification.</li>
+<li>The root cause lies in how PAN-OS handles authentication override cookies.</li>
+<li>When a GlobalProtect portal or gateway receives an authentication override cookie, it decrypts it using a configured private key and then trusts the decrypted contents without performing any signature verification.</li>
 <li>If the same certificate is used for both HTTPS services (where the public key is exposed) and authentication override cookies, an attacker can retrieve the public key from the HTTPS session and create a forged authentication override cookie for any user.</li>
-<li>The attacker does not need valid credentials; they can forge a cookie for the local administrator account, gaining unauthorized <mark class="tag-hl">VPN</mark> access.</li>
-<li>Rapid7 developed a proof-of-concept exploit that demonstrates retrieving the public certificate from the <mark class="tag-hl">GlobalProtect</mark> portal/gateway, generating a forged authentication override cookie, and successfully authenticating to an unpatched device.</li>
+<li>The attacker does not need valid credentials; they can forge a cookie for the local administrator account, gaining unauthorized VPN access.</li>
+<li>Rapid7 developed a proof-of-concept exploit that demonstrates retrieving the public certificate from the GlobalProtect portal/gateway, generating a forged authentication override cookie, and successfully authenticating to an unpatched device.</li>
 </ul>
 
-<h2 id="exploitation-timeline-and-tactics"><mark class="tag-hl">Exploitation</mark> Timeline and Tactics</h2>
+<h2 id="exploitation-timeline-and-tactics">Exploitation Timeline and Tactics</h2>
 
 <ul>
-<li>Earliest observed <mark class="tag-hl">exploitation</mark>: May 17, 2026.</li>
+<li>Earliest observed exploitation: May 17, 2026.</li>
 <li>First wave detected on May 18, 2026, from infrastructure hosted by Vultr.</li>
 <li>Second wave detected on May 21, 2026, from infrastructure hosted by Dromatics Systems.</li>
-<li>Attackers authenticated to <mark class="tag-hl">GlobalProtect</mark> gateways using forged authentication override cookies targeting the local administrator account.</li>
-<li>In some incidents, attackers successfully established a full <mark class="tag-hl">VPN</mark> connection and gained access to internal networks.</li>
-<li>In many other cases, the device accepted the <mark class="tag-hl">forged cookie</mark> but did not permit a complete <mark class="tag-hl">VPN</mark> session, possibly due to additional access controls or configuration differences.</li>
-<li>Rapid7&rsquo;s MDR (Managed Detection and Response) identified successful <mark class="tag-hl">exploitation</mark> across numerous customers but observed no indication of lateral movement from the compromised devices.</li>
+<li>Attackers authenticated to GlobalProtect gateways using forged authentication override cookies targeting the local administrator account.</li>
+<li>In some incidents, attackers successfully established a full VPN connection and gained access to internal networks.</li>
+<li>In many other cases, the device accepted the forged cookie but did not permit a complete VPN session, possibly due to additional access controls or configuration differences.</li>
+<li>Rapid7&rsquo;s MDR (Managed Detection and Response) identified successful exploitation across numerous customers but observed no indication of lateral movement from the compromised devices.</li>
 </ul>
 
 <h2 id="impact">Impact</h2>
 
 <ul>
-<li>Unauthorized <mark class="tag-hl">VPN</mark> connections allow attackers to bypass perimeter defenses and potentially access internal resources.</li>
+<li>Unauthorized VPN connections allow attackers to bypass perimeter defenses and potentially access internal resources.</li>
 <li>Even without observed lateral movement, the initial foothold represents a high-risk situation that could lead to further compromise.</li>
-<li>All organizations using <mark class="tag-hl">PAN-OS</mark> <mark class="tag-hl">GlobalProtect</mark> with the vulnerable configuration are affected unless patched or mitigated.</li>
+<li>All organizations using PAN-OS GlobalProtect with the vulnerable configuration are affected unless patched or mitigated.</li>
 </ul>
 
 <h2 id="mitigation-and-response">Mitigation and Response</h2>
@@ -1561,34 +1715,35 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Disabling the authentication override feature entirely.</li>
 <li>Using a separate certificate for authentication override cookies that is not shared with any other service on the device.</li>
 </ul></li>
-<li>CISA added <mark class="tag-hl">CVE-2026-0257</mark> to the Known Exploited Vulnerabilities catalog and ordered federal agencies to remediate by June 1, 2026.</li>
+<li>CISA added CVE-2026-0257 to the Known Exploited Vulnerabilities catalog and ordered federal agencies to remediate by June 1, 2026.</li>
 <li>Rapid7 published a blog post with detailed technical analysis and observations to aid defenders.</li>
 </ul>
 
 <h2 id="references-in-the-article">References in the Article</h2>
 
 <ul>
-<li>Palo Alto Networks Security Advisory: <a href="https://security.paloaltonetworks.com/CVE-2026-0257" target="_blank">https://security.paloaltonetworks.com/<mark class="tag-hl">CVE-2026-0257</mark></a></li>
-<li>Rapid7 Blog: ETR – Rapid7 Observed <mark class="tag-hl">Exploitation</mark> of <mark class="tag-hl">PAN-OS</mark> <mark class="tag-hl">GlobalProtect</mark> <mark class="tag-hl">Authentication Bypass</mark> Vulnerability (<mark class="tag-hl">CVE-2026-0257</mark>)</li>
-<li>CISA Known Exploited Vulnerabilities Catalog entry for <mark class="tag-hl">CVE-2026-0257</mark></li>
-<li>NVD entry for <mark class="tag-hl">CVE-2026-0257</mark></li>
+<li>Palo Alto Networks Security Advisory: <a href="https://security.paloaltonetworks.com/CVE-2026-0257" target="_blank">https://security.paloaltonetworks.com/CVE-2026-0257</a></li>
+<li>Rapid7 Blog: ETR – Rapid7 Observed Exploitation of PAN-OS GlobalProtect Authentication Bypass Vulnerability (CVE-2026-0257)</li>
+<li>CISA Known Exploited Vulnerabilities Catalog entry for CVE-2026-0257</li>
+<li>NVD entry for CVE-2026-0257</li>
 </ul>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:b5b09c68b9a2f32f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The root cause is a design flaw: <mark class="tag-hl">PAN-OS</mark> does not verify the signature on authentication override cookies and merely decrypts them with a private key, meaning any attacker who obtains the public key from the same certificate used for HTTPS can forge valid cookies.</span></li><li><span class="kp-text">Despite successful <mark class="tag-hl">authentication bypass</mark>, Rapid7 observed no lateral movement from compromised devices, suggesting that gaining a <mark class="tag-hl">VPN</mark> foothold did not immediately lead to deeper network compromise in these incidents—though the access is still highly dangerous.</span></li><li><span class="kp-text">The window from first observed <mark class="tag-hl">exploitation</mark> (May 17) to the CISA remediation deadline (June 1) was only two weeks, reflecting an urgent race condition for defenders to patch or implement the certificate-separation mitigation.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:b5b09c68b9a2f32f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The root cause is a design flaw: PAN-OS does not verify the signature on authentication override cookies and merely decrypts them with a private key, meaning any attacker who obtains the public key from the same certificate used for HTTPS can forge valid cookies.</span></li><li><span class="kp-text">Despite successful authentication bypass, Rapid7 observed no lateral movement from compromised devices, suggesting that gaining a VPN foothold did not immediately lead to deeper network compromise in these incidents—though the access is still highly dangerous.</span></li><li><span class="kp-text">The window from first observed exploitation (May 17) to the CISA remediation deadline (June 1) was only two weeks, reflecting an urgent race condition for defenders to patch or implement the certificate-separation mitigation.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Palo Alto Networks confirmed that <mark class="tag-hl">CVE-2026-0257</mark>, an <mark class="tag-hl">authentication bypass</mark> vulnerability in <mark class="tag-hl">PAN-OS</mark> <mark class="tag-hl">GlobalProtect</mark>, is being actively exploited to establish unauthorized <mark class="tag-hl">VPN</mark> connections.</span></li><li><span class="kp-text">The vulnerability arises because <mark class="tag-hl">PAN-OS</mark> decrypts authentication override cookies with a private key and trusts their contents without signature verification, allowing attackers to forge valid cookies if the same certificate is used for both HTTPS and authentication override.</span></li><li><span class="kp-text">Rapid7 detected <mark class="tag-hl">exploitation</mark> starting on May 17, 2026, with attackers forging cookies for the local administrator account and launching waves of attacks from Vultr and Dromatics Systems infrastructure.</span></li><li><span class="kp-text">Successful <mark class="tag-hl">exploitation</mark> can grant attackers <mark class="tag-hl">VPN</mark> access to internal networks, though in some incidents the device accepted forged cookies but did not establish a full <mark class="tag-hl">VPN</mark> session.</span></li><li><span class="kp-text">Organizations must immediately apply security updates or mitigate the flaw by disabling authentication override or using a separate certificate; CISA added the vulnerability to its Known Exploited Vulnerabilities catalog with a June 1, 2026 federal remediation deadline.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Palo Alto Networks confirmed that CVE-2026-0257, an authentication bypass vulnerability in PAN-OS GlobalProtect, is being actively exploited to establish unauthorized VPN connections.</span></li><li><span class="kp-text">The vulnerability arises because PAN-OS decrypts authentication override cookies with a private key and trusts their contents without signature verification, allowing attackers to forge valid cookies if the same certificate is used for both HTTPS and authentication override.</span></li><li><span class="kp-text">Rapid7 detected exploitation starting on May 17, 2026, with attackers forging cookies for the local administrator account and launching waves of attacks from Vultr and Dromatics Systems infrastructure.</span></li><li><span class="kp-text">Successful exploitation can grant attackers VPN access to internal networks, though in some incidents the device accepted forged cookies but did not establish a full VPN session.</span></li><li><span class="kp-text">Organizations must immediately apply security updates or mitigate the flaw by disabling authentication override or using a separate certificate; CISA added the vulnerability to its Known Exploited Vulnerabilities catalog with a June 1, 2026 federal remediation deadline.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/palo-alto-globalprotect-vpn-auth-bypass-flaw-now-exploited-in-attacks/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports active, in-the-wild <mark class="tag-hl">exploitation</mark> of a critical <mark class="tag-hl">authentication bypass</mark> vulnerability (<mark class="tag-hl">CVE-2026-0257</mark>) in Palo Alto <mark class="tag-hl">GlobalProtect</mark>, a widely deployed enterprise <mark class="tag-hl">VPN</mark> solution, with CISA adding it to the KEV catalog and setting a near-term remediation deadline. Immediate patching or mitigation is essential for affected organizations.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports active, in-the-wild exploitation of a critical authentication bypass vulnerability (CVE-2026-0257) in Palo Alto GlobalProtect, a widely deployed enterprise VPN solution, with CISA adding it to the KEV catalog and setting a near-term remediation deadline. Immediate patching or mitigation is essential for affected organizations.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://security.paloaltonetworks.com/CVE-2026-0257" target="_blank" rel="noopener">Palo Alto Networks Security Advisory for CVE-2026-0257</a></div>
   <div class="report-meta">Palo Alto Networks</div>
-  <div class="report-context">The article cites Palo Alto&#39;s advisory to explain the vulnerability and its original medium severity rating before active <mark class="tag-hl">exploitation</mark> raised it to high.</div>
+  <div class="report-context">The article cites Palo Alto&#39;s advisory to explain the vulnerability and its original medium severity rating before active exploitation raised it to high.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.rapid7.com/blog/post/etr-rapid7-observed-exploitation-of-pan-os-globalprotect-authentication-bypass-vulnerability-cve-2026-0257/" target="_blank" rel="noopener">ETR: Rapid7 Observed Exploitation of PAN-OS GlobalProtect Authentication Bypass Vulnerability (CVE-2026-0257)</a></div>
   <div class="report-meta">Rapid7</div>
-  <div class="report-context">The article references Rapid7&#39;s technical analysis and incident observations, including first <mark class="tag-hl">exploitation</mark> on May 17, attack waves, and the root cause of the flaw.</div>
+  <div class="report-context">The article references Rapid7&#39;s technical analysis and incident observations, including first exploitation on May 17, attack waves, and the root cause of the flaw.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog#:~:text=NETWORKS%20%7C%20PAN%2DOS-,CVE%2D2026%2D0257,-Palo%20Alto%20Networks" target="_blank" rel="noopener">CISA Known Exploited Vulnerabilities Catalog: CVE-2026-0257</a></div>
   <div class="report-meta">Cybersecurity and Infrastructure Security Agency (CISA)</div>
@@ -1621,28 +1776,28 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:88%"></div></div><span class="score-num score-num-mid">88</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:15cfe7e98431e3cc">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:15cfe7e98431e3cc')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:15cfe7e98431e3cc')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:15cfe7e98431e3cc')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:15cfe7e98431e3cc')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:15cfe7e98431e3cc')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:15cfe7e98431e3cc')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:15cfe7e98431e3cc')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:15cfe7e98431e3cc')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:15cfe7e98431e3cc')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:15cfe7e98431e3cc')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:15cfe7e98431e3cc" class="tab-panel active"><div class="prose">A new local privilege escalation vulnerability called CIFSwitch in the Linux kernel lets unprivileged users gain root by forging CIFS key requests; affected users should patch their systems or disable the CIFS module and cifs-utils.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:15cfe7e98431e3cc" class="tab-panel"><div class="prose"><p>A newly disclosed Linux kernel vulnerability called CIFSwitch allows unprivileged local attackers to escalate to root by forging CIFS authentication key descriptions. The flaw stems from the CIFS subsystem’s failure to verify that <code>cifs.spnego</code> key requests originate from the kernel’s own CIFS client, so an attacker can craft a fake request and trigger the root-privileged <code>cifs.upcall</code> helper.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:15cfe7e98431e3cc" class="tab-panel active"><div class="prose">A new local privilege escalation vulnerability called CIFSwitch in the Linux kernel lets unprivileged users gain root by forging CIFS key requests; affected users should patch their systems or disable the CIFS module and cifs-utils.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:15cfe7e98431e3cc" class="tab-panel"><div class="prose"><p>A newly disclosed Linux kernel vulnerability called CIFSwitch allows unprivileged local attackers to escalate to root by forging CIFS authentication key descriptions. The flaw stems from the CIFS subsystem’s failure to verify that <code>cifs.spnego</code> key requests originate from the kernel’s own CIFS client, so an attacker can craft a fake request and trigger the root-privileged <code>cifs.upcall</code> helper.</p>
 
 <p>By abusing attacker-controlled fields to force a namespace switch and triggering a Name Service Switch (NSS) lookup before privileges are dropped, a local user can load a malicious NSS module and execute code as root. The vulnerability was introduced in 2007 and impacts multiple distributions with default configurations, including Linux Mint, CentOS Stream, Rocky Linux, AlmaLinux, Kali Linux, and SLES.</p>
 
 <p>A kernel patch adding origin validation has been committed, and mitigations include disabling the CIFS module, removing <code>cifs-utils</code>, or disabling unprivileged user namespaces. A proof-of-concept exploit is available to help organizations verify their patch status.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:15cfe7e98431e3cc" class="tab-panel"><div class="prose"><p>Security engineer Asim Viladi Oglu Manizada discovered a local privilege escalation vulnerability in the Linux kernel, dubbed CIFSwitch, that allows an unprivileged user to gain root by abusing CIFS authentication key management. The attack targets the kernel’s CIFS client, which uses the <code>cifs.upcall</code> helper (from <code>cifs-utils</code>) to fetch Kerberos credentials for network shares. The core problem is that the kernel does not validate that a <code>cifs.spnego</code> key request genuinely comes from its own CIFS client, enabling an attacker to forge such a request and launch the root‑privileged authentication workflow.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:15cfe7e98431e3cc" class="tab-panel"><div class="prose"><p>Security engineer Asim Viladi Oglu Manizada discovered a local privilege escalation vulnerability in the Linux kernel, dubbed CIFSwitch, that allows an unprivileged user to gain root by abusing CIFS authentication key management. The attack targets the kernel’s CIFS client, which uses the <code>cifs.upcall</code> helper (from <code>cifs-utils</code>) to fetch Kerberos credentials for network shares. The core problem is that the kernel does not validate that a <code>cifs.spnego</code> key request genuinely comes from its own CIFS client, enabling an attacker to forge such a request and launch the root‑privileged authentication workflow.</p>
 
 <p>The exploit chain forces the root-running <code>cifs.upcall</code> to trust attacker-controlled fields that it assumes were generated by the kernel. The attacker uses these fields to instigate a namespace switch and then triggers an NSS lookup before privileges are dropped, loading a malicious NSS module to achieve root code execution. The underlying code flaw has existed since 2007 but went unnoticed for nearly two decades.</p>
 
@@ -1654,7 +1809,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>CIFSwitch is the latest in a string of recently disclosed Linux privilege-escalation bugs, including Copy Fail, Dirty Frag, Fragnesia, DirtyDecrypt, and PinTheft, highlighting ongoing attention to kernel‑level security weaknesses.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:15cfe7e98431e3cc" class="tab-panel"><div class="prose"><h1 id="overview">Overview</h1>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:15cfe7e98431e3cc" class="tab-panel"><div class="prose"><h1 id="overview">Overview</h1>
 
 <ul>
 <li>A local privilege escalation vulnerability named <strong>CIFSwitch</strong> was discovered in the Linux kernel by Asim Viladi Oglu Manizada, a SpaceX security engineer.</li>
@@ -1768,10 +1923,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>CIFSwitch is part of a recent series of Linux privilege‑escalation disclosures, including <strong>Copy Fail</strong>, <strong>Dirty Frag</strong>, <strong>Fragnesia</strong>, <strong>DirtyDecrypt</strong>, and <strong>PinTheft</strong>, drawing sustained attention to kernel‑level security issues.</li>
 </ul>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:15cfe7e98431e3cc" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Despite the vulnerable code being introduced in 2007, the missing validation of key request origins went unnoticed for 19 years, revealing a long-standing security gap in the kernel CIFS subsystem.</span></li><li><span class="kp-text">Exploitation requires not only vulnerable software but also the availability of unprivileged user namespaces and permissive SELinux/AppArmor policies, meaning some distributions with the same vulnerable packages are inadvertently protected by their default security configurations.</span></li><li><span class="kp-text">The attack succeeds because the root-privileged cifs.upcall helper implicitly trusts fields in key requests that an unprivileged user can forge, highlighting a dangerous assumption about input provenance in kernel–userspace interactions.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:15cfe7e98431e3cc" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Despite the vulnerable code being introduced in 2007, the missing validation of key request origins went unnoticed for 19 years, revealing a long-standing security gap in the kernel CIFS subsystem.</span></li><li><span class="kp-text">Exploitation requires not only vulnerable software but also the availability of unprivileged user namespaces and permissive SELinux/AppArmor policies, meaning some distributions with the same vulnerable packages are inadvertently protected by their default security configurations.</span></li><li><span class="kp-text">The attack succeeds because the root-privileged cifs.upcall helper implicitly trusts fields in key requests that an unprivileged user can forge, highlighting a dangerous assumption about input provenance in kernel–userspace interactions.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">A local privilege escalation vulnerability named CIFSwitch in the Linux kernel allows unprivileged attackers to forge CIFS key requests and gain root privileges.</span></li><li><span class="kp-text">The vulnerability exists because the kernel&#39;s CIFS subsystem does not verify that cifs.spnego key requests originate from the kernel&#39;s own CIFS client, allowing an unprivileged user to trigger the root-privileged authentication workflow.</span></li><li><span class="kp-text">By crafting a malicious cifs.spnego request, an attacker can force the cifs.upcall helper to switch namespaces and load a malicious NSS module, achieving root code execution.</span></li><li><span class="kp-text">Multiple Linux distributions are affected with default configurations, including Linux Mint 21.3/22.3, CentOS Stream 9, Rocky Linux 9, AlmaLinux 9, Kali Linux 2021.4–2026.1, and SLES 15 SP7.</span></li><li><span class="kp-text">The flaw has been fixed by a kernel patch that adds validation of request origins, and mitigations include disabling or blacklisting the CIFS module, removing cifs-utils, or disabling unprivileged user namespaces.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/new-cifswitch-linux-flaw-gives-root-on-multiple-distributions/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific, newly disclosed local privilege escalation vulnerability (CIFSwitch) with a public PoC, affecting multiple major Linux distributions. While no active exploitation in the wild is mentioned, the combination of a working exploit and the wide default exposure makes this essential reading for Linux security professionals to assess and remediate promptly.</p>
 </div></div>
@@ -1801,16 +1957,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest covers two high-impact vulnerability disclosures from late May 2026: an <mark class="tag-hl">authentication bypass</mark> in Palo Alto Networks <mark class="tag-hl">GlobalProtect</mark> (<mark class="tag-hl">CVE-2026-0257</mark>) now under active <mark class="tag-hl">exploitation</mark>, and a local privilege escalation flaw in the Linux kernel’s CIFS subsystem (dubbed CIFSwitch) that can grant root access on multiple distributions. Both issues threaten network perimeter and internal Linux systems, respectively, underscoring the need for timely awareness.</p>
+        <div class="overview-body prose"><p>This digest covers two high-impact vulnerability disclosures from late May 2026: an authentication bypass in Palo Alto Networks GlobalProtect (CVE-2026-0257) now under active exploitation, and a local privilege escalation flaw in the Linux kernel’s CIFS subsystem (dubbed CIFSwitch) that can grant root access on multiple distributions. Both issues threaten network perimeter and internal Linux systems, respectively, underscoring the need for timely awareness.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Active Exploitation of Palo Alto GlobalProtect Authentication Bypass (CVE-2026-0257)</span>
         </div>
-        <div class="overview-body prose"><p>Palo Alto Networks <mark class="tag-hl">PAN-OS</mark> <mark class="tag-hl">GlobalProtect</mark> contains a medium-severity <mark class="tag-hl">authentication bypass</mark> vulnerability (<mark class="tag-hl">CVE-2026-0257</mark>, CVSS score 7.8) that allows attackers to forge authentication override cookies and establish unauthorized <mark class="tag-hl">VPN</mark> connections. The flaw arises because <mark class="tag-hl">PAN-OS</mark> decrypts authentication override cookies with a private key and trusts their contents without verifying a digital signature; if the same certificate is used for both the device’s HTTPS termination and the authentication override feature, an attacker can craft a valid cookie for the local administrator account.</p>
+        <div class="overview-body prose"><p>Palo Alto Networks PAN-OS GlobalProtect contains a medium-severity authentication bypass vulnerability (CVE-2026-0257, CVSS score 7.8) that allows attackers to forge authentication override cookies and establish unauthorized VPN connections. The flaw arises because PAN-OS decrypts authentication override cookies with a private key and trusts their contents without verifying a digital signature; if the same certificate is used for both the device’s HTTPS termination and the authentication override feature, an attacker can craft a valid cookie for the local administrator account.</p>
 
-<p>Rapid7 detected active <mark class="tag-hl">exploitation</mark> beginning on May 17, 2026, with successive waves of attack originating from Vultr and Dromatics Systems infrastructure. In multiple customer environments, adversaries successfully forged cookies and bypassed authentication. While some intrusion attempts did not result in a full <mark class="tag-hl">VPN</mark> session, two incidents during the second wave saw attackers receive <mark class="tag-hl">VPN</mark> IP address assignments, effectively gaining access to the internal network. Palo Alto Networks confirmed limited exploit attempts on unpatched devices. CISA added the vulnerability to its Known Exploited Vulnerabilities catalog, setting a federal remediation deadline of June 1, 2026.</p>
+<p>Rapid7 detected active exploitation beginning on May 17, 2026, with successive waves of attack originating from Vultr and Dromatics Systems infrastructure. In multiple customer environments, adversaries successfully forged cookies and bypassed authentication. While some intrusion attempts did not result in a full VPN session, two incidents during the second wave saw attackers receive VPN IP address assignments, effectively gaining access to the internal network. Palo Alto Networks confirmed limited exploit attempts on unpatched devices. CISA added the vulnerability to its Known Exploited Vulnerabilities catalog, setting a federal remediation deadline of June 1, 2026.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
@@ -1828,9 +1984,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-05-30 00:00 UTC · 1 day window</span>
-  <span class="footer-right">3 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">3 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1843,15 +2002,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1964,12 +2185,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2030,6 +2285,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

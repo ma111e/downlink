@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,99 +1506,100 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:95%"></div></div><span class="score-num score-num-high">95</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:83b499bcddab2f85">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:83b499bcddab2f85')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:83b499bcddab2f85')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:83b499bcddab2f85')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:83b499bcddab2f85')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:83b499bcddab2f85')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:83b499bcddab2f85')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:83b499bcddab2f85')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:83b499bcddab2f85')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:83b499bcddab2f85')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:83b499bcddab2f85')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:83b499bcddab2f85" class="tab-panel active"><div class="prose"><mark class="tag-hl">CISA</mark> has ordered U.S. federal agencies to patch the actively exploited <mark class="tag-hl">Ivanti Sentry</mark> flaw <mark class="tag-hl">CVE-2026-10520</mark> within three days under its new <mark class="tag-hl">BOD 26-04</mark> directive. <mark class="tag-hl">Shadowserver</mark> warns that unpatched internet-exposed Sentry systems are likely already compromised due to widespread exploitation using a public proof-of-concept.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:83b499bcddab2f85" class="tab-panel"><div class="prose"><p><mark class="tag-hl">CISA</mark> ordered U.S. <mark class="tag-hl">Federal Civilian Executive Branch</mark> agencies to patch an actively exploited <mark class="tag-hl">Ivanti Sentry</mark> vulnerability within three days under the newly issued Binding Operational Directive 26-04. The flaw, tracked as <mark class="tag-hl">CVE-2026-10520</mark>, is a maximum-severity <mark class="tag-hl">OS command injection</mark> vulnerability in <mark class="tag-hl">Ivanti</mark>’s security gateway appliance, formerly known as <mark class="tag-hl">MobileIron Sentry</mark>. <mark class="tag-hl">CISA</mark> added the flaw to its <mark class="tag-hl">Known Exploited Vulnerabilities Catalog</mark> after confirming active exploitation.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:83b499bcddab2f85" class="tab-panel active"><div class="prose">CISA has ordered U.S. federal agencies to patch the actively exploited Ivanti Sentry flaw CVE-2026-10520 within three days under its new BOD 26-04 directive. Shadowserver warns that unpatched internet-exposed Sentry systems are likely already compromised due to widespread exploitation using a public proof-of-concept.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:83b499bcddab2f85" class="tab-panel"><div class="prose"><p>CISA ordered U.S. Federal Civilian Executive Branch agencies to patch an actively exploited Ivanti Sentry vulnerability within three days under the newly issued Binding Operational Directive 26-04. The flaw, tracked as CVE-2026-10520, is a maximum-severity OS command injection vulnerability in Ivanti’s security gateway appliance, formerly known as MobileIron Sentry. CISA added the flaw to its Known Exploited Vulnerabilities Catalog after confirming active exploitation.</p>
 
-<p><mark class="tag-hl">Ivanti</mark> released patches for <mark class="tag-hl">CVE-2026-10520</mark> and initially said it had no evidence of in-the-wild exploitation, but <mark class="tag-hl">Shadowserver</mark> later reported that attackers had already backdoored many internet-exposed Sentry gateways. <mark class="tag-hl">Shadowserver</mark> said it was seeing a large amount of exploitation attempts based on the public proof-of-concept and warned that unpatched systems are likely compromised. The article also notes that <mark class="tag-hl">Ivanti</mark> had not updated its advisory to warn of active exploitation at the time of publication.</p>
+<p>Ivanti released patches for CVE-2026-10520 and initially said it had no evidence of in-the-wild exploitation, but Shadowserver later reported that attackers had already backdoored many internet-exposed Sentry gateways. Shadowserver said it was seeing a large amount of exploitation attempts based on the public proof-of-concept and warned that unpatched systems are likely compromised. The article also notes that Ivanti had not updated its advisory to warn of active exploitation at the time of publication.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:83b499bcddab2f85" class="tab-panel"><div class="prose"><p><mark class="tag-hl">CISA</mark> ordered federal agencies to secure <mark class="tag-hl">Ivanti Sentry</mark> instances affected by <mark class="tag-hl">CVE-2026-10520</mark> within three days. The requirement applies to <mark class="tag-hl">Federal Civilian Executive Branch</mark> agencies under Binding Operational Directive 26-04, which was issued the day before <mark class="tag-hl">CISA</mark> added the flaw to its <mark class="tag-hl">Known Exploited Vulnerabilities Catalog</mark>. <mark class="tag-hl">CISA</mark> said this type of vulnerability is a frequent attack vector for malicious cyber actors and poses significant risks to the federal enterprise.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:83b499bcddab2f85" class="tab-panel"><div class="prose"><p>CISA ordered federal agencies to secure Ivanti Sentry instances affected by CVE-2026-10520 within three days. The requirement applies to Federal Civilian Executive Branch agencies under Binding Operational Directive 26-04, which was issued the day before CISA added the flaw to its Known Exploited Vulnerabilities Catalog. CISA said this type of vulnerability is a frequent attack vector for malicious cyber actors and poses significant risks to the federal enterprise.</p>
 
-<p><mark class="tag-hl">CVE-2026-10520</mark> is described as a maximum-severity <mark class="tag-hl">OS command injection</mark> vulnerability in <mark class="tag-hl">Ivanti Sentry</mark>, a security gateway appliance formerly known as <mark class="tag-hl">MobileIron Sentry</mark>. <mark class="tag-hl">Ivanti</mark> released patches for the vulnerability and said at that time that it had no evidence of in-the-wild exploitation. The article states that <mark class="tag-hl">Ivanti</mark> had not updated its advisory to warn that the vulnerability was under active exploitation.</p>
+<p>CVE-2026-10520 is described as a maximum-severity OS command injection vulnerability in Ivanti Sentry, a security gateway appliance formerly known as MobileIron Sentry. Ivanti released patches for the vulnerability and said at that time that it had no evidence of in-the-wild exploitation. The article states that Ivanti had not updated its advisory to warn that the vulnerability was under active exploitation.</p>
 
-<p><mark class="tag-hl">Shadowserver</mark> reported that attackers had already backdoored many Sentry gateways exposed online. It said it was observing a large amount of exploitation attempts based on the public proof-of-concept and warned that systems not already patched are most likely compromised. <mark class="tag-hl">Shadowserver</mark> tracked just over 50 Sentry admin portals exposed online, while noting that its detection may be limited because some <mark class="tag-hl">Ivanti Sentry</mark> instances were not reachable in its scans.</p>
+<p>Shadowserver reported that attackers had already backdoored many Sentry gateways exposed online. It said it was observing a large amount of exploitation attempts based on the public proof-of-concept and warned that systems not already patched are most likely compromised. Shadowserver tracked just over 50 Sentry admin portals exposed online, while noting that its detection may be limited because some Ivanti Sentry instances were not reachable in its scans.</p>
 
-<p><mark class="tag-hl">BOD 26-04</mark> superseded and revoked BOD 19-02 and BOD 22-01, and it requires U.S. federal agencies to prioritize patching based on several factors. These include whether the asset is publicly exposed, whether the flaw is in <mark class="tag-hl">CISA</mark>’s KEV catalog, whether exploitation can be automated at scale, and whether exploitation gives attackers partial or total control of a targeted system. The article says <mark class="tag-hl">CVE-2026-10520</mark> is the first vulnerability for which <mark class="tag-hl">BOD 26-04</mark> applies.</p>
+<p>BOD 26-04 superseded and revoked BOD 19-02 and BOD 22-01, and it requires U.S. federal agencies to prioritize patching based on several factors. These include whether the asset is publicly exposed, whether the flaw is in CISA’s KEV catalog, whether exploitation can be automated at scale, and whether exploitation gives attackers partial or total control of a targeted system. The article says CVE-2026-10520 is the first vulnerability for which BOD 26-04 applies.</p>
 
-<p>The article places the <mark class="tag-hl">Ivanti Sentry</mark> flaw in a broader pattern of recent <mark class="tag-hl">CISA</mark> emergency patching actions. It notes that <mark class="tag-hl">CISA</mark> recently ordered federal agencies to patch flaws affecting Check Point VPN, Oracle WebLogic Server, and a cPanel plugin within three days. It also states that <mark class="tag-hl">CISA</mark> has flagged 35 exploited vulnerabilities across <mark class="tag-hl">Ivanti</mark> products in recent years, including 12 targeted by ransomware gangs.</p>
+<p>The article places the Ivanti Sentry flaw in a broader pattern of recent CISA emergency patching actions. It notes that CISA recently ordered federal agencies to patch flaws affecting Check Point VPN, Oracle WebLogic Server, and a cPanel plugin within three days. It also states that CISA has flagged 35 exploited vulnerabilities across Ivanti products in recent years, including 12 targeted by ransomware gangs.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:83b499bcddab2f85" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:83b499bcddab2f85" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">CISA</mark> ordered U.S. <mark class="tag-hl">Federal Civilian Executive Branch</mark> agencies to patch an actively exploited <mark class="tag-hl">Ivanti Sentry</mark> vulnerability within three days. The directive applies to <mark class="tag-hl">CVE-2026-10520</mark>, a maximum-severity flaw in <mark class="tag-hl">Ivanti</mark>’s security gateway appliance, formerly known as <mark class="tag-hl">MobileIron Sentry</mark>. <mark class="tag-hl">CISA</mark> added the vulnerability to its <mark class="tag-hl">Known Exploited Vulnerabilities Catalog</mark> after confirming that it is being exploited in attacks.</p>
+<p>CISA ordered U.S. Federal Civilian Executive Branch agencies to patch an actively exploited Ivanti Sentry vulnerability within three days. The directive applies to CVE-2026-10520, a maximum-severity flaw in Ivanti’s security gateway appliance, formerly known as MobileIron Sentry. CISA added the vulnerability to its Known Exploited Vulnerabilities Catalog after confirming that it is being exploited in attacks.</p>
 
-<p>The patching order was issued under Binding Operational Directive 26-04, which was newly issued and superseded the older BOD 19-02 and BOD 22-01. The article states that <mark class="tag-hl">CVE-2026-10520</mark> is the first vulnerability for which <mark class="tag-hl">BOD 26-04</mark> applies.</p>
+<p>The patching order was issued under Binding Operational Directive 26-04, which was newly issued and superseded the older BOD 19-02 and BOD 22-01. The article states that CVE-2026-10520 is the first vulnerability for which BOD 26-04 applies.</p>
 
 <h2 id="technical-details">Technical details</h2>
 
-<p><mark class="tag-hl">CVE-2026-10520</mark> is described as an <mark class="tag-hl">OS command injection</mark> vulnerability in <mark class="tag-hl">Ivanti Sentry</mark>. The article characterizes it as maximum-severity and says it affects <mark class="tag-hl">Ivanti</mark>’s security gateway appliance.</p>
+<p>CVE-2026-10520 is described as an OS command injection vulnerability in Ivanti Sentry. The article characterizes it as maximum-severity and says it affects Ivanti’s security gateway appliance.</p>
 
-<p><mark class="tag-hl">Ivanti</mark> released patches for <mark class="tag-hl">CVE-2026-10520</mark> and said at the time that it had no evidence of exploitation in the wild. However, <mark class="tag-hl">Shadowserver</mark> later reported that attackers had already backdoored many of the Sentry gateways exposed online.</p>
+<p>Ivanti released patches for CVE-2026-10520 and said at the time that it had no evidence of exploitation in the wild. However, Shadowserver later reported that attackers had already backdoored many of the Sentry gateways exposed online.</p>
 
 <h2 id="exploitation-status">Exploitation status</h2>
 
-<p><mark class="tag-hl">CISA</mark> confirmed that <mark class="tag-hl">CVE-2026-10520</mark> is actively exploited and added it to the <mark class="tag-hl">Known Exploited Vulnerabilities Catalog</mark>. <mark class="tag-hl">Shadowserver</mark> also reported active exploitation, saying it was observing a large amount of exploitation attempts based on the public proof-of-concept.</p>
+<p>CISA confirmed that CVE-2026-10520 is actively exploited and added it to the Known Exploited Vulnerabilities Catalog. Shadowserver also reported active exploitation, saying it was observing a large amount of exploitation attempts based on the public proof-of-concept.</p>
 
-<p><mark class="tag-hl">Shadowserver</mark> warned that if organizations had not patched, they were most likely compromised. It tracked just over 50 <mark class="tag-hl">Ivanti Sentry</mark> admin portals exposed online but said this number may be limited because multiple <mark class="tag-hl">Ivanti Sentry</mark> instances were not reachable in its scans, possibly due to scanner blocking.</p>
+<p>Shadowserver warned that if organizations had not patched, they were most likely compromised. It tracked just over 50 Ivanti Sentry admin portals exposed online but said this number may be limited because multiple Ivanti Sentry instances were not reachable in its scans, possibly due to scanner blocking.</p>
 
 <h2 id="vendor-and-third-party-response">Vendor and third-party response</h2>
 
-<p><mark class="tag-hl">Ivanti</mark> released patches for the vulnerability before <mark class="tag-hl">CISA</mark>’s KEV update. The article says <mark class="tag-hl">Ivanti</mark> had not yet updated its advisory to warn that <mark class="tag-hl">CVE-2026-10520</mark> was under active exploitation. It also states that an <mark class="tag-hl">Ivanti</mark> spokesperson had not responded to BleepingComputer’s request for more details on the ongoing attacks.</p>
+<p>Ivanti released patches for the vulnerability before CISA’s KEV update. The article says Ivanti had not yet updated its advisory to warn that CVE-2026-10520 was under active exploitation. It also states that an Ivanti spokesperson had not responded to BleepingComputer’s request for more details on the ongoing attacks.</p>
 
-<p><mark class="tag-hl">Shadowserver</mark> provided independent visibility into exposed <mark class="tag-hl">Ivanti Sentry</mark> instances and exploitation attempts. Its findings included reports of backdoored gateways and a warning that its observed exposure numbers were likely incomplete.</p>
+<p>Shadowserver provided independent visibility into exposed Ivanti Sentry instances and exploitation attempts. Its findings included reports of backdoored gateways and a warning that its observed exposure numbers were likely incomplete.</p>
 
-<h2 id="cisa-directive-and-federal-requirements"><mark class="tag-hl">CISA</mark> directive and federal requirements</h2>
+<h2 id="cisa-directive-and-federal-requirements">CISA directive and federal requirements</h2>
 
-<p><mark class="tag-hl">CISA</mark> ordered <mark class="tag-hl">Federal Civilian Executive Branch</mark> agencies to secure affected <mark class="tag-hl">Ivanti Sentry</mark> instances within three days. The agency said this type of vulnerability is a frequent attack vector for malicious cyber actors and poses significant risks to the federal enterprise.</p>
+<p>CISA ordered Federal Civilian Executive Branch agencies to secure affected Ivanti Sentry instances within three days. The agency said this type of vulnerability is a frequent attack vector for malicious cyber actors and poses significant risks to the federal enterprise.</p>
 
-<p><mark class="tag-hl">CISA</mark> instructed stakeholders to follow applicable <mark class="tag-hl">BOD 26-04</mark> guidance for cloud services or discontinue use of the product if mitigations are unavailable. It also said stakeholders are responsible for evaluating each asset’s internet exposure and ensuring adherence to <mark class="tag-hl">BOD 26-04</mark> patching guidelines.</p>
+<p>CISA instructed stakeholders to follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. It also said stakeholders are responsible for evaluating each asset’s internet exposure and ensuring adherence to BOD 26-04 patching guidelines.</p>
 
-<p><mark class="tag-hl">BOD 26-04</mark> requires federal agencies to prioritize patching based on several conditions:</p>
+<p>BOD 26-04 requires federal agencies to prioritize patching based on several conditions:</p>
 
 <ul>
 <li>The asset is publicly exposed online.</li>
-<li>The security flaw has been added to <mark class="tag-hl">CISA</mark>’s <mark class="tag-hl">Known Exploited Vulnerabilities Catalog</mark>.</li>
+<li>The security flaw has been added to CISA’s Known Exploited Vulnerabilities Catalog.</li>
 <li>Exploitation can be automated for large-scale attacks.</li>
 <li>Successful exploitation gives attackers partial or total control of a targeted system.</li>
 </ul>
 
 <h2 id="broader-context">Broader context</h2>
 
-<p>The article notes that <mark class="tag-hl">CISA</mark> has recently ordered federal agencies to patch other exploited vulnerabilities within three days. These included a Check Point VPN zero-day, a high-severity Oracle WebLogic Server vulnerability exploited in the wild, and an actively exploited cPanel plugin flaw.</p>
+<p>The article notes that CISA has recently ordered federal agencies to patch other exploited vulnerabilities within three days. These included a Check Point VPN zero-day, a high-severity Oracle WebLogic Server vulnerability exploited in the wild, and an actively exploited cPanel plugin flaw.</p>
 
-<p>It also says <mark class="tag-hl">CISA</mark> has flagged 35 vulnerabilities across <mark class="tag-hl">Ivanti</mark> products over the past several years as abused in attacks. Of those, 12 were targeted by ransomware gangs.</p>
+<p>It also says CISA has flagged 35 vulnerabilities across Ivanti products over the past several years as abused in attacks. Of those, 12 were targeted by ransomware gangs.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:83b499bcddab2f85" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Shadowserver</mark> said its count of just over 50 exposed <mark class="tag-hl">Ivanti Sentry</mark> admin portals is likely an undercount because some organizations may be blocking its scanner.</span></li><li><span class="kp-text"><mark class="tag-hl">Ivanti</mark> had not updated its advisory to warn of active exploitation even after <mark class="tag-hl">Shadowserver</mark> reported backdoored gateways and <mark class="tag-hl">CISA</mark> added the flaw to the KEV catalog.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2026-10520</mark> became the first vulnerability subject to the new <mark class="tag-hl">BOD 26-04</mark> patching requirements, which superseded BOD 19-02 and BOD 22-01.</span></li><li><span class="kp-text"><mark class="tag-hl">Shadowserver</mark> observed a large volume of exploitation attempts based on the public proof-of-concept, indicating that public exploit availability quickly translated into broad scanning and attack activity.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:83b499bcddab2f85" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Shadowserver said its count of just over 50 exposed Ivanti Sentry admin portals is likely an undercount because some organizations may be blocking its scanner.</span></li><li><span class="kp-text">Ivanti had not updated its advisory to warn of active exploitation even after Shadowserver reported backdoored gateways and CISA added the flaw to the KEV catalog.</span></li><li><span class="kp-text">CVE-2026-10520 became the first vulnerability subject to the new BOD 26-04 patching requirements, which superseded BOD 19-02 and BOD 22-01.</span></li><li><span class="kp-text">Shadowserver observed a large volume of exploitation attempts based on the public proof-of-concept, indicating that public exploit availability quickly translated into broad scanning and attack activity.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">CISA</mark> ordered <mark class="tag-hl">Federal Civilian Executive Branch</mark> agencies to patch the actively exploited <mark class="tag-hl">Ivanti Sentry</mark> vulnerability <mark class="tag-hl">CVE-2026-10520</mark> within three days under Binding Operational Directive 26-04.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2026-10520</mark> is a maximum-severity <mark class="tag-hl">OS command injection</mark> vulnerability in <mark class="tag-hl">Ivanti Sentry</mark>, formerly known as <mark class="tag-hl">MobileIron Sentry</mark>.</span></li><li><span class="kp-text"><mark class="tag-hl">Shadowserver</mark> reported that attackers had already backdoored many internet-exposed <mark class="tag-hl">Ivanti Sentry</mark> gateways and warned that unpatched systems are likely compromised.</span></li><li><span class="kp-text"><mark class="tag-hl">CISA</mark> added <mark class="tag-hl">CVE-2026-10520</mark> to its <mark class="tag-hl">Known Exploited Vulnerabilities Catalog</mark> after confirming active exploitation in attacks.</span></li><li><span class="kp-text"><mark class="tag-hl">BOD 26-04</mark> requires federal agencies to prioritize patching when assets are publicly exposed, flaws are listed in <mark class="tag-hl">CISA</mark>’s KEV catalog, exploitation can be automated at scale, and exploitation gives attackers partial or total control of a system.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">CISA ordered Federal Civilian Executive Branch agencies to patch the actively exploited Ivanti Sentry vulnerability CVE-2026-10520 within three days under Binding Operational Directive 26-04.</span></li><li><span class="kp-text">CVE-2026-10520 is a maximum-severity OS command injection vulnerability in Ivanti Sentry, formerly known as MobileIron Sentry.</span></li><li><span class="kp-text">Shadowserver reported that attackers had already backdoored many internet-exposed Ivanti Sentry gateways and warned that unpatched systems are likely compromised.</span></li><li><span class="kp-text">CISA added CVE-2026-10520 to its Known Exploited Vulnerabilities Catalog after confirming active exploitation in attacks.</span></li><li><span class="kp-text">BOD 26-04 requires federal agencies to prioritize patching when assets are publicly exposed, flaws are listed in CISA’s KEV catalog, exploitation can be automated at scale, and exploitation gives attackers partial or total control of a system.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/cisa-gives-feds-3-days-to-patch-ivanti-flaw-exploited-in-attacks/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a maximum-severity <mark class="tag-hl">Ivanti Sentry</mark> <mark class="tag-hl">OS command injection</mark> flaw, with <mark class="tag-hl">CISA</mark> ordering federal agencies to patch within three days under the new <mark class="tag-hl">BOD 26-04</mark>. <mark class="tag-hl">Shadowserver</mark>’s warning that unpatched internet-exposed systems are likely compromised makes it immediately actionable for defenders.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a maximum-severity Ivanti Sentry OS command injection flaw, with CISA ordering federal agencies to patch within three days under the new BOD 26-04. Shadowserver’s warning that unpatched internet-exposed systems are likely compromised makes it immediately actionable for defenders.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://hub.ivanti.com/s/article/Security-Advisory-Ivanti-Sentry-CVE-2026-10520-CVE-2026-10523?language=en_US" target="_blank" rel="noopener">Security Advisory Ivanti Sentry CVE-2026-10520 CVE-2026-10523</a></div>
   <div class="report-meta">Ivanti</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Ivanti</mark>’s advisory for the patched <mark class="tag-hl">Ivanti Sentry</mark> vulnerabilities and notes that it had not yet been updated to warn of active exploitation.</div>
+  <div class="report-context">The article cites Ivanti’s advisory for the patched Ivanti Sentry vulnerabilities and notes that it had not yet been updated to warn of active exploitation.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.cisa.gov/news-events/alerts/2026/06/11/cisa-adds-one-known-exploited-vulnerability-catalog" target="_blank" rel="noopener">CISA Adds One Known Exploited Vulnerability to Catalog</a></div>
   <div class="report-meta">CISA</div>
-  <div class="report-context">The article references <mark class="tag-hl">CISA</mark>’s alert confirming active exploitation of <mark class="tag-hl">CVE-2026-10520</mark> and adding it to the <mark class="tag-hl">Known Exploited Vulnerabilities Catalog</mark>.</div>
+  <div class="report-context">The article references CISA’s alert confirming active exploitation of CVE-2026-10520 and adding it to the Known Exploited Vulnerabilities Catalog.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2026-10520" target="_blank" rel="noopener">Known Exploited Vulnerabilities Catalog: CVE-2026-10520</a></div>
   <div class="report-meta">CISA</div>
-  <div class="report-context">The article links to <mark class="tag-hl">CISA</mark>’s KEV catalog entry for <mark class="tag-hl">CVE-2026-10520</mark> as the basis for the federal patching requirement.</div>
+  <div class="report-context">The article links to CISA’s KEV catalog entry for CVE-2026-10520 as the basis for the federal patching requirement.</div>
 </li></ul></div>
             
           </div>
@@ -1474,94 +1628,95 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:84%"></div></div><span class="score-num score-num-mid">84</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:136c7a5f6deb4583">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:136c7a5f6deb4583')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:136c7a5f6deb4583')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:136c7a5f6deb4583')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:136c7a5f6deb4583')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:136c7a5f6deb4583')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:136c7a5f6deb4583')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:136c7a5f6deb4583')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:136c7a5f6deb4583')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:136c7a5f6deb4583')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:136c7a5f6deb4583')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:136c7a5f6deb4583" class="tab-panel active"><div class="prose"><mark class="tag-hl">INTERPOL</mark>’s <mark class="tag-hl">Operation Ramz</mark> dismantled the <mark class="tag-hl">Sniper Dz</mark> <mark class="tag-hl">phishing-as-a-service</mark> platform and led to 201 arrests across the MENA region, including its alleged administrator in <mark class="tag-hl">Algeria</mark>. The decade-old service enabled large-scale phishing with ready-made kits and infrastructure tied to more than 20,000 domains and 45,000 victim records.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:136c7a5f6deb4583" class="tab-panel"><div class="prose"><p><mark class="tag-hl">INTERPOL</mark>-led <mark class="tag-hl">Operation Ramz</mark> disrupted <mark class="tag-hl">Sniper Dz</mark>, a <mark class="tag-hl">phishing-as-a-service</mark> platform active for about a decade. The operation took place between October 2025 and February 2026 and involved authorities from 13 countries in the <mark class="tag-hl">Middle East and North Africa</mark> region. Authorities made 201 arrests, including <mark class="tag-hl">Guedz</mark>, described as the primary developer and administrator of <mark class="tag-hl">Sniper Dz</mark>.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:136c7a5f6deb4583" class="tab-panel active"><div class="prose">INTERPOL’s Operation Ramz dismantled the Sniper Dz phishing-as-a-service platform and led to 201 arrests across the MENA region, including its alleged administrator in Algeria. The decade-old service enabled large-scale phishing with ready-made kits and infrastructure tied to more than 20,000 domains and 45,000 victim records.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:136c7a5f6deb4583" class="tab-panel"><div class="prose"><p>INTERPOL-led Operation Ramz disrupted Sniper Dz, a phishing-as-a-service platform active for about a decade. The operation took place between October 2025 and February 2026 and involved authorities from 13 countries in the Middle East and North Africa region. Authorities made 201 arrests, including Guedz, described as the primary developer and administrator of Sniper Dz.</p>
 
-<p>As part of the operation, authorities took down the website used to offer <mark class="tag-hl">phishing-as-a-service</mark> capabilities and seized hardware containing phishing software and scripts. <mark class="tag-hl">Group-IB</mark> said the platform had collected more than 45,000 victim records and was associated with more than 20,000 unique domains. <mark class="tag-hl">Sniper Dz</mark> had rebranded over the years as <mark class="tag-hl">Joker Dz</mark>, <mark class="tag-hl">Storm Dz</mark>, and <mark class="tag-hl">Spam Dz</mark>.</p>
+<p>As part of the operation, authorities took down the website used to offer phishing-as-a-service capabilities and seized hardware containing phishing software and scripts. Group-IB said the platform had collected more than 45,000 victim records and was associated with more than 20,000 unique domains. Sniper Dz had rebranded over the years as Joker Dz, Storm Dz, and Spam Dz.</p>
 
-<p><mark class="tag-hl">Sniper Dz</mark> offered ready-made phishing kits, hosting infrastructure, and operational support to cybercriminals. Its toolkit targeted 30 major global organizations, including PayPal, Facebook, Instagram, Yahoo, Netflix, and Steam, using 80 phishing templates in five languages. <mark class="tag-hl">Group-IB</mark> said the platform also redirected some victims into <mark class="tag-hl">carrier billing fraud</mark>, <mark class="tag-hl">premium SMS</mark> subscriptions, browser notification abuse, and other affiliate-driven scam campaigns.</p>
+<p>Sniper Dz offered ready-made phishing kits, hosting infrastructure, and operational support to cybercriminals. Its toolkit targeted 30 major global organizations, including PayPal, Facebook, Instagram, Yahoo, Netflix, and Steam, using 80 phishing templates in five languages. Group-IB said the platform also redirected some victims into carrier billing fraud, premium SMS subscriptions, browser notification abuse, and other affiliate-driven scam campaigns.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:136c7a5f6deb4583" class="tab-panel"><div class="prose"><p>An <mark class="tag-hl">INTERPOL</mark>-led operation disrupted <mark class="tag-hl">Sniper Dz</mark>, a <mark class="tag-hl">phishing-as-a-service</mark> platform that <mark class="tag-hl">Group-IB</mark> said had been active since at least 2015. The effort, codenamed <mark class="tag-hl">Operation Ramz</mark>, ran between October 2025 and February 2026. Authorities from 13 countries in the <mark class="tag-hl">Middle East and North Africa</mark> region made 201 arrests.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:136c7a5f6deb4583" class="tab-panel"><div class="prose"><p>An INTERPOL-led operation disrupted Sniper Dz, a phishing-as-a-service platform that Group-IB said had been active since at least 2015. The effort, codenamed Operation Ramz, ran between October 2025 and February 2026. Authorities from 13 countries in the Middle East and North Africa region made 201 arrests.</p>
 
-<p>Among those arrested was <mark class="tag-hl">Guedz</mark>, described as the primary developer and administrator of <mark class="tag-hl">Sniper Dz</mark>. The arrest was carried out by the <mark class="tag-hl">Algerian National Police</mark>. <mark class="tag-hl">Group-IB</mark> said <mark class="tag-hl">Sniper Dz</mark> had collected more than 45,000 victim records and had rebranded over the years as <mark class="tag-hl">Joker Dz</mark>, <mark class="tag-hl">Storm Dz</mark>, and <mark class="tag-hl">Spam Dz</mark>.</p>
+<p>Among those arrested was Guedz, described as the primary developer and administrator of Sniper Dz. The arrest was carried out by the Algerian National Police. Group-IB said Sniper Dz had collected more than 45,000 victim records and had rebranded over the years as Joker Dz, Storm Dz, and Spam Dz.</p>
 
-<p>Authorities took down the website used to offer <mark class="tag-hl">Sniper Dz</mark>’s <mark class="tag-hl">phishing-as-a-service</mark> capabilities to other cybercriminals. They also seized hardware containing phishing software and scripts. <mark class="tag-hl">Group-IB</mark> said more than 20,000 unique domains associated with the service had been identified.</p>
+<p>Authorities took down the website used to offer Sniper Dz’s phishing-as-a-service capabilities to other cybercriminals. They also seized hardware containing phishing software and scripts. Group-IB said more than 20,000 unique domains associated with the service had been identified.</p>
 
-<p><mark class="tag-hl">Sniper Dz</mark> provided ready-made phishing kits, hosting infrastructure, and operational support. Its toolkit primarily targeted 30 major global organizations, including PayPal, Facebook, Instagram, Yahoo, Netflix, and Steam. The platform used 80 phishing templates deployed in Arabic, English, French, Spanish, and Hebrew.</p>
+<p>Sniper Dz provided ready-made phishing kits, hosting infrastructure, and operational support. Its toolkit primarily targeted 30 major global organizations, including PayPal, Facebook, Instagram, Yahoo, Netflix, and Steam. The platform used 80 phishing templates deployed in Arabic, English, French, Spanish, and Hebrew.</p>
 
-<p>The phishing campaigns targeted users of technology, social media, and streaming platforms across multiple geographies by impersonating popular brands and government entities. <mark class="tag-hl">Group-IB</mark> said the campaigns harvested credentials, personal information, and other sensitive data. The platform also used fake social media accounts impersonating well-known political personalities in the <mark class="tag-hl">Middle East and North Africa</mark> to promote phishing links disguised as promotional offers or free internet access.</p>
+<p>The phishing campaigns targeted users of technology, social media, and streaming platforms across multiple geographies by impersonating popular brands and government entities. Group-IB said the campaigns harvested credentials, personal information, and other sensitive data. The platform also used fake social media accounts impersonating well-known political personalities in the Middle East and North Africa to promote phishing links disguised as promotional offers or free internet access.</p>
 
-<p>Palo Alto Networks Unit 42 previously published a comprehensive analysis of <mark class="tag-hl">Sniper Dz</mark> in October 2024, describing its Telegram channel with more than 7,300 subscribers and its option to host phishing pages on its own infrastructure behind a proxy server. <mark class="tag-hl">Group-IB</mark> said <mark class="tag-hl">Sniper Dz</mark> stood out because it offered its infrastructure for free. Its monetization avenues instead relied on <mark class="tag-hl">credential theft</mark> and victim traffic, including redirects into <mark class="tag-hl">carrier billing fraud</mark>, <mark class="tag-hl">premium SMS</mark> subscriptions, browser notification abuse schemes, and other affiliate-driven scams.</p>
+<p>Palo Alto Networks Unit 42 previously published a comprehensive analysis of Sniper Dz in October 2024, describing its Telegram channel with more than 7,300 subscribers and its option to host phishing pages on its own infrastructure behind a proxy server. Group-IB said Sniper Dz stood out because it offered its infrastructure for free. Its monetization avenues instead relied on credential theft and victim traffic, including redirects into carrier billing fraud, premium SMS subscriptions, browser notification abuse schemes, and other affiliate-driven scams.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:136c7a5f6deb4583" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:136c7a5f6deb4583" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">INTERPOL</mark>-led <mark class="tag-hl">Operation Ramz</mark> disrupted <mark class="tag-hl">Sniper Dz</mark>, a <mark class="tag-hl">phishing-as-a-service</mark> platform that <mark class="tag-hl">Group-IB</mark> said had been active since at least 2015. The operation took place between October 2025 and February 2026. Authorities from 13 countries in the <mark class="tag-hl">Middle East and North Africa</mark> region participated and made 201 arrests.</p>
+<p>INTERPOL-led Operation Ramz disrupted Sniper Dz, a phishing-as-a-service platform that Group-IB said had been active since at least 2015. The operation took place between October 2025 and February 2026. Authorities from 13 countries in the Middle East and North Africa region participated and made 201 arrests.</p>
 
-<p>One of the arrests was <mark class="tag-hl">Guedz</mark>, identified in the article as the primary developer and administrator of <mark class="tag-hl">Sniper Dz</mark>. The <mark class="tag-hl">Algerian National Police</mark> made the arrest. <mark class="tag-hl">Group-IB</mark> said the platform had collected more than 45,000 victim records.</p>
+<p>One of the arrests was Guedz, identified in the article as the primary developer and administrator of Sniper Dz. The Algerian National Police made the arrest. Group-IB said the platform had collected more than 45,000 victim records.</p>
 
 <h2 id="platform-history-and-rebranding">Platform History and Rebranding</h2>
 
-<p><mark class="tag-hl">Sniper Dz</mark> operated for about a decade as a <mark class="tag-hl">phishing-as-a-service</mark> platform. Over the years, it rebranded itself as <mark class="tag-hl">Joker Dz</mark>, <mark class="tag-hl">Storm Dz</mark>, and <mark class="tag-hl">Spam Dz</mark>. <mark class="tag-hl">Group-IB</mark> described it as a sophisticated criminal platform offering ready-made phishing kits, hosting infrastructure, and operational support to cybercriminals.</p>
+<p>Sniper Dz operated for about a decade as a phishing-as-a-service platform. Over the years, it rebranded itself as Joker Dz, Storm Dz, and Spam Dz. Group-IB described it as a sophisticated criminal platform offering ready-made phishing kits, hosting infrastructure, and operational support to cybercriminals.</p>
 
 <p>More than 20,000 unique domains associated with the service have been identified. The platform supported phishing activity at scale by supplying tooling and infrastructure to other cybercriminals.</p>
 
 <h2 id="law-enforcement-action">Law Enforcement Action</h2>
 
-<p>As part of <mark class="tag-hl">Operation Ramz</mark>, authorities took down the website used to offer <mark class="tag-hl">phishing-as-a-service</mark> capabilities. They also seized hardware containing phishing software and scripts. The operation involved authorities from 13 countries across the <mark class="tag-hl">Middle East and North Africa</mark> region.</p>
+<p>As part of Operation Ramz, authorities took down the website used to offer phishing-as-a-service capabilities. They also seized hardware containing phishing software and scripts. The operation involved authorities from 13 countries across the Middle East and North Africa region.</p>
 
-<p>The article identifies <mark class="tag-hl">INTERPOL</mark> as leading the operation and <mark class="tag-hl">Group-IB</mark> as reporting details of the disruption. The arrest of <mark class="tag-hl">Guedz</mark> was made by the <mark class="tag-hl">Algerian National Police</mark>.</p>
+<p>The article identifies INTERPOL as leading the operation and Group-IB as reporting details of the disruption. The arrest of Guedz was made by the Algerian National Police.</p>
 
 <h2 id="targeting-and-templates">Targeting and Templates</h2>
 
-<p><mark class="tag-hl">Sniper Dz</mark>’s toolkit primarily targeted 30 major global organizations. The article names PayPal, Facebook, Instagram, Yahoo, Netflix, and Steam among the targeted organizations. The platform used 80 phishing templates deployed in five languages: Arabic, English, French, Spanish, and Hebrew.</p>
+<p>Sniper Dz’s toolkit primarily targeted 30 major global organizations. The article names PayPal, Facebook, Instagram, Yahoo, Netflix, and Steam among the targeted organizations. The platform used 80 phishing templates deployed in five languages: Arabic, English, French, Spanish, and Hebrew.</p>
 
-<p>Campaigns using <mark class="tag-hl">Sniper Dz</mark> targeted users of technology, social media, and streaming platforms across several geographies. The phishing pages impersonated popular brands and government entities. Their purpose was to harvest credentials, personal information, and other sensitive data.</p>
+<p>Campaigns using Sniper Dz targeted users of technology, social media, and streaming platforms across several geographies. The phishing pages impersonated popular brands and government entities. Their purpose was to harvest credentials, personal information, and other sensitive data.</p>
 
 <h2 id="social-engineering-tactics">Social Engineering Tactics</h2>
 
-<p><mark class="tag-hl">Group-IB</mark> said <mark class="tag-hl">Sniper Dz</mark> activity went beyond traditional <mark class="tag-hl">credential theft</mark>. Threat actors created fake social media accounts impersonating well-known political personalities across the <mark class="tag-hl">Middle East and North Africa</mark>. Those accounts were used to promote phishing links disguised as promotional offers or free internet access.</p>
+<p>Group-IB said Sniper Dz activity went beyond traditional credential theft. Threat actors created fake social media accounts impersonating well-known political personalities across the Middle East and North Africa. Those accounts were used to promote phishing links disguised as promotional offers or free internet access.</p>
 
 <p>This tactic relied on the popularity and credibility of public figures in the region. The article describes it as part of the platform’s broader social engineering approach.</p>
 
 <h2 id="prior-technical-analysis">Prior Technical Analysis</h2>
 
-<p>The article notes that Palo Alto Networks Unit 42 published a comprehensive analysis of <mark class="tag-hl">Sniper Dz</mark> in October 2024. That analysis detailed the threat actor’s use of a Telegram channel with more than 7,300 subscribers. It also described options provided by the platform to host phishing pages on its own infrastructure behind a proxy server.</p>
+<p>The article notes that Palo Alto Networks Unit 42 published a comprehensive analysis of Sniper Dz in October 2024. That analysis detailed the threat actor’s use of a Telegram channel with more than 7,300 subscribers. It also described options provided by the platform to host phishing pages on its own infrastructure behind a proxy server.</p>
 
 <h2 id="monetization-model">Monetization Model</h2>
 
-<p><mark class="tag-hl">Group-IB</mark> said <mark class="tag-hl">Sniper Dz</mark> stood out from the broader <mark class="tag-hl">phishing-as-a-service</mark> market because it offered its entire infrastructure for free. This made it easier for aspiring cybercriminals to conduct phishing campaigns at scale. Instead of charging for access to the infrastructure, the platform’s monetization avenues relied on <mark class="tag-hl">credential theft</mark> and victim traffic.</p>
+<p>Group-IB said Sniper Dz stood out from the broader phishing-as-a-service market because it offered its entire infrastructure for free. This made it easier for aspiring cybercriminals to conduct phishing campaigns at scale. Instead of charging for access to the infrastructure, the platform’s monetization avenues relied on credential theft and victim traffic.</p>
 
-<p>According to <mark class="tag-hl">Group-IB</mark>, stolen credentials could be harvested through phishing campaigns. Users who did not yield credentials could still be redirected into <mark class="tag-hl">carrier billing fraud</mark>, <mark class="tag-hl">premium SMS</mark> subscriptions, browser notification abuse schemes, and other affiliate-driven scam campaigns.</p>
+<p>According to Group-IB, stolen credentials could be harvested through phishing campaigns. Users who did not yield credentials could still be redirected into carrier billing fraud, premium SMS subscriptions, browser notification abuse schemes, and other affiliate-driven scam campaigns.</p>
 
 <h2 id="disclosed-impact">Disclosed Impact</h2>
 
-<p>The article states that <mark class="tag-hl">Sniper Dz</mark> collected more than 45,000 victim records. It also states that more than 20,000 unique domains associated with the service have been identified. The affected targets included users of technology, social media, and streaming platforms, as well as organizations impersonated by the phishing templates and websites.</p>
+<p>The article states that Sniper Dz collected more than 45,000 victim records. It also states that more than 20,000 unique domains associated with the service have been identified. The affected targets included users of technology, social media, and streaming platforms, as well as organizations impersonated by the phishing templates and websites.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:136c7a5f6deb4583" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Sniper Dz</mark> stood out in the <mark class="tag-hl">phishing-as-a-service</mark> market because it offered its infrastructure for free, lowering the barrier for aspiring cybercriminals to launch phishing campaigns at scale.</span></li><li><span class="kp-text">The platform’s monetization did not depend only on direct <mark class="tag-hl">credential theft</mark>, as non-credential-yielding victims could be redirected into <mark class="tag-hl">carrier billing fraud</mark>, <mark class="tag-hl">premium SMS</mark> subscriptions, browser notification abuse, and affiliate scam campaigns.</span></li><li><span class="kp-text"><mark class="tag-hl">Sniper Dz</mark> expanded beyond brand impersonation by using fake social media accounts impersonating well-known political figures in the <mark class="tag-hl">Middle East and North Africa</mark> to promote phishing links as offers such as free internet access.</span></li><li><span class="kp-text">The platform’s repeated rebranding as <mark class="tag-hl">Joker Dz</mark>, <mark class="tag-hl">Storm Dz</mark>, and <mark class="tag-hl">Spam Dz</mark> shows that defenders tracking phishing services may need to correlate infrastructure and operational patterns rather than relying only on a single service name.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:136c7a5f6deb4583" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Sniper Dz stood out in the phishing-as-a-service market because it offered its infrastructure for free, lowering the barrier for aspiring cybercriminals to launch phishing campaigns at scale.</span></li><li><span class="kp-text">The platform’s monetization did not depend only on direct credential theft, as non-credential-yielding victims could be redirected into carrier billing fraud, premium SMS subscriptions, browser notification abuse, and affiliate scam campaigns.</span></li><li><span class="kp-text">Sniper Dz expanded beyond brand impersonation by using fake social media accounts impersonating well-known political figures in the Middle East and North Africa to promote phishing links as offers such as free internet access.</span></li><li><span class="kp-text">The platform’s repeated rebranding as Joker Dz, Storm Dz, and Spam Dz shows that defenders tracking phishing services may need to correlate infrastructure and operational patterns rather than relying only on a single service name.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">INTERPOL</mark>-led <mark class="tag-hl">Operation Ramz</mark> disrupted the <mark class="tag-hl">Sniper Dz</mark> <mark class="tag-hl">phishing-as-a-service</mark> platform between October 2025 and February 2026.</span></li><li><span class="kp-text">Authorities from 13 countries in the <mark class="tag-hl">Middle East and North Africa</mark> region made 201 arrests, including <mark class="tag-hl">Guedz</mark>, the primary developer and administrator of <mark class="tag-hl">Sniper Dz</mark>.</span></li><li><span class="kp-text">Authorities took down the website used to offer <mark class="tag-hl">Sniper Dz</mark>’s <mark class="tag-hl">phishing-as-a-service</mark> capabilities and seized hardware containing phishing software and scripts.</span></li><li><span class="kp-text"><mark class="tag-hl">Group-IB</mark> said <mark class="tag-hl">Sniper Dz</mark> had collected more than 45,000 victim records and was associated with more than 20,000 unique domains.</span></li><li><span class="kp-text"><mark class="tag-hl">Sniper Dz</mark> offered ready-made phishing kits, hosting infrastructure, and operational support, targeting major organizations such as PayPal, Facebook, Instagram, Yahoo, Netflix, and Steam.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">INTERPOL-led Operation Ramz disrupted the Sniper Dz phishing-as-a-service platform between October 2025 and February 2026.</span></li><li><span class="kp-text">Authorities from 13 countries in the Middle East and North Africa region made 201 arrests, including Guedz, the primary developer and administrator of Sniper Dz.</span></li><li><span class="kp-text">Authorities took down the website used to offer Sniper Dz’s phishing-as-a-service capabilities and seized hardware containing phishing software and scripts.</span></li><li><span class="kp-text">Group-IB said Sniper Dz had collected more than 45,000 victim records and was associated with more than 20,000 unique domains.</span></li><li><span class="kp-text">Sniper Dz offered ready-made phishing kits, hosting infrastructure, and operational support, targeting major organizations such as PayPal, Facebook, Instagram, Yahoo, Netflix, and Steam.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/interpol-takes-down-sniper-dz-phishing.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific, high-impact law enforcement operation that disrupted a long-running <mark class="tag-hl">phishing-as-a-service</mark> platform tied to more than 20,000 domains, 45,000 victim records, and 201 arrests. It is broadly relevant for security professionals tracking phishing infrastructure, <mark class="tag-hl">credential theft</mark>, and cybercrime service ecosystems, though it is not an urgent patch or active exploitation alert.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific, high-impact law enforcement operation that disrupted a long-running phishing-as-a-service platform tied to more than 20,000 domains, 45,000 victim records, and 201 arrests. It is broadly relevant for security professionals tracking phishing infrastructure, credential theft, and cybercrime service ecosystems, though it is not an urgent patch or active exploitation alert.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://thehackernews.com/2024/10/free-sniper-dz-phishing-tools-fuel.html" target="_blank" rel="noopener">Free Sniper Dz Phishing Tools Fuel Phishing Attacks</a></div>
   <div class="report-meta">Palo Alto Networks Unit 42</div>
-  <div class="report-context">The article says <mark class="tag-hl">Sniper Dz</mark> was the subject of a comprehensive analysis by Palo Alto Networks Unit 42 in October 2024 that detailed its Telegram channel and phishing-page hosting model.</div>
+  <div class="report-context">The article says Sniper Dz was the subject of a comprehensive analysis by Palo Alto Networks Unit 42 in October 2024 that detailed its Telegram channel and phishing-page hosting model.</div>
 </li></ul></div>
             
           </div>
@@ -1584,48 +1739,48 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:82%"></div></div><span class="score-num score-num-mid">82</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:9d44f5f89ce45f66">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:9d44f5f89ce45f66')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:9d44f5f89ce45f66')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:9d44f5f89ce45f66')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:9d44f5f89ce45f66')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:9d44f5f89ce45f66')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:9d44f5f89ce45f66')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:9d44f5f89ce45f66')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:9d44f5f89ce45f66')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:9d44f5f89ce45f66')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:9d44f5f89ce45f66')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:9d44f5f89ce45f66" class="tab-panel active"><div class="prose">A breach of <mark class="tag-hl">France</mark>’s <mark class="tag-hl">Tchap</mark> government messaging platform exposed public chat data tied to 73,467 public-sector employees, including names, email addresses, organizations, and avatars. <mark class="tag-hl">DINUM</mark> says private encrypted conversations remain protected, but the attacker allegedly scraped messages and files from unencrypted public rooms after gaining access through a compromised account.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:9d44f5f89ce45f66" class="tab-panel"><div class="prose"><p>The French government said a breach of its <mark class="tag-hl">Tchap</mark> encrypted messaging platform affected 73,467 public-sector employees, or less than 9% of more than 825,000 registered users. <mark class="tag-hl">DINUM</mark>, the government’s digital affairs directorate, said a threat actor accessed the platform through a compromised user account. The incident was reported to <mark class="tag-hl">France</mark>’s data protection authority, <mark class="tag-hl">CNIL</mark>, because personal data shared by some users may have been exposed.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:9d44f5f89ce45f66" class="tab-panel active"><div class="prose">A breach of France’s Tchap government messaging platform exposed public chat data tied to 73,467 public-sector employees, including names, email addresses, organizations, and avatars. DINUM says private encrypted conversations remain protected, but the attacker allegedly scraped messages and files from unencrypted public rooms after gaining access through a compromised account.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:9d44f5f89ce45f66" class="tab-panel"><div class="prose"><p>The French government said a breach of its Tchap encrypted messaging platform affected 73,467 public-sector employees, or less than 9% of more than 825,000 registered users. DINUM, the government’s digital affairs directorate, said a threat actor accessed the platform through a compromised user account. The incident was reported to France’s data protection authority, CNIL, because personal data shared by some users may have been exposed.</p>
 
-<p><mark class="tag-hl">DINUM</mark> said private conversations on <mark class="tag-hl">Tchap</mark> remain encrypted and protected, but public chat rooms are not encrypted by design. The attacker may have accessed data shared in those public forums, including users’ names, email addresses, avatar images, and the public-sector organizations they work for. <mark class="tag-hl">DINUM</mark> said it identified and immediately blocked the account behind the malicious requests to remove persistent access and support further analysis.</p>
+<p>DINUM said private conversations on Tchap remain encrypted and protected, but public chat rooms are not encrypted by design. The attacker may have accessed data shared in those public forums, including users’ names, email addresses, avatar images, and the public-sector organizations they work for. DINUM said it identified and immediately blocked the account behind the malicious requests to remove persistent access and support further analysis.</p>
 
-<p>A threat actor claimed responsibility for the attack over the weekend and said they gained access after a <mark class="tag-hl">social engineering</mark> attack. The actor claimed to have scraped nearly 650,000 messages and data from more than 73,000 accounts, including email addresses, meeting links, organization information, account and device metadata, and over 13.5GB of documents and media files. They also alleged that hardcoded LDAP credentials were leaked through a PowerShell script.</p>
+<p>A threat actor claimed responsibility for the attack over the weekend and said they gained access after a social engineering attack. The actor claimed to have scraped nearly 650,000 messages and data from more than 73,000 accounts, including email addresses, meeting links, organization information, account and device metadata, and over 13.5GB of documents and media files. They also alleged that hardcoded LDAP credentials were leaked through a PowerShell script.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:9d44f5f89ce45f66" class="tab-panel"><div class="prose"><p>The French government disclosed that a breach of the <mark class="tag-hl">Tchap</mark> encrypted messaging platform affected 73,467 <mark class="tag-hl">French public-sector</mark> employees. <mark class="tag-hl">DINUM</mark> said this represents less than 9% of the platform’s more than 825,000 registered agents. The agency had initially provided few details, but later said attackers may have accessed information shared by users in public chat rooms.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:9d44f5f89ce45f66" class="tab-panel"><div class="prose"><p>The French government disclosed that a breach of the Tchap encrypted messaging platform affected 73,467 French public-sector employees. DINUM said this represents less than 9% of the platform’s more than 825,000 registered agents. The agency had initially provided few details, but later said attackers may have accessed information shared by users in public chat rooms.</p>
 
-<p><mark class="tag-hl">DINUM</mark> said the attacker accessed <mark class="tag-hl">Tchap</mark> using a compromised user account. The account behind the malicious requests was identified and immediately blocked to remove persistent access and allow in-depth analysis. <mark class="tag-hl">DINUM</mark> also notified <mark class="tag-hl">France</mark>’s data protection authority, <mark class="tag-hl">CNIL</mark>, because of the potential exposure of personal data shared by some users.</p>
+<p>DINUM said the attacker accessed Tchap using a compromised user account. The account behind the malicious requests was identified and immediately blocked to remove persistent access and allow in-depth analysis. DINUM also notified France’s data protection authority, CNIL, because of the potential exposure of personal data shared by some users.</p>
 
-<p>The agency said private conversations on <mark class="tag-hl">Tchap</mark> remain protected because they are encrypted. However, public forums on the platform are open to all users and their messages are not encrypted by design. Data potentially exposed from user accounts includes last name, first name, email address, belonging entity, and avatar.</p>
+<p>The agency said private conversations on Tchap remain protected because they are encrypted. However, public forums on the platform are open to all users and their messages are not encrypted by design. Data potentially exposed from user accounts includes last name, first name, email address, belonging entity, and avatar.</p>
 
-<p>A threat actor claimed responsibility for the breach over the weekend and shared a sample of stolen files. The actor said they gained access to the platform following a <mark class="tag-hl">social engineering</mark> attack. They claimed to have scraped nearly 650,000 messages and information from more than 73,000 accounts, including email addresses, meeting links, organization information, and account and device metadata.</p>
+<p>A threat actor claimed responsibility for the breach over the weekend and shared a sample of stolen files. The actor said they gained access to the platform following a social engineering attack. They claimed to have scraped nearly 650,000 messages and information from more than 73,000 accounts, including email addresses, meeting links, organization information, and account and device metadata.</p>
 
-<p>The same actor also alleged that they stole more than 13.5GB of documents and media files shared by public servants through <mark class="tag-hl">Tchap</mark>. They further claimed that hardcoded LDAP credentials were leaked through a PowerShell script. <mark class="tag-hl">DINUM</mark> has not attributed the breach in the article.</p>
+<p>The same actor also alleged that they stole more than 13.5GB of documents and media files shared by public servants through Tchap. They further claimed that hardcoded LDAP credentials were leaked through a PowerShell script. DINUM has not attributed the breach in the article.</p>
 
-<p><mark class="tag-hl">Tchap</mark> was developed by <mark class="tag-hl">DINUM</mark> with <mark class="tag-hl">ANSSI</mark> in 2018 and is a decentralized collaboration and instant messaging platform for the <mark class="tag-hl">French public sector</mark> based on the <mark class="tag-hl">Matrix</mark> protocol. It became the default work communications app for all civil servants in early August 2025. The platform has more than 300,000 monthly users and over 500,000 downloads on Google’s Play Store.</p>
+<p>Tchap was developed by DINUM with ANSSI in 2018 and is a decentralized collaboration and instant messaging platform for the French public sector based on the Matrix protocol. It became the default work communications app for all civil servants in early August 2025. The platform has more than 300,000 monthly users and over 500,000 downloads on Google’s Play Store.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:9d44f5f89ce45f66" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:9d44f5f89ce45f66" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The French government said a recent breach of its <mark class="tag-hl">Tchap</mark> encrypted messaging platform affected 73,467 employees in the <mark class="tag-hl">French public sector</mark>. <mark class="tag-hl">DINUM</mark>, the French government’s digital affairs directorate, said this represents less than 9% of the platform’s more than 825,000 registered agents. The agency disclosed that a threat actor gained access to <mark class="tag-hl">Tchap</mark> using a compromised user account.</p>
+<p>The French government said a recent breach of its Tchap encrypted messaging platform affected 73,467 employees in the French public sector. DINUM, the French government’s digital affairs directorate, said this represents less than 9% of the platform’s more than 825,000 registered agents. The agency disclosed that a threat actor gained access to Tchap using a compromised user account.</p>
 
-<p><mark class="tag-hl">DINUM</mark> notified <mark class="tag-hl">France</mark>’s data protection authority, <mark class="tag-hl">CNIL</mark>, because personal data shared by some users may have been exposed. The agency initially released few details about what was exposed and how many people were affected, but later provided an update describing the scope and types of data involved.</p>
+<p>DINUM notified France’s data protection authority, CNIL, because personal data shared by some users may have been exposed. The agency initially released few details about what was exposed and how many people were affected, but later provided an update describing the scope and types of data involved.</p>
 
 <h2 id="affected-data-and-platform-areas">Affected data and platform areas</h2>
 
-<p><mark class="tag-hl">DINUM</mark> said the attacker was able to access data shared in public chat rooms. These forums are open to all users and their messages are not encrypted by design. The agency emphasized that private conversations remain encrypted and protected.</p>
+<p>DINUM said the attacker was able to access data shared in public chat rooms. These forums are open to all users and their messages are not encrypted by design. The agency emphasized that private conversations remain encrypted and protected.</p>
 
 <p>Potentially exposed user account data includes:</p>
 
@@ -1637,17 +1792,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Avatar image</li>
 </ul>
 
-<p><mark class="tag-hl">DINUM</mark> said the attacker could collect users’ names and email addresses, avatar images, and the public-sector organizations they work for from public chat rooms.</p>
+<p>DINUM said the attacker could collect users’ names and email addresses, avatar images, and the public-sector organizations they work for from public chat rooms.</p>
 
 <h2 id="access-method-and-response">Access method and response</h2>
 
-<p><mark class="tag-hl">DINUM</mark> said the attacker accessed the platform through a compromised user account. The agency identified the account behind the malicious requests and immediately blocked it. <mark class="tag-hl">DINUM</mark> said this action was taken to remove the attacker’s persistent access and allow a deeper analysis of the data the attacker could access.</p>
+<p>DINUM said the attacker accessed the platform through a compromised user account. The agency identified the account behind the malicious requests and immediately blocked it. DINUM said this action was taken to remove the attacker’s persistent access and allow a deeper analysis of the data the attacker could access.</p>
 
-<p>The article does not state that <mark class="tag-hl">DINUM</mark> has attributed the breach to a specific threat actor or group. It says <mark class="tag-hl">DINUM</mark> has not yet attributed the breach.</p>
+<p>The article does not state that DINUM has attributed the breach to a specific threat actor or group. It says DINUM has not yet attributed the breach.</p>
 
 <h2 id="threat-actor-claims">Threat actor claims</h2>
 
-<p>A threat actor claimed responsibility for the attack over the weekend and shared a sample of stolen files. The actor said they gained access to the platform following a <mark class="tag-hl">social engineering</mark> attack.</p>
+<p>A threat actor claimed responsibility for the attack over the weekend and shared a sample of stolen files. The actor said they gained access to the platform following a social engineering attack.</p>
 
 <p>The threat actor claimed to have scraped nearly 650,000 messages and information from more than 73,000 accounts. According to the claims described in the article, the allegedly collected information included:</p>
 
@@ -1659,24 +1814,25 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Device metadata</li>
 </ul>
 
-<p>The actor also allegedly stole more than 13.5GB of documents and media files shared by public servants using <mark class="tag-hl">Tchap</mark>. They further claimed that hardcoded LDAP credentials were leaked through a PowerShell script.</p>
+<p>The actor also allegedly stole more than 13.5GB of documents and media files shared by public servants using Tchap. They further claimed that hardcoded LDAP credentials were leaked through a PowerShell script.</p>
 
-<h2 id="tchap-background"><mark class="tag-hl">Tchap</mark> background</h2>
+<h2 id="tchap-background">Tchap background</h2>
 
-<p><mark class="tag-hl">Tchap</mark> was developed by <mark class="tag-hl">DINUM</mark> in collaboration with <mark class="tag-hl">ANSSI</mark>, the French Cybersecurity Agency, in 2018. It is described as a decentralized collaboration tool and instant messaging platform for the <mark class="tag-hl">French public sector</mark>. The platform is based on the <mark class="tag-hl">Matrix</mark> protocol.</p>
+<p>Tchap was developed by DINUM in collaboration with ANSSI, the French Cybersecurity Agency, in 2018. It is described as a decentralized collaboration tool and instant messaging platform for the French public sector. The platform is based on the Matrix protocol.</p>
 
-<p><mark class="tag-hl">Tchap</mark> became the default app for work communications for all civil servants in early August 2025. The article says it has reached more than 300,000 monthly users and has more than 500,000 downloads on Google’s Play Store.</p>
+<p>Tchap became the default app for work communications for all civil servants in early August 2025. The article says it has reached more than 300,000 monthly users and has more than 500,000 downloads on Google’s Play Store.</p>
 
 <h2 id="related-context-in-the-article">Related context in the article</h2>
 
-<p>The article also notes that French authorities arrested a 15-year-old in May who was suspected of selling data stolen in an April cyberattack on <mark class="tag-hl">ANTS</mark>, the country’s agency for issuing and managing official identity and registration documents. This prior incident is mentioned as additional context involving French government-related data breaches.</p>
+<p>The article also notes that French authorities arrested a 15-year-old in May who was suspected of selling data stolen in an April cyberattack on ANTS, the country’s agency for issuing and managing official identity and registration documents. This prior incident is mentioned as additional context involving French government-related data breaches.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:9d44f5f89ce45f66" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Tchap</mark>’s encryption protections did not apply uniformly across the platform, since public forums were open to all users and their messages were not encrypted by design.</span></li><li><span class="kp-text">A single compromised user account was enough to give the attacker persistent access until <mark class="tag-hl">DINUM</mark> identified and blocked the account.</span></li><li><span class="kp-text">The exposed data may be useful for follow-on targeting because it links public-sector employees’ names and email addresses with their government entities and avatar images.</span></li><li><span class="kp-text">The attacker claimed the breach exposed more than chat metadata, including meeting links, device metadata, documents, media files, and hardcoded LDAP credentials from a PowerShell script.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:9d44f5f89ce45f66" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Tchap’s encryption protections did not apply uniformly across the platform, since public forums were open to all users and their messages were not encrypted by design.</span></li><li><span class="kp-text">A single compromised user account was enough to give the attacker persistent access until DINUM identified and blocked the account.</span></li><li><span class="kp-text">The exposed data may be useful for follow-on targeting because it links public-sector employees’ names and email addresses with their government entities and avatar images.</span></li><li><span class="kp-text">The attacker claimed the breach exposed more than chat metadata, including meeting links, device metadata, documents, media files, and hardcoded LDAP credentials from a PowerShell script.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">DINUM</mark> said a breach of the <mark class="tag-hl">Tchap</mark> encrypted messaging platform may have affected 73,467 <mark class="tag-hl">French public-sector</mark> employees, representing less than 9% of registered users.</span></li><li><span class="kp-text">The attacker gained access to <mark class="tag-hl">Tchap</mark> using a compromised user account, which <mark class="tag-hl">DINUM</mark> identified and immediately blocked.</span></li><li><span class="kp-text"><mark class="tag-hl">DINUM</mark> said private conversations on <mark class="tag-hl">Tchap</mark> remain encrypted and protected, but public chat rooms are not encrypted and their shared data may have been accessed.</span></li><li><span class="kp-text">Potentially exposed user account data includes last name, first name, email address, public-sector entity, and avatar.</span></li><li><span class="kp-text">A threat actor claimed responsibility for the breach and alleged they scraped nearly 650,000 messages and information from more than 73,000 accounts, as well as documents and media files shared through <mark class="tag-hl">Tchap</mark>.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">DINUM said a breach of the Tchap encrypted messaging platform may have affected 73,467 French public-sector employees, representing less than 9% of registered users.</span></li><li><span class="kp-text">The attacker gained access to Tchap using a compromised user account, which DINUM identified and immediately blocked.</span></li><li><span class="kp-text">DINUM said private conversations on Tchap remain encrypted and protected, but public chat rooms are not encrypted and their shared data may have been accessed.</span></li><li><span class="kp-text">Potentially exposed user account data includes last name, first name, email address, public-sector entity, and avatar.</span></li><li><span class="kp-text">A threat actor claimed responsibility for the breach and alleged they scraped nearly 650,000 messages and information from more than 73,000 accounts, as well as documents and media files shared through Tchap.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/french-govt-says-tchap-breach-affected-over-73-000-accounts/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific recent breach of a government messaging platform affecting over 73,000 <mark class="tag-hl">French public-sector</mark> employees, with exposure of public-room data and alleged scraping of messages, files, metadata, and credentials. It is broadly relevant to security professionals because it highlights risks around compromised accounts, unencrypted collaboration spaces, and sensitive data sharing in government communication platforms.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific recent breach of a government messaging platform affecting over 73,000 French public-sector employees, with exposure of public-room data and alleged scraping of messages, files, metadata, and credentials. It is broadly relevant to security professionals because it highlights risks around compromised accounts, unencrypted collaboration spaces, and sensitive data sharing in government communication platforms.</p>
 </div></div>
             
             
@@ -1700,82 +1856,82 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:82%"></div></div><span class="score-num score-num-mid">82</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:09c555186b402596">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:09c555186b402596')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:09c555186b402596')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:09c555186b402596')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:09c555186b402596')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:09c555186b402596')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:09c555186b402596')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:09c555186b402596')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:09c555186b402596')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:09c555186b402596')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:09c555186b402596')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:09c555186b402596" class="tab-panel active"><div class="prose"><mark class="tag-hl">Europol</mark> and international partners disrupted <mark class="tag-hl">AudiA6</mark>, a crypto laundering service allegedly used by ransomware gangs to wash more than €336 million since 2021. Two alleged administrators were arrested in <mark class="tag-hl">Georgia</mark>, infrastructure was seized, and U.S. charges could carry up to 20 years in prison.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:09c555186b402596" class="tab-panel"><div class="prose"><p>Authorities in Europe disrupted <mark class="tag-hl">AudiA6</mark>, a cryptocurrency laundering service used by ransomware gangs and cybercriminal networks. <mark class="tag-hl">Europol</mark> said the operation cut off a key financial pipeline that had been used to launder more than €336 million since 2021. The platform allegedly helped criminals cash out stolen digital assets while obscuring the money trail from authorities.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:09c555186b402596" class="tab-panel active"><div class="prose">Europol and international partners disrupted AudiA6, a crypto laundering service allegedly used by ransomware gangs to wash more than €336 million since 2021. Two alleged administrators were arrested in Georgia, infrastructure was seized, and U.S. charges could carry up to 20 years in prison.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:09c555186b402596" class="tab-panel"><div class="prose"><p>Authorities in Europe disrupted AudiA6, a cryptocurrency laundering service used by ransomware gangs and cybercriminal networks. Europol said the operation cut off a key financial pipeline that had been used to launder more than €336 million since 2021. The platform allegedly helped criminals cash out stolen digital assets while obscuring the money trail from authorities.</p>
 
-<p>The June 10, 2026 action included the arrest of two alleged administrators in <mark class="tag-hl">Georgia</mark>, the takedown of 25 domains, the seizure of more than 30 servers, and the replacement of <mark class="tag-hl">AudiA6</mark> and <mark class="tag-hl">Dark2Web</mark> sites with law enforcement seizure banners. Authorities also seized or froze cryptocurrency assets, blocked Telegram accounts, and seized vehicles and properties in <mark class="tag-hl">Georgia</mark>. The U.S. Department of Justice charged Ruslan Igorevich Tkachuk and Alexander Vladimirovich Ledenev with money laundering-related offenses.</p>
+<p>The June 10, 2026 action included the arrest of two alleged administrators in Georgia, the takedown of 25 domains, the seizure of more than 30 servers, and the replacement of AudiA6 and Dark2Web sites with law enforcement seizure banners. Authorities also seized or froze cryptocurrency assets, blocked Telegram accounts, and seized vehicles and properties in Georgia. The U.S. Department of Justice charged Ruslan Igorevich Tkachuk and Alexander Vladimirovich Ledenev with money laundering-related offenses.</p>
 
-<p><mark class="tag-hl">Europol</mark> described <mark class="tag-hl">AudiA6</mark> as an industrial-scale laundering operation that used thousands of fraudulent exchange accounts opened with stolen or purchased identities. The service allegedly functioned as a <mark class="tag-hl">cryptocurrency mixing</mark> service, returning “cleaned” funds within an hour through complex transaction chains and charging commissions between 3 percent and 10 percent. Investigators identified more than 6,000 KYC records linked to money mule accounts and connected the service to more than 15 investigations worldwide involving ransomware and large-scale cryptocurrency theft.</p>
+<p>Europol described AudiA6 as an industrial-scale laundering operation that used thousands of fraudulent exchange accounts opened with stolen or purchased identities. The service allegedly functioned as a cryptocurrency mixing service, returning “cleaned” funds within an hour through complex transaction chains and charging commissions between 3 percent and 10 percent. Investigators identified more than 6,000 KYC records linked to money mule accounts and connected the service to more than 15 investigations worldwide involving ransomware and large-scale cryptocurrency theft.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:09c555186b402596" class="tab-panel"><div class="prose"><p>European authorities disrupted <mark class="tag-hl">AudiA6</mark>, a cryptocurrency laundering service allegedly used by ransomware gangs and cybercriminal networks. <mark class="tag-hl">Europol</mark> said the service laundered more than €336 million since its launch in 2021 and served as a key financial pipeline for illicit profits. The agency described the platform as a central hub for criminals seeking to cash out stolen digital assets while hiding the money trail.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:09c555186b402596" class="tab-panel"><div class="prose"><p>European authorities disrupted AudiA6, a cryptocurrency laundering service allegedly used by ransomware gangs and cybercriminal networks. Europol said the service laundered more than €336 million since its launch in 2021 and served as a key financial pipeline for illicit profits. The agency described the platform as a central hub for criminals seeking to cash out stolen digital assets while hiding the money trail.</p>
 
-<p>The operation took place on June 10, 2026 and included arrests, searches, domain takedowns, server seizures, asset freezes, and Telegram account blocks. Two alleged administrators of Ukrainian and Russian nationality were arrested in <mark class="tag-hl">Georgia</mark>. Authorities also seized more than 80 vehicles and multiple properties in <mark class="tag-hl">Georgia</mark>, froze cryptocurrency assets worth €692,000, and seized €86,000 in cryptocurrency.</p>
+<p>The operation took place on June 10, 2026 and included arrests, searches, domain takedowns, server seizures, asset freezes, and Telegram account blocks. Two alleged administrators of Ukrainian and Russian nationality were arrested in Georgia. Authorities also seized more than 80 vehicles and multiple properties in Georgia, froze cryptocurrency assets worth €692,000, and seized €86,000 in cryptocurrency.</p>
 
 <p>The U.S. Department of Justice charged Ruslan Igorevich Tkachuk, 37, and Alexander Vladimirovich Ledenev, 25, with conspiracy to launder monetary instruments and sting money laundering. If convicted, both face a maximum possible sentence of 20 years in prison. The DoJ said approximately 10,333 bitcoin had been deposited, including approximately 393.39 BTC received directly from known darknet markets, ransomware organizations, cybercrime services, and other illicit sources.</p>
 
-<p><mark class="tag-hl">Europol</mark> said <mark class="tag-hl">AudiA6</mark> operated at industrial scale using thousands of fraudulent exchange accounts opened with stolen or purchased identities. The service allegedly accepted illicit proceeds into wallets controlled by the group and returned “cleaned” funds within an hour through complex transaction chains designed to obscure the origin of funds. Operators charged commissions ranging from 3 percent to 10 percent.</p>
+<p>Europol said AudiA6 operated at industrial scale using thousands of fraudulent exchange accounts opened with stolen or purchased identities. The service allegedly accepted illicit proceeds into wallets controlled by the group and returned “cleaned” funds within an hour through complex transaction chains designed to obscure the origin of funds. Operators charged commissions ranging from 3 percent to 10 percent.</p>
 
-<p>Investigators also linked the <mark class="tag-hl">AudiA6</mark> operators to <mark class="tag-hl">Dark2Web</mark>, a dark web cybercrime forum where criminals advertised illicit services and connected with other threat actors. More than 6,000 KYC records linked to money mule accounts were identified, many tied to Russian-speaking intermediaries recruited to move criminal proceeds through cryptocurrency exchanges. <mark class="tag-hl">AudiA6</mark> also used commercial email providers and email addresses linked to controlled domains to register money mule accounts.</p>
+<p>Investigators also linked the AudiA6 operators to Dark2Web, a dark web cybercrime forum where criminals advertised illicit services and connected with other threat actors. More than 6,000 KYC records linked to money mule accounts were identified, many tied to Russian-speaking intermediaries recruited to move criminal proceeds through cryptocurrency exchanges. AudiA6 also used commercial email providers and email addresses linked to controlled domains to register money mule accounts.</p>
 
-<p><mark class="tag-hl">Europol</mark> said the crackdown followed a September 2025 Polish Police arrest of a Ukrainian national allegedly involved in <mark class="tag-hl">AudiA6</mark>-linked money laundering activities. Forensic examination of seized devices helped authorities identify additional individuals connected to the operation. The investigation involved the <mark class="tag-hl">United States</mark> Secret Service, <mark class="tag-hl">IRS Criminal Investigation</mark>, Polish Police, and law enforcement partners from Australia, Canada, France, <mark class="tag-hl">Georgia</mark>, Germany, Iceland, Japan, Switzerland, and the U.K.</p>
+<p>Europol said the crackdown followed a September 2025 Polish Police arrest of a Ukrainian national allegedly involved in AudiA6-linked money laundering activities. Forensic examination of seized devices helped authorities identify additional individuals connected to the operation. The investigation involved the United States Secret Service, IRS Criminal Investigation, Polish Police, and law enforcement partners from Australia, Canada, France, Georgia, Germany, Iceland, Japan, Switzerland, and the U.K.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:09c555186b402596" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:09c555186b402596" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Authorities in Europe disrupted <mark class="tag-hl">AudiA6</mark>, a cryptocurrency laundering service used by ransomware gangs and cybercriminal networks. <mark class="tag-hl">Europol</mark> said the dismantling cut off a “key financial pipeline” used to wash hundreds of millions in illicit profits. The service is estimated to have laundered more than €336 million, or about $389 million, since it launched in 2021.</p>
+<p>Authorities in Europe disrupted AudiA6, a cryptocurrency laundering service used by ransomware gangs and cybercriminal networks. Europol said the dismantling cut off a “key financial pipeline” used to wash hundreds of millions in illicit profits. The service is estimated to have laundered more than €336 million, or about $389 million, since it launched in 2021.</p>
 
-<p><mark class="tag-hl">Europol</mark> described <mark class="tag-hl">AudiA6</mark> as a central hub for ransomware actors and cybercriminals seeking to cash out stolen digital assets while hiding the money trail from authorities. The operators of <mark class="tag-hl">AudiA6</mark> are also suspected of administering <mark class="tag-hl">Dark2Web</mark>, a dark web cybercrime forum used to advertise illicit services and connect threat actors globally.</p>
+<p>Europol described AudiA6 as a central hub for ransomware actors and cybercriminals seeking to cash out stolen digital assets while hiding the money trail from authorities. The operators of AudiA6 are also suspected of administering Dark2Web, a dark web cybercrime forum used to advertise illicit services and connect threat actors globally.</p>
 
 <h2 id="law-enforcement-operation">Law Enforcement Operation</h2>
 
-<p>The coordinated operation took place on June 10, 2026. Authorities carried out multiple enforcement actions targeting <mark class="tag-hl">AudiA6</mark> and <mark class="tag-hl">Dark2Web</mark> infrastructure, assets, and communications channels.</p>
+<p>The coordinated operation took place on June 10, 2026. Authorities carried out multiple enforcement actions targeting AudiA6 and Dark2Web infrastructure, assets, and communications channels.</p>
 
 <p>Actions included:</p>
 
 <ul>
-<li>The arrest of two alleged administrators of Ukrainian and Russian nationality in <mark class="tag-hl">Georgia</mark>.</li>
+<li>The arrest of two alleged administrators of Ukrainian and Russian nationality in Georgia.</li>
 <li>Three property searches.</li>
 <li>The takedown of 25 domains.</li>
 <li>The seizure of more than 30 servers.</li>
-<li>The seizure of more than 80 vehicles and multiple properties in <mark class="tag-hl">Georgia</mark>.</li>
+<li>The seizure of more than 80 vehicles and multiple properties in Georgia.</li>
 <li>The freezing of cryptocurrency assets worth €692,000, or about $798,000.</li>
 <li>The seizure of €86,000, or about $99,400, in cryptocurrency.</li>
 <li>The blocking of Telegram accounts used by the network.</li>
-<li>The replacement of clear web and dark web <mark class="tag-hl">AudiA6</mark> and <mark class="tag-hl">Dark2Web</mark> websites with law enforcement seizure banners.</li>
+<li>The replacement of clear web and dark web AudiA6 and Dark2Web websites with law enforcement seizure banners.</li>
 </ul>
 
 <h2 id="u-s-charges">U.S. Charges</h2>
 
 <p>The U.S. Department of Justice announced charges against the two arrested individuals: Ruslan Igorevich Tkachuk, 37, and Alexander Vladimirovich Ledenev, 25. They were charged with one count of conspiracy to launder monetary instruments and one count of sting money laundering.</p>
 
-<p>If convicted, both defendants face a maximum possible sentence of 20 years in prison. The DoJ said that out of approximately 10,333 bitcoin deposited, approximately 393.39 BTC were received directly from known darknet markets, ransomware organizations, cybercrime services, and other illicit sources. Those 393.39 BTC were valued at around $19,234,331 at the time of the transactions, and additional funds were deposited indirectly from illicit sources into <mark class="tag-hl">AudiA6</mark> wallets.</p>
+<p>If convicted, both defendants face a maximum possible sentence of 20 years in prison. The DoJ said that out of approximately 10,333 bitcoin deposited, approximately 393.39 BTC were received directly from known darknet markets, ransomware organizations, cybercrime services, and other illicit sources. Those 393.39 BTC were valued at around $19,234,331 at the time of the transactions, and additional funds were deposited indirectly from illicit sources into AudiA6 wallets.</p>
 
-<h2 id="how-audia6-allegedly-operated">How <mark class="tag-hl">AudiA6</mark> Allegedly Operated</h2>
+<h2 id="how-audia6-allegedly-operated">How AudiA6 Allegedly Operated</h2>
 
-<p><mark class="tag-hl">Europol</mark> characterized <mark class="tag-hl">AudiA6</mark> as an industrial-scale cryptocurrency laundering operation. The service relied on thousands of fraudulent exchange accounts opened using stolen or purchased identities.</p>
+<p>Europol characterized AudiA6 as an industrial-scale cryptocurrency laundering operation. The service relied on thousands of fraudulent exchange accounts opened using stolen or purchased identities.</p>
 
-<p>Before its disruption, <mark class="tag-hl">AudiA6</mark> was marketed as a <mark class="tag-hl">cryptocurrency mixing</mark> service that guaranteed anonymity and speed. Customers transferred illicit proceeds to wallets controlled by the group and received “cleaned” funds in return within an hour. <mark class="tag-hl">Europol</mark> said the process used a complex chain of transactions designed to conceal the origin of the funds.</p>
+<p>Before its disruption, AudiA6 was marketed as a cryptocurrency mixing service that guaranteed anonymity and speed. Customers transferred illicit proceeds to wallets controlled by the group and received “cleaned” funds in return within an hour. Europol said the process used a complex chain of transactions designed to conceal the origin of the funds.</p>
 
-<p>The transactions took place over private messaging platforms. The operators charged commissions ranging from 3 percent to 10 percent. Intel 471 previously reported in November 2021 that <mark class="tag-hl">AudiA6</mark> required a minimum balance of 27 bitcoins and charged a flat service fee between 3 percent and 5.5 percent.</p>
+<p>The transactions took place over private messaging platforms. The operators charged commissions ranging from 3 percent to 10 percent. Intel 471 previously reported in November 2021 that AudiA6 required a minimum balance of 27 bitcoins and charged a flat service fee between 3 percent and 5.5 percent.</p>
 
 <h2 id="fraudulent-accounts-and-money-mules">Fraudulent Accounts and Money Mules</h2>
 
-<p>Investigators identified more than 6,000 Know Your Customer records linked to money mule accounts. <mark class="tag-hl">Europol</mark> said many of the mule accounts were connected to Russian-speaking intermediaries recruited specifically to move criminal proceeds through cryptocurrency exchanges.</p>
+<p>Investigators identified more than 6,000 Know Your Customer records linked to money mule accounts. Europol said many of the mule accounts were connected to Russian-speaking intermediaries recruited specifically to move criminal proceeds through cryptocurrency exchanges.</p>
 
-<p><mark class="tag-hl">AudiA6</mark> allegedly used both commercial email providers and email addresses linked to domains under the operators’ control to register money mule accounts with cryptocurrency exchanges. The article lists the following domains connected to that activity:</p>
+<p>AudiA6 allegedly used both commercial email providers and email addresses linked to domains under the operators’ control to register money mule accounts with cryptocurrency exchanges. The article lists the following domains connected to that activity:</p>
 
 <ul>
 <li>designli.pictures</li>
@@ -1801,37 +1957,38 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="links-to-other-cybercrime-activity">Links to Other Cybercrime Activity</h2>
 
-<p><mark class="tag-hl">AudiA6</mark> has been linked to more than 15 investigations worldwide involving ransomware attacks and large-scale cryptocurrency theft. The article also says that a December 2025 TRM Labs analysis found funds stolen from the 2022 LastPass hack were routed through <mark class="tag-hl">Cryptex</mark> and <mark class="tag-hl">AudiA6</mark>.</p>
+<p>AudiA6 has been linked to more than 15 investigations worldwide involving ransomware attacks and large-scale cryptocurrency theft. The article also says that a December 2025 TRM Labs analysis found funds stolen from the 2022 LastPass hack were routed through Cryptex and AudiA6.</p>
 
-<p>The suspected connection between <mark class="tag-hl">AudiA6</mark> and <mark class="tag-hl">Dark2Web</mark> broadened the scope of the enforcement action. <mark class="tag-hl">Dark2Web</mark> was described as a dark web cybercrime forum where cybercriminals advertised illicit services and connected with other threat actors across the world.</p>
+<p>The suspected connection between AudiA6 and Dark2Web broadened the scope of the enforcement action. Dark2Web was described as a dark web cybercrime forum where cybercriminals advertised illicit services and connected with other threat actors across the world.</p>
 
 <h2 id="investigative-path-and-international-partners">Investigative Path and International Partners</h2>
 
-<p><mark class="tag-hl">Europol</mark> said the crackdown was enabled by an earlier enforcement action by the Polish Police. That earlier action led to the arrest of a Ukrainian national in September 2025 for alleged involvement in money laundering activities connected to the <mark class="tag-hl">AudiA6</mark> group.</p>
+<p>Europol said the crackdown was enabled by an earlier enforcement action by the Polish Police. That earlier action led to the arrest of a Ukrainian national in September 2025 for alleged involvement in money laundering activities connected to the AudiA6 group.</p>
 
-<p>Forensic examination of seized electronic devices belonging to that suspect helped authorities identify additional individuals linked to the operation. The investigation was carried out by the <mark class="tag-hl">United States</mark> Secret Service and <mark class="tag-hl">IRS Criminal Investigation</mark>, along with the Polish Police and law enforcement partners from Australia, Canada, France, <mark class="tag-hl">Georgia</mark>, Germany, Iceland, Japan, Switzerland, and the U.K.</p>
+<p>Forensic examination of seized electronic devices belonging to that suspect helped authorities identify additional individuals linked to the operation. The investigation was carried out by the United States Secret Service and IRS Criminal Investigation, along with the Polish Police and law enforcement partners from Australia, Canada, France, Georgia, Germany, Iceland, Japan, Switzerland, and the U.K.</p>
 
 <h2 id="significance">Significance</h2>
 
-<p>The article frames the <mark class="tag-hl">AudiA6</mark> takedown as an example of law enforcement targeting the financial infrastructure that supports ransomware and cybercrime. <mark class="tag-hl">Europol</mark> said ransomware groups and cybercriminal networks increasingly rely on <mark class="tag-hl">chain-hopping</mark>, decentralized exchanges, and “<mark class="tag-hl">mixer-as-a-service</mark>” platforms to move illicit cryptocurrency across multiple blockchains within minutes.</p>
+<p>The article frames the AudiA6 takedown as an example of law enforcement targeting the financial infrastructure that supports ransomware and cybercrime. Europol said ransomware groups and cybercriminal networks increasingly rely on chain-hopping, decentralized exchanges, and “mixer-as-a-service” platforms to move illicit cryptocurrency across multiple blockchains within minutes.</p>
 
-<p>The findings highlight the use of fraudulent exchange accounts, mule wallets, privacy-focused tools, and laundering services designed to conceal financial trails and bypass anti-money laundering controls. By disrupting <mark class="tag-hl">AudiA6</mark>, authorities targeted a service alleged to have supported large-scale laundering for ransomware actors, darknet markets, cybercrime services, and other illicit sources.</p>
+<p>The findings highlight the use of fraudulent exchange accounts, mule wallets, privacy-focused tools, and laundering services designed to conceal financial trails and bypass anti-money laundering controls. By disrupting AudiA6, authorities targeted a service alleged to have supported large-scale laundering for ransomware actors, darknet markets, cybercrime services, and other illicit sources.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:09c555186b402596" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The <mark class="tag-hl">AudiA6</mark> investigation advanced after Polish Police arrested a Ukrainian national in September 2025 and forensic analysis of seized devices identified additional individuals linked to the operation.</span></li><li><span class="kp-text"><mark class="tag-hl">AudiA6</mark>’s laundering model depended heavily on identity abuse, with investigators identifying more than 6,000 KYC records tied to money mule exchange accounts.</span></li><li><span class="kp-text">The operators allegedly controlled both a laundering service and the <mark class="tag-hl">Dark2Web</mark> cybercrime forum, indicating the same network may have supported both financial cash-out and criminal marketplace coordination.</span></li><li><span class="kp-text">The service used email infrastructure tied to its own domains, giving investigators a concrete set of domains associated with fraudulent exchange account registration activity.</span></li><li><span class="kp-text">Funds from high-profile cryptocurrency thefts, including assets stolen in the 2022 LastPass hack, were reportedly routed through <mark class="tag-hl">AudiA6</mark> as recently as December 2025.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:09c555186b402596" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The AudiA6 investigation advanced after Polish Police arrested a Ukrainian national in September 2025 and forensic analysis of seized devices identified additional individuals linked to the operation.</span></li><li><span class="kp-text">AudiA6’s laundering model depended heavily on identity abuse, with investigators identifying more than 6,000 KYC records tied to money mule exchange accounts.</span></li><li><span class="kp-text">The operators allegedly controlled both a laundering service and the Dark2Web cybercrime forum, indicating the same network may have supported both financial cash-out and criminal marketplace coordination.</span></li><li><span class="kp-text">The service used email infrastructure tied to its own domains, giving investigators a concrete set of domains associated with fraudulent exchange account registration activity.</span></li><li><span class="kp-text">Funds from high-profile cryptocurrency thefts, including assets stolen in the 2022 LastPass hack, were reportedly routed through AudiA6 as recently as December 2025.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Europol</mark> said authorities disrupted <mark class="tag-hl">AudiA6</mark>, a cryptocurrency laundering service used by ransomware gangs and cybercriminal networks to launder more than €336 million since 2021.</span></li><li><span class="kp-text">The June 10, 2026 operation included the arrest of two alleged administrators in <mark class="tag-hl">Georgia</mark>, searches, takedowns of 25 domains, seizure of more than 30 servers, and blocking of Telegram accounts used by the network.</span></li><li><span class="kp-text">The U.S. Department of Justice charged Ruslan Igorevich Tkachuk and Alexander Vladimirovich Ledenev with conspiracy to launder monetary instruments and sting money laundering, each carrying a maximum possible sentence of 20 years in prison if convicted.</span></li><li><span class="kp-text"><mark class="tag-hl">Europol</mark> said <mark class="tag-hl">AudiA6</mark> used thousands of fraudulent exchange accounts opened with stolen or purchased identities and identified more than 6,000 KYC records linked to money mule accounts.</span></li><li><span class="kp-text"><mark class="tag-hl">AudiA6</mark> allegedly operated as a <mark class="tag-hl">cryptocurrency mixing</mark> service that returned “cleaned” funds within an hour through complex transaction chains while charging commissions between 3 percent and 10 percent.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Europol said authorities disrupted AudiA6, a cryptocurrency laundering service used by ransomware gangs and cybercriminal networks to launder more than €336 million since 2021.</span></li><li><span class="kp-text">The June 10, 2026 operation included the arrest of two alleged administrators in Georgia, searches, takedowns of 25 domains, seizure of more than 30 servers, and blocking of Telegram accounts used by the network.</span></li><li><span class="kp-text">The U.S. Department of Justice charged Ruslan Igorevich Tkachuk and Alexander Vladimirovich Ledenev with conspiracy to launder monetary instruments and sting money laundering, each carrying a maximum possible sentence of 20 years in prison if convicted.</span></li><li><span class="kp-text">Europol said AudiA6 used thousands of fraudulent exchange accounts opened with stolen or purchased identities and identified more than 6,000 KYC records linked to money mule accounts.</span></li><li><span class="kp-text">AudiA6 allegedly operated as a cryptocurrency mixing service that returned “cleaned” funds within an hour through complex transaction chains while charging commissions between 3 percent and 10 percent.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/europol-disrupts-audia6-crypto.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, high-impact international law enforcement action disrupting a cryptocurrency laundering service allegedly used by ransomware gangs and linked to hundreds of millions of euros in illicit funds. It is broadly relevant to security professionals tracking ransomware ecosystems, cybercrime infrastructure, and cryptocurrency cash-out mechanisms, though it is not an active exploitation or urgent patch event.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://thehackernews.com/2022/05/us-sanctions-cryptocurrency-mixer.html" target="_blank" rel="noopener">Intel 471 November 2021 report on AudiA6</a></div>
   <div class="report-meta">Intel 471</div>
-  <div class="report-context">The article says an Intel 471 report published in November 2021 disclosed <mark class="tag-hl">AudiA6</mark>’s minimum balance requirement and service fees.</div>
+  <div class="report-context">The article says an Intel 471 report published in November 2021 disclosed AudiA6’s minimum balance requirement and service fees.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://thehackernews.com/2025/12/lastpass-2022-breach-led-to-years-long.html" target="_blank" rel="noopener">TRM Labs analysis of funds stolen from the 2022 LastPass hack</a></div>
   <div class="report-meta">TRM Labs</div>
-  <div class="report-context">The article says a December 2025 TRM Labs analysis found that funds stolen from the 2022 LastPass hack were routed through <mark class="tag-hl">Cryptex</mark> and <mark class="tag-hl">AudiA6</mark>.</div>
+  <div class="report-context">The article says a December 2025 TRM Labs analysis found that funds stolen from the 2022 LastPass hack were routed through Cryptex and AudiA6.</div>
 </li></ul></div>
             
           </div>
@@ -1854,91 +2011,91 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:82%"></div></div><span class="score-num score-num-mid">82</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:7f11d34d85c05b63">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:7f11d34d85c05b63')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:7f11d34d85c05b63')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:7f11d34d85c05b63')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:7f11d34d85c05b63')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:7f11d34d85c05b63')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:7f11d34d85c05b63')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:7f11d34d85c05b63')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:7f11d34d85c05b63')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:7f11d34d85c05b63')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:7f11d34d85c05b63')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:7f11d34d85c05b63" class="tab-panel active"><div class="prose">Researchers disclosed three patched <mark class="tag-hl">LangGraph</mark> flaws, including a chain in self-hosted deployments that can combine <mark class="tag-hl">SQL injection</mark> with <mark class="tag-hl">unsafe deserialization</mark> to achieve <mark class="tag-hl">remote code execution</mark>. Users running affected <mark class="tag-hl">SQLite</mark> or <mark class="tag-hl">Redis</mark> checkpointers should update immediately and restrict exposure of <mark class="tag-hl">LangGraph</mark> servers and checkpoint access.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:7f11d34d85c05b63" class="tab-panel"><div class="prose"><p>Cybersecurity researchers disclosed details of three now-patched security flaws affecting <mark class="tag-hl">LangGraph</mark>, an open-source framework created by <mark class="tag-hl">LangChain</mark> for building complex, stateful, multi-agent AI applications. <mark class="tag-hl">Check Point</mark> said the issues include a critical vulnerability chain that could result in <mark class="tag-hl">remote code execution</mark> on self-hosted deployments. <mark class="tag-hl">LangChain</mark>&rsquo;s managed LangSmith Deployment platform is not affected.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:7f11d34d85c05b63" class="tab-panel active"><div class="prose">Researchers disclosed three patched LangGraph flaws, including a chain in self-hosted deployments that can combine SQL injection with unsafe deserialization to achieve remote code execution. Users running affected SQLite or Redis checkpointers should update immediately and restrict exposure of LangGraph servers and checkpoint access.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:7f11d34d85c05b63" class="tab-panel"><div class="prose"><p>Cybersecurity researchers disclosed details of three now-patched security flaws affecting LangGraph, an open-source framework created by LangChain for building complex, stateful, multi-agent AI applications. Check Point said the issues include a critical vulnerability chain that could result in remote code execution on self-hosted deployments. LangChain&rsquo;s managed LangSmith Deployment platform is not affected.</p>
 
-<p>The most serious chain combines <mark class="tag-hl">CVE-2025-67644</mark>, a <mark class="tag-hl">SQL injection</mark> flaw in <mark class="tag-hl">LangGraph</mark>&rsquo;s <mark class="tag-hl">SQLite</mark> checkpoint implementation, with <mark class="tag-hl">CVE-2026-28277</mark>, an unsafe <mark class="tag-hl">msgpack</mark> deserialization issue in <mark class="tag-hl">LangGraph</mark>. According to researcher Yarden Porat, an attacker could use a malicious filter parameter to force a fake checkpoint row into database query results, causing attacker-controlled serialized data to be deserialized. This could execute arbitrary code when the application processes the checkpoint data.</p>
+<p>The most serious chain combines CVE-2025-67644, a SQL injection flaw in LangGraph&rsquo;s SQLite checkpoint implementation, with CVE-2026-28277, an unsafe msgpack deserialization issue in LangGraph. According to researcher Yarden Porat, an attacker could use a malicious filter parameter to force a fake checkpoint row into database query results, causing attacker-controlled serialized data to be deserialized. This could execute arbitrary code when the application processes the checkpoint data.</p>
 
-<p>The flaws affect <mark class="tag-hl">langgraph-checkpoint-sqlite</mark> versions before 3.0.1, <mark class="tag-hl">langgraph</mark> versions before 1.0.10, and @<mark class="tag-hl">langchain</mark>/<mark class="tag-hl">langgraph-checkpoint-redis</mark> versions before 1.0.1. <mark class="tag-hl">Check Point</mark> said the chain is exploitable in self-hosted deployments using the <mark class="tag-hl">SQLite</mark> or <mark class="tag-hl">Redis</mark> checkpointer with user-controlled filter input. Users are advised to apply fixes, implement authentication, avoid long-lived static secrets, enforce network segmentation, treat AI agents as privileged identities, and apply least privilege.</p>
+<p>The flaws affect langgraph-checkpoint-sqlite versions before 3.0.1, langgraph versions before 1.0.10, and @langchain/langgraph-checkpoint-redis versions before 1.0.1. Check Point said the chain is exploitable in self-hosted deployments using the SQLite or Redis checkpointer with user-controlled filter input. Users are advised to apply fixes, implement authentication, avoid long-lived static secrets, enforce network segmentation, treat AI agents as privileged identities, and apply least privilege.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:7f11d34d85c05b63" class="tab-panel"><div class="prose"><p>Cybersecurity researchers disclosed three now-patched vulnerabilities in <mark class="tag-hl">LangGraph</mark>, including a chain that could allow <mark class="tag-hl">remote code execution</mark>. <mark class="tag-hl">LangGraph</mark> is an open-source framework from <mark class="tag-hl">LangChain</mark> for building complex, stateful, and multi-agent AI agentic applications. <mark class="tag-hl">Check Point</mark> said an <mark class="tag-hl">SQL injection</mark> in <mark class="tag-hl">LangGraph</mark> could allow attackers to gain full control of a server by exploiting how the system processes and handles data.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:7f11d34d85c05b63" class="tab-panel"><div class="prose"><p>Cybersecurity researchers disclosed three now-patched vulnerabilities in LangGraph, including a chain that could allow remote code execution. LangGraph is an open-source framework from LangChain for building complex, stateful, and multi-agent AI agentic applications. Check Point said an SQL injection in LangGraph could allow attackers to gain full control of a server by exploiting how the system processes and handles data.</p>
 
-<p>The vulnerabilities are <mark class="tag-hl">CVE-2025-67644</mark>, <mark class="tag-hl">CVE-2026-28277</mark>, and <mark class="tag-hl">CVE-2026-27022</mark>. <mark class="tag-hl">CVE-2025-67644</mark> is a <mark class="tag-hl">SQL injection</mark> flaw in <mark class="tag-hl">LangGraph</mark>&rsquo;s <mark class="tag-hl">SQLite</mark> checkpoint implementation affecting <mark class="tag-hl">langgraph-checkpoint-sqlite</mark> versions before 3.0.1. <mark class="tag-hl">CVE-2026-28277</mark> is an unsafe <mark class="tag-hl">msgpack</mark> deserialization issue affecting <mark class="tag-hl">langgraph</mark> versions before 1.0.10, and <mark class="tag-hl">CVE-2026-27022</mark> is a <mark class="tag-hl">RediSearch Query Injection</mark> in @<mark class="tag-hl">langchain</mark>/<mark class="tag-hl">langgraph-checkpoint-redis</mark> affecting versions before 1.0.1.</p>
+<p>The vulnerabilities are CVE-2025-67644, CVE-2026-28277, and CVE-2026-27022. CVE-2025-67644 is a SQL injection flaw in LangGraph&rsquo;s SQLite checkpoint implementation affecting langgraph-checkpoint-sqlite versions before 3.0.1. CVE-2026-28277 is an unsafe msgpack deserialization issue affecting langgraph versions before 1.0.10, and CVE-2026-27022 is a RediSearch Query Injection in @langchain/langgraph-checkpoint-redis affecting versions before 1.0.1.</p>
 
-<p><mark class="tag-hl">Check Point</mark> said the vulnerability chain is exploitable in self-hosted deployments using the <mark class="tag-hl">SQLite</mark> or <mark class="tag-hl">Redis</mark> checkpointer with user-controlled filter input. The article states that <mark class="tag-hl">LangChain</mark>&rsquo;s managed platform, LangSmith Deployment, is not affected. Security researcher Yarden Porat is credited with discovering and reporting all three flaws.</p>
+<p>Check Point said the vulnerability chain is exploitable in self-hosted deployments using the SQLite or Redis checkpointer with user-controlled filter input. The article states that LangChain&rsquo;s managed platform, LangSmith Deployment, is not affected. Security researcher Yarden Porat is credited with discovering and reporting all three flaws.</p>
 
-<p>The <mark class="tag-hl">remote code execution</mark> chain relies on the application exposing the get_state_history() endpoint, which allows historical checkpoints to be retrieved based on metadata. In the described sequence, an attacker prepares a malicious <mark class="tag-hl">msgpack</mark> payload, sends a malicious filter parameter that exploits <mark class="tag-hl">SQL injection</mark>, causes a fake checkpoint row with attacker-controlled serialized data to be returned, and then triggers <mark class="tag-hl">unsafe deserialization</mark> when the application processes the result. This allows the attacker to execute the payload on the server.</p>
+<p>The remote code execution chain relies on the application exposing the get_state_history() endpoint, which allows historical checkpoints to be retrieved based on metadata. In the described sequence, an attacker prepares a malicious msgpack payload, sends a malicious filter parameter that exploits SQL injection, causes a fake checkpoint row with attacker-controlled serialized data to be returned, and then triggers unsafe deserialization when the application processes the result. This allows the attacker to execute the payload on the server.</p>
 
-<p><mark class="tag-hl">LangGraph</mark> described <mark class="tag-hl">CVE-2026-28277</mark> as a post-exploitation issue because successful exploitation requires the ability to write attacker-controlled checkpoint data and turn it into code execution in the application runtime. The maintainers said escalation from write access to the checkpoint store to code execution may expose runtime secrets or provide access to other systems the runtime can reach. Users are advised to apply the latest fixes, add authentication for self-hosted <mark class="tag-hl">LangGraph</mark> servers, avoid long-lived static secrets, enforce network segmentation, treat AI agents as privileged identities, and apply least privilege.</p>
+<p>LangGraph described CVE-2026-28277 as a post-exploitation issue because successful exploitation requires the ability to write attacker-controlled checkpoint data and turn it into code execution in the application runtime. The maintainers said escalation from write access to the checkpoint store to code execution may expose runtime secrets or provide access to other systems the runtime can reach. Users are advised to apply the latest fixes, add authentication for self-hosted LangGraph servers, avoid long-lived static secrets, enforce network segmentation, treat AI agents as privileged identities, and apply least privilege.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:7f11d34d85c05b63" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:7f11d34d85c05b63" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Cybersecurity researchers disclosed details of three now-patched vulnerabilities affecting <mark class="tag-hl">LangGraph</mark>, an open-source framework created by <mark class="tag-hl">LangChain</mark> for building complex, stateful, and multi-agent AI agentic applications. The flaws include a critical vulnerability chain that could result in <mark class="tag-hl">remote code execution</mark>.</p>
+<p>Cybersecurity researchers disclosed details of three now-patched vulnerabilities affecting LangGraph, an open-source framework created by LangChain for building complex, stateful, and multi-agent AI agentic applications. The flaws include a critical vulnerability chain that could result in remote code execution.</p>
 
-<p><mark class="tag-hl">Check Point</mark> said an <mark class="tag-hl">SQL injection</mark> in a <mark class="tag-hl">LangGraph</mark> function could allow attackers to gain full control via <mark class="tag-hl">remote code execution</mark> of a server by exploiting weaknesses in how the system processes and handles data. Security researcher Yarden Porat is credited with discovering and reporting all three flaws.</p>
+<p>Check Point said an SQL injection in a LangGraph function could allow attackers to gain full control via remote code execution of a server by exploiting weaknesses in how the system processes and handles data. Security researcher Yarden Porat is credited with discovering and reporting all three flaws.</p>
 
 <h2 id="affected-products-and-vulnerabilities">Affected Products and Vulnerabilities</h2>
 
 <p>The article identifies three vulnerabilities:</p>
 
 <ul>
-<li><strong><mark class="tag-hl">CVE-2025-67644</mark></strong>: A <mark class="tag-hl">SQL injection</mark> vulnerability in <mark class="tag-hl">LangGraph</mark>&rsquo;s <mark class="tag-hl">SQLite</mark> checkpoint implementation that allows attackers to manipulate SQL queries through metadata filter keys. It affects <strong><mark class="tag-hl">langgraph-checkpoint-sqlite</mark> versions before 3.0.1</strong> and has a CVSS score of <strong>7.3</strong>.</li>
-<li><strong><mark class="tag-hl">CVE-2026-28277</mark></strong>: An unsafe <strong><mark class="tag-hl">msgpack</mark></strong> deserialization vulnerability in <mark class="tag-hl">LangGraph</mark> that could be used to trigger object reconstruction when a checkpoint is loaded by an attacker who can modify checkpoint data. It affects <strong><mark class="tag-hl">langgraph</mark> versions before 1.0.10</strong> and has a CVSS score of <strong>6.8</strong>.</li>
-<li><strong><mark class="tag-hl">CVE-2026-27022</mark></strong>: A <strong><mark class="tag-hl">RediSearch Query Injection</mark></strong> in <strong>@<mark class="tag-hl">langchain</mark>/<mark class="tag-hl">langgraph-checkpoint-redis</mark></strong> that can be used to bypass access controls. It affects <strong>@<mark class="tag-hl">langchain</mark>/<mark class="tag-hl">langgraph-checkpoint-redis</mark> versions before 1.0.1</strong> and has a CVSS score of <strong>6.5</strong>.</li>
+<li><strong>CVE-2025-67644</strong>: A SQL injection vulnerability in LangGraph&rsquo;s SQLite checkpoint implementation that allows attackers to manipulate SQL queries through metadata filter keys. It affects <strong>langgraph-checkpoint-sqlite versions before 3.0.1</strong> and has a CVSS score of <strong>7.3</strong>.</li>
+<li><strong>CVE-2026-28277</strong>: An unsafe <strong>msgpack</strong> deserialization vulnerability in LangGraph that could be used to trigger object reconstruction when a checkpoint is loaded by an attacker who can modify checkpoint data. It affects <strong>langgraph versions before 1.0.10</strong> and has a CVSS score of <strong>6.8</strong>.</li>
+<li><strong>CVE-2026-27022</strong>: A <strong>RediSearch Query Injection</strong> in <strong>@langchain/langgraph-checkpoint-redis</strong> that can be used to bypass access controls. It affects <strong>@langchain/langgraph-checkpoint-redis versions before 1.0.1</strong> and has a CVSS score of <strong>6.5</strong>.</li>
 </ul>
 
 <h2 id="exploitation-conditions">Exploitation Conditions</h2>
 
-<p><mark class="tag-hl">Check Point</mark> said the vulnerability chain is exploitable in <strong>self-hosted deployments</strong> using the <mark class="tag-hl">SQLite</mark> or <mark class="tag-hl">Redis</mark> checkpointer with <strong>user-controlled filter input</strong>. The article states that <strong><mark class="tag-hl">LangChain</mark>&rsquo;s managed platform, LangSmith Deployment, is not affected</strong>.</p>
+<p>Check Point said the vulnerability chain is exploitable in <strong>self-hosted deployments</strong> using the SQLite or Redis checkpointer with <strong>user-controlled filter input</strong>. The article states that <strong>LangChain&rsquo;s managed platform, LangSmith Deployment, is not affected</strong>.</p>
 
-<p>The <mark class="tag-hl">remote code execution</mark> chain specifically depends on the application exposing the <strong>get_state_history()</strong> endpoint. That endpoint allows an attacker to retrieve historical checkpoints based on their metadata.</p>
+<p>The remote code execution chain specifically depends on the application exposing the <strong>get_state_history()</strong> endpoint. That endpoint allows an attacker to retrieve historical checkpoints based on their metadata.</p>
 
-<h2 id="remote-code-execution-chain"><mark class="tag-hl">Remote Code Execution</mark> Chain</h2>
+<h2 id="remote-code-execution-chain">Remote Code Execution Chain</h2>
 
-<p>According to Yarden Porat, <strong><mark class="tag-hl">CVE-2025-67644</mark></strong> and <strong><mark class="tag-hl">CVE-2026-28277</mark></strong> can be chained to achieve <mark class="tag-hl">remote code execution</mark>.</p>
+<p>According to Yarden Porat, <strong>CVE-2025-67644</strong> and <strong>CVE-2026-28277</strong> can be chained to achieve remote code execution.</p>
 
 <p>The article describes the attack sequence as follows:</p>
 
 <ol>
-<li>The attacker prepares a <strong><mark class="tag-hl">msgpack</mark> payload</strong> containing instructions to execute arbitrary code.</li>
-<li>The attacker sends a malicious filter parameter that exploits the <mark class="tag-hl">SQL injection</mark> vulnerability.</li>
-<li>The <mark class="tag-hl">SQL injection</mark> causes a fake checkpoint row to be returned in the database query results.</li>
+<li>The attacker prepares a <strong>msgpack payload</strong> containing instructions to execute arbitrary code.</li>
+<li>The attacker sends a malicious filter parameter that exploits the SQL injection vulnerability.</li>
+<li>The SQL injection causes a fake checkpoint row to be returned in the database query results.</li>
 <li>The fake row&rsquo;s checkpoint column contains attacker-controlled serialized data.</li>
 <li>When the application processes the query results, it deserializes the malicious checkpoint&rsquo;s BLOB.</li>
-<li>The attacker exploits the <mark class="tag-hl">unsafe deserialization</mark> vulnerability to execute the payload, resulting in <mark class="tag-hl">remote code execution</mark> on the server.</li>
+<li>The attacker exploits the unsafe deserialization vulnerability to execute the payload, resulting in remote code execution on the server.</li>
 </ol>
 
-<h2 id="langgraph-s-characterization-of-cve-2026-28277"><mark class="tag-hl">LangGraph</mark>&rsquo;s Characterization of <mark class="tag-hl">CVE-2026-28277</mark></h2>
+<h2 id="langgraph-s-characterization-of-cve-2026-28277">LangGraph&rsquo;s Characterization of CVE-2026-28277</h2>
 
-<p><mark class="tag-hl">LangGraph</mark> described <strong><mark class="tag-hl">CVE-2026-28277</mark></strong> as a post-exploitation issue. The maintainers said successful exploitation requires the ability to write attacker-controlled checkpoint data and turn that into code execution in the application runtime.</p>
+<p>LangGraph described <strong>CVE-2026-28277</strong> as a post-exploitation issue. The maintainers said successful exploitation requires the ability to write attacker-controlled checkpoint data and turn that into code execution in the application runtime.</p>
 
-<p><mark class="tag-hl">LangGraph</mark> also said the issue does not pose risks to existing LangSmith-hosted deployments. In the described threat model, an attacker must tamper with the checkpoint persistence layer used by the deployment, and typical hosted configurations are designed to prevent such access.</p>
+<p>LangGraph also said the issue does not pose risks to existing LangSmith-hosted deployments. In the described threat model, an attacker must tamper with the checkpoint persistence layer used by the deployment, and typical hosted configurations are designed to prevent such access.</p>
 
 <p>The maintainers said escalation from write access to the checkpoint store to code execution may expose runtime secrets or provide access to other systems the runtime can reach.</p>
 
 <h2 id="significance">Significance</h2>
 
-<p><mark class="tag-hl">Check Point</mark> said the findings show how classic vulnerability classes such as <mark class="tag-hl">SQL injection</mark> can become more potent when they appear inside AI agent frameworks. The article notes that these frameworks may carry elevated access and trust, which can open the door to sensitive data exposure.</p>
+<p>Check Point said the findings show how classic vulnerability classes such as SQL injection can become more potent when they appear inside AI agent frameworks. The article notes that these frameworks may carry elevated access and trust, which can open the door to sensitive data exposure.</p>
 
-<p>The issue is significant for self-hosted <mark class="tag-hl">LangGraph</mark> deployments because the vulnerable conditions involve checkpoint storage, user-controlled filter input, and exposed state-history retrieval functionality. The managed LangSmith Deployment platform is explicitly stated to be unaffected.</p>
+<p>The issue is significant for self-hosted LangGraph deployments because the vulnerable conditions involve checkpoint storage, user-controlled filter input, and exposed state-history retrieval functionality. The managed LangSmith Deployment platform is explicitly stated to be unaffected.</p>
 
 <h2 id="recommended-response">Recommended Response</h2>
 
-<p>Users are advised to apply the latest fixes for the affected packages. The article also recommends implementing authentication for self-hosted <mark class="tag-hl">LangGraph</mark> servers.</p>
+<p>Users are advised to apply the latest fixes for the affected packages. The article also recommends implementing authentication for self-hosted LangGraph servers.</p>
 
 <p>Additional recommended measures include:</p>
 
@@ -1949,33 +2106,34 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Applying the principle of least privilege to limit an agent&rsquo;s access footprint.</li>
 </ul>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:7f11d34d85c05b63" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The <mark class="tag-hl">remote code execution</mark> chain depends on the application exposing the get_state_history() endpoint and accepting user-controlled metadata filters, making endpoint exposure and input control central to risk reduction.</span></li><li><span class="kp-text">A flaw described as post-exploitation by <mark class="tag-hl">LangGraph</mark> can become part of a pre-authored <mark class="tag-hl">remote code execution</mark> chain when paired with <mark class="tag-hl">SQL injection</mark> that injects attacker-controlled checkpoint data into query results.</span></li><li><span class="kp-text">The issue highlights that checkpoint stores in AI agent frameworks should be treated as highly sensitive persistence layers because tampering with checkpoint data can expose runtime secrets or provide access to other systems reachable by the runtime.</span></li><li><span class="kp-text">Self-hosted <mark class="tag-hl">LangGraph</mark> deployments face different risk than <mark class="tag-hl">LangChain</mark>&#39;s managed LangSmith Deployment platform, so organizations should not assume managed-platform protections apply to their own deployments.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:7f11d34d85c05b63" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The remote code execution chain depends on the application exposing the get_state_history() endpoint and accepting user-controlled metadata filters, making endpoint exposure and input control central to risk reduction.</span></li><li><span class="kp-text">A flaw described as post-exploitation by LangGraph can become part of a pre-authored remote code execution chain when paired with SQL injection that injects attacker-controlled checkpoint data into query results.</span></li><li><span class="kp-text">The issue highlights that checkpoint stores in AI agent frameworks should be treated as highly sensitive persistence layers because tampering with checkpoint data can expose runtime secrets or provide access to other systems reachable by the runtime.</span></li><li><span class="kp-text">Self-hosted LangGraph deployments face different risk than LangChain&#39;s managed LangSmith Deployment platform, so organizations should not assume managed-platform protections apply to their own deployments.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Cybersecurity researchers disclosed three now-patched vulnerabilities affecting <mark class="tag-hl">LangGraph</mark>, including a critical chain that could lead to <mark class="tag-hl">remote code execution</mark>.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2025-67644</mark> is a <mark class="tag-hl">SQL injection</mark> flaw in <mark class="tag-hl">LangGraph</mark>&#39;s <mark class="tag-hl">SQLite</mark> checkpoint implementation that affects <mark class="tag-hl">langgraph-checkpoint-sqlite</mark> versions before 3.0.1.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2026-28277</mark> is an unsafe <mark class="tag-hl">msgpack</mark> deserialization flaw in <mark class="tag-hl">LangGraph</mark> that affects <mark class="tag-hl">langgraph</mark> versions before 1.0.10.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2025-67644</mark> and <mark class="tag-hl">CVE-2026-28277</mark> can be chained in self-hosted deployments using the <mark class="tag-hl">SQLite</mark> checkpointer with user-controlled filter input to execute attacker-controlled code.</span></li><li><span class="kp-text"><mark class="tag-hl">Check Point</mark> said <mark class="tag-hl">LangChain</mark>&#39;s managed LangSmith Deployment platform is not affected by the vulnerability chain.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Cybersecurity researchers disclosed three now-patched vulnerabilities affecting LangGraph, including a critical chain that could lead to remote code execution.</span></li><li><span class="kp-text">CVE-2025-67644 is a SQL injection flaw in LangGraph&#39;s SQLite checkpoint implementation that affects langgraph-checkpoint-sqlite versions before 3.0.1.</span></li><li><span class="kp-text">CVE-2026-28277 is an unsafe msgpack deserialization flaw in LangGraph that affects langgraph versions before 1.0.10.</span></li><li><span class="kp-text">CVE-2025-67644 and CVE-2026-28277 can be chained in self-hosted deployments using the SQLite checkpointer with user-controlled filter input to execute attacker-controlled code.</span></li><li><span class="kp-text">Check Point said LangChain&#39;s managed LangSmith Deployment platform is not affected by the vulnerability chain.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/langgraph-flaw-chain-exposes-self.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, concrete vulnerability disclosure affecting <mark class="tag-hl">LangGraph</mark>, including a demonstrated chain from <mark class="tag-hl">SQL injection</mark> to <mark class="tag-hl">remote code execution</mark> in self-hosted deployments. It is broadly relevant to security professionals working with AI agent frameworks, though the flaws are patched and the article does not report active exploitation in the wild.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, concrete vulnerability disclosure affecting LangGraph, including a demonstrated chain from SQL injection to remote code execution in self-hosted deployments. It is broadly relevant to security professionals working with AI agent frameworks, though the flaws are patched and the article does not report active exploitation in the wild.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://blog.checkpoint.com/research/when-your-ai-agents-memory-becomes-a-security-liability/" target="_blank" rel="noopener">When Your AI Agent&#39;s Memory Becomes a Security Liability</a></div>
   <div class="report-meta">Check Point</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Check Point</mark>&#39;s research explaining that an <mark class="tag-hl">SQL injection</mark> in <mark class="tag-hl">LangGraph</mark> could allow attackers to gain full control via <mark class="tag-hl">remote code execution</mark>.</div>
+  <div class="report-context">The article cites Check Point&#39;s research explaining that an SQL injection in LangGraph could allow attackers to gain full control via remote code execution.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://research.checkpoint.com/2026/from-sqli-to-rce-exploiting-langgraphs-checkpointer/" target="_blank" rel="noopener">From SQLi to RCE: Exploiting LangGraph&#39;s Checkpointer</a></div>
   <div class="report-meta">Check Point Research</div>
-  <div class="report-context">The article cites Yarden Porat&#39;s technical analysis describing how <mark class="tag-hl">CVE-2025-67644</mark> and <mark class="tag-hl">CVE-2026-28277</mark> can be chained to achieve <mark class="tag-hl">remote code execution</mark>.</div>
+  <div class="report-context">The article cites Yarden Porat&#39;s technical analysis describing how CVE-2025-67644 and CVE-2026-28277 can be chained to achieve remote code execution.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://github.com/langchain-ai/langgraph/security/advisories/GHSA-9rwj-6rc7-p77c" target="_blank" rel="noopener">CVE-2025-67644 LangGraph SQLite Checkpoint SQL Injection Advisory</a></div>
   <div class="report-meta">LangChain</div>
-  <div class="report-context">The article links to the GitHub security advisory for the <mark class="tag-hl">SQL injection</mark> vulnerability affecting <mark class="tag-hl">langgraph-checkpoint-sqlite</mark> versions before 3.0.1.</div>
+  <div class="report-context">The article links to the GitHub security advisory for the SQL injection vulnerability affecting langgraph-checkpoint-sqlite versions before 3.0.1.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://github.com/langchain-ai/langgraph/security/advisories/GHSA-g48c-2wqr-h844" target="_blank" rel="noopener">CVE-2026-28277 LangGraph Unsafe msgpack Deserialization Advisory</a></div>
   <div class="report-meta">LangChain</div>
-  <div class="report-context">The article links to the GitHub security advisory for the unsafe <mark class="tag-hl">msgpack</mark> deserialization vulnerability affecting <mark class="tag-hl">LangGraph</mark> versions before 1.0.10.</div>
+  <div class="report-context">The article links to the GitHub security advisory for the unsafe msgpack deserialization vulnerability affecting LangGraph versions before 1.0.10.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://github.com/langchain-ai/langgraphjs/security/advisories/GHSA-5mx2-w598-339m" target="_blank" rel="noopener">CVE-2026-27022 LangGraphJS RediSearch Query Injection Advisory</a></div>
   <div class="report-meta">LangChain</div>
-  <div class="report-context">The article links to the GitHub security advisory for the <mark class="tag-hl">RediSearch query injection</mark> vulnerability affecting @<mark class="tag-hl">langchain</mark>/<mark class="tag-hl">langgraph-checkpoint-redis</mark> versions before 1.0.1.</div>
+  <div class="report-context">The article links to the GitHub security advisory for the RediSearch query injection vulnerability affecting @langchain/langgraph-checkpoint-redis versions before 1.0.1.</div>
 </li></ul></div>
             
           </div>
@@ -2005,31 +2163,31 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Exploited Enterprise and AI Platform Vulnerabilities</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">CISA</mark> ordered U.S. <mark class="tag-hl">Federal Civilian Executive Branch</mark> agencies to patch <mark class="tag-hl">CVE-2026-10520</mark>, a maximum-severity <mark class="tag-hl">OS command injection</mark> vulnerability in <mark class="tag-hl">Ivanti Sentry</mark>, within three days under Binding Operational Directive 26-04. The flaw affects <mark class="tag-hl">Ivanti Sentry</mark>, formerly <mark class="tag-hl">MobileIron Sentry</mark>, and was added to <mark class="tag-hl">CISA</mark>’s <mark class="tag-hl">Known Exploited Vulnerabilities Catalog</mark> after confirmed exploitation in attacks.</p>
+        <div class="overview-body prose"><p>CISA ordered U.S. Federal Civilian Executive Branch agencies to patch CVE-2026-10520, a maximum-severity OS command injection vulnerability in Ivanti Sentry, within three days under Binding Operational Directive 26-04. The flaw affects Ivanti Sentry, formerly MobileIron Sentry, and was added to CISA’s Known Exploited Vulnerabilities Catalog after confirmed exploitation in attacks.</p>
 
-<p><mark class="tag-hl">Shadowserver</mark> reported that attackers had already backdoored many internet-exposed <mark class="tag-hl">Ivanti Sentry</mark> gateways and warned that unpatched systems are likely compromised. The directive reflects the conditions defined in <mark class="tag-hl">BOD 26-04</mark>: public exposure, KEV listing, potential for automated exploitation at scale, and attacker ability to gain partial or total control of affected systems.</p>
+<p>Shadowserver reported that attackers had already backdoored many internet-exposed Ivanti Sentry gateways and warned that unpatched systems are likely compromised. The directive reflects the conditions defined in BOD 26-04: public exposure, KEV listing, potential for automated exploitation at scale, and attacker ability to gain partial or total control of affected systems.</p>
 
-<p>Researchers also disclosed three now-patched vulnerabilities in <mark class="tag-hl">LangGraph</mark>, including a critical exploit chain affecting self-hosted deployments. The chain combines <mark class="tag-hl">CVE-2025-67644</mark>, a <mark class="tag-hl">SQL injection</mark> flaw in the <mark class="tag-hl">SQLite</mark> checkpoint implementation affecting <mark class="tag-hl">langgraph-checkpoint-sqlite</mark> versions before 3.0.1, with <mark class="tag-hl">CVE-2026-28277</mark>, an unsafe <mark class="tag-hl">msgpack</mark> deserialization issue affecting <mark class="tag-hl">langgraph</mark> versions before 1.0.10. In self-hosted environments using the <mark class="tag-hl">SQLite</mark> checkpointer with user-controlled filter input, the issues can be chained to execute attacker-controlled code; <mark class="tag-hl">Check Point</mark> said <mark class="tag-hl">LangChain</mark>’s managed LangSmith Deployment platform is not affected by the chain.</p>
+<p>Researchers also disclosed three now-patched vulnerabilities in LangGraph, including a critical exploit chain affecting self-hosted deployments. The chain combines CVE-2025-67644, a SQL injection flaw in the SQLite checkpoint implementation affecting langgraph-checkpoint-sqlite versions before 3.0.1, with CVE-2026-28277, an unsafe msgpack deserialization issue affecting langgraph versions before 1.0.10. In self-hosted environments using the SQLite checkpointer with user-controlled filter input, the issues can be chained to execute attacker-controlled code; Check Point said LangChain’s managed LangSmith Deployment platform is not affected by the chain.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Cybercrime Infrastructure and Laundering Services Disrupted</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">INTERPOL</mark>-led <mark class="tag-hl">Operation Ramz</mark> disrupted the <mark class="tag-hl">Sniper Dz</mark> <mark class="tag-hl">phishing-as-a-service</mark> platform between October 2025 and February 2026. Authorities from 13 <mark class="tag-hl">Middle East and North Africa</mark> countries made 201 arrests, including <mark class="tag-hl">Guedz</mark>, identified as the primary developer and administrator, and seized hardware containing phishing software and scripts.</p>
+        <div class="overview-body prose"><p>INTERPOL-led Operation Ramz disrupted the Sniper Dz phishing-as-a-service platform between October 2025 and February 2026. Authorities from 13 Middle East and North Africa countries made 201 arrests, including Guedz, identified as the primary developer and administrator, and seized hardware containing phishing software and scripts.</p>
 
-<p><mark class="tag-hl">Sniper Dz</mark> provided ready-made phishing kits, hosting infrastructure, and operational support targeting brands including PayPal, Facebook, Instagram, Yahoo, Netflix, and Steam. <mark class="tag-hl">Group-IB</mark> said the platform had collected more than 45,000 victim records and was associated with more than 20,000 unique domains, reflecting the industrialized scale of phishing enablement services.</p>
+<p>Sniper Dz provided ready-made phishing kits, hosting infrastructure, and operational support targeting brands including PayPal, Facebook, Instagram, Yahoo, Netflix, and Steam. Group-IB said the platform had collected more than 45,000 victim records and was associated with more than 20,000 unique domains, reflecting the industrialized scale of phishing enablement services.</p>
 
-<p><mark class="tag-hl">Europol</mark> also reported the disruption of <mark class="tag-hl">AudiA6</mark>, a cryptocurrency laundering service allegedly used by ransomware gangs and other cybercriminal networks to launder more than €336 million since 2021. The June 10 operation included arrests of two alleged administrators in <mark class="tag-hl">Georgia</mark>, searches, takedowns of 25 domains, seizure of more than 30 servers, and blocking of Telegram accounts used by the network. U.S. authorities charged Ruslan Igorevich Tkachuk and Alexander Vladimirovich Ledenev with money laundering-related offenses, while <mark class="tag-hl">Europol</mark> said <mark class="tag-hl">AudiA6</mark> relied on thousands of fraudulent exchange accounts and more than 6,000 KYC records tied to money mule accounts.</p>
+<p>Europol also reported the disruption of AudiA6, a cryptocurrency laundering service allegedly used by ransomware gangs and other cybercriminal networks to launder more than €336 million since 2021. The June 10 operation included arrests of two alleged administrators in Georgia, searches, takedowns of 25 domains, seizure of more than 30 servers, and blocking of Telegram accounts used by the network. U.S. authorities charged Ruslan Igorevich Tkachuk and Alexander Vladimirovich Ledenev with money laundering-related offenses, while Europol said AudiA6 relied on thousands of fraudulent exchange accounts and more than 6,000 KYC records tied to money mule accounts.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">03</span>
           <span class="overview-title">French Public-Sector Messaging Breach</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">France</mark>’s interministerial digital directorate, <mark class="tag-hl">DINUM</mark>, said a breach of the <mark class="tag-hl">Tchap</mark> encrypted messaging platform may have affected 73,467 public-sector employees, representing less than 9% of registered users. The attacker accessed <mark class="tag-hl">Tchap</mark> using a compromised user account, which <mark class="tag-hl">DINUM</mark> said it identified and immediately blocked.</p>
+        <div class="overview-body prose"><p>France’s interministerial digital directorate, DINUM, said a breach of the Tchap encrypted messaging platform may have affected 73,467 public-sector employees, representing less than 9% of registered users. The attacker accessed Tchap using a compromised user account, which DINUM said it identified and immediately blocked.</p>
 
-<p><mark class="tag-hl">DINUM</mark> stated that private <mark class="tag-hl">Tchap</mark> conversations remain encrypted and protected, while public chat rooms are not encrypted and their shared data may have been accessed. Potentially exposed account data includes last name, first name, email address, public-sector entity, and avatar.</p>
+<p>DINUM stated that private Tchap conversations remain encrypted and protected, while public chat rooms are not encrypted and their shared data may have been accessed. Potentially exposed account data includes last name, first name, email address, public-sector entity, and avatar.</p>
 
 <p>A threat actor claimed responsibility for the breach and alleged they scraped nearly 650,000 messages, information from more than 73,000 accounts, and documents and media files shared through the platform. The incident highlights the exposure created when compromised user accounts intersect with semi-public collaboration spaces, even where private messaging remains encrypted.</p>
 </div>
@@ -2040,9 +2198,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-12 06:00 UTC · 4 hours window</span>
-  <span class="footer-right">5 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">5 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -2055,15 +2216,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2176,12 +2399,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2242,6 +2499,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

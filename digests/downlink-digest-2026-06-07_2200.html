@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1350,52 +1503,52 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:45%"></div></div><span class="score-num score-num-low">45</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:02746a69533b66b9">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:02746a69533b66b9')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:02746a69533b66b9')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:02746a69533b66b9')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:02746a69533b66b9')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:02746a69533b66b9')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:02746a69533b66b9')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:02746a69533b66b9')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:02746a69533b66b9')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:02746a69533b66b9')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:02746a69533b66b9')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:02746a69533b66b9" class="tab-panel active"><div class="prose"><mark class="tag-hl">Microsoft</mark> has released <mark class="tag-hl">Intelligent Terminal</mark>, an open-source <mark class="tag-hl">Windows Terminal</mark> fork that embeds AI agents like <mark class="tag-hl">Claude</mark>, Copilot, <mark class="tag-hl">Codex</mark>, and <mark class="tag-hl">Gemini</mark> directly into terminal sessions to explain errors, suggest fixes, and draft commands. Its standout feature is session management, which lets users resume previous AI-assisted terminal work.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:02746a69533b66b9" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark> has created an open-source fork of <mark class="tag-hl">Windows Terminal</mark> called <mark class="tag-hl">Intelligent Terminal</mark>. The app allows users to use AI directly inside Terminal without interfering with the regular terminal session. <mark class="tag-hl">Microsoft</mark> describes it as a built-in assistant that can explain errors, draft commands, and help fix problems without leaving the terminal.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:02746a69533b66b9" class="tab-panel active"><div class="prose">Microsoft has released Intelligent Terminal, an open-source Windows Terminal fork that embeds AI agents like Claude, Copilot, Codex, and Gemini directly into terminal sessions to explain errors, suggest fixes, and draft commands. Its standout feature is session management, which lets users resume previous AI-assisted terminal work.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:02746a69533b66b9" class="tab-panel"><div class="prose"><p>Microsoft has created an open-source fork of Windows Terminal called Intelligent Terminal. The app allows users to use AI directly inside Terminal without interfering with the regular terminal session. Microsoft describes it as a built-in assistant that can explain errors, draft commands, and help fix problems without leaving the terminal.</p>
 
-<p>On first run, <mark class="tag-hl">Intelligent Terminal</mark> lets users choose an AI agent for the Terminal pane, with options shown in the article including <mark class="tag-hl">GitHub Copilot</mark>, <mark class="tag-hl">Claude</mark>, <mark class="tag-hl">Codex</mark>, and <mark class="tag-hl">Gemini</mark>. It also includes toggles for Automatic error detection, Automatic error suggestion, and Session management. The author highlights the ability to resume agent sessions as one of the app’s best features.</p>
+<p>On first run, Intelligent Terminal lets users choose an AI agent for the Terminal pane, with options shown in the article including GitHub Copilot, Claude, Codex, and Gemini. It also includes toggles for Automatic error detection, Automatic error suggestion, and Session management. The author highlights the ability to resume agent sessions as one of the app’s best features.</p>
 
-<p><mark class="tag-hl">Intelligent Terminal</mark> opens with an AI pane below the shell and includes controls to show or hide the agent panel, toggle error detection, and manage agent sessions. The article notes that Terminal AI is not meant for everyone, and <mark class="tag-hl">Microsoft</mark> has made <mark class="tag-hl">Intelligent Terminal</mark> a separate app rather than including it with Windows installations. Users can download it from the <mark class="tag-hl">Microsoft Store</mark> or <mark class="tag-hl">GitHub</mark>.</p>
+<p>Intelligent Terminal opens with an AI pane below the shell and includes controls to show or hide the agent panel, toggle error detection, and manage agent sessions. The article notes that Terminal AI is not meant for everyone, and Microsoft has made Intelligent Terminal a separate app rather than including it with Windows installations. Users can download it from the Microsoft Store or GitHub.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:02746a69533b66b9" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark> has created <mark class="tag-hl">Intelligent Terminal</mark>, an open-source fork of <mark class="tag-hl">Windows Terminal</mark> that adds AI capabilities directly inside the terminal environment. The article describes the app as allowing AI use inside Terminal without disrupting the regular shell session. <mark class="tag-hl">Microsoft</mark> positions the feature as a built-in assistant for explaining errors, drafting commands, and helping fix problems without leaving the terminal.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:02746a69533b66b9" class="tab-panel"><div class="prose"><p>Microsoft has created Intelligent Terminal, an open-source fork of Windows Terminal that adds AI capabilities directly inside the terminal environment. The article describes the app as allowing AI use inside Terminal without disrupting the regular shell session. Microsoft positions the feature as a built-in assistant for explaining errors, drafting commands, and helping fix problems without leaving the terminal.</p>
 
-<p>The app can remain aware of what is happening in a terminal session and assist when a command fails. It can also remember active and past agent sessions, allowing users to return to earlier work without losing their place. The article emphasizes this session-management capability as a major difference from standard <mark class="tag-hl">Windows Terminal</mark> behavior.</p>
+<p>The app can remain aware of what is happening in a terminal session and assist when a command fails. It can also remember active and past agent sessions, allowing users to return to earlier work without losing their place. The article emphasizes this session-management capability as a major difference from standard Windows Terminal behavior.</p>
 
-<p>During first-run configuration, <mark class="tag-hl">Intelligent Terminal</mark> lets users choose the AI agent for the Terminal pane. The article’s screenshot lists <mark class="tag-hl">GitHub Copilot</mark>, <mark class="tag-hl">Claude</mark>, <mark class="tag-hl">Codex</mark>, and <mark class="tag-hl">Gemini</mark>, with <mark class="tag-hl">GitHub Copilot</mark> shown as “will be installed” and the others shown as already installed. Users can also configure Automatic error detection, Automatic error suggestion, and Session management.</p>
+<p>During first-run configuration, Intelligent Terminal lets users choose the AI agent for the Terminal pane. The article’s screenshot lists GitHub Copilot, Claude, Codex, and Gemini, with GitHub Copilot shown as “will be installed” and the others shown as already installed. Users can also configure Automatic error detection, Automatic error suggestion, and Session management.</p>
 
-<p>Automatic error detection allows Terminal to notice failed commands, while Automatic error suggestion sends the error to the selected AI agent for a possible fix. Session management allows <mark class="tag-hl">Intelligent Terminal</mark> to track active and past agent sessions so earlier agent work can be reopened. These features are presented as configurable options rather than always-on behavior.</p>
+<p>Automatic error detection allows Terminal to notice failed commands, while Automatic error suggestion sends the error to the selected AI agent for a possible fix. Session management allows Intelligent Terminal to track active and past agent sessions so earlier agent work can be reopened. These features are presented as configurable options rather than always-on behavior.</p>
 
-<p>In the author’s hands-on use, Terminal opened with an AI pane below the shell and displayed “Welcome to <mark class="tag-hl">Intelligent Terminal</mark>.” The author selected <mark class="tag-hl">Claude</mark> as the Terminal AI model, causing <mark class="tag-hl">Claude Code</mark> to run inside the pane. The pane could plan a coding task and ask whether the user wanted to auto-accept edits, manually approve edits, or keep planning.</p>
+<p>In the author’s hands-on use, Terminal opened with an AI pane below the shell and displayed “Welcome to Intelligent Terminal.” The author selected Claude as the Terminal AI model, causing Claude Code to run inside the pane. The pane could plan a coding task and ask whether the user wanted to auto-accept edits, manually approve edits, or keep planning.</p>
 
-<p>The article states that Terminal AI is a useful idea but is not meant for everyone. <mark class="tag-hl">Microsoft</mark> has therefore kept <mark class="tag-hl">Intelligent Terminal</mark> as a separate app and has not included it with Windows installations yet. The app is available for download from the <mark class="tag-hl">Microsoft Store</mark> and <mark class="tag-hl">GitHub</mark>.</p>
+<p>The article states that Terminal AI is a useful idea but is not meant for everyone. Microsoft has therefore kept Intelligent Terminal as a separate app and has not included it with Windows installations yet. The app is available for download from the Microsoft Store and GitHub.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:02746a69533b66b9" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:02746a69533b66b9" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> has created an open-source fork of <mark class="tag-hl">Windows Terminal</mark> called <strong><mark class="tag-hl">Intelligent Terminal</mark></strong>. The article describes it as a version of Terminal that lets users use AI directly inside the terminal without interfering with the regular session.</p>
+<p>Microsoft has created an open-source fork of Windows Terminal called <strong>Intelligent Terminal</strong>. The article describes it as a version of Terminal that lets users use AI directly inside the terminal without interfering with the regular session.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> describes <mark class="tag-hl">Intelligent Terminal</mark> as a built-in assistant that can help users explain errors, draft commands, and fix problems without leaving the terminal. The app is presented as a separate application rather than a feature currently included with Windows installations.</p>
+<p>Microsoft describes Intelligent Terminal as a built-in assistant that can help users explain errors, draft commands, and fix problems without leaving the terminal. The app is presented as a separate application rather than a feature currently included with Windows installations.</p>
 
 <h2 id="core-functionality">Core Functionality</h2>
 
-<p><mark class="tag-hl">Intelligent Terminal</mark> is designed to integrate an AI assistant into the terminal workflow. According to the article, the agent can stay aware of what is happening in the terminal and help when a command fails.</p>
+<p>Intelligent Terminal is designed to integrate an AI assistant into the terminal workflow. According to the article, the agent can stay aware of what is happening in the terminal and help when a command fails.</p>
 
 <p>The app can also remember active and past agent sessions. This allows users to return to earlier agent work without losing their place.</p>
 
-<p>The article states that <mark class="tag-hl">Intelligent Terminal</mark> can help with several terminal-related tasks, including:</p>
+<p>The article states that Intelligent Terminal can help with several terminal-related tasks, including:</p>
 
 <ul>
 <li>Explaining errors.</li>
@@ -1407,20 +1560,20 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="first-run-configuration">First-Run Configuration</h2>
 
-<p>When <mark class="tag-hl">Intelligent Terminal</mark> is opened for the first time, it lets the user choose the AI agent for the Terminal pane. In the article’s example screenshot, the listed options are:</p>
+<p>When Intelligent Terminal is opened for the first time, it lets the user choose the AI agent for the Terminal pane. In the article’s example screenshot, the listed options are:</p>
 
 <ul>
-<li><mark class="tag-hl">GitHub Copilot</mark>.</li>
-<li><mark class="tag-hl">Claude</mark>.</li>
-<li><mark class="tag-hl">Codex</mark>.</li>
-<li><mark class="tag-hl">Gemini</mark>.</li>
+<li>GitHub Copilot.</li>
+<li>Claude.</li>
+<li>Codex.</li>
+<li>Gemini.</li>
 </ul>
 
-<p>The article notes that <mark class="tag-hl">GitHub Copilot</mark> is shown as “will be installed,” while <mark class="tag-hl">Claude</mark>, <mark class="tag-hl">Codex</mark>, and <mark class="tag-hl">Gemini</mark> are shown as already installed.</p>
+<p>The article notes that GitHub Copilot is shown as “will be installed,” while Claude, Codex, and Gemini are shown as already installed.</p>
 
 <h2 id="error-detection-and-error-suggestions">Error Detection and Error Suggestions</h2>
 
-<p><mark class="tag-hl">Intelligent Terminal</mark> includes separate toggles for <strong>Automatic error detection</strong> and <strong>Automatic error suggestion</strong>.</p>
+<p>Intelligent Terminal includes separate toggles for <strong>Automatic error detection</strong> and <strong>Automatic error suggestion</strong>.</p>
 
 <p>The article explains that Automatic error detection allows Terminal to notice failed commands. Automatic error suggestion goes further by sending the error to the selected AI agent for a possible fix.</p>
 
@@ -1428,19 +1581,19 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="session-management">Session Management</h2>
 
-<p>The article identifies <strong>Session management</strong> as one of <mark class="tag-hl">Intelligent Terminal</mark>’s most notable features. This option lets the app track active and past agent sessions.</p>
+<p>The article identifies <strong>Session management</strong> as one of Intelligent Terminal’s most notable features. This option lets the app track active and past agent sessions.</p>
 
-<p>The author specifically highlights the ability to resume sessions as one of <mark class="tag-hl">Intelligent Terminal</mark>’s best features. The article contrasts this with the current <mark class="tag-hl">Windows Terminal</mark> option that can reopen previously closed tabs but does not restore previous sessions.</p>
+<p>The author specifically highlights the ability to resume sessions as one of Intelligent Terminal’s best features. The article contrasts this with the current Windows Terminal option that can reopen previously closed tabs but does not restore previous sessions.</p>
 
-<p>The author also notes that while <mark class="tag-hl">Claude Code</mark> has a built-in resume skill, they believe it often makes the model perform worse. <mark class="tag-hl">Intelligent Terminal</mark> is presented as addressing this issue by allowing users to move back and forth between earlier agent work.</p>
+<p>The author also notes that while Claude Code has a built-in resume skill, they believe it often makes the model perform worse. Intelligent Terminal is presented as addressing this issue by allowing users to move back and forth between earlier agent work.</p>
 
 <h2 id="user-interface-and-hands-on-experience">User Interface and Hands-On Experience</h2>
 
-<p>After configuration, <mark class="tag-hl">Intelligent Terminal</mark> opens with an AI pane below the shell. The pane displays the message “Welcome to <mark class="tag-hl">Intelligent Terminal</mark>.”</p>
+<p>After configuration, Intelligent Terminal opens with an AI pane below the shell. The pane displays the message “Welcome to Intelligent Terminal.”</p>
 
-<p>In the author’s hands-on example, <mark class="tag-hl">Claude</mark> was selected as the Terminal AI model. As a result, <mark class="tag-hl">Claude Code</mark> ran inside the AI pane.</p>
+<p>In the author’s hands-on example, Claude was selected as the Terminal AI model. As a result, Claude Code ran inside the AI pane.</p>
 
-<p>The article describes <mark class="tag-hl">Claude Code</mark> as being able to plan a coding task and then ask the user whether they wanted to:</p>
+<p>The article describes Claude Code as being able to plan a coding task and then ask the user whether they wanted to:</p>
 
 <ul>
 <li>Auto-accept edits.</li>
@@ -1452,32 +1605,33 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="availability-and-deployment-approach">Availability and Deployment Approach</h2>
 
-<p>The article states that Terminal AI is a strong idea but is not intended for everyone. <mark class="tag-hl">Microsoft</mark> has therefore made <mark class="tag-hl">Intelligent Terminal</mark> a separate app.</p>
+<p>The article states that Terminal AI is a strong idea but is not intended for everyone. Microsoft has therefore made Intelligent Terminal a separate app.</p>
 
-<p>The article explicitly notes that <mark class="tag-hl">Intelligent Terminal</mark> is not included with Windows installations yet. Users who are interested can download it from the <mark class="tag-hl">Microsoft Store</mark> or <mark class="tag-hl">GitHub</mark>.</p>
+<p>The article explicitly notes that Intelligent Terminal is not included with Windows installations yet. Users who are interested can download it from the Microsoft Store or GitHub.</p>
 
 <h2 id="affected-parties-and-named-products">Affected Parties and Named Products</h2>
 
-<p>The article centers on <mark class="tag-hl">Microsoft</mark> and its <mark class="tag-hl">Intelligent Terminal</mark> project. It also discusses <mark class="tag-hl">Windows Terminal</mark> as the base product from which <mark class="tag-hl">Intelligent Terminal</mark> was forked.</p>
+<p>The article centers on Microsoft and its Intelligent Terminal project. It also discusses Windows Terminal as the base product from which Intelligent Terminal was forked.</p>
 
 <p>Named AI agent options or related tools mentioned in the article include:</p>
 
 <ul>
-<li><mark class="tag-hl">GitHub Copilot</mark>.</li>
-<li><mark class="tag-hl">Claude</mark>.</li>
-<li><mark class="tag-hl">Claude Code</mark>.</li>
-<li><mark class="tag-hl">Codex</mark>.</li>
-<li><mark class="tag-hl">Gemini</mark>.</li>
+<li>GitHub Copilot.</li>
+<li>Claude.</li>
+<li>Claude Code.</li>
+<li>Codex.</li>
+<li>Gemini.</li>
 </ul>
 
 <p>The article does not describe any threat actor, security incident, vulnerability, or exploit. Its focus is the release and hands-on functionality of an AI-powered terminal application.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:02746a69533b66b9" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark> is keeping <mark class="tag-hl">Intelligent Terminal</mark> separate from standard Windows installations because Terminal AI is described as useful but not intended for everyone.</span></li><li><span class="kp-text">The article highlights session resume as a differentiator from the existing <mark class="tag-hl">Windows Terminal</mark> option to reopen closed tabs, because reopening tabs does not restore previous AI agent sessions.</span></li><li><span class="kp-text">Automatic error suggestion is more privacy- and workflow-relevant than error detection alone because it sends detected errors to the selected AI agent for a possible fix.</span></li><li><span class="kp-text">The AI pane can run different agent tools inside the terminal, and the author&#39;s example shows <mark class="tag-hl">Claude Code</mark> asking whether to auto-accept edits, manually approve edits, or continue planning.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:02746a69533b66b9" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Microsoft is keeping Intelligent Terminal separate from standard Windows installations because Terminal AI is described as useful but not intended for everyone.</span></li><li><span class="kp-text">The article highlights session resume as a differentiator from the existing Windows Terminal option to reopen closed tabs, because reopening tabs does not restore previous AI agent sessions.</span></li><li><span class="kp-text">Automatic error suggestion is more privacy- and workflow-relevant than error detection alone because it sends detected errors to the selected AI agent for a possible fix.</span></li><li><span class="kp-text">The AI pane can run different agent tools inside the terminal, and the author&#39;s example shows Claude Code asking whether to auto-accept edits, manually approve edits, or continue planning.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark> has created an open-source fork of <mark class="tag-hl">Windows Terminal</mark> called <mark class="tag-hl">Intelligent Terminal</mark> that lets users access AI directly inside Terminal without interfering with the regular session.</span></li><li><span class="kp-text"><mark class="tag-hl">Intelligent Terminal</mark> includes a built-in assistant that can explain errors, draft commands, and help fix problems without leaving the terminal.</span></li><li><span class="kp-text">On first run, <mark class="tag-hl">Intelligent Terminal</mark> lets users choose an AI agent for the Terminal pane, including <mark class="tag-hl">GitHub Copilot</mark>, <mark class="tag-hl">Claude</mark>, <mark class="tag-hl">Codex</mark>, and <mark class="tag-hl">Gemini</mark>.</span></li><li><span class="kp-text">The app includes toggles for Automatic error detection, Automatic error suggestion, and Session management to track active and past agent sessions.</span></li><li><span class="kp-text"><mark class="tag-hl">Intelligent Terminal</mark> can be downloaded from the <mark class="tag-hl">Microsoft Store</mark> or <mark class="tag-hl">GitHub</mark>.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft has created an open-source fork of Windows Terminal called Intelligent Terminal that lets users access AI directly inside Terminal without interfering with the regular session.</span></li><li><span class="kp-text">Intelligent Terminal includes a built-in assistant that can explain errors, draft commands, and help fix problems without leaving the terminal.</span></li><li><span class="kp-text">On first run, Intelligent Terminal lets users choose an AI agent for the Terminal pane, including GitHub Copilot, Claude, Codex, and Gemini.</span></li><li><span class="kp-text">The app includes toggles for Automatic error detection, Automatic error suggestion, and Session management to track active and past agent sessions.</span></li><li><span class="kp-text">Intelligent Terminal can be downloaded from the Microsoft Store or GitHub.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/microsoft/hands-on-with-intelligent-terminal-an-ai-powered-windows-terminal/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific product release for <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">Intelligent Terminal</mark>, but it does not report a security incident, vulnerability, exploitation, breach, or advisory. Security professionals may find the AI-in-terminal workflow and error-suggestion behavior worth noting, but it is low urgency from a cybersecurity operations perspective.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific product release for Microsoft’s Intelligent Terminal, but it does not report a security incident, vulnerability, exploitation, breach, or advisory. Security professionals may find the AI-in-terminal workflow and error-suggestion behavior worth noting, but it is low urgency from a cybersecurity operations perspective.</p>
 </div></div>
             
             
@@ -1521,9 +1675,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-07 22:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1536,15 +1693,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1657,12 +1876,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1723,6 +1976,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

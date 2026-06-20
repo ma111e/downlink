@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,44 +1506,44 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:78%"></div></div><span class="score-num score-num-mid">78</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="3a2bfb8f44b0d99e3d8ebc1dce590d8b:ce215c26d7f18b5e">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-4c1e927217ce0c1d321420709fe7b2a8:ce215c26d7f18b5e')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-4c1e927217ce0c1d321420709fe7b2a8:ce215c26d7f18b5e')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-4c1e927217ce0c1d321420709fe7b2a8:ce215c26d7f18b5e')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-4c1e927217ce0c1d321420709fe7b2a8:ce215c26d7f18b5e')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-4c1e927217ce0c1d321420709fe7b2a8:ce215c26d7f18b5e')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-3a2bfb8f44b0d99e3d8ebc1dce590d8b:ce215c26d7f18b5e')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-3a2bfb8f44b0d99e3d8ebc1dce590d8b:ce215c26d7f18b5e')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-3a2bfb8f44b0d99e3d8ebc1dce590d8b:ce215c26d7f18b5e')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-3a2bfb8f44b0d99e3d8ebc1dce590d8b:ce215c26d7f18b5e')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-3a2bfb8f44b0d99e3d8ebc1dce590d8b:ce215c26d7f18b5e')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-4c1e927217ce0c1d321420709fe7b2a8:ce215c26d7f18b5e" class="tab-panel active"><div class="prose">A June 2026 Executive Order gives U.S. federal agencies tight deadlines to adopt AI-enabled cyber defenses, prioritize vulnerability remediation, and support a new AI cybersecurity clearinghouse. <mark class="tag-hl">Tenable</mark> frames its exposure management, AI security, and remediation automation products as tools to help agencies meet those requirements.</div></div>
-                <div id="brief-4c1e927217ce0c1d321420709fe7b2a8:ce215c26d7f18b5e" class="tab-panel"><div class="prose"><p>On June 2, 2026, the <mark class="tag-hl">White House</mark> signed an Executive Order titled “Promoting Advanced Artificial Intelligence Innovation and Security.” The order directs federal agencies to harden their systems with AI-enabled cyber defenses, and several core actions are due within 30 days. The article frames the EO as a near-term planning trigger for federal cybersecurity leaders.</p>
+                <div id="tldr-3a2bfb8f44b0d99e3d8ebc1dce590d8b:ce215c26d7f18b5e" class="tab-panel active"><div class="prose">A June 2026 Executive Order gives U.S. federal agencies tight deadlines to adopt AI-enabled cyber defenses, prioritize vulnerability remediation, and support a new AI cybersecurity clearinghouse. Tenable frames its exposure management, AI security, and remediation automation products as tools to help agencies meet those requirements.</div></div>
+                <div id="brief-3a2bfb8f44b0d99e3d8ebc1dce590d8b:ce215c26d7f18b5e" class="tab-panel"><div class="prose"><p>On June 2, 2026, the White House signed an Executive Order titled “Promoting Advanced Artificial Intelligence Innovation and Security.” The order directs federal agencies to harden their systems with AI-enabled cyber defenses, and several core actions are due within 30 days. The article frames the EO as a near-term planning trigger for federal cybersecurity leaders.</p>
 
-<p>The EO requires <mark class="tag-hl">CISA</mark> to issue Binding Operational Directives or other guidance for civilian agencies, while Treasury, <mark class="tag-hl">NSA</mark>, and <mark class="tag-hl">CISA</mark> must establish an AI cybersecurity clearinghouse focused on software vulnerabilities. The clearinghouse is tasked with coordinating scanning, discovering and validating vulnerabilities, and prioritizing remediation and patch distribution. Within 60 days, Treasury, <mark class="tag-hl">NSA</mark>, and <mark class="tag-hl">CISA</mark> must also develop a classified benchmarking process for frontier AI models through voluntary collaboration with AI developers.</p>
+<p>The EO requires CISA to issue Binding Operational Directives or other guidance for civilian agencies, while Treasury, NSA, and CISA must establish an AI cybersecurity clearinghouse focused on software vulnerabilities. The clearinghouse is tasked with coordinating scanning, discovering and validating vulnerabilities, and prioritizing remediation and patch distribution. Within 60 days, Treasury, NSA, and CISA must also develop a classified benchmarking process for frontier AI models through voluntary collaboration with AI developers.</p>
 
-<p><mark class="tag-hl">Tenable</mark> presents its exposure management platform as aligned with the EO’s focus on vulnerability discovery, validation, prioritization, and remediation. The article highlights <mark class="tag-hl">Tenable One</mark>, <mark class="tag-hl">Tenable Security Center</mark>, <mark class="tag-hl">Tenable</mark> Enclave Security, <mark class="tag-hl">Tenable Hexa AI</mark>, <mark class="tag-hl">Tenable One</mark> AI Exposure, and <mark class="tag-hl">Tenable One</mark> OT Exposure as capabilities relevant to federal agencies and critical infrastructure operators. It emphasizes risk-based prioritization using <mark class="tag-hl">Tenable</mark>’s Vulnerability Priority Rating and <mark class="tag-hl">CISA</mark>’s Known Exploited Vulnerabilities catalog rather than attempting to patch everything at once.</p>
+<p>Tenable presents its exposure management platform as aligned with the EO’s focus on vulnerability discovery, validation, prioritization, and remediation. The article highlights Tenable One, Tenable Security Center, Tenable Enclave Security, Tenable Hexa AI, Tenable One AI Exposure, and Tenable One OT Exposure as capabilities relevant to federal agencies and critical infrastructure operators. It emphasizes risk-based prioritization using Tenable’s Vulnerability Priority Rating and CISA’s Known Exploited Vulnerabilities catalog rather than attempting to patch everything at once.</p>
 </div></div>
-                <div id="standard-4c1e927217ce0c1d321420709fe7b2a8:ce215c26d7f18b5e" class="tab-panel"><div class="prose"><p>The article discusses a June 2, 2026 Executive Order from the <mark class="tag-hl">White House</mark> titled “Promoting Advanced Artificial Intelligence Innovation and Security.” It says the order requires national security and civilian federal agencies to prioritize cyber defenses in light of new frontier AI model capabilities. The article emphasizes that many of the EO’s cybersecurity actions are on a 30-day timeline.</p>
+                <div id="standard-3a2bfb8f44b0d99e3d8ebc1dce590d8b:ce215c26d7f18b5e" class="tab-panel"><div class="prose"><p>The article discusses a June 2, 2026 Executive Order from the White House titled “Promoting Advanced Artificial Intelligence Innovation and Security.” It says the order requires national security and civilian federal agencies to prioritize cyber defenses in light of new frontier AI model capabilities. The article emphasizes that many of the EO’s cybersecurity actions are on a 30-day timeline.</p>
 
-<p>Within 30 days, federal agencies must begin hardening their information systems with AI-enabled cyber defenses. The Committee on National Security Systems must prioritize cyber defense of National Security Systems, and the Secretary of War must do the same for <mark class="tag-hl">Department of War</mark> information systems. <mark class="tag-hl">CISA</mark>, in consultation with <mark class="tag-hl">OMB</mark> and <mark class="tag-hl">White House</mark> cybersecurity and national security officials, must issue Binding Operational Directives or other guidance for civilian federal systems.</p>
+<p>Within 30 days, federal agencies must begin hardening their information systems with AI-enabled cyber defenses. The Committee on National Security Systems must prioritize cyber defense of National Security Systems, and the Secretary of War must do the same for Department of War information systems. CISA, in consultation with OMB and White House cybersecurity and national security officials, must issue Binding Operational Directives or other guidance for civilian federal systems.</p>
 
-<p>The EO also requires the <mark class="tag-hl">Department of the Treasury</mark>, with the National Cyber Director, <mark class="tag-hl">NSA</mark>, and <mark class="tag-hl">CISA</mark>, to form an AI cybersecurity clearinghouse. The clearinghouse is intended to coordinate and deconflict vulnerability scanning, discover and validate software vulnerabilities, and prioritize remediation and patch distribution. The article describes this clearinghouse provision as operationally significant because it defines a practical capability rather than only a policy requirement.</p>
+<p>The EO also requires the Department of the Treasury, with the National Cyber Director, NSA, and CISA, to form an AI cybersecurity clearinghouse. The clearinghouse is intended to coordinate and deconflict vulnerability scanning, discover and validate software vulnerabilities, and prioritize remediation and patch distribution. The article describes this clearinghouse provision as operationally significant because it defines a practical capability rather than only a policy requirement.</p>
 
-<p>Within 60 days, Treasury, <mark class="tag-hl">NSA</mark>, and <mark class="tag-hl">CISA</mark>, in consultation with <mark class="tag-hl">NIST</mark> and other agencies, must develop a classified benchmarking process to assess the advanced cyber capabilities of frontier AI models. The EO also requires a threshold for designating a “covered frontier model” and a voluntary framework for developers to provide up to 30 days of pre-release access. The article notes that the EO explicitly does not create mandatory licensing, preclearance, or permitting for AI models.</p>
+<p>Within 60 days, Treasury, NSA, and CISA, in consultation with NIST and other agencies, must develop a classified benchmarking process to assess the advanced cyber capabilities of frontier AI models. The EO also requires a threshold for designating a “covered frontier model” and a voluntary framework for developers to provide up to 30 days of pre-release access. The article notes that the EO explicitly does not create mandatory licensing, preclearance, or permitting for AI models.</p>
 
-<p><mark class="tag-hl">Tenable</mark> uses the article to map its products and research capabilities to the EO’s requirements. It highlights <mark class="tag-hl">Tenable One</mark> Vulnerability Management, <mark class="tag-hl">Tenable Security Center</mark>, <mark class="tag-hl">Tenable One</mark> Cloud Exposure, <mark class="tag-hl">Tenable One</mark> Attack Surface Management, <mark class="tag-hl">Tenable</mark> Enclave Security, <mark class="tag-hl">Tenable Hexa AI</mark>, <mark class="tag-hl">Tenable One</mark> AI Exposure, <mark class="tag-hl">Tenable Nessus</mark>, and <mark class="tag-hl">Tenable One</mark> OT Exposure. The article says these offerings support asset visibility, vulnerability detection, risk-based prioritization, remediation automation, AI exposure management, and operational technology security.</p>
+<p>Tenable uses the article to map its products and research capabilities to the EO’s requirements. It highlights Tenable One Vulnerability Management, Tenable Security Center, Tenable One Cloud Exposure, Tenable One Attack Surface Management, Tenable Enclave Security, Tenable Hexa AI, Tenable One AI Exposure, Tenable Nessus, and Tenable One OT Exposure. The article says these offerings support asset visibility, vulnerability detection, risk-based prioritization, remediation automation, AI exposure management, and operational technology security.</p>
 
-<p>The article also discusses critical infrastructure operators such as rural hospitals, community banks, and local utilities. It says <mark class="tag-hl">CISA</mark> is directed to facilitate access to cybersecurity tools and services for these organizations, rather than impose a mandate on them. <mark class="tag-hl">Tenable</mark> also points to existing grant programs, including the State and Local Cybersecurity Grant Program and DOE’s Rural and Municipal Utility Advanced Cybersecurity Grant program, as possible funding sources for advanced AI vulnerability detection work.</p>
+<p>The article also discusses critical infrastructure operators such as rural hospitals, community banks, and local utilities. It says CISA is directed to facilitate access to cybersecurity tools and services for these organizations, rather than impose a mandate on them. Tenable also points to existing grant programs, including the State and Local Cybersecurity Grant Program and DOE’s Rural and Municipal Utility Advanced Cybersecurity Grant program, as possible funding sources for advanced AI vulnerability detection work.</p>
 </div></div>
-                <div id="comprehensive-4c1e927217ce0c1d321420709fe7b2a8:ce215c26d7f18b5e" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-3a2bfb8f44b0d99e3d8ebc1dce590d8b:ce215c26d7f18b5e" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The article covers the June 2, 2026 <mark class="tag-hl">White House</mark> Executive Order titled “Promoting Advanced Artificial Intelligence Innovation and Security.” It states that the order directs federal agencies to harden their systems with AI-enabled cyber defenses and to support a new AI cybersecurity clearinghouse, with many requirements due within 30 days.</p>
+<p>The article covers the June 2, 2026 White House Executive Order titled “Promoting Advanced Artificial Intelligence Innovation and Security.” It states that the order directs federal agencies to harden their systems with AI-enabled cyber defenses and to support a new AI cybersecurity clearinghouse, with many requirements due within 30 days.</p>
 
-<p>The article’s central argument is that the EO shifts AI policy toward operational cybersecurity. It identifies continuous detection, vulnerability validation, risk-based prioritization, and remediation as the most important practical requirements. <mark class="tag-hl">Tenable</mark> positions its exposure management products and research capabilities as tools that can help federal agencies and critical infrastructure operators meet those requirements.</p>
+<p>The article’s central argument is that the EO shifts AI policy toward operational cybersecurity. It identifies continuous detection, vulnerability validation, risk-based prioritization, and remediation as the most important practical requirements. Tenable positions its exposure management products and research capabilities as tools that can help federal agencies and critical infrastructure operators meet those requirements.</p>
 
 <h2 id="main-executive-order-requirements">Main Executive Order requirements</h2>
 
@@ -1403,17 +1556,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <ul>
 <li>Federal agencies must begin hardening their information systems with AI-enabled cyber defenses.</li>
 <li>The Committee on National Security Systems must prioritize cyber defense of National Security Systems.</li>
-<li>The Secretary of War must prioritize cyber defense of <mark class="tag-hl">Department of War</mark> information systems.</li>
-<li><mark class="tag-hl">CISA</mark> must issue Binding Operational Directives or other guidance for civilian federal agencies.</li>
-<li>Treasury, with the National Cyber Director, <mark class="tag-hl">NSA</mark>, and <mark class="tag-hl">CISA</mark>, must form an AI cybersecurity clearinghouse.</li>
-<li><mark class="tag-hl">OMB</mark>, with the National Cyber Director and <mark class="tag-hl">CISA</mark>, must determine whether existing federal grant programs can support applicants developing advanced AI vulnerability detection.</li>
+<li>The Secretary of War must prioritize cyber defense of Department of War information systems.</li>
+<li>CISA must issue Binding Operational Directives or other guidance for civilian federal agencies.</li>
+<li>Treasury, with the National Cyber Director, NSA, and CISA, must form an AI cybersecurity clearinghouse.</li>
+<li>OMB, with the National Cyber Director and CISA, must determine whether existing federal grant programs can support applicants developing advanced AI vulnerability detection.</li>
 </ul>
 
-<p>For civilian federal systems, the article says <mark class="tag-hl">CISA</mark>’s directives or guidance must expedite and prioritize cyber defense, establish or expand programs that enhance AI-enabled defensive tools, and facilitate access to cybersecurity tools and services. The access provision may include agencies, state and local authorities, and critical infrastructure operators such as rural hospitals, community banks, and local utilities.</p>
+<p>For civilian federal systems, the article says CISA’s directives or guidance must expedite and prioritize cyber defense, establish or expand programs that enhance AI-enabled defensive tools, and facilitate access to cybersecurity tools and services. The access provision may include agencies, state and local authorities, and critical infrastructure operators such as rural hospitals, community banks, and local utilities.</p>
 
 <h3 id="ai-cybersecurity-clearinghouse">AI cybersecurity clearinghouse</h3>
 
-<p>The article highlights the AI cybersecurity clearinghouse as one of the EO’s most operationally consequential provisions. It says the clearinghouse must be formed by Treasury with the National Cyber Director, <mark class="tag-hl">NSA</mark>, and <mark class="tag-hl">CISA</mark>, in voluntary collaboration with the AI industry and critical infrastructure operators.</p>
+<p>The article highlights the AI cybersecurity clearinghouse as one of the EO’s most operationally consequential provisions. It says the clearinghouse must be formed by Treasury with the National Cyber Director, NSA, and CISA, in voluntary collaboration with the AI industry and critical infrastructure operators.</p>
 
 <p>The clearinghouse has three functions described in the article:</p>
 
@@ -1423,13 +1576,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Coordinate and prioritize remediation and patch distribution.</li>
 </ul>
 
-<p>The article frames the clearinghouse as important because it describes a capability rather than only a policy. It also states that the clearinghouse will require strong engagement from private sector partners, including <mark class="tag-hl">Tenable</mark>, to generate actionable insights on AI-associated vulnerabilities and mitigation prioritization.</p>
+<p>The article frames the clearinghouse as important because it describes a capability rather than only a policy. It also states that the clearinghouse will require strong engagement from private sector partners, including Tenable, to generate actionable insights on AI-associated vulnerabilities and mitigation prioritization.</p>
 
 <h3 id="requirements-within-60-days">Requirements within 60 days</h3>
 
-<p>Within 60 days, the article says the Office of Personnel Management must expand hiring and placement pathways for cybersecurity specialists through the <mark class="tag-hl">United States</mark> Tech Force.</p>
+<p>Within 60 days, the article says the Office of Personnel Management must expand hiring and placement pathways for cybersecurity specialists through the United States Tech Force.</p>
 
-<p>The article also says Treasury, <mark class="tag-hl">NSA</mark>, and <mark class="tag-hl">CISA</mark>, in consultation with <mark class="tag-hl">NIST</mark> and other entities, must develop a classified benchmarking process to assess the advanced cyber capabilities of AI models. They must also establish the threshold for designating a “covered frontier model” and design a voluntary framework allowing developers to give the government up to 30 days of pre-release access to covered models.</p>
+<p>The article also says Treasury, NSA, and CISA, in consultation with NIST and other entities, must develop a classified benchmarking process to assess the advanced cyber capabilities of AI models. They must also establish the threshold for designating a “covered frontier model” and design a voluntary framework allowing developers to give the government up to 30 days of pre-release access to covered models.</p>
 
 <p>The article notes that the EO explicitly does not create a mandatory licensing, preclearance, or permitting requirement for AI models.</p>
 
@@ -1445,13 +1598,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>U.S. federal agencies.</li>
 <li>National security agencies and operators of National Security Systems.</li>
 <li>Civilian federal agencies.</li>
-<li>The <mark class="tag-hl">Department of War</mark>.</li>
-<li><mark class="tag-hl">CISA</mark>.</li>
-<li>The <mark class="tag-hl">Department of the Treasury</mark>.</li>
-<li><mark class="tag-hl">NSA</mark>.</li>
-<li><mark class="tag-hl">OMB</mark>.</li>
+<li>The Department of War.</li>
+<li>CISA.</li>
+<li>The Department of the Treasury.</li>
+<li>NSA.</li>
+<li>OMB.</li>
 <li>The National Cyber Director.</li>
-<li><mark class="tag-hl">NIST</mark>.</li>
+<li>NIST.</li>
 <li>The Office of Personnel Management.</li>
 <li>The Attorney General.</li>
 <li>AI developers.</li>
@@ -1464,74 +1617,75 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>No named threat actor or specific incident is identified in the article. The threat context is described in terms of frontier AI models accelerating the rate at which vulnerabilities can be discovered and exploited.</p>
 
-<h2 id="tenable-s-product-mapping-to-the-eo"><mark class="tag-hl">Tenable</mark>’s product mapping to the EO</h2>
+<h2 id="tenable-s-product-mapping-to-the-eo">Tenable’s product mapping to the EO</h2>
 
-<p>The article presents <mark class="tag-hl">Tenable</mark>’s exposure management capabilities as aligned with the EO’s focus on vulnerability discovery, validation, prioritization, and remediation. It states that <mark class="tag-hl">Tenable One</mark> Exposure Management Platform addresses vulnerabilities alongside other security weaknesses, including misconfigurations of AI systems and overpermissioned AI agents.</p>
+<p>The article presents Tenable’s exposure management capabilities as aligned with the EO’s focus on vulnerability discovery, validation, prioritization, and remediation. It states that Tenable One Exposure Management Platform addresses vulnerabilities alongside other security weaknesses, including misconfigurations of AI systems and overpermissioned AI agents.</p>
 
 <h3 id="continuous-vulnerability-detection">Continuous vulnerability detection</h3>
 
-<p>The article says Sections 2(a) through 2(d) depend on continuously finding vulnerabilities across a wide range of systems. It maps several <mark class="tag-hl">Tenable</mark> products to this requirement:</p>
+<p>The article says Sections 2(a) through 2(d) depend on continuously finding vulnerabilities across a wide range of systems. It maps several Tenable products to this requirement:</p>
 
 <ul>
-<li><mark class="tag-hl">Tenable One</mark> Vulnerability Management and <mark class="tag-hl">Tenable Security Center</mark> provide network-based and agent-based IT asset assessment, including credentialed scanning.</li>
-<li><mark class="tag-hl">Tenable One</mark> Cloud Exposure extends visibility to cloud workloads and configurations.</li>
-<li><mark class="tag-hl">Tenable One</mark> Attack Surface Management maps internet-facing assets that agencies may not know they have.</li>
-<li><mark class="tag-hl">Tenable</mark> Enclave Security is described as built for vulnerability and configuration assessment in classified or air-gapped environments.</li>
+<li>Tenable One Vulnerability Management and Tenable Security Center provide network-based and agent-based IT asset assessment, including credentialed scanning.</li>
+<li>Tenable One Cloud Exposure extends visibility to cloud workloads and configurations.</li>
+<li>Tenable One Attack Surface Management maps internet-facing assets that agencies may not know they have.</li>
+<li>Tenable Enclave Security is described as built for vulnerability and configuration assessment in classified or air-gapped environments.</li>
 </ul>
 
 <h3 id="risk-based-prioritization">Risk-based prioritization</h3>
 
 <p>The article emphasizes that the EO calls not only for discovering vulnerabilities but also for prioritizing them for remediation. It says this matters because no agency can patch everything at once.</p>
 
-<p><mark class="tag-hl">Tenable</mark>’s Vulnerability Priority Rating is described as using machine learning trained on more than 1.7 trillion security findings accumulated over more than 25 years of continuous scanning. The article says VPR forecasts which vulnerabilities are most likely to be exploited so defenders can focus on the smaller set that represents immediate risk. It also says <mark class="tag-hl">Tenable</mark> ingests <mark class="tag-hl">CISA</mark>’s Known Exploited Vulnerabilities catalog into prioritization.</p>
+<p>Tenable’s Vulnerability Priority Rating is described as using machine learning trained on more than 1.7 trillion security findings accumulated over more than 25 years of continuous scanning. The article says VPR forecasts which vulnerabilities are most likely to be exploited so defenders can focus on the smaller set that represents immediate risk. It also says Tenable ingests CISA’s Known Exploited Vulnerabilities catalog into prioritization.</p>
 
-<p>The article states that VPR helps organizations pinpoint the critical 1.6% of vulnerabilities that represent actual business risk. It also says <mark class="tag-hl">Tenable</mark> Research identifies actively exploited vulnerabilities a median of seven days before they appear on <mark class="tag-hl">CISA</mark>’s KEV catalog.</p>
+<p>The article states that VPR helps organizations pinpoint the critical 1.6% of vulnerabilities that represent actual business risk. It also says Tenable Research identifies actively exploited vulnerabilities a median of seven days before they appear on CISA’s KEV catalog.</p>
 
 <h3 id="ai-enabled-defensive-tooling">AI-enabled defensive tooling</h3>
 
-<p>The article says Section 2&copy; directs <mark class="tag-hl">CISA</mark> to establish or expand programs that enhance AI-enabled defensive tools. It states that frontier AI models are accelerating the rate at which vulnerabilities can be discovered and exploited, shrinking the traditional window for manual remediation.</p>
+<p>The article says Section 2&copy; directs CISA to establish or expand programs that enhance AI-enabled defensive tools. It states that frontier AI models are accelerating the rate at which vulnerabilities can be discovered and exploited, shrinking the traditional window for manual remediation.</p>
 
-<p><mark class="tag-hl">Tenable Hexa AI</mark> is described as the agentic engine of the <mark class="tag-hl">Tenable One</mark> Exposure Management Platform. The article says it is designed to automate multi-step remediation workflows, support pre-built agents in the user interface, and allow custom agents through the Model Context Protocol.</p>
+<p>Tenable Hexa AI is described as the agentic engine of the Tenable One Exposure Management Platform. The article says it is designed to automate multi-step remediation workflows, support pre-built agents in the user interface, and allow custom agents through the Model Context Protocol.</p>
 
 <h3 id="ai-exposure-management">AI exposure management</h3>
 
 <p>The article says agencies adopting custom models or third-party tools such as ChatGPT and Copilot expand their attack surface. It identifies enterprise AI, shadow AI, training data, and underlying infrastructure as areas that must be protected from threats including adversarial attacks, data poisoning, and model theft.</p>
 
-<p><mark class="tag-hl">Tenable One</mark> AI Exposure is described as helping agencies discover and inventory AI tools and libraries, apply AI usage policies, and manage risks introduced by generative AI. The article says this capability helps agencies account for AI as part of their attack surface.</p>
+<p>Tenable One AI Exposure is described as helping agencies discover and inventory AI tools and libraries, apply AI usage policies, and manage risks introduced by generative AI. The article says this capability helps agencies account for AI as part of their attack surface.</p>
 
 <h2 id="vulnerability-discovery-and-validation-at-scale">Vulnerability discovery and validation at scale</h2>
 
-<p>The article says <mark class="tag-hl">Tenable</mark>’s platform handles millions of daily scans across critical infrastructure using non-intrusive methods. It names <mark class="tag-hl">Tenable One</mark> Vulnerability Management, <mark class="tag-hl">Tenable Security Center</mark>, <mark class="tag-hl">Tenable Nessus</mark>, <mark class="tag-hl">Tenable One</mark> Cloud Exposure, and <mark class="tag-hl">Tenable One</mark> OT Exposure as products supporting scanning at scale.</p>
+<p>The article says Tenable’s platform handles millions of daily scans across critical infrastructure using non-intrusive methods. It names Tenable One Vulnerability Management, Tenable Security Center, Tenable Nessus, Tenable One Cloud Exposure, and Tenable One OT Exposure as products supporting scanning at scale.</p>
 
-<p>For vulnerability discovery and validation, the article states that <mark class="tag-hl">Tenable</mark> Research has publicly disclosed more than 450 zero-day vulnerabilities and tracks 1,000 zero-days tagged all-time. It also says the team tracks more than 2,000 vulnerabilities verified to be exploited in the wild.</p>
+<p>For vulnerability discovery and validation, the article states that Tenable Research has publicly disclosed more than 450 zero-day vulnerabilities and tracks 1,000 zero-days tagged all-time. It also says the team tracks more than 2,000 vulnerabilities verified to be exploited in the wild.</p>
 
-<p>The article describes <mark class="tag-hl">Tenable</mark> Research’s approach as a hybrid intelligence model combining expert analysis with large language models. It says this has produced a curated library of more than 11,000 CVEs enriched with exploitation evidence and threat actor links, operating independently of the National Vulnerability Database.</p>
+<p>The article describes Tenable Research’s approach as a hybrid intelligence model combining expert analysis with large language models. It says this has produced a curated library of more than 11,000 CVEs enriched with exploitation evidence and threat actor links, operating independently of the National Vulnerability Database.</p>
 
 <h2 id="critical-infrastructure-and-grant-funding">Critical infrastructure and grant funding</h2>
 
-<p>The article discusses the EO’s provision directing <mark class="tag-hl">CISA</mark> to facilitate access to cybersecurity tools for rural hospitals, community banks, and local utilities. It stresses that “facilitate” means an access-and-incentive provision rather than a mandate imposed on those operators.</p>
+<p>The article discusses the EO’s provision directing CISA to facilitate access to cybersecurity tools for rural hospitals, community banks, and local utilities. It stresses that “facilitate” means an access-and-incentive provision rather than a mandate imposed on those operators.</p>
 
-<p><mark class="tag-hl">Tenable One</mark> OT Exposure is described as built for operational technology environments common in utilities and healthcare delivery, including industrial control systems and SCADA networks. The article says it has been listed on <mark class="tag-hl">CISA</mark>’s Continuous Diagnostics and Mitigation Approved Products List since October 2021.</p>
+<p>Tenable One OT Exposure is described as built for operational technology environments common in utilities and healthcare delivery, including industrial control systems and SCADA networks. The article says it has been listed on CISA’s Continuous Diagnostics and Mitigation Approved Products List since October 2021.</p>
 
-<p>The article also notes that <mark class="tag-hl">OMB</mark> must identify federal grant funding that can be directed toward advanced AI vulnerability detection. It names the State and Local Cybersecurity Grant Program and the Department of Energy’s Rural and Municipal Utility Advanced Cybersecurity Grant program as existing programs that already fund this kind of work. <mark class="tag-hl">Tenable</mark> says it works with public sector customers and channel partners to align purchases with available grant funding.</p>
+<p>The article also notes that OMB must identify federal grant funding that can be directed toward advanced AI vulnerability detection. It names the State and Local Cybersecurity Grant Program and the Department of Energy’s Rural and Municipal Utility Advanced Cybersecurity Grant program as existing programs that already fund this kind of work. Tenable says it works with public sector customers and channel partners to align purchases with available grant funding.</p>
 
 <h2 id="overall-takeaway">Overall takeaway</h2>
 
 <p>The article presents the June 2026 EO as a rapid operational push for AI-enabled cyber defense across the federal government. Its most important practical themes are continuous vulnerability detection, validation, risk-based prioritization, remediation, AI exposure management, and coordination through a new AI cybersecurity clearinghouse.</p>
 
-<p><mark class="tag-hl">Tenable</mark>’s response is to position its exposure management platform, AI-enabled remediation automation, vulnerability intelligence, and OT security capabilities as relevant to the EO’s requirements. The article concludes that agencies with exposure management practices and tools already in place will be best positioned as <mark class="tag-hl">CISA</mark>, Treasury, and <mark class="tag-hl">OMB</mark> translate the EO into specific directives, programs, and funding.</p>
+<p>Tenable’s response is to position its exposure management platform, AI-enabled remediation automation, vulnerability intelligence, and OT security capabilities as relevant to the EO’s requirements. The article concludes that agencies with exposure management practices and tools already in place will be best positioned as CISA, Treasury, and OMB translate the EO into specific directives, programs, and funding.</p>
 </div></div>
-                <div id="insights-4c1e927217ce0c1d321420709fe7b2a8:ce215c26d7f18b5e" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The Executive Order’s most operationally consequential requirement is the clearinghouse because it describes an active capability for coordinating scanning, validating vulnerabilities, and prioritizing remediation rather than only setting policy.</span></li><li><span class="kp-text">The article emphasizes that the EO’s access provisions for rural hospitals, community banks, and local utilities are not mandates on those operators, but mechanisms for <mark class="tag-hl">CISA</mark> to facilitate access to cybersecurity tools and services.</span></li><li><span class="kp-text"><mark class="tag-hl">Tenable</mark> argues that risk-based prioritization is essential because agencies cannot patch everything at once, and it cites VPR, <mark class="tag-hl">CISA</mark> KEV ingestion, and <mark class="tag-hl">Tenable</mark> Research findings as mechanisms for focusing remediation on vulnerabilities most likely to be exploited.</span></li><li><span class="kp-text">The EO does not create mandatory licensing, preclearance, or permitting for AI models, even though it establishes a voluntary framework for developers to provide the government with up to 30 days of pre-release access to covered frontier models.</span></li><li><span class="kp-text">The article frames AI adoption itself as an expansion of the federal attack surface, citing enterprise AI, shadow AI, training data, AI tools, and AI libraries as assets agencies must inventory and control.</span></li></ul></div>
+                <div id="insights-3a2bfb8f44b0d99e3d8ebc1dce590d8b:ce215c26d7f18b5e" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The Executive Order’s most operationally consequential requirement is the clearinghouse because it describes an active capability for coordinating scanning, validating vulnerabilities, and prioritizing remediation rather than only setting policy.</span></li><li><span class="kp-text">The article emphasizes that the EO’s access provisions for rural hospitals, community banks, and local utilities are not mandates on those operators, but mechanisms for CISA to facilitate access to cybersecurity tools and services.</span></li><li><span class="kp-text">Tenable argues that risk-based prioritization is essential because agencies cannot patch everything at once, and it cites VPR, CISA KEV ingestion, and Tenable Research findings as mechanisms for focusing remediation on vulnerabilities most likely to be exploited.</span></li><li><span class="kp-text">The EO does not create mandatory licensing, preclearance, or permitting for AI models, even though it establishes a voluntary framework for developers to provide the government with up to 30 days of pre-release access to covered frontier models.</span></li><li><span class="kp-text">The article frames AI adoption itself as an expansion of the federal attack surface, citing enterprise AI, shadow AI, training data, AI tools, and AI libraries as assets agencies must inventory and control.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The June 2, 2026 Executive Order requires federal agencies to begin hardening their information systems with AI-enabled cyber defenses within 30 days.</span></li><li><span class="kp-text"><mark class="tag-hl">CISA</mark> must issue Binding Operational Directives or other guidance for civilian federal agencies to prioritize cyber defense and expand access to AI-enabled defensive tools.</span></li><li><span class="kp-text">The <mark class="tag-hl">Department of the Treasury</mark>, with <mark class="tag-hl">NSA</mark> and <mark class="tag-hl">CISA</mark>, must establish an AI cybersecurity clearinghouse to coordinate vulnerability scanning, validation, remediation prioritization, and patch distribution.</span></li><li><span class="kp-text">Within 60 days, Treasury, <mark class="tag-hl">NSA</mark>, and <mark class="tag-hl">CISA</mark> must develop a classified benchmarking process to assess the advanced cyber capabilities of frontier AI models through voluntary collaboration with AI developers.</span></li><li><span class="kp-text"><mark class="tag-hl">Tenable</mark> says its exposure management platform can help agencies discover assets and vulnerabilities, prioritize remediation using VPR and KEV data, secure AI-related exposures, and automate remediation workflows with <mark class="tag-hl">Tenable Hexa AI</mark>.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The June 2, 2026 Executive Order requires federal agencies to begin hardening their information systems with AI-enabled cyber defenses within 30 days.</span></li><li><span class="kp-text">CISA must issue Binding Operational Directives or other guidance for civilian federal agencies to prioritize cyber defense and expand access to AI-enabled defensive tools.</span></li><li><span class="kp-text">The Department of the Treasury, with NSA and CISA, must establish an AI cybersecurity clearinghouse to coordinate vulnerability scanning, validation, remediation prioritization, and patch distribution.</span></li><li><span class="kp-text">Within 60 days, Treasury, NSA, and CISA must develop a classified benchmarking process to assess the advanced cyber capabilities of frontier AI models through voluntary collaboration with AI developers.</span></li><li><span class="kp-text">Tenable says its exposure management platform can help agencies discover assets and vulnerabilities, prioritize remediation using VPR and KEV data, secure AI-related exposures, and automate remediation workflows with Tenable Hexa AI.</span></li></ul></div>
+            
             <a href="https://www.tenable.com/blog/summary-june-2026-ai-executive-order-requirements" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article covers a specific new U.S. Executive Order with near-term cybersecurity requirements for federal agencies, including AI-enabled defenses, <mark class="tag-hl">CISA</mark> guidance, and a new vulnerability clearinghouse. It is broadly relevant to public-sector security teams, though it is not an active exploitation report, breach, or critical patch advisory and includes substantial vendor positioning.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article covers a specific new U.S. Executive Order with near-term cybersecurity requirements for federal agencies, including AI-enabled defenses, CISA guidance, and a new vulnerability clearinghouse. It is broadly relevant to public-sector security teams, though it is not an active exploitation report, breach, or critical patch advisory and includes substantial vendor positioning.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noopener">CISA Known Exploited Vulnerabilities Catalog</a></div>
   <div class="report-meta">Cybersecurity and Infrastructure Security Agency</div>
-  <div class="report-context">The article describes the KEV catalog as <mark class="tag-hl">CISA</mark>’s continuously updated authoritative list of CVEs under active exploitation and notes that <mark class="tag-hl">Tenable</mark> ingests it for remediation prioritization.</div>
+  <div class="report-context">The article describes the KEV catalog as CISA’s continuously updated authoritative list of CVEs under active exploitation and notes that Tenable ingests it for remediation prioritization.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.whitehouse.gov/wp-content/uploads/2026/03/president-trumps-cyber-strategy-for-america.pdf" target="_blank" rel="noopener">President Trump&#39;s Cyber Strategy for America</a></div>
   <div class="report-meta">The White House</div>
@@ -1565,13 +1719,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">U.S. Federal AI-Enabled Cyber Defense Mandates</span>
         </div>
-        <div class="overview-body prose"><p>A <mark class="tag-hl">Tenable</mark> analysis summarizes requirements from the June 2, 2026 Executive Order directing federal agencies to begin hardening information systems with AI-enabled cyber defenses within 30 days. The order assigns <mark class="tag-hl">CISA</mark> a central role in issuing Binding Operational Directives or other guidance for civilian federal agencies, with an emphasis on prioritizing cyber defense and expanding agency access to AI-enabled defensive tooling.</p>
+        <div class="overview-body prose"><p>A Tenable analysis summarizes requirements from the June 2, 2026 Executive Order directing federal agencies to begin hardening information systems with AI-enabled cyber defenses within 30 days. The order assigns CISA a central role in issuing Binding Operational Directives or other guidance for civilian federal agencies, with an emphasis on prioritizing cyber defense and expanding agency access to AI-enabled defensive tooling.</p>
 
-<p>The order also directs the <mark class="tag-hl">Department of the Treasury</mark>, working with <mark class="tag-hl">NSA</mark> and <mark class="tag-hl">CISA</mark>, to establish an AI cybersecurity clearinghouse. According to the article, the clearinghouse is intended to coordinate vulnerability scanning, validation, remediation prioritization, and patch distribution across participating entities. This reflects a federal push to operationalize AI in vulnerability and exposure management workflows, rather than limiting AI policy to research or governance functions.</p>
+<p>The order also directs the Department of the Treasury, working with NSA and CISA, to establish an AI cybersecurity clearinghouse. According to the article, the clearinghouse is intended to coordinate vulnerability scanning, validation, remediation prioritization, and patch distribution across participating entities. This reflects a federal push to operationalize AI in vulnerability and exposure management workflows, rather than limiting AI policy to research or governance functions.</p>
 
-<p>Within 60 days, Treasury, <mark class="tag-hl">NSA</mark>, and <mark class="tag-hl">CISA</mark> are also required to develop a classified benchmarking process for assessing advanced cyber capabilities of frontier AI models. The process is described as relying on voluntary collaboration with AI developers and is intended to evaluate cyber-relevant model capabilities in a controlled classified setting.</p>
+<p>Within 60 days, Treasury, NSA, and CISA are also required to develop a classified benchmarking process for assessing advanced cyber capabilities of frontier AI models. The process is described as relying on voluntary collaboration with AI developers and is intended to evaluate cyber-relevant model capabilities in a controlled classified setting.</p>
 
-<p><mark class="tag-hl">Tenable</mark> frames the Executive Order as aligned with exposure management practices, stating that its platform can support asset and vulnerability discovery, remediation prioritization using Vulnerability Priority Rating and Known Exploited Vulnerabilities data, and visibility into AI-related exposures. The company also highlights <mark class="tag-hl">Tenable Hexa AI</mark> as a mechanism for automating remediation workflows. The article is vendor-authored, but it provides a concise view of how federal AI cybersecurity mandates are being interpreted by the exposure management market.</p>
+<p>Tenable frames the Executive Order as aligned with exposure management practices, stating that its platform can support asset and vulnerability discovery, remediation prioritization using Vulnerability Priority Rating and Known Exploited Vulnerabilities data, and visibility into AI-related exposures. The company also highlights Tenable Hexa AI as a mechanism for automating remediation workflows. The article is vendor-authored, but it provides a concise view of how federal AI cybersecurity mandates are being interpreted by the exposure management market.</p>
 </div>
       </div>
     </div>
@@ -1580,9 +1734,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-04 22:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1595,15 +1752,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1716,12 +1935,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1782,6 +2035,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

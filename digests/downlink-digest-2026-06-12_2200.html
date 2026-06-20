@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,44 +1506,44 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:82%"></div></div><span class="score-num score-num-mid">82</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="963307d64f2914fcf1b04398430639dc:3e4cde557ff9acc6">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-f732e09045c423869026262257a8ecf2:3e4cde557ff9acc6')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-f732e09045c423869026262257a8ecf2:3e4cde557ff9acc6')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-f732e09045c423869026262257a8ecf2:3e4cde557ff9acc6')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-f732e09045c423869026262257a8ecf2:3e4cde557ff9acc6')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-f732e09045c423869026262257a8ecf2:3e4cde557ff9acc6')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-963307d64f2914fcf1b04398430639dc:3e4cde557ff9acc6')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-963307d64f2914fcf1b04398430639dc:3e4cde557ff9acc6')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-963307d64f2914fcf1b04398430639dc:3e4cde557ff9acc6')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-963307d64f2914fcf1b04398430639dc:3e4cde557ff9acc6')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-963307d64f2914fcf1b04398430639dc:3e4cde557ff9acc6')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-f732e09045c423869026262257a8ecf2:3e4cde557ff9acc6" class="tab-panel active"><div class="prose">Socket researchers found 152 Chrome “live wallpaper” extensions that falsely claimed not to collect data while logging user/traffic information and funneling installs to ad-monetized sites. A subset also forged Google organic-search attribution and disguised uninstall pings as Google search-result clicks, turning extension activity into fake organic traffic.</div></div>
-                <div id="brief-f732e09045c423869026262257a8ecf2:3e4cde557ff9acc6" class="tab-panel"><div class="prose"><p>Socket&rsquo;s Threat Research Team identified a family of 152 <mark class="tag-hl">Chrome Web Store</mark> new-tab “live wallpaper” extensions built from a shared codebase and distributed across 38 publisher accounts and three brand backends. The extensions had approximately 105,000 reported installs and all declared in the <mark class="tag-hl">Chrome Web Store</mark> that they would not collect or use user data. The article says those disclosures conflict with linked privacy policies that admit logging IP addresses, ISP, click counts, referrers, and sharing data with <mark class="tag-hl">Google AdSense</mark>, DoubleClick, and third-party ad partners.</p>
+                <div id="tldr-963307d64f2914fcf1b04398430639dc:3e4cde557ff9acc6" class="tab-panel active"><div class="prose">Socket researchers found 152 Chrome “live wallpaper” extensions that falsely claimed not to collect data while logging user/traffic information and funneling installs to ad-monetized sites. A subset also forged Google organic-search attribution and disguised uninstall pings as Google search-result clicks, turning extension activity into fake organic traffic.</div></div>
+                <div id="brief-963307d64f2914fcf1b04398430639dc:3e4cde557ff9acc6" class="tab-panel"><div class="prose"><p>Socket&rsquo;s Threat Research Team identified a family of 152 Chrome Web Store new-tab “live wallpaper” extensions built from a shared codebase and distributed across 38 publisher accounts and three brand backends. The extensions had approximately 105,000 reported installs and all declared in the Chrome Web Store that they would not collect or use user data. The article says those disclosures conflict with linked privacy policies that admit logging IP addresses, ISP, click counts, referrers, and sharing data with Google AdSense, DoubleClick, and third-party ad partners.</p>
 
 <p>A 54-listing subset using the newer tabplugins-brand template forged Google organic-search attribution by opening install URLs with <code>utm_source=google&amp;utm_medium=organic</code> and setting uninstall URLs through a <code>google.com/url</code> wrapper. The article states this made extension-driven visits appear like Google organic search activity rather than software-generated traffic. The family also shipped an IndexedDB enumerate-and-delete routine in every analyzed service worker, although the article says it is inert in the current build and cannot affect website storage.</p>
 
 <p>The article characterizes the family as an adware-adjacent potentially unwanted program focused on deceptive traffic measurement, undisclosed telemetry, and false privacy disclosures. Monetization occurred by funneling users to ad-monetized brand pages on domains including <code>tabplugins.com</code>, <code>yowgames.com</code>, and <code>chromewallpaper.com</code>, rather than injecting ads into users’ browsing pages. Recommended defensive actions include removing these extensions, scrutinizing new-tab extensions that request the <code>search</code> permission, and hunting for code fingerprints such as the <code>Deleted IndexedDB database:</code> string and forged attribution URLs.</p>
 </div></div>
-                <div id="standard-f732e09045c423869026262257a8ecf2:3e4cde557ff9acc6" class="tab-panel"><div class="prose"><p>Socket&rsquo;s Threat Research Team analyzed a family of <mark class="tag-hl">Chrome Web Store</mark> new-tab “live wallpaper” extensions that shared a common codebase across 152 unique extension IDs. The family was distributed across 38 publisher accounts and three brand backends, with roughly 105,000 reported installs. Of the 152 IDs, 141 had retrievable service workers and live <mark class="tag-hl">Chrome Web Store</mark> listings, while 11 were already delisted at the time of analysis.</p>
+                <div id="standard-963307d64f2914fcf1b04398430639dc:3e4cde557ff9acc6" class="tab-panel"><div class="prose"><p>Socket&rsquo;s Threat Research Team analyzed a family of Chrome Web Store new-tab “live wallpaper” extensions that shared a common codebase across 152 unique extension IDs. The family was distributed across 38 publisher accounts and three brand backends, with roughly 105,000 reported installs. Of the 152 IDs, 141 had retrievable service workers and live Chrome Web Store listings, while 11 were already delisted at the time of analysis.</p>
 
-<p>The article says every listing declared in <mark class="tag-hl">Chrome Web Store</mark> privacy disclosures that it would not collect or use user data. Those claims were contradicted by linked privacy policies stating that the extensions or associated sites log IP addresses, browser type, ISP, timestamps, referrers or exit pages, click counts, and other data. The policies also named <mark class="tag-hl">Google AdSense</mark>, Google DoubleClick DART cookies, Google Analytics, and third-party advertising partners.</p>
+<p>The article says every listing declared in Chrome Web Store privacy disclosures that it would not collect or use user data. Those claims were contradicted by linked privacy policies stating that the extensions or associated sites log IP addresses, browser type, ISP, timestamps, referrers or exit pages, click counts, and other data. The policies also named Google AdSense, Google DoubleClick DART cookies, Google Analytics, and third-party advertising partners.</p>
 
 <p>The most significant technical behavior appeared in a 54-listing subset using the newer <code>tabplugins.com</code> template. On install, the service worker opened a <code>tabplugins.com</code> page with <code>utm_source=google&amp;utm_medium=organic</code>, which the article says falsely labeled extension-driven traffic as Google organic search. On uninstall, it used <code>chrome.runtime.setUninstallURL</code> with a <code>google.com/url</code> wrapper carrying <code>ved</code> and <code>usg</code> parameters, disguising the destination as a Google search-result click.</p>
 
 <p>All analyzed members of the family shipped an IndexedDB enumerate-and-delete routine that ran on service-worker start and logged <code>Deleted IndexedDB database:</code>. The article describes this as an anti-forensic state-reset boilerplate and the most reliable fingerprint of the operation, but also states that it is inert in this build because the extensions store their own state in <code>localStorage</code>, not IndexedDB. Because Manifest V3 service workers run in the extension’s own origin, the routine cannot delete website IndexedDB, cookies, localStorage, or sessions.</p>
 
-<p>The extensions were tied to three brand domains: <code>tabplugins.com</code>, <code>yowgames.com</code>, and <code>chromewallpaper.com</code>, with <code>chromewallpaper.com</code> redirecting to <code>owhit.com</code>. The article says these domains were ad-monetized using Google ad products, and <code>tabplugins.com</code> also loaded an <mark class="tag-hl">Advergic</mark> Prebid stack via <code>avads.live</code>. Attribution was not tied to a confirmed country, although the article notes circumstantial signals loosely pointing toward <mark class="tag-hl">Turkey</mark> and explicitly says those signals are not proof.</p>
+<p>The extensions were tied to three brand domains: <code>tabplugins.com</code>, <code>yowgames.com</code>, and <code>chromewallpaper.com</code>, with <code>chromewallpaper.com</code> redirecting to <code>owhit.com</code>. The article says these domains were ad-monetized using Google ad products, and <code>tabplugins.com</code> also loaded an Advergic Prebid stack via <code>avads.live</code>. Attribution was not tied to a confirmed country, although the article notes circumstantial signals loosely pointing toward Turkey and explicitly says those signals are not proof.</p>
 
-<p>The disclosed impact was privacy and measurement integrity harm for users and advertising ecosystems. Users’ install and uninstall events were reported to the operator, saved shortcut domains were sent to Google through favicon requests, and the operator presented extension-driven visits as Google organic traffic. The article recommends that users remove affected new-tab live wallpaper extensions and that security teams hunt on fingerprints such as the <mark class="tag-hl">IndexedDB wipe</mark> string, <code>setUninstallURL</code> to <code>google.com/url</code>, forged organic UTM install tabs, and the related brand domains.</p>
+<p>The disclosed impact was privacy and measurement integrity harm for users and advertising ecosystems. Users’ install and uninstall events were reported to the operator, saved shortcut domains were sent to Google through favicon requests, and the operator presented extension-driven visits as Google organic traffic. The article recommends that users remove affected new-tab live wallpaper extensions and that security teams hunt on fingerprints such as the IndexedDB wipe string, <code>setUninstallURL</code> to <code>google.com/url</code>, forged organic UTM install tabs, and the related brand domains.</p>
 </div></div>
-                <div id="comprehensive-f732e09045c423869026262257a8ecf2:3e4cde557ff9acc6" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-963307d64f2914fcf1b04398430639dc:3e4cde557ff9acc6" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Socket&rsquo;s Threat Research Team identified a family of <mark class="tag-hl">Chrome Web Store</mark> new-tab “live wallpaper” extensions that the article characterizes as an adware-adjacent potentially unwanted program. The family consists of 152 unique extension IDs built from a shared codebase and distributed across 38 separate <mark class="tag-hl">Chrome Web Store</mark> publisher accounts. The extensions were associated with three brand backends and had a combined total of approximately 105,000 reported installs.</p>
+<p>Socket&rsquo;s Threat Research Team identified a family of Chrome Web Store new-tab “live wallpaper” extensions that the article characterizes as an adware-adjacent potentially unwanted program. The family consists of 152 unique extension IDs built from a shared codebase and distributed across 38 separate Chrome Web Store publisher accounts. The extensions were associated with three brand backends and had a combined total of approximately 105,000 reported installs.</p>
 
-<p>The central issue is that the extensions claimed in <mark class="tag-hl">Chrome Web Store</mark> privacy disclosures that they would not collect or use user data, while linked privacy policies admitted data collection and sharing. The article says the policies describe logging IP addresses, browser type, ISP, date and time stamps, referrers or exit pages, click counts, and other information. The policies also name <mark class="tag-hl">Google AdSense</mark>, Google DoubleClick DART cookies, Google Analytics, and third-party advertising partners.</p>
+<p>The central issue is that the extensions claimed in Chrome Web Store privacy disclosures that they would not collect or use user data, while linked privacy policies admitted data collection and sharing. The article says the policies describe logging IP addresses, browser type, ISP, date and time stamps, referrers or exit pages, click counts, and other information. The policies also name Google AdSense, Google DoubleClick DART cookies, Google Analytics, and third-party advertising partners.</p>
 
 <h2 id="traffic-attribution-laundering">Traffic Attribution Laundering</h2>
 
@@ -1400,7 +1553,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The same subset also set an uninstall URL through <code>chrome.runtime.setUninstallURL</code>. The uninstall URL used a <code>google.com/url</code> redirect wrapper pointing to <code>tabplugins.com/live-wallpaper/</code> and included <code>ved</code> and <code>usg</code> parameters. The article states that this disguised the uninstall ping as a Google search-result click and allowed the operator to detect uninstall events while laundering the traffic as Google activity.</p>
 
-<h2 id="indexeddb-wipe-behavior"><mark class="tag-hl">IndexedDB Wipe</mark> Behavior</h2>
+<h2 id="indexeddb-wipe-behavior">IndexedDB Wipe Behavior</h2>
 
 <p>Every analyzed member of the family shipped an IndexedDB enumerate-and-delete routine in the service worker. On every service-worker start, the code called <code>indexedDB.databases()</code>, iterated through visible databases, called <code>indexedDB.deleteDatabase(db.name)</code>, and logged <code>Deleted IndexedDB database:</code>. The article identifies this literal log string and routine as the family’s most reliable fingerprint.</p>
 
@@ -1414,11 +1567,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Two lower-severity issues were described in the new-tab code and package layout. The shortcut renderer injects user-saved shortcut <code>name</code> and <code>url</code> values into the DOM through unescaped template strings, which the article calls self-XSS because a user would have to save their own malicious shortcut. The image-wallpaper mode references <code>wallpapers/1.jpg</code> through <code>wallpapers/10.jpg</code>, but the packages do not include a <code>wallpapers/</code> directory, so image mode is broken.</p>
 
-<p>The article also notes evidence of careless mass production. Three <code>tabplugins.com</code> extensions shipped a <code>bg.js</code> that did not parse because a closing quote appeared before the query string in the install URL. In those three cases, the syntax error prevented the install navigation, uninstall tracking, and <mark class="tag-hl">IndexedDB wipe</mark> from registering, although the extensions still installed, overrode the new tab, and requested the <code>search</code> permission.</p>
+<p>The article also notes evidence of careless mass production. Three <code>tabplugins.com</code> extensions shipped a <code>bg.js</code> that did not parse because a closing quote appeared before the query string in the install URL. In those three cases, the syntax error prevented the install navigation, uninstall tracking, and IndexedDB wipe from registering, although the extensions still installed, overrode the new tab, and requested the <code>search</code> permission.</p>
 
 <h2 id="scale-and-distribution">Scale and Distribution</h2>
 
-<p>Across the full dataset, Socket collected 152 unique extension IDs. It downloaded and SHA-256-verified the <code>bg.js</code> file for 141 of them, and all 141 resolved to live <mark class="tag-hl">Chrome Web Store</mark> listings. The remaining 11 were already delisted from the <mark class="tag-hl">Chrome Web Store</mark>, with the update endpoint returning HTTP 204.</p>
+<p>Across the full dataset, Socket collected 152 unique extension IDs. It downloaded and SHA-256-verified the <code>bg.js</code> file for 141 of them, and all 141 resolved to live Chrome Web Store listings. The remaining 11 were already delisted from the Chrome Web Store, with the update endpoint returning HTTP 204.</p>
 
 <p>The family was split across three brand backends:</p>
 
@@ -1428,7 +1581,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li><code>chromewallpaper.com</code>: 13 extensions structurally identical to the <code>yowgames.com</code> variant.</li>
 </ul>
 
-<p>The article says the same template was spread across 38 distinct <mark class="tag-hl">Chrome Web Store</mark> publisher accounts, including accounts such as <code><mark class="tag-hl">ZainAhamed1994</mark></code>, <code><mark class="tag-hl">hirakiranpk</mark></code>, <code>yowgames.com</code>, <code>tabplugins.com</code>, and others listed in the IOC section. It describes this fragmentation across publisher identities as a takedown-resistance tactic because removing one account would leave the rest of the network live.</p>
+<p>The article says the same template was spread across 38 distinct Chrome Web Store publisher accounts, including accounts such as <code>ZainAhamed1994</code>, <code>hirakiranpk</code>, <code>yowgames.com</code>, <code>tabplugins.com</code>, and others listed in the IOC section. It describes this fragmentation across publisher identities as a takedown-resistance tactic because removing one account would leave the rest of the network live.</p>
 
 <h2 id="infrastructure-and-monetization">Infrastructure and Monetization</h2>
 
@@ -1436,23 +1589,23 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The <code>tabplugins.com</code> cluster used a separate Cloudflare name-server pair, <code>fatima.ns.cloudflare.com</code> and <code>ned.ns.cloudflare.com</code>, and was registered through Hostinger. The article says its origin was exposed on Hostinger IPs <code>147.79.120.202</code> and <code>92.112.198.22</code> rather than being fully proxied. All operator-controlled domains were registered behind WHOIS privacy.</p>
 
-<p>The monetization described in the article was funnel-based rather than injection-based. The extensions drove traffic to ad-monetized brand pages through forced install tabs, in-page “More Extensions” and uninstall-guide links, and forged-organic attribution. The article says <code>tabplugins.com</code> loaded <code>https://avads.live/s/av-tabplugins.js</code>, an <mark class="tag-hl">Advergic</mark> Prebid header-bidding bundle that included Google Ad Manager network codes <code>23301900962,23324153939</code>, AppNexus/Xandr, PixFuture, SmileWanted, a full-screen interstitial ad slot, Google Analytics 4 property <code>G-906NQ2GLXR</code>, and FOU Analytics.</p>
+<p>The monetization described in the article was funnel-based rather than injection-based. The extensions drove traffic to ad-monetized brand pages through forced install tabs, in-page “More Extensions” and uninstall-guide links, and forged-organic attribution. The article says <code>tabplugins.com</code> loaded <code>https://avads.live/s/av-tabplugins.js</code>, an Advergic Prebid header-bidding bundle that included Google Ad Manager network codes <code>23301900962,23324153939</code>, AppNexus/Xandr, PixFuture, SmileWanted, a full-screen interstitial ad slot, Google Analytics 4 property <code>G-906NQ2GLXR</code>, and FOU Analytics.</p>
 
-<p>For the <code>yowgames.com</code> cluster, live retrieval was blocked by a Cloudflare bot wall from the researchers’ vantage, so archived copies were examined. The article says <code>yowgames.com</code> and <code>owhit.com</code> embedded <mark class="tag-hl">Google AdSense</mark> and <code>googlesyndication.com</code> directly, using publisher IDs <code>ca-pub-2685573472598175</code> and <code>ca-pub-6596604135510481</code>, respectively. Their Google Analytics 4 properties were listed as <code>G-YJWVP0Q1KW</code> and <code>G-6V3WECV225</code>.</p>
+<p>For the <code>yowgames.com</code> cluster, live retrieval was blocked by a Cloudflare bot wall from the researchers’ vantage, so archived copies were examined. The article says <code>yowgames.com</code> and <code>owhit.com</code> embedded Google AdSense and <code>googlesyndication.com</code> directly, using publisher IDs <code>ca-pub-2685573472598175</code> and <code>ca-pub-6596604135510481</code>, respectively. Their Google Analytics 4 properties were listed as <code>G-YJWVP0Q1KW</code> and <code>G-6V3WECV225</code>.</p>
 
 <h2 id="attribution-statements">Attribution Statements</h2>
 
-<p>The article characterizes the operation as financially motivated commercial adware and traffic-attribution fraud run by one or more small freelance teams. It explicitly states that the researchers cannot tie the operation to a specific country with confidence. It notes circumstantial signals that loosely point toward <mark class="tag-hl">Turkey</mark>, including the <code>owhit.com</code> contact name “Saniye Yıldız,” the email <code>yahyagazi06@gmail.com</code>, and Turkish-reading publisher contact emails such as <code>ferhatbadem831@gmail.com</code> and <code>keremsopar@gmail.com</code>.</p>
+<p>The article characterizes the operation as financially motivated commercial adware and traffic-attribution fraud run by one or more small freelance teams. It explicitly states that the researchers cannot tie the operation to a specific country with confidence. It notes circumstantial signals that loosely point toward Turkey, including the <code>owhit.com</code> contact name “Saniye Yıldız,” the email <code>yahyagazi06@gmail.com</code>, and Turkish-reading publisher contact emails such as <code>ferhatbadem831@gmail.com</code> and <code>keremsopar@gmail.com</code>.</p>
 
 <p>The article emphasizes that these are possibilities to investigate rather than attribution that can be stated with confidence. It says the listed contact may be a pseudonym and that no GitHub, freelance-marketplace, or social-media portfolio linked the publisher handles to one another or to a real identity. It also says no prior public reporting was found on the domains or handles.</p>
 
 <h2 id="privacy-disclosure-conflict">Privacy Disclosure Conflict</h2>
 
-<p>The article identifies the clearest policy issue as a contradiction between <mark class="tag-hl">Chrome Web Store</mark> privacy disclosures and the operators’ linked privacy policies. The <mark class="tag-hl">Chrome Web Store</mark> Privacy practices tab for the listings said the developer would not collect or use user data, that data was not being sold to third parties, and that data was not being used or transferred for unrelated purposes. The article says identical “will not collect or use your data” disclosures appeared on all 141 live listings the researchers resolved.</p>
+<p>The article identifies the clearest policy issue as a contradiction between Chrome Web Store privacy disclosures and the operators’ linked privacy policies. The Chrome Web Store Privacy practices tab for the listings said the developer would not collect or use user data, that data was not being sold to third parties, and that data was not being used or transferred for unrelated purposes. The article says identical “will not collect or use your data” disclosures appeared on all 141 live listings the researchers resolved.</p>
 
-<p>The linked privacy policies stated the opposite. According to the article, they said log files collect data when visitors use the websites or extensions, including IP addresses, browser type, ISP, timestamps, referrers or exit pages, and possibly click counts. The policies also described tracking user movement on the website and extension and named <mark class="tag-hl">Google AdSense</mark>, Google DoubleClick DART cookies, Google Analytics, and third-party advertising partners.</p>
+<p>The linked privacy policies stated the opposite. According to the article, they said log files collect data when visitors use the websites or extensions, including IP addresses, browser type, ISP, timestamps, referrers or exit pages, and possibly click counts. The policies also described tracking user movement on the website and extension and named Google AdSense, Google DoubleClick DART cookies, Google Analytics, and third-party advertising partners.</p>
 
-<p>The article cites <mark class="tag-hl">Chrome Web Store</mark> policy language requiring privacy fields to be up to date and accurate and warning that contradictions between dashboard disclosures, privacy policies, and item behavior may violate policy. It says the documented situation is a three-way mismatch between store disclosure, linked privacy policy, and observed phone-home behavior. The article states that the install and uninstall telemetry corroborates that the extensions phone home.</p>
+<p>The article cites Chrome Web Store policy language requiring privacy fields to be up to date and accurate and warning that contradictions between dashboard disclosures, privacy policies, and item behavior may violate policy. It says the documented situation is a three-way mismatch between store disclosure, linked privacy policy, and observed phone-home behavior. The article states that the install and uninstall telemetry corroborates that the extensions phone home.</p>
 
 <h2 id="impact">Impact</h2>
 
@@ -1462,17 +1615,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <ul>
 <li>Users’ install and uninstall events are reported to the operator.</li>
-<li>The operator’s privacy policy says this activity is associated with IP, ISP, referrer, and click data and shared with <mark class="tag-hl">Google AdSense</mark>, DoubleClick, Analytics, and third-party ad partners.</li>
+<li>The operator’s privacy policy says this activity is associated with IP, ISP, referrer, and click data and shared with Google AdSense, DoubleClick, Analytics, and third-party ad partners.</li>
 <li>Extension-driven visits are presented to advertisers and affiliates as Google organic search traffic through forged UTM tags and the <code>google.com/url</code> redirect.</li>
 <li>Saved shortcut domains leak to Google through favicon requests on every new tab.</li>
-<li>Every install ships an undisclosed <mark class="tag-hl">IndexedDB wipe</mark> routine that runs on service-worker start.</li>
+<li>Every install ships an undisclosed IndexedDB wipe routine that runs on service-worker start.</li>
 </ul>
 
 <h2 id="recommended-actions">Recommended Actions</h2>
 
 <p>For users, the article recommends removing any new-tab “live wallpaper” extension sourced from <code>tabplugins.com</code>, <code>yowgames.com</code>, or <code>chromewallpaper.com</code>. It also advises treating new-tab override extensions that request the <code>search</code> permission as something to scrutinize. After removal, users are advised to confirm that Chrome’s new tab and default search engine are restored to their preferences.</p>
 
-<p>For developers, the article recommends ensuring that <mark class="tag-hl">Chrome Web Store</mark> privacy disclosures match published privacy policies exactly. It warns against fabricating UTM attribution or reusing Google <code>ved</code> and <code>usg</code> redirect tokens to disguise traffic. It also says developers should not ship unexplained anti-forensic boilerplate such as indiscriminate <mark class="tag-hl">IndexedDB wipe</mark> routines.</p>
+<p>For developers, the article recommends ensuring that Chrome Web Store privacy disclosures match published privacy policies exactly. It warns against fabricating UTM attribution or reusing Google <code>ved</code> and <code>usg</code> redirect tokens to disguise traffic. It also says developers should not ship unexplained anti-forensic boilerplate such as indiscriminate IndexedDB wipe routines.</p>
 
 <p>For security teams, the article recommends hunting for family fingerprints rather than individual extension IDs because the family is mass-produced and IDs rotate. Reliable signals listed include the literal string <code>Deleted IndexedDB database:</code>, an <code>indexedDB.databases()</code> enumerate-and-delete loop in <code>bg.js</code>, a <code>setUninstallURL</code> pointed at a <code>google.com/url</code> wrapper, and an <code>onInstalled</code> handler opening a tab with <code>utm_source=google&amp;utm_medium=organic</code>. The article also recommends blocking <code>tabplugins.com</code>, <code>yowgames.com</code>, <code>chromewallpaper.com</code>, and <code>owhit.com</code>, and alerting on new-tab override extensions that request the <code>search</code> permission and originate from those domains.</p>
 
@@ -1488,14 +1641,15 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>T1583.001 Acquire Infrastructure: Domains</li>
 </ul>
 
-<p>The IOC section lists 38 threat actor developer accounts, several email addresses, network indicators, infrastructure and monetization identifiers, and 152 Chrome extension IDs. Network indicators include <code>tabplugins.com</code>, <code>yowgames.com</code>, <code>chromewallpaper.com</code>, and <code>owhit.com</code>. Monetization indicators include the <code>avads.live/s/av-&lt;brand&gt;.js</code> pattern, <mark class="tag-hl">Advergic</mark> Prebid account ID <code>yiF3ZLZK</code>, Google Ad Manager network code <code>23301900962,23324153939</code>, AdSense publisher IDs for <code>yowgames.com</code> and <code>owhit.com</code>, and GA4 properties for <code>tabplugins.com</code>, <code>yowgames.com</code>, and <code>owhit.com</code>.</p>
+<p>The IOC section lists 38 threat actor developer accounts, several email addresses, network indicators, infrastructure and monetization identifiers, and 152 Chrome extension IDs. Network indicators include <code>tabplugins.com</code>, <code>yowgames.com</code>, <code>chromewallpaper.com</code>, and <code>owhit.com</code>. Monetization indicators include the <code>avads.live/s/av-&lt;brand&gt;.js</code> pattern, Advergic Prebid account ID <code>yiF3ZLZK</code>, Google Ad Manager network code <code>23301900962,23324153939</code>, AdSense publisher IDs for <code>yowgames.com</code> and <code>owhit.com</code>, and GA4 properties for <code>tabplugins.com</code>, <code>yowgames.com</code>, and <code>owhit.com</code>.</p>
 </div></div>
-                <div id="insights-f732e09045c423869026262257a8ecf2:3e4cde557ff9acc6" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The most reliable family fingerprint is the literal service-worker log string &#34;Deleted IndexedDB database:&#34; combined with an indexedDB.databases() enumerate-and-delete loop, because this code appears across 100 percent of the analyzed family even when other monetization details differ.</span></li><li><span class="kp-text">The traffic-laundering behavior is limited to the newer tabplugins.com template: only 54 listings used forged Google organic UTM tags and google.com/url uninstall cloaking, while yowgames.com and chromewallpaper.com variants shared the same core without that attribution forgery.</span></li><li><span class="kp-text">The <mark class="tag-hl">IndexedDB wipe</mark> sounds destructive but is scoped to the extension’s own chrome-extension:// origin in Manifest V3, so the article states it cannot delete website IndexedDB, cookies, localStorage, or sessions and deletes nothing in the current build.</span></li><li><span class="kp-text">Three tabplugins.com extensions shipped a non-parsing background service worker due to a malformed install URL, which prevented their install navigation, uninstall tracking, and <mark class="tag-hl">IndexedDB wipe</mark> from registering despite the extensions still installing and overriding the new tab.</span></li><li><span class="kp-text">Blocking individual <mark class="tag-hl">Chrome Web Store</mark> IDs is fragile because the same template was spread across 38 publisher accounts; the article recommends hunting on code fingerprints, setUninstallURL google.com/url wrappers, forged organic UTM install tabs, and the shared brand domains instead.</span></li></ul></div>
+                <div id="insights-963307d64f2914fcf1b04398430639dc:3e4cde557ff9acc6" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The most reliable family fingerprint is the literal service-worker log string &#34;Deleted IndexedDB database:&#34; combined with an indexedDB.databases() enumerate-and-delete loop, because this code appears across 100 percent of the analyzed family even when other monetization details differ.</span></li><li><span class="kp-text">The traffic-laundering behavior is limited to the newer tabplugins.com template: only 54 listings used forged Google organic UTM tags and google.com/url uninstall cloaking, while yowgames.com and chromewallpaper.com variants shared the same core without that attribution forgery.</span></li><li><span class="kp-text">The IndexedDB wipe sounds destructive but is scoped to the extension’s own chrome-extension:// origin in Manifest V3, so the article states it cannot delete website IndexedDB, cookies, localStorage, or sessions and deletes nothing in the current build.</span></li><li><span class="kp-text">Three tabplugins.com extensions shipped a non-parsing background service worker due to a malformed install URL, which prevented their install navigation, uninstall tracking, and IndexedDB wipe from registering despite the extensions still installing and overriding the new tab.</span></li><li><span class="kp-text">Blocking individual Chrome Web Store IDs is fragile because the same template was spread across 38 publisher accounts; the article recommends hunting on code fingerprints, setUninstallURL google.com/url wrappers, forged organic UTM install tabs, and the shared brand domains instead.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Socket&#39;s Threat Research Team identified 152 <mark class="tag-hl">Chrome Web Store</mark> new-tab live wallpaper extensions built from a shared codebase and distributed across 38 publisher accounts, with approximately 105,000 reported installs.</span></li><li><span class="kp-text">All resolved live listings claimed in the <mark class="tag-hl">Chrome Web Store</mark> that they would not collect or use user data, while their linked privacy policies stated that the extensions log IP addresses, ISP, click counts, referrers, and share data with ad partners.</span></li><li><span class="kp-text">A 54-listing tabplugins.com subset forged Google organic-search attribution on install and used a google.com/url uninstall redirect to disguise extension-driven traffic as Google search activity.</span></li><li><span class="kp-text">Every analyzed extension shipped an IndexedDB enumerate-and-delete routine in its service worker, but the article states it is inert in this build because the extensions do not store their own state in IndexedDB.</span></li><li><span class="kp-text">The extensions monetized traffic by forcing or funneling users to ad-monetized brand pages on tabplugins.com, yowgames.com, and chromewallpaper.com rather than injecting ads into pages users browse.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Socket&#39;s Threat Research Team identified 152 Chrome Web Store new-tab live wallpaper extensions built from a shared codebase and distributed across 38 publisher accounts, with approximately 105,000 reported installs.</span></li><li><span class="kp-text">All resolved live listings claimed in the Chrome Web Store that they would not collect or use user data, while their linked privacy policies stated that the extensions log IP addresses, ISP, click counts, referrers, and share data with ad partners.</span></li><li><span class="kp-text">A 54-listing tabplugins.com subset forged Google organic-search attribution on install and used a google.com/url uninstall redirect to disguise extension-driven traffic as Google search activity.</span></li><li><span class="kp-text">Every analyzed extension shipped an IndexedDB enumerate-and-delete routine in its service worker, but the article states it is inert in this build because the extensions do not store their own state in IndexedDB.</span></li><li><span class="kp-text">The extensions monetized traffic by forcing or funneling users to ad-monetized brand pages on tabplugins.com, yowgames.com, and chromewallpaper.com rather than injecting ads into pages users browse.</span></li></ul></div>
+            
             <a href="https://socket.dev/blog/152-chrome-live-wallpaper-extensions-hid-ad-tracking?utm_medium=feed" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific technical finding about a large <mark class="tag-hl">Chrome Web Store</mark> extension network affecting roughly 100,000 users, with concrete IOCs, hunting guidance, and policy/privacy implications. It is not an emergency like active exploitation of critical enterprise software, but it is broadly relevant to security teams monitoring browser extensions and adware/PUP activity.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific technical finding about a large Chrome Web Store extension network affecting roughly 100,000 users, with concrete IOCs, hunting guidance, and policy/privacy implications. It is not an emergency like active exploitation of critical enterprise software, but it is broadly relevant to security teams monitoring browser extensions and adware/PUP activity.</p>
 </div></div>
             
             
@@ -1519,16 +1673,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest covers a browser-extension monetization cluster reported by Socket’s Threat Research Team involving 152 <mark class="tag-hl">Chrome Web Store</mark> live wallpaper and new-tab extensions. The activity centers on deceptive data disclosures, traffic attribution manipulation, and ad-monetized redirect behavior rather than traditional credential theft, malware delivery, or page-level ad injection.</p>
+        <div class="overview-body prose"><p>This digest covers a browser-extension monetization cluster reported by Socket’s Threat Research Team involving 152 Chrome Web Store live wallpaper and new-tab extensions. The activity centers on deceptive data disclosures, traffic attribution manipulation, and ad-monetized redirect behavior rather than traditional credential theft, malware delivery, or page-level ad injection.</p>
 
-<p>The reporting is notable for the scale of the shared extension ecosystem: approximately 105,000 reported installs across 38 publisher accounts. While the extensions presented themselves as benign customization tools, Socket found inconsistencies between <mark class="tag-hl">Chrome Web Store</mark> data-use claims and linked privacy policy language describing collection of IP addresses, ISP information, click counts, referrers, and data sharing with advertising partners.</p>
+<p>The reporting is notable for the scale of the shared extension ecosystem: approximately 105,000 reported installs across 38 publisher accounts. While the extensions presented themselves as benign customization tools, Socket found inconsistencies between Chrome Web Store data-use claims and linked privacy policy language describing collection of IP addresses, ISP information, click counts, referrers, and data sharing with advertising partners.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Chrome Extension Monetization and Traffic Manipulation</span>
         </div>
-        <div class="overview-body prose"><p>Socket identified 152 Chrome live wallpaper extensions built from a shared codebase and distributed through multiple publisher accounts. All resolved live listings reportedly claimed in the <mark class="tag-hl">Chrome Web Store</mark> that they did not collect or use user data, while the associated privacy policies stated that telemetry such as IP address, ISP, click counts, and referrer data may be logged and shared with ad partners.</p>
+        <div class="overview-body prose"><p>Socket identified 152 Chrome live wallpaper extensions built from a shared codebase and distributed through multiple publisher accounts. All resolved live listings reportedly claimed in the Chrome Web Store that they did not collect or use user data, while the associated privacy policies stated that telemetry such as IP address, ISP, click counts, and referrer data may be logged and shared with ad partners.</p>
 
 <p>A subset of 54 listings tied to tabplugins.com allegedly forged Google organic-search attribution during installation. Socket reported that these extensions used a google.com/url uninstall redirect to make extension-driven traffic appear as though it originated from Google Search, obscuring the true source of visits and potentially improving the perceived legitimacy or value of the traffic.</p>
 
@@ -1539,7 +1693,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Deceptive Disclosure and Dormant Code Artifacts</span>
         </div>
-        <div class="overview-body prose"><p>The campaign highlights a recurring browser-extension risk pattern: low-friction installation of consumer-facing customization utilities paired with opaque or contradictory privacy representations. In this case, the <mark class="tag-hl">Chrome Web Store</mark> listings and linked privacy policies reportedly described user-data handling differently, creating a mismatch between public store assurances and external policy disclosures.</p>
+        <div class="overview-body prose"><p>The campaign highlights a recurring browser-extension risk pattern: low-friction installation of consumer-facing customization utilities paired with opaque or contradictory privacy representations. In this case, the Chrome Web Store listings and linked privacy policies reportedly described user-data handling differently, creating a mismatch between public store assurances and external policy disclosures.</p>
 
 <p>Socket also observed that every analyzed extension shipped a service-worker routine designed to enumerate and delete IndexedDB entries. The report notes that this routine appeared inert in the analyzed build because the extensions did not store their own state in IndexedDB, but its consistent presence across the shared codebase was still part of the technical footprint connecting the listings.</p>
 
@@ -1552,9 +1706,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-12 22:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1567,15 +1724,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1688,12 +1907,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1754,6 +2007,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

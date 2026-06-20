@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1344,26 +1497,26 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:88%"></div></div><span class="score-num score-num-mid">88</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:4c60c8567b7ddc4f">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:4c60c8567b7ddc4f')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:4c60c8567b7ddc4f')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:4c60c8567b7ddc4f')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:4c60c8567b7ddc4f')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:4c60c8567b7ddc4f')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:4c60c8567b7ddc4f')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:4c60c8567b7ddc4f')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:4c60c8567b7ddc4f')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:4c60c8567b7ddc4f')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:4c60c8567b7ddc4f')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:4c60c8567b7ddc4f" class="tab-panel active"><div class="prose">A malicious Hugging Face repository impersonating an OpenAI project distributed an information-stealing malware payload to Windows users before being removed, underscoring the platform&#39;s vulnerability to typosquatting attacks. Users who downloaded the repository must immediately reimage their systems and rotate all credentials.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:4c60c8567b7ddc4f" class="tab-panel"><div class="prose"><p>A malicious Hugging Face repository impersonating OpenAI’s Privacy Filter project distributed an information-stealing malware payload to Windows users. The repository briefly topped the platform’s trending list and accumulated hundreds of thousands of downloads before being removed. Researchers at HiddenLayer discovered the campaign after identifying a typosquatted repository that copied OpenAI’s official model card. The malicious package included a Python script that disguised itself as harmless AI code while secretly disabling SSL verification and executing a PowerShell command. This command downloaded a batch file that performed privilege escalation and installed a Rust-based infostealer. The malware targeted sensitive data including browser credentials, Discord tokens, cryptocurrency wallets, and system information. Stolen data was compressed and sent to a command-and-control server. The researchers noted that the repository’s high engagement metrics were likely artificially inflated by auto-generated accounts. Affected users are strongly advised to reimage their systems and rotate all stored credentials.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:4c60c8567b7ddc4f" class="tab-panel active"><div class="prose">A malicious Hugging Face repository impersonating an OpenAI project distributed an information-stealing malware payload to Windows users before being removed, underscoring the platform&#39;s vulnerability to typosquatting attacks. Users who downloaded the repository must immediately reimage their systems and rotate all credentials.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:4c60c8567b7ddc4f" class="tab-panel"><div class="prose"><p>A malicious Hugging Face repository impersonating OpenAI’s Privacy Filter project distributed an information-stealing malware payload to Windows users. The repository briefly topped the platform’s trending list and accumulated hundreds of thousands of downloads before being removed. Researchers at HiddenLayer discovered the campaign after identifying a typosquatted repository that copied OpenAI’s official model card. The malicious package included a Python script that disguised itself as harmless AI code while secretly disabling SSL verification and executing a PowerShell command. This command downloaded a batch file that performed privilege escalation and installed a Rust-based infostealer. The malware targeted sensitive data including browser credentials, Discord tokens, cryptocurrency wallets, and system information. Stolen data was compressed and sent to a command-and-control server. The researchers noted that the repository’s high engagement metrics were likely artificially inflated by auto-generated accounts. Affected users are strongly advised to reimage their systems and rotate all stored credentials.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:4c60c8567b7ddc4f" class="tab-panel"><div class="prose"><p>A malicious Hugging Face repository impersonating OpenAI’s Privacy Filter project successfully distributed an information-stealing malware payload to Windows users. The repository reached the number one spot on the platform’s trending list and recorded 244,000 downloads prior to its removal. HiddenLayer researchers identified the campaign on May 7 by spotting a repository named Open-OSS/privacy-filter that typosquatted the legitimate OpenAI release. The malicious project copied the official model card verbatim and shipped a loader.py file designed to fetch and execute malware on Windows machines. This Python script contained fake AI-related code to appear benign while secretly disabling SSL verification and decoding a base64-encoded URL. The decoded URL pointed to an external resource hosting a JSON payload with a PowerShell command. The command executed in an invisible window to download a batch file named start.bat. This batch file performed privilege escalation, downloaded the final payload called sefirah, added it to Microsoft Defender’s exclusions, and executed it. The Rust-based infostealer targeted a wide array of sensitive data, including browser cookies, saved passwords, encryption keys, Discord tokens, cryptocurrency wallets, SSH and VPN credentials, and multi-monitor screenshots. All exfiltrated data was compressed and sent to a command-and-control server at recargapopular[.]com. The malware also featured extensive anti-analysis capabilities to evade virtual machines, sandboxes, and debuggers. Researchers determined that the repository’s 667 likes and 244,000 downloads were likely artificially inflated by auto-generated accounts. Further investigation revealed that other repositories utilized the same malicious loader infrastructure. Additionally, the campaign showed technical overlaps with an npm typosquatting effort distributing the WinOS 4.0 implant. Users who downloaded the malicious files are advised to reimage their machines, rotate all credentials, replace cryptocurrency seeds, and invalidate browser sessions.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:4c60c8567b7ddc4f" class="tab-panel"><div class="prose"><p>A malicious Hugging Face repository impersonating OpenAI’s Privacy Filter project successfully distributed an information-stealing malware payload to Windows users. The repository reached the number one spot on the platform’s trending list and recorded 244,000 downloads prior to its removal. HiddenLayer researchers identified the campaign on May 7 by spotting a repository named Open-OSS/privacy-filter that typosquatted the legitimate OpenAI release. The malicious project copied the official model card verbatim and shipped a loader.py file designed to fetch and execute malware on Windows machines. This Python script contained fake AI-related code to appear benign while secretly disabling SSL verification and decoding a base64-encoded URL. The decoded URL pointed to an external resource hosting a JSON payload with a PowerShell command. The command executed in an invisible window to download a batch file named start.bat. This batch file performed privilege escalation, downloaded the final payload called sefirah, added it to Microsoft Defender’s exclusions, and executed it. The Rust-based infostealer targeted a wide array of sensitive data, including browser cookies, saved passwords, encryption keys, Discord tokens, cryptocurrency wallets, SSH and VPN credentials, and multi-monitor screenshots. All exfiltrated data was compressed and sent to a command-and-control server at recargapopular[.]com. The malware also featured extensive anti-analysis capabilities to evade virtual machines, sandboxes, and debuggers. Researchers determined that the repository’s 667 likes and 244,000 downloads were likely artificially inflated by auto-generated accounts. Further investigation revealed that other repositories utilized the same malicious loader infrastructure. Additionally, the campaign showed technical overlaps with an npm typosquatting effort distributing the WinOS 4.0 implant. Users who downloaded the malicious files are advised to reimage their machines, rotate all credentials, replace cryptocurrency seeds, and invalidate browser sessions.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:4c60c8567b7ddc4f" class="tab-panel"><div class="prose"><h3 id="incident-overview">Incident Overview</h3>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:4c60c8567b7ddc4f" class="tab-panel"><div class="prose"><h3 id="incident-overview">Incident Overview</h3>
 
 <p>A malicious Hugging Face repository impersonating OpenAI’s Privacy Filter project distributed an information-stealing malware payload to Windows users. The repository briefly reached the number one position on the platform’s trending list and accumulated 244,000 downloads before being removed following user reports. Hugging Face serves as a platform for developers and researchers to share AI models, datasets, and machine learning tools. The malicious repository exploited this ecosystem by hosting a pre-trained AI system that combined weight files, configuration data, and malicious code.</p>
 
@@ -1398,10 +1551,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Users who downloaded files from the malicious repository are advised to take immediate action. They should reimage their machines to ensure complete removal of the threat. All stored credentials must be rotated to prevent unauthorized access. Cryptocurrency wallets and seed phrases should be replaced to protect digital assets. Finally, browser sessions and tokens must be invalidated to block persistent access. Threat actors have previously abused Hugging Face to host malicious models despite the platform’s existing security measures.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:4c60c8567b7ddc4f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The malware bypasses standard security controls by disabling SSL verification and executing a PowerShell command in an invisible window to download and run the final payload.</span></li><li><span class="kp-text">The threat actor reused infrastructure and tactics across campaigns, as the same loader infrastructure was found in other repositories and overlapped with an npm typosquatting campaign distributing the WinOS 4.0 implant.</span></li><li><span class="kp-text">Platform popularity metrics were weaponized, with the malicious repository artificially inflating its 244,000 downloads and 667 likes through auto-generated accounts to gain traction on Hugging Face&#39;s trending list.</span></li><li><span class="kp-text">The infostealer&#39;s Rust-based architecture and extensive anti-analysis checks for VMs, sandboxes, and debuggers indicate a deliberate focus on evading automated security research environments.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:4c60c8567b7ddc4f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The malware bypasses standard security controls by disabling SSL verification and executing a PowerShell command in an invisible window to download and run the final payload.</span></li><li><span class="kp-text">The threat actor reused infrastructure and tactics across campaigns, as the same loader infrastructure was found in other repositories and overlapped with an npm typosquatting campaign distributing the WinOS 4.0 implant.</span></li><li><span class="kp-text">Platform popularity metrics were weaponized, with the malicious repository artificially inflating its 244,000 downloads and 667 likes through auto-generated accounts to gain traction on Hugging Face&#39;s trending list.</span></li><li><span class="kp-text">The infostealer&#39;s Rust-based architecture and extensive anti-analysis checks for VMs, sandboxes, and debuggers indicate a deliberate focus on evading automated security research environments.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">A malicious Hugging Face repository impersonating OpenAI&#39;s Privacy Filter project distributed a Rust-based infostealer to Windows users before the platform removed it.</span></li><li><span class="kp-text">The malware&#39;s loader script executed PowerShell commands to download and run a payload that steals browser data, Discord tokens, cryptocurrency wallets, and system credentials.</span></li><li><span class="kp-text">Stolen data is compressed and exfiltrated to a command-and-control server, while the malware employs anti-analysis techniques to evade detection.</span></li><li><span class="kp-text">Researchers found that the repository&#39;s high download count and likes were likely artificially inflated by auto-generated accounts.</span></li><li><span class="kp-text">Affected users are advised to reimage their machines, rotate all credentials, and replace cryptocurrency wallet seed phrases.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/fake-openai-repository-on-hugging-face-pushes-infostealer-malware/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This article documents a significant supply chain attack via a typosquatted AI repository, distributing an advanced infostealer that targets sensitive credentials and cryptocurrency wallets. The incident highlights critical risks in AI model hosting platforms and demonstrates sophisticated malware techniques, making it essential reading for securing AI ecosystems and verifying third-party assets.</p>
 </div></div>
@@ -1431,28 +1585,28 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:88%"></div></div><span class="score-num score-num-mid">88</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:cb24025d9fcfd497">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:cb24025d9fcfd497')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:cb24025d9fcfd497')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:cb24025d9fcfd497')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:cb24025d9fcfd497')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:cb24025d9fcfd497')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:cb24025d9fcfd497')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:cb24025d9fcfd497')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:cb24025d9fcfd497')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:cb24025d9fcfd497')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:cb24025d9fcfd497')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:cb24025d9fcfd497" class="tab-panel active"><div class="prose">cPanel and WHM administrators must immediately update to the latest versions to patch three critical vulnerabilities that enable privilege escalation, arbitrary code execution, and denial-of-service attacks.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:cb24025d9fcfd497" class="tab-panel"><div class="prose"><p>cPanel and WHM have released critical security updates to address three distinct vulnerabilities that could allow attackers to escalate privileges, execute arbitrary code, or cause denial-of-service. The first flaw, CVE-2026-29201, stems from insufficient input validation in the feature file name loading process and carries a CVSS score of 4.3.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:cb24025d9fcfd497" class="tab-panel active"><div class="prose">cPanel and WHM administrators must immediately update to the latest versions to patch three critical vulnerabilities that enable privilege escalation, arbitrary code execution, and denial-of-service attacks.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:cb24025d9fcfd497" class="tab-panel"><div class="prose"><p>cPanel and WHM have released critical security updates to address three distinct vulnerabilities that could allow attackers to escalate privileges, execute arbitrary code, or cause denial-of-service. The first flaw, CVE-2026-29201, stems from insufficient input validation in the feature file name loading process and carries a CVSS score of 4.3.</p>
 
 <p>The second vulnerability, CVE-2026-29202, involves a flaw in the create_user API plugin parameter that enables arbitrary Perl code execution for authenticated users and carries a CVSS score of 8.8. The third issue, CVE-2026-29203, is an unsafe symlink handling vulnerability that permits unauthorized file permission modifications and also carries a CVSS score of 8.8.</p>
 
 <p>Administrators must update their systems to the latest patched versions across all supported release branches to mitigate these risks. While there is currently no evidence of these specific flaws being exploited in the wild, the disclosure follows closely behind another critical cPanel flaw that was recently weaponized to deliver Mirai botnet variants and ransomware. Organizations should prioritize immediate patching to maintain optimal security posture.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:cb24025d9fcfd497" class="tab-panel"><div class="prose"><p>cPanel and WHM have issued urgent security patches to resolve three newly disclosed vulnerabilities that pose significant risks to server environments. The first vulnerability, identified as CVE-2026-29201, has a CVSS score of 4.3 and results from inadequate input validation within the feature::LOADFEATUREFILE adminbin call.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:cb24025d9fcfd497" class="tab-panel"><div class="prose"><p>cPanel and WHM have issued urgent security patches to resolve three newly disclosed vulnerabilities that pose significant risks to server environments. The first vulnerability, identified as CVE-2026-29201, has a CVSS score of 4.3 and results from inadequate input validation within the feature::LOADFEATUREFILE adminbin call.</p>
 
 <p>This flaw could allow an attacker to perform arbitrary file reads. The second vulnerability, CVE-2026-29202, carries a high CVSS score of 8.8 and stems from insufficient validation of the plugin parameter in the create_user API call.</p>
 
@@ -1466,7 +1620,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>That previous flaw was used to distribute Mirai botnet variants and a ransomware strain known as Sorry. Security teams are strongly advised to apply the latest updates immediately to ensure optimal protection.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:cb24025d9fcfd497" class="tab-panel"><div class="prose"><h3 id="vulnerability-overview">Vulnerability Overview</h3>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:cb24025d9fcfd497" class="tab-panel"><div class="prose"><h3 id="vulnerability-overview">Vulnerability Overview</h3>
 
 <p>cPanel and WHM have released critical security updates to address three distinct vulnerabilities that could enable privilege escalation, arbitrary code execution, and denial-of-service attacks. Each vulnerability has been assigned a unique CVE identifier and CVSS score:</p>
 
@@ -1512,10 +1666,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>While there is currently no evidence that CVE-2026-29201, CVE-2026-29202, or CVE-2026-29203 have been exploited in the wild, the disclosure carries heightened urgency. The announcement comes just days after another critical flaw, CVE-2026-41940, was weaponized by threat actors as a zero-day vulnerability. That previous flaw was actively used to deliver Mirai botnet variants and a ransomware strain named Sorry. Security teams are strongly advised to apply the latest updates immediately to ensure optimal protection against emerging threats.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:cb24025d9fcfd497" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">cPanel provides a specific direct update (110.0.114) for customers still running CentOS 6 or CloudLinux 6, indicating a distinct remediation path for legacy infrastructure.</span></li><li><span class="kp-text">The disclosure follows the weaponization of CVE-2026-41940 for Mirai botnet and ransomware, suggesting a coordinated threat surge despite no current evidence of exploitation for these specific flaws.</span></li><li><span class="kp-text">The patching requirements span multiple version branches (e.g., 11.136, 11.110), necessitating a precise inventory audit to ensure legacy installations receive the correct security update.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:cb24025d9fcfd497" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">cPanel provides a specific direct update (110.0.114) for customers still running CentOS 6 or CloudLinux 6, indicating a distinct remediation path for legacy infrastructure.</span></li><li><span class="kp-text">The disclosure follows the weaponization of CVE-2026-41940 for Mirai botnet and ransomware, suggesting a coordinated threat surge despite no current evidence of exploitation for these specific flaws.</span></li><li><span class="kp-text">The patching requirements span multiple version branches (e.g., 11.136, 11.110), necessitating a precise inventory audit to ensure legacy installations receive the correct security update.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">cPanel and WHM have released updates to address three vulnerabilities involving insufficient input validation and unsafe symlink handling that could lead to privilege escalation, code execution, and denial-of-service.</span></li><li><span class="kp-text">The patched vulnerabilities include CVE-2026-29201 for arbitrary file read, CVE-2026-29202 for arbitrary Perl code execution, and CVE-2026-29203 for unsafe symlink handling.</span></li><li><span class="kp-text">Administrators must update to specific patched versions such as 11.136.0.9 and higher for cPanel and WHM, or 11.136.1.10 and higher for WP Squared.</span></li><li><span class="kp-text">Version 110.0.114 is released as a direct update for customers still running CentOS 6 or CloudLinux 6.</span></li><li><span class="kp-text">Although there is no evidence of these specific vulnerabilities being exploited in the wild, the disclosure follows the weaponization of another critical flaw used to deliver botnet variants and ransomware.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/05/cpanel-whm-patch-3-new-vulnerabilities.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article details critical vulnerabilities with CVSS scores of 8.8 that enable arbitrary code execution and privilege escalation in widely deployed cPanel and WHM infrastructure, requiring immediate patching. Although currently unexploited, the disclosure follows closely behind a weaponized zero-day used for botnets and ransomware, making this highly actionable for system administrators and hosting providers.</p>
 </div></div>
@@ -1556,9 +1711,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-05-09 22:10 UTC · 1 day window</span>
-  <span class="footer-right">2 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">2 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1571,15 +1729,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1692,12 +1912,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1758,6 +2012,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

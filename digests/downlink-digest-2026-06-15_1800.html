@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,50 +1506,50 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:94%"></div></div><span class="score-num score-num-high">94</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:e5fd7f85c5ee7607">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:e5fd7f85c5ee7607')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:e5fd7f85c5ee7607')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:e5fd7f85c5ee7607')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:e5fd7f85c5ee7607')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:e5fd7f85c5ee7607')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:e5fd7f85c5ee7607')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:e5fd7f85c5ee7607')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:e5fd7f85c5ee7607')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:e5fd7f85c5ee7607')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:e5fd7f85c5ee7607')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:e5fd7f85c5ee7607" class="tab-panel active"><div class="prose">Google says <mark class="tag-hl">China</mark>-linked <mark class="tag-hl">UNC6508</mark> compromised <mark class="tag-hl">REDCap</mark> servers at North American medical, academic, and military research organizations, using the <mark class="tag-hl">INFINITERED</mark> backdoor to steal credentials and gain admin access. The key risk is that the attackers then abused legitimate <mark class="tag-hl">Google Workspace</mark> <mark class="tag-hl">content compliance rules</mark> to silently BCC sensitive research and defense-related emails to an attacker-controlled <mark class="tag-hl">Gmail</mark> account.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:e5fd7f85c5ee7607" class="tab-panel"><div class="prose"><p>A <mark class="tag-hl">China</mark>-linked espionage group tracked by Google as <mark class="tag-hl">UNC6508</mark> compromised North American medical, academic, and military research networks and remained inside some environments for more than a year. Google’s Threat Intelligence Group attributed the campaign with high confidence to <mark class="tag-hl">UNC6508</mark> and said it notified victims and disrupted the group’s infrastructure. The victims were described as organizations in the <mark class="tag-hl">United States</mark> and <mark class="tag-hl">Canada</mark>, including clinical providers, academic centers, military health institutions, advocacy groups, and health regulators.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:e5fd7f85c5ee7607" class="tab-panel active"><div class="prose">Google says China-linked UNC6508 compromised REDCap servers at North American medical, academic, and military research organizations, using the INFINITERED backdoor to steal credentials and gain admin access. The key risk is that the attackers then abused legitimate Google Workspace content compliance rules to silently BCC sensitive research and defense-related emails to an attacker-controlled Gmail account.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:e5fd7f85c5ee7607" class="tab-panel"><div class="prose"><p>A China-linked espionage group tracked by Google as UNC6508 compromised North American medical, academic, and military research networks and remained inside some environments for more than a year. Google’s Threat Intelligence Group attributed the campaign with high confidence to UNC6508 and said it notified victims and disrupted the group’s infrastructure. The victims were described as organizations in the United States and Canada, including clinical providers, academic centers, military health institutions, advocacy groups, and health regulators.</p>
 
-<p>The attackers entered through externally facing <mark class="tag-hl">REDCap</mark> research servers and later deployed a custom backdoor called <mark class="tag-hl">INFINITERED</mark>. The malware trojanized <mark class="tag-hl">REDCap</mark> system files, harvested usernames and passwords from the login page, persisted through upgrades, and accepted commands through HTTP cookies. Google said the earliest known compromise dates to September 2023, with activity continuing through November 2025.</p>
+<p>The attackers entered through externally facing REDCap research servers and later deployed a custom backdoor called INFINITERED. The malware trojanized REDCap system files, harvested usernames and passwords from the login page, persisted through upgrades, and accepted commands through HTTP cookies. Google said the earliest known compromise dates to September 2023, with activity continuing through November 2025.</p>
 
-<p>The most notable exfiltration method was the abuse of <mark class="tag-hl">Google Workspace</mark> <mark class="tag-hl">content compliance rules</mark>. After obtaining admin access, <mark class="tag-hl">UNC6508</mark> created a rule that searched for nearly 150 keywords, search terms, and email addresses, then silently BCC’d matching emails to an attacker-controlled <mark class="tag-hl">Gmail</mark> account. Google said defenders should patch and remove old <mark class="tag-hl">REDCap</mark> versions, review mail routing and compliance rules, check admin audit logs, hunt for <mark class="tag-hl">INFINITERED</mark> indicators, and use phishing-resistant MFA for administrator accounts.</p>
+<p>The most notable exfiltration method was the abuse of Google Workspace content compliance rules. After obtaining admin access, UNC6508 created a rule that searched for nearly 150 keywords, search terms, and email addresses, then silently BCC’d matching emails to an attacker-controlled Gmail account. Google said defenders should patch and remove old REDCap versions, review mail routing and compliance rules, check admin audit logs, hunt for INFINITERED indicators, and use phishing-resistant MFA for administrator accounts.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:e5fd7f85c5ee7607" class="tab-panel"><div class="prose"><p>Google’s Threat Intelligence Group reported a <mark class="tag-hl">China</mark>-linked espionage campaign targeting North American medical, academic, and military research networks. Google attributes the activity with high confidence to a cluster it tracks as <mark class="tag-hl">UNC6508</mark>. The campaign affected multiple organizations across the <mark class="tag-hl">United States</mark> and <mark class="tag-hl">Canada</mark>, including clinical providers, academic centers, military health institutions, advocacy groups, and health regulators. Google said it notified the victims and disrupted the group’s infrastructure.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:e5fd7f85c5ee7607" class="tab-panel"><div class="prose"><p>Google’s Threat Intelligence Group reported a China-linked espionage campaign targeting North American medical, academic, and military research networks. Google attributes the activity with high confidence to a cluster it tracks as UNC6508. The campaign affected multiple organizations across the United States and Canada, including clinical providers, academic centers, military health institutions, advocacy groups, and health regulators. Google said it notified the victims and disrupted the group’s infrastructure.</p>
 
-<p>The entry point was <mark class="tag-hl">REDCap</mark>, a web platform used by hospitals and universities to build and manage study databases. <mark class="tag-hl">UNC6508</mark> compromised externally facing <mark class="tag-hl">REDCap</mark> servers, although Google has not identified the initial access vector, a specific CVE, or affected versions. Google observed the group probing older, vulnerable <mark class="tag-hl">REDCap</mark> versions. The earliest known compromise dates to September 2023, with activity continuing through November 2025.</p>
+<p>The entry point was REDCap, a web platform used by hospitals and universities to build and manage study databases. UNC6508 compromised externally facing REDCap servers, although Google has not identified the initial access vector, a specific CVE, or affected versions. Google observed the group probing older, vulnerable REDCap versions. The earliest known compromise dates to September 2023, with activity continuing through November 2025.</p>
 
-<p>About three months after gaining access, the attackers deployed custom malware that GTIG calls <mark class="tag-hl">INFINITERED</mark>. The backdoor trojanizes <mark class="tag-hl">REDCap</mark> system files, hijacks the upgrade process so new versions reinject the code, harvests usernames and passwords from the login page, and stores them encrypted in local database tables. It also accepts commands through HTTP cookies and runs on every page load. Once on the server, <mark class="tag-hl">UNC6508</mark> performed internal reconnaissance and credential discovery, including database and service account credentials.</p>
+<p>About three months after gaining access, the attackers deployed custom malware that GTIG calls INFINITERED. The backdoor trojanizes REDCap system files, hijacks the upgrade process so new versions reinject the code, harvests usernames and passwords from the login page, and stores them encrypted in local database tables. It also accepts commands through HTTP cookies and runs on every page load. Once on the server, UNC6508 performed internal reconnaissance and credential discovery, including database and service account credentials.</p>
 
-<p>The group then used those credentials to move into internal networks and eventually obtain a domain administrator account, though Google did not disclose the exact path to that account. With admin rights, <mark class="tag-hl">UNC6508</mark> abused <mark class="tag-hl">Google Workspace</mark> <mark class="tag-hl">content compliance rules</mark>, a legitimate feature that can scan mail for keywords and copy or forward matching messages. The attackers created a misspelled rule named “Patroit” that monitored nearly 150 keywords, search terms, and email addresses. Matching messages were silently BCC’d to an attacker-controlled <mark class="tag-hl">Gmail</mark> address that Google has since disabled.</p>
+<p>The group then used those credentials to move into internal networks and eventually obtain a domain administrator account, though Google did not disclose the exact path to that account. With admin rights, UNC6508 abused Google Workspace content compliance rules, a legitimate feature that can scan mail for keywords and copy or forward matching messages. The attackers created a misspelled rule named “Patroit” that monitored nearly 150 keywords, search terms, and email addresses. Matching messages were silently BCC’d to an attacker-controlled Gmail address that Google has since disabled.</p>
 
-<p>The rule’s monitored terms reflected collection priorities such as geo-strategic policy, military strategy and equipment, advanced technology including AI and uncrewed vehicles, offensive cyber programs, and medical research. One specific keyword was “chikungunya,” the mosquito-borne virus behind a 2025 outbreak in <mark class="tag-hl">China</mark>’s <mark class="tag-hl">Guangdong</mark> province. GTIG highlighted the use of domain <mark class="tag-hl">content compliance rules</mark> as a notable technique it had not seen from a <mark class="tag-hl">China</mark>-linked actor before. The article recommends patching externally facing <mark class="tag-hl">REDCap</mark> servers, removing old versions, reviewing mail compliance and forwarding rules, checking admin audit logs, hunting for <mark class="tag-hl">INFINITERED</mark> indicators, and applying phishing-resistant MFA to administrator accounts.</p>
+<p>The rule’s monitored terms reflected collection priorities such as geo-strategic policy, military strategy and equipment, advanced technology including AI and uncrewed vehicles, offensive cyber programs, and medical research. One specific keyword was “chikungunya,” the mosquito-borne virus behind a 2025 outbreak in China’s Guangdong province. GTIG highlighted the use of domain content compliance rules as a notable technique it had not seen from a China-linked actor before. The article recommends patching externally facing REDCap servers, removing old versions, reviewing mail compliance and forwarding rules, checking admin audit logs, hunting for INFINITERED indicators, and applying phishing-resistant MFA to administrator accounts.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:e5fd7f85c5ee7607" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:e5fd7f85c5ee7607" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Google’s Threat Intelligence Group reported a <mark class="tag-hl">China</mark>-linked espionage campaign against North American medical, academic, and military research networks. Google attributes the activity with high confidence to <mark class="tag-hl">UNC6508</mark>, a cluster it says targeted organizations in the <mark class="tag-hl">United States</mark> and <mark class="tag-hl">Canada</mark>. The affected organizations were described as clinical providers, academic centers, military health institutions, advocacy groups, and health regulators.</p>
+<p>Google’s Threat Intelligence Group reported a China-linked espionage campaign against North American medical, academic, and military research networks. Google attributes the activity with high confidence to UNC6508, a cluster it says targeted organizations in the United States and Canada. The affected organizations were described as clinical providers, academic centers, military health institutions, advocacy groups, and health regulators.</p>
 
-<p>The campaign combined a <mark class="tag-hl">REDCap</mark> server compromise with abuse of <mark class="tag-hl">Google Workspace</mark> administration features. The attackers used a backdoor on <mark class="tag-hl">REDCap</mark> research servers to steal credentials and move through victim environments. The most notable exfiltration method was the use of the victims’ own <mark class="tag-hl">Google Workspace</mark> <mark class="tag-hl">content compliance rules</mark> to copy selected emails to an attacker-controlled inbox.</p>
+<p>The campaign combined a REDCap server compromise with abuse of Google Workspace administration features. The attackers used a backdoor on REDCap research servers to steal credentials and move through victim environments. The most notable exfiltration method was the use of the victims’ own Google Workspace content compliance rules to copy selected emails to an attacker-controlled inbox.</p>
 
 <p>Google said it notified affected organizations and disrupted the group’s infrastructure.</p>
 
 <h2 id="actor-and-targeting">Actor and targeting</h2>
 
-<p>The activity is attributed by Google’s Threat Intelligence Group with high confidence to <mark class="tag-hl">UNC6508</mark>. The article describes the group as <mark class="tag-hl">China</mark>-linked and says both the actor and its <mark class="tag-hl">REDCap</mark> backdoor had been surfaced earlier by Google in a broader report on state-backed attacks against the defense sector.</p>
+<p>The activity is attributed by Google’s Threat Intelligence Group with high confidence to UNC6508. The article describes the group as China-linked and says both the actor and its REDCap backdoor had been surfaced earlier by Google in a broader report on state-backed attacks against the defense sector.</p>
 
-<p>The victims were not named. Google described them as multiple organizations across the <mark class="tag-hl">United States</mark> and <mark class="tag-hl">Canada</mark>, including:</p>
+<p>The victims were not named. Google described them as multiple organizations across the United States and Canada, including:</p>
 
 <ul>
 <li>Clinical providers</li>
@@ -1408,41 +1561,41 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article says the group remained inside North American medical, academic, and military research networks for more than a year while stealing sensitive research and defense-related email.</p>
 
-<h2 id="initial-access-through-redcap">Initial access through <mark class="tag-hl">REDCap</mark></h2>
+<h2 id="initial-access-through-redcap">Initial access through REDCap</h2>
 
-<p>The entry point was <mark class="tag-hl">REDCap</mark>, or Research Electronic Data Capture, a web platform used by hospitals and universities to build and manage study databases. <mark class="tag-hl">UNC6508</mark> compromised externally facing <mark class="tag-hl">REDCap</mark> servers.</p>
+<p>The entry point was REDCap, or Research Electronic Data Capture, a web platform used by hospitals and universities to build and manage study databases. UNC6508 compromised externally facing REDCap servers.</p>
 
-<p>Google has not identified the initial access vector. The article states that Google did not name a specific CVE or list affected versions, although it observed the group probing older, vulnerable <mark class="tag-hl">REDCap</mark> versions.</p>
+<p>Google has not identified the initial access vector. The article states that Google did not name a specific CVE or list affected versions, although it observed the group probing older, vulnerable REDCap versions.</p>
 
 <p>The earliest known compromise dates to September 2023, and activity continued through November 2025.</p>
 
-<h2 id="infinitered-backdoor"><mark class="tag-hl">INFINITERED</mark> backdoor</h2>
+<h2 id="infinitered-backdoor">INFINITERED backdoor</h2>
 
-<p>Around three months after initial access, <mark class="tag-hl">UNC6508</mark> deployed custom malware that Google calls <mark class="tag-hl">INFINITERED</mark>. The malware trojanizes <mark class="tag-hl">REDCap</mark>’s own system files and performs three main functions.</p>
+<p>Around three months after initial access, UNC6508 deployed custom malware that Google calls INFINITERED. The malware trojanizes REDCap’s own system files and performs three main functions.</p>
 
-<p><mark class="tag-hl">INFINITERED</mark>:</p>
+<p>INFINITERED:</p>
 
 <ul>
-<li>Hijacks the <mark class="tag-hl">REDCap</mark> upgrade process so each new version reinjects the malicious code instead of removing it.</li>
-<li>Harvests usernames and passwords from the <mark class="tag-hl">REDCap</mark> login page and stores them, encrypted, in local database tables.</li>
+<li>Hijacks the REDCap upgrade process so each new version reinjects the malicious code instead of removing it.</li>
+<li>Harvests usernames and passwords from the REDCap login page and stores them, encrypted, in local database tables.</li>
 <li>Acts as a backdoor that receives commands through HTTP cookies and runs on every page load.</li>
 </ul>
 
-<p>After gaining a foothold, <mark class="tag-hl">UNC6508</mark> conducted internal reconnaissance and credential discovery. The group pulled database and service account credentials, then used those logins to move into the internal network and eventually obtain a domain administrator account. Google did not disclose the exact path to the domain administrator account.</p>
+<p>After gaining a foothold, UNC6508 conducted internal reconnaissance and credential discovery. The group pulled database and service account credentials, then used those logins to move into the internal network and eventually obtain a domain administrator account. Google did not disclose the exact path to the domain administrator account.</p>
 
-<h2 id="email-theft-through-google-workspace-rules">Email theft through <mark class="tag-hl">Google Workspace</mark> rules</h2>
+<h2 id="email-theft-through-google-workspace-rules">Email theft through Google Workspace rules</h2>
 
-<p>The exfiltration method used a legitimate <mark class="tag-hl">Google Workspace</mark> admin feature rather than malware on the mail server or a separate exfiltration tool. <mark class="tag-hl">UNC6508</mark> abused <mark class="tag-hl">content compliance rules</mark>, which can scan mail for keywords and copy or forward matching messages.</p>
+<p>The exfiltration method used a legitimate Google Workspace admin feature rather than malware on the mail server or a separate exfiltration tool. UNC6508 abused content compliance rules, which can scan mail for keywords and copy or forward matching messages.</p>
 
-<p>With administrator access, the attackers created a rule named “Patroit.” The rule monitored nearly 150 keywords, search terms, and email addresses. When a message matched the rule, <mark class="tag-hl">Google Workspace</mark> silently BCC’d it to an attacker-controlled <mark class="tag-hl">Gmail</mark> address.</p>
+<p>With administrator access, the attackers created a rule named “Patroit.” The rule monitored nearly 150 keywords, search terms, and email addresses. When a message matched the rule, Google Workspace silently BCC’d it to an attacker-controlled Gmail address.</p>
 
-<p>Google has since disabled the attacker-controlled <mark class="tag-hl">Gmail</mark> address.</p>
+<p>Google has since disabled the attacker-controlled Gmail address.</p>
 
 <p>The article emphasizes that this approach generated no separate mail-server malware, no standalone exfiltration tool, and no unusual network traffic. Instead, a built-in mail feature was turned into a way to copy organizational secrets to an inbox controlled by the attackers.</p>
 
 <h2 id="collection-priorities-reflected-in-keywords">Collection priorities reflected in keywords</h2>
 
-<p>The rule’s keywords mapped to <mark class="tag-hl">UNC6508</mark>’s stated collection priorities. The article lists the following areas reflected in the monitored terms:</p>
+<p>The rule’s keywords mapped to UNC6508’s stated collection priorities. The article lists the following areas reflected in the monitored terms:</p>
 
 <ul>
 <li>Geo-strategic policy</li>
@@ -1452,37 +1605,38 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Medical research</li>
 </ul>
 
-<p>One specific keyword stood out: “chikungunya,” the mosquito-borne virus behind a 2025 outbreak in <mark class="tag-hl">China</mark>’s <mark class="tag-hl">Guangdong</mark> province.</p>
+<p>One specific keyword stood out: “chikungunya,” the mosquito-borne virus behind a 2025 outbreak in China’s Guangdong province.</p>
 
 <h2 id="technique-significance">Technique significance</h2>
 
-<p>The article notes that MITRE already catalogs email-forwarding-rule abuse as a known technique. What <mark class="tag-hl">Google Threat Intelligence Group</mark> highlighted as new in this case was the use of domain <mark class="tag-hl">content compliance rules</mark> for the same purpose.</p>
+<p>The article notes that MITRE already catalogs email-forwarding-rule abuse as a known technique. What Google Threat Intelligence Group highlighted as new in this case was the use of domain content compliance rules for the same purpose.</p>
 
-<p>According to the article, GTIG said it had not previously seen this method used by a <mark class="tag-hl">China</mark>-linked actor. The significance is that once attackers have administrator access, a built-in cloud email feature can become a quiet exfiltration path.</p>
+<p>According to the article, GTIG said it had not previously seen this method used by a China-linked actor. The significance is that once attackers have administrator access, a built-in cloud email feature can become a quiet exfiltration path.</p>
 
 <h2 id="recommended-defensive-actions">Recommended defensive actions</h2>
 
-<p>The article recommends starting with <mark class="tag-hl">REDCap</mark> defenses. Organizations should patch externally facing <mark class="tag-hl">REDCap</mark> servers and remove old versions outright rather than leaving them alongside the current build. <mark class="tag-hl">REDCap</mark> allows legacy versions to run side by side, which the article says can enable <mark class="tag-hl">downgrade attacks</mark> where an attacker forces software back to a known-vulnerable release.</p>
+<p>The article recommends starting with REDCap defenses. Organizations should patch externally facing REDCap servers and remove old versions outright rather than leaving them alongside the current build. REDCap allows legacy versions to run side by side, which the article says can enable downgrade attacks where an attacker forces software back to a known-vulnerable release.</p>
 
-<p>On the mail side, defenders should review <mark class="tag-hl">Google Workspace</mark> or equivalent content compliance and mail-forwarding rules. The article specifically recommends looking for rules that BCC or reroute mail to external addresses.</p>
+<p>On the mail side, defenders should review Google Workspace or equivalent content compliance and mail-forwarding rules. The article specifically recommends looking for rules that BCC or reroute mail to external addresses.</p>
 
-<p>It also recommends checking admin audit logs for when rules changed, not only reviewing the current rule configuration. Defenders are advised to pull Google’s published indicators and hunt for <mark class="tag-hl">INFINITERED</mark>. The article also recommends phishing-resistant MFA on administrator accounts because the mail-theft step depended on admin access.</p>
+<p>It also recommends checking admin audit logs for when rules changed, not only reviewing the current rule configuration. Defenders are advised to pull Google’s published indicators and hunt for INFINITERED. The article also recommends phishing-resistant MFA on administrator accounts because the mail-theft step depended on admin access.</p>
 
 <h2 id="key-takeaway">Key takeaway</h2>
 
-<p>The campaign shows how a compromise of <mark class="tag-hl">REDCap</mark> research infrastructure enabled credential theft, internal movement, and eventual abuse of <mark class="tag-hl">Google Workspace</mark> administration features. The most important technical point is that <mark class="tag-hl">UNC6508</mark> used a legitimate content compliance rule to silently copy sensitive emails matching selected terms to an attacker-controlled <mark class="tag-hl">Gmail</mark> account. The article concludes that defenders need to audit built-in cloud mail features, not only search for the <mark class="tag-hl">REDCap</mark> backdoor.</p>
+<p>The campaign shows how a compromise of REDCap research infrastructure enabled credential theft, internal movement, and eventual abuse of Google Workspace administration features. The most important technical point is that UNC6508 used a legitimate content compliance rule to silently copy sensitive emails matching selected terms to an attacker-controlled Gmail account. The article concludes that defenders need to audit built-in cloud mail features, not only search for the REDCap backdoor.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:e5fd7f85c5ee7607" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The exfiltration path was difficult to spot because it used a legitimate <mark class="tag-hl">Google Workspace</mark> admin feature rather than malware, a separate exfiltration tool, or unusual mail-server network traffic.</span></li><li><span class="kp-text"><mark class="tag-hl">REDCap</mark> legacy versions can remain runnable alongside newer builds, so simply installing the latest version may not remove exposure to <mark class="tag-hl">downgrade attacks</mark> or older vulnerable code.</span></li><li><span class="kp-text">The <mark class="tag-hl">INFINITERED</mark> backdoor was designed to survive <mark class="tag-hl">REDCap</mark> upgrades by hijacking the upgrade process and reinjecting itself into new versions.</span></li><li><span class="kp-text">Defenders need to review historical admin audit logs for content compliance and forwarding-rule changes, because the current rule configuration alone may not show when or how exfiltration was enabled.</span></li><li><span class="kp-text">The misspelled Workspace rule name “Patroit” and its nearly 150 monitored terms provide concrete hunting leads for identifying similar abuse of mail-routing rules.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:e5fd7f85c5ee7607" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The exfiltration path was difficult to spot because it used a legitimate Google Workspace admin feature rather than malware, a separate exfiltration tool, or unusual mail-server network traffic.</span></li><li><span class="kp-text">REDCap legacy versions can remain runnable alongside newer builds, so simply installing the latest version may not remove exposure to downgrade attacks or older vulnerable code.</span></li><li><span class="kp-text">The INFINITERED backdoor was designed to survive REDCap upgrades by hijacking the upgrade process and reinjecting itself into new versions.</span></li><li><span class="kp-text">Defenders need to review historical admin audit logs for content compliance and forwarding-rule changes, because the current rule configuration alone may not show when or how exfiltration was enabled.</span></li><li><span class="kp-text">The misspelled Workspace rule name “Patroit” and its nearly 150 monitored terms provide concrete hunting leads for identifying similar abuse of mail-routing rules.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Google&#39;s Threat Intelligence Group attributed the campaign with high confidence to the <mark class="tag-hl">China</mark>-linked cluster <mark class="tag-hl">UNC6508</mark>, which targeted North American medical, academic, and military research networks.</span></li><li><span class="kp-text"><mark class="tag-hl">UNC6508</mark> compromised externally facing <mark class="tag-hl">REDCap</mark> servers and deployed the <mark class="tag-hl">INFINITERED</mark> backdoor, which trojanizes <mark class="tag-hl">REDCap</mark> system files, harvests login credentials, and accepts commands through HTTP cookies.</span></li><li><span class="kp-text">The attackers used stolen credentials and internal reconnaissance to move into victim networks and obtain domain administrator access.</span></li><li><span class="kp-text"><mark class="tag-hl">UNC6508</mark> abused <mark class="tag-hl">Google Workspace</mark> <mark class="tag-hl">content compliance rules</mark> to silently BCC emails matching nearly 150 keywords, search terms, and email addresses to an attacker-controlled <mark class="tag-hl">Gmail</mark> account.</span></li><li><span class="kp-text">Google said the campaign affected multiple organizations in the <mark class="tag-hl">United States</mark> and <mark class="tag-hl">Canada</mark>, including clinical providers, academic centers, military health institutions, advocacy groups, and health regulators.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Google&#39;s Threat Intelligence Group attributed the campaign with high confidence to the China-linked cluster UNC6508, which targeted North American medical, academic, and military research networks.</span></li><li><span class="kp-text">UNC6508 compromised externally facing REDCap servers and deployed the INFINITERED backdoor, which trojanizes REDCap system files, harvests login credentials, and accepts commands through HTTP cookies.</span></li><li><span class="kp-text">The attackers used stolen credentials and internal reconnaissance to move into victim networks and obtain domain administrator access.</span></li><li><span class="kp-text">UNC6508 abused Google Workspace content compliance rules to silently BCC emails matching nearly 150 keywords, search terms, and email addresses to an attacker-controlled Gmail account.</span></li><li><span class="kp-text">Google said the campaign affected multiple organizations in the United States and Canada, including clinical providers, academic centers, military health institutions, advocacy groups, and health regulators.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/chinese-hackers-abused-google-workspace.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports a named <mark class="tag-hl">China</mark>-linked threat actor operation involving long-running compromise of North American medical, academic, and military research networks. The abuse of <mark class="tag-hl">Google Workspace</mark> <mark class="tag-hl">content compliance rules</mark> for stealthy email exfiltration is a concrete and broadly relevant technique that defenders should audit immediately.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports a named China-linked threat actor operation involving long-running compromise of North American medical, academic, and military research networks. The abuse of Google Workspace content compliance rules for stealthy email exfiltration is a concrete and broadly relevant technique that defenders should audit immediately.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://cloud.google.com/blog/topics/threat-intelligence/prc-targets-us-medical-research" target="_blank" rel="noopener">PRC Targets US Medical Research</a></div>
   <div class="report-meta">Google Threat Intelligence Group</div>
-  <div class="report-context">The article says <mark class="tag-hl">Google Threat Intelligence Group</mark> laid out the <mark class="tag-hl">UNC6508</mark> campaign in a report published this week and relies on it for attribution, victim context, malware details, and defensive guidance.</div>
+  <div class="report-context">The article says Google Threat Intelligence Group laid out the UNC6508 campaign in a report published this week and relies on it for attribution, victim context, malware details, and defensive guidance.</div>
 </li></ul></div>
             
           </div>
@@ -1505,50 +1659,50 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:92%"></div></div><span class="score-num score-num-high">92</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:5ecad1271cf75693">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:5ecad1271cf75693')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:5ecad1271cf75693')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:5ecad1271cf75693')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:5ecad1271cf75693')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:5ecad1271cf75693')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:5ecad1271cf75693')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:5ecad1271cf75693')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:5ecad1271cf75693')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:5ecad1271cf75693')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:5ecad1271cf75693')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:5ecad1271cf75693" class="tab-panel active"><div class="prose"><mark class="tag-hl">North Korea</mark>-linked hackers are scaling phishing campaigns that lure developers into opening malicious <mark class="tag-hl">GitHub</mark> projects or VS Code extensions, triggering malware that steals credentials and cryptocurrency wallet data across macOS, Linux, and Windows. The activity shows a broader shift toward abusing developer tools and software supply chains as malware delivery channels.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:5ecad1271cf75693" class="tab-panel"><div class="prose"><p>Cybersecurity researchers have identified malicious campaigns showing similarities to the <mark class="tag-hl">North Korea</mark>-linked <mark class="tag-hl">Contagious Interview</mark> cluster, also known as Famous Chollima, HexagonalRodent, and Void Dokkaebi. Proofpoint is tracking one campaign as UNK_DeadDrop, which used developer recruitment and code review themes to target nearly 100 organizations across finance, cryptocurrency, education, technology, and other sectors. More than 250 emails were sent over six weeks, with over 75% of targeted entities located in the United States.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:5ecad1271cf75693" class="tab-panel active"><div class="prose">North Korea-linked hackers are scaling phishing campaigns that lure developers into opening malicious GitHub projects or VS Code extensions, triggering malware that steals credentials and cryptocurrency wallet data across macOS, Linux, and Windows. The activity shows a broader shift toward abusing developer tools and software supply chains as malware delivery channels.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:5ecad1271cf75693" class="tab-panel"><div class="prose"><p>Cybersecurity researchers have identified malicious campaigns showing similarities to the North Korea-linked Contagious Interview cluster, also known as Famous Chollima, HexagonalRodent, and Void Dokkaebi. Proofpoint is tracking one campaign as UNK_DeadDrop, which used developer recruitment and code review themes to target nearly 100 organizations across finance, cryptocurrency, education, technology, and other sectors. More than 250 emails were sent over six weeks, with over 75% of targeted entities located in the United States.</p>
 
-<p>The campaign directed recipients to actor-controlled <mark class="tag-hl">GitHub</mark> repositories that posed as technical assignments, cryptocurrency projects, or open-source projects needing review. Victims were instructed to clone the repositories and open them in VS Code or Cursor, where malicious project behavior could trigger operating system-specific loaders for macOS, Linux, and Windows. A key technique was the VS Code “runOn: folderOpen” method, which can execute malicious code when a folder is opened without further user interaction.</p>
+<p>The campaign directed recipients to actor-controlled GitHub repositories that posed as technical assignments, cryptocurrency projects, or open-source projects needing review. Victims were instructed to clone the repositories and open them in VS Code or Cursor, where malicious project behavior could trigger operating system-specific loaders for macOS, Linux, and Windows. A key technique was the VS Code “runOn: folderOpen” method, which can execute malicious code when a folder is opened without further user interaction.</p>
 
-<p>The loaders installed a malicious VS Code extension masquerading as a legitimate Google service and enabled remote command execution, reconnaissance, and theft of credentials and cryptocurrency wallet data. Linux and macOS infections led to a custom version of the open-source <mark class="tag-hl">Overlord</mark> framework, while the Windows chain used VBScript and CMD to install the extension and exfiltrate ZIP files before cleanup. The article also reports separate findings from Yeeth Security about malicious VS Code marketplace extensions posing as Jupyter Notebook productivity tools and functioning as a multi-stage backdoor using SharePoint and Microsoft Graph API.</p>
+<p>The loaders installed a malicious VS Code extension masquerading as a legitimate Google service and enabled remote command execution, reconnaissance, and theft of credentials and cryptocurrency wallet data. Linux and macOS infections led to a custom version of the open-source Overlord framework, while the Windows chain used VBScript and CMD to install the extension and exfiltrate ZIP files before cleanup. The article also reports separate findings from Yeeth Security about malicious VS Code marketplace extensions posing as Jupyter Notebook productivity tools and functioning as a multi-stage backdoor using SharePoint and Microsoft Graph API.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:5ecad1271cf75693" class="tab-panel"><div class="prose"><p>The article reports on malicious developer-focused campaigns that exhibit similarities to the <mark class="tag-hl">North Korea</mark>-linked <mark class="tag-hl">Contagious Interview</mark> threat cluster, also known as Famous Chollima, HexagonalRodent, and Void Dokkaebi. Proofpoint documented one campaign as UNK_DeadDrop, describing phishing activity that used developer recruitment or code review themes. The campaign targeted nearly 100 organizations across finance, cryptocurrency, education, technology, and other sectors.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:5ecad1271cf75693" class="tab-panel"><div class="prose"><p>The article reports on malicious developer-focused campaigns that exhibit similarities to the North Korea-linked Contagious Interview threat cluster, also known as Famous Chollima, HexagonalRodent, and Void Dokkaebi. Proofpoint documented one campaign as UNK_DeadDrop, describing phishing activity that used developer recruitment or code review themes. The campaign targeted nearly 100 organizations across finance, cryptocurrency, education, technology, and other sectors.</p>
 
-<p>Proofpoint observed more than 250 emails sent over a six-week period to individuals at almost 100 organizations. More than 75% of the targeted entities were in the United States, with additional targets in the United Kingdom, Australia, France, Brazil, Germany, India, Israel, Japan, and the Netherlands. The emails linked to actor-controlled <mark class="tag-hl">GitHub</mark> repositories that masqueraded as technical assignments, cryptocurrency-related projects, or open-source projects submitted for review.</p>
+<p>Proofpoint observed more than 250 emails sent over a six-week period to individuals at almost 100 organizations. More than 75% of the targeted entities were in the United States, with additional targets in the United Kingdom, Australia, France, Brazil, Germany, India, Israel, Japan, and the Netherlands. The emails linked to actor-controlled GitHub repositories that masqueraded as technical assignments, cryptocurrency-related projects, or open-source projects submitted for review.</p>
 
 <p>The infection chain depended on recipients cloning the repositories and opening them in VS Code or Cursor. The malicious projects used operating system-specific loaders for Linux, macOS, and Windows, and the article highlights the “runOn: folderOpen” technique in VS Code projects as a key link to Pyongyang-associated activity. This technique can trigger code execution when the editor opens a folder, without requiring additional user interaction.</p>
 
-<p>The macOS and Linux loaders were shell scripts, while the Windows loader was a VBScript that ran a CMD file. The loaders installed a malicious VS Code extension that masqueraded as a legitimate Google service and communicated with an external server to support remote command execution, system reconnaissance, and exfiltration of browser wallet extension data, credentials, and desktop wallet application data. The Linux and macOS chains led to a custom version of the open-source <mark class="tag-hl">Overlord</mark> framework, while the Windows chain uploaded ZIP files, cleaned up, and terminated rather than maintaining a persistent connection.</p>
+<p>The macOS and Linux loaders were shell scripts, while the Windows loader was a VBScript that ran a CMD file. The loaders installed a malicious VS Code extension that masqueraded as a legitimate Google service and communicated with an external server to support remote command execution, system reconnaissance, and exfiltration of browser wallet extension data, credentials, and desktop wallet application data. The Linux and macOS chains led to a custom version of the open-source Overlord framework, while the Windows chain uploaded ZIP files, cleaned up, and terminated rather than maintaining a persistent connection.</p>
 
-<p>The article also describes Yeeth Security’s discovery of three malicious VS Code extensions on the official marketplace, named as Jupyter Notebook productivity tools but functioning as a sophisticated multi-stage backdoor. These extensions used a SharePoint site as a command queue, victim registry, and exfiltration channel, with Microsoft Graph API and SharePoint handling command-and-control communication. The article places these findings alongside several recent <mark class="tag-hl">North Korea</mark>-linked developer and supply chain campaigns involving npm packages, Git hooks, Packagist, malicious repositories, macOS social engineering, and malware families such as <mark class="tag-hl">BeaverTail</mark>, <mark class="tag-hl">InvisibleFerret</mark>, <mark class="tag-hl">OtterCookie</mark>, <mark class="tag-hl">Cabbage RAT</mark>, <mark class="tag-hl">Mach-O Man</mark>, PromptMink, and ClipViper.</p>
+<p>The article also describes Yeeth Security’s discovery of three malicious VS Code extensions on the official marketplace, named as Jupyter Notebook productivity tools but functioning as a sophisticated multi-stage backdoor. These extensions used a SharePoint site as a command queue, victim registry, and exfiltration channel, with Microsoft Graph API and SharePoint handling command-and-control communication. The article places these findings alongside several recent North Korea-linked developer and supply chain campaigns involving npm packages, Git hooks, Packagist, malicious repositories, macOS social engineering, and malware families such as BeaverTail, InvisibleFerret, OtterCookie, Cabbage RAT, Mach-O Man, PromptMink, and ClipViper.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:5ecad1271cf75693" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:5ecad1271cf75693" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Cybersecurity researchers reported malicious campaigns that show similarities to the persistent <mark class="tag-hl">North Korea</mark>-linked threat cluster known as <mark class="tag-hl">Contagious Interview</mark>. The cluster is also referred to in the article as Famous Chollima, HexagonalRodent, and Void Dokkaebi. One campaign, tracked by Proofpoint as UNK_DeadDrop, used developer role recruitment and code review themes to target individuals at nearly 100 organizations.</p>
+<p>Cybersecurity researchers reported malicious campaigns that show similarities to the persistent North Korea-linked threat cluster known as Contagious Interview. The cluster is also referred to in the article as Famous Chollima, HexagonalRodent, and Void Dokkaebi. One campaign, tracked by Proofpoint as UNK_DeadDrop, used developer role recruitment and code review themes to target individuals at nearly 100 organizations.</p>
 
 <p>Proofpoint said the campaign affected organizations in finance, cryptocurrency, education, technology, and several other sectors. The activity involved more than 250 emails sent over a six-week period. More than 75% of the targeted entities were located in the United States, followed by the United Kingdom, Australia, France, Brazil, Germany, India, Israel, Japan, and the Netherlands.</p>
 
 <h2 id="unk-deaddrop-campaign">UNK_DeadDrop campaign</h2>
 
-<p>Proofpoint described UNK_DeadDrop as a phishing campaign that began with emails containing links to actor-controlled <mark class="tag-hl">GitHub</mark> repositories. These repositories hosted malicious scripts and were presented as technical assignments, cryptocurrency-related projects, or later as open-source projects that targets were asked to review. Recipients were instructed to clone the repositories and open them in VS Code or Cursor.</p>
+<p>Proofpoint described UNK_DeadDrop as a phishing campaign that began with emails containing links to actor-controlled GitHub repositories. These repositories hosted malicious scripts and were presented as technical assignments, cryptocurrency-related projects, or later as open-source projects that targets were asked to review. Recipients were instructed to clone the repositories and open them in VS Code or Cursor.</p>
 
-<p>Once opened, the repositories could execute operating system-specific malware loaders for Linux, macOS, and Windows. The article identifies the use of Microsoft <mark class="tag-hl">Visual Studio Code</mark> projects employing the “runOn: folderOpen” technique as an important connection to Pyongyang-linked activity. This technique causes malicious code to execute when a code editor opens a folder, without additional user interaction.</p>
+<p>Once opened, the repositories could execute operating system-specific malware loaders for Linux, macOS, and Windows. The article identifies the use of Microsoft Visual Studio Code projects employing the “runOn: folderOpen” technique as an important connection to Pyongyang-linked activity. This technique causes malicious code to execute when a code editor opens a folder, without additional user interaction.</p>
 
-<p>Proofpoint said <mark class="tag-hl">Contagious Interview</mark> actors have used this approach since December 2025. The article notes that Proofpoint is tracking UNK_DeadDrop separately from <mark class="tag-hl">Contagious Interview</mark> because of differences in initial access methods and malware tooling. Specifically, Proofpoint highlighted LinkedIn versus email as an initial access difference and noted the use of the open-source <mark class="tag-hl">Overlord</mark> framework rather than the custom malware families traditionally associated with <mark class="tag-hl">Contagious Interview</mark>, such as <mark class="tag-hl">BeaverTail</mark>, <mark class="tag-hl">InvisibleFerret</mark>, and <mark class="tag-hl">OtterCookie</mark>.</p>
+<p>Proofpoint said Contagious Interview actors have used this approach since December 2025. The article notes that Proofpoint is tracking UNK_DeadDrop separately from Contagious Interview because of differences in initial access methods and malware tooling. Specifically, Proofpoint highlighted LinkedIn versus email as an initial access difference and noted the use of the open-source Overlord framework rather than the custom malware families traditionally associated with Contagious Interview, such as BeaverTail, InvisibleFerret, and OtterCookie.</p>
 
 <h2 id="malware-behavior-and-infection-chains">Malware behavior and infection chains</h2>
 
@@ -1556,17 +1710,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The loaders installed a malicious VS Code extension in VSIX format. The extension masqueraded as a legitimate Google service and communicated with an external server to enable remote command execution, system reconnaissance, and data exfiltration. Targeted data included browser wallet extension data, credentials, and desktop wallet application data.</p>
 
-<p>The Linux and macOS infection chains led to a custom version of the open-source Go framework <mark class="tag-hl">Overlord</mark>. This version included data theft capabilities and prompted users to enter their system password through a fake security pop-up. The Windows chain used VBScript and CMD to install the extension, exfiltrated stolen results to the server, performed cleanup, and terminated.</p>
+<p>The Linux and macOS infection chains led to a custom version of the open-source Go framework Overlord. This version included data theft capabilities and prompted users to enter their system password through a fake security pop-up. The Windows chain used VBScript and CMD to install the extension, exfiltrated stolen results to the server, performed cleanup, and terminated.</p>
 
 <p>Proofpoint reported that the end goal was to steal credentials and wallet-related data and exfiltrate results to the server at 23.137.105[.]75:5173 using an HTTP POST request. The article states that, unlike the Linux and macOS agent, the Windows pipeline did not maintain a persistent connection. It uploaded ZIP files, cleaned up, and exited.</p>
 
-<p>Proofpoint also found that the actor had previously distributed a Windows Go binary of <mark class="tag-hl">Overlord</mark>. The article says the actor later shifted to the newer Windows method, likely in an attempt to avoid detection.</p>
+<p>Proofpoint also found that the actor had previously distributed a Windows Go binary of Overlord. The article says the actor later shifted to the newer Windows method, likely in an attempt to avoid detection.</p>
 
 <h2 id="significance-of-the-developer-tooling-abuse">Significance of the developer-tooling abuse</h2>
 
-<p>The article emphasizes that developer tools are being used as malware delivery and execution channels. In UNK_DeadDrop, <mark class="tag-hl">GitHub</mark> repositories, VS Code projects, Cursor, and VS Code extensions were central to the attack flow. The execution mechanism relied on normal developer workflows, such as cloning a repository and opening it in an editor.</p>
+<p>The article emphasizes that developer tools are being used as malware delivery and execution channels. In UNK_DeadDrop, GitHub repositories, VS Code projects, Cursor, and VS Code extensions were central to the attack flow. The execution mechanism relied on normal developer workflows, such as cloning a repository and opening it in an editor.</p>
 
-<p>Proofpoint characterized the activity as evidence that <mark class="tag-hl">North Korea</mark>-aligned operations targeting developers for financial gain are maturing and evolving. The company said the shift from active social engineering over social media platforms for fake interviews to larger recruitment-themed phishing email campaigns may indicate industrialization and scaling of operations.</p>
+<p>Proofpoint characterized the activity as evidence that North Korea-aligned operations targeting developers for financial gain are maturing and evolving. The company said the shift from active social engineering over social media platforms for fake interviews to larger recruitment-themed phishing email campaigns may indicate industrialization and scaling of operations.</p>
 
 <h2 id="malicious-vs-code-marketplace-extensions">Malicious VS Code marketplace extensions</h2>
 
@@ -1582,29 +1736,29 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The command-and-control channel supported commands and scripts, as well as a third command type called “host_action.” The host_action command enabled file system operations such as pwd, ls, cd, and cat, along with file uploads and downloads.</p>
 
-<p>Yeeth Security did not identify direct overlap with any publicly documented North Korean campaign. However, the article says Yeeth Security observed echoes of <mark class="tag-hl">Contagious Interview</mark> in the split between JavaScript and Python developer tooling, and similarities between the Microsoft Graph API authentication mechanism and <mark class="tag-hl">Lazarus Group</mark>’s Dream Job attacks detailed by S2 Grupo LAB52 in October 2025.</p>
+<p>Yeeth Security did not identify direct overlap with any publicly documented North Korean campaign. However, the article says Yeeth Security observed echoes of Contagious Interview in the split between JavaScript and Python developer tooling, and similarities between the Microsoft Graph API authentication mechanism and Lazarus Group’s Dream Job attacks detailed by S2 Grupo LAB52 in October 2025.</p>
 
-<h2 id="related-north-korea-linked-activity-described-in-the-article">Related <mark class="tag-hl">North Korea</mark>-linked activity described in the article</h2>
+<h2 id="related-north-korea-linked-activity-described-in-the-article">Related North Korea-linked activity described in the article</h2>
 
-<p>The article places the UNK_DeadDrop and VS Code extension findings within a broader set of recent <mark class="tag-hl">North Korea</mark>-linked campaigns and techniques.</p>
+<p>The article places the UNK_DeadDrop and VS Code extension findings within a broader set of recent North Korea-linked campaigns and techniques.</p>
 
 <h3 id="axios-related-supply-chain-follow-up">Axios-related supply chain follow-up</h3>
 
-<p>The article describes a follow-up to the Axios supply chain attack that used three malicious npm packages: redeem-onchain-sdk@1.0.7, nicegui@0.1.4, and period-newline@0.1.0. These packages delivered an information stealer and exfiltrated harvested data to different command-and-control infrastructure. They were listed as dependencies on <mark class="tag-hl">GitHub</mark> projects disguised as cryptocurrency trading bots.</p>
+<p>The article describes a follow-up to the Axios supply chain attack that used three malicious npm packages: redeem-onchain-sdk@1.0.7, nicegui@0.1.4, and period-newline@0.1.0. These packages delivered an information stealer and exfiltrated harvested data to different command-and-control infrastructure. They were listed as dependencies on GitHub projects disguised as cryptocurrency trading bots.</p>
 
 <p>OpenSourceMalware said the first secondary payload appeared on the registry less than 18 hours after the Axios malicious packages were removed from npm. The article quotes OpenSourceMalware as saying this suggested the threat actor had prepared backup infrastructure and could quickly deploy alternative delivery mechanisms.</p>
 
 <h3 id="taskjacker">TaskJacker</h3>
 
-<p>The article describes a campaign called TaskJacker that dropped malicious VS Code task files into <mark class="tag-hl">GitHub</mark> users’ existing repositories. OpenSourceMalware said the campaign weaponized VS Code’s tasks.json auto-execution feature so that opening a cloned repository in an IDE could compromise a system. The article says this created worm-like spreading behavior.</p>
+<p>The article describes a campaign called TaskJacker that dropped malicious VS Code task files into GitHub users’ existing repositories. OpenSourceMalware said the campaign weaponized VS Code’s tasks.json auto-execution feature so that opening a cloned repository in an IDE could compromise a system. The article says this created worm-like spreading behavior.</p>
 
 <h3 id="git-hooks-in-coding-assessment-repositories">Git hooks in coding assessment repositories</h3>
 
-<p>The article says <mark class="tag-hl">Contagious Interview</mark> used Git hooks, specifically “.githooks/pre-commit,” to execute malicious code when a target cloned a “coding assessment” repository. This was described as a shift from hiding malicious code in .vscode/tasks.json or package.json files.</p>
+<p>The article says Contagious Interview used Git hooks, specifically “.githooks/pre-commit,” to execute malicious code when a target cloned a “coding assessment” repository. This was described as a shift from hiding malicious code in .vscode/tasks.json or package.json files.</p>
 
 <h3 id="compromised-packagist-package">Compromised Packagist package</h3>
 
-<p>The article reports that <mark class="tag-hl">Contagious Interview</mark> used a compromised Packagist package, “roberts/leads,” to target PHP developers. The package delivered a JavaScript malware loader that contacted blockchain and public RPC infrastructure to fetch, decrypt, and execute a next-stage JavaScript payload. The adversary also used access to compromised developer systems to tamper with commits and inject multi-stage obfuscated JavaScript code into source files in repositories.</p>
+<p>The article reports that Contagious Interview used a compromised Packagist package, “roberts/leads,” to target PHP developers. The package delivered a JavaScript malware loader that contacted blockchain and public RPC infrastructure to fetch, decrypt, and execute a next-stage JavaScript payload. The adversary also used access to compromised developer systems to tamper with commits and inject multi-stage obfuscated JavaScript code into source files in repositories.</p>
 
 <p>The final payload in that activity was described as a variant of the DEV#POPPER RAT.</p>
 
@@ -1612,29 +1766,29 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Trend Micro said Void Dokkaebi operations do not end with one infected developer. The article quotes Trend Micro explaining that compromised machines can become launchpads, with threat actors weaponizing the victim’s own repositories and turning code contributions into infection vectors for downstream developers. Trend Micro described this as resembling worm-like behavior rather than a traditional targeted attack.</p>
 
-<h3 id="invisibleferret-and-beavertail-changes"><mark class="tag-hl">InvisibleFerret</mark> and <mark class="tag-hl">BeaverTail</mark> changes</h3>
+<h3 id="invisibleferret-and-beavertail-changes">InvisibleFerret and BeaverTail changes</h3>
 
-<p>The article says <mark class="tag-hl">Contagious Interview</mark> migrated <mark class="tag-hl">InvisibleFerret</mark> from readable Python scripts to Cython-compiled binaries. The malware was distributed as .pyd files on Windows and .so files on macOS. Trend Micro said this added evasion while preserving <mark class="tag-hl">InvisibleFerret</mark>’s capabilities, including backdoor access, browser credential theft, clipboard monitoring, keylogging, and cryptocurrency wallet targeting.</p>
+<p>The article says Contagious Interview migrated InvisibleFerret from readable Python scripts to Cython-compiled binaries. The malware was distributed as .pyd files on Windows and .so files on macOS. Trend Micro said this added evasion while preserving InvisibleFerret’s capabilities, including backdoor access, browser credential theft, clipboard monitoring, keylogging, and cryptocurrency wallet targeting.</p>
 
-<p>The article also states that <mark class="tag-hl">BeaverTail</mark> expanded beyond its original downloader and stealer role into broader malware with overlapping functions, including credential harvesting and wallet trojanization.</p>
+<p>The article also states that BeaverTail expanded beyond its original downloader and stealer role into broader malware with overlapping functions, including credential harvesting and wallet trojanization.</p>
 
 <h3 id="malicious-npm-packages">Malicious npm packages</h3>
 
 <p>The article describes multiple malicious npm package campaigns. One package, “terminal-logger-utils,” targeted Telegram data, SSH keys, crypto wallets, cloud configurations, and environment variables. It was published by “jpeek895,” an account also flagged for publishing a similar package called “terminal-logger-pack” in late April 2026.</p>
 
-<p>Another npm package, “js-logger-pack,” delivered an ELF binary with infostealer and remote access trojan capabilities. A separate package, “node-env-resolve,” used six runtime dependencies matching the <mark class="tag-hl">OtterCookie</mark> toolkit.</p>
+<p>Another npm package, “js-logger-pack,” delivered an ELF binary with infostealer and remote access trojan capabilities. A separate package, “node-env-resolve,” used six runtime dependencies matching the OtterCookie toolkit.</p>
 
-<p>The article also describes a cluster of obfuscated malicious npm packages published by multiple throwaway accounts that delivered <mark class="tag-hl">OtterCookie</mark> variants using a postinstall hook.</p>
+<p>The article also describes a cluster of obfuscated malicious npm packages published by multiple throwaway accounts that delivered OtterCookie variants using a postinstall hook.</p>
 
-<h3 id="bluenoroff-and-macos-targeting"><mark class="tag-hl">BlueNoroff</mark> and macOS targeting</h3>
+<h3 id="bluenoroff-and-macos-targeting">BlueNoroff and macOS targeting</h3>
 
-<p>The article discusses <mark class="tag-hl">BlueNoroff</mark>, also known as Sapphire Sleet and UNC1069, targeting macOS environments in high-value financial sectors. The targeting involved social engineering against individuals in cryptocurrency, investment, and Web3. Some efforts used fake Zoom and Microsoft Teams meeting-themed lures, ClickFix-style prompts, and instructions to install supposed missing meeting SDKs.</p>
+<p>The article discusses BlueNoroff, also known as Sapphire Sleet and UNC1069, targeting macOS environments in high-value financial sectors. The targeting involved social engineering against individuals in cryptocurrency, investment, and Web3. Some efforts used fake Zoom and Microsoft Teams meeting-themed lures, ClickFix-style prompts, and instructions to install supposed missing meeting SDKs.</p>
 
-<p>These attacks led to deployment of updated variants of <mark class="tag-hl">Cabbage RAT</mark>, also known as CageyChameleon, PowerShell implants capable of credential and data theft, or a macOS data-stealing toolkit called <mark class="tag-hl">Mach-O Man</mark>. Microsoft said Sapphire Sleet persuaded users to manually execute AppleScript or Terminal-based commands, shifting execution into a user-initiated context and allowing activity to proceed outside macOS protections such as TCC, Gatekeeper, quarantine enforcement, and notarization checks.</p>
+<p>These attacks led to deployment of updated variants of Cabbage RAT, also known as CageyChameleon, PowerShell implants capable of credential and data theft, or a macOS data-stealing toolkit called Mach-O Man. Microsoft said Sapphire Sleet persuaded users to manually execute AppleScript or Terminal-based commands, shifting execution into a user-initiated context and allowing activity to proceed outside macOS protections such as TCC, Gatekeeper, quarantine enforcement, and notarization checks.</p>
 
-<h3 id="contagious-trader"><mark class="tag-hl">Contagious Trader</mark></h3>
+<h3 id="contagious-trader">Contagious Trader</h3>
 
-<p>The article says <mark class="tag-hl">Contagious Trader</mark> used more than 50 malicious packages embedded across over 100 <mark class="tag-hl">GitHub</mark> repositories to target cryptocurrency developers. These delivered PromptMink, <mark class="tag-hl">OtterCookie</mark>, and a new Windows clipboard stealer called ClipViper. Panther said the repositories were promoted through verified accounts on X and Reddit, used spoofed developer identities and bot-inflated star counts, and were distributed across more than 40 <mark class="tag-hl">GitHub</mark> users and organizations as redundant delivery fronts.</p>
+<p>The article says Contagious Trader used more than 50 malicious packages embedded across over 100 GitHub repositories to target cryptocurrency developers. These delivered PromptMink, OtterCookie, and a new Windows clipboard stealer called ClipViper. Panther said the repositories were promoted through verified accounts on X and Reddit, used spoofed developer identities and bot-inflated star counts, and were distributed across more than 40 GitHub users and organizations as redundant delivery fronts.</p>
 
 <h3 id="jsonspack-and-sleek-pretty">jsonspack and sleek-pretty</h3>
 
@@ -1642,24 +1796,25 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h3 id="108-package-npm-campaign">108-package npm campaign</h3>
 
-<p>The article describes a sustained npm malware campaign spanning 108 malicious packages and 261 package versions. It targeted developers between March 20 and April 20, 2026. Its goals included stealing credentials, Telegram Desktop sessions, and wallet keys, as well as establishing persistent access with malware families such as <mark class="tag-hl">BeaverTail</mark> and <mark class="tag-hl">OtterCookie</mark>.</p>
+<p>The article describes a sustained npm malware campaign spanning 108 malicious packages and 261 package versions. It targeted developers between March 20 and April 20, 2026. Its goals included stealing credentials, Telegram Desktop sessions, and wallet keys, as well as establishing persistent access with malware families such as BeaverTail and OtterCookie.</p>
 
 <h2 id="financial-motivation-and-impact">Financial motivation and impact</h2>
 
-<p>The article frames the activity as <mark class="tag-hl">North Korea</mark>-aligned developer targeting for financial gain. Expel said <mark class="tag-hl">North Korea</mark>’s existing sanctions environment means financially motivated cybercrime differs from how it would affect most nation-states. Expel stated that there is little more that can be done to deter <mark class="tag-hl">North Korea</mark> through sanctions, while the country has much to gain because its economic activity is severely constrained.</p>
+<p>The article frames the activity as North Korea-aligned developer targeting for financial gain. Expel said North Korea’s existing sanctions environment means financially motivated cybercrime differs from how it would affect most nation-states. Expel stated that there is little more that can be done to deter North Korea through sanctions, while the country has much to gain because its economic activity is severely constrained.</p>
 
-<p>Expel also reported that <mark class="tag-hl">North Korea</mark>-linked campaigns stole $12 million in cryptocurrency in the first three months of 2026. According to Expel’s Marcus Hutchins, the campaigns exfiltrated 26,584 cryptocurrency wallets from 2,726 infected developer systems.</p>
+<p>Expel also reported that North Korea-linked campaigns stole $12 million in cryptocurrency in the first three months of 2026. According to Expel’s Marcus Hutchins, the campaigns exfiltrated 26,584 cryptocurrency wallets from 2,726 infected developer systems.</p>
 
 <h2 id="main-takeaway">Main takeaway</h2>
 
-<p>The article presents a picture of <mark class="tag-hl">North Korea</mark>-linked actors increasingly abusing developer workflows and software supply chain mechanisms. The campaigns use <mark class="tag-hl">GitHub</mark> repositories, VS Code configuration behavior, VS Code extensions, npm packages, Git hooks, Packagist packages, and social engineering lures to deliver credential stealers, wallet stealers, remote access tooling, and backdoors. Across the reported activity, developers and developer tooling are both the target and the delivery mechanism for broader compromise.</p>
+<p>The article presents a picture of North Korea-linked actors increasingly abusing developer workflows and software supply chain mechanisms. The campaigns use GitHub repositories, VS Code configuration behavior, VS Code extensions, npm packages, Git hooks, Packagist packages, and social engineering lures to deliver credential stealers, wallet stealers, remote access tooling, and backdoors. Across the reported activity, developers and developer tooling are both the target and the delivery mechanism for broader compromise.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:5ecad1271cf75693" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Opening a cloned repository in VS Code or Cursor can be enough to trigger compromise when malicious project configuration uses auto-execution behavior such as &#34;runOn: folderOpen&#34; or weaponized task files.</span></li><li><span class="kp-text">The campaign shows a shift from one-to-one social engineering on platforms like LinkedIn to higher-volume email phishing that distributes links to malicious repositories, which Proofpoint described as industrializing and scaling <mark class="tag-hl">North Korea</mark>-aligned developer targeting.</span></li><li><span class="kp-text">The Windows infection chain appears designed for reduced exposure because it uploads stolen ZIP files, cleans up, and terminates instead of maintaining a persistent connection like the Linux and macOS agent.</span></li><li><span class="kp-text">Compromised developer machines are being used as propagation points, with threat actors weaponizing victims&#39; own repositories and code contributions to infect downstream developers.</span></li><li><span class="kp-text">Legitimate collaboration and productivity platforms, including <mark class="tag-hl">GitHub</mark>, VS Code, Cursor, SharePoint, and Microsoft Graph API, are being abused as delivery, execution, command-and-control, and exfiltration infrastructure.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:5ecad1271cf75693" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Opening a cloned repository in VS Code or Cursor can be enough to trigger compromise when malicious project configuration uses auto-execution behavior such as &#34;runOn: folderOpen&#34; or weaponized task files.</span></li><li><span class="kp-text">The campaign shows a shift from one-to-one social engineering on platforms like LinkedIn to higher-volume email phishing that distributes links to malicious repositories, which Proofpoint described as industrializing and scaling North Korea-aligned developer targeting.</span></li><li><span class="kp-text">The Windows infection chain appears designed for reduced exposure because it uploads stolen ZIP files, cleans up, and terminates instead of maintaining a persistent connection like the Linux and macOS agent.</span></li><li><span class="kp-text">Compromised developer machines are being used as propagation points, with threat actors weaponizing victims&#39; own repositories and code contributions to infect downstream developers.</span></li><li><span class="kp-text">Legitimate collaboration and productivity platforms, including GitHub, VS Code, Cursor, SharePoint, and Microsoft Graph API, are being abused as delivery, execution, command-and-control, and exfiltration infrastructure.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Proofpoint reported that a <mark class="tag-hl">North Korea</mark>-linked campaign tracked as UNK_DeadDrop sent more than 250 phishing emails over six weeks to individuals at nearly 100 organizations, primarily in the United States.</span></li><li><span class="kp-text">The UNK_DeadDrop emails used developer recruitment, code review, technical assignment, or cryptocurrency project themes to lure recipients into cloning actor-controlled <mark class="tag-hl">GitHub</mark> repositories and opening them in VS Code or Cursor.</span></li><li><span class="kp-text">The malicious repositories used VS Code project behavior such as the &#34;runOn: folderOpen&#34; technique to execute operating system-specific malware loaders for macOS, Linux, and Windows without requiring further user interaction.</span></li><li><span class="kp-text">The malware installed a malicious VS Code extension masquerading as a Google service and was designed to support remote command execution, reconnaissance, and theft of browser wallet extension data, credentials, and desktop wallet app data.</span></li><li><span class="kp-text">Yeeth Security also found three malicious VS Code extensions on the official marketplace that posed as Jupyter Notebook productivity tools but functioned as a multi-stage backdoor using SharePoint and Microsoft Graph API for command-and-control and exfiltration.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Proofpoint reported that a North Korea-linked campaign tracked as UNK_DeadDrop sent more than 250 phishing emails over six weeks to individuals at nearly 100 organizations, primarily in the United States.</span></li><li><span class="kp-text">The UNK_DeadDrop emails used developer recruitment, code review, technical assignment, or cryptocurrency project themes to lure recipients into cloning actor-controlled GitHub repositories and opening them in VS Code or Cursor.</span></li><li><span class="kp-text">The malicious repositories used VS Code project behavior such as the &#34;runOn: folderOpen&#34; technique to execute operating system-specific malware loaders for macOS, Linux, and Windows without requiring further user interaction.</span></li><li><span class="kp-text">The malware installed a malicious VS Code extension masquerading as a Google service and was designed to support remote command execution, reconnaissance, and theft of browser wallet extension data, credentials, and desktop wallet app data.</span></li><li><span class="kp-text">Yeeth Security also found three malicious VS Code extensions on the official marketplace that posed as Jupyter Notebook productivity tools but functioned as a multi-stage backdoor using SharePoint and Microsoft Graph API for command-and-control and exfiltration.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/north-korean-hackers-are-turning.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a high-impact report on active <mark class="tag-hl">North Korea</mark>-linked developer-targeting operations, including Proofpoint’s UNK_DeadDrop campaign against nearly 100 organizations and malicious VS Code-based delivery chains. It is particularly important for security professionals because it documents concrete abuse of <mark class="tag-hl">GitHub</mark> repositories, VS Code/Cursor workflows, extensions, and package ecosystems to steal credentials and cryptocurrency wallet data across major operating systems.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a high-impact report on active North Korea-linked developer-targeting operations, including Proofpoint’s UNK_DeadDrop campaign against nearly 100 organizations and malicious VS Code-based delivery chains. It is particularly important for security professionals because it documents concrete abuse of GitHub repositories, VS Code/Cursor workflows, extensions, and package ecosystems to steal credentials and cryptocurrency wallet data across major operating systems.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.proofpoint.com/us/blog/threat-insight/dont-fear-repo-unkdeaddrop-phishing-campaign-targets-developers-steal" target="_blank" rel="noopener">Don’t Fear the Repo: UNK_DeadDrop Phishing Campaign Targets Developers to Steal</a></div>
@@ -1680,11 +1835,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://opensourcemalware.com/blog/tasksjacker-blog-post" target="_blank" rel="noopener">TaskJacker</a></div>
   <div class="report-meta">OpenSourceMalware</div>
-  <div class="report-context">The article cites OpenSourceMalware’s TaskJacker analysis about malicious VS Code task files spreading through <mark class="tag-hl">GitHub</mark> repositories.</div>
+  <div class="report-context">The article cites OpenSourceMalware’s TaskJacker analysis about malicious VS Code task files spreading through GitHub repositories.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://opensourcemalware.com/blog/dprk-git-hooks-malware" target="_blank" rel="noopener">DPRK Git Hooks Malware</a></div>
   <div class="report-meta">OpenSourceMalware</div>
-  <div class="report-context">The article references research on <mark class="tag-hl">Contagious Interview</mark>’s use of Git hooks to execute malicious code when targets clone coding assessment repositories.</div>
+  <div class="report-context">The article references research on Contagious Interview’s use of Git hooks to execute malicious code when targets clone coding assessment repositories.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://socket.dev/blog/famous-chollima-targets-php-developers-through-compromised-packagist-package" target="_blank" rel="noopener">Famous Chollima Targets PHP Developers Through Compromised Packagist Package</a></div>
   <div class="report-meta">Socket</div>
@@ -1696,7 +1851,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.trendmicro.com/en_us/research/26/e/analyzing-void-dokkaebi-invisibleferret-malware.html" target="_blank" rel="noopener">Analyzing Void Dokkaebi InvisibleFerret Malware</a></div>
   <div class="report-meta">Trend Micro</div>
-  <div class="report-context">The article cites Trend Micro’s research on <mark class="tag-hl">InvisibleFerret</mark>’s migration from readable Python scripts to Cython-compiled binaries.</div>
+  <div class="report-context">The article cites Trend Micro’s research on InvisibleFerret’s migration from readable Python scripts to Cython-compiled binaries.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.ox.security/blog/north-korean-npm-infostealer-rat/" target="_blank" rel="noopener">North Korean NPM Infostealer RAT</a></div>
   <div class="report-meta">OX Security</div>
@@ -1712,11 +1867,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://panther.com/blog/mapping-the-contagious-trader-delivery-network" target="_blank" rel="noopener">Mapping the Contagious Trader Delivery Network</a></div>
   <div class="report-meta">Panther</div>
-  <div class="report-context">The article quotes Panther’s research on malicious packages and <mark class="tag-hl">GitHub</mark> repositories used by <mark class="tag-hl">Contagious Trader</mark> to target cryptocurrency developers.</div>
+  <div class="report-context">The article quotes Panther’s research on malicious packages and GitHub repositories used by Contagious Trader to target cryptocurrency developers.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://panther.com/blog/tracking-an-ottercookie-infostealer-campaign-across-npm" target="_blank" rel="noopener">Tracking an OtterCookie Infostealer Campaign Across NPM</a></div>
   <div class="report-meta">Panther</div>
-  <div class="report-context">The article cites Panther’s report on obfuscated malicious npm packages delivering <mark class="tag-hl">OtterCookie</mark> infostealer variants.</div>
+  <div class="report-context">The article cites Panther’s report on obfuscated malicious npm packages delivering OtterCookie infostealer variants.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://expel.com/blog/inside-lazarus-how-north-korea-uses-ai-to-industrialize-attacks-on-developers/" target="_blank" rel="noopener">Inside Lazarus: How North Korea Uses AI to Industrialize Attacks on Developers</a></div>
   <div class="report-meta">Expel</div>
@@ -1757,54 +1912,54 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:88%"></div></div><span class="score-num score-num-mid">88</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:bbd671bcce398347">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:bbd671bcce398347')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:bbd671bcce398347')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:bbd671bcce398347')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:bbd671bcce398347')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:bbd671bcce398347')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:bbd671bcce398347')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:bbd671bcce398347')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:bbd671bcce398347')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:bbd671bcce398347')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:bbd671bcce398347')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:bbd671bcce398347" class="tab-panel active"><div class="prose">A critical <mark class="tag-hl">SimpleHelp</mark> flaw, <mark class="tag-hl">CVE-2026-48558</mark>, lets unauthenticated attackers create privileged technician accounts on OIDC-enabled servers and bypass MFA. Organizations should upgrade to <mark class="tag-hl">SimpleHelp</mark> 5.5.16 or 6.0RC2 immediately, or restrict technician logins with IP allowlists if patching is not possible.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:bbd671bcce398347" class="tab-panel"><div class="prose"><p>A critical vulnerability in <mark class="tag-hl">SimpleHelp</mark> remote management software allows unauthenticated attackers to create privileged technician accounts on servers that use <mark class="tag-hl">OpenID Connect</mark> authentication. The flaw is tracked as <mark class="tag-hl">CVE-2026-48558</mark> and affects <mark class="tag-hl">SimpleHelp</mark> versions 5.5.15 and older, as well as 6.0 pre-release versions. <mark class="tag-hl">SimpleHelp</mark> fixed the issue on June 9 with versions 5.5.16 and 6.0RC2.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:bbd671bcce398347" class="tab-panel active"><div class="prose">A critical SimpleHelp flaw, CVE-2026-48558, lets unauthenticated attackers create privileged technician accounts on OIDC-enabled servers and bypass MFA. Organizations should upgrade to SimpleHelp 5.5.16 or 6.0RC2 immediately, or restrict technician logins with IP allowlists if patching is not possible.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:bbd671bcce398347" class="tab-panel"><div class="prose"><p>A critical vulnerability in SimpleHelp remote management software allows unauthenticated attackers to create privileged technician accounts on servers that use OpenID Connect authentication. The flaw is tracked as CVE-2026-48558 and affects SimpleHelp versions 5.5.15 and older, as well as 6.0 pre-release versions. SimpleHelp fixed the issue on June 9 with versions 5.5.16 and 6.0RC2.</p>
 
 <p>Horizon3.ai researchers said the issue stems from how identity assertions from an OIDC identity provider are validated. When the required configuration is present, an attacker can create and log in as a new Technician user without completing multi-factor authentication. That Technician account can perform privileged management actions such as remoting into managed endpoints and executing scripts.</p>
 
-<p>The vulnerability affects only <mark class="tag-hl">SimpleHelp</mark> servers with OIDC enabled, a Technician Group associated with the OIDC provider, and “Allow group authenticated logins” enabled. Horizon3.ai found about 14,000 <mark class="tag-hl">SimpleHelp</mark> servers exposed to the public internet via <mark class="tag-hl">Shodan</mark> results, with a random sample suggesting roughly 7.2% use OIDC authentication. Neither <mark class="tag-hl">SimpleHelp</mark> nor Horizon3.ai has reported evidence of active exploitation, but organizations are urged to patch or apply mitigations quickly.</p>
+<p>The vulnerability affects only SimpleHelp servers with OIDC enabled, a Technician Group associated with the OIDC provider, and “Allow group authenticated logins” enabled. Horizon3.ai found about 14,000 SimpleHelp servers exposed to the public internet via Shodan results, with a random sample suggesting roughly 7.2% use OIDC authentication. Neither SimpleHelp nor Horizon3.ai has reported evidence of active exploitation, but organizations are urged to patch or apply mitigations quickly.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:bbd671bcce398347" class="tab-panel"><div class="prose"><p>A vulnerability in <mark class="tag-hl">SimpleHelp</mark> remote management software can let unauthenticated attackers create privileged technician accounts on affected servers. The flaw is tracked as <mark class="tag-hl">CVE-2026-48558</mark> and has a critical severity rating. It affects <mark class="tag-hl">SimpleHelp</mark> versions 5.5.15 and older, along with 6.0 pre-release versions. <mark class="tag-hl">SimpleHelp</mark> released fixes on June 9 in versions 5.5.16 and 6.0RC2.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:bbd671bcce398347" class="tab-panel"><div class="prose"><p>A vulnerability in SimpleHelp remote management software can let unauthenticated attackers create privileged technician accounts on affected servers. The flaw is tracked as CVE-2026-48558 and has a critical severity rating. It affects SimpleHelp versions 5.5.15 and older, along with 6.0 pre-release versions. SimpleHelp released fixes on June 9 in versions 5.5.16 and 6.0RC2.</p>
 
-<p>Horizon3.ai researchers attributed the issue to how <mark class="tag-hl">SimpleHelp</mark> validates identity assertions received from an <mark class="tag-hl">OpenID Connect</mark> identity provider. If OIDC authentication is enabled, an attacker can create and log in as a new Technician user without going through the MFA process. Horizon3.ai researcher Zach Hanley said this Technician can, by default, perform privileged management activities such as remoting into managed endpoints and executing scripts.</p>
+<p>Horizon3.ai researchers attributed the issue to how SimpleHelp validates identity assertions received from an OpenID Connect identity provider. If OIDC authentication is enabled, an attacker can create and log in as a new Technician user without going through the MFA process. Horizon3.ai researcher Zach Hanley said this Technician can, by default, perform privileged management activities such as remoting into managed endpoints and executing scripts.</p>
 
-<p>The flaw does not affect every vulnerable-version <mark class="tag-hl">SimpleHelp</mark> server, but rather a subset using OIDC or <mark class="tag-hl">Azure AD</mark> OIDC. Horizon3.ai listed several prerequisites for exploitation: OIDC authentication must be enabled, at least one Technician Group must be associated with the OIDC provider, and the group must have “Allow group authenticated logins” enabled. These configurations are described as common in large enterprises.</p>
+<p>The flaw does not affect every vulnerable-version SimpleHelp server, but rather a subset using OIDC or Azure AD OIDC. Horizon3.ai listed several prerequisites for exploitation: OIDC authentication must be enabled, at least one Technician Group must be associated with the OIDC provider, and the group must have “Allow group authenticated logins” enabled. These configurations are described as common in large enterprises.</p>
 
-<p><mark class="tag-hl">Shodan</mark> results show about 14,000 <mark class="tag-hl">SimpleHelp</mark> servers exposed to the public internet. Horizon3.ai’s analysis of a random sample suggested that roughly 7.2% are configured to use OIDC authentication. The researchers also found that “Allow group authenticated logins” was enabled in many cases.</p>
+<p>Shodan results show about 14,000 SimpleHelp servers exposed to the public internet. Horizon3.ai’s analysis of a random sample suggested that roughly 7.2% are configured to use OIDC authentication. The researchers also found that “Allow group authenticated logins” was enabled in many cases.</p>
 
-<p>Organizations are advised to update to the latest <mark class="tag-hl">SimpleHelp</mark> versions that address <mark class="tag-hl">CVE-2026-48558</mark>. If updating is not possible, the article says one mitigation is to restrict technician login sources using IP-based allowlists. Horizon3.ai also shared indicators of compromise, including new authenticated technician users with unknown or suspicious names or email addresses and relevant entries in <mark class="tag-hl">SimpleHelp</mark> server logs.</p>
+<p>Organizations are advised to update to the latest SimpleHelp versions that address CVE-2026-48558. If updating is not possible, the article says one mitigation is to restrict technician login sources using IP-based allowlists. Horizon3.ai also shared indicators of compromise, including new authenticated technician users with unknown or suspicious names or email addresses and relevant entries in SimpleHelp server logs.</p>
 
-<p>Neither <mark class="tag-hl">SimpleHelp</mark> nor Horizon3.ai has reported evidence of active exploitation. However, the article notes <mark class="tag-hl">SimpleHelp</mark>’s history of attracting significant threat actor interest and says organizations should apply available fixes or mitigations without delay.</p>
+<p>Neither SimpleHelp nor Horizon3.ai has reported evidence of active exploitation. However, the article notes SimpleHelp’s history of attracting significant threat actor interest and says organizations should apply available fixes or mitigations without delay.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:bbd671bcce398347" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:bbd671bcce398347" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>A critical vulnerability in <mark class="tag-hl">SimpleHelp</mark> remote management software allows unauthenticated attackers to create privileged Technician accounts on certain affected servers. The flaw is tracked as <mark class="tag-hl">CVE-2026-48558</mark> and impacts <mark class="tag-hl">SimpleHelp</mark> versions 5.5.15 and older, as well as 6.0 pre-release versions.</p>
+<p>A critical vulnerability in SimpleHelp remote management software allows unauthenticated attackers to create privileged Technician accounts on certain affected servers. The flaw is tracked as CVE-2026-48558 and impacts SimpleHelp versions 5.5.15 and older, as well as 6.0 pre-release versions.</p>
 
-<p>The issue applies to <mark class="tag-hl">SimpleHelp</mark> servers using <mark class="tag-hl">OpenID Connect</mark> authentication. <mark class="tag-hl">SimpleHelp</mark> fixed the vulnerability on June 9 by releasing <mark class="tag-hl">SimpleHelp</mark> 5.5.16 and 6.0RC2.</p>
+<p>The issue applies to SimpleHelp servers using OpenID Connect authentication. SimpleHelp fixed the vulnerability on June 9 by releasing SimpleHelp 5.5.16 and 6.0RC2.</p>
 
 <h2 id="technical-cause-and-attack-effect">Technical Cause and Attack Effect</h2>
 
-<p>Researchers at Horizon3.ai said the vulnerability is caused by how <mark class="tag-hl">SimpleHelp</mark> validates identity assertions received from an OIDC identity provider. When OIDC authentication is enabled, an unauthenticated attacker can create and log in as a new Technician user without completing the multi-factor authentication process.</p>
+<p>Researchers at Horizon3.ai said the vulnerability is caused by how SimpleHelp validates identity assertions received from an OIDC identity provider. When OIDC authentication is enabled, an unauthenticated attacker can create and log in as a new Technician user without completing the multi-factor authentication process.</p>
 
 <p>Horizon3.ai researcher Zach Hanley explained that this Technician account can, by default, perform privileged management activities. These activities include remoting into managed endpoints and executing scripts.</p>
 
 <h2 id="affected-configurations">Affected Configurations</h2>
 
-<p>The article emphasizes that <mark class="tag-hl">CVE-2026-48558</mark> does not affect every <mark class="tag-hl">SimpleHelp</mark> server running a vulnerable version. Instead, it affects a subset of servers that rely on OIDC authentication, including either generic OIDC or <mark class="tag-hl">Azure AD</mark> OIDC.</p>
+<p>The article emphasizes that CVE-2026-48558 does not affect every SimpleHelp server running a vulnerable version. Instead, it affects a subset of servers that rely on OIDC authentication, including either generic OIDC or Azure AD OIDC.</p>
 
 <p>Horizon3.ai described the prerequisites for exploitation as follows:</p>
 
@@ -1814,17 +1969,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>The group must have “Allow group authenticated logins” enabled.</li>
 </ul>
 
-<p>The article notes that generic OIDC and <mark class="tag-hl">Azure AD</mark> OIDC are common in large enterprises. Horizon3.ai also found that the “Allow group authenticated logins” setting was enabled in many cases.</p>
+<p>The article notes that generic OIDC and Azure AD OIDC are common in large enterprises. Horizon3.ai also found that the “Allow group authenticated logins” setting was enabled in many cases.</p>
 
 <h2 id="exposure-and-scope">Exposure and Scope</h2>
 
-<p><mark class="tag-hl">Shodan</mark> results show about 14,000 <mark class="tag-hl">SimpleHelp</mark> servers exposed to the public internet. Horizon3.ai’s analysis of a random sample suggested that roughly 7.2% of those exposed servers are configured to use OIDC authentication.</p>
+<p>Shodan results show about 14,000 SimpleHelp servers exposed to the public internet. Horizon3.ai’s analysis of a random sample suggested that roughly 7.2% of those exposed servers are configured to use OIDC authentication.</p>
 
-<p>Because exploitation requires both a vulnerable <mark class="tag-hl">SimpleHelp</mark> version and specific OIDC-related configuration conditions, the impacted subset is smaller than the total number of exposed <mark class="tag-hl">SimpleHelp</mark> servers. However, the article states that organizations should still apply fixes or mitigations without delay.</p>
+<p>Because exploitation requires both a vulnerable SimpleHelp version and specific OIDC-related configuration conditions, the impacted subset is smaller than the total number of exposed SimpleHelp servers. However, the article states that organizations should still apply fixes or mitigations without delay.</p>
 
 <h2 id="response-and-mitigation">Response and Mitigation</h2>
 
-<p><mark class="tag-hl">SimpleHelp</mark> addressed <mark class="tag-hl">CVE-2026-48558</mark> by releasing versions 5.5.16 and 6.0RC2 on June 9. Organizations can defend against attacks by updating to these latest <mark class="tag-hl">SimpleHelp</mark> releases.</p>
+<p>SimpleHelp addressed CVE-2026-48558 by releasing versions 5.5.16 and 6.0RC2 on June 9. Organizations can defend against attacks by updating to these latest SimpleHelp releases.</p>
 
 <p>If updating is not possible, the article identifies one mitigation: restricting technician login sources using IP-based allowlists.</p>
 
@@ -1835,31 +1990,32 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The article also identifies relevant log locations that may contain evidence of technician registrations, email addresses, and configuration changes performed by rogue accounts:</p>
 
 <ul>
-<li><code>/opt/<mark class="tag-hl">SimpleHelp</mark>/logs/server.log</code></li>
-<li><code>/opt/<mark class="tag-hl">SimpleHelp</mark>/logs/&lt;YYYYMMDD-HHMMSS&gt;/server.log</code></li>
+<li><code>/opt/SimpleHelp/logs/server.log</code></li>
+<li><code>/opt/SimpleHelp/logs/&lt;YYYYMMDD-HHMMSS&gt;/server.log</code></li>
 </ul>
 
 <h2 id="exploitation-status-and-threat-context">Exploitation Status and Threat Context</h2>
 
-<p>Neither <mark class="tag-hl">SimpleHelp</mark> nor Horizon3.ai has reported evidence of active exploitation. Even so, the article notes that <mark class="tag-hl">SimpleHelp</mark> has previously attracted significant threat actor interest.</p>
+<p>Neither SimpleHelp nor Horizon3.ai has reported evidence of active exploitation. Even so, the article notes that SimpleHelp has previously attracted significant threat actor interest.</p>
 
-<p>Because of that history, organizations using affected <mark class="tag-hl">SimpleHelp</mark> versions and OIDC authentication are advised to apply the available fixes or mitigations promptly.</p>
+<p>Because of that history, organizations using affected SimpleHelp versions and OIDC authentication are advised to apply the available fixes or mitigations promptly.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:bbd671bcce398347" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The vulnerable population is narrower than the total exposed <mark class="tag-hl">SimpleHelp</mark> footprint because exploitation requires specific OIDC and Technician Group settings, so organizations should verify configuration exposure rather than relying only on version checks.</span></li><li><span class="kp-text">Horizon3.ai’s <mark class="tag-hl">Shodan</mark> sampling suggests that a meaningful minority of internet-exposed <mark class="tag-hl">SimpleHelp</mark> servers use OIDC authentication, and the required “Allow group authenticated logins” setting was enabled in many observed cases.</span></li><li><span class="kp-text">Detection efforts should include both current technician account reviews and historical <mark class="tag-hl">SimpleHelp</mark> server logs because rogue registrations, email addresses, and configuration changes may be recorded in multiple log paths.</span></li><li><span class="kp-text">The article notes no reported active exploitation, but <mark class="tag-hl">SimpleHelp</mark>’s prior threat actor interest makes rapid patching or IP-based technician login restrictions especially actionable.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:bbd671bcce398347" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The vulnerable population is narrower than the total exposed SimpleHelp footprint because exploitation requires specific OIDC and Technician Group settings, so organizations should verify configuration exposure rather than relying only on version checks.</span></li><li><span class="kp-text">Horizon3.ai’s Shodan sampling suggests that a meaningful minority of internet-exposed SimpleHelp servers use OIDC authentication, and the required “Allow group authenticated logins” setting was enabled in many observed cases.</span></li><li><span class="kp-text">Detection efforts should include both current technician account reviews and historical SimpleHelp server logs because rogue registrations, email addresses, and configuration changes may be recorded in multiple log paths.</span></li><li><span class="kp-text">The article notes no reported active exploitation, but SimpleHelp’s prior threat actor interest makes rapid patching or IP-based technician login restrictions especially actionable.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">CVE-2026-48558</mark> is a critical vulnerability in <mark class="tag-hl">SimpleHelp</mark> versions 5.5.15 and older and 6.0 pre-release versions that allows unauthenticated attackers to create privileged technician accounts on servers using <mark class="tag-hl">OpenID Connect</mark> authentication.</span></li><li><span class="kp-text">When exploited on affected configurations, the flaw lets attackers create and log in as a new Technician user without completing multi-factor authentication, enabling privileged actions such as remoting into managed endpoints and executing scripts.</span></li><li><span class="kp-text">The vulnerability affects <mark class="tag-hl">SimpleHelp</mark> servers with OIDC authentication enabled, at least one Technician Group associated with the OIDC provider, and “Allow group authenticated logins” enabled for that group.</span></li><li><span class="kp-text"><mark class="tag-hl">SimpleHelp</mark> fixed the vulnerability on June 9 by releasing versions 5.5.16 and 6.0RC2, and organizations unable to update can mitigate risk by restricting technician login sources using IP-based allowlists.</span></li><li><span class="kp-text">Horizon3.ai said organizations can look for indicators of compromise such as unknown or suspicious authenticated technician users and related entries in <mark class="tag-hl">SimpleHelp</mark> server logs, but neither <mark class="tag-hl">SimpleHelp</mark> nor Horizon3.ai has reported active exploitation.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">CVE-2026-48558 is a critical vulnerability in SimpleHelp versions 5.5.15 and older and 6.0 pre-release versions that allows unauthenticated attackers to create privileged technician accounts on servers using OpenID Connect authentication.</span></li><li><span class="kp-text">When exploited on affected configurations, the flaw lets attackers create and log in as a new Technician user without completing multi-factor authentication, enabling privileged actions such as remoting into managed endpoints and executing scripts.</span></li><li><span class="kp-text">The vulnerability affects SimpleHelp servers with OIDC authentication enabled, at least one Technician Group associated with the OIDC provider, and “Allow group authenticated logins” enabled for that group.</span></li><li><span class="kp-text">SimpleHelp fixed the vulnerability on June 9 by releasing versions 5.5.16 and 6.0RC2, and organizations unable to update can mitigate risk by restricting technician login sources using IP-based allowlists.</span></li><li><span class="kp-text">Horizon3.ai said organizations can look for indicators of compromise such as unknown or suspicious authenticated technician users and related entries in SimpleHelp server logs, but neither SimpleHelp nor Horizon3.ai has reported active exploitation.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/simplehelp-bug-lets-hackers-create-rogue-remote-support-accounts/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a critical <mark class="tag-hl">authentication bypass</mark> in <mark class="tag-hl">SimpleHelp</mark> remote management software that can create privileged technician accounts and bypass MFA on OIDC-enabled servers, with fixes now available. Although no active exploitation is reported, the product is internet-exposed and has prior threat actor interest, making this highly relevant for defenders managing RMM or enterprise support infrastructure.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a critical authentication bypass in SimpleHelp remote management software that can create privileged technician accounts and bypass MFA on OIDC-enabled servers, with fixes now available. Although no active exploitation is reported, the product is internet-exposed and has prior threat actor interest, making this highly relevant for defenders managing RMM or enterprise support infrastructure.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://horizon3.ai/attack-research/disclosures/cve-2026-48558-simplehelp-authentication-bypass-iocs/" target="_blank" rel="noopener">CVE-2026-48558: SimpleHelp Authentication Bypass &#43; IOCs</a></div>
   <div class="report-meta">Horizon3.ai</div>
-  <div class="report-context">The article cites Horizon3.ai’s technical analysis explaining how the <mark class="tag-hl">SimpleHelp</mark> OIDC validation flaw enables unauthenticated creation of privileged Technician users and provides indicators of compromise.</div>
+  <div class="report-context">The article cites Horizon3.ai’s technical analysis explaining how the SimpleHelp OIDC validation flaw enables unauthenticated creation of privileged Technician users and provides indicators of compromise.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://simple-help.com/security/simplehelp-security-update-2026-05" target="_blank" rel="noopener">SimpleHelp Security Update 2026-05</a></div>
   <div class="report-meta">SimpleHelp</div>
-  <div class="report-context">The article references <mark class="tag-hl">SimpleHelp</mark>’s security update as the vendor advisory that fixed <mark class="tag-hl">CVE-2026-48558</mark> in versions 5.5.16 and 6.0RC2.</div>
+  <div class="report-context">The article references SimpleHelp’s security update as the vendor advisory that fixed CVE-2026-48558 in versions 5.5.16 and 6.0RC2.</div>
 </li></ul></div>
             
           </div>
@@ -1882,100 +2038,101 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:78%"></div></div><span class="score-num score-num-mid">78</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:05e303fde293f7d9">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:05e303fde293f7d9')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:05e303fde293f7d9')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:05e303fde293f7d9')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:05e303fde293f7d9')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:05e303fde293f7d9')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:05e303fde293f7d9')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:05e303fde293f7d9')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:05e303fde293f7d9')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:05e303fde293f7d9')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:05e303fde293f7d9')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:05e303fde293f7d9" class="tab-panel active"><div class="prose">The DOJ seized the <mark class="tag-hl">CFAKE.com</mark> and <mark class="tag-hl">SOCFAKE.com</mark> domains for allegedly hosting nonconsensual AI-generated nude deepfakes of women, marking what appears to be the first publicly announced website seizure under the <mark class="tag-hl">TAKE IT DOWN Act</mark>. The action involved U.S., Italian, and French authorities and followed investigations that also led to an arrest in <mark class="tag-hl">France</mark>.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:05e303fde293f7d9" class="tab-panel"><div class="prose"><p>The U.S. <mark class="tag-hl">Department of Justice</mark> announced that it seized the <mark class="tag-hl">CFAKE.com</mark> and <mark class="tag-hl">SOCFAKE.com</mark> domains, which allegedly hosted nonconsensual AI-generated nude images and videos of women. The sites allegedly shared sexually explicit digital forgeries depicting politicians, celebrities, athletes, musicians, royalty, journalists, television presenters, entertainers, and others from multiple countries. The seizure appears to be the first publicly announced domain seizure under the <mark class="tag-hl">TAKE IT DOWN Act</mark>.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:05e303fde293f7d9" class="tab-panel active"><div class="prose">The DOJ seized the CFAKE.com and SOCFAKE.com domains for allegedly hosting nonconsensual AI-generated nude deepfakes of women, marking what appears to be the first publicly announced website seizure under the TAKE IT DOWN Act. The action involved U.S., Italian, and French authorities and followed investigations that also led to an arrest in France.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:05e303fde293f7d9" class="tab-panel"><div class="prose"><p>The U.S. Department of Justice announced that it seized the CFAKE.com and SOCFAKE.com domains, which allegedly hosted nonconsensual AI-generated nude images and videos of women. The sites allegedly shared sexually explicit digital forgeries depicting politicians, celebrities, athletes, musicians, royalty, journalists, television presenters, entertainers, and others from multiple countries. The seizure appears to be the first publicly announced domain seizure under the TAKE IT DOWN Act.</p>
 
-<p>The domains were seized by the DOJ and <mark class="tag-hl">Homeland Security Investigations</mark> after a federal judge found probable cause that they were being used to violate the <mark class="tag-hl">TAKE IT DOWN Act</mark>. The websites now display a seizure notice citing a warrant issued by the U.S. District Court for the <mark class="tag-hl">District of New Jersey</mark> and coordinated actions involving U.S., Italian, and French authorities. The notice states that the <mark class="tag-hl">TAKE IT DOWN Act</mark> prohibits nonconsensual publication of intimate imagery and digital forgeries, including deepfakes.</p>
+<p>The domains were seized by the DOJ and Homeland Security Investigations after a federal judge found probable cause that they were being used to violate the TAKE IT DOWN Act. The websites now display a seizure notice citing a warrant issued by the U.S. District Court for the District of New Jersey and coordinated actions involving U.S., Italian, and French authorities. The notice states that the TAKE IT DOWN Act prohibits nonconsensual publication of intimate imagery and digital forgeries, including deepfakes.</p>
 
-<p>The investigation began after <mark class="tag-hl">Italy</mark>&rsquo;s Postal and Cybersecurity Police alerted U.S. authorities to the websites. Italian authorities later obtained a court order blocking access to the websites in <mark class="tag-hl">Italy</mark>, and evidence gathered by U.S. law enforcement was later shared with French authorities. French investigators arrested a suspect in <mark class="tag-hl">Nice</mark>, <mark class="tag-hl">France</mark>, on June 10 and seized cryptocurrency allegedly connected to the operation.</p>
+<p>The investigation began after Italy&rsquo;s Postal and Cybersecurity Police alerted U.S. authorities to the websites. Italian authorities later obtained a court order blocking access to the websites in Italy, and evidence gathered by U.S. law enforcement was later shared with French authorities. French investigators arrested a suspect in Nice, France, on June 10 and seized cryptocurrency allegedly connected to the operation.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:05e303fde293f7d9" class="tab-panel"><div class="prose"><p>The U.S. <mark class="tag-hl">Department of Justice</mark> announced the seizure of <mark class="tag-hl">CFAKE.com</mark> and <mark class="tag-hl">SOCFAKE.com</mark>, two websites that allegedly hosted nonconsensual AI-generated nude images and videos of women. The DOJ said the digital forgeries were made to appear as sexually explicit images of famous women, including politicians, first ladies from multiple countries, royalty, journalists, television presenters, athletes, entertainers, and others. The action appears to be the first publicly announced domain seizure under the <mark class="tag-hl">TAKE IT DOWN Act</mark>.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:05e303fde293f7d9" class="tab-panel"><div class="prose"><p>The U.S. Department of Justice announced the seizure of CFAKE.com and SOCFAKE.com, two websites that allegedly hosted nonconsensual AI-generated nude images and videos of women. The DOJ said the digital forgeries were made to appear as sexually explicit images of famous women, including politicians, first ladies from multiple countries, royalty, journalists, television presenters, athletes, entertainers, and others. The action appears to be the first publicly announced domain seizure under the TAKE IT DOWN Act.</p>
 
-<p>The article defines deepfakes as AI-generated or AI-manipulated media depicting a person saying, doing, or appearing in ways that never occurred. It notes that <mark class="tag-hl">deepfake</mark> images and videos can be created from existing photos, videos, or audio recordings. The article also states that deepfakes are commonly used to generate nonconsensual nude content, impersonation scams, phishing attacks, and cryptocurrency fraud.</p>
+<p>The article defines deepfakes as AI-generated or AI-manipulated media depicting a person saying, doing, or appearing in ways that never occurred. It notes that deepfake images and videos can be created from existing photos, videos, or audio recordings. The article also states that deepfakes are commonly used to generate nonconsensual nude content, impersonation scams, phishing attacks, and cryptocurrency fraud.</p>
 
-<p>The <mark class="tag-hl">CFAKE.com</mark> and <mark class="tag-hl">SOCFAKE.com</mark> domains were seized on Thursday by the DOJ and <mark class="tag-hl">Homeland Security Investigations</mark> after a federal judge found probable cause that they were being used to violate the <mark class="tag-hl">TAKE IT DOWN Act</mark>. The domains now show a seizure banner saying they were taken offline under a warrant issued by the U.S. District Court for the <mark class="tag-hl">District of New Jersey</mark>. The banner describes the action as coordinated among HSI, <mark class="tag-hl">French National Police</mark>, the Paris Prosecutor&rsquo;s Office, <mark class="tag-hl">Italy</mark>&rsquo;s <mark class="tag-hl">Polizia di Stato</mark> Postal and Cybersecurity Police, the DOJ&rsquo;s Computer Crime and Intellectual Property Section, and the U.S. Attorney&rsquo;s Office for the <mark class="tag-hl">District of New Jersey</mark>.</p>
+<p>The CFAKE.com and SOCFAKE.com domains were seized on Thursday by the DOJ and Homeland Security Investigations after a federal judge found probable cause that they were being used to violate the TAKE IT DOWN Act. The domains now show a seizure banner saying they were taken offline under a warrant issued by the U.S. District Court for the District of New Jersey. The banner describes the action as coordinated among HSI, French National Police, the Paris Prosecutor&rsquo;s Office, Italy&rsquo;s Polizia di Stato Postal and Cybersecurity Police, the DOJ&rsquo;s Computer Crime and Intellectual Property Section, and the U.S. Attorney&rsquo;s Office for the District of New Jersey.</p>
 
-<p>The investigation began after <mark class="tag-hl">Italy</mark>&rsquo;s Postal and Cybersecurity Police alerted U.S. authorities to the websites. Italian media reports cited in the article said investigators opened an inquiry in October 2025 after complaints about AI-generated sexually explicit images depicting women from politics, sports, entertainment, and other public-facing professions. Italian authorities later obtained a court order blocking access to the websites within <mark class="tag-hl">Italy</mark>, and the DOJ said evidence gathered by U.S. law enforcement was later shared with French authorities.</p>
+<p>The investigation began after Italy&rsquo;s Postal and Cybersecurity Police alerted U.S. authorities to the websites. Italian media reports cited in the article said investigators opened an inquiry in October 2025 after complaints about AI-generated sexually explicit images depicting women from politics, sports, entertainment, and other public-facing professions. Italian authorities later obtained a court order blocking access to the websites within Italy, and the DOJ said evidence gathered by U.S. law enforcement was later shared with French authorities.</p>
 
-<p>French prosecutors and investigators conducted an investigation that led to the arrest of a suspect in <mark class="tag-hl">Nice</mark>, <mark class="tag-hl">France</mark>, on June 10. Authorities also seized cryptocurrency allegedly connected to the operation. The article does not name the suspect.</p>
+<p>French prosecutors and investigators conducted an investigation that led to the arrest of a suspect in Nice, France, on June 10. Authorities also seized cryptocurrency allegedly connected to the operation. The article does not name the suspect.</p>
 
-<p>The <mark class="tag-hl">TAKE IT DOWN Act</mark> was signed into law in May 2025 to combat nonconsensual imagery, including AI-generated <mark class="tag-hl">deepfake</mark> pornography. The law makes it a federal crime to publish sexually explicit altered images of identifiable individuals without their consent and requires online platforms to remove reported intimate images and deepfakes within 48 hours of a valid victim request. The article notes that the law had previously been used against an Ohio man who pleaded guilty to charges related to creating AI-generated sexually explicit images, but the <mark class="tag-hl">CFAKE.com</mark> and <mark class="tag-hl">SOCFAKE.com</mark> seizures appear to be its first publicly announced use against websites allegedly distributing <mark class="tag-hl">deepfake</mark> pornography.</p>
+<p>The TAKE IT DOWN Act was signed into law in May 2025 to combat nonconsensual imagery, including AI-generated deepfake pornography. The law makes it a federal crime to publish sexually explicit altered images of identifiable individuals without their consent and requires online platforms to remove reported intimate images and deepfakes within 48 hours of a valid victim request. The article notes that the law had previously been used against an Ohio man who pleaded guilty to charges related to creating AI-generated sexually explicit images, but the CFAKE.com and SOCFAKE.com seizures appear to be its first publicly announced use against websites allegedly distributing deepfake pornography.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:05e303fde293f7d9" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:05e303fde293f7d9" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The U.S. <mark class="tag-hl">Department of Justice</mark> announced that it seized the <mark class="tag-hl">CFAKE.com</mark> and <mark class="tag-hl">SOCFAKE.com</mark> domains, which allegedly hosted nonconsensual AI-generated nude images and videos of women. The DOJ said the websites shared sexually explicit digital forgeries, or deepfakes, depicting women from multiple countries. The affected individuals allegedly included politicians, first ladies, royalty, journalists, television presenters, athletes, entertainers, musicians, celebrities, and others.</p>
+<p>The U.S. Department of Justice announced that it seized the CFAKE.com and SOCFAKE.com domains, which allegedly hosted nonconsensual AI-generated nude images and videos of women. The DOJ said the websites shared sexually explicit digital forgeries, or deepfakes, depicting women from multiple countries. The affected individuals allegedly included politicians, first ladies, royalty, journalists, television presenters, athletes, entertainers, musicians, celebrities, and others.</p>
 
-<p>The seizures appear to be the first publicly announced domain seizure under the <mark class="tag-hl">TAKE IT DOWN Act</mark>. The DOJ and <mark class="tag-hl">Homeland Security Investigations</mark> seized the domains after a federal judge found probable cause that they were being used to violate the law.</p>
+<p>The seizures appear to be the first publicly announced domain seizure under the TAKE IT DOWN Act. The DOJ and Homeland Security Investigations seized the domains after a federal judge found probable cause that they were being used to violate the law.</p>
 
 <h2 id="nature-of-the-alleged-content">Nature of the Alleged Content</h2>
 
 <p>According to the DOJ announcement cited in the article, the digital forgeries were made to appear to be sexual images of famous women. The article describes the content as nonconsensual AI-generated nude images and videos.</p>
 
-<p>The article defines deepfakes as AI-generated or AI-manipulated media that depict a person saying, doing, or appearing in ways that never occurred. It states that <mark class="tag-hl">deepfake</mark> images and videos can be created from existing photos, videos, or audio recordings. It also notes that deepfakes are commonly used to generate nonconsensual nude content, impersonation scams, phishing attacks, and cryptocurrency fraud.</p>
+<p>The article defines deepfakes as AI-generated or AI-manipulated media that depict a person saying, doing, or appearing in ways that never occurred. It states that deepfake images and videos can be created from existing photos, videos, or audio recordings. It also notes that deepfakes are commonly used to generate nonconsensual nude content, impersonation scams, phishing attacks, and cryptocurrency fraud.</p>
 
 <h2 id="domain-seizure-and-legal-basis">Domain Seizure and Legal Basis</h2>
 
-<p><mark class="tag-hl">CFAKE.com</mark> and <mark class="tag-hl">SOCFAKE.com</mark> were seized on Thursday by the DOJ and <mark class="tag-hl">Homeland Security Investigations</mark>. The seizure followed a finding of probable cause by a federal judge that the domains were being used to violate the <mark class="tag-hl">TAKE IT DOWN Act</mark>.</p>
+<p>CFAKE.com and SOCFAKE.com were seized on Thursday by the DOJ and Homeland Security Investigations. The seizure followed a finding of probable cause by a federal judge that the domains were being used to violate the TAKE IT DOWN Act.</p>
 
-<p>The seized domains now display a notice stating that the websites were taken offline under a seizure warrant issued by the U.S. District Court for the <mark class="tag-hl">District of New Jersey</mark>. The banner cites violations of 47 U.S.C. § 223 and states that the <mark class="tag-hl">TAKE IT DOWN Act</mark> prohibits the nonconsensual publication of intimate imagery and digital forgeries, including deepfakes. The banner also warns that violators are subject to fines, imprisonment, or both.</p>
+<p>The seized domains now display a notice stating that the websites were taken offline under a seizure warrant issued by the U.S. District Court for the District of New Jersey. The banner cites violations of 47 U.S.C. § 223 and states that the TAKE IT DOWN Act prohibits the nonconsensual publication of intimate imagery and digital forgeries, including deepfakes. The banner also warns that violators are subject to fines, imprisonment, or both.</p>
 
 <h2 id="agencies-and-countries-involved">Agencies and Countries Involved</h2>
 
-<p>The domain seizure was part of coordinated law enforcement actions involving authorities in the <mark class="tag-hl">United States</mark>, <mark class="tag-hl">Italy</mark>, and <mark class="tag-hl">France</mark>. The seizure banner names the following agencies and offices:</p>
+<p>The domain seizure was part of coordinated law enforcement actions involving authorities in the United States, Italy, and France. The seizure banner names the following agencies and offices:</p>
 
 <ul>
-<li>U.S. Department of Homeland Security, <mark class="tag-hl">Homeland Security Investigations</mark> New Jersey Field Office.</li>
-<li><mark class="tag-hl">French National Police</mark>.</li>
+<li>U.S. Department of Homeland Security, Homeland Security Investigations New Jersey Field Office.</li>
+<li>French National Police.</li>
 <li>The Paris Prosecutor&rsquo;s Office.</li>
-<li><mark class="tag-hl">Italy</mark>&rsquo;s <mark class="tag-hl">Polizia di Stato</mark>, Postal and Cybersecurity Police.</li>
-<li>The U.S. <mark class="tag-hl">Department of Justice</mark>&rsquo;s Computer Crime and Intellectual Property Section.</li>
-<li>The U.S. Attorney&rsquo;s Office for the <mark class="tag-hl">District of New Jersey</mark>.</li>
+<li>Italy&rsquo;s Polizia di Stato, Postal and Cybersecurity Police.</li>
+<li>The U.S. Department of Justice&rsquo;s Computer Crime and Intellectual Property Section.</li>
+<li>The U.S. Attorney&rsquo;s Office for the District of New Jersey.</li>
 </ul>
 
-<p>The article states that the investigation began after <mark class="tag-hl">Italy</mark>&rsquo;s Postal and Cybersecurity Police alerted U.S. authorities to the websites. It also states that evidence gathered by U.S. law enforcement was later shared with French authorities.</p>
+<p>The article states that the investigation began after Italy&rsquo;s Postal and Cybersecurity Police alerted U.S. authorities to the websites. It also states that evidence gathered by U.S. law enforcement was later shared with French authorities.</p>
 
 <h2 id="investigation-timeline-and-international-response">Investigation Timeline and International Response</h2>
 
 <p>Italian media reports cited in the article said investigators opened an inquiry in October 2025 after receiving complaints about AI-generated sexually explicit images. The complaints involved images depicting women from politics, sports, entertainment, and other public-facing professions.</p>
 
-<p>Italian authorities later obtained a court order blocking access to the websites within <mark class="tag-hl">Italy</mark> while continuing their investigation. The DOJ said evidence gathered by U.S. law enforcement was subsequently shared with French authorities.</p>
+<p>Italian authorities later obtained a court order blocking access to the websites within Italy while continuing their investigation. The DOJ said evidence gathered by U.S. law enforcement was subsequently shared with French authorities.</p>
 
-<p>French prosecutors and investigators then conducted an investigation that led to the arrest of a suspect in <mark class="tag-hl">Nice</mark>, <mark class="tag-hl">France</mark>, on June 10. French authorities also seized cryptocurrency allegedly connected to the operation. The article does not provide the suspect&rsquo;s name.</p>
+<p>French prosecutors and investigators then conducted an investigation that led to the arrest of a suspect in Nice, France, on June 10. French authorities also seized cryptocurrency allegedly connected to the operation. The article does not provide the suspect&rsquo;s name.</p>
 
-<h2 id="take-it-down-act-context"><mark class="tag-hl">TAKE IT DOWN Act</mark> Context</h2>
+<h2 id="take-it-down-act-context">TAKE IT DOWN Act Context</h2>
 
-<p>The <mark class="tag-hl">TAKE IT DOWN Act</mark> was signed into law in May 2025 to combat the spread of nonconsensual imagery, including AI-generated <mark class="tag-hl">deepfake</mark> pornography. The article states that the legislation was championed by First Lady Melania Trump as part of her &ldquo;Be Best&rdquo; initiative.</p>
+<p>The TAKE IT DOWN Act was signed into law in May 2025 to combat the spread of nonconsensual imagery, including AI-generated deepfake pornography. The article states that the legislation was championed by First Lady Melania Trump as part of her &ldquo;Be Best&rdquo; initiative.</p>
 
 <p>The law makes it a federal crime to publish sexually explicit altered images depicting identifiable individuals without their consent. It also requires online platforms to remove reported intimate images and deepfakes within 48 hours of receiving a valid request from a victim.</p>
 
-<p>Acting Attorney General Todd Blanche said the domain seizures marked a significant victory in the fight against <mark class="tag-hl">deepfake</mark> pornography. He also said the <mark class="tag-hl">TAKE IT DOWN Act</mark> gives authorities tools to combat abuse and exploitation of women and children through fabricated images.</p>
+<p>Acting Attorney General Todd Blanche said the domain seizures marked a significant victory in the fight against deepfake pornography. He also said the TAKE IT DOWN Act gives authorities tools to combat abuse and exploitation of women and children through fabricated images.</p>
 
 <h2 id="prior-use-of-the-law-and-significance-of-this-case">Prior Use of the Law and Significance of This Case</h2>
 
-<p>The article notes that the <mark class="tag-hl">TAKE IT DOWN Act</mark> was previously used against an Ohio man who pleaded guilty to charges related to creating AI-generated sexually explicit images. However, it says the seizure of <mark class="tag-hl">CFAKE.com</mark> and <mark class="tag-hl">SOCFAKE.com</mark> appears to be the first publicly announced use of the law to target websites allegedly used to distribute <mark class="tag-hl">deepfake</mark> pornography.</p>
+<p>The article notes that the TAKE IT DOWN Act was previously used against an Ohio man who pleaded guilty to charges related to creating AI-generated sexually explicit images. However, it says the seizure of CFAKE.com and SOCFAKE.com appears to be the first publicly announced use of the law to target websites allegedly used to distribute deepfake pornography.</p>
 
-<p>This makes the case significant because it applies the law to domain infrastructure allegedly used for distributing nonconsensual <mark class="tag-hl">deepfake</mark> sexual content, rather than only to an individual who created such images. The action also involved coordinated law enforcement activity across the <mark class="tag-hl">United States</mark>, <mark class="tag-hl">Italy</mark>, and <mark class="tag-hl">France</mark>.</p>
+<p>This makes the case significant because it applies the law to domain infrastructure allegedly used for distributing nonconsensual deepfake sexual content, rather than only to an individual who created such images. The action also involved coordinated law enforcement activity across the United States, Italy, and France.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:05e303fde293f7d9" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The case appears to be the first publicly announced use of the <mark class="tag-hl">TAKE IT DOWN Act</mark> to seize domains allegedly distributing <mark class="tag-hl">deepfake</mark> pornography, signaling that the law is being applied not only to individual offenders but also to infrastructure used for distribution.</span></li><li><span class="kp-text">The investigation was initiated through an international referral from <mark class="tag-hl">Italy</mark> and later involved <mark class="tag-hl">France</mark>, showing that enforcement against <mark class="tag-hl">deepfake</mark> abuse sites can proceed through cross-border cooperation when victims, infrastructure, or operators span multiple countries.</span></li><li><span class="kp-text">French authorities arrested a suspect and seized cryptocurrency allegedly connected to the operation, indicating that investigators pursued both the alleged operator and financial assets rather than limiting the action to domain takedowns.</span></li><li><span class="kp-text">The seizure notice cited 47 U.S.C. § 223 and warned that violators face fines, imprisonment, or both, making the seized domains themselves a public deterrence message under the new legal framework.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:05e303fde293f7d9" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The case appears to be the first publicly announced use of the TAKE IT DOWN Act to seize domains allegedly distributing deepfake pornography, signaling that the law is being applied not only to individual offenders but also to infrastructure used for distribution.</span></li><li><span class="kp-text">The investigation was initiated through an international referral from Italy and later involved France, showing that enforcement against deepfake abuse sites can proceed through cross-border cooperation when victims, infrastructure, or operators span multiple countries.</span></li><li><span class="kp-text">French authorities arrested a suspect and seized cryptocurrency allegedly connected to the operation, indicating that investigators pursued both the alleged operator and financial assets rather than limiting the action to domain takedowns.</span></li><li><span class="kp-text">The seizure notice cited 47 U.S.C. § 223 and warned that violators face fines, imprisonment, or both, making the seized domains themselves a public deterrence message under the new legal framework.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The U.S. <mark class="tag-hl">Department of Justice</mark> seized the <mark class="tag-hl">CFAKE.com</mark> and <mark class="tag-hl">SOCFAKE.com</mark> domains, which allegedly hosted nonconsensual AI-generated nude images and videos of women.</span></li><li><span class="kp-text">The DOJ said the seized websites shared sexually explicit digital forgeries depicting politicians, celebrities, athletes, musicians, royalty, journalists, television presenters, entertainers, and others from multiple countries.</span></li><li><span class="kp-text">The domains were seized by the DOJ and <mark class="tag-hl">Homeland Security Investigations</mark> after a federal judge found probable cause that they were being used to violate the <mark class="tag-hl">TAKE IT DOWN Act</mark>.</span></li><li><span class="kp-text">The investigation began after <mark class="tag-hl">Italy</mark>&#39;s Postal and Cybersecurity Police alerted U.S. authorities to the websites, and French investigators later arrested a suspect in <mark class="tag-hl">Nice</mark>, <mark class="tag-hl">France</mark>, on June 10.</span></li><li><span class="kp-text">The <mark class="tag-hl">TAKE IT DOWN Act</mark> makes it a federal crime to publish sexually explicit altered images depicting identifiable individuals without their consent and requires online platforms to remove validly reported intimate images and deepfakes within 48 hours.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The U.S. Department of Justice seized the CFAKE.com and SOCFAKE.com domains, which allegedly hosted nonconsensual AI-generated nude images and videos of women.</span></li><li><span class="kp-text">The DOJ said the seized websites shared sexually explicit digital forgeries depicting politicians, celebrities, athletes, musicians, royalty, journalists, television presenters, entertainers, and others from multiple countries.</span></li><li><span class="kp-text">The domains were seized by the DOJ and Homeland Security Investigations after a federal judge found probable cause that they were being used to violate the TAKE IT DOWN Act.</span></li><li><span class="kp-text">The investigation began after Italy&#39;s Postal and Cybersecurity Police alerted U.S. authorities to the websites, and French investigators later arrested a suspect in Nice, France, on June 10.</span></li><li><span class="kp-text">The TAKE IT DOWN Act makes it a federal crime to publish sexually explicit altered images depicting identifiable individuals without their consent and requires online platforms to remove validly reported intimate images and deepfakes within 48 hours.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/doj-seizes-cfake-socfake-deepfake-nude-sites-under-take-it-down-act/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific law-enforcement action with broad relevance to cybercrime, <mark class="tag-hl">deepfake</mark> abuse, and platform compliance, and it appears to be the first publicly announced domain seizure under the <mark class="tag-hl">TAKE IT DOWN Act</mark>. It is not an urgent operational threat like active exploitation or a critical patch, but security professionals should understand the enforcement precedent and cross-border response.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific law-enforcement action with broad relevance to cybercrime, deepfake abuse, and platform compliance, and it appears to be the first publicly announced domain seizure under the TAKE IT DOWN Act. It is not an urgent operational threat like active exploitation or a critical patch, but security professionals should understand the enforcement precedent and cross-border response.</p>
 </div></div>
             
             
@@ -2005,81 +2162,82 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:66%"></div></div><span class="score-num score-num-low">66</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="1f5f82816981c137adc0acb7bbd4b62d:e4964e4e91edb39d">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-6428692e07ece4bc06cc6bdf93ea96b2:e4964e4e91edb39d')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-6428692e07ece4bc06cc6bdf93ea96b2:e4964e4e91edb39d')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-6428692e07ece4bc06cc6bdf93ea96b2:e4964e4e91edb39d')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-6428692e07ece4bc06cc6bdf93ea96b2:e4964e4e91edb39d')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-6428692e07ece4bc06cc6bdf93ea96b2:e4964e4e91edb39d')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-1f5f82816981c137adc0acb7bbd4b62d:e4964e4e91edb39d')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-1f5f82816981c137adc0acb7bbd4b62d:e4964e4e91edb39d')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-1f5f82816981c137adc0acb7bbd4b62d:e4964e4e91edb39d')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-1f5f82816981c137adc0acb7bbd4b62d:e4964e4e91edb39d')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-1f5f82816981c137adc0acb7bbd4b62d:e4964e4e91edb39d')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-6428692e07ece4bc06cc6bdf93ea96b2:e4964e4e91edb39d" class="tab-panel active"><div class="prose"><mark class="tag-hl">Maine</mark> took its public data breach reporting portal offline after fake breach notices for <mark class="tag-hl">VRChat</mark> and <mark class="tag-hl">Discord</mark> were posted, exposing weaknesses in the portal’s review process. Companies can still file reports, but public access will remain restricted while the attorney general’s office audits its procedures.</div></div>
-                <div id="brief-6428692e07ece4bc06cc6bdf93ea96b2:e4964e4e91edb39d" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Maine</mark> closed its public data breach reporting portal after two fake breach notices were posted. One bogus notice used the name of a nonexistent <mark class="tag-hl">VRChat</mark> employee and reportedly claimed that 2.4 million customers of the virtual reality social platform were breached. A fake breach notice was also posted for <mark class="tag-hl">Discord</mark>.</p>
+                <div id="tldr-1f5f82816981c137adc0acb7bbd4b62d:e4964e4e91edb39d" class="tab-panel active"><div class="prose">Maine took its public data breach reporting portal offline after fake breach notices for VRChat and Discord were posted, exposing weaknesses in the portal’s review process. Companies can still file reports, but public access will remain restricted while the attorney general’s office audits its procedures.</div></div>
+                <div id="brief-1f5f82816981c137adc0acb7bbd4b62d:e4964e4e91edb39d" class="tab-panel"><div class="prose"><p>Maine closed its public data breach reporting portal after two fake breach notices were posted. One bogus notice used the name of a nonexistent VRChat employee and reportedly claimed that 2.4 million customers of the virtual reality social platform were breached. A fake breach notice was also posted for Discord.</p>
 
-<p>The <mark class="tag-hl">Maine</mark> attorney general’s office called the notices “hoaxes,” removed them, and said it has no knowledge of any recent legitimate data breach reports from either <mark class="tag-hl">VRChat</mark> or <mark class="tag-hl">Discord</mark>. Companies can still report breaches, but the portal will not be easily available to the public until <mark class="tag-hl">Maine</mark> completes an audit of its procedures. Members of the public can contact the office to inquire about existing breach reports.</p>
+<p>The Maine attorney general’s office called the notices “hoaxes,” removed them, and said it has no knowledge of any recent legitimate data breach reports from either VRChat or Discord. Companies can still report breaches, but the portal will not be easily available to the public until Maine completes an audit of its procedures. Members of the public can contact the office to inquire about existing breach reports.</p>
 
-<p>The article says the portal was easy to abuse because it historically allowed companies to add notices without review. The public-facing database had been a valuable resource for security researchers, reporters, and threat intelligence companies, so its removal could affect those communities. <mark class="tag-hl">VRChat</mark> said the fake notice remained online for several hours despite its efforts to have it removed.</p>
+<p>The article says the portal was easy to abuse because it historically allowed companies to add notices without review. The public-facing database had been a valuable resource for security researchers, reporters, and threat intelligence companies, so its removal could affect those communities. VRChat said the fake notice remained online for several hours despite its efforts to have it removed.</p>
 </div></div>
-                <div id="standard-6428692e07ece4bc06cc6bdf93ea96b2:e4964e4e91edb39d" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Maine</mark> took its public data breach reporting portal offline after two fraudulent breach notices were posted. One notice appeared under the name of a nonexistent <mark class="tag-hl">VRChat</mark> employee and reportedly claimed that 2.4 million <mark class="tag-hl">VRChat</mark> customers had been breached. A separate fake notice was also posted for <mark class="tag-hl">Discord</mark>.</p>
+                <div id="standard-1f5f82816981c137adc0acb7bbd4b62d:e4964e4e91edb39d" class="tab-panel"><div class="prose"><p>Maine took its public data breach reporting portal offline after two fraudulent breach notices were posted. One notice appeared under the name of a nonexistent VRChat employee and reportedly claimed that 2.4 million VRChat customers had been breached. A separate fake notice was also posted for Discord.</p>
 
-<p>The <mark class="tag-hl">Maine</mark> attorney general’s office described the notices as “hoaxes” and said they have been removed. The office also said it has no knowledge of any recent legitimate data breach reports from either <mark class="tag-hl">VRChat</mark> or <mark class="tag-hl">Discord</mark>. <mark class="tag-hl">Maine</mark> is still allowing companies to report breaches, but the public-facing database will remain offline while procedures are reviewed.</p>
+<p>The Maine attorney general’s office described the notices as “hoaxes” and said they have been removed. The office also said it has no knowledge of any recent legitimate data breach reports from either VRChat or Discord. Maine is still allowing companies to report breaches, but the public-facing database will remain offline while procedures are reviewed.</p>
 
 <p>According to the article, the portal had historically allowed companies to add notices to the site without review. That made the portal easy to abuse and allowed fake notices to appear publicly. The attorney general’s office said it is reviewing procedures to make such abuse less likely while preserving public availability of the information.</p>
 
 <p>The closure affects a portal that the article describes as widely used and valuable to security researchers, reporters, and threat intelligence companies. Lack of public access could therefore have an impact on those communities. Members of the public can still contact the attorney general’s office to inquire about existing breach reports.</p>
 
-<p><mark class="tag-hl">VRChat</mark> said the fraudulent report was submitted on fake <mark class="tag-hl">VRChat</mark> letterhead and that <mark class="tag-hl">Maine</mark> was not quick to respond to its request for removal. The company said the notice remained online for several hours despite its efforts. <mark class="tag-hl">VRChat</mark> also stated that it has no reason to believe its data or systems were compromised and that it did not submit any official breach notice.</p>
+<p>VRChat said the fraudulent report was submitted on fake VRChat letterhead and that Maine was not quick to respond to its request for removal. The company said the notice remained online for several hours despite its efforts. VRChat also stated that it has no reason to believe its data or systems were compromised and that it did not submit any official breach notice.</p>
 </div></div>
-                <div id="comprehensive-6428692e07ece4bc06cc6bdf93ea96b2:e4964e4e91edb39d" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-1f5f82816981c137adc0acb7bbd4b62d:e4964e4e91edb39d" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Maine</mark> closed its public data breach reporting portal after two fake breach notices were posted. The article describes the portal as widely used and says it had been a valuable resource for security researchers, reporters, and companies working in threat intelligence.</p>
+<p>Maine closed its public data breach reporting portal after two fake breach notices were posted. The article describes the portal as widely used and says it had been a valuable resource for security researchers, reporters, and companies working in threat intelligence.</p>
 
-<p>One of the fake notices appeared under the name of a nonexistent <mark class="tag-hl">VRChat</mark> employee. It reportedly claimed that 2.4 million customers of the virtual reality social platform had been breached. A fake breach notice was also posted for <mark class="tag-hl">Discord</mark>.</p>
+<p>One of the fake notices appeared under the name of a nonexistent VRChat employee. It reportedly claimed that 2.4 million customers of the virtual reality social platform had been breached. A fake breach notice was also posted for Discord.</p>
 
 <h2 id="state-response">State response</h2>
 
-<p>The <mark class="tag-hl">Maine</mark> attorney general’s office issued a press release calling the notices “hoaxes.” It said the fake reports had been removed and that the office had “no knowledge of any recent legitimate data breach reports” from either <mark class="tag-hl">VRChat</mark> or <mark class="tag-hl">Discord</mark>.</p>
+<p>The Maine attorney general’s office issued a press release calling the notices “hoaxes.” It said the fake reports had been removed and that the office had “no knowledge of any recent legitimate data breach reports” from either VRChat or Discord.</p>
 
-<p><mark class="tag-hl">Maine</mark> is still allowing companies to report breaches. However, the state will not make the portal easily available to the public until it completes an audit of its procedures to prevent similar incidents.</p>
+<p>Maine is still allowing companies to report breaches. However, the state will not make the portal easily available to the public until it completes an audit of its procedures to prevent similar incidents.</p>
 
 <p>The office said members of the public can contact it to inquire about “existing reports” of breaches. It also said the public-facing database will remain offline while procedures are reviewed.</p>
 
 <h2 id="portal-abuse-issue">Portal abuse issue</h2>
 
-<p>The article states that the <mark class="tag-hl">Maine</mark> reporting portal was easy to abuse. It says the portal historically allowed companies to add notices to the site without review.</p>
+<p>The article states that the Maine reporting portal was easy to abuse. It says the portal historically allowed companies to add notices to the site without review.</p>
 
 <p>This lack of review enabled fake breach notices to be posted publicly. The attorney general’s office said it is reviewing procedures to make this abuse less likely in the future while preserving public availability of the information.</p>
 
 <h2 id="affected-parties">Affected parties</h2>
 
-<p>The named companies affected by the fake notices were <mark class="tag-hl">VRChat</mark> and <mark class="tag-hl">Discord</mark>. <mark class="tag-hl">Maine</mark> only announced <mark class="tag-hl">Discord</mark> and <mark class="tag-hl">VRChat</mark> as victims, though the article says additional fraudulent notices may have been posted.</p>
+<p>The named companies affected by the fake notices were VRChat and Discord. Maine only announced Discord and VRChat as victims, though the article says additional fraudulent notices may have been posted.</p>
 
-<p><mark class="tag-hl">VRChat</mark> said the fake breach report was submitted on fake <mark class="tag-hl">VRChat</mark> letterhead. The company stated that it has no reason to believe its data or systems were compromised and that it did not submit any official notice about a data breach.</p>
+<p>VRChat said the fake breach report was submitted on fake VRChat letterhead. The company stated that it has no reason to believe its data or systems were compromised and that it did not submit any official notice about a data breach.</p>
 
-<p><mark class="tag-hl">VRChat</mark> also said <mark class="tag-hl">Maine</mark> was not quick to respond to its request to remove the fake notice. According to <mark class="tag-hl">VRChat</mark>, the notice remained online for several hours despite the company’s efforts.</p>
+<p>VRChat also said Maine was not quick to respond to its request to remove the fake notice. According to VRChat, the notice remained online for several hours despite the company’s efforts.</p>
 
 <h2 id="impact-on-public-access-and-security-communities">Impact on public access and security communities</h2>
 
-<p>The public-facing database is offline while <mark class="tag-hl">Maine</mark> reviews its procedures. The article notes that the portal had been a valuable resource for security researchers, reporters, and companies working in threat intelligence.</p>
+<p>The public-facing database is offline while Maine reviews its procedures. The article notes that the portal had been a valuable resource for security researchers, reporters, and companies working in threat intelligence.</p>
 
 <p>Because of that role, loss of public access could affect those communities. The article does not quantify the impact, but it identifies those groups as likely to be affected by the portal’s temporary unavailability.</p>
 
 <h2 id="reporting-and-comments">Reporting and comments</h2>
 
-<p>News of the fake posting was first reported by Bleeping Computer. The article says <mark class="tag-hl">VRChat</mark> and <mark class="tag-hl">Discord</mark> did not respond to requests for comment.</p>
+<p>News of the fake posting was first reported by Bleeping Computer. The article says VRChat and Discord did not respond to requests for comment.</p>
 </div></div>
-                <div id="insights-6428692e07ece4bc06cc6bdf93ea96b2:e4964e4e91edb39d" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">A public breach notice portal can itself become a misinformation vector if submissions are published without review, as shown by fake reports being accepted for major platforms.</span></li><li><span class="kp-text">The incident shows that breach-reporting systems need both pre-publication validation and a rapid takedown process, since <mark class="tag-hl">VRChat</mark> said the false notice stayed online for several hours after it asked for removal.</span></li><li><span class="kp-text">Restricting public access to <mark class="tag-hl">Maine</mark>’s portal may reduce hoaxes but also removes a resource used by security researchers, reporters, and threat intelligence companies.</span></li><li><span class="kp-text">Fraudulent breach notices can carry reputational impact even when no breach occurred, since <mark class="tag-hl">Maine</mark> had to publicly state it had no knowledge of legitimate recent reports from <mark class="tag-hl">VRChat</mark> or <mark class="tag-hl">Discord</mark>.</span></li></ul></div>
+                <div id="insights-1f5f82816981c137adc0acb7bbd4b62d:e4964e4e91edb39d" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">A public breach notice portal can itself become a misinformation vector if submissions are published without review, as shown by fake reports being accepted for major platforms.</span></li><li><span class="kp-text">The incident shows that breach-reporting systems need both pre-publication validation and a rapid takedown process, since VRChat said the false notice stayed online for several hours after it asked for removal.</span></li><li><span class="kp-text">Restricting public access to Maine’s portal may reduce hoaxes but also removes a resource used by security researchers, reporters, and threat intelligence companies.</span></li><li><span class="kp-text">Fraudulent breach notices can carry reputational impact even when no breach occurred, since Maine had to publicly state it had no knowledge of legitimate recent reports from VRChat or Discord.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Maine</mark> closed its public data breach reporting portal after two fake breach notices were posted for <mark class="tag-hl">VRChat</mark> and <mark class="tag-hl">Discord</mark>.</span></li><li><span class="kp-text">The <mark class="tag-hl">Maine</mark> attorney general’s office said it has removed the hoax notices and has no knowledge of any recent legitimate data breach reports from <mark class="tag-hl">VRChat</mark> or <mark class="tag-hl">Discord</mark>.</span></li><li><span class="kp-text">Companies can still report breaches to <mark class="tag-hl">Maine</mark>, but the public-facing database will remain offline while the attorney general’s office reviews procedures to prevent similar abuse.</span></li><li><span class="kp-text">The article says <mark class="tag-hl">Maine</mark>’s portal had historically allowed companies to add notices to the site without review, making it easy to abuse.</span></li><li><span class="kp-text"><mark class="tag-hl">VRChat</mark> said the fake notice was submitted on fake <mark class="tag-hl">VRChat</mark> letterhead and remained online for several hours despite the company’s efforts to have it removed.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Maine closed its public data breach reporting portal after two fake breach notices were posted for VRChat and Discord.</span></li><li><span class="kp-text">The Maine attorney general’s office said it has removed the hoax notices and has no knowledge of any recent legitimate data breach reports from VRChat or Discord.</span></li><li><span class="kp-text">Companies can still report breaches to Maine, but the public-facing database will remain offline while the attorney general’s office reviews procedures to prevent similar abuse.</span></li><li><span class="kp-text">The article says Maine’s portal had historically allowed companies to add notices to the site without review, making it easy to abuse.</span></li><li><span class="kp-text">VRChat said the fake notice was submitted on fake VRChat letterhead and remained online for several hours despite the company’s efforts to have it removed.</span></li></ul></div>
+            
             <a href="https://therecord.media/maine-turns-off-breach-portal-fake-reports" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific incident involving abuse of <mark class="tag-hl">Maine</mark>’s public data breach reporting portal and temporary loss of public access to a resource used by researchers, reporters, and threat intelligence teams. It is relevant for security professionals who rely on breach notification data or operate disclosure/reporting workflows, but it does not describe an actual compromise, active exploitation, or a critical vulnerability.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific incident involving abuse of Maine’s public data breach reporting portal and temporary loss of public access to a resource used by researchers, reporters, and threat intelligence teams. It is relevant for security professionals who rely on breach notification data or operate disclosure/reporting workflows, but it does not describe an actual compromise, active exploitation, or a critical vulnerability.</p>
 </div></div>
             
             
@@ -2103,27 +2261,27 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest window is dominated by identity- and tooling-centric intrusion activity, including abuse of enterprise collaboration rules, remote support platforms, and developer workflows. The most technically significant reporting centers on <mark class="tag-hl">China</mark>-linked <mark class="tag-hl">UNC6508</mark> targeting research and defense-adjacent organizations, a critical <mark class="tag-hl">SimpleHelp</mark> account-creation vulnerability, and <mark class="tag-hl">North Korea</mark>-linked malware delivery through <mark class="tag-hl">GitHub</mark> and VS Code ecosystems.</p>
+        <div class="overview-body prose"><p>This digest window is dominated by identity- and tooling-centric intrusion activity, including abuse of enterprise collaboration rules, remote support platforms, and developer workflows. The most technically significant reporting centers on China-linked UNC6508 targeting research and defense-adjacent organizations, a critical SimpleHelp account-creation vulnerability, and North Korea-linked malware delivery through GitHub and VS Code ecosystems.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Espionage and Credential-Driven Intrusions</span>
         </div>
-        <div class="overview-body prose"><p>Google’s Threat Intelligence Group attributed a campaign targeting North American medical, academic, and military research networks to the <mark class="tag-hl">China</mark>-linked cluster <mark class="tag-hl">UNC6508</mark>. The attackers reportedly compromised externally facing <mark class="tag-hl">REDCap</mark> servers, deployed the <mark class="tag-hl">INFINITERED</mark> backdoor, harvested credentials, and used internal reconnaissance to move deeper into victim environments, including obtaining domain administrator access.</p>
+        <div class="overview-body prose"><p>Google’s Threat Intelligence Group attributed a campaign targeting North American medical, academic, and military research networks to the China-linked cluster UNC6508. The attackers reportedly compromised externally facing REDCap servers, deployed the INFINITERED backdoor, harvested credentials, and used internal reconnaissance to move deeper into victim environments, including obtaining domain administrator access.</p>
 
-<p>A notable tradecraft element was the abuse of <mark class="tag-hl">Google Workspace</mark> <mark class="tag-hl">content compliance rules</mark> for covert email collection. <mark class="tag-hl">UNC6508</mark> configured rules to silently BCC messages matching nearly 150 keywords, search terms, and email addresses to an attacker-controlled <mark class="tag-hl">Gmail</mark> account, affecting organizations in the <mark class="tag-hl">United States</mark> and <mark class="tag-hl">Canada</mark> including clinical providers, academic centers, military health institutions, advocacy groups, and health regulators.</p>
+<p>A notable tradecraft element was the abuse of Google Workspace content compliance rules for covert email collection. UNC6508 configured rules to silently BCC messages matching nearly 150 keywords, search terms, and email addresses to an attacker-controlled Gmail account, affecting organizations in the United States and Canada including clinical providers, academic centers, military health institutions, advocacy groups, and health regulators.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Remote Access and Developer Tooling as Intrusion Channels</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">SimpleHelp</mark> disclosed <mark class="tag-hl">CVE-2026-48558</mark>, a critical vulnerability affecting versions 5.5.15 and older and 6.0 pre-release builds in specific <mark class="tag-hl">OpenID Connect</mark> configurations. The flaw allows unauthenticated attackers to create privileged Technician accounts without completing multi-factor authentication, potentially enabling remote access to managed endpoints and script execution through the remote support platform.</p>
+        <div class="overview-body prose"><p>SimpleHelp disclosed CVE-2026-48558, a critical vulnerability affecting versions 5.5.15 and older and 6.0 pre-release builds in specific OpenID Connect configurations. The flaw allows unauthenticated attackers to create privileged Technician accounts without completing multi-factor authentication, potentially enabling remote access to managed endpoints and script execution through the remote support platform.</p>
 
-<p>The vulnerability applies where OIDC authentication is enabled, at least one Technician Group is associated with the OIDC provider, and “Allow group authenticated logins” is enabled for that group. <mark class="tag-hl">SimpleHelp</mark> released fixed versions 5.5.16 and 6.0RC2 on June 9, while Horizon3.ai noted that organizations can look for suspicious authenticated technician users and related server log entries; neither <mark class="tag-hl">SimpleHelp</mark> nor Horizon3.ai reported active exploitation.</p>
+<p>The vulnerability applies where OIDC authentication is enabled, at least one Technician Group is associated with the OIDC provider, and “Allow group authenticated logins” is enabled for that group. SimpleHelp released fixed versions 5.5.16 and 6.0RC2 on June 9, while Horizon3.ai noted that organizations can look for suspicious authenticated technician users and related server log entries; neither SimpleHelp nor Horizon3.ai reported active exploitation.</p>
 
-<p>Proofpoint separately reported a <mark class="tag-hl">North Korea</mark>-linked campaign tracked as UNK_DeadDrop that sent more than 250 phishing emails over six weeks to individuals at nearly 100 organizations, primarily in the <mark class="tag-hl">United States</mark>. The campaign used developer recruitment, code review, technical assignment, and cryptocurrency project themes to lure recipients into cloning actor-controlled <mark class="tag-hl">GitHub</mark> repositories and opening them in VS Code or Cursor.</p>
+<p>Proofpoint separately reported a North Korea-linked campaign tracked as UNK_DeadDrop that sent more than 250 phishing emails over six weeks to individuals at nearly 100 organizations, primarily in the United States. The campaign used developer recruitment, code review, technical assignment, and cryptocurrency project themes to lure recipients into cloning actor-controlled GitHub repositories and opening them in VS Code or Cursor.</p>
 
 <p>The malicious repositories abused IDE project behavior, including the “runOn: folderOpen” technique, to execute operating system-specific loaders for macOS, Linux, and Windows without additional user interaction. The malware installed a VS Code extension masquerading as a Google service and supported remote command execution, reconnaissance, and theft of browser wallet extension data, credentials, and desktop wallet application data; Yeeth Security also identified malicious VS Code marketplace extensions posing as Jupyter Notebook tools and using SharePoint and Microsoft Graph API for command-and-control and exfiltration.</p>
 </div>
@@ -2132,9 +2290,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">03</span>
           <span class="overview-title">Platform Abuse, Legal Enforcement, and Public Trust Incidents</span>
         </div>
-        <div class="overview-body prose"><p>The U.S. <mark class="tag-hl">Department of Justice</mark> seized the <mark class="tag-hl">CFAKE.com</mark> and <mark class="tag-hl">SOCFAKE.com</mark> domains, alleging they hosted nonconsensual AI-generated nude images and videos. The DOJ said the sites shared sexually explicit digital forgeries depicting identifiable people across multiple countries, including politicians, celebrities, athletes, musicians, royalty, journalists, television presenters, entertainers, and others.</p>
+        <div class="overview-body prose"><p>The U.S. Department of Justice seized the CFAKE.com and SOCFAKE.com domains, alleging they hosted nonconsensual AI-generated nude images and videos. The DOJ said the sites shared sexually explicit digital forgeries depicting identifiable people across multiple countries, including politicians, celebrities, athletes, musicians, royalty, journalists, television presenters, entertainers, and others.</p>
 
-<p>The seizures were carried out with <mark class="tag-hl">Homeland Security Investigations</mark> after a federal judge found probable cause that the domains were being used to violate the <mark class="tag-hl">TAKE IT DOWN Act</mark>. The investigation began after <mark class="tag-hl">Italy</mark>’s Postal and Cybersecurity Police alerted U.S. authorities, and French investigators later arrested a suspect in <mark class="tag-hl">Nice</mark>, <mark class="tag-hl">France</mark>, on June 10.</p>
+<p>The seizures were carried out with Homeland Security Investigations after a federal judge found probable cause that the domains were being used to violate the TAKE IT DOWN Act. The investigation began after Italy’s Postal and Cybersecurity Police alerted U.S. authorities, and French investigators later arrested a suspect in Nice, France, on June 10.</p>
 
 <p>Maine’s attorney general’s office took its public data breach reporting portal offline after fake breach notices were posted for VRChat and Discord. The office removed the hoax notices and said it had no knowledge of legitimate recent breach reports from either company, while VRChat said the false notice used fake company letterhead and remained online for several hours before removal.</p>
 </div>
@@ -2145,9 +2303,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-15 18:00 UTC · 4 hours window</span>
-  <span class="footer-right">5 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">5 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -2160,15 +2321,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2281,12 +2504,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2347,6 +2604,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

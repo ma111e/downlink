@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,44 +1506,44 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:88%"></div></div><span class="score-num score-num-mid">88</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:01f7e99693c1d8f1">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:01f7e99693c1d8f1')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:01f7e99693c1d8f1')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:01f7e99693c1d8f1')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:01f7e99693c1d8f1')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:01f7e99693c1d8f1')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:01f7e99693c1d8f1')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:01f7e99693c1d8f1')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:01f7e99693c1d8f1')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:01f7e99693c1d8f1')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:01f7e99693c1d8f1')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:01f7e99693c1d8f1" class="tab-panel active"><div class="prose">Over 900 internet-exposed <mark class="tag-hl">automatic tank gauge systems</mark> in the U.S. are vulnerable to ongoing attacks that could let hackers change settings, disable alerts, and disrupt fuel or chemical tank monitoring. U.S. agencies are urging critical infrastructure operators to remove direct internet access, secure remote access, change default passwords, and patch affected devices.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:01f7e99693c1d8f1" class="tab-panel"><div class="prose"><p>Over 900 <mark class="tag-hl">automatic tank gauge systems</mark> in the <mark class="tag-hl">United States</mark> have been found exposed online and vulnerable to ongoing attacks. These systems are used to monitor fuel, chemical, and other liquid storage tanks across critical infrastructure sectors. U.S. agencies warned that attackers are targeting internet-exposed ATG systems and modifying them through command execution.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:01f7e99693c1d8f1" class="tab-panel active"><div class="prose">Over 900 internet-exposed automatic tank gauge systems in the U.S. are vulnerable to ongoing attacks that could let hackers change settings, disable alerts, and disrupt fuel or chemical tank monitoring. U.S. agencies are urging critical infrastructure operators to remove direct internet access, secure remote access, change default passwords, and patch affected devices.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:01f7e99693c1d8f1" class="tab-panel"><div class="prose"><p>Over 900 automatic tank gauge systems in the United States have been found exposed online and vulnerable to ongoing attacks. These systems are used to monitor fuel, chemical, and other liquid storage tanks across critical infrastructure sectors. U.S. agencies warned that attackers are targeting internet-exposed ATG systems and modifying them through command execution.</p>
 
-<p>The joint advisory from <mark class="tag-hl">CISA</mark>, the <mark class="tag-hl">FBI</mark>, the <mark class="tag-hl">NSA</mark>, the Department of Energy, and other U.S. government partners said attackers exploit flaws such as <mark class="tag-hl">hardcoded credentials</mark>, authentication bypasses, <mark class="tag-hl">SQL injection</mark>, <mark class="tag-hl">OS command execution</mark> issues, and <mark class="tag-hl">privilege escalation</mark> weaknesses. <mark class="tag-hl">CISA</mark> warned that successful compromises could let attackers disable system alerts, increasing the risk of leaks, equipment failures, or permanent damage to tank systems. <mark class="tag-hl">Shadowserver</mark> reported 1,061 exposed ATG IPs on June 5, 2026, with 909 in the <mark class="tag-hl">United States</mark>.</p>
+<p>The joint advisory from CISA, the FBI, the NSA, the Department of Energy, and other U.S. government partners said attackers exploit flaws such as hardcoded credentials, authentication bypasses, SQL injection, OS command execution issues, and privilege escalation weaknesses. CISA warned that successful compromises could let attackers disable system alerts, increasing the risk of leaks, equipment failures, or permanent damage to tank systems. Shadowserver reported 1,061 exposed ATG IPs on June 5, 2026, with 909 in the United States.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:01f7e99693c1d8f1" class="tab-panel"><div class="prose"><p>Over 900 <mark class="tag-hl">automatic tank gauge systems</mark> in the <mark class="tag-hl">United States</mark> have been found exposed online and vulnerable to ongoing attacks. ATG systems are electronic monitoring devices used to remotely track fuel, chemicals, or other liquids in storage tanks. They support inventory control, environmental leak detection, and regulatory compliance, and are commonly used at gas stations as well as industrial sites.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:01f7e99693c1d8f1" class="tab-panel"><div class="prose"><p>Over 900 automatic tank gauge systems in the United States have been found exposed online and vulnerable to ongoing attacks. ATG systems are electronic monitoring devices used to remotely track fuel, chemicals, or other liquids in storage tanks. They support inventory control, environmental leak detection, and regulatory compliance, and are commonly used at gas stations as well as industrial sites.</p>
 
-<p><mark class="tag-hl">CISA</mark>, the <mark class="tag-hl">FBI</mark>, the <mark class="tag-hl">NSA</mark>, the Department of Energy, and other U.S. government partners issued a joint advisory warning critical infrastructure organizations to secure internet-exposed ATG systems. The advisory said recent malicious activity involved threat actors compromising internet-exposed ATG systems and modifying them through command execution. The U.S. government has not attributed the activity to a specific nation-state or threat actor group.</p>
+<p>CISA, the FBI, the NSA, the Department of Energy, and other U.S. government partners issued a joint advisory warning critical infrastructure organizations to secure internet-exposed ATG systems. The advisory said recent malicious activity involved threat actors compromising internet-exposed ATG systems and modifying them through command execution. The U.S. government has not attributed the activity to a specific nation-state or threat actor group.</p>
 
-<p>The agencies warned that attackers target these devices by exploiting several types of security weaknesses. The listed issues include <mark class="tag-hl">hardcoded credentials</mark>, authentication bypasses, <mark class="tag-hl">SQL injection</mark> vulnerabilities, <mark class="tag-hl">OS command execution</mark> flaws, and <mark class="tag-hl">privilege escalation</mark> weaknesses. After successful compromise, attackers could disable alerts, raising the risk of leaks, equipment failures, and permanent damage to targeted tank systems.</p>
+<p>The agencies warned that attackers target these devices by exploiting several types of security weaknesses. The listed issues include hardcoded credentials, authentication bypasses, SQL injection vulnerabilities, OS command execution flaws, and privilege escalation weaknesses. After successful compromise, attackers could disable alerts, raising the risk of leaks, equipment failures, and permanent damage to targeted tank systems.</p>
 
-<p><mark class="tag-hl">Shadowserver</mark> said it added ATG system scanning to its Accessible ICS reporting and observed 1,061 IPs on June 5, 2026, on port 10001/tcp. It said the vast majority of exposed devices were in the <mark class="tag-hl">United States</mark>, with 909 devices identified there. <mark class="tag-hl">Shadowserver</mark> also said it removed a large number of apparent honeypots, including systems on ports 8001 and 9001, from its count.</p>
+<p>Shadowserver said it added ATG system scanning to its Accessible ICS reporting and observed 1,061 IPs on June 5, 2026, on port 10001/tcp. It said the vast majority of exposed devices were in the United States, with 909 devices identified there. Shadowserver also said it removed a large number of apparent honeypots, including systems on ports 8001 and 9001, from its count.</p>
 
-<p>Critical infrastructure organizations are advised to restrict remote access to ATG systems from the internet and use controlled access through firewalls, VPNs, or access control lists. They are also advised to replace default passwords with strong credentials, apply security updates, monitor for unauthorized changes, and implement multi-factor authentication where possible. The article also notes a May CNN report that <mark class="tag-hl">Iranian hackers</mark> had breached internet-connected ATG systems at multiple U.S. gas stations, reportedly manipulating display readings without changing actual fuel levels.</p>
+<p>Critical infrastructure organizations are advised to restrict remote access to ATG systems from the internet and use controlled access through firewalls, VPNs, or access control lists. They are also advised to replace default passwords with strong credentials, apply security updates, monitor for unauthorized changes, and implement multi-factor authentication where possible. The article also notes a May CNN report that Iranian hackers had breached internet-connected ATG systems at multiple U.S. gas stations, reportedly manipulating display readings without changing actual fuel levels.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:01f7e99693c1d8f1" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:01f7e99693c1d8f1" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Over 900 <mark class="tag-hl">automatic tank gauge systems</mark> across the <mark class="tag-hl">United States</mark> have been found exposed online and vulnerable to ongoing attacks. These ATG systems are used to monitor fuel, chemical, and other liquid storage tanks across multiple critical infrastructure sectors. They are commonly used at gas stations to monitor fuel tank levels, but they can also be found in industrial environments that track chemical storage tanks.</p>
+<p>Over 900 automatic tank gauge systems across the United States have been found exposed online and vulnerable to ongoing attacks. These ATG systems are used to monitor fuel, chemical, and other liquid storage tanks across multiple critical infrastructure sectors. They are commonly used at gas stations to monitor fuel tank levels, but they can also be found in industrial environments that track chemical storage tanks.</p>
 
 <p>ATG systems automate functions such as inventory control, environmental leak detection, and regulatory compliance. Because these systems support monitoring and safety-related functions, unauthorized modification can create operational risks beyond simple data tampering.</p>
 
 <h2 id="government-warning">Government warning</h2>
 
-<p><mark class="tag-hl">CISA</mark>, the <mark class="tag-hl">FBI</mark>, the <mark class="tag-hl">NSA</mark>, the Department of Energy, and other U.S. government partners issued a joint advisory warning critical infrastructure organizations to secure internet-exposed ATG systems. The advisory said recent malicious cyber activity involved threat actors compromising internet-exposed ATG systems and modifying them through command execution.</p>
+<p>CISA, the FBI, the NSA, the Department of Energy, and other U.S. government partners issued a joint advisory warning critical infrastructure organizations to secure internet-exposed ATG systems. The advisory said recent malicious cyber activity involved threat actors compromising internet-exposed ATG systems and modifying them through command execution.</p>
 
 <p>The article states that the U.S. government has not attributed this recent activity to a nation-state or specific threat actor group. The advisory nonetheless describes ongoing attacks against exposed ATG systems and urges operators to take defensive action.</p>
 
@@ -1399,27 +1552,27 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The federal agencies warned that threat actors target ATG systems by exploiting multiple kinds of security weaknesses. The article lists the following flaws and techniques referenced by the advisory:</p>
 
 <ul>
-<li><mark class="tag-hl">Hardcoded credentials</mark>.</li>
+<li>Hardcoded credentials.</li>
 <li>Authentication bypasses.</li>
-<li><mark class="tag-hl">SQL injection</mark> vulnerabilities.</li>
-<li><mark class="tag-hl">OS command execution</mark> flaws.</li>
-<li><mark class="tag-hl">Privilege escalation</mark> weaknesses.</li>
+<li>SQL injection vulnerabilities.</li>
+<li>OS command execution flaws.</li>
+<li>Privilege escalation weaknesses.</li>
 <li>Command execution used to modify compromised systems.</li>
 </ul>
 
-<p>The article says attackers can alter system settings after exploiting such flaws. <mark class="tag-hl">CISA</mark> also cautioned that attackers could disable system alerts after successful compromise.</p>
+<p>The article says attackers can alter system settings after exploiting such flaws. CISA also cautioned that attackers could disable system alerts after successful compromise.</p>
 
 <h2 id="potential-impact">Potential impact</h2>
 
-<p>The article emphasizes that compromised ATG systems could create safety and operational risks. If attackers disable alerts, organizations may face increased risk of leaks or equipment failures. <mark class="tag-hl">CISA</mark> also warned that attacks could even cause permanent damage to targeted tank systems.</p>
+<p>The article emphasizes that compromised ATG systems could create safety and operational risks. If attackers disable alerts, organizations may face increased risk of leaks or equipment failures. CISA also warned that attacks could even cause permanent damage to targeted tank systems.</p>
 
 <p>The article separately notes that previously reported gas station incidents involved manipulated display readings but did not alter actual fuel levels. Even without physical damage in those incidents, the article says such activity raises concerns that attacks could hinder automated fuel leak detection and similar safety-related functions.</p>
 
-<h2 id="exposure-data-from-shadowserver">Exposure data from <mark class="tag-hl">Shadowserver</mark></h2>
+<h2 id="exposure-data-from-shadowserver">Exposure data from Shadowserver</h2>
 
-<p>Following <mark class="tag-hl">CISA</mark>’s advisory, <mark class="tag-hl">Shadowserver</mark> reported that more than 1,000 ATG systems were exposed online. <mark class="tag-hl">Shadowserver</mark> said it added scanning of ATG systems to its Accessible ICS reporting and saw 1,061 IPs on June 5, 2026, on port 10001/tcp.</p>
+<p>Following CISA’s advisory, Shadowserver reported that more than 1,000 ATG systems were exposed online. Shadowserver said it added scanning of ATG systems to its Accessible ICS reporting and saw 1,061 IPs on June 5, 2026, on port 10001/tcp.</p>
 
-<p>According to <mark class="tag-hl">Shadowserver</mark>, the vast majority of those exposed devices were in the <mark class="tag-hl">United States</mark>. The article reports that 909 exposed devices were located in the <mark class="tag-hl">United States</mark>. <mark class="tag-hl">Shadowserver</mark> also said it removed a large number of systems that appeared to be honeypots, including systems using ports 8001 and 9001.</p>
+<p>According to Shadowserver, the vast majority of those exposed devices were in the United States. The article reports that 909 exposed devices were located in the United States. Shadowserver also said it removed a large number of systems that appeared to be honeypots, including systems using ports 8001 and 9001.</p>
 
 <h2 id="recommended-response">Recommended response</h2>
 
@@ -1434,9 +1587,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Implement multi-factor authentication where possible.</li>
 </ul>
 
-<h2 id="related-activity-involving-iranian-hackers">Related activity involving <mark class="tag-hl">Iranian hackers</mark></h2>
+<h2 id="related-activity-involving-iranian-hackers">Related activity involving Iranian hackers</h2>
 
-<p>The article notes that <mark class="tag-hl">CISA</mark>’s warning followed a May CNN report that <mark class="tag-hl">Iranian hackers</mark> had breached internet-connected ATG systems at multiple gas stations across the <mark class="tag-hl">United States</mark>. According to the article, Iranian hacking groups were linked to those incidents based on their previous history of targeting fuel management systems and other industrial control technologies.</p>
+<p>The article notes that CISA’s warning followed a May CNN report that Iranian hackers had breached internet-connected ATG systems at multiple gas stations across the United States. According to the article, Iranian hacking groups were linked to those incidents based on their previous history of targeting fuel management systems and other industrial control technologies.</p>
 
 <p>In those incidents, attackers reportedly hacked devices with weak or nonexistent passwords and manipulated display readings. The article states that they did not alter the actual fuel levels and that the incidents did not cause physical damage.</p>
 
@@ -1444,19 +1597,20 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article also references an April joint advisory from U.S. federal agencies that linked Iranian state-backed hackers to attacks targeting Rockwell Automation/Allen-Bradley PLC devices since March 2026. Those attacks reportedly caused financial losses and operational disruptions.</p>
 
-<p>It further notes that Censys later reported that 74.6%, or 3,891 hosts, of such exposed industrial control systems found globally were in the <mark class="tag-hl">United States</mark>.</p>
+<p>It further notes that Censys later reported that 74.6%, or 3,891 hosts, of such exposed industrial control systems found globally were in the United States.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:01f7e99693c1d8f1" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Shadowserver</mark> said it excluded a large number of apparent honeypots from its count, indicating the reported 1,061 exposed ATG IPs were filtered to focus on likely real systems.</span></li><li><span class="kp-text">The advisory warns that compromised ATG systems could have alerts disabled, which makes the operational risk about missed leaks or equipment failures rather than only manipulated readings.</span></li><li><span class="kp-text">The article notes that recent gas station incidents reportedly involved manipulated display readings without changes to actual fuel levels, showing that even non-destructive access can interfere with safety-related monitoring functions.</span></li><li><span class="kp-text">The exposed ATG systems were found on port 10001/tcp, giving operators a concrete network indicator to check when identifying internet-facing devices.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:01f7e99693c1d8f1" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Shadowserver said it excluded a large number of apparent honeypots from its count, indicating the reported 1,061 exposed ATG IPs were filtered to focus on likely real systems.</span></li><li><span class="kp-text">The advisory warns that compromised ATG systems could have alerts disabled, which makes the operational risk about missed leaks or equipment failures rather than only manipulated readings.</span></li><li><span class="kp-text">The article notes that recent gas station incidents reportedly involved manipulated display readings without changes to actual fuel levels, showing that even non-destructive access can interfere with safety-related monitoring functions.</span></li><li><span class="kp-text">The exposed ATG systems were found on port 10001/tcp, giving operators a concrete network indicator to check when identifying internet-facing devices.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Over 900 <mark class="tag-hl">automatic tank gauge systems</mark> in the <mark class="tag-hl">United States</mark> have been found exposed online and vulnerable to ongoing attacks.</span></li><li><span class="kp-text"><mark class="tag-hl">CISA</mark>, the <mark class="tag-hl">FBI</mark>, the <mark class="tag-hl">NSA</mark>, the Department of Energy, and other U.S. government partners issued a joint advisory urging critical infrastructure organizations to secure internet-exposed <mark class="tag-hl">automatic tank gauge systems</mark>.</span></li><li><span class="kp-text">The advisory said attackers are exploiting issues including <mark class="tag-hl">hardcoded credentials</mark>, authentication bypasses, <mark class="tag-hl">SQL injection</mark>, <mark class="tag-hl">OS command execution</mark> flaws, and <mark class="tag-hl">privilege escalation</mark> weaknesses to modify compromised systems through command execution.</span></li><li><span class="kp-text"><mark class="tag-hl">Shadowserver</mark> reported 1,061 exposed automatic tank gauge system IPs on June 5, 2026, with 909 of the devices located in the <mark class="tag-hl">United States</mark>.</span></li><li><span class="kp-text">Critical infrastructure organizations are advised to restrict internet-based remote access, use firewalls, VPNs, or access control lists, replace default passwords, apply updates, monitor for unauthorized changes, and enable multi-factor authentication where possible.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Over 900 automatic tank gauge systems in the United States have been found exposed online and vulnerable to ongoing attacks.</span></li><li><span class="kp-text">CISA, the FBI, the NSA, the Department of Energy, and other U.S. government partners issued a joint advisory urging critical infrastructure organizations to secure internet-exposed automatic tank gauge systems.</span></li><li><span class="kp-text">The advisory said attackers are exploiting issues including hardcoded credentials, authentication bypasses, SQL injection, OS command execution flaws, and privilege escalation weaknesses to modify compromised systems through command execution.</span></li><li><span class="kp-text">Shadowserver reported 1,061 exposed automatic tank gauge system IPs on June 5, 2026, with 909 of the devices located in the United States.</span></li><li><span class="kp-text">Critical infrastructure organizations are advised to restrict internet-based remote access, use firewalls, VPNs, or access control lists, replace default passwords, apply updates, monitor for unauthorized changes, and enable multi-factor authentication where possible.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/over-900-us-gas-station-tank-gauge-systems-exposed-to-attacks/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, timely report of ongoing attacks against internet-exposed <mark class="tag-hl">automatic tank gauge systems</mark> used in critical infrastructure, backed by a joint U.S. government advisory and exposure data showing over 900 affected systems in the <mark class="tag-hl">United States</mark>. It is highly relevant for security professionals responsible for ICS, OT, or critical infrastructure environments, though the activity is not attributed to a specific actor and does not report confirmed widespread physical impact.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, timely report of ongoing attacks against internet-exposed automatic tank gauge systems used in critical infrastructure, backed by a joint U.S. government advisory and exposure data showing over 900 affected systems in the United States. It is highly relevant for security professionals responsible for ICS, OT, or critical infrastructure environments, though the activity is not attributed to a specific actor and does not report confirmed widespread physical impact.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.ic3.gov/CSA/2026/260602.pdf" target="_blank" rel="noopener">Joint advisory warning critical infrastructure organizations to secure internet-exposed ATG systems</a></div>
   <div class="report-meta">CISA, FBI, NSA, U.S. Department of Energy, and other U.S. government partners</div>
-  <div class="report-context">The article cites this joint advisory as the source of the warning that internet-exposed <mark class="tag-hl">automatic tank gauge systems</mark> are being compromised and modified through command execution.</div>
+  <div class="report-context">The article cites this joint advisory as the source of the warning that internet-exposed automatic tank gauge systems are being compromised and modified through command execution.</div>
 </li></ul></div>
             
           </div>
@@ -1485,46 +1639,46 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:72%"></div></div><span class="score-num score-num-low">72</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:a8bf8fbef4274f3e">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:a8bf8fbef4274f3e')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:a8bf8fbef4274f3e')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:a8bf8fbef4274f3e')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:a8bf8fbef4274f3e')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:a8bf8fbef4274f3e')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:a8bf8fbef4274f3e')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:a8bf8fbef4274f3e')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:a8bf8fbef4274f3e')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:a8bf8fbef4274f3e')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:a8bf8fbef4274f3e')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:a8bf8fbef4274f3e" class="tab-panel active"><div class="prose"><mark class="tag-hl">ESET</mark> says a new <mark class="tag-hl">Android</mark> spyware called <mark class="tag-hl">Asin</mark> is targeting Arabic-speaking users through fake news, PDF reader, and war map apps promoted via fraudulent websites and social media. The campaigns appear aimed at people interested in conflict tracking and open-source investigations, possibly including journalists and OSINT researchers.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:a8bf8fbef4274f3e" class="tab-panel"><div class="prose"><p><mark class="tag-hl">ESET</mark> reported that Arabic-speaking users are being targeted by a new <mark class="tag-hl">Android</mark> spyware codenamed <mark class="tag-hl">Asin</mark>. The malware was first detected across multiple campaigns in early 2025. The campaigns used websites that mimicked utilities, war-related updates, and a government news source.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:a8bf8fbef4274f3e" class="tab-panel active"><div class="prose">ESET says a new Android spyware called Asin is targeting Arabic-speaking users through fake news, PDF reader, and war map apps promoted via fraudulent websites and social media. The campaigns appear aimed at people interested in conflict tracking and open-source investigations, possibly including journalists and OSINT researchers.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:a8bf8fbef4274f3e" class="tab-panel"><div class="prose"><p>ESET reported that Arabic-speaking users are being targeted by a new Android spyware codenamed Asin. The malware was first detected across multiple campaigns in early 2025. The campaigns used websites that mimicked utilities, war-related updates, and a government news source.</p>
 
-<p>The fraudulent sites distributed malicious <mark class="tag-hl">Android</mark> apps that combined legitimate functionality with stealthy spyware capabilities. The sites included govlens.net, pdf-reader.help, live-war-map.com, c-pdf.net, and syriadefensemap.com. Some were promoted through dedicated <mark class="tag-hl">Facebook</mark> and <mark class="tag-hl">Telegram</mark> accounts.</p>
+<p>The fraudulent sites distributed malicious Android apps that combined legitimate functionality with stealthy spyware capabilities. The sites included govlens.net, pdf-reader.help, live-war-map.com, c-pdf.net, and syriadefensemap.com. Some were promoted through dedicated Facebook and Telegram accounts.</p>
 
-<p>The activity cluster remains unattributed, and <mark class="tag-hl">ESET</mark> said the primary objectives are not known. Based on the lures, <mark class="tag-hl">ESET</mark> suggested that journalists and OSINT researchers in <mark class="tag-hl">Arabic-speaking regions</mark> may have been targeted. Users had to manually install the apps and grant permissions for the spyware to achieve its goals.</p>
+<p>The activity cluster remains unattributed, and ESET said the primary objectives are not known. Based on the lures, ESET suggested that journalists and OSINT researchers in Arabic-speaking regions may have been targeted. Users had to manually install the apps and grant permissions for the spyware to achieve its goals.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:a8bf8fbef4274f3e" class="tab-panel"><div class="prose"><p><mark class="tag-hl">ESET</mark> said it identified a new <mark class="tag-hl">Android</mark> spyware called <mark class="tag-hl">Asin</mark> targeting Arabic-speaking users. The company first detected the malware being distributed through multiple campaigns in early 2025. Each campaign used distinct websites designed to look like utilities, conflict-related update services, or a government news source.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:a8bf8fbef4274f3e" class="tab-panel"><div class="prose"><p>ESET said it identified a new Android spyware called Asin targeting Arabic-speaking users. The company first detected the malware being distributed through multiple campaigns in early 2025. Each campaign used distinct websites designed to look like utilities, conflict-related update services, or a government news source.</p>
 
-<p>The identified websites included govlens.net, which impersonated a government news source, pdf-reader.help, which impersonated a secure PDF editor, and live-war-map.com, which claimed to provide military incident updates. <mark class="tag-hl">ESET</mark> also identified an APK downloaded from c-pdf.net and another sample downloaded from syriadefensemap.com. Two of the sites, govlens.net and live-war-map.com, were marketed through <mark class="tag-hl">Facebook</mark> and <mark class="tag-hl">Telegram</mark> accounts.</p>
+<p>The identified websites included govlens.net, which impersonated a government news source, pdf-reader.help, which impersonated a secure PDF editor, and live-war-map.com, which claimed to provide military incident updates. ESET also identified an APK downloaded from c-pdf.net and another sample downloaded from syriadefensemap.com. Two of the sites, govlens.net and live-war-map.com, were marketed through Facebook and Telegram accounts.</p>
 
-<p>According to <mark class="tag-hl">ESET</mark>, the malicious apps combined legitimate functionality with stealthy spyware capabilities. The <mark class="tag-hl">Telegram</mark> channel name t.me/liveuamap_ar was likely inspired by <mark class="tag-hl">Liveuamap</mark>, a legitimate platform that maps conflicts, human rights issues, natural disasters, and geopolitical events. In at least one case, the APK was presented as “<mark class="tag-hl">Syria</mark> Defense Map.”</p>
+<p>According to ESET, the malicious apps combined legitimate functionality with stealthy spyware capabilities. The Telegram channel name t.me/liveuamap_ar was likely inspired by Liveuamap, a legitimate platform that maps conflicts, human rights issues, natural disasters, and geopolitical events. In at least one case, the APK was presented as “Syria Defense Map.”</p>
 
-<p>The article says users needed to manually install the app and grant it the necessary permissions for the spyware to carry out its goals. Multiple <mark class="tag-hl">Asin</mark>-related artifacts were identified, including one uploaded to VirusTotal from Türkiye in October 2025 and samples observed on Xiaomi Redmi Note 13 series devices running <mark class="tag-hl">Android</mark> 15. One sample was detected around mid-January 2026 on Xiaomi Redmi Note 13 Pro+ 5G devices.</p>
+<p>The article says users needed to manually install the app and grant it the necessary permissions for the spyware to carry out its goals. Multiple Asin-related artifacts were identified, including one uploaded to VirusTotal from Türkiye in October 2025 and samples observed on Xiaomi Redmi Note 13 series devices running Android 15. One sample was detected around mid-January 2026 on Xiaomi Redmi Note 13 Pro+ 5G devices.</p>
 
-<p><mark class="tag-hl">ESET</mark> said the activity cluster remains unattributed, and the main objectives of the campaigns are unknown. However, the company said that three of the five fraudulent apps it found, GovLens, WarMap, and <mark class="tag-hl">Syria</mark> Defense Map, appeared intended for people interested in open-source investigation. <mark class="tag-hl">ESET</mark> said this made it possible that the activity was at least partially aimed at Arabic-speaking journalists or OSINT practitioners.</p>
+<p>ESET said the activity cluster remains unattributed, and the main objectives of the campaigns are unknown. However, the company said that three of the five fraudulent apps it found, GovLens, WarMap, and Syria Defense Map, appeared intended for people interested in open-source investigation. ESET said this made it possible that the activity was at least partially aimed at Arabic-speaking journalists or OSINT practitioners.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:a8bf8fbef4274f3e" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:a8bf8fbef4274f3e" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">ESET</mark> reported a new <mark class="tag-hl">Android</mark> spyware codenamed <strong><mark class="tag-hl">Asin</mark></strong> targeting Arabic-speaking users. The malware was first detected by the company across multiple campaigns in early 2025. The campaigns used websites that imitated a government news source, utility apps, and war-related update services.</p>
+<p>ESET reported a new Android spyware codenamed <strong>Asin</strong> targeting Arabic-speaking users. The malware was first detected by the company across multiple campaigns in early 2025. The campaigns used websites that imitated a government news source, utility apps, and war-related update services.</p>
 
-<p>The article says each website distributed a malicious <mark class="tag-hl">Android</mark> app that mixed legitimate functionality with stealthy spyware capabilities. <mark class="tag-hl">ESET</mark> did not attribute the activity cluster to a known actor. The primary objectives of the campaigns are also not known.</p>
+<p>The article says each website distributed a malicious Android app that mixed legitimate functionality with stealthy spyware capabilities. ESET did not attribute the activity cluster to a known actor. The primary objectives of the campaigns are also not known.</p>
 
 <h2 id="distribution-infrastructure">Distribution Infrastructure</h2>
 
-<p><mark class="tag-hl">ESET</mark> identified several websites connected to <mark class="tag-hl">Asin</mark> distribution. These sites were presented as useful or timely services for Arabic-speaking users.</p>
+<p>ESET identified several websites connected to Asin distribution. These sites were presented as useful or timely services for Arabic-speaking users.</p>
 
 <p>The article lists the following domains:</p>
 
@@ -1533,52 +1687,53 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li><strong>pdf-reader.help</strong>, which impersonated a secure PDF editor and was registered on May 29, 2025.</li>
 <li><strong>live-war-map.com</strong>, which claimed to offer updates on military incidents and was registered on January 20, 2025.</li>
 <li><strong>c-pdf.net</strong>, from which an APK was downloaded in December 2025.</li>
-<li><strong>syriadefensemap.com</strong>, from which an APK masquerading as “<mark class="tag-hl">Syria</mark> Defense Map” was downloaded.</li>
+<li><strong>syriadefensemap.com</strong>, from which an APK masquerading as “Syria Defense Map” was downloaded.</li>
 </ul>
 
-<p>Two of the fraudulent websites were also promoted through social media accounts. The article identifies <strong>www.<mark class="tag-hl">facebook</mark>.com/GovLens</strong> and <strong>t.me/liveuamap_ar</strong> as dedicated accounts used to market govlens.net and live-war-map.com.</p>
+<p>Two of the fraudulent websites were also promoted through social media accounts. The article identifies <strong>www.facebook.com/GovLens</strong> and <strong>t.me/liveuamap_ar</strong> as dedicated accounts used to market govlens.net and live-war-map.com.</p>
 
 <h2 id="social-media-and-brand-imitation">Social Media and Brand Imitation</h2>
 
-<p>The article notes that the <mark class="tag-hl">Telegram</mark> channel name was likely inspired by <strong>Live Universal Awareness Map</strong>, also known as <strong><mark class="tag-hl">Liveuamap</mark></strong>. <mark class="tag-hl">Liveuamap</mark> is described as a legitimate and well-known platform for mapping ongoing conflicts, human rights issues, natural disasters, and geopolitical events worldwide.</p>
+<p>The article notes that the Telegram channel name was likely inspired by <strong>Live Universal Awareness Map</strong>, also known as <strong>Liveuamap</strong>. Liveuamap is described as a legitimate and well-known platform for mapping ongoing conflicts, human rights issues, natural disasters, and geopolitical events worldwide.</p>
 
-<p>This reference is relevant because one of the malicious campaign themes involved war maps and military incident updates. The article does not say that the legitimate <mark class="tag-hl">Liveuamap</mark> platform was compromised. It only states that the <mark class="tag-hl">Telegram</mark> channel name was likely inspired by the legitimate service.</p>
+<p>This reference is relevant because one of the malicious campaign themes involved war maps and military incident updates. The article does not say that the legitimate Liveuamap platform was compromised. It only states that the Telegram channel name was likely inspired by the legitimate service.</p>
 
 <h2 id="malware-behavior-and-installation-requirements">Malware Behavior and Installation Requirements</h2>
 
-<p><mark class="tag-hl">ESET</mark> said the apps distributed by the fraudulent websites combined legitimate functionality with spyware capabilities. The article does not provide a full technical breakdown of <mark class="tag-hl">Asin</mark>’s spyware functions. It does state that the user must manually install the app and grant the required permissions for the spyware to realize its goals.</p>
+<p>ESET said the apps distributed by the fraudulent websites combined legitimate functionality with spyware capabilities. The article does not provide a full technical breakdown of Asin’s spyware functions. It does state that the user must manually install the app and grant the required permissions for the spyware to realize its goals.</p>
 
 <p>This means the campaigns depended on users downloading APKs from the associated websites and approving permissions during installation or use. The article does not describe exploitation of a vulnerability or automatic infection. It frames the activity around malicious apps distributed through deceptive websites and promoted through social media.</p>
 
 <h2 id="observed-artifacts-and-devices">Observed Artifacts and Devices</h2>
 
-<p>The article describes multiple artifacts associated with <mark class="tag-hl">Asin</mark>. One artifact was uploaded to VirusTotal from Türkiye in October 2025. Another APK was downloaded from <strong>c-pdf.net</strong> in December 2025 by a user on a <strong>Xiaomi Redmi Note 13 Pro</strong> running <strong><mark class="tag-hl">Android</mark> 15</strong>.</p>
+<p>The article describes multiple artifacts associated with Asin. One artifact was uploaded to VirusTotal from Türkiye in October 2025. Another APK was downloaded from <strong>c-pdf.net</strong> in December 2025 by a user on a <strong>Xiaomi Redmi Note 13 Pro</strong> running <strong>Android 15</strong>.</p>
 
-<p>A third sample masquerading as <strong>“<mark class="tag-hl">Syria</mark> Defense Map”</strong> was detected on <strong>Xiaomi Redmi Note 13 Pro+ 5G</strong> devices running <strong><mark class="tag-hl">Android</mark> 15</strong> around mid-January 2026. In that case, the APK was downloaded from <strong>syriadefensemap.com</strong>. The article does not disclose the number of affected users.</p>
+<p>A third sample masquerading as <strong>“Syria Defense Map”</strong> was detected on <strong>Xiaomi Redmi Note 13 Pro+ 5G</strong> devices running <strong>Android 15</strong> around mid-January 2026. In that case, the APK was downloaded from <strong>syriadefensemap.com</strong>. The article does not disclose the number of affected users.</p>
 
 <h2 id="potential-targeting">Potential Targeting</h2>
 
-<p>The activity appears focused on Arabic-speaking users. <mark class="tag-hl">ESET</mark> said the use of certain lures suggests that journalists and OSINT researchers in <mark class="tag-hl">Arabic-speaking regions</mark> may have been among the targets.</p>
+<p>The activity appears focused on Arabic-speaking users. ESET said the use of certain lures suggests that journalists and OSINT researchers in Arabic-speaking regions may have been among the targets.</p>
 
-<p>The company specifically noted that three of the five fraudulent apps it found, <strong>GovLens</strong>, <strong>WarMap</strong>, and <strong><mark class="tag-hl">Syria</mark> Defense Map</strong>, seemed primarily intended for people interested in open-source investigation. Based on that observation, <mark class="tag-hl">ESET</mark> said the activity may have been, at least partially, meant to target Arabic-speaking journalists or OSINT practitioners.</p>
+<p>The company specifically noted that three of the five fraudulent apps it found, <strong>GovLens</strong>, <strong>WarMap</strong>, and <strong>Syria Defense Map</strong>, seemed primarily intended for people interested in open-source investigation. Based on that observation, ESET said the activity may have been, at least partially, meant to target Arabic-speaking journalists or OSINT practitioners.</p>
 
 <h2 id="attribution-and-objectives">Attribution and Objectives</h2>
 
-<p><mark class="tag-hl">ESET</mark> said the activity cluster remains unattributed. The article does not name any suspected threat actor or group. It also states that the primary objectives of the campaigns are not known.</p>
+<p>ESET said the activity cluster remains unattributed. The article does not name any suspected threat actor or group. It also states that the primary objectives of the campaigns are not known.</p>
 
-<p>The only stated assessment of possible targeting is based on the themes of the fraudulent apps and websites. These themes included government news, PDF editing, war maps, military incident updates, and <mark class="tag-hl">Syria</mark>-related defense mapping.</p>
+<p>The only stated assessment of possible targeting is based on the themes of the fraudulent apps and websites. These themes included government news, PDF editing, war maps, military incident updates, and Syria-related defense mapping.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:a8bf8fbef4274f3e" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The spyware depends on users manually installing the APK and granting permissions, making <mark class="tag-hl">sideloading</mark> controls and permission scrutiny especially relevant defenses for the described campaigns.</span></li><li><span class="kp-text">Several samples were observed on Xiaomi Redmi Note 13 devices running <mark class="tag-hl">Android</mark> 15, showing that the activity involved recent <mark class="tag-hl">Android</mark> versions and modern consumer devices.</span></li><li><span class="kp-text">The <mark class="tag-hl">Telegram</mark> channel t.me/liveuamap_ar appears to borrow from the name of the legitimate <mark class="tag-hl">Liveuamap</mark> platform, making brand imitation a notable part of the lure.</span></li><li><span class="kp-text">Three of the five fraudulent apps identified by <mark class="tag-hl">ESET</mark> used open-source investigation or conflict-monitoring themes, narrowing the likely audience beyond general Arabic-speaking users.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:a8bf8fbef4274f3e" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The spyware depends on users manually installing the APK and granting permissions, making sideloading controls and permission scrutiny especially relevant defenses for the described campaigns.</span></li><li><span class="kp-text">Several samples were observed on Xiaomi Redmi Note 13 devices running Android 15, showing that the activity involved recent Android versions and modern consumer devices.</span></li><li><span class="kp-text">The Telegram channel t.me/liveuamap_ar appears to borrow from the name of the legitimate Liveuamap platform, making brand imitation a notable part of the lure.</span></li><li><span class="kp-text">Three of the five fraudulent apps identified by ESET used open-source investigation or conflict-monitoring themes, narrowing the likely audience beyond general Arabic-speaking users.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">ESET</mark> reported that Arabic-speaking users are being targeted by a new <mark class="tag-hl">Android</mark> spyware codenamed <mark class="tag-hl">Asin</mark>.</span></li><li><span class="kp-text"><mark class="tag-hl">ESET</mark> first detected <mark class="tag-hl">Asin</mark> being spread through multiple campaigns in early 2025 using websites that mimicked utilities, war-related updates, and a government news source.</span></li><li><span class="kp-text">The identified distribution sites included govlens.net, pdf-reader.help, live-war-map.com, c-pdf.net, and syriadefensemap.com.</span></li><li><span class="kp-text">Some <mark class="tag-hl">Asin</mark>-related sites were promoted through dedicated <mark class="tag-hl">Facebook</mark> and <mark class="tag-hl">Telegram</mark> accounts, including www.<mark class="tag-hl">facebook</mark>.com/GovLens and t.me/liveuamap_ar.</span></li><li><span class="kp-text"><mark class="tag-hl">ESET</mark> said the activity cluster remains unattributed and that the lures suggest Arabic-speaking journalists or OSINT practitioners may have been targeted.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">ESET reported that Arabic-speaking users are being targeted by a new Android spyware codenamed Asin.</span></li><li><span class="kp-text">ESET first detected Asin being spread through multiple campaigns in early 2025 using websites that mimicked utilities, war-related updates, and a government news source.</span></li><li><span class="kp-text">The identified distribution sites included govlens.net, pdf-reader.help, live-war-map.com, c-pdf.net, and syriadefensemap.com.</span></li><li><span class="kp-text">Some Asin-related sites were promoted through dedicated Facebook and Telegram accounts, including www.facebook.com/GovLens and t.me/liveuamap_ar.</span></li><li><span class="kp-text">ESET said the activity cluster remains unattributed and that the lures suggest Arabic-speaking journalists or OSINT practitioners may have been targeted.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/android-spyware-asin-targets-arabic.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a concrete <mark class="tag-hl">Android</mark> spyware campaign with named infrastructure, lures, and targeting details, making it useful for threat intelligence and mobile security teams. Its impact appears relatively narrow and unattributed, with no disclosed large-scale compromise or active exploitation of a vulnerability, so it is not a must-read for all security professionals.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a concrete Android spyware campaign with named infrastructure, lures, and targeting details, making it useful for threat intelligence and mobile security teams. Its impact appears relatively narrow and unattributed, with no disclosed large-scale compromise or active exploitation of a vulnerability, so it is not a must-read for all security professionals.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.welivesecurity.com/en/eset-research/eset-apt-activity-report-q4-2025-q1-2026/" target="_blank" rel="noopener">ESET APT Activity Report Q4 2025–Q1 2026</a></div>
   <div class="report-meta">ESET</div>
-  <div class="report-context">The article cites <mark class="tag-hl">ESET</mark>&#39;s findings as the source for reporting that Arabic-speaking users are being targeted by the <mark class="tag-hl">Android</mark> spyware <mark class="tag-hl">Asin</mark>.</div>
+  <div class="report-context">The article cites ESET&#39;s findings as the source for reporting that Arabic-speaking users are being targeted by the Android spyware Asin.</div>
 </li></ul></div>
             
           </div>
@@ -1601,56 +1756,56 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:64%"></div></div><span class="score-num score-num-low">64</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:f7ffee89a8649e77">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:f7ffee89a8649e77')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:f7ffee89a8649e77')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:f7ffee89a8649e77')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:f7ffee89a8649e77')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:f7ffee89a8649e77')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:f7ffee89a8649e77')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:f7ffee89a8649e77')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:f7ffee89a8649e77')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:f7ffee89a8649e77')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:f7ffee89a8649e77')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:f7ffee89a8649e77" class="tab-panel active"><div class="prose">A San Jose man was sentenced to more than 26 years in federal prison for selling fentanyl and methamphetamine through the dark web marketplace <mark class="tag-hl">Nemesis Market</mark>. The case highlights law enforcement’s continued targeting of dark web drug trafficking operations, even after marketplace takedowns.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:f7ffee89a8649e77" class="tab-panel"><div class="prose"><p>A <mark class="tag-hl">California</mark> man, 39-year-old <mark class="tag-hl">Darren Hughes</mark> of San Jose, was sentenced to more than 26 years in federal prison for trafficking fentanyl and methamphetamine through <mark class="tag-hl">Nemesis Market</mark>. Hughes was convicted on drug trafficking charges in November 2025 and sentenced by U.S. District Judge John F. Kness on May 26. Prosecutors said he operated a store on <mark class="tag-hl">Nemesis Market</mark>, one of the world’s largest dark web marketplaces.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:f7ffee89a8649e77" class="tab-panel active"><div class="prose">A San Jose man was sentenced to more than 26 years in federal prison for selling fentanyl and methamphetamine through the dark web marketplace Nemesis Market. The case highlights law enforcement’s continued targeting of dark web drug trafficking operations, even after marketplace takedowns.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:f7ffee89a8649e77" class="tab-panel"><div class="prose"><p>A California man, 39-year-old Darren Hughes of San Jose, was sentenced to more than 26 years in federal prison for trafficking fentanyl and methamphetamine through Nemesis Market. Hughes was convicted on drug trafficking charges in November 2025 and sentenced by U.S. District Judge John F. Kness on May 26. Prosecutors said he operated a store on Nemesis Market, one of the world’s largest dark web marketplaces.</p>
 
 <p>According to court documents, Hughes offered potential clients free methamphetamine samples through the marketplace. After sending a free sample to an undercover law enforcement agent, he sold the agent methamphetamine and fentanyl pills on five separate occasions in 2023 in exchange for cryptocurrency. He was arrested on June 28, 2023, after another arranged sale with undercover agents.</p>
 
-<p>Detectives found approximately 672 grams of methamphetamine and a loaded 9mm ghost gun with no serial number during a search of Hughes’ vehicle. <mark class="tag-hl">Nemesis Market</mark> was taken down by German and American authorities in March 2024 after growing to more than 150,000 user accounts and 1,100 seller accounts. Authorities said the case shows that dark web marketplaces are not beyond law enforcement’s reach.</p>
+<p>Detectives found approximately 672 grams of methamphetamine and a loaded 9mm ghost gun with no serial number during a search of Hughes’ vehicle. Nemesis Market was taken down by German and American authorities in March 2024 after growing to more than 150,000 user accounts and 1,100 seller accounts. Authorities said the case shows that dark web marketplaces are not beyond law enforcement’s reach.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:f7ffee89a8649e77" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Darren Hughes</mark>, a 39-year-old man from San Jose, <mark class="tag-hl">California</mark>, was sentenced to more than 26 years in federal prison for trafficking fentanyl and methamphetamine through <mark class="tag-hl">Nemesis Market</mark>. He was convicted on drug trafficking charges in November 2025 and sentenced by U.S. District Judge John F. Kness on May 26. The article describes <mark class="tag-hl">Nemesis Market</mark> as one of the world’s largest dark web marketplaces before its takedown.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:f7ffee89a8649e77" class="tab-panel"><div class="prose"><p>Darren Hughes, a 39-year-old man from San Jose, California, was sentenced to more than 26 years in federal prison for trafficking fentanyl and methamphetamine through Nemesis Market. He was convicted on drug trafficking charges in November 2025 and sentenced by U.S. District Judge John F. Kness on May 26. The article describes Nemesis Market as one of the world’s largest dark web marketplaces before its takedown.</p>
 
-<p>Court documents said Hughes operated a store on <mark class="tag-hl">Nemesis Market</mark> that offered free samples of methamphetamine to potential clients. An undercover law enforcement agent contacted him and received one of the free methamphetamine samples. Hughes then sold the agent methamphetamine and fentanyl pills on five separate occasions in 2023, receiving cryptocurrency as payment.</p>
+<p>Court documents said Hughes operated a store on Nemesis Market that offered free samples of methamphetamine to potential clients. An undercover law enforcement agent contacted him and received one of the free methamphetamine samples. Hughes then sold the agent methamphetamine and fentanyl pills on five separate occasions in 2023, receiving cryptocurrency as payment.</p>
 
-<p>The <mark class="tag-hl">Redwood City Police Department</mark> arrested Hughes in <mark class="tag-hl">California</mark> on June 28, 2023, after arranging another sale with undercover agents. Detectives from the Street Crime Suppression Team searched his vehicle and found approximately 672 grams of methamphetamine. They also found a loaded 9mm “ghost gun” with no serial number.</p>
+<p>The Redwood City Police Department arrested Hughes in California on June 28, 2023, after arranging another sale with undercover agents. Detectives from the Street Crime Suppression Team searched his vehicle and found approximately 672 grams of methamphetamine. They also found a loaded 9mm “ghost gun” with no serial number.</p>
 
 <p>U.S. Attorney Andrew S. Boutros said criminals selling drugs on the dark web mistakenly believe they are beyond the reach of federal law enforcement. IRS-CI SAC Adam Jobes said dark web marketplaces may seem anonymous, but no platform is beyond law enforcement’s reach. Both statements framed the case as part of broader law enforcement action against online drug trafficking.</p>
 
-<p><mark class="tag-hl">Nemesis Market</mark> launched in 2021 and was taken down by German and American authorities in March 2024. At its peak, it hosted more than 150,000 user accounts and 1,100 seller accounts, and processed over 400,000 orders. The article says those orders included roughly 17,000 for opioids such as fentanyl, heroin, and oxycodone, and more than 55,000 for meth, cocaine, and crack cocaine.</p>
+<p>Nemesis Market launched in 2021 and was taken down by German and American authorities in March 2024. At its peak, it hosted more than 150,000 user accounts and 1,100 seller accounts, and processed over 400,000 orders. The article says those orders included roughly 17,000 for opioids such as fentanyl, heroin, and oxycodone, and more than 55,000 for meth, cocaine, and crack cocaine.</p>
 
-<p><mark class="tag-hl">Germany</mark>’s Federal Criminal Police Office and Frankfurt’s cybercrime unit led the <mark class="tag-hl">Nemesis Market</mark> shutdown on March 20, 2024. Authorities seized infrastructure in <mark class="tag-hl">Germany</mark> and <mark class="tag-hl">Lithuania</mark> and confiscated roughly $100,000 in cash. The investigation began in October 2022 and involved German, Lithuanian, and American agencies, including the <mark class="tag-hl">FBI</mark>, <mark class="tag-hl">DEA</mark>, and <mark class="tag-hl">IRS Criminal Investigation</mark>.</p>
+<p>Germany’s Federal Criminal Police Office and Frankfurt’s cybercrime unit led the Nemesis Market shutdown on March 20, 2024. Authorities seized infrastructure in Germany and Lithuania and confiscated roughly $100,000 in cash. The investigation began in October 2022 and involved German, Lithuanian, and American agencies, including the FBI, DEA, and IRS Criminal Investigation.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:f7ffee89a8649e77" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:f7ffee89a8649e77" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>A <mark class="tag-hl">California</mark> man, <mark class="tag-hl">Darren Hughes</mark> of San Jose, was sentenced to more than 26 years in federal prison for trafficking fentanyl and methamphetamine through <mark class="tag-hl">Nemesis Market</mark>. Hughes was 39 years old and had been convicted on drug trafficking charges in November 2025. U.S. District Judge John F. Kness sentenced him on May 26.</p>
+<p>A California man, Darren Hughes of San Jose, was sentenced to more than 26 years in federal prison for trafficking fentanyl and methamphetamine through Nemesis Market. Hughes was 39 years old and had been convicted on drug trafficking charges in November 2025. U.S. District Judge John F. Kness sentenced him on May 26.</p>
 
-<p>The article describes <mark class="tag-hl">Nemesis Market</mark> as one of the world’s largest dark web marketplaces before it was taken down. Hughes used the marketplace to operate a store that offered potential customers free methamphetamine samples. His case centered on drug sales conducted through the dark web and paid for with cryptocurrency.</p>
+<p>The article describes Nemesis Market as one of the world’s largest dark web marketplaces before it was taken down. Hughes used the marketplace to operate a store that offered potential customers free methamphetamine samples. His case centered on drug sales conducted through the dark web and paid for with cryptocurrency.</p>
 
 <h2 id="conduct-described-in-court-documents">Conduct Described in Court Documents</h2>
 
-<p>According to court documents, Hughes operated a store on <mark class="tag-hl">Nemesis Market</mark> where he offered potential clients free samples of methamphetamine. An undercover law enforcement agent contacted him and received one of those free samples. After that, Hughes sold the undercover agent methamphetamine and fentanyl pills on five separate occasions in 2023.</p>
+<p>According to court documents, Hughes operated a store on Nemesis Market where he offered potential clients free samples of methamphetamine. An undercover law enforcement agent contacted him and received one of those free samples. After that, Hughes sold the undercover agent methamphetamine and fentanyl pills on five separate occasions in 2023.</p>
 
 <p>The article states that these transactions were paid for using cryptocurrency. It does not specify the cryptocurrency used. The activity described in the case involved both stimulant and opioid drugs, including methamphetamine and fentanyl pills.</p>
 
 <h2 id="arrest-and-seized-evidence">Arrest and Seized Evidence</h2>
 
-<p>Hughes was arrested in <mark class="tag-hl">California</mark> on June 28, 2023, by the <mark class="tag-hl">Redwood City Police Department</mark>. The arrest followed another sale arranged with undercover agents. The article links the arrest to a <mark class="tag-hl">Redwood City Police Department</mark> announcement.</p>
+<p>Hughes was arrested in California on June 28, 2023, by the Redwood City Police Department. The arrest followed another sale arranged with undercover agents. The article links the arrest to a Redwood City Police Department announcement.</p>
 
-<p>During a search of Hughes’ vehicle, detectives from the Street Crime Suppression Team found approximately 672 grams of methamphetamine. They also found a loaded 9mm “ghost gun” with no serial number. The article includes a photo captioned as evidence seized during Hughes’ arrest and attributed to the <mark class="tag-hl">Redwood City Police Department</mark>.</p>
+<p>During a search of Hughes’ vehicle, detectives from the Street Crime Suppression Team found approximately 672 grams of methamphetamine. They also found a loaded 9mm “ghost gun” with no serial number. The article includes a photo captioned as evidence seized during Hughes’ arrest and attributed to the Redwood City Police Department.</p>
 
 <h2 id="law-enforcement-statements">Law Enforcement Statements</h2>
 
@@ -1658,11 +1813,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>IRS-CI SAC Adam Jobes said drug dealers once relied on street corners and now use the internet to reach customers worldwide. He said dark web marketplaces may seem anonymous, but no platform is beyond law enforcement’s reach. He also said Hughes used the internet to profit from addiction and distribute dangerous drugs.</p>
 
-<h2 id="nemesis-market-background"><mark class="tag-hl">Nemesis Market</mark> Background</h2>
+<h2 id="nemesis-market-background">Nemesis Market Background</h2>
 
-<p><mark class="tag-hl">Nemesis Market</mark> launched in 2021. The article says it quickly grew into one of the world’s largest illegal online markets. It was taken down by German and American authorities in March 2024.</p>
+<p>Nemesis Market launched in 2021. The article says it quickly grew into one of the world’s largest illegal online markets. It was taken down by German and American authorities in March 2024.</p>
 
-<p>At its peak, <mark class="tag-hl">Nemesis Market</mark> hosted:</p>
+<p>At its peak, Nemesis Market hosted:</p>
 
 <ul>
 <li>More than 150,000 user accounts.</li>
@@ -1679,22 +1834,23 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="marketplace-takedown">Marketplace Takedown</h2>
 
-<p><mark class="tag-hl">Germany</mark>’s Federal Criminal Police Office and Frankfurt’s cybercrime unit led the <mark class="tag-hl">Nemesis Market</mark> shutdown on March 20, 2024. Authorities seized infrastructure in <mark class="tag-hl">Germany</mark> and <mark class="tag-hl">Lithuania</mark>. They also confiscated roughly $100,000 in cash.</p>
+<p>Germany’s Federal Criminal Police Office and Frankfurt’s cybercrime unit led the Nemesis Market shutdown on March 20, 2024. Authorities seized infrastructure in Germany and Lithuania. They also confiscated roughly $100,000 in cash.</p>
 
-<p>The investigation began in October 2022. It involved German, Lithuanian, and American agencies. The article specifically names the <mark class="tag-hl">FBI</mark>, <mark class="tag-hl">DEA</mark>, and <mark class="tag-hl">IRS Criminal Investigation</mark> as participating U.S. agencies.</p>
+<p>The investigation began in October 2022. It involved German, Lithuanian, and American agencies. The article specifically names the FBI, DEA, and IRS Criminal Investigation as participating U.S. agencies.</p>
 
 <h2 id="significance-stated-in-the-article">Significance Stated in the Article</h2>
 
-<p>The article presents the sentencing as a law enforcement outcome against a dark web drug vendor. It emphasizes that Hughes sold drugs through <mark class="tag-hl">Nemesis Market</mark> despite the perceived anonymity of dark web marketplaces. It also connects the individual prosecution to the broader shutdown of <mark class="tag-hl">Nemesis Market</mark> by international authorities.</p>
+<p>The article presents the sentencing as a law enforcement outcome against a dark web drug vendor. It emphasizes that Hughes sold drugs through Nemesis Market despite the perceived anonymity of dark web marketplaces. It also connects the individual prosecution to the broader shutdown of Nemesis Market by international authorities.</p>
 
 <p>The disclosed impact includes Hughes’ 26-plus-year federal prison sentence, the seizure of methamphetamine and a loaded ghost gun during his arrest, and the earlier takedown of a marketplace that had processed hundreds of thousands of orders.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:f7ffee89a8649e77" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The investigation shows that dark web vendor cases can be built through undercover purchases using cryptocurrency, despite sellers’ reliance on perceived marketplace anonymity.</span></li><li><span class="kp-text">The arrest occurred before <mark class="tag-hl">Nemesis Market</mark> was taken down, indicating that law enforcement pursued individual vendors while the broader marketplace investigation was still ongoing.</span></li><li><span class="kp-text"><mark class="tag-hl">Nemesis Market</mark>’s order history included tens of thousands of opioid and stimulant transactions, showing that drug trafficking was a major component of the marketplace’s activity, not an incidental use.</span></li><li><span class="kp-text">The marketplace shutdown involved infrastructure seizures in multiple countries and agencies from <mark class="tag-hl">Germany</mark>, <mark class="tag-hl">Lithuania</mark>, and the <mark class="tag-hl">United States</mark>, underscoring that dark web enforcement can require cross-border coordination.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:f7ffee89a8649e77" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The investigation shows that dark web vendor cases can be built through undercover purchases using cryptocurrency, despite sellers’ reliance on perceived marketplace anonymity.</span></li><li><span class="kp-text">The arrest occurred before Nemesis Market was taken down, indicating that law enforcement pursued individual vendors while the broader marketplace investigation was still ongoing.</span></li><li><span class="kp-text">Nemesis Market’s order history included tens of thousands of opioid and stimulant transactions, showing that drug trafficking was a major component of the marketplace’s activity, not an incidental use.</span></li><li><span class="kp-text">The marketplace shutdown involved infrastructure seizures in multiple countries and agencies from Germany, Lithuania, and the United States, underscoring that dark web enforcement can require cross-border coordination.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Darren Hughes</mark> of San Jose, <mark class="tag-hl">California</mark>, was sentenced to more than 26 years in federal prison for trafficking fentanyl and methamphetamine through <mark class="tag-hl">Nemesis Market</mark>.</span></li><li><span class="kp-text">Hughes operated a store on <mark class="tag-hl">Nemesis Market</mark> that offered potential clients free samples of methamphetamine and later sold methamphetamine and fentanyl pills to an undercover law enforcement agent in exchange for cryptocurrency.</span></li><li><span class="kp-text">The <mark class="tag-hl">Redwood City Police Department</mark> arrested Hughes on June 28, 2023, after arranging another sale with undercover agents.</span></li><li><span class="kp-text">Detectives searching Hughes’ vehicle found approximately 672 grams of methamphetamine and a loaded 9mm ghost gun with no serial number.</span></li><li><span class="kp-text"><mark class="tag-hl">Nemesis Market</mark> was taken down by German and American authorities in March 2024 after growing to more than 150,000 user accounts and 1,100 seller accounts.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Darren Hughes of San Jose, California, was sentenced to more than 26 years in federal prison for trafficking fentanyl and methamphetamine through Nemesis Market.</span></li><li><span class="kp-text">Hughes operated a store on Nemesis Market that offered potential clients free samples of methamphetamine and later sold methamphetamine and fentanyl pills to an undercover law enforcement agent in exchange for cryptocurrency.</span></li><li><span class="kp-text">The Redwood City Police Department arrested Hughes on June 28, 2023, after arranging another sale with undercover agents.</span></li><li><span class="kp-text">Detectives searching Hughes’ vehicle found approximately 672 grams of methamphetamine and a loaded 9mm ghost gun with no serial number.</span></li><li><span class="kp-text">Nemesis Market was taken down by German and American authorities in March 2024 after growing to more than 150,000 user accounts and 1,100 seller accounts.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/dark-web-nemesis-market-vendor-gets-26-years-for-selling-drugs/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific law enforcement outcome involving a dark web marketplace vendor and provides useful context on <mark class="tag-hl">Nemesis Market</mark> operations and international takedown activity. However, it does not describe an active cyber threat, breach, exploit, vulnerability, or defensive action requiring urgency for most security professionals.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific law enforcement outcome involving a dark web marketplace vendor and provides useful context on Nemesis Market operations and international takedown activity. However, it does not describe an active cyber threat, breach, exploit, vulnerability, or defensive action requiring urgency for most security professionals.</p>
 </div></div>
             
             
@@ -1724,85 +1880,85 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:55%"></div></div><span class="score-num score-num-low">55</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:c83996b83a1df452">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:c83996b83a1df452')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:c83996b83a1df452')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:c83996b83a1df452')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:c83996b83a1df452')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:c83996b83a1df452')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:c83996b83a1df452')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:c83996b83a1df452')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:c83996b83a1df452')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:c83996b83a1df452')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:c83996b83a1df452')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:c83996b83a1df452" class="tab-panel active"><div class="prose">The 2026 <mark class="tag-hl">Verizon DBIR</mark> and <mark class="tag-hl">Keep Aware</mark> telemetry argue that major enterprise risks like <mark class="tag-hl">shadow AI</mark>, <mark class="tag-hl">credential theft</mark>, risky extensions, and <mark class="tag-hl">ClickFix</mark> are increasingly happening inside the browser, where traditional network and endpoint tools often lack visibility. The article’s main takeaway is that security teams need browser-layer monitoring and controls to close these gaps.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:c83996b83a1df452" class="tab-panel"><div class="prose"><p>The article argues that the 2026 Verizon Data Breach Investigations Report and <mark class="tag-hl">Keep Aware</mark>’s browser telemetry point to the same security shift: attacks and risky user activity are increasingly occurring inside the browser. It highlights <mark class="tag-hl">shadow AI</mark>, <mark class="tag-hl">credential theft</mark>, risky browser extensions, and browser-native social engineering as areas where browser-layer visibility reveals activity that traditional network and endpoint tools may miss. The article is sponsored and written by <mark class="tag-hl">Keep Aware</mark>, which contributed data to the 2026 DBIR.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:c83996b83a1df452" class="tab-panel active"><div class="prose">The 2026 Verizon DBIR and Keep Aware telemetry argue that major enterprise risks like shadow AI, credential theft, risky extensions, and ClickFix are increasingly happening inside the browser, where traditional network and endpoint tools often lack visibility. The article’s main takeaway is that security teams need browser-layer monitoring and controls to close these gaps.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:c83996b83a1df452" class="tab-panel"><div class="prose"><p>The article argues that the 2026 Verizon Data Breach Investigations Report and Keep Aware’s browser telemetry point to the same security shift: attacks and risky user activity are increasingly occurring inside the browser. It highlights shadow AI, credential theft, risky browser extensions, and browser-native social engineering as areas where browser-layer visibility reveals activity that traditional network and endpoint tools may miss. The article is sponsored and written by Keep Aware, which contributed data to the 2026 DBIR.</p>
 
-<p>A major focus is unauthorized AI use, which the article says the DBIR identified as the third most common non-malicious insider action in DLP datasets. It states that 67% of users access AI services on corporate devices through personal accounts, while <mark class="tag-hl">Keep Aware</mark> telemetry found that over half of AI prompt inputs go to personal accounts. The article says 23% of sensitive prompt uploads involve personal or unverified accounts outside corporate DLP policy or logging infrastructure.</p>
+<p>A major focus is unauthorized AI use, which the article says the DBIR identified as the third most common non-malicious insider action in DLP datasets. It states that 67% of users access AI services on corporate devices through personal accounts, while Keep Aware telemetry found that over half of AI prompt inputs go to personal accounts. The article says 23% of sensitive prompt uploads involve personal or unverified accounts outside corporate DLP policy or logging infrastructure.</p>
 
-<p>The article also emphasizes browser-based <mark class="tag-hl">credential theft</mark> and social engineering. It says the DBIR found 39% of breaches involved credential abuse, while <mark class="tag-hl">Keep Aware</mark> saw browser-based <mark class="tag-hl">credential theft</mark> account for about 41% of observed browser threat activity. <mark class="tag-hl">Keep Aware</mark> also reported that 63% of <mark class="tag-hl">Microsoft-themed phishing</mark> sites were not flagged by any <mark class="tag-hl">VirusTotal</mark> vendor at employee exposure time, and that all observed <mark class="tag-hl">credential theft</mark> attempts passed through existing non-browser controls unblocked.</p>
+<p>The article also emphasizes browser-based credential theft and social engineering. It says the DBIR found 39% of breaches involved credential abuse, while Keep Aware saw browser-based credential theft account for about 41% of observed browser threat activity. Keep Aware also reported that 63% of Microsoft-themed phishing sites were not flagged by any VirusTotal vendor at employee exposure time, and that all observed credential theft attempts passed through existing non-browser controls unblocked.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:c83996b83a1df452" class="tab-panel"><div class="prose"><p>The article presents the 2026 Verizon Data Breach Investigations Report as a benchmark that confirms a shift toward attacks and risky activity occurring in the browser. <mark class="tag-hl">Keep Aware</mark> says it contributed data to the DBIR and uses its own browser telemetry to compare with the report’s findings. The central claim is that <mark class="tag-hl">shadow AI</mark>, <mark class="tag-hl">credential theft</mark>, risky extensions, and browser-native social engineering all generate artifacts most visible at the browser layer.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:c83996b83a1df452" class="tab-panel"><div class="prose"><p>The article presents the 2026 Verizon Data Breach Investigations Report as a benchmark that confirms a shift toward attacks and risky activity occurring in the browser. Keep Aware says it contributed data to the DBIR and uses its own browser telemetry to compare with the report’s findings. The central claim is that shadow AI, credential theft, risky extensions, and browser-native social engineering all generate artifacts most visible at the browser layer.</p>
 
-<p><mark class="tag-hl">Shadow AI</mark> is described as a mainstream enterprise risk in the article. The DBIR identified <mark class="tag-hl">shadow AI</mark> as the third most common non-malicious insider action in DLP datasets, representing a fourfold increase from the previous year. The article says employees are often not trying to exfiltrate data, but are using personal AI tools such as <mark class="tag-hl">ChatGPT</mark> before organizations have approved governed alternatives. It also states that 67% of users access AI services on corporate devices through personal, non-corporate accounts, and that 45% of employees are regular AI users.</p>
+<p>Shadow AI is described as a mainstream enterprise risk in the article. The DBIR identified shadow AI as the third most common non-malicious insider action in DLP datasets, representing a fourfold increase from the previous year. The article says employees are often not trying to exfiltrate data, but are using personal AI tools such as ChatGPT before organizations have approved governed alternatives. It also states that 67% of users access AI services on corporate devices through personal, non-corporate accounts, and that 45% of employees are regular AI users.</p>
 
-<p><mark class="tag-hl">Keep Aware</mark>’s telemetry is used to add browser-level detail to the AI risk. The article says more than half of AI prompt inputs are sent to personal accounts, and 23% of sensitive prompt uploads involve data transiting through personal or unverified accounts. It frames this as data moving outside the reach of corporate DLP policy or logging infrastructure. The article also promotes a free <mark class="tag-hl">Keep Aware</mark> AI audit intended to show what data is leaving through AI tools.</p>
+<p>Keep Aware’s telemetry is used to add browser-level detail to the AI risk. The article says more than half of AI prompt inputs are sent to personal accounts, and 23% of sensitive prompt uploads involve data transiting through personal or unverified accounts. It frames this as data moving outside the reach of corporate DLP policy or logging infrastructure. The article also promotes a free Keep Aware AI audit intended to show what data is leaving through AI tools.</p>
 
-<p>Credential abuse is another major theme. The DBIR found that 39% of breaches involved credential abuse, while <mark class="tag-hl">Keep Aware</mark>’s 2025 attack data identified browser-based <mark class="tag-hl">credential theft</mark> as the top browser-based attack category at roughly 41% of observed threat activity. The article says 63% of <mark class="tag-hl">Microsoft-themed phishing</mark> sites were not flagged by any <mark class="tag-hl">VirusTotal</mark> vendor at the time of employee exposure. It also claims that all <mark class="tag-hl">credential theft</mark> attempts observed by <mark class="tag-hl">Keep Aware</mark> passed through existing non-browser security controls unblocked.</p>
+<p>Credential abuse is another major theme. The DBIR found that 39% of breaches involved credential abuse, while Keep Aware’s 2025 attack data identified browser-based credential theft as the top browser-based attack category at roughly 41% of observed threat activity. The article says 63% of Microsoft-themed phishing sites were not flagged by any VirusTotal vendor at the time of employee exposure. It also claims that all credential theft attempts observed by Keep Aware passed through existing non-browser security controls unblocked.</p>
 
-<p>The article also discusses browser extensions and <mark class="tag-hl">ClickFix</mark>. It says the DBIR found that the average enterprise had more than 15% of users with unauthorized AI extensions installed, while <mark class="tag-hl">Keep Aware</mark> telemetry found that 13% of unique extensions were high or critical risk. It adds that 93% of poor-reputation extensions were labeled as productivity tools by browser marketplaces, making category-based allowlisting ineffective for that threat class. <mark class="tag-hl">ClickFix</mark> is described as a browser-originated social engineering tactic that tricks users into executing malicious code on the host machine and can lead to infostealers and remote access for attackers.</p>
+<p>The article also discusses browser extensions and ClickFix. It says the DBIR found that the average enterprise had more than 15% of users with unauthorized AI extensions installed, while Keep Aware telemetry found that 13% of unique extensions were high or critical risk. It adds that 93% of poor-reputation extensions were labeled as productivity tools by browser marketplaces, making category-based allowlisting ineffective for that threat class. ClickFix is described as a browser-originated social engineering tactic that tricks users into executing malicious code on the host machine and can lead to infostealers and remote access for attackers.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:c83996b83a1df452" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:c83996b83a1df452" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The article argues that the 2026 Verizon Data Breach Investigations Report and <mark class="tag-hl">Keep Aware</mark>’s browser telemetry show a convergence around one main security trend: significant enterprise risk is now occurring inside the browser. <mark class="tag-hl">Keep Aware</mark> says it contributed data to the Verizon 2026 DBIR and had early visibility into the report’s findings. The article frames browser-layer telemetry as a way to see activity that network, endpoint, identity, DLP, DNS, and proxy tools may not fully capture.</p>
+<p>The article argues that the 2026 Verizon Data Breach Investigations Report and Keep Aware’s browser telemetry show a convergence around one main security trend: significant enterprise risk is now occurring inside the browser. Keep Aware says it contributed data to the Verizon 2026 DBIR and had early visibility into the report’s findings. The article frames browser-layer telemetry as a way to see activity that network, endpoint, identity, DLP, DNS, and proxy tools may not fully capture.</p>
 
-<p>The article is sponsored and written by <mark class="tag-hl">Keep Aware</mark>. It uses DBIR findings alongside <mark class="tag-hl">Keep Aware</mark> telemetry to discuss <mark class="tag-hl">shadow AI</mark>, credential abuse, browser extensions, <mark class="tag-hl">ClickFix</mark>, and the human element in browser-based attacks. Its central conclusion is that the browser is now the work environment for most enterprise users and must be secured directly.</p>
+<p>The article is sponsored and written by Keep Aware. It uses DBIR findings alongside Keep Aware telemetry to discuss shadow AI, credential abuse, browser extensions, ClickFix, and the human element in browser-based attacks. Its central conclusion is that the browser is now the work environment for most enterprise users and must be secured directly.</p>
 
-<h2 id="shadow-ai-as-an-enterprise-risk"><mark class="tag-hl">Shadow AI</mark> as an Enterprise Risk</h2>
+<h2 id="shadow-ai-as-an-enterprise-risk">Shadow AI as an Enterprise Risk</h2>
 
-<p>The article says the 2026 <mark class="tag-hl">Verizon DBIR</mark> identified <mark class="tag-hl">shadow AI</mark> as the third most common non-malicious insider action observed in DLP datasets. It also says this represented a fourfold increase from the previous year. The behavior is described as employees using the fastest available tool for work, such as pasting internal documents or source code into a personal <mark class="tag-hl">ChatGPT</mark> session before the organization has approved and provided a governed alternative.</p>
+<p>The article says the 2026 Verizon DBIR identified shadow AI as the third most common non-malicious insider action observed in DLP datasets. It also says this represented a fourfold increase from the previous year. The behavior is described as employees using the fastest available tool for work, such as pasting internal documents or source code into a personal ChatGPT session before the organization has approved and provided a governed alternative.</p>
 
 <p>The article highlights several figures about AI usage:</p>
 
 <ul>
 <li>67% of users are accessing AI services on corporate devices through personal, non-corporate accounts.</li>
 <li>45% of employees are considered regular AI users.</li>
-<li>More than half of AI prompt inputs are sent to personal accounts, according to <mark class="tag-hl">Keep Aware</mark> telemetry.</li>
+<li>More than half of AI prompt inputs are sent to personal accounts, according to Keep Aware telemetry.</li>
 <li>23% of sensitive prompt uploads involve data passing through personal or unverified accounts.</li>
 </ul>
 
-<p>The article says this matters because data sent through personal or unverified AI accounts can fall outside corporate DLP policy and logging infrastructure. It specifically names <mark class="tag-hl">ChatGPT</mark> and <mark class="tag-hl">Gemini</mark> as examples of AI tools employees are using.</p>
+<p>The article says this matters because data sent through personal or unverified AI accounts can fall outside corporate DLP policy and logging infrastructure. It specifically names ChatGPT and Gemini as examples of AI tools employees are using.</p>
 
 <h2 id="credential-abuse-and-browser-level-gaps">Credential Abuse and Browser-Level Gaps</h2>
 
-<p>The article says the 2026 DBIR found that 39% of breaches involved credential abuse. It then compares that with <mark class="tag-hl">Keep Aware</mark>’s 2025 attack data, which put browser-based <mark class="tag-hl">credential theft</mark> at about 41% of observed browser-based threat activity. The article interprets this as browser-based <mark class="tag-hl">credential theft</mark> contributing to future successful breaches.</p>
+<p>The article says the 2026 DBIR found that 39% of breaches involved credential abuse. It then compares that with Keep Aware’s 2025 attack data, which put browser-based credential theft at about 41% of observed browser-based threat activity. The article interprets this as browser-based credential theft contributing to future successful breaches.</p>
 
-<p><mark class="tag-hl">Keep Aware</mark>’s data is used to argue that traditional security tools often miss browser-based <mark class="tag-hl">credential theft</mark>. The article states that 63% of <mark class="tag-hl">Microsoft-themed phishing</mark> sites were not flagged by any <mark class="tag-hl">VirusTotal</mark> vendor at the time an employee was exposed. It also says 100% of the <mark class="tag-hl">credential theft</mark> attempts observed by <mark class="tag-hl">Keep Aware</mark> passed through existing non-browser security controls unblocked, including network proxies, DNS filters, and endpoint agents.</p>
+<p>Keep Aware’s data is used to argue that traditional security tools often miss browser-based credential theft. The article states that 63% of Microsoft-themed phishing sites were not flagged by any VirusTotal vendor at the time an employee was exposed. It also says 100% of the credential theft attempts observed by Keep Aware passed through existing non-browser security controls unblocked, including network proxies, DNS filters, and endpoint agents.</p>
 
-<p>The article’s technical point is that <mark class="tag-hl">credential theft</mark> is most reliably detected inside the browser, where the page is rendered and user interaction occurs. It frames the browser as the point where phishing pages, credential entry, and user behavior are directly observable.</p>
+<p>The article’s technical point is that credential theft is most reliably detected inside the browser, where the page is rendered and user interaction occurs. It frames the browser as the point where phishing pages, credential entry, and user behavior are directly observable.</p>
 
 <h2 id="browser-extensions-as-a-privileged-and-ungoverned-risk">Browser Extensions as a Privileged and Ungoverned Risk</h2>
 
 <p>The article describes browser extensions as highly privileged because add-ons can read, modify, and interact with page content and can exfiltrate data from within the browser context. It says this level of privilege should require regular scrutiny, but enterprise extension usage does not always receive it.</p>
 
-<p>The article cites the 2026 DBIR as finding that the average enterprise had more than 15% of users with unauthorized AI extensions installed. <mark class="tag-hl">Keep Aware</mark>’s telemetry adds that 13% of unique browser extensions observed across its customer base were classified as high or critical risk.</p>
+<p>The article cites the 2026 DBIR as finding that the average enterprise had more than 15% of users with unauthorized AI extensions installed. Keep Aware’s telemetry adds that 13% of unique browser extensions observed across its customer base were classified as high or critical risk.</p>
 
 <p>A particularly actionable point in the article is that 93% of poor-reputation extensions were labeled as “productivity” tools by browser marketplaces. The article says this makes category-based allowlisting functionally useless for that threat class because productivity tools are often treated as safe by allowlisting policies.</p>
 
-<h2 id="clickfix-and-browser-native-social-engineering"><mark class="tag-hl">ClickFix</mark> and Browser-Native Social Engineering</h2>
+<h2 id="clickfix-and-browser-native-social-engineering">ClickFix and Browser-Native Social Engineering</h2>
 
-<p>The article says both the 2026 DBIR and <mark class="tag-hl">Keep Aware</mark>’s State of Browser Security Report call out <mark class="tag-hl">ClickFix</mark> as an emerging technique worth tracking. The DBIR found that <mark class="tag-hl">ClickFix</mark> accounted for 2.7% of browser-detected attacks. The article frames this as a small share that still signals an evolution in browser-based social engineering.</p>
+<p>The article says both the 2026 DBIR and Keep Aware’s State of Browser Security Report call out ClickFix as an emerging technique worth tracking. The DBIR found that ClickFix accounted for 2.7% of browser-detected attacks. The article frames this as a small share that still signals an evolution in browser-based social engineering.</p>
 
-<p><mark class="tag-hl">ClickFix</mark> is described as a deceptive social engineering tactic that gets a user to unknowingly execute malicious code from the browser and on the host machine. The article says this threat can begin when users encounter compromised websites and can sometimes originate through LLM chat responses. It then continues on the endpoint, where it can compromise the machine with infostealers and remote access for attackers.</p>
+<p>ClickFix is described as a deceptive social engineering tactic that gets a user to unknowingly execute malicious code from the browser and on the host machine. The article says this threat can begin when users encounter compromised websites and can sometimes originate through LLM chat responses. It then continues on the endpoint, where it can compromise the machine with infostealers and remote access for attackers.</p>
 
-<p>The article’s main point about <mark class="tag-hl">ClickFix</mark> is that the endpoint experiences the impact, but the browser is the social engineering medium and the first line of defense.</p>
+<p>The article’s main point about ClickFix is that the endpoint experiences the impact, but the browser is the social engineering medium and the first line of defense.</p>
 
 <h2 id="human-element-in-browser-attacks">Human Element in Browser Attacks</h2>
 
-<p>The article says the 2026 DBIR found that 62% of breaches involved the human element, with phishing initiating 16% of incidents. <mark class="tag-hl">Keep Aware</mark>’s browser-layer data found that phishing and social engineering accounted for 46% of browser attacks observed across 2025.</p>
+<p>The article says the 2026 DBIR found that 62% of breaches involved the human element, with phishing initiating 16% of incidents. Keep Aware’s browser-layer data found that phishing and social engineering accounted for 46% of browser attacks observed across 2025.</p>
 
 <p>The article says the human element is often treated as a training and awareness problem, but attackers are continually changing browser-based social engineering techniques. It lists several tactics:</p>
 
@@ -1818,16 +1974,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="impact-and-security-implications">Impact and Security Implications</h2>
 
-<p>The article’s overall impact claim is that security programs relying only on network, endpoint, and identity telemetry will have blind spots where attackers increasingly operate. It says <mark class="tag-hl">shadow AI</mark>, <mark class="tag-hl">credential theft</mark>, malicious extensions, and <mark class="tag-hl">ClickFix</mark> all execute inside the browser and create artifacts most visible, or only visible, at the browser layer.</p>
+<p>The article’s overall impact claim is that security programs relying only on network, endpoint, and identity telemetry will have blind spots where attackers increasingly operate. It says shadow AI, credential theft, malicious extensions, and ClickFix all execute inside the browser and create artifacts most visible, or only visible, at the browser layer.</p>
 
-<p>For security teams, the article argues that browser visibility is now necessary because the browser is no longer just an application. It describes the browser as the work environment for most enterprise users. The article closes by encouraging readers to request a <mark class="tag-hl">Keep Aware</mark> demo and access <mark class="tag-hl">Keep Aware</mark>’s 2026 State of Browser Security Report.</p>
+<p>For security teams, the article argues that browser visibility is now necessary because the browser is no longer just an application. It describes the browser as the work environment for most enterprise users. The article closes by encouraging readers to request a Keep Aware demo and access Keep Aware’s 2026 State of Browser Security Report.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:c83996b83a1df452" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Category-based extension allowlisting is unreliable for browser risk management because 93% of poor-reputation extensions observed by <mark class="tag-hl">Keep Aware</mark> were labeled as “productivity” tools in browser marketplaces.</span></li><li><span class="kp-text">Personal AI accounts create a governance blind spot because sensitive prompt uploads can occur outside corporate DLP policy and logging infrastructure even when employees use corporate devices.</span></li><li><span class="kp-text">Traditional security controls may miss browser <mark class="tag-hl">credential theft</mark> at the moment of exposure, since the article says all <mark class="tag-hl">credential theft</mark> attempts observed by <mark class="tag-hl">Keep Aware</mark> passed through non-browser controls unblocked.</span></li><li><span class="kp-text"><mark class="tag-hl">ClickFix</mark> shows that browser-originated social engineering can quickly become an endpoint compromise, making the browser an important prevention point even when the final impact occurs on the host machine.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:c83996b83a1df452" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Category-based extension allowlisting is unreliable for browser risk management because 93% of poor-reputation extensions observed by Keep Aware were labeled as “productivity” tools in browser marketplaces.</span></li><li><span class="kp-text">Personal AI accounts create a governance blind spot because sensitive prompt uploads can occur outside corporate DLP policy and logging infrastructure even when employees use corporate devices.</span></li><li><span class="kp-text">Traditional security controls may miss browser credential theft at the moment of exposure, since the article says all credential theft attempts observed by Keep Aware passed through non-browser controls unblocked.</span></li><li><span class="kp-text">ClickFix shows that browser-originated social engineering can quickly become an endpoint compromise, making the browser an important prevention point even when the final impact occurs on the host machine.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The 2026 <mark class="tag-hl">Verizon DBIR</mark> identified <mark class="tag-hl">shadow AI</mark> as the third most common non-malicious insider action in DLP datasets, representing a fourfold increase from the previous year.</span></li><li><span class="kp-text">The article states that 67% of users access AI services on corporate devices through personal, non-corporate accounts, and <mark class="tag-hl">Keep Aware</mark> telemetry found that over half of AI prompt inputs are sent to personal accounts.</span></li><li><span class="kp-text">The 2026 DBIR found that 39% of breaches involved credential abuse, while <mark class="tag-hl">Keep Aware</mark> reported browser-based <mark class="tag-hl">credential theft</mark> as its top browser-based attack category at about 41% of observed threat activity.</span></li><li><span class="kp-text"><mark class="tag-hl">Keep Aware</mark> said 63% of <mark class="tag-hl">Microsoft-themed phishing</mark> sites were not flagged by any <mark class="tag-hl">VirusTotal</mark> vendor at the time of employee exposure, and that all observed <mark class="tag-hl">credential theft</mark> attempts passed through existing non-browser security controls unblocked.</span></li><li><span class="kp-text">The article says <mark class="tag-hl">shadow AI</mark>, <mark class="tag-hl">credential theft</mark>, malicious extensions, and <mark class="tag-hl">ClickFix</mark> all execute inside the browser and produce artifacts that are most visible, or only visible, at the browser layer.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The 2026 Verizon DBIR identified shadow AI as the third most common non-malicious insider action in DLP datasets, representing a fourfold increase from the previous year.</span></li><li><span class="kp-text">The article states that 67% of users access AI services on corporate devices through personal, non-corporate accounts, and Keep Aware telemetry found that over half of AI prompt inputs are sent to personal accounts.</span></li><li><span class="kp-text">The 2026 DBIR found that 39% of breaches involved credential abuse, while Keep Aware reported browser-based credential theft as its top browser-based attack category at about 41% of observed threat activity.</span></li><li><span class="kp-text">Keep Aware said 63% of Microsoft-themed phishing sites were not flagged by any VirusTotal vendor at the time of employee exposure, and that all observed credential theft attempts passed through existing non-browser security controls unblocked.</span></li><li><span class="kp-text">The article says shadow AI, credential theft, malicious extensions, and ClickFix all execute inside the browser and produce artifacts that are most visible, or only visible, at the browser layer.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/what-2026-dbir-confirms-attacks-are-living-in-the-browser/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a sponsored trend piece using <mark class="tag-hl">Verizon DBIR</mark> and <mark class="tag-hl">Keep Aware</mark> telemetry to argue for browser-layer security, rather than reporting a specific incident, active exploitation campaign, breach, or urgent patch. The findings are relevant to security teams, but the article is broad and promotional, so it is low priority under the scoring rules.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a sponsored trend piece using Verizon DBIR and Keep Aware telemetry to argue for browser-layer security, rather than reporting a specific incident, active exploitation campaign, breach, or urgent patch. The findings are relevant to security teams, but the article is broad and promotional, so it is low priority under the scoring rules.</p>
 </div></div>
             
             
@@ -1851,52 +2008,52 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:45%"></div></div><span class="score-num score-num-low">45</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="d75ab45f002ca4c77eb7f0c0b134fe7c:88285b5749f3d1e2">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-81f4a4dbe564e28bdcbe7bc1a6408c5b:88285b5749f3d1e2')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-81f4a4dbe564e28bdcbe7bc1a6408c5b:88285b5749f3d1e2')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-81f4a4dbe564e28bdcbe7bc1a6408c5b:88285b5749f3d1e2')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-81f4a4dbe564e28bdcbe7bc1a6408c5b:88285b5749f3d1e2')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-81f4a4dbe564e28bdcbe7bc1a6408c5b:88285b5749f3d1e2')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d75ab45f002ca4c77eb7f0c0b134fe7c:88285b5749f3d1e2')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-d75ab45f002ca4c77eb7f0c0b134fe7c:88285b5749f3d1e2')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-d75ab45f002ca4c77eb7f0c0b134fe7c:88285b5749f3d1e2')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d75ab45f002ca4c77eb7f0c0b134fe7c:88285b5749f3d1e2')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-d75ab45f002ca4c77eb7f0c0b134fe7c:88285b5749f3d1e2')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-81f4a4dbe564e28bdcbe7bc1a6408c5b:88285b5749f3d1e2" class="tab-panel active"><div class="prose"><mark class="tag-hl">Mitiga</mark> argues that AI PCs with local, credentialed agents will create a new enterprise identity risk because compromised devices could expose SaaS access across the business. The article promotes runtime detection and response, beyond policy enforcement tools like <mark class="tag-hl">OpenShell</mark>, to spot and contain agent misuse before it causes impact.</div></div>
-                <div id="brief-81f4a4dbe564e28bdcbe7bc1a6408c5b:88285b5749f3d1e2" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Mitiga</mark> says <mark class="tag-hl">Nvidia</mark> and <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">RTX Spark</mark> will bring a locally running 120-billion-parameter AI agent to a new generation of <mark class="tag-hl">Windows</mark> PCs. <mark class="tag-hl">Dell</mark>, <mark class="tag-hl">HP</mark>, <mark class="tag-hl">ASUS</mark>, <mark class="tag-hl">Lenovo</mark>, <mark class="tag-hl">Microsoft Surface</mark>, and <mark class="tag-hl">MSI</mark> are described as building the technology into upcoming machines. The article argues that the security significance is not the hardware itself, but the arrival of credentialed AI agents on enterprise endpoints.</p>
+                <div id="tldr-d75ab45f002ca4c77eb7f0c0b134fe7c:88285b5749f3d1e2" class="tab-panel active"><div class="prose">Mitiga argues that AI PCs with local, credentialed agents will create a new enterprise identity risk because compromised devices could expose SaaS access across the business. The article promotes runtime detection and response, beyond policy enforcement tools like OpenShell, to spot and contain agent misuse before it causes impact.</div></div>
+                <div id="brief-d75ab45f002ca4c77eb7f0c0b134fe7c:88285b5749f3d1e2" class="tab-panel"><div class="prose"><p>Mitiga says Nvidia and Microsoft’s RTX Spark will bring a locally running 120-billion-parameter AI agent to a new generation of Windows PCs. Dell, HP, ASUS, Lenovo, Microsoft Surface, and MSI are described as building the technology into upcoming machines. The article argues that the security significance is not the hardware itself, but the arrival of credentialed AI agents on enterprise endpoints.</p>
 
-<p>The article frames an on-device AI agent as a new enterprise identity because it can hold live credentials and access SaaS applications such as CRM, email, cloud storage, and productivity tools. <mark class="tag-hl">Mitiga</mark> warns that if the device is compromised, an attacker could inherit the agent’s permissions across applications such as <mark class="tag-hl">Salesforce</mark>, <mark class="tag-hl">SharePoint</mark>, and Workday. In this framing, an endpoint compromise can become a SaaS breach.</p>
+<p>The article frames an on-device AI agent as a new enterprise identity because it can hold live credentials and access SaaS applications such as CRM, email, cloud storage, and productivity tools. Mitiga warns that if the device is compromised, an attacker could inherit the agent’s permissions across applications such as Salesforce, SharePoint, and Workday. In this framing, an endpoint compromise can become a SaaS breach.</p>
 
-<p><mark class="tag-hl">Mitiga</mark> distinguishes agent policy enforcement from detection and response. It describes <mark class="tag-hl">Nvidia</mark>’s <mark class="tag-hl">OpenShell</mark> as a tool for defining and enforcing what agents are permitted to do, but says it does not replace SOC functions such as detection, threat correlation, audit trails, and incident response. The article promotes <mark class="tag-hl">Mitiga</mark>’s Zero-Impact AI-native cloud detection and response platform with <mark class="tag-hl">Helios AIDR</mark> as a way to detect and contain agent-driven attacks across cloud, SaaS, identity, and AI environments.</p>
+<p>Mitiga distinguishes agent policy enforcement from detection and response. It describes Nvidia’s OpenShell as a tool for defining and enforcing what agents are permitted to do, but says it does not replace SOC functions such as detection, threat correlation, audit trails, and incident response. The article promotes Mitiga’s Zero-Impact AI-native cloud detection and response platform with Helios AIDR as a way to detect and contain agent-driven attacks across cloud, SaaS, identity, and AI environments.</p>
 </div></div>
-                <div id="standard-81f4a4dbe564e28bdcbe7bc1a6408c5b:88285b5749f3d1e2" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Mitiga</mark>’s article argues that the next generation of AI PCs will introduce a major security shift by putting credentialed AI agents directly on <mark class="tag-hl">Windows</mark> endpoints. It says <mark class="tag-hl">Nvidia</mark> and <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">RTX Spark</mark> runs a 120-billion-parameter agent locally, with <mark class="tag-hl">Dell</mark>, <mark class="tag-hl">HP</mark>, <mark class="tag-hl">ASUS</mark>, <mark class="tag-hl">Lenovo</mark>, <mark class="tag-hl">Microsoft Surface</mark>, and <mark class="tag-hl">MSI</mark> building it into new machines. The article presents this as a change in enterprise identity and access risk rather than simply a hardware milestone.</p>
+                <div id="standard-d75ab45f002ca4c77eb7f0c0b134fe7c:88285b5749f3d1e2" class="tab-panel"><div class="prose"><p>Mitiga’s article argues that the next generation of AI PCs will introduce a major security shift by putting credentialed AI agents directly on Windows endpoints. It says Nvidia and Microsoft’s RTX Spark runs a 120-billion-parameter agent locally, with Dell, HP, ASUS, Lenovo, Microsoft Surface, and MSI building it into new machines. The article presents this as a change in enterprise identity and access risk rather than simply a hardware milestone.</p>
 
 <p>The core concern is that an on-device agent deployed with SaaS integrations can sign into enterprise systems and act with live credentials. The article names CRM, email, cloud storage, and productivity tools as examples of applications such agents may reach. It says the agent, its service identities, and the SaaS applications it accesses should be treated as assets that require monitoring.</p>
 
-<p><mark class="tag-hl">Mitiga</mark> warns that compromising an AI PC could give an attacker the agent’s permissions across the applications it is trusted to use. The article specifically mentions <mark class="tag-hl">Salesforce</mark>, <mark class="tag-hl">SharePoint</mark>, and Workday as examples of services whose tokens or permissions could expand the blast radius. It summarizes this risk by saying an endpoint compromise can become a SaaS breach.</p>
+<p>Mitiga warns that compromising an AI PC could give an attacker the agent’s permissions across the applications it is trusted to use. The article specifically mentions Salesforce, SharePoint, and Workday as examples of services whose tokens or permissions could expand the blast radius. It summarizes this risk by saying an endpoint compromise can become a SaaS breach.</p>
 
-<p>The article also discusses controls for defending from AI-enabled misuse. It says <mark class="tag-hl">Microsoft</mark> shipped new <mark class="tag-hl">Windows</mark> security primitives and <mark class="tag-hl">Nvidia</mark> built <mark class="tag-hl">OpenShell</mark>, an open-source agent policy enforcement tool for defining and enforcing boundaries on what agents can do. <mark class="tag-hl">Mitiga</mark> emphasizes that <mark class="tag-hl">OpenShell</mark> is an enforcement tool and does not replace detection, threat correlation, audit trails, or incident response in a SOC.</p>
+<p>The article also discusses controls for defending from AI-enabled misuse. It says Microsoft shipped new Windows security primitives and Nvidia built OpenShell, an open-source agent policy enforcement tool for defining and enforcing boundaries on what agents can do. Mitiga emphasizes that OpenShell is an enforcement tool and does not replace detection, threat correlation, audit trails, or incident response in a SOC.</p>
 
-<p><mark class="tag-hl">Mitiga</mark>’s proposed response is Agentic Runtime Security delivered through its Zero-Impact AI-native cloud detection and response platform. The article says this approach correlates activity across cloud, SaaS, AI, and identity, reconstructs attack timelines, produces verdicts, and supports containment actions. It states that <mark class="tag-hl">Helios AIDR</mark> runs on the Cloud Security Data Lake and that customers report improved detection and response speed, reduced mean time to respond, and faster alert closure.</p>
+<p>Mitiga’s proposed response is Agentic Runtime Security delivered through its Zero-Impact AI-native cloud detection and response platform. The article says this approach correlates activity across cloud, SaaS, AI, and identity, reconstructs attack timelines, produces verdicts, and supports containment actions. It states that Helios AIDR runs on the Cloud Security Data Lake and that customers report improved detection and response speed, reduced mean time to respond, and faster alert closure.</p>
 </div></div>
-                <div id="comprehensive-81f4a4dbe564e28bdcbe7bc1a6408c5b:88285b5749f3d1e2" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-d75ab45f002ca4c77eb7f0c0b134fe7c:88285b5749f3d1e2" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Mitiga</mark>’s article presents AI PCs as an emerging enterprise security issue because they place credentialed AI agents directly on user endpoints. It says <mark class="tag-hl">Nvidia</mark> and <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">RTX Spark</mark> will run a 120-billion-parameter agent locally on a new generation of <mark class="tag-hl">Windows</mark> PCs. <mark class="tag-hl">Dell</mark>, <mark class="tag-hl">HP</mark>, <mark class="tag-hl">ASUS</mark>, <mark class="tag-hl">Lenovo</mark>, <mark class="tag-hl">Microsoft Surface</mark>, and <mark class="tag-hl">MSI</mark> are listed as manufacturers already building the technology into new machines.</p>
+<p>Mitiga’s article presents AI PCs as an emerging enterprise security issue because they place credentialed AI agents directly on user endpoints. It says Nvidia and Microsoft’s RTX Spark will run a 120-billion-parameter agent locally on a new generation of Windows PCs. Dell, HP, ASUS, Lenovo, Microsoft Surface, and MSI are listed as manufacturers already building the technology into new machines.</p>
 
-<p>The article argues that the main security shift is not the hardware launch itself, but the introduction of a new credentialed identity into enterprise environments. <mark class="tag-hl">Mitiga</mark> frames an on-device AI agent as an identity that can hold live credentials and act across SaaS applications. The article says this agent must be defended like other enterprise identities.</p>
+<p>The article argues that the main security shift is not the hardware launch itself, but the introduction of a new credentialed identity into enterprise environments. Mitiga frames an on-device AI agent as an identity that can hold live credentials and act across SaaS applications. The article says this agent must be defended like other enterprise identities.</p>
 
 <h2 id="core-security-concern">Core security concern</h2>
 
-<p><mark class="tag-hl">Mitiga</mark> says an on-device agent does not sit idle when it is deployed with SaaS integrations. It can sign into CRM, email, cloud storage, and productivity tools, holding live credentials and acting on them without continuous human observation. In identity terms, the article describes this as a powerful new principal inside the environment.</p>
+<p>Mitiga says an on-device agent does not sit idle when it is deployed with SaaS integrations. It can sign into CRM, email, cloud storage, and productivity tools, holding live credentials and acting on them without continuous human observation. In identity terms, the article describes this as a powerful new principal inside the environment.</p>
 
-<p>The article warns that if the endpoint is compromised, an attacker may inherit the agent’s permissions across every application it was trusted to access. It names <mark class="tag-hl">Salesforce</mark>, <mark class="tag-hl">SharePoint</mark>, and Workday as examples of applications that could be affected if the agent holds tokens or permissions for them. <mark class="tag-hl">Mitiga</mark> characterizes this as an endpoint compromise becoming a SaaS breach.</p>
+<p>The article warns that if the endpoint is compromised, an attacker may inherit the agent’s permissions across every application it was trusted to access. It names Salesforce, SharePoint, and Workday as examples of applications that could be affected if the agent holds tokens or permissions for them. Mitiga characterizes this as an endpoint compromise becoming a SaaS breach.</p>
 
-<h2 id="mitiga-s-three-part-framing"><mark class="tag-hl">Mitiga</mark>’s three-part framing</h2>
+<h2 id="mitiga-s-three-part-framing">Mitiga’s three-part framing</h2>
 
-<p>The article organizes the issue around three security jobs that <mark class="tag-hl">Mitiga</mark> says now define cloud security operations:</p>
+<p>The article organizes the issue around three security jobs that Mitiga says now define cloud security operations:</p>
 
 <ul>
 <li>Defending your AI.</li>
@@ -1908,50 +2065,51 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Under “defend from AI,” the article says attackers go where access exists and where visibility is weak. It argues that credentialed agents on every desk create that kind of opening, especially as AI accelerates reconnaissance, credential abuse, and cloud-speed intrusion. The article does not name any specific threat actor.</p>
 
-<p>Under “defend with AI,” <mark class="tag-hl">Mitiga</mark> argues that manually monitoring agent activity at machine speed is not realistic. It says Agentic Runtime Security, evidence gathering, attack timeline reconstruction, verdicts, and next-action recommendations can handle parts of that work before a human opens an alert.</p>
+<p>Under “defend with AI,” Mitiga argues that manually monitoring agent activity at machine speed is not realistic. It says Agentic Runtime Security, evidence gathering, attack timeline reconstruction, verdicts, and next-action recommendations can handle parts of that work before a human opens an alert.</p>
 
-<h2 id="openshell-and-the-limits-of-policy-enforcement"><mark class="tag-hl">OpenShell</mark> and the limits of policy enforcement</h2>
+<h2 id="openshell-and-the-limits-of-policy-enforcement">OpenShell and the limits of policy enforcement</h2>
 
-<p>The article says <mark class="tag-hl">Microsoft</mark> shipped new <mark class="tag-hl">Windows</mark> security primitives and <mark class="tag-hl">Nvidia</mark> built <mark class="tag-hl">OpenShell</mark> on top of them. It describes <mark class="tag-hl">OpenShell</mark> as an open-source agent policy enforcement tool that lets enterprises define and enforce boundaries on what their agents can do. <mark class="tag-hl">Mitiga</mark> characterizes it as a useful control for constraining execution.</p>
+<p>The article says Microsoft shipped new Windows security primitives and Nvidia built OpenShell on top of them. It describes OpenShell as an open-source agent policy enforcement tool that lets enterprises define and enforce boundaries on what their agents can do. Mitiga characterizes it as a useful control for constraining execution.</p>
 
-<p>However, the article stresses that policy enforcement is not the same as detection. It says knowing that an agent violated policy is not the same as knowing that a trusted agent has been turned against an organization. It also says <mark class="tag-hl">OpenShell</mark> does not replace detection, threat correlation, audit trails, or incident response functions that a SOC runs.</p>
+<p>However, the article stresses that policy enforcement is not the same as detection. It says knowing that an agent violated policy is not the same as knowing that a trusted agent has been turned against an organization. It also says OpenShell does not replace detection, threat correlation, audit trails, or incident response functions that a SOC runs.</p>
 
 <h2 id="agentic-runtime-security">Agentic Runtime Security</h2>
 
-<p><mark class="tag-hl">Mitiga</mark> defines Agentic Runtime Security as surfacing early signals from live activity across cloud, SaaS, identity, and AI. The article says the goal is to detect and contain an attack already in motion before it makes impact. It describes this as a runtime safety net for exposures that posture tools can only flag.</p>
+<p>Mitiga defines Agentic Runtime Security as surfacing early signals from live activity across cloud, SaaS, identity, and AI. The article says the goal is to detect and contain an attack already in motion before it makes impact. It describes this as a runtime safety net for exposures that posture tools can only flag.</p>
 
 <p>The article contrasts different categories of control:</p>
 
 <ul>
 <li>Posture management flags where risk sits.</li>
-<li>Agent policy enforcement tools such as <mark class="tag-hl">OpenShell</mark> control what an agent is permitted to do at execution time.</li>
+<li>Agent policy enforcement tools such as OpenShell control what an agent is permitted to do at execution time.</li>
 <li>Runtime security watches what the agent actually does and looks for early signals of misuse.</li>
 </ul>
 
-<h2 id="mitiga-platform-claims"><mark class="tag-hl">Mitiga</mark> platform claims</h2>
+<h2 id="mitiga-platform-claims">Mitiga platform claims</h2>
 
-<p>The article says Agentic Runtime Security is delivered through <mark class="tag-hl">Mitiga</mark>’s Zero-Impact AI-native cloud detection and response platform. It describes the platform as covering cloud, SaaS, AI, and identity environments. <mark class="tag-hl">Mitiga</mark> says Panoramic Awareness pulls activity across those areas into one always-on view so an agent’s API call is not treated as an isolated log line.</p>
+<p>The article says Agentic Runtime Security is delivered through Mitiga’s Zero-Impact AI-native cloud detection and response platform. It describes the platform as covering cloud, SaaS, AI, and identity environments. Mitiga says Panoramic Awareness pulls activity across those areas into one always-on view so an agent’s API call is not treated as an isolated log line.</p>
 
 <p>The article also describes Attack Decoding and Attack Containment. Attack Decoding is said to turn raw evidence into a structured timeline and verdict that can distinguish a routine agent session from an attacker using the agent as cover. Attack Containment is described as moving from that verdict to action by tightening control over the blast radius.</p>
 
-<p><mark class="tag-hl">Mitiga</mark> says <mark class="tag-hl">Helios AIDR</mark> powers the approach as its AI detection and response model for the Zero-Impact era. The article states that <mark class="tag-hl">Helios AIDR</mark> runs on the Cloud Security Data Lake so analysts and AI work from the same full-fidelity context. <mark class="tag-hl">Mitiga</mark> says its customers report 90% improved detection and response speed, a 70% reduction in mean time to respond, and 67% faster time to close out alerts.</p>
+<p>Mitiga says Helios AIDR powers the approach as its AI detection and response model for the Zero-Impact era. The article states that Helios AIDR runs on the Cloud Security Data Lake so analysts and AI work from the same full-fidelity context. Mitiga says its customers report 90% improved detection and response speed, a 70% reduction in mean time to respond, and 67% faster time to close out alerts.</p>
 
 <h2 id="recommended-preparation">Recommended preparation</h2>
 
-<p>The article says organizations should not wait for <mark class="tag-hl">RTX Spark</mark> hardware before acting. It notes that agents are already present in browsers and productivity tools, and that the new chip will multiply them. <mark class="tag-hl">Mitiga</mark> recommends inventorying agent and non-human identities already in the environment.</p>
+<p>The article says organizations should not wait for RTX Spark hardware before acting. It notes that agents are already present in browsers and productivity tools, and that the new chip will multiply them. Mitiga recommends inventorying agent and non-human identities already in the environment.</p>
 
-<p>It also recommends correlating endpoint context with SaaS telemetry. The article says organizations should keep forensic data deep enough to reconstruct an incident. <mark class="tag-hl">Mitiga</mark>’s stated goal is to ensure that when an agent is turned against an organization, it changes nothing that matters.</p>
+<p>It also recommends correlating endpoint context with SaaS telemetry. The article says organizations should keep forensic data deep enough to reconstruct an incident. Mitiga’s stated goal is to ensure that when an agent is turned against an organization, it changes nothing that matters.</p>
 
 <h2 id="stated-impact-and-conclusion">Stated impact and conclusion</h2>
 
 <p>The article does not report a specific breach, campaign, or vulnerability exploitation. Instead, it presents a security perspective on the expected spread of AI PCs and credentialed local agents. Its central claim is that these agents create a new identity and runtime security problem across endpoints, SaaS, cloud, identity, and AI.</p>
 
-<p><mark class="tag-hl">Mitiga</mark>’s conclusion is that prevention alone will not stop an agent from being misused. The article promotes Zero-Impact Breach Prevention as detecting and containing attacks across cloud, SaaS, identity, and AI infrastructure early enough that they do not create business impact.</p>
+<p>Mitiga’s conclusion is that prevention alone will not stop an agent from being misused. The article promotes Zero-Impact Breach Prevention as detecting and containing attacks across cloud, SaaS, identity, and AI infrastructure early enough that they do not create business impact.</p>
 </div></div>
-                <div id="insights-81f4a4dbe564e28bdcbe7bc1a6408c5b:88285b5749f3d1e2" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The article distinguishes policy enforcement from detection by emphasizing that knowing an AI agent violated a rule is different from knowing a trusted agent has been turned against the organization.</span></li><li><span class="kp-text"><mark class="tag-hl">Mitiga</mark> frames an endpoint compromise involving an AI PC as a potential SaaS breach because the local agent may already hold tokens for applications such as <mark class="tag-hl">Salesforce</mark>, <mark class="tag-hl">SharePoint</mark>, and Workday.</span></li><li><span class="kp-text">The article recommends starting before <mark class="tag-hl">RTX Spark</mark> hardware arrives by inventorying existing agent and non-human identities already present in browsers and productivity tools.</span></li><li><span class="kp-text"><mark class="tag-hl">Mitiga</mark> argues that posture management and policy controls are insufficient alone because runtime monitoring is needed to observe what an agent actually does across cloud, SaaS, identity, and AI systems.</span></li></ul></div>
+                <div id="insights-d75ab45f002ca4c77eb7f0c0b134fe7c:88285b5749f3d1e2" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The article distinguishes policy enforcement from detection by emphasizing that knowing an AI agent violated a rule is different from knowing a trusted agent has been turned against the organization.</span></li><li><span class="kp-text">Mitiga frames an endpoint compromise involving an AI PC as a potential SaaS breach because the local agent may already hold tokens for applications such as Salesforce, SharePoint, and Workday.</span></li><li><span class="kp-text">The article recommends starting before RTX Spark hardware arrives by inventorying existing agent and non-human identities already present in browsers and productivity tools.</span></li><li><span class="kp-text">Mitiga argues that posture management and policy controls are insufficient alone because runtime monitoring is needed to observe what an agent actually does across cloud, SaaS, identity, and AI systems.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Mitiga</mark> says <mark class="tag-hl">Nvidia</mark> and <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">RTX Spark</mark> will run a 120-billion-parameter AI agent locally on new <mark class="tag-hl">Windows</mark> PCs from <mark class="tag-hl">Dell</mark>, <mark class="tag-hl">HP</mark>, <mark class="tag-hl">ASUS</mark>, <mark class="tag-hl">Lenovo</mark>, <mark class="tag-hl">Microsoft Surface</mark>, and <mark class="tag-hl">MSI</mark>.</span></li><li><span class="kp-text">The article argues that an on-device AI agent with SaaS integrations should be treated as a new enterprise identity because it can hold live credentials and act across applications such as CRM, email, cloud storage, and productivity tools.</span></li><li><span class="kp-text"><mark class="tag-hl">Mitiga</mark> states that if an AI PC is compromised, an attacker could inherit the agent’s permissions across applications such as <mark class="tag-hl">Salesforce</mark>, <mark class="tag-hl">SharePoint</mark>, and Workday.</span></li><li><span class="kp-text">The article says <mark class="tag-hl">Nvidia</mark>’s <mark class="tag-hl">OpenShell</mark> can define and enforce boundaries on what enterprise agents are permitted to do, but it does not replace SOC detection, threat correlation, audit trails, or incident response.</span></li><li><span class="kp-text"><mark class="tag-hl">Mitiga</mark> promotes its Zero-Impact AI-native cloud detection and response platform with <mark class="tag-hl">Helios AIDR</mark> as a way to detect and contain agent-driven attacks across cloud, SaaS, identity, and AI environments.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Mitiga says Nvidia and Microsoft’s RTX Spark will run a 120-billion-parameter AI agent locally on new Windows PCs from Dell, HP, ASUS, Lenovo, Microsoft Surface, and MSI.</span></li><li><span class="kp-text">The article argues that an on-device AI agent with SaaS integrations should be treated as a new enterprise identity because it can hold live credentials and act across applications such as CRM, email, cloud storage, and productivity tools.</span></li><li><span class="kp-text">Mitiga states that if an AI PC is compromised, an attacker could inherit the agent’s permissions across applications such as Salesforce, SharePoint, and Workday.</span></li><li><span class="kp-text">The article says Nvidia’s OpenShell can define and enforce boundaries on what enterprise agents are permitted to do, but it does not replace SOC detection, threat correlation, audit trails, or incident response.</span></li><li><span class="kp-text">Mitiga promotes its Zero-Impact AI-native cloud detection and response platform with Helios AIDR as a way to detect and contain agent-driven attacks across cloud, SaaS, identity, and AI environments.</span></li></ul></div>
+            
             <a href="https://www.mitiga.io/blog/ai-pc-agent-saas-security" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a vendor perspective and product-marketing piece about AI PC security risks rather than a report of a specific incident, vulnerability, active exploitation, or technical finding. It may be useful for thinking about agent identity and SaaS telemetry, but it is generic and promotional, so it remains low priority.</p>
 </div></div>
@@ -1995,9 +2153,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Internet-Exposed Automatic Tank Gauge Systems</span>
         </div>
-        <div class="overview-body prose"><p>U.S. government agencies and partners issued a joint advisory on internet-exposed <mark class="tag-hl">automatic tank gauge systems</mark> used in fuel and critical infrastructure environments. <mark class="tag-hl">Shadowserver</mark> reported 1,061 exposed automatic tank gauge system IPs on June 5, 2026, with 909 located in the <mark class="tag-hl">United States</mark>.</p>
+        <div class="overview-body prose"><p>U.S. government agencies and partners issued a joint advisory on internet-exposed automatic tank gauge systems used in fuel and critical infrastructure environments. Shadowserver reported 1,061 exposed automatic tank gauge system IPs on June 5, 2026, with 909 located in the United States.</p>
 
-<p>The advisory described active exploitation of weaknesses including <mark class="tag-hl">hardcoded credentials</mark>, authentication bypasses, <mark class="tag-hl">SQL injection</mark>, operating system command execution flaws, and <mark class="tag-hl">privilege escalation</mark> vulnerabilities. According to the reporting, attackers have used these issues to modify compromised systems through command execution, underscoring continued exposure of operational technology components to internet-based access.</p>
+<p>The advisory described active exploitation of weaknesses including hardcoded credentials, authentication bypasses, SQL injection, operating system command execution flaws, and privilege escalation vulnerabilities. According to the reporting, attackers have used these issues to modify compromised systems through command execution, underscoring continued exposure of operational technology components to internet-based access.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
@@ -2024,9 +2182,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-05 14:00 UTC · 4 hours window</span>
-  <span class="footer-right">5 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">5 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -2039,15 +2200,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2160,12 +2383,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2226,6 +2483,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,54 +1506,54 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:96%"></div></div><span class="score-num score-num-high">96</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="ae9067a09556aec77039afd5995795d5:beb235fe673d9f9a">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d5ba5c2d979259df2a32448fab113605:beb235fe673d9f9a')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d5ba5c2d979259df2a32448fab113605:beb235fe673d9f9a')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d5ba5c2d979259df2a32448fab113605:beb235fe673d9f9a')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d5ba5c2d979259df2a32448fab113605:beb235fe673d9f9a')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d5ba5c2d979259df2a32448fab113605:beb235fe673d9f9a')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-ae9067a09556aec77039afd5995795d5:beb235fe673d9f9a')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-ae9067a09556aec77039afd5995795d5:beb235fe673d9f9a')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-ae9067a09556aec77039afd5995795d5:beb235fe673d9f9a')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-ae9067a09556aec77039afd5995795d5:beb235fe673d9f9a')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-ae9067a09556aec77039afd5995795d5:beb235fe673d9f9a')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d5ba5c2d979259df2a32448fab113605:beb235fe673d9f9a" class="tab-panel active"><div class="prose">The <mark class="tag-hl">Miasma worm</mark> campaign hit <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">Azure</mark> <mark class="tag-hl">GitHub</mark> repositories by planting malicious editor and AI-coding-agent configuration files that executed a credential-stealing payload when developers opened affected repos. <mark class="tag-hl">GitHub</mark> disabled 73 <mark class="tag-hl">Microsoft</mark>-related repositories, including <mark class="tag-hl">Azure</mark>/functions-action, disrupting CI/CD pipelines and highlighting a shift from package-install attacks to “folder-open” supply chain compromise.</div></div>
-                <div id="brief-d5ba5c2d979259df2a32448fab113605:beb235fe673d9f9a" class="tab-panel"><div class="prose"><p>On June 5, 2026, the <mark class="tag-hl">Miasma worm</mark> campaign reached <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">Azure</mark> <mark class="tag-hl">GitHub</mark> organizations when a malicious commit was pushed to <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">durabletask</mark> using a previously compromised contributor account. The commit planted configuration files that executed or prompted execution of a <mark class="tag-hl">credential-harvesting</mark> payload when developers opened the repository in <mark class="tag-hl">Claude Code</mark>, <mark class="tag-hl">Gemini CLI</mark>, <mark class="tag-hl">Cursor</mark>, or VS Code. <mark class="tag-hl">GitHub</mark> later disabled 73 repositories across four <mark class="tag-hl">Microsoft</mark> <mark class="tag-hl">GitHub</mark> organizations in a 105-second automated sweep.</p>
+                <div id="tldr-ae9067a09556aec77039afd5995795d5:beb235fe673d9f9a" class="tab-panel active"><div class="prose">The Miasma worm campaign hit Microsoft’s Azure GitHub repositories by planting malicious editor and AI-coding-agent configuration files that executed a credential-stealing payload when developers opened affected repos. GitHub disabled 73 Microsoft-related repositories, including Azure/functions-action, disrupting CI/CD pipelines and highlighting a shift from package-install attacks to “folder-open” supply chain compromise.</div></div>
+                <div id="brief-ae9067a09556aec77039afd5995795d5:beb235fe673d9f9a" class="tab-panel"><div class="prose"><p>On June 5, 2026, the Miasma worm campaign reached Microsoft’s Azure GitHub organizations when a malicious commit was pushed to Azure/durabletask using a previously compromised contributor account. The commit planted configuration files that executed or prompted execution of a credential-harvesting payload when developers opened the repository in Claude Code, Gemini CLI, Cursor, or VS Code. GitHub later disabled 73 repositories across four Microsoft GitHub organizations in a 105-second automated sweep.</p>
 
-<p>The incident is significant because it shifted the attack surface from package installation to repository opening in developer tools and AI coding agents. The article contrasts this with the May 19 compromise of <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> package, where malicious versions were uploaded directly to <mark class="tag-hl">PyPI</mark> using a compromised publishing token. The June 5 attack added five files, including a 4.6 MB obfuscated JavaScript payload at .<mark class="tag-hl">github</mark>/setup.js and tool-specific configuration files that pointed to it.</p>
+<p>The incident is significant because it shifted the attack surface from package installation to repository opening in developer tools and AI coding agents. The article contrasts this with the May 19 compromise of Microsoft’s durabletask PyPI package, where malicious versions were uploaded directly to PyPI using a compromised publishing token. The June 5 attack added five files, including a 4.6 MB obfuscated JavaScript payload at .github/setup.js and tool-specific configuration files that pointed to it.</p>
 
-<p>One major impact was the disabling of <mark class="tag-hl">Azure</mark>/functions-action, the official <mark class="tag-hl">GitHub</mark> Action used to deploy <mark class="tag-hl">Azure</mark> Functions. Workflows referencing <mark class="tag-hl">Azure</mark>/functions-action@v1 stopped resolving, causing CI/CD failures reported by developers in a <mark class="tag-hl">Microsoft</mark> Learn Q&amp;A thread. The article recommends treating systems as compromised if affected repositories were opened in the targeted tools, rotating credentials, auditing repositories and package releases, and pinning <mark class="tag-hl">GitHub</mark> Actions to commit SHAs instead of mutable tags.</p>
+<p>One major impact was the disabling of Azure/functions-action, the official GitHub Action used to deploy Azure Functions. Workflows referencing Azure/functions-action@v1 stopped resolving, causing CI/CD failures reported by developers in a Microsoft Learn Q&amp;A thread. The article recommends treating systems as compromised if affected repositories were opened in the targeted tools, rotating credentials, auditing repositories and package releases, and pinning GitHub Actions to commit SHAs instead of mutable tags.</p>
 </div></div>
-                <div id="standard-d5ba5c2d979259df2a32448fab113605:beb235fe673d9f9a" class="tab-panel"><div class="prose"><p>The article reports that on June 5, 2026, the <mark class="tag-hl">Miasma worm</mark> campaign hit <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">Azure</mark> <mark class="tag-hl">GitHub</mark> organizations through a malicious commit to <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">durabletask</mark>. The commit was pushed using a previously compromised contributor account that was also tied to the May 19 <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> compromise. Instead of poisoning a package registry, the June 5 attack planted configuration files that triggered execution when a developer opened the repository in supported tools.</p>
+                <div id="standard-ae9067a09556aec77039afd5995795d5:beb235fe673d9f9a" class="tab-panel"><div class="prose"><p>The article reports that on June 5, 2026, the Miasma worm campaign hit Microsoft’s Azure GitHub organizations through a malicious commit to Azure/durabletask. The commit was pushed using a previously compromised contributor account that was also tied to the May 19 durabletask PyPI compromise. Instead of poisoning a package registry, the June 5 attack planted configuration files that triggered execution when a developer opened the repository in supported tools.</p>
 
 <p>The malicious commit, identified as 5f456b8, carried several red flags described in the article. Its message claimed “Switched DataConverter to OrchestrationContext [skip ci],” but it modified no source code and added only tool configuration files and the payload. The timestamp was backdated to 2020-03-09T15:59:47Z, and the “[skip ci]” flag suppressed CI pipeline execution.</p>
 
-<p>The commit added five files that targeted <mark class="tag-hl">Claude Code</mark>, <mark class="tag-hl">Gemini CLI</mark>, <mark class="tag-hl">Cursor</mark>, and VS Code. The .claude/settings.json and .gemini/settings.json files used SessionStart hooks to run node .<mark class="tag-hl">github</mark>/setup.js, while .<mark class="tag-hl">cursor</mark>/rules/setup.mdc instructed the <mark class="tag-hl">Cursor</mark> AI agent to run the same file as a project setup requirement. A .vscode/tasks.json file defined a task with runOn set to folderOpen, and .<mark class="tag-hl">github</mark>/setup.js was a single-line, 4,643,745-byte obfuscated JavaScript credential harvester.</p>
+<p>The commit added five files that targeted Claude Code, Gemini CLI, Cursor, and VS Code. The .claude/settings.json and .gemini/settings.json files used SessionStart hooks to run node .github/setup.js, while .cursor/rules/setup.mdc instructed the Cursor AI agent to run the same file as a project setup requirement. A .vscode/tasks.json file defined a task with runOn set to folderOpen, and .github/setup.js was a single-line, 4,643,745-byte obfuscated JavaScript credential harvester.</p>
 
-<p><mark class="tag-hl">GitHub</mark> disabled 73 repositories across <mark class="tag-hl">Azure</mark>, <mark class="tag-hl">microsoft</mark>, <mark class="tag-hl">Azure</mark>-Samples, and MicrosoftDocs in a 105-second automated enforcement window. The article says all disabled repositories returned HTTP 403 with a Terms of Service reason when checked through the <mark class="tag-hl">GitHub</mark> API, and that the list was first reported by OpenSource Malware before being independently verified by the authors. The disabled set included <mark class="tag-hl">Azure</mark> Functions runtime, language workers, SDKs, Durable Task repositories, AI-related samples, connector projects, and MicrosoftDocs/windows-driver-docs.</p>
+<p>GitHub disabled 73 repositories across Azure, microsoft, Azure-Samples, and MicrosoftDocs in a 105-second automated enforcement window. The article says all disabled repositories returned HTTP 403 with a Terms of Service reason when checked through the GitHub API, and that the list was first reported by OpenSource Malware before being independently verified by the authors. The disabled set included Azure Functions runtime, language workers, SDKs, Durable Task repositories, AI-related samples, connector projects, and MicrosoftDocs/windows-driver-docs.</p>
 
-<p>The disabling of <mark class="tag-hl">Azure</mark>/functions-action caused immediate CI/CD breakage because workflows referencing <mark class="tag-hl">Azure</mark>/functions-action@v1 could no longer resolve the action. A <mark class="tag-hl">Microsoft</mark> Learn Q&amp;A thread gathered reports from developers, and <mark class="tag-hl">Microsoft</mark> described the repository’s disabled state first as a <mark class="tag-hl">GitHub</mark> policy violation and later as an “internal management issue” under investigation. The article uses this impact to highlight the risk of mutable tags and recommends pinning actions to commit SHAs.</p>
+<p>The disabling of Azure/functions-action caused immediate CI/CD breakage because workflows referencing Azure/functions-action@v1 could no longer resolve the action. A Microsoft Learn Q&amp;A thread gathered reports from developers, and Microsoft described the repository’s disabled state first as a GitHub policy violation and later as an “internal management issue” under investigation. The article uses this impact to highlight the risk of mutable tags and recommends pinning actions to commit SHAs.</p>
 
-<p>The article connects the June 5 repository injection to the May 19 <mark class="tag-hl">PyPI</mark> attack through the same compromised contributor account and to the broader <mark class="tag-hl">Miasma worm</mark> campaign, which it says has infected 113 or more <mark class="tag-hl">GitHub</mark> repositories. It also states that the May 19 payload connected to <mark class="tag-hl">TeamPCP</mark> infrastructure through t.m-kosche[.]com. Recommended actions include rotating credentials, auditing repositories for suspicious tool configuration files, checking package registries for unauthorized publishes, monitoring for specified domains, requiring pull request reviews, using <mark class="tag-hl">PyPI</mark> Trusted Publishing, and restricting outbound network access from CI/CD runners.</p>
+<p>The article connects the June 5 repository injection to the May 19 PyPI attack through the same compromised contributor account and to the broader Miasma worm campaign, which it says has infected 113 or more GitHub repositories. It also states that the May 19 payload connected to TeamPCP infrastructure through t.m-kosche[.]com. Recommended actions include rotating credentials, auditing repositories for suspicious tool configuration files, checking package registries for unauthorized publishes, monitoring for specified domains, requiring pull request reviews, using PyPI Trusted Publishing, and restricting outbound network access from CI/CD runners.</p>
 </div></div>
-                <div id="comprehensive-d5ba5c2d979259df2a32448fab113605:beb235fe673d9f9a" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-ae9067a09556aec77039afd5995795d5:beb235fe673d9f9a" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The article reports that the <mark class="tag-hl">Miasma worm</mark> campaign reached <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">Azure</mark> <mark class="tag-hl">GitHub</mark> organizations on June 5, 2026. A malicious commit was pushed to the <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">durabletask</mark> repository using a previously compromised contributor account. <mark class="tag-hl">GitHub</mark> later disabled 73 repositories across four <mark class="tag-hl">Microsoft</mark> <mark class="tag-hl">GitHub</mark> organizations in a 105-second automated sweep.</p>
+<p>The article reports that the Miasma worm campaign reached Microsoft’s Azure GitHub organizations on June 5, 2026. A malicious commit was pushed to the Azure/durabletask repository using a previously compromised contributor account. GitHub later disabled 73 repositories across four Microsoft GitHub organizations in a 105-second automated sweep.</p>
 
 <p>The core significance of the incident is the attack’s move from package registry poisoning to developer-tool and AI-coding-agent hijacking. The article describes this as a shift from “execute on package install” to “execute on folder open.” In this case, cloning the repository was described as safe, while opening it in targeted tools was not.</p>
 
-<h2 id="background-may-19-durabletask-pypi-compromise">Background: May 19 <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> compromise</h2>
+<h2 id="background-may-19-durabletask-pypi-compromise">Background: May 19 durabletask PyPI compromise</h2>
 
-<p>The article links the June 5 incident to an earlier compromise on May 19, 2026. In that earlier incident, three malicious versions of <mark class="tag-hl">Microsoft</mark>’s <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> package were uploaded during a 35-minute window. Those packages planted a <mark class="tag-hl">credential-harvesting</mark> payload that stole secrets from AWS, <mark class="tag-hl">Azure</mark>, GCP, Kubernetes, and more than 90 developer tool configurations.</p>
+<p>The article links the June 5 incident to an earlier compromise on May 19, 2026. In that earlier incident, three malicious versions of Microsoft’s durabletask PyPI package were uploaded during a 35-minute window. Those packages planted a credential-harvesting payload that stole secrets from AWS, Azure, GCP, Kubernetes, and more than 90 developer tool configurations.</p>
 
-<p>According to the article, the attacker bypassed the repository’s CI/CD pipeline and uploaded directly to <mark class="tag-hl">PyPI</mark> using a compromised publishing token. The June 5 incident reused the same compromised contributor account, but used <mark class="tag-hl">GitHub</mark> source repository injection rather than package registry poisoning.</p>
+<p>According to the article, the attacker bypassed the repository’s CI/CD pipeline and uploaded directly to PyPI using a compromised publishing token. The June 5 incident reused the same compromised contributor account, but used GitHub source repository injection rather than package registry poisoning.</p>
 
-<h2 id="the-malicious-azure-durabletask-commit">The malicious <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">durabletask</mark> commit</h2>
+<h2 id="the-malicious-azure-durabletask-commit">The malicious Azure/durabletask commit</h2>
 
-<p>The malicious commit was identified as 5f456b8 and was pushed to <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">durabletask</mark>. The article highlights several suspicious properties in the commit metadata:</p>
+<p>The malicious commit was identified as 5f456b8 and was pushed to Azure/durabletask. The article highlights several suspicious properties in the commit metadata:</p>
 
 <ul>
 <li>The commit message was “Switched DataConverter to OrchestrationContext [skip ci].”</li>
@@ -1415,23 +1568,23 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The commit added five files intended to trigger execution across four developer tools or AI coding environments.</p>
 
-<h3 id="claude-code"><mark class="tag-hl">Claude Code</mark></h3>
+<h3 id="claude-code">Claude Code</h3>
 
 <p>The .claude/settings.json file defined a SessionStart hook. That hook matched all sessions and executed the command:</p>
 
-<p><code>node .<mark class="tag-hl">github</mark>/setup.js</code></p>
+<p><code>node .github/setup.js</code></p>
 
-<p>The article states that this caused the payload to execute automatically whenever a <mark class="tag-hl">Claude Code</mark> session started in the repository.</p>
+<p>The article states that this caused the payload to execute automatically whenever a Claude Code session started in the repository.</p>
 
-<h3 id="gemini-cli"><mark class="tag-hl">Gemini CLI</mark></h3>
+<h3 id="gemini-cli">Gemini CLI</h3>
 
-<p>The .gemini/settings.json file used the same structure as the <mark class="tag-hl">Claude Code</mark> hook. It also triggered on <mark class="tag-hl">Gemini CLI</mark> session start and ran the same payload.</p>
+<p>The .gemini/settings.json file used the same structure as the Claude Code hook. It also triggered on Gemini CLI session start and ran the same payload.</p>
 
-<h3 id="cursor"><mark class="tag-hl">Cursor</mark></h3>
+<h3 id="cursor">Cursor</h3>
 
-<p>The .<mark class="tag-hl">cursor</mark>/rules/setup.mdc file was described as a <mark class="tag-hl">prompt injection</mark>. It contained an alwaysApply rule instructing the <mark class="tag-hl">Cursor</mark> AI agent to run:</p>
+<p>The .cursor/rules/setup.mdc file was described as a prompt injection. It contained an alwaysApply rule instructing the Cursor AI agent to run:</p>
 
-<p><code>node .<mark class="tag-hl">github</mark>/setup.js</code></p>
+<p><code>node .github/setup.js</code></p>
 
 <p>The article says the instruction framed execution as required for project setup and IDE integration. The alwaysApply flag made the rule active regardless of which file the developer was working on.</p>
 
@@ -1439,64 +1592,64 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The .vscode/tasks.json file defined a shell task named “Setup.” Its command was:</p>
 
-<p><code>node .<mark class="tag-hl">github</mark>/setup.js</code></p>
+<p><code>node .github/setup.js</code></p>
 
 <p>The task used runOptions with runOn set to folderOpen, which the article says caused it to run automatically when a developer opened the folder in VS Code.</p>
 
 <h3 id="payload-file">Payload file</h3>
 
-<p>The shared payload was stored at .<mark class="tag-hl">github</mark>/setup.js. The article describes it as a single-line, 4,643,745-byte obfuscated JavaScript file containing the credential harvester. All four configuration paths pointed to this file.</p>
+<p>The shared payload was stored at .github/setup.js. The article describes it as a single-line, 4,643,745-byte obfuscated JavaScript file containing the credential harvester. All four configuration paths pointed to this file.</p>
 
 <h2 id="disabled-repositories">Disabled repositories</h2>
 
-<p>After the malicious commit, <mark class="tag-hl">GitHub</mark> disabled 73 repositories across four <mark class="tag-hl">Microsoft</mark> <mark class="tag-hl">GitHub</mark> organizations. The article says the disabled repositories returned HTTP 403 with a Terms of Service reason when checked through the <mark class="tag-hl">GitHub</mark> API. It also says the list was first reported by OpenSource Malware and independently verified by the article’s authors.</p>
+<p>After the malicious commit, GitHub disabled 73 repositories across four Microsoft GitHub organizations. The article says the disabled repositories returned HTTP 403 with a Terms of Service reason when checked through the GitHub API. It also says the list was first reported by OpenSource Malware and independently verified by the article’s authors.</p>
 
 <p>The block timestamps ranged from 16:00:50 to 16:02:35 UTC on June 5. The article describes two waves separated by a 56-second gap, concluding that the enforcement was automated rather than manual.</p>
 
 <h3 id="wave-1">Wave 1</h3>
 
-<p>The first wave occurred from 16:00:50 to 16:01:28 UTC and disabled 39 repositories in 38 seconds. Repositories in this wave included <mark class="tag-hl">Azure</mark> Functions tooling, WebJobs components, Durable Task projects, <mark class="tag-hl">Azure</mark>-Samples projects, and MicrosoftDocs/windows-driver-docs.</p>
+<p>The first wave occurred from 16:00:50 to 16:01:28 UTC and disabled 39 repositories in 38 seconds. Repositories in this wave included Azure Functions tooling, WebJobs components, Durable Task projects, Azure-Samples projects, and MicrosoftDocs/windows-driver-docs.</p>
 
 <h3 id="wave-2">Wave 2</h3>
 
-<p>The second wave occurred from 16:02:24 to 16:02:35 UTC and disabled 34 repositories in 11 seconds. Repositories in this wave included <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">azure</mark>-functions-host, <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">durabletask</mark>, <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">azure</mark>-functions-durable-extension, language workers, extension projects, connector SDKs, and several <mark class="tag-hl">Azure</mark>-Samples repositories.</p>
+<p>The second wave occurred from 16:02:24 to 16:02:35 UTC and disabled 34 repositories in 11 seconds. Repositories in this wave included Azure/azure-functions-host, Azure/durabletask, Azure/azure-functions-durable-extension, language workers, extension projects, connector SDKs, and several Azure-Samples repositories.</p>
 
 <h3 id="organizations-affected">Organizations affected</h3>
 
 <p>The article groups the 73 disabled repositories across four organizations:</p>
 
 <ul>
-<li><mark class="tag-hl">Azure</mark>: 49 repositories.</li>
-<li><mark class="tag-hl">microsoft</mark>: 10 repositories.</li>
-<li><mark class="tag-hl">Azure</mark>-Samples: 13 repositories.</li>
+<li>Azure: 49 repositories.</li>
+<li>microsoft: 10 repositories.</li>
+<li>Azure-Samples: 13 repositories.</li>
 <li>MicrosoftDocs: 1 repository.</li>
 </ul>
 
-<p>The affected <mark class="tag-hl">Azure</mark> repositories included <mark class="tag-hl">Azure</mark> Functions runtime, worker, SDK, extension, deployment action, connector, Durable Task, and AI-related repositories. The affected <mark class="tag-hl">microsoft</mark> repositories included Durable Task SDKs and backends, DurableFunctionsMonitor, <mark class="tag-hl">Microsoft</mark>-Performance-Tools-Apple, and secure-azureai-agent. The affected <mark class="tag-hl">Azure</mark>-Samples repositories included AI, OpenAI, connector, container apps, and <mark class="tag-hl">Azure</mark> Functions samples. The affected MicrosoftDocs repository was windows-driver-docs.</p>
+<p>The affected Azure repositories included Azure Functions runtime, worker, SDK, extension, deployment action, connector, Durable Task, and AI-related repositories. The affected microsoft repositories included Durable Task SDKs and backends, DurableFunctionsMonitor, Microsoft-Performance-Tools-Apple, and secure-azureai-agent. The affected Azure-Samples repositories included AI, OpenAI, connector, container apps, and Azure Functions samples. The affected MicrosoftDocs repository was windows-driver-docs.</p>
 
-<h2 id="ci-cd-impact-from-azure-functions-action">CI/CD impact from <mark class="tag-hl">Azure</mark>/functions-action</h2>
+<h2 id="ci-cd-impact-from-azure-functions-action">CI/CD impact from Azure/functions-action</h2>
 
-<p>The article identifies <mark class="tag-hl">Azure</mark>/functions-action as the most immediately damaging repository to be disabled. <mark class="tag-hl">Azure</mark>/functions-action is described as the official <mark class="tag-hl">GitHub</mark> Action used to deploy <mark class="tag-hl">Azure</mark> Functions. When the repository was disabled, workflows referencing <mark class="tag-hl">Azure</mark>/functions-action@v1 stopped resolving.</p>
+<p>The article identifies Azure/functions-action as the most immediately damaging repository to be disabled. Azure/functions-action is described as the official GitHub Action used to deploy Azure Functions. When the repository was disabled, workflows referencing Azure/functions-action@v1 stopped resolving.</p>
 
-<p>The article says a <mark class="tag-hl">Microsoft</mark> Learn Q&amp;A thread opened within hours, with more than 20 developers reporting broken CI/CD pipelines. <mark class="tag-hl">Microsoft</mark> initially described the issue as a <mark class="tag-hl">GitHub</mark> policy violation. Twelve minutes later, a revised response characterized it as an “internal management issue” under investigation and recommended alternative deployment methods such as <mark class="tag-hl">Azure</mark> CLI, <mark class="tag-hl">Azure</mark> DevOps Pipelines, VS Code deployment, Zip Deploy, or <mark class="tag-hl">Azure</mark> Pipelines.</p>
+<p>The article says a Microsoft Learn Q&amp;A thread opened within hours, with more than 20 developers reporting broken CI/CD pipelines. Microsoft initially described the issue as a GitHub policy violation. Twelve minutes later, a revised response characterized it as an “internal management issue” under investigation and recommended alternative deployment methods such as Azure CLI, Azure DevOps Pipelines, VS Code deployment, Zip Deploy, or Azure Pipelines.</p>
 
-<p>The article uses this incident to discuss the mutable-tag problem. It states that workflows referencing @v1 depend on whatever <mark class="tag-hl">GitHub</mark> serves for that tag, and when the repository disappears, the tag evaporates and dependent pipelines fail. It recommends pinning to a specific commit SHA when the action is restored.</p>
+<p>The article uses this incident to discuss the mutable-tag problem. It states that workflows referencing @v1 depend on whatever GitHub serves for that tag, and when the repository disappears, the tag evaporates and dependent pipelines fail. It recommends pinning to a specific commit SHA when the action is restored.</p>
 
 <h2 id="relationship-to-the-broader-campaign">Relationship to the broader campaign</h2>
 
-<p>The article links the June 5 repository injection to the May 19 <mark class="tag-hl">PyPI</mark> attack through the same compromised contributor account. It says the contributor’s personal fork of <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">azure</mark>-functions-durable-extension was also blocked during the same sweep, which the authors say confirmed the account’s involvement.</p>
+<p>The article links the June 5 repository injection to the May 19 PyPI attack through the same compromised contributor account. It says the contributor’s personal fork of Azure/azure-functions-durable-extension was also blocked during the same sweep, which the authors say confirmed the account’s involvement.</p>
 
 <p>The article lays out three possibilities for how the account was used again:</p>
 
 <ul>
-<li>The account’s credentials may not have been fully rotated after May 19, leaving the attacker with a working <mark class="tag-hl">GitHub</mark> token.</li>
+<li>The account’s credentials may not have been fully rotated after May 19, leaving the attacker with a working GitHub token.</li>
 <li>The contributor may have been re-compromised through the worm’s propagation loop after opening an infected repository in an AI coding tool.</li>
 <li>A different contributor’s token may have been used with commit author metadata spoofed through the Git Data API.</li>
 </ul>
 
-<p>The article connects the incident to the broader <mark class="tag-hl">Miasma worm</mark> campaign, which it says has infected more than 113 <mark class="tag-hl">GitHub</mark> repositories across dozens of accounts. It also states that the May 19 payload connected to the <mark class="tag-hl">TeamPCP</mark> threat group through the secondary C2 domain t.m-kosche[.]com, described as known <mark class="tag-hl">TeamPCP</mark> infrastructure.</p>
+<p>The article connects the incident to the broader Miasma worm campaign, which it says has infected more than 113 GitHub repositories across dozens of accounts. It also states that the May 19 payload connected to the TeamPCP threat group through the secondary C2 domain t.m-kosche[.]com, described as known TeamPCP infrastructure.</p>
 
-<p>The article further states that <mark class="tag-hl">TeamPCP</mark> has previously targeted TanStack, Mistral AI, the @antv ecosystem, the @redhat-cloud-services <mark class="tag-hl">npm</mark> scope, LiteLLM, Telnyx, and Checkmarx.</p>
+<p>The article further states that TeamPCP has previously targeted TanStack, Mistral AI, the @antv ecosystem, the @redhat-cloud-services npm scope, LiteLLM, Telnyx, and Checkmarx.</p>
 
 <h2 id="timeline-described-in-the-article">Timeline described in the article</h2>
 
@@ -1504,46 +1657,47 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <ul>
 <li>May 16, 2026: rope.pyz core modules were authored, and git-service[.]com infrastructure was registered and certified.</li>
-<li>May 19, 2026: malicious <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> versions 1.4.1, 1.4.2, and 1.4.3 were uploaded.</li>
-<li>May 19, 2026: <mark class="tag-hl">GitHub</mark> Issue #137 reported the <mark class="tag-hl">PyPI</mark> compromise, and <mark class="tag-hl">Microsoft</mark> confirmed the packages were yanked.</li>
+<li>May 19, 2026: malicious durabletask PyPI versions 1.4.1, 1.4.2, and 1.4.3 were uploaded.</li>
+<li>May 19, 2026: GitHub Issue #137 reported the PyPI compromise, and Microsoft confirmed the packages were yanked.</li>
 <li>June 3, 2026: a second wave of dead-drop repositories began with Miasma-themed naming.</li>
-<li>June 5, 2026: malicious commit 5f456b8 was pushed to <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">durabletask</mark>.</li>
-<li>June 5, 2026 16:00:50 to 16:02:35 UTC: <mark class="tag-hl">GitHub</mark> disabled 73 <mark class="tag-hl">Microsoft</mark>-related repositories.</li>
-<li>June 5, 2026 around 19:00 UTC: a <mark class="tag-hl">Microsoft</mark> Learn Q&amp;A thread opened about broken CI/CD.</li>
-<li>June 5, 2026 around 19:57 UTC: <mark class="tag-hl">Microsoft</mark> characterized the incident as an “internal management issue.”</li>
+<li>June 5, 2026: malicious commit 5f456b8 was pushed to Azure/durabletask.</li>
+<li>June 5, 2026 16:00:50 to 16:02:35 UTC: GitHub disabled 73 Microsoft-related repositories.</li>
+<li>June 5, 2026 around 19:00 UTC: a Microsoft Learn Q&amp;A thread opened about broken CI/CD.</li>
+<li>June 5, 2026 around 19:57 UTC: Microsoft characterized the incident as an “internal management issue.”</li>
 </ul>
 
 <h2 id="recommended-actions-in-the-article">Recommended actions in the article</h2>
 
-<p>The article recommends that anyone who cloned affected repositories after June 2 and opened them in VS Code, <mark class="tag-hl">Claude Code</mark>, <mark class="tag-hl">Cursor</mark>, or <mark class="tag-hl">Gemini CLI</mark> treat the system as compromised. It advises rotating all credentials accessible from the system, including <mark class="tag-hl">GitHub</mark> tokens, <mark class="tag-hl">npm</mark> tokens, AWS keys, <mark class="tag-hl">Azure</mark> service principals, GCP service accounts, SSH keys, Kubernetes secrets, Docker configs, environment variables, and shell history contents.</p>
+<p>The article recommends that anyone who cloned affected repositories after June 2 and opened them in VS Code, Claude Code, Cursor, or Gemini CLI treat the system as compromised. It advises rotating all credentials accessible from the system, including GitHub tokens, npm tokens, AWS keys, Azure service principals, GCP service accounts, SSH keys, Kubernetes secrets, Docker configs, environment variables, and shell history contents.</p>
 
 <p>It also recommends auditing repositories for unexpected commits containing:</p>
 
 <ul>
 <li>.claude/</li>
 <li>.gemini/</li>
-<li>.<mark class="tag-hl">cursor</mark>/</li>
+<li>.cursor/</li>
 <li>.vscode/tasks.json</li>
-<li>.<mark class="tag-hl">github</mark>/setup.js</li>
+<li>.github/setup.js</li>
 </ul>
 
-<p>The article further recommends auditing <mark class="tag-hl">npm</mark> and <mark class="tag-hl">PyPI</mark> packages for unauthorized version publishes and checking network logs for connections to check.git-service[.]com and t.m-kosche[.]com.</p>
+<p>The article further recommends auditing npm and PyPI packages for unauthorized version publishes and checking network logs for connections to check.git-service[.]com and t.m-kosche[.]com.</p>
 
-<p>For CI/CD users referencing <mark class="tag-hl">Azure</mark>/functions-action@v1, the article recommends switching to alternative deployment methods while the repository remains disabled. It also recommends pinning to a specific commit SHA instead of a mutable tag after the action is restored.</p>
+<p>For CI/CD users referencing Azure/functions-action@v1, the article recommends switching to alternative deployment methods while the repository remains disabled. It also recommends pinning to a specific commit SHA instead of a mutable tag after the action is restored.</p>
 
-<p>For prevention, the article recommends inspecting cloned repositories for suspicious AI tool and editor configuration files before opening them, enabling branch protection rules requiring pull request reviews, using <mark class="tag-hl">PyPI</mark> Trusted Publishing instead of long-lived API tokens, pinning <mark class="tag-hl">GitHub</mark> Actions to commit SHAs, restricting outbound network access from CI/CD runners, and monitoring for <mark class="tag-hl">PyPI</mark> or <mark class="tag-hl">npm</mark> releases without matching <mark class="tag-hl">GitHub</mark> tags or CI runs.</p>
+<p>For prevention, the article recommends inspecting cloned repositories for suspicious AI tool and editor configuration files before opening them, enabling branch protection rules requiring pull request reviews, using PyPI Trusted Publishing instead of long-lived API tokens, pinning GitHub Actions to commit SHAs, restricting outbound network access from CI/CD runners, and monitoring for PyPI or npm releases without matching GitHub tags or CI runs.</p>
 </div></div>
-                <div id="insights-d5ba5c2d979259df2a32448fab113605:beb235fe673d9f9a" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The attack bypassed traditional package-install defenses by using editor and AI-agent startup mechanisms, making simply opening an infected repository in a supported tool sufficient to trigger the payload.</span></li><li><span class="kp-text">The malicious commit used multiple evasion signals at once, including a misleading code-change message, a backdated timestamp, no source-code modifications, and a “[skip ci]” flag to suppress automated checks.</span></li><li><span class="kp-text">The incident shows that repository-local AI tool configuration files such as .claude/settings.json, .gemini/settings.json, and .<mark class="tag-hl">cursor</mark>/rules/setup.mdc should be treated as supply-chain risk indicators rather than harmless editor metadata.</span></li><li><span class="kp-text">The outage of <mark class="tag-hl">Azure</mark>/functions-action demonstrates that <mark class="tag-hl">GitHub</mark> Actions workflows pinned to mutable tags like @v1 can fail globally when an upstream repository is disabled, even without any change in the dependent project.</span></li><li><span class="kp-text">The reuse of the same compromised contributor account across the <mark class="tag-hl">PyPI</mark> compromise and the <mark class="tag-hl">GitHub</mark> repository injection indicates that credential rotation or account remediation after the earlier incident was not sufficient to prevent a second delivery channel from being abused.</span></li></ul></div>
+                <div id="insights-ae9067a09556aec77039afd5995795d5:beb235fe673d9f9a" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The attack bypassed traditional package-install defenses by using editor and AI-agent startup mechanisms, making simply opening an infected repository in a supported tool sufficient to trigger the payload.</span></li><li><span class="kp-text">The malicious commit used multiple evasion signals at once, including a misleading code-change message, a backdated timestamp, no source-code modifications, and a “[skip ci]” flag to suppress automated checks.</span></li><li><span class="kp-text">The incident shows that repository-local AI tool configuration files such as .claude/settings.json, .gemini/settings.json, and .cursor/rules/setup.mdc should be treated as supply-chain risk indicators rather than harmless editor metadata.</span></li><li><span class="kp-text">The outage of Azure/functions-action demonstrates that GitHub Actions workflows pinned to mutable tags like @v1 can fail globally when an upstream repository is disabled, even without any change in the dependent project.</span></li><li><span class="kp-text">The reuse of the same compromised contributor account across the PyPI compromise and the GitHub repository injection indicates that credential rotation or account remediation after the earlier incident was not sufficient to prevent a second delivery channel from being abused.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">On June 5, 2026, a malicious commit was pushed to the <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">durabletask</mark> repository using a previously compromised contributor account.</span></li><li><span class="kp-text">The commit added configuration files for <mark class="tag-hl">Claude Code</mark>, <mark class="tag-hl">Gemini CLI</mark>, <mark class="tag-hl">Cursor</mark>, and VS Code that executed or instructed execution of a <mark class="tag-hl">credential-harvesting</mark> payload when the repository was opened.</span></li><li><span class="kp-text"><mark class="tag-hl">GitHub</mark> disabled 73 repositories across the <mark class="tag-hl">Azure</mark>, <mark class="tag-hl">microsoft</mark>, <mark class="tag-hl">Azure</mark>-Samples, and MicrosoftDocs <mark class="tag-hl">GitHub</mark> organizations in a 105-second automated enforcement window.</span></li><li><span class="kp-text">The disabling of <mark class="tag-hl">Azure</mark>/functions-action caused <mark class="tag-hl">GitHub</mark> workflows referencing <mark class="tag-hl">Azure</mark>/functions-action@v1 to stop resolving, breaking CI/CD pipelines for developers.</span></li><li><span class="kp-text">The article links the June 5 repository injection to the May 19 <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> compromise through the same compromised contributor account.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">On June 5, 2026, a malicious commit was pushed to the Azure/durabletask repository using a previously compromised contributor account.</span></li><li><span class="kp-text">The commit added configuration files for Claude Code, Gemini CLI, Cursor, and VS Code that executed or instructed execution of a credential-harvesting payload when the repository was opened.</span></li><li><span class="kp-text">GitHub disabled 73 repositories across the Azure, microsoft, Azure-Samples, and MicrosoftDocs GitHub organizations in a 105-second automated enforcement window.</span></li><li><span class="kp-text">The disabling of Azure/functions-action caused GitHub workflows referencing Azure/functions-action@v1 to stop resolving, breaking CI/CD pipelines for developers.</span></li><li><span class="kp-text">The article links the June 5 repository injection to the May 19 durabletask PyPI compromise through the same compromised contributor account.</span></li></ul></div>
+            
             <a href="https://www.stepsecurity.io/blog/miasma-worm-hits-microsoft-again-azure-functions-action-and-72-other-repositories-disabled-after-supply-chain-attack-targeting-ai-coding-agents" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports a specific, high-impact supply chain incident affecting <mark class="tag-hl">Microsoft</mark> <mark class="tag-hl">Azure</mark> <mark class="tag-hl">GitHub</mark> repositories, including <mark class="tag-hl">credential-harvesting</mark> payloads triggered by AI coding tools and VS Code. The disabling of 73 repositories, including <mark class="tag-hl">Azure</mark>/functions-action, caused real CI/CD breakage and highlights an active evolution in developer-environment compromise techniques.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports a specific, high-impact supply chain incident affecting Microsoft Azure GitHub repositories, including credential-harvesting payloads triggered by AI coding tools and VS Code. The disabling of 73 repositories, including Azure/functions-action, caused real CI/CD breakage and highlights an active evolution in developer-environment compromise techniques.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://opensourcemalware.org/blog/miasma-reaches-azure" target="_blank" rel="noopener">Miasma Reaches Azure</a></div>
   <div class="report-meta">OpenSource Malware</div>
-  <div class="report-context">The article says OpenSource Malware first reported the list of 73 <mark class="tag-hl">Microsoft</mark> repositories disabled by <mark class="tag-hl">GitHub</mark> during the Miasma incident.</div>
+  <div class="report-context">The article says OpenSource Malware first reported the list of 73 Microsoft repositories disabled by GitHub during the Miasma incident.</div>
 </li></ul></div>
             
           </div>
@@ -1572,52 +1726,52 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:72%"></div></div><span class="score-num score-num-low">72</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2fc4639190fe5d5e7d06e0ba98a7a537:5bd950909e7c041a">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-98368d337c723b246aa76244963caabd:5bd950909e7c041a')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-98368d337c723b246aa76244963caabd:5bd950909e7c041a')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-98368d337c723b246aa76244963caabd:5bd950909e7c041a')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-98368d337c723b246aa76244963caabd:5bd950909e7c041a')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-98368d337c723b246aa76244963caabd:5bd950909e7c041a')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2fc4639190fe5d5e7d06e0ba98a7a537:5bd950909e7c041a')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2fc4639190fe5d5e7d06e0ba98a7a537:5bd950909e7c041a')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2fc4639190fe5d5e7d06e0ba98a7a537:5bd950909e7c041a')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2fc4639190fe5d5e7d06e0ba98a7a537:5bd950909e7c041a')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2fc4639190fe5d5e7d06e0ba98a7a537:5bd950909e7c041a')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-98368d337c723b246aa76244963caabd:5bd950909e7c041a" class="tab-panel active"><div class="prose">A phishing email impersonating <mark class="tag-hl">DocuSign</mark> and <mark class="tag-hl">Vantage Bank</mark> bypassed authentication failures because it passed through an allow-listed <mark class="tag-hl">Votiro</mark> CDR relay, turning a clearly suspicious multi-domain message into trusted delivery. The key lesson is that allow-listed security relays should not automatically override authentication and behavioral checks.</div></div>
-                <div id="brief-98368d337c723b246aa76244963caabd:5bd950909e7c041a" class="tab-panel"><div class="prose"><p>A phishing email used the display name “Vantage via D0cuSign,” with a zero replacing the letter O in <mark class="tag-hl">DocuSign</mark>, and impersonated <mark class="tag-hl">Vantage Bank</mark> while using multiple unrelated domains. The From address was account@<mark class="tag-hl">yshfoodsupply</mark>[.]com, the Return-Path was postmaster@<mark class="tag-hl">hansabusad</mark>[.]com, the Reply-To was support@vantage[.]bank, and the X-Relaying-Domain header referenced <mark class="tag-hl">candybreak</mark>[.]net. The article describes the message as a <mark class="tag-hl">credential-harvesting</mark> and brand-impersonation attack.</p>
+                <div id="tldr-2fc4639190fe5d5e7d06e0ba98a7a537:5bd950909e7c041a" class="tab-panel active"><div class="prose">A phishing email impersonating DocuSign and Vantage Bank bypassed authentication failures because it passed through an allow-listed Votiro CDR relay, turning a clearly suspicious multi-domain message into trusted delivery. The key lesson is that allow-listed security relays should not automatically override authentication and behavioral checks.</div></div>
+                <div id="brief-2fc4639190fe5d5e7d06e0ba98a7a537:5bd950909e7c041a" class="tab-panel"><div class="prose"><p>A phishing email used the display name “Vantage via D0cuSign,” with a zero replacing the letter O in DocuSign, and impersonated Vantage Bank while using multiple unrelated domains. The From address was account@yshfoodsupply[.]com, the Return-Path was postmaster@hansabusad[.]com, the Reply-To was support@vantage[.]bank, and the X-Relaying-Domain header referenced candybreak[.]net. The article describes the message as a credential-harvesting and brand-impersonation attack.</p>
 
-<p>The message failed or lacked standard authentication signals, with SPF, DKIM, DMARC, and CompAuth all returning none or fail, including CompAuth reason=405. Despite this, it was delivered with SCL=-1 because it passed through a <mark class="tag-hl">Votiro</mark> CDR relay at 44[.]206[.]213[.]130 that was on the recipient organization’s allow-list. The article emphasizes that the allow-list converted total authentication failure into delivery.</p>
+<p>The message failed or lacked standard authentication signals, with SPF, DKIM, DMARC, and CompAuth all returning none or fail, including CompAuth reason=405. Despite this, it was delivered with SCL=-1 because it passed through a Votiro CDR relay at 44[.]206[.]213[.]130 that was on the recipient organization’s allow-list. The article emphasizes that the allow-list converted total authentication failure into delivery.</p>
 
-<p>The email included a “Review Document” call to action routed through the <mark class="tag-hl">Mailchimp</mark> redirect domain us[.]list-manage[.]com, an invite.ics calendar attachment, and a document.png attachment served as image/jpeg. Themis scored the message at 66% confidence, identified the recipient as a VIP, and one mailbox was quarantined. The article recommends auditing CDR relay allow-lists and treating multiple unrelated email domains as a high-confidence warning sign.</p>
+<p>The email included a “Review Document” call to action routed through the Mailchimp redirect domain us[.]list-manage[.]com, an invite.ics calendar attachment, and a document.png attachment served as image/jpeg. Themis scored the message at 66% confidence, identified the recipient as a VIP, and one mailbox was quarantined. The article recommends auditing CDR relay allow-lists and treating multiple unrelated email domains as a high-confidence warning sign.</p>
 </div></div>
-                <div id="standard-98368d337c723b246aa76244963caabd:5bd950909e7c041a" class="tab-panel"><div class="prose"><p>The article analyzes a phishing email that impersonated <mark class="tag-hl">Vantage Bank</mark> and <mark class="tag-hl">DocuSign</mark> using the display name “Vantage via D0cuSign.” The use of a zero in “D0cuSign” was a <mark class="tag-hl">homoglyph</mark> technique, but the article presents the broader infrastructure mismatch as the more important part of the attack. The email involved four unrelated domains across the From, Return-Path, Reply-To, and relaying headers. It was categorized as critical <mark class="tag-hl">credential harvesting</mark> and brand impersonation.</p>
+                <div id="standard-2fc4639190fe5d5e7d06e0ba98a7a537:5bd950909e7c041a" class="tab-panel"><div class="prose"><p>The article analyzes a phishing email that impersonated Vantage Bank and DocuSign using the display name “Vantage via D0cuSign.” The use of a zero in “D0cuSign” was a homoglyph technique, but the article presents the broader infrastructure mismatch as the more important part of the attack. The email involved four unrelated domains across the From, Return-Path, Reply-To, and relaying headers. It was categorized as critical credential harvesting and brand impersonation.</p>
 
-<p>The From address was account@<mark class="tag-hl">yshfoodsupply</mark>[.]com, using a food supply company’s domain, while the Return-Path pointed to postmaster@<mark class="tag-hl">hansabusad</mark>[.]com, described as an Estonian business domain. The Reply-To address used support@vantage[.]bank, the real bank being impersonated. A fourth domain, <mark class="tag-hl">candybreak</mark>[.]net, appeared in the X-Relaying-Domain header. The article also notes <mark class="tag-hl">Gmail</mark> infrastructure in the relay chain at 209[.]85[.]218[.]98.</p>
+<p>The From address was account@yshfoodsupply[.]com, using a food supply company’s domain, while the Return-Path pointed to postmaster@hansabusad[.]com, described as an Estonian business domain. The Reply-To address used support@vantage[.]bank, the real bank being impersonated. A fourth domain, candybreak[.]net, appeared in the X-Relaying-Domain header. The article also notes Gmail infrastructure in the relay chain at 209[.]85[.]218[.]98.</p>
 
-<p>Authentication results gave no support to the message’s legitimacy. SPF returned none, DKIM returned none, DMARC returned none, and CompAuth returned none with reason=405. However, the message was still delivered with SCL=-1 because it transited a <mark class="tag-hl">Votiro</mark> CDR relay at 44[.]206[.]213[.]130. That relay was on the recipient organization’s allow-list, which caused the gateway to trust the relay’s judgment and suppress its own authentication verdict.</p>
+<p>Authentication results gave no support to the message’s legitimacy. SPF returned none, DKIM returned none, DMARC returned none, and CompAuth returned none with reason=405. However, the message was still delivered with SCL=-1 because it transited a Votiro CDR relay at 44[.]206[.]213[.]130. That relay was on the recipient organization’s allow-list, which caused the gateway to trust the relay’s judgment and suppress its own authentication verdict.</p>
 
-<p>The payload included two attachments and a link-based call to action. The “Review Document” CTA routed through us[.]list-manage[.]com, a <mark class="tag-hl">Mailchimp</mark> redirect domain. The attachments were invite.ics, a 580-byte calendar file, and document.png, a 339KB file served with a JPEG content type despite the PNG extension. The article describes the MIME mismatch as a minor evasion technique and the calendar invite as a way to create a persistent calendar event with attacker-controlled content.</p>
+<p>The payload included two attachments and a link-based call to action. The “Review Document” CTA routed through us[.]list-manage[.]com, a Mailchimp redirect domain. The attachments were invite.ics, a 580-byte calendar file, and document.png, a 339KB file served with a JPEG content type despite the PNG extension. The article describes the MIME mismatch as a minor evasion technique and the calendar invite as a way to create a persistent calendar event with attacker-controlled content.</p>
 
 <p>Themis scored the message at 66% confidence and flagged the recipient as a VIP. One mailbox was quarantined. The X-Mailer header claimed “iPhone Mail (18E212),” but the article states that the relay chain and multi-domain infrastructure contradicted the casual mobile-send appearance. The recommended watch points include auditing CDR relay allow-lists, inspecting display names character by character, and treating three or more unrelated domains across From, Return-Path, and Reply-To as a high-confidence indicator regardless of SCL score.</p>
 </div></div>
-                <div id="comprehensive-98368d337c723b246aa76244963caabd:5bd950909e7c041a" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2fc4639190fe5d5e7d06e0ba98a7a537:5bd950909e7c041a" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The article examines a phishing email that used the display name “Vantage via D0cuSign,” replacing the letter O in <mark class="tag-hl">DocuSign</mark> with a zero. The message impersonated <mark class="tag-hl">Vantage Bank</mark> and <mark class="tag-hl">DocuSign</mark> while relying on several unrelated domains and a trusted relay path. The article describes the case as critical <mark class="tag-hl">credential harvesting</mark> and brand impersonation.</p>
+<p>The article examines a phishing email that used the display name “Vantage via D0cuSign,” replacing the letter O in DocuSign with a zero. The message impersonated Vantage Bank and DocuSign while relying on several unrelated domains and a trusted relay path. The article describes the case as critical credential harvesting and brand impersonation.</p>
 
-<p>The central issue was not only the <mark class="tag-hl">homoglyph</mark> in the display name, but the way the email reached the recipient despite total authentication failure. SPF, DKIM, DMARC, and CompAuth all returned none or fail, with CompAuth reporting reason=405. Even so, the message was delivered with SCL=-1 because it passed through a <mark class="tag-hl">Votiro</mark> CDR relay that was on the recipient organization’s allow-list.</p>
+<p>The central issue was not only the homoglyph in the display name, but the way the email reached the recipient despite total authentication failure. SPF, DKIM, DMARC, and CompAuth all returned none or fail, with CompAuth reporting reason=405. Even so, the message was delivered with SCL=-1 because it passed through a Votiro CDR relay that was on the recipient organization’s allow-list.</p>
 
 <h2 id="email-identity-and-domain-mismatches">Email Identity and Domain Mismatches</h2>
 
 <p>The email used four unrelated domains across different parts of the message structure:</p>
 
 <ul>
-<li>The From address was account@<mark class="tag-hl">yshfoodsupply</mark>[.]com, using a food supply company domain.</li>
-<li>The Return-Path was postmaster@<mark class="tag-hl">hansabusad</mark>[.]com, described as an Estonian business domain.</li>
+<li>The From address was account@yshfoodsupply[.]com, using a food supply company domain.</li>
+<li>The Return-Path was postmaster@hansabusad[.]com, described as an Estonian business domain.</li>
 <li>The Reply-To was support@vantage[.]bank, the real bank being impersonated.</li>
-<li>The X-Relaying-Domain header referenced <mark class="tag-hl">candybreak</mark>[.]net.</li>
+<li>The X-Relaying-Domain header referenced candybreak[.]net.</li>
 </ul>
 
 <p>The article presents this mismatch as a key detection surface. Each individual domain relationship might be explainable in isolation, but together they formed a suspicious structure. The article specifically says that three or more unrelated domains in From, Return-Path, and Reply-To fields is a high-confidence indicator regardless of SCL score.</p>
@@ -1626,13 +1780,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The message did not pass standard authentication checks. The article states that SPF returned none, DKIM returned none, DMARC returned none, and CompAuth returned none with reason=405. By the article’s assessment, the message should have been rejected or quarantined by authentication standards.</p>
 
-<p>Instead, the message was delivered with SCL=-1. The reason given is that the email transited a <mark class="tag-hl">Votiro</mark> CDR relay at 44[.]206[.]213[.]130. That relay was on the recipient organization’s allow-list, causing the gateway to trust the relay’s judgment and suppress its own authentication verdict.</p>
+<p>Instead, the message was delivered with SCL=-1. The reason given is that the email transited a Votiro CDR relay at 44[.]206[.]213[.]130. That relay was on the recipient organization’s allow-list, causing the gateway to trust the relay’s judgment and suppress its own authentication verdict.</p>
 
 <p>The article characterizes this as an allow-list converting total authentication failure into unconditional delivery. It recommends auditing CDR relay allow-lists and evaluating whether messages passing through those relays should still undergo authentication checks rather than inheriting blanket trust.</p>
 
 <h2 id="payload-and-delivery-elements">Payload and Delivery Elements</h2>
 
-<p>The email contained both link-based and attachment-based elements. The primary call to action was labeled “Review Document” and routed through us[.]list-manage[.]com, a <mark class="tag-hl">Mailchimp</mark> redirect domain. The article identifies this as part of the <mark class="tag-hl">credential-harvesting</mark> flow.</p>
+<p>The email contained both link-based and attachment-based elements. The primary call to action was labeled “Review Document” and routed through us[.]list-manage[.]com, a Mailchimp redirect domain. The article identifies this as part of the credential-harvesting flow.</p>
 
 <p>The message also carried two attachments:</p>
 
@@ -1645,7 +1799,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="brand-confusion-and-presentation">Brand Confusion and Presentation</h2>
 
-<p>The message combined several elements intended to appear legitimate or familiar. The visible display name referred to both Vantage and <mark class="tag-hl">DocuSign</mark>, with the <mark class="tag-hl">DocuSign</mark> name altered as “D0cuSign.” The Reply-To address used the real impersonated bank domain, support@vantage[.]bank.</p>
+<p>The message combined several elements intended to appear legitimate or familiar. The visible display name referred to both Vantage and DocuSign, with the DocuSign name altered as “D0cuSign.” The Reply-To address used the real impersonated bank domain, support@vantage[.]bank.</p>
 
 <p>The article also says the email contained blocks referencing multiple financial brands and a survey platform. This created multi-brand confusion and made it harder for recipients to determine which organization had actually sent the message. The X-Mailer header claimed “iPhone Mail (18E212),” suggesting a casual mobile send, but the article says the relay chain and multi-domain infrastructure contradicted that claim.</p>
 
@@ -1653,19 +1807,19 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Themis scored the message at 66% confidence and flagged the recipient as a VIP. One mailbox was quarantined. The article states that the detection surface was structural rather than authentication-based, because authentication returned nothing useful.</p>
 
-<p>The behavioral indicators included the four mismatched domains, the <mark class="tag-hl">homoglyph</mark> in the display name, the <mark class="tag-hl">Mailchimp</mark> redirect CTA, and the combination of a calendar file with an image attachment. The article emphasizes that while each element might be explainable alone, the combined pattern allowed behavioral analysis to act when authentication could not.</p>
+<p>The behavioral indicators included the four mismatched domains, the homoglyph in the display name, the Mailchimp redirect CTA, and the combination of a calendar file with an image attachment. The article emphasizes that while each element might be explainable alone, the combined pattern allowed behavioral analysis to act when authentication could not.</p>
 
 <h2 id="indicators-of-compromise">Indicators of Compromise</h2>
 
 <p>The article lists the following indicators:</p>
 
 <ul>
-<li>From Address: account@<mark class="tag-hl">yshfoodsupply</mark>[.]com</li>
-<li>Return-Path: postmaster@<mark class="tag-hl">hansabusad</mark>[.]com</li>
+<li>From Address: account@yshfoodsupply[.]com</li>
+<li>Return-Path: postmaster@hansabusad[.]com</li>
 <li>Reply-To: support@vantage[.]bank</li>
-<li>Relaying Domain: <mark class="tag-hl">candybreak</mark>[.]net</li>
+<li>Relaying Domain: candybreak[.]net</li>
 <li>CDR Relay IP: 44[.]206[.]213[.]130</li>
-<li><mark class="tag-hl">Gmail</mark> Relay IP: 209[.]85[.]218[.]98</li>
+<li>Gmail Relay IP: 209[.]85[.]218[.]98</li>
 <li>CTA Domain: us[.]list-manage[.]com</li>
 <li>Attachment: invite.ics, 580 bytes</li>
 <li>Attachment: document.png, 339KB, served as image/jpeg</li>
@@ -1677,9 +1831,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The article maps the activity to four MITRE ATT&amp;CK techniques:</p>
 
 <ul>
-<li>T1566.001, Phishing: <mark class="tag-hl">Spearphishing Attachment</mark>, for the ICS calendar invite and image attachment.</li>
-<li>T1566.002, Phishing: <mark class="tag-hl">Spearphishing Link</mark>, for the <mark class="tag-hl">Mailchimp</mark> redirect CTA used for <mark class="tag-hl">credential harvesting</mark>.</li>
-<li>T1036.005, Masquerading: Match Legitimate Name or Location, for the <mark class="tag-hl">homoglyph</mark> substitution in the <mark class="tag-hl">DocuSign</mark> display name.</li>
+<li>T1566.001, Phishing: Spearphishing Attachment, for the ICS calendar invite and image attachment.</li>
+<li>T1566.002, Phishing: Spearphishing Link, for the Mailchimp redirect CTA used for credential harvesting.</li>
+<li>T1036.005, Masquerading: Match Legitimate Name or Location, for the homoglyph substitution in the DocuSign display name.</li>
 <li>T1204.001, User Execution: Malicious Link, for the “Review Document” CTA requiring recipient click-through.</li>
 </ul>
 
@@ -1689,10 +1843,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article further recommends treating three or more unrelated domains in the From, Return-Path, and Reply-To fields as a high-confidence indicator. In this case, the suspicious structure remained meaningful even though the message carried an SCL score of -1.</p>
 </div></div>
-                <div id="insights-98368d337c723b246aa76244963caabd:5bd950909e7c041a" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">An allow-listed CDR relay can turn complete SPF, DKIM, DMARC, and CompAuth failure into clean delivery, so relay allow-lists should be audited rather than treated as unconditional trust paths.</span></li><li><span class="kp-text">Three or more unrelated domains across From, Return-Path, Reply-To, and relay headers can be a high-confidence indicator even when the message has a favorable SCL score.</span></li><li><span class="kp-text">Calendar invites can extend phishing persistence beyond the email itself because the event may remain on the recipient’s calendar after the message is deleted.</span></li><li><span class="kp-text">Behavioral detection was more useful than authentication in this case because the suspicious pattern came from the combined structure of mismatched domains, a <mark class="tag-hl">homoglyph</mark> display name, a marketing-platform redirect, and mixed attachments.</span></li></ul></div>
+                <div id="insights-2fc4639190fe5d5e7d06e0ba98a7a537:5bd950909e7c041a" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">An allow-listed CDR relay can turn complete SPF, DKIM, DMARC, and CompAuth failure into clean delivery, so relay allow-lists should be audited rather than treated as unconditional trust paths.</span></li><li><span class="kp-text">Three or more unrelated domains across From, Return-Path, Reply-To, and relay headers can be a high-confidence indicator even when the message has a favorable SCL score.</span></li><li><span class="kp-text">Calendar invites can extend phishing persistence beyond the email itself because the event may remain on the recipient’s calendar after the message is deleted.</span></li><li><span class="kp-text">Behavioral detection was more useful than authentication in this case because the suspicious pattern came from the combined structure of mismatched domains, a homoglyph display name, a marketing-platform redirect, and mixed attachments.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The phishing email used the display name “Vantage via D0cuSign,” replacing the letter O in <mark class="tag-hl">DocuSign</mark> with a zero.</span></li><li><span class="kp-text">The message involved four unrelated domains: <mark class="tag-hl">yshfoodsupply</mark>.com in the From address, <mark class="tag-hl">hansabusad</mark>.com in the Return-Path, vantage.bank in the Reply-To, and <mark class="tag-hl">candybreak</mark>.net in the X-Relaying-Domain header.</span></li><li><span class="kp-text">SPF, DKIM, DMARC, and CompAuth all returned none or fail, but the message was delivered with SCL=-1 because it passed through an allow-listed <mark class="tag-hl">Votiro</mark> CDR relay at 44.206.213.130.</span></li><li><span class="kp-text">The email contained a <mark class="tag-hl">Mailchimp</mark> redirect CTA labeled “Review Document,” an invite.ics calendar attachment, and a document.png attachment served as image/jpeg.</span></li><li><span class="kp-text">Themis scored the message at 66% confidence, flagged the recipient as a VIP, and one mailbox was quarantined.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The phishing email used the display name “Vantage via D0cuSign,” replacing the letter O in DocuSign with a zero.</span></li><li><span class="kp-text">The message involved four unrelated domains: yshfoodsupply.com in the From address, hansabusad.com in the Return-Path, vantage.bank in the Reply-To, and candybreak.net in the X-Relaying-Domain header.</span></li><li><span class="kp-text">SPF, DKIM, DMARC, and CompAuth all returned none or fail, but the message was delivered with SCL=-1 because it passed through an allow-listed Votiro CDR relay at 44.206.213.130.</span></li><li><span class="kp-text">The email contained a Mailchimp redirect CTA labeled “Review Document,” an invite.ics calendar attachment, and a document.png attachment served as image/jpeg.</span></li><li><span class="kp-text">Themis scored the message at 66% confidence, flagged the recipient as a VIP, and one mailbox was quarantined.</span></li></ul></div>
+            
             <a href="https://ironscales.com/threat-intelligence/docusign-homoglyph-triple-domain-mismatch-mailchimp-vishing" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a concrete analysis of a real phishing message that bypassed authentication due to an allow-listed CDR relay, with actionable indicators and detection lessons. It is relevant for email security teams, but it is a narrow single-mailbox phishing case rather than a major breach, active campaign by a named actor, or critical widespread vulnerability.</p>
 </div></div>
@@ -1718,20 +1873,20 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This coverage window highlights two trust-abuse incidents affecting software development and enterprise messaging workflows. Both reports center on adversaries exploiting implicitly trusted channels: a compromised <mark class="tag-hl">GitHub</mark> contributor account used to target AI coding agents, and an email security allow-list that permitted delivery of a multi-domain DocuSign-themed phishing message despite failed authentication signals.</p>
+        <div class="overview-body prose"><p>This coverage window highlights two trust-abuse incidents affecting software development and enterprise messaging workflows. Both reports center on adversaries exploiting implicitly trusted channels: a compromised GitHub contributor account used to target AI coding agents, and an email security allow-list that permitted delivery of a multi-domain DocuSign-themed phishing message despite failed authentication signals.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Trusted Development and Messaging Channels Abused</span>
         </div>
-        <div class="overview-body prose"><p>StepSecurity reported that on June 5, 2026, a malicious commit was pushed to the <mark class="tag-hl">Azure</mark>/<mark class="tag-hl">durabletask</mark> repository using a previously compromised contributor account. The commit added configuration files for <mark class="tag-hl">Claude Code</mark>, <mark class="tag-hl">Gemini CLI</mark>, <mark class="tag-hl">Cursor</mark>, and VS Code that either executed or instructed execution of a <mark class="tag-hl">credential-harvesting</mark> payload when the repository was opened, positioning the attack specifically against AI-assisted coding workflows. The report links this repository injection to the May 19 <mark class="tag-hl">durabletask</mark> <mark class="tag-hl">PyPI</mark> compromise through the same compromised contributor account.</p>
+        <div class="overview-body prose"><p>StepSecurity reported that on June 5, 2026, a malicious commit was pushed to the Azure/durabletask repository using a previously compromised contributor account. The commit added configuration files for Claude Code, Gemini CLI, Cursor, and VS Code that either executed or instructed execution of a credential-harvesting payload when the repository was opened, positioning the attack specifically against AI-assisted coding workflows. The report links this repository injection to the May 19 durabletask PyPI compromise through the same compromised contributor account.</p>
 
-<p><mark class="tag-hl">GitHub</mark>’s automated enforcement disabled 73 repositories across the <mark class="tag-hl">Azure</mark>, <mark class="tag-hl">microsoft</mark>, <mark class="tag-hl">Azure</mark>-Samples, and MicrosoftDocs organizations within a 105-second window. One operational impact was the disabling of <mark class="tag-hl">Azure</mark>/functions-action, which caused <mark class="tag-hl">GitHub</mark> workflows referencing <mark class="tag-hl">Azure</mark>/functions-action@v1 to stop resolving and disrupted CI/CD pipelines for developers. The incident illustrates how a single compromised identity in a large open-source and cloud development ecosystem can cascade across repositories, package infrastructure, and dependent automation.</p>
+<p>GitHub’s automated enforcement disabled 73 repositories across the Azure, microsoft, Azure-Samples, and MicrosoftDocs organizations within a 105-second window. One operational impact was the disabling of Azure/functions-action, which caused GitHub workflows referencing Azure/functions-action@v1 to stop resolving and disrupted CI/CD pipelines for developers. The incident illustrates how a single compromised identity in a large open-source and cloud development ecosystem can cascade across repositories, package infrastructure, and dependent automation.</p>
 
 <p>IRONSCALES separately detailed a phishing message impersonating DocuSign using the display name “Vantage via D0cuSign,” substituting a zero for the letter O. The message showed significant domain inconsistency, with yshfoodsupply.com in the From address, hansabusad.com in the Return-Path, vantage.bank in the Reply-To, and candybreak.net in the X-Relaying-Domain header. SPF, DKIM, DMARC, and CompAuth all returned none or fail, but the message was delivered with SCL=-1 after passing through an allow-listed Votiro CDR relay at 44.206.213.130.</p>
 
-<p>The phishing email included a Mailchimp redirect call-to-action labeled “Review Document,” an invite.ics calendar attachment, and a document.png attachment served as image/jpeg. Themis scored the message at 66% confidence, identified the recipient as a VIP, and one mailbox was quarantined. Together with the <mark class="tag-hl">Microsoft</mark> repository incident, the report underscores a recurring pattern in which adversaries rely less on novel malware and more on abusing trusted intermediaries, workflow automation, and security exceptions to reach high-value users and systems.</p>
+<p>The phishing email included a Mailchimp redirect call-to-action labeled “Review Document,” an invite.ics calendar attachment, and a document.png attachment served as image/jpeg. Themis scored the message at 66% confidence, identified the recipient as a VIP, and one mailbox was quarantined. Together with the Microsoft repository incident, the report underscores a recurring pattern in which adversaries rely less on novel malware and more on abusing trusted intermediaries, workflow automation, and security exceptions to reach high-value users and systems.</p>
 </div>
       </div>
     </div>
@@ -1740,9 +1895,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-06 10:00 UTC · 4 hours window</span>
-  <span class="footer-right">2 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">2 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1755,15 +1913,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1876,12 +2096,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1942,6 +2196,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

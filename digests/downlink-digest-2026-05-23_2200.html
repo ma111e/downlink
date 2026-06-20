@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1344,26 +1497,26 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:95%"></div></div><span class="score-num score-num-high">95</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:1112d8cfa26002e6">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:1112d8cfa26002e6')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:1112d8cfa26002e6')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:1112d8cfa26002e6')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:1112d8cfa26002e6')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:1112d8cfa26002e6')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:1112d8cfa26002e6')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:1112d8cfa26002e6')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:1112d8cfa26002e6')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:1112d8cfa26002e6')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:1112d8cfa26002e6')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:1112d8cfa26002e6" class="tab-panel active"><div class="prose">Update Ghost CMS to version 6.19.1 or later immediately and rotate all admin API keys, as attackers are actively exploiting a critical SQL injection flaw (CVE-2026-26980) to inject malicious scripts and deliver malware via fake browser prompts.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:1112d8cfa26002e6" class="tab-panel"><div class="prose"><p>A critical SQL injection vulnerability (CVE-2026-26980) in Ghost CMS versions 3.24.0 through 6.19.0 enables unauthenticated attackers to steal admin API keys, giving them full management control. Despite a fix released on February 19, 2026, thousands of sites remained unpatched, and a large-scale ClickFix campaign now exploits this flaw to compromise over 700 domains, including major universities and DuckDuckGo.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:1112d8cfa26002e6" class="tab-panel active"><div class="prose">Update Ghost CMS to version 6.19.1 or later immediately and rotate all admin API keys, as attackers are actively exploiting a critical SQL injection flaw (CVE-2026-26980) to inject malicious scripts and deliver malware via fake browser prompts.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:1112d8cfa26002e6" class="tab-panel"><div class="prose"><p>A critical SQL injection vulnerability (CVE-2026-26980) in Ghost CMS versions 3.24.0 through 6.19.0 enables unauthenticated attackers to steal admin API keys, giving them full management control. Despite a fix released on February 19, 2026, thousands of sites remained unpatched, and a large-scale ClickFix campaign now exploits this flaw to compromise over 700 domains, including major universities and DuckDuckGo.</p>
 
 <p>Attackers first exploit the SQL injection to obtain the API keys, then inject a malicious JavaScript loader into articles. This loader pulls a cloaking script that ferries victims through a fake Cloudflare verification prompt, instructing them to paste a command into the Windows command prompt—dropping DLL loaders, JavaScript droppers, or an Electron-based malware sample. Multiple threat actors have been observed re-infecting the same sites and even cleaning each other’s scripts. Administrators must upgrade to Ghost 6.19.1, rotate all keys, clean injected code, and maintain 30 days of admin API logs.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:1112d8cfa26002e6" class="tab-panel"><div class="prose"><p>A critical SQL injection vulnerability tracked as CVE-2026-26980 affects Ghost CMS from version 3.24.0 up to 6.19.0. The flaw allows unauthenticated attackers to read arbitrary information from the database, most critically the admin API keys that grant full control over users, articles, and themes. The Ghost project released a patch in version 6.19.1 on February 19, 2026, but many site owners failed to apply the update promptly.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:1112d8cfa26002e6" class="tab-panel"><div class="prose"><p>A critical SQL injection vulnerability tracked as CVE-2026-26980 affects Ghost CMS from version 3.24.0 up to 6.19.0. The flaw allows unauthenticated attackers to read arbitrary information from the database, most critically the admin API keys that grant full control over users, articles, and themes. The Ghost project released a patch in version 6.19.1 on February 19, 2026, but many site owners failed to apply the update promptly.</p>
 
 <p>Threat intelligence researchers at XLab (Qianxin) observed wide-scale exploitation of this vulnerability as part of a ClickFix campaign. More than 700 domains were confirmed compromised, including Harvard University, Oxford University, Auburn University, and the privacy-focused search engine DuckDuckGo. The breadth of targets—spanning education, AI/SaaS, media, fintech, and security sites—highlights the opportunity created by slow patching.</p>
 
@@ -1373,7 +1526,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>To remediate, Ghost CMS administrators should upgrade immediately to version 6.19.1 or later and rotate any previously used admin API keys, as they may have already been exposed. A thorough review of all article content for malicious scripts is essential, aided by the indicators of compromise shared by XLab. Additionally, the researchers advise keeping a 30-day record of admin API call logs to support retrospective investigation should a breach be suspected.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:1112d8cfa26002e6" class="tab-panel"><div class="prose"><h1 id="comprehensive-analysis-ghost-cms-sql-injection-exploitation-in-large-scale-clickfix-campaign">Comprehensive Analysis: Ghost CMS SQL Injection Exploitation in Large-Scale ClickFix Campaign</h1>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:1112d8cfa26002e6" class="tab-panel"><div class="prose"><h1 id="comprehensive-analysis-ghost-cms-sql-injection-exploitation-in-large-scale-clickfix-campaign">Comprehensive Analysis: Ghost CMS SQL Injection Exploitation in Large-Scale ClickFix Campaign</h1>
 
 <h2 id="vulnerability-overview">Vulnerability Overview</h2>
 
@@ -1475,10 +1628,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>While these are separate incidents, they collectively underscore a pattern of threat actors rapidly capitalizing on published vulnerabilities before organizations patch.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:1112d8cfa26002e6" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Multiple competing threat actors are re-infecting the same vulnerable Ghost sites, with one group sometimes cleaning another&#39;s malicious script to inject its own.</span></li><li><span class="kp-text">High-profile and security-related sites like DuckDuckGo and university portals were compromised, demonstrating that even organizations typically expected to have strong security postures failed to apply the update for over two months.</span></li><li><span class="kp-text">The attackers deployed a diverse set of payloads including DLL loaders, JavaScript droppers, and an Electron-based malware sample, indicating a flexible, multi-stage delivery infrastructure rather than reliance on a single tool.</span></li><li><span class="kp-text">Maintaining a 30-day record of admin API call logs is specifically recommended to enable reliable retrospective investigation of exploitation, beyond just patching and key rotation.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:1112d8cfa26002e6" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Multiple competing threat actors are re-infecting the same vulnerable Ghost sites, with one group sometimes cleaning another&#39;s malicious script to inject its own.</span></li><li><span class="kp-text">High-profile and security-related sites like DuckDuckGo and university portals were compromised, demonstrating that even organizations typically expected to have strong security postures failed to apply the update for over two months.</span></li><li><span class="kp-text">The attackers deployed a diverse set of payloads including DLL loaders, JavaScript droppers, and an Electron-based malware sample, indicating a flexible, multi-stage delivery infrastructure rather than reliance on a single tool.</span></li><li><span class="kp-text">Maintaining a 30-day record of admin API call logs is specifically recommended to enable reliable retrospective investigation of exploitation, beyond just patching and key rotation.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">A critical SQL injection vulnerability (CVE-2026-26980) in Ghost CMS versions 3.24.0 through 6.19.0 allows unauthenticated attackers to read arbitrary data from the website database, including admin API keys.</span></li><li><span class="kp-text">The vulnerability is being actively exploited in a large-scale campaign that compromised more than 700 domains, including sites belonging to Harvard University, Oxford University, Auburn University, and DuckDuckGo.</span></li><li><span class="kp-text">Attackers leverage the stolen API keys to inject malicious JavaScript into articles, which loads a cloaking script that ultimately delivers malware through a fake Cloudflare verification prompt (ClickFix) instructing victims to run a command.</span></li><li><span class="kp-text">Ghost CMS administrators must upgrade to version 6.19.1 or later, rotate all previously used keys, and review their sites for injected scripts to mitigate the risk.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/ghost-cms-sql-injection-flaw-exploited-in-large-scale-clickfix-campaign/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This article reports active, large-scale exploitation of a critical SQL injection vulnerability in Ghost CMS, with over 700 confirmed compromised domains including high-profile universities and DuckDuckGo. It provides concrete attack details, indicators, and urgent mitigation steps, making it essential reading for security teams managing web-facing content management systems.</p>
 </div></div>
@@ -1536,9 +1690,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-05-23 22:00 UTC · 1 day window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1551,15 +1708,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1672,12 +1891,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1738,6 +1991,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

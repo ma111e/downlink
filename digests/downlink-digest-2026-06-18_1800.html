@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,98 +1506,99 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:84%"></div></div><span class="score-num score-num-mid">84</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="d75ab45f002ca4c77eb7f0c0b134fe7c:75f19a913fd715c5">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-81f4a4dbe564e28bdcbe7bc1a6408c5b:75f19a913fd715c5')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-81f4a4dbe564e28bdcbe7bc1a6408c5b:75f19a913fd715c5')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-81f4a4dbe564e28bdcbe7bc1a6408c5b:75f19a913fd715c5')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-81f4a4dbe564e28bdcbe7bc1a6408c5b:75f19a913fd715c5')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-81f4a4dbe564e28bdcbe7bc1a6408c5b:75f19a913fd715c5')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d75ab45f002ca4c77eb7f0c0b134fe7c:75f19a913fd715c5')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-d75ab45f002ca4c77eb7f0c0b134fe7c:75f19a913fd715c5')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-d75ab45f002ca4c77eb7f0c0b134fe7c:75f19a913fd715c5')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d75ab45f002ca4c77eb7f0c0b134fe7c:75f19a913fd715c5')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-d75ab45f002ca4c77eb7f0c0b134fe7c:75f19a913fd715c5')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-81f4a4dbe564e28bdcbe7bc1a6408c5b:75f19a913fd715c5" class="tab-panel active"><div class="prose"><mark class="tag-hl">Mitiga</mark> found that attackers using <mark class="tag-hl">AiTM phishing</mark> can compromise <mark class="tag-hl">Microsoft 365</mark> accounts protected by MFA and then add their own <mark class="tag-hl">Microsoft Authenticator</mark> app without a fresh MFA challenge, giving them persistent access. The key takeaway is that organizations should not rely on MFA alone and should enforce device-based <mark class="tag-hl">Conditional Access</mark> while monitoring for new authentication method registrations.</div></div>
-                <div id="brief-81f4a4dbe564e28bdcbe7bc1a6408c5b:75f19a913fd715c5" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Mitiga</mark> investigated an attempted <mark class="tag-hl">business email compromise</mark> campaign targeting a <mark class="tag-hl">Microsoft 365</mark> organization and found unauthorized access to an executive’s <mark class="tag-hl">Microsoft 365</mark> account and mailbox. The access came from multiple locations, including <mark class="tag-hl">Singapore</mark>, Dubai, and San Jose, California. The initial compromise used an <mark class="tag-hl">adversary-in-the-middle</mark> phishing technique.</p>
+                <div id="tldr-d75ab45f002ca4c77eb7f0c0b134fe7c:75f19a913fd715c5" class="tab-panel active"><div class="prose">Mitiga found that attackers using AiTM phishing can compromise Microsoft 365 accounts protected by MFA and then add their own Microsoft Authenticator app without a fresh MFA challenge, giving them persistent access. The key takeaway is that organizations should not rely on MFA alone and should enforce device-based Conditional Access while monitoring for new authentication method registrations.</div></div>
+                <div id="brief-d75ab45f002ca4c77eb7f0c0b134fe7c:75f19a913fd715c5" class="tab-panel"><div class="prose"><p>Mitiga investigated an attempted business email compromise campaign targeting a Microsoft 365 organization and found unauthorized access to an executive’s Microsoft 365 account and mailbox. The access came from multiple locations, including Singapore, Dubai, and San Jose, California. The initial compromise used an adversary-in-the-middle phishing technique.</p>
 
-<p>The article’s main significance is that the attackers were able to create persistence despite MFA being enabled. <mark class="tag-hl">Mitiga</mark> found that a second <mark class="tag-hl">Microsoft Authenticator</mark> app had been registered for the compromised user without the user’s knowledge. The article states that <mark class="tag-hl">Microsoft 365</mark> allowed this because a previously satisfied MFA token could be used to access and change authentication methods without a fresh MFA challenge.</p>
+<p>The article’s main significance is that the attackers were able to create persistence despite MFA being enabled. Mitiga found that a second Microsoft Authenticator app had been registered for the compromised user without the user’s knowledge. The article states that Microsoft 365 allowed this because a previously satisfied MFA token could be used to access and change authentication methods without a fresh MFA challenge.</p>
 
-<p><mark class="tag-hl">Mitiga</mark> argues that this behavior effectively nullifies the added protection normally expected from MFA in this scenario. The article says <mark class="tag-hl">Microsoft</mark> does not provide a way to require an MFA re-challenge for changing authentication methods or other high-risk activities such as <mark class="tag-hl">Privileged Identity Management</mark> activation. <mark class="tag-hl">Mitiga</mark> recommends using another layer of defense, such as <mark class="tag-hl">Conditional Access</mark> requiring an enrolled and compliant device, and monitoring for new authentication method registrations.</p>
+<p>Mitiga argues that this behavior effectively nullifies the added protection normally expected from MFA in this scenario. The article says Microsoft does not provide a way to require an MFA re-challenge for changing authentication methods or other high-risk activities such as Privileged Identity Management activation. Mitiga recommends using another layer of defense, such as Conditional Access requiring an enrolled and compliant device, and monitoring for new authentication method registrations.</p>
 </div></div>
-                <div id="standard-81f4a4dbe564e28bdcbe7bc1a6408c5b:75f19a913fd715c5" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Mitiga</mark> investigated an attempted <mark class="tag-hl">business email compromise</mark> attack against a <mark class="tag-hl">Microsoft 365</mark> organization after involved parties prevented the fraud. The investigation indicated that the attacker had access to sensitive information that could only have been obtained by compromising a user in the organization. <mark class="tag-hl">Mitiga</mark> identified unauthorized access to the <mark class="tag-hl">Microsoft 365</mark> account of an executive from multiple locations, including <mark class="tag-hl">Singapore</mark>, Dubai, and San Jose, California.</p>
+                <div id="standard-d75ab45f002ca4c77eb7f0c0b134fe7c:75f19a913fd715c5" class="tab-panel"><div class="prose"><p>Mitiga investigated an attempted business email compromise attack against a Microsoft 365 organization after involved parties prevented the fraud. The investigation indicated that the attacker had access to sensitive information that could only have been obtained by compromising a user in the organization. Mitiga identified unauthorized access to the Microsoft 365 account of an executive from multiple locations, including Singapore, Dubai, and San Jose, California.</p>
 
-<p>The initial access used an <mark class="tag-hl">adversary-in-the-middle</mark> phishing technique that gave the attacker access to the executive’s account and mailbox. During the investigation, <mark class="tag-hl">Mitiga</mark> found that a second <mark class="tag-hl">Microsoft Authenticator</mark> app had been set up for the user without their knowledge. The article says this gave the attackers persistence on the account and undermined the value of MFA.</p>
+<p>The initial access used an adversary-in-the-middle phishing technique that gave the attacker access to the executive’s account and mailbox. During the investigation, Mitiga found that a second Microsoft Authenticator app had been set up for the user without their knowledge. The article says this gave the attackers persistence on the account and undermined the value of MFA.</p>
 
-<p><mark class="tag-hl">Mitiga</mark>’s technical analysis focuses on how <mark class="tag-hl">Microsoft 365</mark> handles MFA claims in active sessions. By default, <mark class="tag-hl">Microsoft</mark> examines the existing token and decides whether a new authentication challenge is required. If MFA was already satisfied in the session, sign-in logs can show the justification “Previously satisfied – MFA requirement satisfied by claim in the token,” and <mark class="tag-hl">Microsoft</mark> may not require a new MFA challenge.</p>
+<p>Mitiga’s technical analysis focuses on how Microsoft 365 handles MFA claims in active sessions. By default, Microsoft examines the existing token and decides whether a new authentication challenge is required. If MFA was already satisfied in the session, sign-in logs can show the justification “Previously satisfied – MFA requirement satisfied by claim in the token,” and Microsoft may not require a new MFA challenge.</p>
 
-<p>The article highlights the Security Info section of the account profile as central to the attack. It states that <mark class="tag-hl">Microsoft</mark> does not require an MFA re-challenge when a user accesses and changes authentication methods if the token was previously satisfied. As a result, an attacker with temporary account access can add a new Authenticator app and later reauthenticate with MFA even after the original session expires or is revoked.</p>
+<p>The article highlights the Security Info section of the account profile as central to the attack. It states that Microsoft does not require an MFA re-challenge when a user accesses and changes authentication methods if the token was previously satisfied. As a result, an attacker with temporary account access can add a new Authenticator app and later reauthenticate with MFA even after the original session expires or is revoked.</p>
 
-<p><mark class="tag-hl">Mitiga</mark> also points to <mark class="tag-hl">Privileged Identity Management</mark> as another surprising example, stating that <mark class="tag-hl">Microsoft</mark> does not allow customers to require an MFA re-challenge for that activity even though it is high risk. The article notes that <mark class="tag-hl">Microsoft</mark> Identity Protection identified some sign-ins as risky, but says the default response of requiring MFA is not effective after the attacker has already registered an Authenticator app. <mark class="tag-hl">Mitiga</mark> recommends another defense layer tied to a physical device or an employee’s authorized laptop and phone, implemented in <mark class="tag-hl">Microsoft 365</mark> through <mark class="tag-hl">Conditional Access</mark> requiring an enrolled and compliant device.</p>
+<p>Mitiga also points to Privileged Identity Management as another surprising example, stating that Microsoft does not allow customers to require an MFA re-challenge for that activity even though it is high risk. The article notes that Microsoft Identity Protection identified some sign-ins as risky, but says the default response of requiring MFA is not effective after the attacker has already registered an Authenticator app. Mitiga recommends another defense layer tied to a physical device or an employee’s authorized laptop and phone, implemented in Microsoft 365 through Conditional Access requiring an enrolled and compliant device.</p>
 </div></div>
-                <div id="comprehensive-81f4a4dbe564e28bdcbe7bc1a6408c5b:75f19a913fd715c5" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-d75ab45f002ca4c77eb7f0c0b134fe7c:75f19a913fd715c5" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Mitiga</mark> reported on an advanced <mark class="tag-hl">business email compromise</mark> campaign targeting <mark class="tag-hl">Microsoft 365</mark> organizations. The company investigated an attempted BEC attack in which the fraud was prevented by the alertness of the involved parties. Despite the failed fraud attempt, the investigation indicated that the attacker had accessed sensitive information that could only have been obtained by compromising a user in the organization.</p>
+<p>Mitiga reported on an advanced business email compromise campaign targeting Microsoft 365 organizations. The company investigated an attempted BEC attack in which the fraud was prevented by the alertness of the involved parties. Despite the failed fraud attempt, the investigation indicated that the attacker had accessed sensitive information that could only have been obtained by compromising a user in the organization.</p>
 
-<p><mark class="tag-hl">Mitiga</mark> identified unauthorized access to a <mark class="tag-hl">Microsoft 365</mark> executive account from multiple locations, including <mark class="tag-hl">Singapore</mark>, Dubai, and San Jose, California. The initial compromise used an <mark class="tag-hl">adversary-in-the-middle</mark> phishing technique. This gave the attacker access to the executive’s account and mailbox.</p>
+<p>Mitiga identified unauthorized access to a Microsoft 365 executive account from multiple locations, including Singapore, Dubai, and San Jose, California. The initial compromise used an adversary-in-the-middle phishing technique. This gave the attacker access to the executive’s account and mailbox.</p>
 
 <h2 id="core-finding">Core Finding</h2>
 
-<p>The most important finding was that a second <mark class="tag-hl">Microsoft Authenticator</mark> app had been set up for the compromised user without the user’s knowledge. According to <mark class="tag-hl">Mitiga</mark>, this gave the attackers persistent access to the breached account. The article says this effectively nullified the value of MFA because the attacker could reauthenticate with MFA after the original session expired or was revoked.</p>
+<p>The most important finding was that a second Microsoft Authenticator app had been set up for the compromised user without the user’s knowledge. According to Mitiga, this gave the attackers persistent access to the breached account. The article says this effectively nullified the value of MFA because the attacker could reauthenticate with MFA after the original session expired or was revoked.</p>
 
-<p><mark class="tag-hl">Mitiga</mark> argues that the attack exposed weaknesses in <mark class="tag-hl">Microsoft 365</mark> MFA, <mark class="tag-hl">Microsoft Authenticator</mark>, and <mark class="tag-hl">Microsoft 365 Identity Protection</mark>. The article states that these weaknesses can allow full compromise of accounts even when MFA is enabled.</p>
+<p>Mitiga argues that the attack exposed weaknesses in Microsoft 365 MFA, Microsoft Authenticator, and Microsoft 365 Identity Protection. The article states that these weaknesses can allow full compromise of accounts even when MFA is enabled.</p>
 
 <h2 id="how-the-mfa-weakness-worked">How the MFA Weakness Worked</h2>
 
-<p><mark class="tag-hl">Mitiga</mark> explains that <mark class="tag-hl">Microsoft 365</mark> checks the existing token in an active session to decide whether authentication is required. If the session was already properly authorized with MFA, <mark class="tag-hl">Microsoft</mark> does not necessarily require a fresh MFA challenge. In sign-in logs, this can appear as: “Previously satisfied – MFA requirement satisfied by claim in the token.”</p>
+<p>Mitiga explains that Microsoft 365 checks the existing token in an active session to decide whether authentication is required. If the session was already properly authorized with MFA, Microsoft does not necessarily require a fresh MFA challenge. In sign-in logs, this can appear as: “Previously satisfied – MFA requirement satisfied by claim in the token.”</p>
 
-<p>The article states that customers do not have flexibility to force MFA re-challenges for specific high-risk actions, other than controlling the duration of the MFA token. <mark class="tag-hl">Mitiga</mark> says the <mark class="tag-hl">Microsoft</mark> authentication engine decides when MFA is needed, which prevents customers from configuring stronger controls for these cases.</p>
+<p>The article states that customers do not have flexibility to force MFA re-challenges for specific high-risk actions, other than controlling the duration of the MFA token. Mitiga says the Microsoft authentication engine decides when MFA is needed, which prevents customers from configuring stronger controls for these cases.</p>
 
 <h2 id="security-info-registration-as-the-persistence-mechanism">Security Info Registration as the Persistence Mechanism</h2>
 
-<p>The attack relied on access to the Security Info section of the account profile, where users can manage authentication methods. <mark class="tag-hl">Mitiga</mark> states that <mark class="tag-hl">Microsoft</mark> does not require an MFA re-challenge for accessing and changing user authentication methods in this section when the existing token is considered previously satisfied. This allowed the attacker to add a new Authenticator app without a new MFA challenge.</p>
+<p>The attack relied on access to the Security Info section of the account profile, where users can manage authentication methods. Mitiga states that Microsoft does not require an MFA re-challenge for accessing and changing user authentication methods in this section when the existing token is considered previously satisfied. This allowed the attacker to add a new Authenticator app without a new MFA challenge.</p>
 
-<p>In the case <mark class="tag-hl">Mitiga</mark> investigated, the attacker started a security info registration at 8:32:09 and completed it within five seconds. About half a minute earlier, at 8:31:27, the attacker had logged in to the “My Access” portal, where authentication details were edited. The article says the portal required MFA through <mark class="tag-hl">Conditional Access</mark>, but the details showed that no new MFA prompt occurred because the requirement had already been satisfied by the token.</p>
+<p>In the case Mitiga investigated, the attacker started a security info registration at 8:32:09 and completed it within five seconds. About half a minute earlier, at 8:31:27, the attacker had logged in to the “My Access” portal, where authentication details were edited. The article says the portal required MFA through Conditional Access, but the details showed that no new MFA prompt occurred because the requirement had already been satisfied by the token.</p>
 
-<p><mark class="tag-hl">Mitiga</mark> emphasizes that even a strict MFA expiration time of one day would not prevent this technique. Once the attacker registers their own Authenticator app during the compromised session, they can later use it to authenticate again.</p>
+<p>Mitiga emphasizes that even a strict MFA expiration time of one day would not prevent this technique. Once the attacker registers their own Authenticator app during the compromised session, they can later use it to authenticate again.</p>
 
-<h2 id="privileged-identity-management-example"><mark class="tag-hl">Privileged Identity Management</mark> Example</h2>
+<h2 id="privileged-identity-management-example">Privileged Identity Management Example</h2>
 
-<p>The article also highlights <mark class="tag-hl">Microsoft</mark> <mark class="tag-hl">Privileged Identity Management</mark> as a surprising example of the same broader issue. PIM is intended to let administrative users work with non-administrative rights and elevate only when needed. <mark class="tag-hl">Mitiga</mark> states that <mark class="tag-hl">Microsoft</mark> does not allow customers to require an MFA re-challenge for this activity, despite the risk of privilege elevation.</p>
+<p>The article also highlights Microsoft Privileged Identity Management as a surprising example of the same broader issue. PIM is intended to let administrative users work with non-administrative rights and elevate only when needed. Mitiga states that Microsoft does not allow customers to require an MFA re-challenge for this activity, despite the risk of privilege elevation.</p>
 
-<p>According to the article, if an account is compromised, the attacker can go to the PIM portal and activate administrator privileges themselves. <mark class="tag-hl">Mitiga</mark> notes that the user will at least receive a notification that someone activated the privilege.</p>
+<p>According to the article, if an account is compromised, the attacker can go to the PIM portal and activate administrator privileges themselves. Mitiga notes that the user will at least receive a notification that someone activated the privilege.</p>
 
-<h2 id="microsoft-identity-protection-limitations"><mark class="tag-hl">Microsoft</mark> Identity Protection Limitations</h2>
+<h2 id="microsoft-identity-protection-limitations">Microsoft Identity Protection Limitations</h2>
 
-<p><mark class="tag-hl">Mitiga</mark> notes that <mark class="tag-hl">Microsoft</mark> Identity Protection identified some of the sign-ins as risky. However, the article says the default behavior is to require an MFA re-challenge. <mark class="tag-hl">Mitiga</mark> argues that this is ineffective once the attacker has already set up their own Authenticator app.</p>
+<p>Mitiga notes that Microsoft Identity Protection identified some of the sign-ins as risky. However, the article says the default behavior is to require an MFA re-challenge. Mitiga argues that this is ineffective once the attacker has already set up their own Authenticator app.</p>
 
 <p>This means a risk-based MFA prompt may no longer distinguish between the legitimate user and the attacker after the attacker has successfully registered an authentication method on the account.</p>
 
 <h2 id="impact-described-in-the-article">Impact Described in the Article</h2>
 
-<p>The article describes the impact as persistent compromise of a <mark class="tag-hl">Microsoft 365</mark> account protected by MFA. The attacker gained access to an executive’s account and mailbox and registered a second Authenticator app. The BEC fraud attempt was prevented, but the access demonstrated that the attacker had obtained sensitive information from the compromised account.</p>
+<p>The article describes the impact as persistent compromise of a Microsoft 365 account protected by MFA. The attacker gained access to an executive’s account and mailbox and registered a second Authenticator app. The BEC fraud attempt was prevented, but the access demonstrated that the attacker had obtained sensitive information from the compromised account.</p>
 
-<p><mark class="tag-hl">Mitiga</mark> characterizes the broader impact as a weakening of MFA as a primary defense against identity attacks. The article says attackers have developed ways to overcome MFA through techniques such as <mark class="tag-hl">adversary-in-the-middle</mark> phishing.</p>
+<p>Mitiga characterizes the broader impact as a weakening of MFA as a primary defense against identity attacks. The article says attackers have developed ways to overcome MFA through techniques such as adversary-in-the-middle phishing.</p>
 
 <h2 id="recommendations">Recommendations</h2>
 
-<p><mark class="tag-hl">Mitiga</mark> recommends adding another layer of defense beyond MFA. Specifically, the article recommends a third factor tied to a physical device or to the employee’s authorized laptop and phone. It says <mark class="tag-hl">Microsoft 365</mark> can provide this through <mark class="tag-hl">Conditional Access</mark> by requiring authentication from an enrolled and compliant device.</p>
+<p>Mitiga recommends adding another layer of defense beyond MFA. Specifically, the article recommends a third factor tied to a physical device or to the employee’s authorized laptop and phone. It says Microsoft 365 can provide this through Conditional Access by requiring authentication from an enrolled and compliant device.</p>
 
-<p>The article also recommends that organizations monitor for new authentication method registrations on accounts. It advises treating sign-ins from unexpected locations as potential indicators of compromise, rather than only responding with another MFA prompt. <mark class="tag-hl">Mitiga</mark> states that requiring access through an enrolled and compliant device would completely prevent AiTM attacks in this context.</p>
+<p>The article also recommends that organizations monitor for new authentication method registrations on accounts. It advises treating sign-ins from unexpected locations as potential indicators of compromise, rather than only responding with another MFA prompt. Mitiga states that requiring access through an enrolled and compliant device would completely prevent AiTM attacks in this context.</p>
 </div></div>
-                <div id="insights-81f4a4dbe564e28bdcbe7bc1a6408c5b:75f19a913fd715c5" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Short MFA token lifetimes do not prevent this persistence technique because an attacker can register a new Authenticator app during the initially compromised session and later reauthenticate after the session expires or is revoked.</span></li><li><span class="kp-text"><mark class="tag-hl">Microsoft 365</mark> sign-in logs may show MFA as successful even when no new MFA prompt occurred, because the requirement can be marked as “Previously satisfied” by an existing token claim.</span></li><li><span class="kp-text">The article highlights that even <mark class="tag-hl">Privileged Identity Management</mark> activation can rely on a previously satisfied MFA token rather than forcing a fresh MFA challenge, despite the high-risk nature of privilege elevation.</span></li><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark> Identity Protection may identify some related sign-ins as risky, but the article states that its default MFA re-challenge response is ineffective once the attacker has already added their own Authenticator app.</span></li><li><span class="kp-text">Device-based <mark class="tag-hl">Conditional Access</mark> is presented as a practical compensating control because requiring access from an enrolled and compliant device would prevent the described AiTM-based access path.</span></li></ul></div>
+                <div id="insights-d75ab45f002ca4c77eb7f0c0b134fe7c:75f19a913fd715c5" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Short MFA token lifetimes do not prevent this persistence technique because an attacker can register a new Authenticator app during the initially compromised session and later reauthenticate after the session expires or is revoked.</span></li><li><span class="kp-text">Microsoft 365 sign-in logs may show MFA as successful even when no new MFA prompt occurred, because the requirement can be marked as “Previously satisfied” by an existing token claim.</span></li><li><span class="kp-text">The article highlights that even Privileged Identity Management activation can rely on a previously satisfied MFA token rather than forcing a fresh MFA challenge, despite the high-risk nature of privilege elevation.</span></li><li><span class="kp-text">Microsoft Identity Protection may identify some related sign-ins as risky, but the article states that its default MFA re-challenge response is ineffective once the attacker has already added their own Authenticator app.</span></li><li><span class="kp-text">Device-based Conditional Access is presented as a practical compensating control because requiring access from an enrolled and compliant device would prevent the described AiTM-based access path.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Mitiga</mark> investigated an attempted <mark class="tag-hl">business email compromise</mark> attack against a <mark class="tag-hl">Microsoft 365</mark> organization in which an executive’s account was accessed from locations including <mark class="tag-hl">Singapore</mark>, Dubai, and San Jose, California.</span></li><li><span class="kp-text">The initial compromise used an <mark class="tag-hl">adversary-in-the-middle</mark> phishing technique that gave the attacker access to the executive’s account and mailbox.</span></li><li><span class="kp-text"><mark class="tag-hl">Mitiga</mark> found that the attacker set up a second <mark class="tag-hl">Microsoft Authenticator</mark> app for the compromised user, creating persistence and weakening the protection provided by MFA.</span></li><li><span class="kp-text">The article states that <mark class="tag-hl">Microsoft 365</mark> does not require an MFA re-challenge when a user changes authentication methods in the Security Info section if the session token was previously satisfied.</span></li><li><span class="kp-text"><mark class="tag-hl">Mitiga</mark> recommends adding another layer of defense through device-based <mark class="tag-hl">Conditional Access</mark> and monitoring for new authentication method registrations.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Mitiga investigated an attempted business email compromise attack against a Microsoft 365 organization in which an executive’s account was accessed from locations including Singapore, Dubai, and San Jose, California.</span></li><li><span class="kp-text">The initial compromise used an adversary-in-the-middle phishing technique that gave the attacker access to the executive’s account and mailbox.</span></li><li><span class="kp-text">Mitiga found that the attacker set up a second Microsoft Authenticator app for the compromised user, creating persistence and weakening the protection provided by MFA.</span></li><li><span class="kp-text">The article states that Microsoft 365 does not require an MFA re-challenge when a user changes authentication methods in the Security Info section if the session token was previously satisfied.</span></li><li><span class="kp-text">Mitiga recommends adding another layer of defense through device-based Conditional Access and monitoring for new authentication method registrations.</span></li></ul></div>
+            
             <a href="https://www.mitiga.io/blog/persistent-mfa-circumvention-in-an-advanced-bec-campaign-on-microsoft-365-targets" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, real-world <mark class="tag-hl">Microsoft 365</mark> BEC investigation showing how attackers can persist after <mark class="tag-hl">AiTM phishing</mark> by adding their own Authenticator app without a fresh MFA challenge. It is broadly relevant to security professionals because it highlights a practical MFA bypass/persistence path and concrete monitoring and <mark class="tag-hl">Conditional Access</mark> mitigations.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, real-world Microsoft 365 BEC investigation showing how attackers can persist after AiTM phishing by adding their own Authenticator app without a fresh MFA challenge. It is broadly relevant to security professionals because it highlights a practical MFA bypass/persistence path and concrete monitoring and Conditional Access mitigations.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.microsoft.com/security/blog/2022/07/12/from-cookie-theft-to-bec-attackers-use-aitm-phishing-sites-as-entry-point-to-further-financial-fraud/" target="_blank" rel="noopener">From cookie theft to BEC: Attackers use AiTM phishing sites as entry point to further financial fraud</a></div>
   <div class="report-meta">Microsoft</div>
-  <div class="report-context">The article links to <mark class="tag-hl">Microsoft</mark>’s analysis when describing the <mark class="tag-hl">adversary-in-the-middle</mark> phishing technique used for the initial compromise.</div>
+  <div class="report-context">The article links to Microsoft’s analysis when describing the adversary-in-the-middle phishing technique used for the initial compromise.</div>
 </li></ul></div>
             
           </div>
@@ -1467,75 +1621,75 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:78%"></div></div><span class="score-num score-num-mid">78</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="1f5f82816981c137adc0acb7bbd4b62d:077d39a43dfad61b">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-6428692e07ece4bc06cc6bdf93ea96b2:077d39a43dfad61b')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-6428692e07ece4bc06cc6bdf93ea96b2:077d39a43dfad61b')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-6428692e07ece4bc06cc6bdf93ea96b2:077d39a43dfad61b')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-6428692e07ece4bc06cc6bdf93ea96b2:077d39a43dfad61b')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-6428692e07ece4bc06cc6bdf93ea96b2:077d39a43dfad61b')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-1f5f82816981c137adc0acb7bbd4b62d:077d39a43dfad61b')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-1f5f82816981c137adc0acb7bbd4b62d:077d39a43dfad61b')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-1f5f82816981c137adc0acb7bbd4b62d:077d39a43dfad61b')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-1f5f82816981c137adc0acb7bbd4b62d:077d39a43dfad61b')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-1f5f82816981c137adc0acb7bbd4b62d:077d39a43dfad61b')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-6428692e07ece4bc06cc6bdf93ea96b2:077d39a43dfad61b" class="tab-panel active"><div class="prose">Human Rights Watch says <mark class="tag-hl">Bulgaria</mark> approved exports by surveillance firm Circles to multiple governments with records of repression, enabling tools that can intercept communications and track phones. The report raises fresh concerns that EU export controls are failing to stop surveillance technology from reaching abusive regimes.</div></div>
-                <div id="brief-6428692e07ece4bc06cc6bdf93ea96b2:077d39a43dfad61b" class="tab-panel"><div class="prose"><p>Human Rights Watch reported that <mark class="tag-hl">Bulgaria</mark> allowed the <mark class="tag-hl">Bulgaria</mark>-based surveillance technology firm Circles to export products to governments known for repressing citizens. Export licensing records covering 2018 through 2023 showed approved sales to law enforcement and intelligence agencies in <mark class="tag-hl">El Salvador</mark>, the <mark class="tag-hl">United Arab Emirates</mark>, <mark class="tag-hl">Serbia</mark>, <mark class="tag-hl">Azerbaijan</mark>, <mark class="tag-hl">Guatemala</mark>, <mark class="tag-hl">Bahrain</mark>, <mark class="tag-hl">Jordan</mark>, <mark class="tag-hl">Malaysia</mark>, <mark class="tag-hl">Morocco</mark> and <mark class="tag-hl">Panama</mark>. The report says many of those countries have long records of crushing dissent, and some have previously used spyware against dissidents and journalists.</p>
+                <div id="tldr-1f5f82816981c137adc0acb7bbd4b62d:077d39a43dfad61b" class="tab-panel active"><div class="prose">Human Rights Watch says Bulgaria approved exports by surveillance firm Circles to multiple governments with records of repression, enabling tools that can intercept communications and track phones. The report raises fresh concerns that EU export controls are failing to stop surveillance technology from reaching abusive regimes.</div></div>
+                <div id="brief-1f5f82816981c137adc0acb7bbd4b62d:077d39a43dfad61b" class="tab-panel"><div class="prose"><p>Human Rights Watch reported that Bulgaria allowed the Bulgaria-based surveillance technology firm Circles to export products to governments known for repressing citizens. Export licensing records covering 2018 through 2023 showed approved sales to law enforcement and intelligence agencies in El Salvador, the United Arab Emirates, Serbia, Azerbaijan, Guatemala, Bahrain, Jordan, Malaysia, Morocco and Panama. The report says many of those countries have long records of crushing dissent, and some have previously used spyware against dissidents and journalists.</p>
 
-<p>The findings put the <mark class="tag-hl">European Union</mark>’s export control regime under scrutiny because it is intended to stop the sale of sophisticated surveillance technology to abusive governments. Human Rights Watch said the European Commission has evidence that EU governments have issued licenses without serious human rights due diligence, while the Commission told the nonprofit that member states are solely responsible for dual-use export licensing decisions. <mark class="tag-hl">Bulgaria</mark> told Human Rights Watch that exports contradicting national, European and international commitments, including human rights protections, are not allowed.</p>
+<p>The findings put the European Union’s export control regime under scrutiny because it is intended to stop the sale of sophisticated surveillance technology to abusive governments. Human Rights Watch said the European Commission has evidence that EU governments have issued licenses without serious human rights due diligence, while the Commission told the nonprofit that member states are solely responsible for dual-use export licensing decisions. Bulgaria told Human Rights Watch that exports contradicting national, European and international commitments, including human rights protections, are not allowed.</p>
 
-<p>Circles’ exported systems included <mark class="tag-hl">Pixcell</mark>, which can capture internet data, phone calls and messages, and <mark class="tag-hl">Landmark</mark>, which geolocates mobile phones in real time. Another system, <mark class="tag-hl">Voice Over Location Enabler</mark> software, uses SS7 protocol to remotely intercept incoming and outgoing voice calls and collect location data for both parties, according to Circles documents quoted by Human Rights Watch. Human Rights Watch could not obtain records for 2025 or 2026, so it is unclear whether the sales are still happening.</p>
+<p>Circles’ exported systems included Pixcell, which can capture internet data, phone calls and messages, and Landmark, which geolocates mobile phones in real time. Another system, Voice Over Location Enabler software, uses SS7 protocol to remotely intercept incoming and outgoing voice calls and collect location data for both parties, according to Circles documents quoted by Human Rights Watch. Human Rights Watch could not obtain records for 2025 or 2026, so it is unclear whether the sales are still happening.</p>
 </div></div>
-                <div id="standard-6428692e07ece4bc06cc6bdf93ea96b2:077d39a43dfad61b" class="tab-panel"><div class="prose"><p>Human Rights Watch obtained Bulgarian export licensing records showing that the government allowed surveillance firm Circles to sell technology to law enforcement and intelligence agencies in multiple countries from 2018 through 2023. The destinations listed were <mark class="tag-hl">El Salvador</mark>, the <mark class="tag-hl">United Arab Emirates</mark>, <mark class="tag-hl">Serbia</mark>, <mark class="tag-hl">Azerbaijan</mark>, <mark class="tag-hl">Guatemala</mark>, <mark class="tag-hl">Bahrain</mark>, <mark class="tag-hl">Jordan</mark>, <mark class="tag-hl">Malaysia</mark>, <mark class="tag-hl">Morocco</mark> and <mark class="tag-hl">Panama</mark>. The article says many of those countries have long records of repressing citizens, and some have used spyware against dissidents and journalists in the past.</p>
+                <div id="standard-1f5f82816981c137adc0acb7bbd4b62d:077d39a43dfad61b" class="tab-panel"><div class="prose"><p>Human Rights Watch obtained Bulgarian export licensing records showing that the government allowed surveillance firm Circles to sell technology to law enforcement and intelligence agencies in multiple countries from 2018 through 2023. The destinations listed were El Salvador, the United Arab Emirates, Serbia, Azerbaijan, Guatemala, Bahrain, Jordan, Malaysia, Morocco and Panama. The article says many of those countries have long records of repressing citizens, and some have used spyware against dissidents and journalists in the past.</p>
 
-<p>The report frames the licenses as a challenge to the <mark class="tag-hl">European Union</mark>’s export control regime, which is meant to restrict the sale of sophisticated surveillance technology. Human Rights Watch researcher Zach Campbell said EU governments should be clamping down on tools that can be used for repression rather than approving them. Campbell also said the European Commission has evidence that EU governments issued licenses seemingly without serious human rights due diligence.</p>
+<p>The report frames the licenses as a challenge to the European Union’s export control regime, which is meant to restrict the sale of sophisticated surveillance technology. Human Rights Watch researcher Zach Campbell said EU governments should be clamping down on tools that can be used for repression rather than approving them. Campbell also said the European Commission has evidence that EU governments issued licenses seemingly without serious human rights due diligence.</p>
 
 <p>Circles markets its technology as intended for combating terrorism and crime, according to the article. Human rights and digital freedoms advocates have long complained that its technology has been abused, and the article says that abuse has been documented in the past. Human Rights Watch said it contacted Circles four times for comment but did not receive a response.</p>
 
-<p>The tools described in the report include <mark class="tag-hl">Pixcell</mark>, <mark class="tag-hl">Landmark</mark>, and <mark class="tag-hl">Voice Over Location Enabler</mark> software. <mark class="tag-hl">Pixcell</mark> is described as capable of capturing internet data, phone calls and messages, while <mark class="tag-hl">Landmark</mark> can geolocate mobile phones in real time. <mark class="tag-hl">Voice Over Location Enabler</mark> software uses SS7 protocol to remotely intercept targets’ incoming and outgoing voice calls and collect data including both parties’ locations, according to Human Rights Watch quoting Circles’ documents.</p>
+<p>The tools described in the report include Pixcell, Landmark, and Voice Over Location Enabler software. Pixcell is described as capable of capturing internet data, phone calls and messages, while Landmark can geolocate mobile phones in real time. Voice Over Location Enabler software uses SS7 protocol to remotely intercept targets’ incoming and outgoing voice calls and collect data including both parties’ locations, according to Human Rights Watch quoting Circles’ documents.</p>
 
 <p>The Bulgarian government did not immediately respond to the article’s request for comment, but it told Human Rights Watch that exports contradicting national, European and international commitments, including human rights protections, are not allowed. It also said the Ministry maintains a zero-tolerance policy for abuses and strictly monitors compliance with established rules. The European Commission did not immediately respond to a request for comment, but it told Human Rights Watch that member states are solely responsible for dual-use export licensing decisions.</p>
 
 <p>The article also notes that Circles was co-founded by Tal Dilian, the executive behind the blacklisted spyware firm Intellexa. In February, a Greek court found Dilian guilty on charges relating to how Intellexa was used to spy on civil society members, including journalists and politicians. Human Rights Watch previously published a report saying European surveillance technology companies from several countries have sold spyware to repressive governments, while France, Greece, Spain, Germany and Italy would not provide trade records for that report.</p>
 </div></div>
-                <div id="comprehensive-6428692e07ece4bc06cc6bdf93ea96b2:077d39a43dfad61b" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-1f5f82816981c137adc0acb7bbd4b62d:077d39a43dfad61b" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Human Rights Watch reported that <mark class="tag-hl">Bulgaria</mark> allowed the <mark class="tag-hl">Bulgaria</mark>-based surveillance technology firm Circles to export surveillance products to governments with records of repression. The nonprofit obtained export licensing records covering 2018 through 2023 from the Bulgarian Ministry of Economy and Industry’s department involved in supporting or blocking export license applications for Bulgarian companies.</p>
+<p>Human Rights Watch reported that Bulgaria allowed the Bulgaria-based surveillance technology firm Circles to export surveillance products to governments with records of repression. The nonprofit obtained export licensing records covering 2018 through 2023 from the Bulgarian Ministry of Economy and Industry’s department involved in supporting or blocking export license applications for Bulgarian companies.</p>
 
-<p>According to the records, <mark class="tag-hl">Bulgaria</mark> approved sales of Circles technology to law enforcement and intelligence agencies in:</p>
+<p>According to the records, Bulgaria approved sales of Circles technology to law enforcement and intelligence agencies in:</p>
 
 <ul>
-<li><mark class="tag-hl">El Salvador</mark></li>
-<li>The <mark class="tag-hl">United Arab Emirates</mark></li>
-<li><mark class="tag-hl">Serbia</mark></li>
-<li><mark class="tag-hl">Azerbaijan</mark></li>
-<li><mark class="tag-hl">Guatemala</mark></li>
-<li><mark class="tag-hl">Bahrain</mark></li>
-<li><mark class="tag-hl">Jordan</mark></li>
-<li><mark class="tag-hl">Malaysia</mark></li>
-<li><mark class="tag-hl">Morocco</mark></li>
-<li><mark class="tag-hl">Panama</mark></li>
+<li>El Salvador</li>
+<li>The United Arab Emirates</li>
+<li>Serbia</li>
+<li>Azerbaijan</li>
+<li>Guatemala</li>
+<li>Bahrain</li>
+<li>Jordan</li>
+<li>Malaysia</li>
+<li>Morocco</li>
+<li>Panama</li>
 </ul>
 
 <p>The article states that many of these countries have long records of crushing dissent and that some have previously used spyware to monitor dissidents and journalists.</p>
 
 <h2 id="significance-for-eu-export-controls">Significance for EU export controls</h2>
 
-<p>The article says the documents put the <mark class="tag-hl">European Union</mark>’s export control regime in a harsh light. That regime is meant to stop the sale of sophisticated surveillance technology, but the article says the EU has struggled to control exports of spyware and other surveillance tools beyond its borders.</p>
+<p>The article says the documents put the European Union’s export control regime in a harsh light. That regime is meant to stop the sale of sophisticated surveillance technology, but the article says the EU has struggled to control exports of spyware and other surveillance tools beyond its borders.</p>
 
 <p>Human Rights Watch senior surveillance researcher Zach Campbell said that all EU governments should be clamping down on exports of tools that can be used for repression rather than “rubber-stamping” them. He also said the European Commission has evidence that EU governments have issued licenses seemingly without serious human rights due diligence, while appearing not to act despite having a legal framework to control the issue.</p>
 
-<p>The European Commission told Human Rights Watch that member states are “solely responsible for licensing decisions on dual-use exports.” The Bulgarian government told Human Rights Watch that exports contradicting <mark class="tag-hl">Bulgaria</mark>’s national, European and international commitments, including human rights protections, are not allowed.</p>
+<p>The European Commission told Human Rights Watch that member states are “solely responsible for licensing decisions on dual-use exports.” The Bulgarian government told Human Rights Watch that exports contradicting Bulgaria’s national, European and international commitments, including human rights protections, are not allowed.</p>
 
 <h2 id="products-and-technical-capabilities-described">Products and technical capabilities described</h2>
 
 <p>The article describes several Circles systems included in the exports.</p>
 
-<h3 id="pixcell"><mark class="tag-hl">Pixcell</mark></h3>
+<h3 id="pixcell">Pixcell</h3>
 
-<p><mark class="tag-hl">Pixcell</mark> is described as a system capable of capturing:</p>
+<p>Pixcell is described as a system capable of capturing:</p>
 
 <ul>
 <li>Internet data</li>
@@ -1543,19 +1697,19 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Messages</li>
 </ul>
 
-<h3 id="landmark"><mark class="tag-hl">Landmark</mark></h3>
+<h3 id="landmark">Landmark</h3>
 
-<p><mark class="tag-hl">Landmark</mark> is described as a system that can geolocate mobile phones in real time.</p>
+<p>Landmark is described as a system that can geolocate mobile phones in real time.</p>
 
-<h3 id="voice-over-location-enabler"><mark class="tag-hl">Voice Over Location Enabler</mark></h3>
+<h3 id="voice-over-location-enabler">Voice Over Location Enabler</h3>
 
-<p>The “<mark class="tag-hl">Voice Over Location Enabler</mark>” software is described as using SS7 protocol to remotely intercept targets’ incoming and outgoing voice calls. Human Rights Watch, quoting from Circles documents, said the tool can also collect data including both parties’ locations.</p>
+<p>The “Voice Over Location Enabler” software is described as using SS7 protocol to remotely intercept targets’ incoming and outgoing voice calls. Human Rights Watch, quoting from Circles documents, said the tool can also collect data including both parties’ locations.</p>
 
 <p>Together, the products described in the article cover communications interception, message and internet data capture, and real-time phone location tracking.</p>
 
 <h2 id="circles-and-related-entities">Circles and related entities</h2>
 
-<p>Circles is described as a <mark class="tag-hl">Bulgaria</mark>-based surveillance technology firm. Like many companies selling powerful surveillance technology, Circles bills its tools as intended exclusively for combating terrorism and crime.</p>
+<p>Circles is described as a Bulgaria-based surveillance technology firm. Like many companies selling powerful surveillance technology, Circles bills its tools as intended exclusively for combating terrorism and crime.</p>
 
 <p>The article says human rights and digital freedoms advocates have long complained that Circles’ technology has been abused, and that this has been documented in the past. Human Rights Watch said it contacted Circles four times for comment but did not receive a response.</p>
 
@@ -1565,7 +1719,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The Bulgarian government and the European Commission did not immediately respond to the article’s requests for comment.</p>
 
-<p>However, <mark class="tag-hl">Bulgaria</mark> told Human Rights Watch that exports contradicting the country’s national, European and international commitments, including with regard to the protection of human rights, are not allowed. <mark class="tag-hl">Bulgaria</mark> also told the nonprofit that the Ministry maintains a consistent policy of zero tolerance for abuses and strictly monitors compliance with established rules.</p>
+<p>However, Bulgaria told Human Rights Watch that exports contradicting the country’s national, European and international commitments, including with regard to the protection of human rights, are not allowed. Bulgaria also told the nonprofit that the Ministry maintains a consistent policy of zero tolerance for abuses and strictly monitors compliance with established rules.</p>
 
 <p>The European Commission told Human Rights Watch that member states are solely responsible for licensing decisions involving dual-use exports.</p>
 
@@ -1573,11 +1727,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Human Rights Watch obtained records covering 2018 through 2023, but it could not obtain records for 2025 or 2026. Because of that, the article says it is unclear whether the sales are still happening.</p>
 
-<p>This gap limits what the article can establish about the current status of Circles’ exports from <mark class="tag-hl">Bulgaria</mark>.</p>
+<p>This gap limits what the article can establish about the current status of Circles’ exports from Bulgaria.</p>
 
 <h2 id="broader-european-context-in-the-article">Broader European context in the article</h2>
 
-<p>The article references a May Human Rights Watch report saying that European surveillance technology companies have sold spyware to repressive governments. The countries named in connection with those companies include Finland, Poland, Denmark, the Czech Republic, Estonia and <mark class="tag-hl">Bulgaria</mark>.</p>
+<p>The article references a May Human Rights Watch report saying that European surveillance technology companies have sold spyware to repressive governments. The countries named in connection with those companies include Finland, Poland, Denmark, the Czech Republic, Estonia and Bulgaria.</p>
 
 <p>The article also says France, Greece, Spain, Germany and Italy are known exporters of surveillance technology but would not provide Human Rights Watch with trade records for that report.</p>
 
@@ -1585,12 +1739,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The reported impact is that governments with records of repression were allowed to obtain Circles surveillance tools capable of intercepting communications, capturing internet and message data, and tracking phone locations. The article does not provide specific examples of these exported Circles tools being used against named individuals in the listed destination countries during the 2018 to 2023 licensing period.</p>
 
-<p>The central issue presented is that <mark class="tag-hl">Bulgaria</mark> approved exports of powerful surveillance technology to governments with human rights concerns, raising questions about the effectiveness of EU export controls and human rights due diligence.</p>
+<p>The central issue presented is that Bulgaria approved exports of powerful surveillance technology to governments with human rights concerns, raising questions about the effectiveness of EU export controls and human rights due diligence.</p>
 </div></div>
-                <div id="insights-6428692e07ece4bc06cc6bdf93ea96b2:077d39a43dfad61b" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The licensing records indicate the EU’s dual-use export controls may be ineffective in practice because the European Commission says member states are solely responsible for licensing decisions, even when exports involve surveillance tools with human rights risks.</span></li><li><span class="kp-text">Human Rights Watch could not obtain records for 2025 or 2026, leaving a current visibility gap on whether Circles’ surveillance exports from <mark class="tag-hl">Bulgaria</mark> are still occurring.</span></li><li><span class="kp-text">Circles’ products include multiple surveillance capabilities across communications interception, internet data capture, and real-time phone geolocation, showing that the approved exports were not limited to a single monitoring function.</span></li><li><span class="kp-text">The report highlights a transparency disparity within Europe because Human Rights Watch obtained Bulgarian records but said France, Greece, Spain, Germany and Italy would not provide comparable trade records despite being known exporters of surveillance technology.</span></li></ul></div>
+                <div id="insights-1f5f82816981c137adc0acb7bbd4b62d:077d39a43dfad61b" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The licensing records indicate the EU’s dual-use export controls may be ineffective in practice because the European Commission says member states are solely responsible for licensing decisions, even when exports involve surveillance tools with human rights risks.</span></li><li><span class="kp-text">Human Rights Watch could not obtain records for 2025 or 2026, leaving a current visibility gap on whether Circles’ surveillance exports from Bulgaria are still occurring.</span></li><li><span class="kp-text">Circles’ products include multiple surveillance capabilities across communications interception, internet data capture, and real-time phone geolocation, showing that the approved exports were not limited to a single monitoring function.</span></li><li><span class="kp-text">The report highlights a transparency disparity within Europe because Human Rights Watch obtained Bulgarian records but said France, Greece, Spain, Germany and Italy would not provide comparable trade records despite being known exporters of surveillance technology.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Human Rights Watch obtained export licensing records from 2018 through 2023 showing that <mark class="tag-hl">Bulgaria</mark> allowed the surveillance firm Circles to sell technology to law enforcement and intelligence agencies in several countries known for repressing citizens.</span></li><li><span class="kp-text">The approved destinations included <mark class="tag-hl">El Salvador</mark>, the <mark class="tag-hl">United Arab Emirates</mark>, <mark class="tag-hl">Serbia</mark>, <mark class="tag-hl">Azerbaijan</mark>, <mark class="tag-hl">Guatemala</mark>, <mark class="tag-hl">Bahrain</mark>, <mark class="tag-hl">Jordan</mark>, <mark class="tag-hl">Malaysia</mark>, <mark class="tag-hl">Morocco</mark> and <mark class="tag-hl">Panama</mark>.</span></li><li><span class="kp-text">Circles sold tools including <mark class="tag-hl">Pixcell</mark>, which can capture internet data, phone calls and messages, <mark class="tag-hl">Landmark</mark>, which geolocates mobile phones in real time, and <mark class="tag-hl">Voice Over Location Enabler</mark> software, which can remotely intercept incoming and outgoing voice calls using SS7 protocol.</span></li><li><span class="kp-text">Human Rights Watch said the records cast the <mark class="tag-hl">European Union</mark>’s export control regime in a harsh light because it is meant to stop the sale of sophisticated surveillance technology to abusive governments.</span></li><li><span class="kp-text">The Bulgarian government told Human Rights Watch that exports contradicting national, European and international commitments, including human rights protections, are not allowed, while the European Commission said member states are solely responsible for dual-use export licensing decisions.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Human Rights Watch obtained export licensing records from 2018 through 2023 showing that Bulgaria allowed the surveillance firm Circles to sell technology to law enforcement and intelligence agencies in several countries known for repressing citizens.</span></li><li><span class="kp-text">The approved destinations included El Salvador, the United Arab Emirates, Serbia, Azerbaijan, Guatemala, Bahrain, Jordan, Malaysia, Morocco and Panama.</span></li><li><span class="kp-text">Circles sold tools including Pixcell, which can capture internet data, phone calls and messages, Landmark, which geolocates mobile phones in real time, and Voice Over Location Enabler software, which can remotely intercept incoming and outgoing voice calls using SS7 protocol.</span></li><li><span class="kp-text">Human Rights Watch said the records cast the European Union’s export control regime in a harsh light because it is meant to stop the sale of sophisticated surveillance technology to abusive governments.</span></li><li><span class="kp-text">The Bulgarian government told Human Rights Watch that exports contradicting national, European and international commitments, including human rights protections, are not allowed, while the European Commission said member states are solely responsible for dual-use export licensing decisions.</span></li></ul></div>
+            
             <a href="https://therecord.media/bulgaria-allowed-surveillance-tech-firm-to-sell-to-repressive-regimes-report" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific Human Rights Watch finding based on export licensing records showing EU-authorized sales of powerful surveillance tools to governments with repression records. It is broadly relevant to security professionals tracking spyware, lawful intercept tools, dual-use export controls, and human rights risks, though it is not an active exploitation or urgent patch event.</p>
 </div></div>
@@ -1620,89 +1775,90 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:78%"></div></div><span class="score-num score-num-mid">78</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="d7ac475ccf3f29dcb55cf35b9f6b6f00:88d1ed8cfe0347cf">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-88728130e77311eeec68d2953a7365a6:88d1ed8cfe0347cf')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-88728130e77311eeec68d2953a7365a6:88d1ed8cfe0347cf')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-88728130e77311eeec68d2953a7365a6:88d1ed8cfe0347cf')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-88728130e77311eeec68d2953a7365a6:88d1ed8cfe0347cf')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-88728130e77311eeec68d2953a7365a6:88d1ed8cfe0347cf')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d7ac475ccf3f29dcb55cf35b9f6b6f00:88d1ed8cfe0347cf')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-d7ac475ccf3f29dcb55cf35b9f6b6f00:88d1ed8cfe0347cf')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-d7ac475ccf3f29dcb55cf35b9f6b6f00:88d1ed8cfe0347cf')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d7ac475ccf3f29dcb55cf35b9f6b6f00:88d1ed8cfe0347cf')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-d7ac475ccf3f29dcb55cf35b9f6b6f00:88d1ed8cfe0347cf')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-88728130e77311eeec68d2953a7365a6:88d1ed8cfe0347cf" class="tab-panel active"><div class="prose"><mark class="tag-hl">Jamf</mark> disclosed that a cybersecurity incident at third-party vendor <mark class="tag-hl">Klue</mark> allowed unauthorized access to <mark class="tag-hl">Jamf</mark> <mark class="tag-hl">Salesforce</mark> data via <mark class="tag-hl">Klue</mark>’s integration, but <mark class="tag-hl">Jamf</mark> says its products and customer service operations were not affected. <mark class="tag-hl">Jamf</mark> disabled the integration, is investigating the exposed business data, and warned customers to watch for <mark class="tag-hl">phishing</mark> attempts using <mark class="tag-hl">Salesforce</mark> contact information.</div></div>
-                <div id="brief-88728130e77311eeec68d2953a7365a6:88d1ed8cfe0347cf" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Jamf</mark> disclosed an ongoing cybersecurity incident involving <mark class="tag-hl">Klue</mark>, a third-party vendor <mark class="tag-hl">Jamf</mark> uses for competitive intelligence services. According to <mark class="tag-hl">Jamf</mark>, the incident occurred within <mark class="tag-hl">Klue</mark>’s environment, where an unauthorized party gained access to <mark class="tag-hl">Jamf</mark>’s <mark class="tag-hl">Salesforce</mark> instance data through <mark class="tag-hl">Klue</mark>’s integration. <mark class="tag-hl">Jamf</mark> said the incident did not affect <mark class="tag-hl">Jamf</mark>’s products and did not impact its ability to serve customers.</p>
+                <div id="tldr-d7ac475ccf3f29dcb55cf35b9f6b6f00:88d1ed8cfe0347cf" class="tab-panel active"><div class="prose">Jamf disclosed that a cybersecurity incident at third-party vendor Klue allowed unauthorized access to Jamf Salesforce data via Klue’s integration, but Jamf says its products and customer service operations were not affected. Jamf disabled the integration, is investigating the exposed business data, and warned customers to watch for phishing attempts using Salesforce contact information.</div></div>
+                <div id="brief-d7ac475ccf3f29dcb55cf35b9f6b6f00:88d1ed8cfe0347cf" class="tab-panel"><div class="prose"><p>Jamf disclosed an ongoing cybersecurity incident involving Klue, a third-party vendor Jamf uses for competitive intelligence services. According to Jamf, the incident occurred within Klue’s environment, where an unauthorized party gained access to Jamf’s Salesforce instance data through Klue’s integration. Jamf said the incident did not affect Jamf’s products and did not impact its ability to serve customers.</p>
 
-<p>After receiving notice from <mark class="tag-hl">Klue</mark>, <mark class="tag-hl">Jamf</mark> immediately disabled <mark class="tag-hl">Klue</mark>’s integration within <mark class="tag-hl">Salesforce</mark>. <mark class="tag-hl">Jamf</mark> said it has no evidence of lateral movement and has contained the incident on its end. The company also engaged cybersecurity experts, took defensive measures, and notified law enforcement.</p>
+<p>After receiving notice from Klue, Jamf immediately disabled Klue’s integration within Salesforce. Jamf said it has no evidence of lateral movement and has contained the incident on its end. The company also engaged cybersecurity experts, took defensive measures, and notified law enforcement.</p>
 
-<p><mark class="tag-hl">Jamf</mark> said it has identified the timeline of unauthorized access to its <mark class="tag-hl">Salesforce</mark> environment and is reviewing what data was impacted. While the investigation remains ongoing, <mark class="tag-hl">Jamf</mark> believes the impact was primarily limited to business data fields within <mark class="tag-hl">Salesforce</mark>. <mark class="tag-hl">Jamf</mark> warned that the unauthorized party may conduct <mark class="tag-hl">phishing</mark> campaigns using contact information stored in <mark class="tag-hl">Salesforce</mark> and may pose as <mark class="tag-hl">Jamf</mark> employees or IT professionals.</p>
+<p>Jamf said it has identified the timeline of unauthorized access to its Salesforce environment and is reviewing what data was impacted. While the investigation remains ongoing, Jamf believes the impact was primarily limited to business data fields within Salesforce. Jamf warned that the unauthorized party may conduct phishing campaigns using contact information stored in Salesforce and may pose as Jamf employees or IT professionals.</p>
 </div></div>
-                <div id="standard-88728130e77311eeec68d2953a7365a6:88d1ed8cfe0347cf" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Jamf</mark> published an update about an ongoing cybersecurity incident involving <mark class="tag-hl">Klue</mark>, a third-party vendor used by <mark class="tag-hl">Jamf</mark> for competitive intelligence services. The incident occurred within <mark class="tag-hl">Klue</mark>’s environment, and <mark class="tag-hl">Jamf</mark> said an unauthorized party accessed <mark class="tag-hl">Jamf</mark>’s <mark class="tag-hl">Salesforce</mark> instance data through <mark class="tag-hl">Klue</mark>’s integration. <mark class="tag-hl">Jamf</mark> framed the post as part of its effort to keep customers informed as new information becomes available.</p>
+                <div id="standard-d7ac475ccf3f29dcb55cf35b9f6b6f00:88d1ed8cfe0347cf" class="tab-panel"><div class="prose"><p>Jamf published an update about an ongoing cybersecurity incident involving Klue, a third-party vendor used by Jamf for competitive intelligence services. The incident occurred within Klue’s environment, and Jamf said an unauthorized party accessed Jamf’s Salesforce instance data through Klue’s integration. Jamf framed the post as part of its effort to keep customers informed as new information becomes available.</p>
 
-<p><mark class="tag-hl">Jamf</mark> stated that the incident did not affect <mark class="tag-hl">Jamf</mark>’s products and did not impact its ability to serve customers. The affected access was described as involving <mark class="tag-hl">Jamf</mark>’s <mark class="tag-hl">Salesforce</mark> environment, not <mark class="tag-hl">Jamf</mark>’s product environment. <mark class="tag-hl">Jamf</mark> said it is conducting its own review to determine what data was impacted.</p>
+<p>Jamf stated that the incident did not affect Jamf’s products and did not impact its ability to serve customers. The affected access was described as involving Jamf’s Salesforce environment, not Jamf’s product environment. Jamf said it is conducting its own review to determine what data was impacted.</p>
 
-<p>After being notified by <mark class="tag-hl">Klue</mark>, <mark class="tag-hl">Jamf</mark> immediately disabled <mark class="tag-hl">Klue</mark>’s integration within <mark class="tag-hl">Salesforce</mark>. <mark class="tag-hl">Jamf</mark> said it has no evidence of lateral movement and has contained the incident on its end. The company also engaged cybersecurity experts, took immediate defensive measures to protect its environment, and notified law enforcement.</p>
+<p>After being notified by Klue, Jamf immediately disabled Klue’s integration within Salesforce. Jamf said it has no evidence of lateral movement and has contained the incident on its end. The company also engaged cybersecurity experts, took immediate defensive measures to protect its environment, and notified law enforcement.</p>
 
-<p><mark class="tag-hl">Jamf</mark> said it has identified the timeline of unauthorized access to its <mark class="tag-hl">Salesforce</mark> environment. While its investigation is ongoing, <mark class="tag-hl">Jamf</mark> currently believes the impact was primarily limited to business data fields within <mark class="tag-hl">Salesforce</mark>. The article does not name the unauthorized party responsible for the incident.</p>
+<p>Jamf said it has identified the timeline of unauthorized access to its Salesforce environment. While its investigation is ongoing, Jamf currently believes the impact was primarily limited to business data fields within Salesforce. The article does not name the unauthorized party responsible for the incident.</p>
 
-<p><mark class="tag-hl">Jamf</mark> warned customers that the unauthorized party may conduct <mark class="tag-hl">phishing</mark> campaigns using contact information stored within <mark class="tag-hl">Salesforce</mark>. The company said the actor may pose as legitimate <mark class="tag-hl">Jamf</mark> employees or IT professionals. <mark class="tag-hl">Jamf</mark> encouraged customers to remain vigilant, use caution when sharing sensitive information or account credentials with unknown senders, and report suspicious email to their security teams.</p>
+<p>Jamf warned customers that the unauthorized party may conduct phishing campaigns using contact information stored within Salesforce. The company said the actor may pose as legitimate Jamf employees or IT professionals. Jamf encouraged customers to remain vigilant, use caution when sharing sensitive information or account credentials with unknown senders, and report suspicious email to their security teams.</p>
 </div></div>
-                <div id="comprehensive-88728130e77311eeec68d2953a7365a6:88d1ed8cfe0347cf" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-d7ac475ccf3f29dcb55cf35b9f6b6f00:88d1ed8cfe0347cf" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Jamf</mark> disclosed an ongoing cybersecurity incident involving <mark class="tag-hl">Klue</mark>, a third-party vendor that <mark class="tag-hl">Jamf</mark> uses for competitive intelligence services. The article states that the incident occurred within <mark class="tag-hl">Klue</mark>’s environment. Through <mark class="tag-hl">Klue</mark>’s integration, an unauthorized party gained access to data in <mark class="tag-hl">Jamf</mark>’s <mark class="tag-hl">Salesforce</mark> instance.</p>
+<p>Jamf disclosed an ongoing cybersecurity incident involving Klue, a third-party vendor that Jamf uses for competitive intelligence services. The article states that the incident occurred within Klue’s environment. Through Klue’s integration, an unauthorized party gained access to data in Jamf’s Salesforce instance.</p>
 
-<p><mark class="tag-hl">Jamf</mark> said it published the update to maintain transparency and keep customers informed. The article includes the communication <mark class="tag-hl">Jamf</mark> shared with customers and says the company will continue updating the post as new information becomes available.</p>
+<p>Jamf said it published the update to maintain transparency and keep customers informed. The article includes the communication Jamf shared with customers and says the company will continue updating the post as new information becomes available.</p>
 
 <h2 id="affected-environment">Affected Environment</h2>
 
-<p>The incident is described as affecting <mark class="tag-hl">Jamf</mark>’s <mark class="tag-hl">Salesforce</mark> instance data through <mark class="tag-hl">Klue</mark>’s integration. <mark class="tag-hl">Jamf</mark> stated that the unauthorized access was tied to <mark class="tag-hl">Klue</mark>’s environment and <mark class="tag-hl">Klue</mark>’s integration with <mark class="tag-hl">Salesforce</mark>.</p>
+<p>The incident is described as affecting Jamf’s Salesforce instance data through Klue’s integration. Jamf stated that the unauthorized access was tied to Klue’s environment and Klue’s integration with Salesforce.</p>
 
-<p><mark class="tag-hl">Jamf</mark> specifically said the incident did not affect <mark class="tag-hl">Jamf</mark>’s products. The company also said there was no impact on its ability to serve customers.</p>
+<p>Jamf specifically said the incident did not affect Jamf’s products. The company also said there was no impact on its ability to serve customers.</p>
 
 <h2 id="known-technical-and-data-details">Known Technical and Data Details</h2>
 
-<p><mark class="tag-hl">Jamf</mark> said it has identified the timeline of unauthorized access to its <mark class="tag-hl">Salesforce</mark> environment. The company is conducting its own review to understand what data was impacted.</p>
+<p>Jamf said it has identified the timeline of unauthorized access to its Salesforce environment. The company is conducting its own review to understand what data was impacted.</p>
 
-<p>At the time of the article, the investigation was ongoing. <mark class="tag-hl">Jamf</mark> said it believes the impact was primarily limited to business data fields within the <mark class="tag-hl">Salesforce</mark> environment.</p>
+<p>At the time of the article, the investigation was ongoing. Jamf said it believes the impact was primarily limited to business data fields within the Salesforce environment.</p>
 
-<p>The article does not provide a list of specific data fields accessed. It also does not name the unauthorized party responsible for the <mark class="tag-hl">Klue</mark> incident.</p>
+<p>The article does not provide a list of specific data fields accessed. It also does not name the unauthorized party responsible for the Klue incident.</p>
 
-<h2 id="jamf-s-response"><mark class="tag-hl">Jamf</mark>’s Response</h2>
+<h2 id="jamf-s-response">Jamf’s Response</h2>
 
-<p>After receiving notice of the incident from <mark class="tag-hl">Klue</mark>, <mark class="tag-hl">Jamf</mark> said it immediately disabled <mark class="tag-hl">Klue</mark>’s integration within <mark class="tag-hl">Salesforce</mark>. <mark class="tag-hl">Jamf</mark> also stated that it has no evidence of lateral movement and has contained the incident on its end.</p>
+<p>After receiving notice of the incident from Klue, Jamf said it immediately disabled Klue’s integration within Salesforce. Jamf also stated that it has no evidence of lateral movement and has contained the incident on its end.</p>
 
-<p><mark class="tag-hl">Jamf</mark> described several additional response actions:</p>
+<p>Jamf described several additional response actions:</p>
 
 <ul>
 <li>It engaged cybersecurity experts to support its investigation.</li>
 <li>It took immediate defensive measures to protect its environment.</li>
 <li>It notified law enforcement.</li>
-<li>It remained in active communication with <mark class="tag-hl">Klue</mark>.</li>
-<li>It directed customers to the <mark class="tag-hl">Jamf</mark> blog post for future updates.</li>
+<li>It remained in active communication with Klue.</li>
+<li>It directed customers to the Jamf blog post for future updates.</li>
 </ul>
 
 <h2 id="customer-risk-and-recommended-caution">Customer Risk and Recommended Caution</h2>
 
-<p><mark class="tag-hl">Jamf</mark> warned that the unauthorized party responsible for the <mark class="tag-hl">Klue</mark> incident may conduct <mark class="tag-hl">phishing</mark> campaigns using contact information stored within <mark class="tag-hl">Salesforce</mark>. The company said these campaigns may involve impersonation of legitimate <mark class="tag-hl">Jamf</mark> employees or IT professionals.</p>
+<p>Jamf warned that the unauthorized party responsible for the Klue incident may conduct phishing campaigns using contact information stored within Salesforce. The company said these campaigns may involve impersonation of legitimate Jamf employees or IT professionals.</p>
 
-<p><mark class="tag-hl">Jamf</mark> encouraged customers to remain vigilant and exercise caution when sharing sensitive information or account credentials with unknown senders. It also advised customers to report suspicious email to their security team.</p>
+<p>Jamf encouraged customers to remain vigilant and exercise caution when sharing sensitive information or account credentials with unknown senders. It also advised customers to report suspicious email to their security team.</p>
 
 <h2 id="impact-statement">Impact Statement</h2>
 
-<p><mark class="tag-hl">Jamf</mark>’s central impact statement is that the incident did not affect <mark class="tag-hl">Jamf</mark>’s products and did not affect <mark class="tag-hl">Jamf</mark>’s ability to serve customers. The known affected area is <mark class="tag-hl">Jamf</mark>’s <mark class="tag-hl">Salesforce</mark> environment, accessed through <mark class="tag-hl">Klue</mark>’s integration.</p>
+<p>Jamf’s central impact statement is that the incident did not affect Jamf’s products and did not affect Jamf’s ability to serve customers. The known affected area is Jamf’s Salesforce environment, accessed through Klue’s integration.</p>
 
-<p><mark class="tag-hl">Jamf</mark> emphasized that its data-impact review is still underway. The company said it is treating the incident with seriousness and care and has dedicated expertise, time, and resources to the investigation.</p>
+<p>Jamf emphasized that its data-impact review is still underway. The company said it is treating the incident with seriousness and care and has dedicated expertise, time, and resources to the investigation.</p>
 </div></div>
-                <div id="insights-88728130e77311eeec68d2953a7365a6:88d1ed8cfe0347cf" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The access path was <mark class="tag-hl">Klue</mark>’s integration with <mark class="tag-hl">Jamf</mark>’s <mark class="tag-hl">Salesforce</mark> instance, not <mark class="tag-hl">Jamf</mark>’s own products, making the affected environment specifically <mark class="tag-hl">Jamf</mark>’s CRM data rather than its device management or security platforms.</span></li><li><span class="kp-text"><mark class="tag-hl">Jamf</mark>’s warning focuses on <mark class="tag-hl">phishing</mark> risk because the exposed <mark class="tag-hl">Salesforce</mark> data included contact information that could be used to make impersonation attempts appear legitimate.</span></li><li><span class="kp-text"><mark class="tag-hl">Jamf</mark> has not yet completed its data-impact review, so customers are being directed to monitor the <mark class="tag-hl">Jamf</mark> blog for updates as the investigation develops.</span></li></ul></div>
+                <div id="insights-d7ac475ccf3f29dcb55cf35b9f6b6f00:88d1ed8cfe0347cf" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The access path was Klue’s integration with Jamf’s Salesforce instance, not Jamf’s own products, making the affected environment specifically Jamf’s CRM data rather than its device management or security platforms.</span></li><li><span class="kp-text">Jamf’s warning focuses on phishing risk because the exposed Salesforce data included contact information that could be used to make impersonation attempts appear legitimate.</span></li><li><span class="kp-text">Jamf has not yet completed its data-impact review, so customers are being directed to monitor the Jamf blog for updates as the investigation develops.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Jamf</mark> said a cybersecurity incident at third-party vendor <mark class="tag-hl">Klue</mark> allowed an unauthorized party to access <mark class="tag-hl">Jamf</mark>’s <mark class="tag-hl">Salesforce</mark> instance data through <mark class="tag-hl">Klue</mark>’s integration.</span></li><li><span class="kp-text"><mark class="tag-hl">Jamf</mark> stated that the incident did not affect <mark class="tag-hl">Jamf</mark>’s products and did not impact its ability to serve customers.</span></li><li><span class="kp-text">After receiving notice from <mark class="tag-hl">Klue</mark>, <mark class="tag-hl">Jamf</mark> immediately disabled <mark class="tag-hl">Klue</mark>’s <mark class="tag-hl">Salesforce</mark> integration and said it has no evidence of lateral movement.</span></li><li><span class="kp-text"><mark class="tag-hl">Jamf</mark> engaged cybersecurity experts, notified law enforcement, and is reviewing what data was impacted.</span></li><li><span class="kp-text"><mark class="tag-hl">Jamf</mark> warned customers that the unauthorized party may use contact information stored in <mark class="tag-hl">Salesforce</mark> to conduct <mark class="tag-hl">phishing</mark> campaigns while posing as <mark class="tag-hl">Jamf</mark> employees or IT professionals.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Jamf said a cybersecurity incident at third-party vendor Klue allowed an unauthorized party to access Jamf’s Salesforce instance data through Klue’s integration.</span></li><li><span class="kp-text">Jamf stated that the incident did not affect Jamf’s products and did not impact its ability to serve customers.</span></li><li><span class="kp-text">After receiving notice from Klue, Jamf immediately disabled Klue’s Salesforce integration and said it has no evidence of lateral movement.</span></li><li><span class="kp-text">Jamf engaged cybersecurity experts, notified law enforcement, and is reviewing what data was impacted.</span></li><li><span class="kp-text">Jamf warned customers that the unauthorized party may use contact information stored in Salesforce to conduct phishing campaigns while posing as Jamf employees or IT professionals.</span></li></ul></div>
+            
             <a href="https://www.jamf.com/blog/klue-incident/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific third-party incident affecting <mark class="tag-hl">Jamf</mark> <mark class="tag-hl">Salesforce</mark> data via <mark class="tag-hl">Klue</mark>’s integration, with potential <mark class="tag-hl">phishing</mark> risk for customers. It is worth reading for security teams that use or interact with <mark class="tag-hl">Jamf</mark>, though the disclosed impact is currently limited to business data fields and does not affect <mark class="tag-hl">Jamf</mark> products.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific third-party incident affecting Jamf Salesforce data via Klue’s integration, with potential phishing risk for customers. It is worth reading for security teams that use or interact with Jamf, though the disclosed impact is currently limited to business data fields and does not affect Jamf products.</p>
 </div></div>
             
             
@@ -1732,42 +1888,42 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:40%"></div></div><span class="score-num score-num-low">40</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="804fc63e630aa5ae8876d035b1757a94:a608338bb9bf6cae">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-91fb0bbbe2d718ffe7e9a042e9e5cf94:a608338bb9bf6cae')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-91fb0bbbe2d718ffe7e9a042e9e5cf94:a608338bb9bf6cae')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-91fb0bbbe2d718ffe7e9a042e9e5cf94:a608338bb9bf6cae')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-91fb0bbbe2d718ffe7e9a042e9e5cf94:a608338bb9bf6cae')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-91fb0bbbe2d718ffe7e9a042e9e5cf94:a608338bb9bf6cae')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-804fc63e630aa5ae8876d035b1757a94:a608338bb9bf6cae')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-804fc63e630aa5ae8876d035b1757a94:a608338bb9bf6cae')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-804fc63e630aa5ae8876d035b1757a94:a608338bb9bf6cae')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-804fc63e630aa5ae8876d035b1757a94:a608338bb9bf6cae')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-804fc63e630aa5ae8876d035b1757a94:a608338bb9bf6cae')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-91fb0bbbe2d718ffe7e9a042e9e5cf94:a608338bb9bf6cae" class="tab-panel active"><div class="prose"><mark class="tag-hl">Cisco Talos</mark> argues that cybersecurity improvement depends less on simply giving people the right information and more on accounting for real-world constraints, behavior, and priorities. The practical takeaway is to focus on proven basics like MFA, patching, segmentation, backups, and validating controls rather than assuming awareness alone will drive action.</div></div>
-                <div id="brief-91fb0bbbe2d718ffe7e9a042e9e5cf94:a608338bb9bf6cae" class="tab-panel"><div class="prose"><p>The article is a <mark class="tag-hl">Cisco Talos</mark> Threat Source newsletter that uses the film <em>Disclosure Day</em> to discuss how people and organizations do not always respond rationally to important information. The author argues that knowing the right cybersecurity action is easier than finding the budget, time, urgency, and collective will to do it. The piece emphasizes familiar controls such as segmentation, backups, MFA, and verifying whether controls are working as intended.</p>
+                <div id="tldr-804fc63e630aa5ae8876d035b1757a94:a608338bb9bf6cae" class="tab-panel active"><div class="prose">Cisco Talos argues that cybersecurity improvement depends less on simply giving people the right information and more on accounting for real-world constraints, behavior, and priorities. The practical takeaway is to focus on proven basics like MFA, patching, segmentation, backups, and validating controls rather than assuming awareness alone will drive action.</div></div>
+                <div id="brief-804fc63e630aa5ae8876d035b1757a94:a608338bb9bf6cae" class="tab-panel"><div class="prose"><p>The article is a Cisco Talos Threat Source newsletter that uses the film <em>Disclosure Day</em> to discuss how people and organizations do not always respond rationally to important information. The author argues that knowing the right cybersecurity action is easier than finding the budget, time, urgency, and collective will to do it. The piece emphasizes familiar controls such as segmentation, backups, MFA, and verifying whether controls are working as intended.</p>
 
-<p>The newsletter’s main technical item highlights a <mark class="tag-hl">Cisco Talos</mark> approach to reverse engineering that pairs local AI agents with traditional analysis tools such as the VB6 disassembler <mark class="tag-hl">vbdec</mark>. In this approach, <mark class="tag-hl">vbdec</mark> exposes parsed data through a live Component Object Model interface so analysts can use natural language prompts to automate tasks such as decompiling functions or building call graphs. Talos says this keeps sensitive binaries on the analyst’s workstation while allowing agents to handle repeatable reverse engineering work.</p>
+<p>The newsletter’s main technical item highlights a Cisco Talos approach to reverse engineering that pairs local AI agents with traditional analysis tools such as the VB6 disassembler vbdec. In this approach, vbdec exposes parsed data through a live Component Object Model interface so analysts can use natural language prompts to automate tasks such as decompiling functions or building call graphs. Talos says this keeps sensitive binaries on the analyst’s workstation while allowing agents to handle repeatable reverse engineering work.</p>
 
-<p>The article also summarizes several security headlines, including <mark class="tag-hl">ShinyHunters</mark> claiming a <mark class="tag-hl">Council of Europe</mark> hack, a <mark class="tag-hl">credential-harvesting</mark> campaign affecting more than 30,000 <mark class="tag-hl">Fortinet</mark> devices, and <mark class="tag-hl">Phantom Stealer</mark> targeting browser credentials. It notes a <mark class="tag-hl">FIFA</mark> World Cup internal system flaw that allowed a researcher to access platforms and control TV streams, and it describes the <mark class="tag-hl">FBI</mark>’s Kinetic Cyber Range as a purpose-built town for simulating real-world cyberattacks. The newsletter closes with Talos content, upcoming <mark class="tag-hl">Black Hat USA</mark> and <mark class="tag-hl">DEF CON</mark> 34 events, and prevalent malware files from Talos telemetry.</p>
+<p>The article also summarizes several security headlines, including ShinyHunters claiming a Council of Europe hack, a credential-harvesting campaign affecting more than 30,000 Fortinet devices, and Phantom Stealer targeting browser credentials. It notes a FIFA World Cup internal system flaw that allowed a researcher to access platforms and control TV streams, and it describes the FBI’s Kinetic Cyber Range as a purpose-built town for simulating real-world cyberattacks. The newsletter closes with Talos content, upcoming Black Hat USA and DEF CON 34 events, and prevalent malware files from Talos telemetry.</p>
 </div></div>
-                <div id="standard-91fb0bbbe2d718ffe7e9a042e9e5cf94:a608338bb9bf6cae" class="tab-panel"><div class="prose"><p>This <mark class="tag-hl">Cisco Talos</mark> Threat Source newsletter opens with commentary on human decision-making in cybersecurity, framed through the author’s reaction to Steven Spielberg’s fictional film <em>Disclosure Day</em>. The author focuses on the idea that people may not react to world-changing information in predictable ways, even when historical data suggests they might. The same theme is applied to cybersecurity, where organizations know they should patch, people know they should use MFA, and leaders know they should practice incidents before they happen.</p>
+                <div id="standard-804fc63e630aa5ae8876d035b1757a94:a608338bb9bf6cae" class="tab-panel"><div class="prose"><p>This Cisco Talos Threat Source newsletter opens with commentary on human decision-making in cybersecurity, framed through the author’s reaction to Steven Spielberg’s fictional film <em>Disclosure Day</em>. The author focuses on the idea that people may not react to world-changing information in predictable ways, even when historical data suggests they might. The same theme is applied to cybersecurity, where organizations know they should patch, people know they should use MFA, and leaders know they should practice incidents before they happen.</p>
 
 <p>The author argues that information alone is only one part of the puzzle because real-world decisions are shaped by limited budgets, workloads, competing business priorities, and many other pressures. The piece says many of the controls most likely to protect organizations remain the same ones defenders have discussed for years. These include segmentation, backups, MFA everywhere, and understanding whether controls are performing as expected.</p>
 
-<p>The newsletter’s “one big thing” covers a <mark class="tag-hl">Cisco Talos</mark> technical approach to reverse engineering that pairs local AI agents with traditional tools such as the VB6 disassembler <mark class="tag-hl">vbdec</mark>. Instead of bolting AI directly onto software, <mark class="tag-hl">vbdec</mark> exposes its parsed data through a live Component Object Model interface. Analysts can then use natural language prompts to automate complex tasks including decompiling functions and building call graphs, turning the disassembler into a queryable data server.</p>
+<p>The newsletter’s “one big thing” covers a Cisco Talos technical approach to reverse engineering that pairs local AI agents with traditional tools such as the VB6 disassembler vbdec. Instead of bolting AI directly onto software, vbdec exposes its parsed data through a live Component Object Model interface. Analysts can then use natural language prompts to automate complex tasks including decompiling functions and building call graphs, turning the disassembler into a queryable data server.</p>
 
 <p>Talos presents the approach as useful because it lets analysts generate custom workflows without waiting for new vendor features. The article also says it addresses a privacy issue because the AI agent and disassembler operate on the same local machine, so sensitive binaries never leave the workstation. Tool developers are encouraged to expose application data through external scripting interfaces such as COM or other inter-process communication protocols.</p>
 
-<p>The newsletter also lists top security headlines from the week. <mark class="tag-hl">ShinyHunters</mark> claimed a <mark class="tag-hl">Council of Europe</mark> hack and threatened to release more than 297GB of allegedly stolen data, while a large <mark class="tag-hl">credential-harvesting</mark> operation reportedly compromised more than 30,000 internet-facing <mark class="tag-hl">Fortinet</mark> firewalls and VPN gateways across nearly 200 countries. Other headlines mention Fileless <mark class="tag-hl">Phantom Stealer</mark> targeting browser credentials, a <mark class="tag-hl">FIFA</mark> World Cup internal system flaw that allowed a researcher to control TV streams, and the <mark class="tag-hl">FBI</mark>’s Kinetic Cyber Range.</p>
+<p>The newsletter also lists top security headlines from the week. ShinyHunters claimed a Council of Europe hack and threatened to release more than 297GB of allegedly stolen data, while a large credential-harvesting operation reportedly compromised more than 30,000 internet-facing Fortinet firewalls and VPN gateways across nearly 200 countries. Other headlines mention Fileless Phantom Stealer targeting browser credentials, a FIFA World Cup internal system flaw that allowed a researcher to control TV streams, and the FBI’s Kinetic Cyber Range.</p>
 
-<p>Additional Talos content includes a Talos Takes episode on patching in complex environments, a post about <mark class="tag-hl">Cisco Talos</mark> Threat Hunting, and an interview with Tony Giandomenico. The newsletter lists upcoming appearances at <mark class="tag-hl">Black Hat USA</mark> and <mark class="tag-hl">DEF CON</mark> 34 in Las Vegas. It also provides Talos telemetry entries for prevalent malware files, including SHA256 hashes, MD5 hashes, example filenames, reputation links, and detection names.</p>
+<p>Additional Talos content includes a Talos Takes episode on patching in complex environments, a post about Cisco Talos Threat Hunting, and an interview with Tony Giandomenico. The newsletter lists upcoming appearances at Black Hat USA and DEF CON 34 in Las Vegas. It also provides Talos telemetry entries for prevalent malware files, including SHA256 hashes, MD5 hashes, example filenames, reputation links, and detection names.</p>
 </div></div>
-                <div id="comprehensive-91fb0bbbe2d718ffe7e9a042e9e5cf94:a608338bb9bf6cae" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-804fc63e630aa5ae8876d035b1757a94:a608338bb9bf6cae" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>This article is a <mark class="tag-hl">Cisco Talos</mark> Threat Source newsletter titled “Close Encounters of the Human Kind.” It combines cybersecurity commentary, a highlighted Talos technical item, weekly security headlines, links to additional Talos content, upcoming event listings, and recent malware telemetry.</p>
+<p>This article is a Cisco Talos Threat Source newsletter titled “Close Encounters of the Human Kind.” It combines cybersecurity commentary, a highlighted Talos technical item, weekly security headlines, links to additional Talos content, upcoming event listings, and recent malware telemetry.</p>
 
 <p>The central commentary uses the film <em>Disclosure Day</em> as a framing device for discussing how people respond to important information. The author says the film includes a theme in which a group of people, described as “the government,” believes it can predict humanity’s reaction to world-changing information based on historical data patterns.</p>
 
@@ -1792,9 +1948,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="the-one-big-thing-local-ai-agents-for-reverse-engineering">The One Big Thing: Local AI Agents for Reverse Engineering</h2>
 
-<p>The newsletter’s main technical item describes a <mark class="tag-hl">Cisco Talos</mark> approach to reverse engineering that pairs local AI agents with traditional analysis tools. The example tool discussed is the VB6 disassembler <mark class="tag-hl">vbdec</mark>.</p>
+<p>The newsletter’s main technical item describes a Cisco Talos approach to reverse engineering that pairs local AI agents with traditional analysis tools. The example tool discussed is the VB6 disassembler vbdec.</p>
 
-<p>The article says the approach avoids awkwardly bolting AI onto the software. Instead, <mark class="tag-hl">vbdec</mark> exposes its parsed data through a live Component Object Model interface.</p>
+<p>The article says the approach avoids awkwardly bolting AI onto the software. Instead, vbdec exposes its parsed data through a live Component Object Model interface.</p>
 
 <p>This allows analysts to use natural language prompts to automate complex reverse engineering tasks. The examples given in the article include:</p>
 
@@ -1805,7 +1961,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The newsletter describes this as transforming the disassembler from a static viewer into an interactive, queryable data server.</p>
 
-<h2 id="significance-of-the-vbdec-approach">Significance of the <mark class="tag-hl">vbdec</mark> Approach</h2>
+<h2 id="significance-of-the-vbdec-approach">Significance of the vbdec Approach</h2>
 
 <p>The article says the methodology lets analysts generate custom workflows on the fly. It also says analysts can bypass waiting for vendors to add new features.</p>
 
@@ -1820,7 +1976,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <ul>
 <li>Tool developers should expose application data through external scripting interfaces.</li>
 <li>Suggested mechanisms include COM or other inter-process communication protocols.</li>
-<li>Analysts working with VB6 binaries should enable remote scripting in <mark class="tag-hl">vbdec</mark>.</li>
+<li>Analysts working with VB6 binaries should enable remote scripting in vbdec.</li>
 <li>Analysts should point a preferred local AI agent at the provided operator briefing.</li>
 <li>Security teams should let agents handle exhaustive, repeatable grunt work while analysts focus on analysis.</li>
 </ul>
@@ -1829,25 +1985,25 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article summarizes several security headlines from other publications.</p>
 
-<h3 id="shinyhunters-and-the-council-of-europe"><mark class="tag-hl">ShinyHunters</mark> and the <mark class="tag-hl">Council of Europe</mark></h3>
+<h3 id="shinyhunters-and-the-council-of-europe">ShinyHunters and the Council of Europe</h3>
 
-<p>The newsletter says <mark class="tag-hl">ShinyHunters</mark> added the <mark class="tag-hl">Council of Europe</mark> to its Tor-based leak site. According to the article, the group threatened to release more than 297GB of data allegedly stolen from the organization’s network.</p>
+<p>The newsletter says ShinyHunters added the Council of Europe to its Tor-based leak site. According to the article, the group threatened to release more than 297GB of data allegedly stolen from the organization’s network.</p>
 
-<h3 id="fortinet-credential-harvesting-operation"><mark class="tag-hl">Fortinet</mark> <mark class="tag-hl">Credential-Harvesting</mark> Operation</h3>
+<h3 id="fortinet-credential-harvesting-operation">Fortinet Credential-Harvesting Operation</h3>
 
-<p>The article says a large-scale cyber espionage and <mark class="tag-hl">credential-harvesting</mark> operation is actively targeting <mark class="tag-hl">Fortinet</mark> firewalls and VPN gateways. It states that the operation has already compromised more than 30,000 internet-facing devices across nearly 200 countries.</p>
+<p>The article says a large-scale cyber espionage and credential-harvesting operation is actively targeting Fortinet firewalls and VPN gateways. It states that the operation has already compromised more than 30,000 internet-facing devices across nearly 200 countries.</p>
 
-<h3 id="fileless-phantom-stealer">Fileless <mark class="tag-hl">Phantom Stealer</mark></h3>
+<h3 id="fileless-phantom-stealer">Fileless Phantom Stealer</h3>
 
-<p>The newsletter says Fileless <mark class="tag-hl">Phantom Stealer</mark> targets browser credentials. It also states that the malware executes entirely in memory and uses anti-analysis techniques designed to evade detection.</p>
+<p>The newsletter says Fileless Phantom Stealer targets browser credentials. It also states that the malware executes entirely in memory and uses anti-analysis techniques designed to evade detection.</p>
 
-<h3 id="fifa-world-cup-internal-system-flaw"><mark class="tag-hl">FIFA</mark> World Cup Internal System Flaw</h3>
+<h3 id="fifa-world-cup-internal-system-flaw">FIFA World Cup Internal System Flaw</h3>
 
-<p>The article says a security researcher reported access to several internal <mark class="tag-hl">FIFA</mark> platforms because of a simple security flaw. According to the newsletter, the flaw allowed the researcher to watch and have full control of the TV stream of every World Cup game.</p>
+<p>The article says a security researcher reported access to several internal FIFA platforms because of a simple security flaw. According to the newsletter, the flaw allowed the researcher to watch and have full control of the TV stream of every World Cup game.</p>
 
-<h3 id="fbi-kinetic-cyber-range"><mark class="tag-hl">FBI</mark> Kinetic Cyber Range</h3>
+<h3 id="fbi-kinetic-cyber-range">FBI Kinetic Cyber Range</h3>
 
-<p>The newsletter says the <mark class="tag-hl">FBI</mark> built a replica small town called the Kinetic Cyber Range to simulate real-world cyberattacks. It states that the range opened in February 2025 and includes furnished houses, a hotel, a gas station and grocery mart, a courthouse, a hospital, roads, traffic lights, and a power company designed to mimic a real U.S. community.</p>
+<p>The newsletter says the FBI built a replica small town called the Kinetic Cyber Range to simulate real-world cyberattacks. It states that the range opened in February 2025 and includes furnished houses, a hotel, a gas station and grocery mart, a courthouse, a hospital, roads, traffic lights, and a power company designed to mimic a real U.S. community.</p>
 
 <h2 id="additional-talos-content-highlighted">Additional Talos Content Highlighted</h2>
 
@@ -1857,21 +2013,21 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article links to a Talos Takes episode titled “Patching in the dark: Managing unknown threats in complex environments.” It says the episode explores the logistical, technical, and business realities that make patching more complex than a simple button click.</p>
 
-<h3 id="cisco-talos-threat-hunting"><mark class="tag-hl">Cisco Talos</mark> Threat Hunting</h3>
+<h3 id="cisco-talos-threat-hunting">Cisco Talos Threat Hunting</h3>
 
-<p>The newsletter links to “Hypotheses, telemetry, and human judgment: Inside <mark class="tag-hl">Cisco Talos</mark> Threat Hunting.” It describes the piece as explaining how <mark class="tag-hl">Cisco Talos</mark> Threat Hunting uses hypothesis-driven methods and multi-domain telemetry correlation to find stealthy threats operating below automated detection thresholds.</p>
+<p>The newsletter links to “Hypotheses, telemetry, and human judgment: Inside Cisco Talos Threat Hunting.” It describes the piece as explaining how Cisco Talos Threat Hunting uses hypothesis-driven methods and multi-domain telemetry correlation to find stealthy threats operating below automated detection thresholds.</p>
 
 <h3 id="winning-the-cyber-marathon">Winning the Cyber Marathon</h3>
 
-<p>The newsletter links to “Winning the cyber marathon with Tony Giandomenico.” It says Tony Giandomenico, Senior Director of Product Management with <mark class="tag-hl">Cisco Talos</mark>, discusses Talos Threat Hunting, the challenges of leading major product launches, and Ironman triathlons.</p>
+<p>The newsletter links to “Winning the cyber marathon with Tony Giandomenico.” It says Tony Giandomenico, Senior Director of Product Management with Cisco Talos, discusses Talos Threat Hunting, the challenges of leading major product launches, and Ironman triathlons.</p>
 
 <h2 id="upcoming-events">Upcoming Events</h2>
 
 <p>The article lists two upcoming events where readers can find Talos:</p>
 
 <ul>
-<li><mark class="tag-hl">Black Hat USA</mark>, Aug. 1–6, in Las Vegas, Nevada.</li>
-<li><mark class="tag-hl">DEF CON</mark> 34, Aug. 6–9, in Las Vegas, Nevada.</li>
+<li>Black Hat USA, Aug. 1–6, in Las Vegas, Nevada.</li>
+<li>DEF CON 34, Aug. 6–9, in Las Vegas, Nevada.</li>
 </ul>
 
 <h2 id="malware-telemetry-listed-by-talos">Malware Telemetry Listed by Talos</h2>
@@ -1891,10 +2047,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article’s main takeaway is that cybersecurity outcomes depend not only on giving people accurate information but also on understanding how people and organizations actually make decisions. It pairs that behavioral message with a technical example of using local AI agents and exposed tool data to automate reverse engineering while keeping sensitive binaries on the workstation.</p>
 </div></div>
-                <div id="insights-91fb0bbbe2d718ffe7e9a042e9e5cf94:a608338bb9bf6cae" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Security teams should account for organizational friction such as limited budgets, workloads, and competing priorities when trying to drive adoption of controls like MFA, patching, backups, and segmentation.</span></li><li><span class="kp-text">The article frames local AI-assisted reverse engineering as a privacy-preserving model because the AI agent and disassembler operate on the same machine and sensitive binaries do not leave the analyst’s workstation.</span></li><li><span class="kp-text">Tool developers can make existing GUI-based analysis tools more useful for agentic automation by exposing structured application data through external scripting interfaces such as COM or other IPC protocols.</span></li><li><span class="kp-text">Analysts using <mark class="tag-hl">vbdec</mark> can bypass waiting for vendor-built features by using natural language prompts to create custom reverse engineering workflows on demand.</span></li></ul></div>
+                <div id="insights-804fc63e630aa5ae8876d035b1757a94:a608338bb9bf6cae" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Security teams should account for organizational friction such as limited budgets, workloads, and competing priorities when trying to drive adoption of controls like MFA, patching, backups, and segmentation.</span></li><li><span class="kp-text">The article frames local AI-assisted reverse engineering as a privacy-preserving model because the AI agent and disassembler operate on the same machine and sensitive binaries do not leave the analyst’s workstation.</span></li><li><span class="kp-text">Tool developers can make existing GUI-based analysis tools more useful for agentic automation by exposing structured application data through external scripting interfaces such as COM or other IPC protocols.</span></li><li><span class="kp-text">Analysts using vbdec can bypass waiting for vendor-built features by using natural language prompts to create custom reverse engineering workflows on demand.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The article argues that having the right security information does not necessarily cause people or organizations to take the right actions because decisions are shaped by budgets, workloads, priorities, and other constraints.</span></li><li><span class="kp-text">The author highlights longstanding security controls such as segmentation, backups, MFA, and validation that controls are working as important protections for organizations.</span></li><li><span class="kp-text"><mark class="tag-hl">Cisco Talos</mark> described a reverse engineering approach that pairs local AI agents with tools such as the VB6 disassembler <mark class="tag-hl">vbdec</mark> through a live COM interface.</span></li><li><span class="kp-text">The <mark class="tag-hl">vbdec</mark> approach allows analysts to use natural language prompts to automate tasks such as decompiling functions and building call graphs while keeping sensitive binaries on the local workstation.</span></li><li><span class="kp-text">The newsletter summarizes security headlines including <mark class="tag-hl">ShinyHunters</mark> claiming a <mark class="tag-hl">Council of Europe</mark> hack, a <mark class="tag-hl">credential-harvesting</mark> operation affecting more than 30,000 <mark class="tag-hl">Fortinet</mark> devices, and <mark class="tag-hl">Phantom Stealer</mark> targeting browser credentials.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The article argues that having the right security information does not necessarily cause people or organizations to take the right actions because decisions are shaped by budgets, workloads, priorities, and other constraints.</span></li><li><span class="kp-text">The author highlights longstanding security controls such as segmentation, backups, MFA, and validation that controls are working as important protections for organizations.</span></li><li><span class="kp-text">Cisco Talos described a reverse engineering approach that pairs local AI agents with tools such as the VB6 disassembler vbdec through a live COM interface.</span></li><li><span class="kp-text">The vbdec approach allows analysts to use natural language prompts to automate tasks such as decompiling functions and building call graphs while keeping sensitive binaries on the local workstation.</span></li><li><span class="kp-text">The newsletter summarizes security headlines including ShinyHunters claiming a Council of Europe hack, a credential-harvesting operation affecting more than 30,000 Fortinet devices, and Phantom Stealer targeting browser credentials.</span></li></ul></div>
+            
             <a href="https://blog.talosintelligence.com/close-encounters-of-the-human-kind/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a weekly newsletter/roundup that combines commentary, a highlighted Talos item, security headlines, event listings, and malware telemetry rather than focusing on a single concrete incident. Per the scoring rules, aggregator or summary pieces receive a score of exactly 40.</p>
 </div></div>
@@ -1927,11 +2084,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Microsoft 365 Identity Abuse and SaaS Supply-Chain Exposure</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Mitiga</mark> detailed an attempted <mark class="tag-hl">business email compromise</mark> campaign against a <mark class="tag-hl">Microsoft 365</mark> organization in which an executive account was accessed from multiple geographic locations, including <mark class="tag-hl">Singapore</mark>, Dubai, and San Jose, California. The initial compromise used an <mark class="tag-hl">adversary-in-the-middle</mark> <mark class="tag-hl">phishing</mark> technique that gave the attacker access to the executive’s account and mailbox.</p>
+        <div class="overview-body prose"><p>Mitiga detailed an attempted business email compromise campaign against a Microsoft 365 organization in which an executive account was accessed from multiple geographic locations, including Singapore, Dubai, and San Jose, California. The initial compromise used an adversary-in-the-middle phishing technique that gave the attacker access to the executive’s account and mailbox.</p>
 
-<p>The notable persistence mechanism was the registration of a second <mark class="tag-hl">Microsoft Authenticator</mark> app for the compromised user. <mark class="tag-hl">Mitiga</mark> reported that <mark class="tag-hl">Microsoft 365</mark> did not require an MFA re-challenge when authentication methods were changed in the Security Info section if the existing session token had already satisfied MFA, allowing the attacker to weaken the account’s effective protection after initial access.</p>
+<p>The notable persistence mechanism was the registration of a second Microsoft Authenticator app for the compromised user. Mitiga reported that Microsoft 365 did not require an MFA re-challenge when authentication methods were changed in the Security Info section if the existing session token had already satisfied MFA, allowing the attacker to weaken the account’s effective protection after initial access.</p>
 
-<p><mark class="tag-hl">Jamf</mark> separately disclosed that a cybersecurity incident at third-party vendor <mark class="tag-hl">Klue</mark> allowed an unauthorized party to access data in <mark class="tag-hl">Jamf</mark>’s <mark class="tag-hl">Salesforce</mark> instance through <mark class="tag-hl">Klue</mark>’s integration. <mark class="tag-hl">Jamf</mark> said its products and customer service operations were not affected, that it disabled the integration after notification, and that it had no evidence of lateral movement. The company warned that contact information stored in <mark class="tag-hl">Salesforce</mark> could be used in <mark class="tag-hl">phishing</mark> campaigns impersonating <mark class="tag-hl">Jamf</mark> employees or IT professionals.</p>
+<p>Jamf separately disclosed that a cybersecurity incident at third-party vendor Klue allowed an unauthorized party to access data in Jamf’s Salesforce instance through Klue’s integration. Jamf said its products and customer service operations were not affected, that it disabled the integration after notification, and that it had no evidence of lateral movement. The company warned that contact information stored in Salesforce could be used in phishing campaigns impersonating Jamf employees or IT professionals.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r overview-cell-border-b">
         <div class="overview-cell-head">
@@ -1940,16 +2097,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
         </div>
         <div class="overview-body prose"><p>Cisco Talos used its newsletter to emphasize that possession of accurate security information does not reliably translate into secure decisions. The article framed security behavior as a human and organizational problem shaped by budgets, workloads, priorities, and operational constraints, even when established controls such as segmentation, backups, MFA, and control validation are well understood.</p>
 
-<p>The same Talos roundup referenced several credential- and access-focused security headlines, including ShinyHunters claiming a Council of Europe compromise, a credential-harvesting operation affecting more than 30,000 Fortinet devices, and Phantom Stealer activity targeting browser credentials. Together with the <mark class="tag-hl">Mitiga</mark> and <mark class="tag-hl">Jamf</mark> items, these reports show continued attacker focus on identity systems, browser-stored secrets, SaaS data stores, and post-compromise opportunities for <mark class="tag-hl">phishing</mark> or persistence.</p>
+<p>The same Talos roundup referenced several credential- and access-focused security headlines, including ShinyHunters claiming a Council of Europe compromise, a credential-harvesting operation affecting more than 30,000 Fortinet devices, and Phantom Stealer activity targeting browser credentials. Together with the Mitiga and Jamf items, these reports show continued attacker focus on identity systems, browser-stored secrets, SaaS data stores, and post-compromise opportunities for phishing or persistence.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">03</span>
           <span class="overview-title">Surveillance Technology Exports and Dual-Use Controls</span>
         </div>
-        <div class="overview-body prose"><p>The Record reported on Human Rights Watch findings that <mark class="tag-hl">Bulgaria</mark> approved export licenses from 2018 through 2023 allowing surveillance firm Circles to sell products to law enforcement and intelligence agencies in countries described as repressive. Approved destinations reportedly included <mark class="tag-hl">El Salvador</mark>, the <mark class="tag-hl">United Arab Emirates</mark>, <mark class="tag-hl">Serbia</mark>, <mark class="tag-hl">Azerbaijan</mark>, <mark class="tag-hl">Guatemala</mark>, <mark class="tag-hl">Bahrain</mark>, <mark class="tag-hl">Jordan</mark>, <mark class="tag-hl">Malaysia</mark>, <mark class="tag-hl">Morocco</mark>, and <mark class="tag-hl">Panama</mark>.</p>
+        <div class="overview-body prose"><p>The Record reported on Human Rights Watch findings that Bulgaria approved export licenses from 2018 through 2023 allowing surveillance firm Circles to sell products to law enforcement and intelligence agencies in countries described as repressive. Approved destinations reportedly included El Salvador, the United Arab Emirates, Serbia, Azerbaijan, Guatemala, Bahrain, Jordan, Malaysia, Morocco, and Panama.</p>
 
-<p>The tools identified in the report included <mark class="tag-hl">Pixcell</mark>, which can capture internet data, phone calls, and messages; <mark class="tag-hl">Landmark</mark>, which can geolocate mobile phones in real time; and <mark class="tag-hl">Voice Over Location Enabler</mark> software, which can remotely intercept incoming and outgoing voice calls using the SS7 protocol. Human Rights Watch said the records cast the <mark class="tag-hl">European Union</mark>’s export control regime in a harsh light, while <mark class="tag-hl">Bulgaria</mark> stated that exports contradicting national, European, and international commitments are not allowed. The European Commission said member states remain responsible for dual-use export licensing decisions.</p>
+<p>The tools identified in the report included Pixcell, which can capture internet data, phone calls, and messages; Landmark, which can geolocate mobile phones in real time; and Voice Over Location Enabler software, which can remotely intercept incoming and outgoing voice calls using the SS7 protocol. Human Rights Watch said the records cast the European Union’s export control regime in a harsh light, while Bulgaria stated that exports contradicting national, European, and international commitments are not allowed. The European Commission said member states remain responsible for dual-use export licensing decisions.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
@@ -1967,9 +2124,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-18 18:00 UTC · 4 hours window</span>
-  <span class="footer-right">4 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">4 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1982,15 +2142,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2103,12 +2325,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2169,6 +2425,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

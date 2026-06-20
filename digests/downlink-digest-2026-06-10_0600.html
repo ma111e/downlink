@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,117 +1506,118 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:95%"></div></div><span class="score-num score-num-high">95</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:0bd077c4430cf262">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:0bd077c4430cf262')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:0bd077c4430cf262')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:0bd077c4430cf262')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:0bd077c4430cf262')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:0bd077c4430cf262')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:0bd077c4430cf262')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:0bd077c4430cf262')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:0bd077c4430cf262')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:0bd077c4430cf262')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:0bd077c4430cf262')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:0bd077c4430cf262" class="tab-panel active"><div class="prose"><mark class="tag-hl">Microsoft</mark>’s June 2026 Patch Tuesday fixes three publicly disclosed Windows zero-days, including two <mark class="tag-hl">local privilege escalation</mark> flaws that grant SYSTEM access and a <mark class="tag-hl">BitLocker bypass</mark> affecting WinRE. Users should apply the updates promptly, especially on <mark class="tag-hl">Windows 11</mark> and Windows Server systems exposed to physical access risks.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:0bd077c4430cf262" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark> patched three zero-day vulnerabilities in its June 2026 Patch Tuesday updates: <mark class="tag-hl">GreenPlasma</mark>, <mark class="tag-hl">MiniPlasma</mark>, and <mark class="tag-hl">YellowKey</mark>. Two of the flaws can let local attackers gain SYSTEM privileges on fully patched Windows systems. The third can grant access to <mark class="tag-hl">BitLocker</mark>-protected drives under specific physical-access conditions.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:0bd077c4430cf262" class="tab-panel active"><div class="prose">Microsoft’s June 2026 Patch Tuesday fixes three publicly disclosed Windows zero-days, including two local privilege escalation flaws that grant SYSTEM access and a BitLocker bypass affecting WinRE. Users should apply the updates promptly, especially on Windows 11 and Windows Server systems exposed to physical access risks.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:0bd077c4430cf262" class="tab-panel"><div class="prose"><p>Microsoft patched three zero-day vulnerabilities in its June 2026 Patch Tuesday updates: GreenPlasma, MiniPlasma, and YellowKey. Two of the flaws can let local attackers gain SYSTEM privileges on fully patched Windows systems. The third can grant access to BitLocker-protected drives under specific physical-access conditions.</p>
 
-<p><mark class="tag-hl">GreenPlasma</mark> and <mark class="tag-hl">MiniPlasma</mark> are tracked as <mark class="tag-hl">CVE-2026-45586</mark> and CVE-2020-17103 and affect the Collaborative Translation Framework and the Cloud Files Mini Filter Driver. <mark class="tag-hl">YellowKey</mark>, tracked as <mark class="tag-hl">CVE-2026-45585</mark>, is described as a backdoor in the <mark class="tag-hl">Windows Recovery Environment</mark>. Attackers with physical access can use <mark class="tag-hl">YellowKey</mark> to bypass <mark class="tag-hl">BitLocker</mark> protection on unpatched <mark class="tag-hl">Windows 11</mark> and Windows Server <sup>2022</sup>&frasl;<sub>2025</sub> systems.</p>
+<p>GreenPlasma and MiniPlasma are tracked as CVE-2026-45586 and CVE-2020-17103 and affect the Collaborative Translation Framework and the Cloud Files Mini Filter Driver. YellowKey, tracked as CVE-2026-45585, is described as a backdoor in the Windows Recovery Environment. Attackers with physical access can use YellowKey to bypass BitLocker protection on unpatched Windows 11 and Windows Server <sup>2022</sup>&frasl;<sub>2025</sub> systems.</p>
 
-<p>The vulnerabilities were disclosed by a researcher using the handle <mark class="tag-hl">Nightmare Eclipse</mark>, who released them in protest over <mark class="tag-hl">Microsoft Security Response Center</mark> disclosure practices. <mark class="tag-hl">Microsoft</mark> said the <mark class="tag-hl">YellowKey</mark> proof-of-concept was made public in violation of coordinated vulnerability best practices. The article also notes that <mark class="tag-hl">Nightmare Eclipse</mark> has leaked other Windows zero-days, including some now actively exploited in attacks.</p>
+<p>The vulnerabilities were disclosed by a researcher using the handle Nightmare Eclipse, who released them in protest over Microsoft Security Response Center disclosure practices. Microsoft said the YellowKey proof-of-concept was made public in violation of coordinated vulnerability best practices. The article also notes that Nightmare Eclipse has leaked other Windows zero-days, including some now actively exploited in attacks.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:0bd077c4430cf262" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Microsoft</mark>’s June 2026 Patch Tuesday updates fixed three Windows zero-days known as <mark class="tag-hl">GreenPlasma</mark>, <mark class="tag-hl">MiniPlasma</mark>, and <mark class="tag-hl">YellowKey</mark>. The first two allow local attackers to gain SYSTEM privileges on fully patched Windows systems. The third affects <mark class="tag-hl">BitLocker</mark> protection through the <mark class="tag-hl">Windows Recovery Environment</mark>.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:0bd077c4430cf262" class="tab-panel"><div class="prose"><p>Microsoft’s June 2026 Patch Tuesday updates fixed three Windows zero-days known as GreenPlasma, MiniPlasma, and YellowKey. The first two allow local attackers to gain SYSTEM privileges on fully patched Windows systems. The third affects BitLocker protection through the Windows Recovery Environment.</p>
 
-<p><mark class="tag-hl">GreenPlasma</mark> and <mark class="tag-hl">MiniPlasma</mark> are privilege escalation vulnerabilities tracked as <mark class="tag-hl">CVE-2026-45586</mark> and CVE-2020-17103. They were found in the Collaborative Translation Framework, also referenced as CTFMON, and the Cloud Files Mini Filter Driver. The article states that they allow local attackers to obtain a shell with SYSTEM permissions.</p>
+<p>GreenPlasma and MiniPlasma are privilege escalation vulnerabilities tracked as CVE-2026-45586 and CVE-2020-17103. They were found in the Collaborative Translation Framework, also referenced as CTFMON, and the Cloud Files Mini Filter Driver. The article states that they allow local attackers to obtain a shell with SYSTEM permissions.</p>
 
-<p><mark class="tag-hl">YellowKey</mark> is tracked as <mark class="tag-hl">CVE-2026-45585</mark> and is described as a backdoor in the <mark class="tag-hl">Windows Recovery Environment</mark>, which is used to repair boot-related issues in Windows. Attackers with physical access to targeted devices can use a <mark class="tag-hl">YellowKey</mark> exploit to bypass <mark class="tag-hl">BitLocker</mark> protection. The affected unpatched systems named in the article are <mark class="tag-hl">Windows 11</mark> and Windows Server <sup>2022</sup>&frasl;<sub>2025</sub>.</p>
+<p>YellowKey is tracked as CVE-2026-45585 and is described as a backdoor in the Windows Recovery Environment, which is used to repair boot-related issues in Windows. Attackers with physical access to targeted devices can use a YellowKey exploit to bypass BitLocker protection. The affected unpatched systems named in the article are Windows 11 and Windows Server <sup>2022</sup>&frasl;<sub>2025</sub>.</p>
 
-<p>All three flaws were disclosed by a security researcher using the handle <mark class="tag-hl">Nightmare Eclipse</mark>. The article says the disclosure was made in protest over how the <mark class="tag-hl">Microsoft Security Response Center</mark> handles the disclosure process. <mark class="tag-hl">Microsoft</mark> shared mitigation measures for <mark class="tag-hl">YellowKey</mark> and said the proof-of-concept had been made public in violation of coordinated vulnerability best practices.</p>
+<p>All three flaws were disclosed by a security researcher using the handle Nightmare Eclipse. The article says the disclosure was made in protest over how the Microsoft Security Response Center handles the disclosure process. Microsoft shared mitigation measures for YellowKey and said the proof-of-concept had been made public in violation of coordinated vulnerability best practices.</p>
 
-<p>The article places these disclosures in a broader pattern of zero-day leaks by <mark class="tag-hl">Nightmare Eclipse</mark>. It says the researcher previously released proof-of-concept exploits for BlueHammer and RedSun, two <mark class="tag-hl">local privilege escalation</mark> zero-days that are now actively exploited in attacks. It also mentions later leaks called UnDefend and RoguePlanet, including a <mark class="tag-hl">Microsoft</mark> Defender zero-day that can spawn command prompts with SYSTEM privileges.</p>
+<p>The article places these disclosures in a broader pattern of zero-day leaks by Nightmare Eclipse. It says the researcher previously released proof-of-concept exploits for BlueHammer and RedSun, two local privilege escalation zero-days that are now actively exploited in attacks. It also mentions later leaks called UnDefend and RoguePlanet, including a Microsoft Defender zero-day that can spawn command prompts with SYSTEM privileges.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> initially responded to the zero-day leaks with threats of legal action, according to the article. It later backtracked after significant social media criticism. <mark class="tag-hl">Microsoft</mark> then said it would work with law enforcement when security researchers break the law and engage in malicious activity causing real harm to customers.</p>
+<p>Microsoft initially responded to the zero-day leaks with threats of legal action, according to the article. It later backtracked after significant social media criticism. Microsoft then said it would work with law enforcement when security researchers break the law and engage in malicious activity causing real harm to customers.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:0bd077c4430cf262" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:0bd077c4430cf262" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> patched three publicly disclosed Windows zero-day vulnerabilities in its June 2026 Patch Tuesday updates. The flaws are known as <mark class="tag-hl">GreenPlasma</mark>, <mark class="tag-hl">MiniPlasma</mark>, and <mark class="tag-hl">YellowKey</mark>. According to the article, two of them can allow attackers to gain SYSTEM privileges on fully patched Windows systems, while the third can grant access to <mark class="tag-hl">BitLocker</mark>-protected drives.</p>
+<p>Microsoft patched three publicly disclosed Windows zero-day vulnerabilities in its June 2026 Patch Tuesday updates. The flaws are known as GreenPlasma, MiniPlasma, and YellowKey. According to the article, two of them can allow attackers to gain SYSTEM privileges on fully patched Windows systems, while the third can grant access to BitLocker-protected drives.</p>
 
-<p>All three vulnerabilities were disclosed the previous month by a security researcher using the handle <mark class="tag-hl">Nightmare Eclipse</mark>. The article states that the researcher disclosed them in protest over how the <mark class="tag-hl">Microsoft Security Response Center</mark> handles the disclosure process.</p>
+<p>All three vulnerabilities were disclosed the previous month by a security researcher using the handle Nightmare Eclipse. The article states that the researcher disclosed them in protest over how the Microsoft Security Response Center handles the disclosure process.</p>
 
 <h2 id="patched-zero-days">Patched zero-days</h2>
 
 <p>The three patched vulnerabilities are:</p>
 
 <ul>
-<li><mark class="tag-hl">GreenPlasma</mark>, tracked as <mark class="tag-hl">CVE-2026-45586</mark>.</li>
-<li><mark class="tag-hl">MiniPlasma</mark>, tracked as CVE-2020-17103.</li>
-<li><mark class="tag-hl">YellowKey</mark>, tracked as <mark class="tag-hl">CVE-2026-45585</mark>.</li>
+<li>GreenPlasma, tracked as CVE-2026-45586.</li>
+<li>MiniPlasma, tracked as CVE-2020-17103.</li>
+<li>YellowKey, tracked as CVE-2026-45585.</li>
 </ul>
 
-<p><mark class="tag-hl">Microsoft</mark> fixed all three as part of its June 2026 Patch Tuesday updates.</p>
+<p>Microsoft fixed all three as part of its June 2026 Patch Tuesday updates.</p>
 
-<h2 id="greenplasma-and-miniplasma"><mark class="tag-hl">GreenPlasma</mark> and <mark class="tag-hl">MiniPlasma</mark></h2>
+<h2 id="greenplasma-and-miniplasma">GreenPlasma and MiniPlasma</h2>
 
-<p><mark class="tag-hl">GreenPlasma</mark> and <mark class="tag-hl">MiniPlasma</mark> are described as privilege escalation vulnerabilities. The article says they were found in the Collaborative Translation Framework, also referenced as CTFMON, and the Cloud Files Mini Filter Driver.</p>
+<p>GreenPlasma and MiniPlasma are described as privilege escalation vulnerabilities. The article says they were found in the Collaborative Translation Framework, also referenced as CTFMON, and the Cloud Files Mini Filter Driver.</p>
 
-<p>The impact described for these two flaws is <mark class="tag-hl">local privilege escalation</mark> to SYSTEM. The article states that local attackers can use them to obtain a shell with SYSTEM permissions on fully patched Windows systems.</p>
+<p>The impact described for these two flaws is local privilege escalation to SYSTEM. The article states that local attackers can use them to obtain a shell with SYSTEM permissions on fully patched Windows systems.</p>
 
-<h2 id="yellowkey-and-bitlocker-impact"><mark class="tag-hl">YellowKey</mark> and <mark class="tag-hl">BitLocker</mark> impact</h2>
+<h2 id="yellowkey-and-bitlocker-impact">YellowKey and BitLocker impact</h2>
 
-<p><mark class="tag-hl">YellowKey</mark> is described as a backdoor in the <mark class="tag-hl">Windows Recovery Environment</mark>, or WinRE. The article explains that WinRE is used to repair boot-related issues in Windows.</p>
+<p>YellowKey is described as a backdoor in the Windows Recovery Environment, or WinRE. The article explains that WinRE is used to repair boot-related issues in Windows.</p>
 
-<p>Attackers with physical access to targeted devices can use a <mark class="tag-hl">YellowKey</mark> exploit to bypass <mark class="tag-hl">BitLocker</mark> protection. The article specifically names unpatched <mark class="tag-hl">Windows 11</mark> and Windows Server <sup>2022</sup>&frasl;<sub>2025</sub> systems as affected.</p>
+<p>Attackers with physical access to targeted devices can use a YellowKey exploit to bypass BitLocker protection. The article specifically names unpatched Windows 11 and Windows Server <sup>2022</sup>&frasl;<sub>2025</sub> systems as affected.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> shared mitigation measures for <mark class="tag-hl">YellowKey</mark> to defend against potential attacks exploiting it in the wild. <mark class="tag-hl">Microsoft</mark> also complained that the proof-of-concept had been made public in violation of coordinated vulnerability best practices.</p>
+<p>Microsoft shared mitigation measures for YellowKey to defend against potential attacks exploiting it in the wild. Microsoft also complained that the proof-of-concept had been made public in violation of coordinated vulnerability best practices.</p>
 
 <h2 id="disclosure-context">Disclosure context</h2>
 
-<p>The article attributes the disclosure of <mark class="tag-hl">GreenPlasma</mark>, <mark class="tag-hl">MiniPlasma</mark>, and <mark class="tag-hl">YellowKey</mark> to <mark class="tag-hl">Nightmare Eclipse</mark>. It says the disclosures were made in protest over <mark class="tag-hl">Microsoft Security Response Center</mark> disclosure practices.</p>
+<p>The article attributes the disclosure of GreenPlasma, MiniPlasma, and YellowKey to Nightmare Eclipse. It says the disclosures were made in protest over Microsoft Security Response Center disclosure practices.</p>
 
 <p>The article also describes several other zero-day disclosures by the same researcher over the past several months. These include:</p>
 
 <ul>
 <li>BlueHammer, tracked as CVE-2026-33825.</li>
 <li>RedSun, which the article says has no identifier.</li>
-<li>UnDefend, a zero-day that can be exploited by attackers with standard user permissions to block <mark class="tag-hl">Microsoft</mark> Defender definition updates.</li>
-<li>RoguePlanet, a <mark class="tag-hl">Microsoft</mark> Defender zero-day exploit that lets threat actors spawn command prompts with SYSTEM privileges.</li>
+<li>UnDefend, a zero-day that can be exploited by attackers with standard user permissions to block Microsoft Defender definition updates.</li>
+<li>RoguePlanet, a Microsoft Defender zero-day exploit that lets threat actors spawn command prompts with SYSTEM privileges.</li>
 </ul>
 
 <p>The article states that BlueHammer and RedSun are now actively exploited in attacks.</p>
 
-<h2 id="microsoft-response"><mark class="tag-hl">Microsoft</mark> response</h2>
+<h2 id="microsoft-response">Microsoft response</h2>
 
-<p><mark class="tag-hl">Microsoft</mark> initially reacted to the zero-day leaks with threats of legal action, according to the article. The company later backtracked after major criticism on social media.</p>
+<p>Microsoft initially reacted to the zero-day leaks with threats of legal action, according to the article. The company later backtracked after major criticism on social media.</p>
 
-<p><mark class="tag-hl">Microsoft</mark> then said it would work with law enforcement when security researchers break the law and engage in malicious activity causing real harm to customers.</p>
+<p>Microsoft then said it would work with law enforcement when security researchers break the law and engage in malicious activity causing real harm to customers.</p>
 
 <h2 id="significance">Significance</h2>
 
-<p>The article’s central significance is that <mark class="tag-hl">Microsoft</mark> has patched three Windows zero-days that had already been publicly disclosed. Two of the vulnerabilities provide SYSTEM-level <mark class="tag-hl">local privilege escalation</mark>, and one can bypass <mark class="tag-hl">BitLocker</mark> protection when attackers have physical access to affected unpatched systems.</p>
+<p>The article’s central significance is that Microsoft has patched three Windows zero-days that had already been publicly disclosed. Two of the vulnerabilities provide SYSTEM-level local privilege escalation, and one can bypass BitLocker protection when attackers have physical access to affected unpatched systems.</p>
 
-<p>The article also highlights a continuing dispute around vulnerability disclosure practices. <mark class="tag-hl">Nightmare Eclipse</mark>’s repeated public releases of proof-of-concept exploits are presented alongside <mark class="tag-hl">Microsoft</mark>’s response and the fact that some previously leaked Windows zero-days are now actively exploited in attacks.</p>
+<p>The article also highlights a continuing dispute around vulnerability disclosure practices. Nightmare Eclipse’s repeated public releases of proof-of-concept exploits are presented alongside Microsoft’s response and the fact that some previously leaked Windows zero-days are now actively exploited in attacks.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:0bd077c4430cf262" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Organizations should prioritize patching systems where attackers could gain local or physical access, because the fixed flaws include both SYSTEM-level <mark class="tag-hl">local privilege escalation</mark> and a <mark class="tag-hl">BitLocker bypass</mark> requiring physical access.</span></li><li><span class="kp-text"><mark class="tag-hl">YellowKey</mark> mitigation is especially relevant for environments running <mark class="tag-hl">Windows 11</mark> or <mark class="tag-hl">Windows Server 2022</mark>/2025, as <mark class="tag-hl">Microsoft</mark> issued mitigations before the Patch Tuesday fix for potential in-the-wild exploitation.</span></li><li><span class="kp-text">The disclosure pattern increases urgency around publicly released proof-of-concept code, as the article notes that other zero-days previously leaked by <mark class="tag-hl">Nightmare Eclipse</mark> are now actively exploited in attacks.</span></li><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark>’s response shifted from threatening legal action over the zero-day leaks to saying it would work with law enforcement only when researchers break the law and cause real customer harm.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:0bd077c4430cf262" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Organizations should prioritize patching systems where attackers could gain local or physical access, because the fixed flaws include both SYSTEM-level local privilege escalation and a BitLocker bypass requiring physical access.</span></li><li><span class="kp-text">YellowKey mitigation is especially relevant for environments running Windows 11 or Windows Server 2022/2025, as Microsoft issued mitigations before the Patch Tuesday fix for potential in-the-wild exploitation.</span></li><li><span class="kp-text">The disclosure pattern increases urgency around publicly released proof-of-concept code, as the article notes that other zero-days previously leaked by Nightmare Eclipse are now actively exploited in attacks.</span></li><li><span class="kp-text">Microsoft’s response shifted from threatening legal action over the zero-day leaks to saying it would work with law enforcement only when researchers break the law and cause real customer harm.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Microsoft</mark> patched three zero-day vulnerabilities known as <mark class="tag-hl">GreenPlasma</mark>, <mark class="tag-hl">MiniPlasma</mark>, and <mark class="tag-hl">YellowKey</mark> in its June 2026 Patch Tuesday updates.</span></li><li><span class="kp-text"><mark class="tag-hl">GreenPlasma</mark> and <mark class="tag-hl">MiniPlasma</mark> are <mark class="tag-hl">local privilege escalation</mark> vulnerabilities in the Collaborative Translation Framework and the Cloud Files Mini Filter Driver that can allow attackers to obtain SYSTEM privileges on fully patched Windows systems.</span></li><li><span class="kp-text"><mark class="tag-hl">YellowKey</mark> is a <mark class="tag-hl">Windows Recovery Environment</mark> backdoor that can let attackers with physical access bypass <mark class="tag-hl">BitLocker</mark> protection on unpatched <mark class="tag-hl">Windows 11</mark> and <mark class="tag-hl">Windows Server 2022</mark>/2025 systems.</span></li><li><span class="kp-text">The three flaws were disclosed by a security researcher using the handle <mark class="tag-hl">Nightmare Eclipse</mark> in protest over <mark class="tag-hl">Microsoft Security Response Center</mark> disclosure practices.</span></li><li><span class="kp-text"><mark class="tag-hl">Nightmare Eclipse</mark> has also released proof-of-concept exploits for other Windows zero-days, including BlueHammer, RedSun, UnDefend, and RoguePlanet.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft patched three zero-day vulnerabilities known as GreenPlasma, MiniPlasma, and YellowKey in its June 2026 Patch Tuesday updates.</span></li><li><span class="kp-text">GreenPlasma and MiniPlasma are local privilege escalation vulnerabilities in the Collaborative Translation Framework and the Cloud Files Mini Filter Driver that can allow attackers to obtain SYSTEM privileges on fully patched Windows systems.</span></li><li><span class="kp-text">YellowKey is a Windows Recovery Environment backdoor that can let attackers with physical access bypass BitLocker protection on unpatched Windows 11 and Windows Server 2022/2025 systems.</span></li><li><span class="kp-text">The three flaws were disclosed by a security researcher using the handle Nightmare Eclipse in protest over Microsoft Security Response Center disclosure practices.</span></li><li><span class="kp-text">Nightmare Eclipse has also released proof-of-concept exploits for other Windows zero-days, including BlueHammer, RedSun, UnDefend, and RoguePlanet.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/microsoft/microsoft-patches-yellowkey-greenplasma-miniplasma-zero-days/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read for security professionals because it reports <mark class="tag-hl">Microsoft</mark> patches for three publicly disclosed Windows zero-days, including SYSTEM-level privilege escalation and a <mark class="tag-hl">BitLocker bypass</mark> affecting widely deployed Windows platforms. The urgency is heightened by released proof-of-concept exploits and the article’s note that other recently leaked Windows zero-days are already being actively exploited.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read for security professionals because it reports Microsoft patches for three publicly disclosed Windows zero-days, including SYSTEM-level privilege escalation and a BitLocker bypass affecting widely deployed Windows platforms. The urgency is heightened by released proof-of-concept exploits and the article’s note that other recently leaked Windows zero-days are already being actively exploited.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-45586" target="_blank" rel="noopener">CVE-2026-45586</a></div>
   <div class="report-meta">Microsoft Security Response Center</div>
-  <div class="report-context">The article links <mark class="tag-hl">Microsoft</mark>’s vulnerability entry for <mark class="tag-hl">GreenPlasma</mark>, one of the patched privilege escalation zero-days.</div>
+  <div class="report-context">The article links Microsoft’s vulnerability entry for GreenPlasma, one of the patched privilege escalation zero-days.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://msrc.microsoft.com/update-guide/vulnerability/CVE-2020-17103" target="_blank" rel="noopener">CVE-2020-17103</a></div>
   <div class="report-meta">Microsoft Security Response Center</div>
-  <div class="report-context">The article links <mark class="tag-hl">Microsoft</mark>’s vulnerability entry for <mark class="tag-hl">MiniPlasma</mark>, a patched privilege escalation flaw in the Cloud Files Mini Filter Driver.</div>
+  <div class="report-context">The article links Microsoft’s vulnerability entry for MiniPlasma, a patched privilege escalation flaw in the Cloud Files Mini Filter Driver.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-45585" target="_blank" rel="noopener">CVE-2026-45585</a></div>
   <div class="report-meta">Microsoft Security Response Center</div>
-  <div class="report-context">The article links <mark class="tag-hl">Microsoft</mark>’s vulnerability entry for <mark class="tag-hl">YellowKey</mark>, the patched <mark class="tag-hl">BitLocker bypass</mark> affecting the <mark class="tag-hl">Windows Recovery Environment</mark>.</div>
+  <div class="report-context">The article links Microsoft’s vulnerability entry for YellowKey, the patched BitLocker bypass affecting the Windows Recovery Environment.</div>
 </li></ul></div>
             
           </div>
@@ -1486,107 +1640,108 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:95%"></div></div><span class="score-num score-num-high">95</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="32a5de1e06dd3a0b3c8f55242ccf0777:089deca6f538c7ae">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-ab0fb885e7a4fcad2dfee7e6ace39ea2:089deca6f538c7ae')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-ab0fb885e7a4fcad2dfee7e6ace39ea2:089deca6f538c7ae')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-ab0fb885e7a4fcad2dfee7e6ace39ea2:089deca6f538c7ae')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-ab0fb885e7a4fcad2dfee7e6ace39ea2:089deca6f538c7ae')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-ab0fb885e7a4fcad2dfee7e6ace39ea2:089deca6f538c7ae')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-32a5de1e06dd3a0b3c8f55242ccf0777:089deca6f538c7ae')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-32a5de1e06dd3a0b3c8f55242ccf0777:089deca6f538c7ae')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-32a5de1e06dd3a0b3c8f55242ccf0777:089deca6f538c7ae')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-32a5de1e06dd3a0b3c8f55242ccf0777:089deca6f538c7ae')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-32a5de1e06dd3a0b3c8f55242ccf0777:089deca6f538c7ae')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-ab0fb885e7a4fcad2dfee7e6ace39ea2:089deca6f538c7ae" class="tab-panel active"><div class="prose">A critical <mark class="tag-hl">authentication bypass</mark> in <mark class="tag-hl">phpBB</mark> lets an unauthenticated attacker gain a session as any user, potentially leading to full forum takeover and <mark class="tag-hl">remote code execution</mark> via administrator access. Sites running <mark class="tag-hl">phpBB</mark> 3.3.16 or earlier should upgrade immediately to 3.3.17, while 4.0.0-a2 users should move to the patched master branch.</div></div>
-                <div id="brief-ab0fb885e7a4fcad2dfee7e6ace39ea2:089deca6f538c7ae" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Aikido</mark> says its AI pentesting tool, <mark class="tag-hl">Aikido Attack</mark>, discovered a critical <mark class="tag-hl">authentication bypass</mark> vulnerability in <mark class="tag-hl">phpBB</mark>, a widely used open-source forum platform. The flaw affects versions 3.3.16 and below, as well as 4.0.0-a2. The article says affected users should upgrade immediately to <mark class="tag-hl">phpBB</mark> 3.3.17 for the 3.x branch or to master for 4.x because there is no safe 4.x release yet.</p>
+                <div id="tldr-32a5de1e06dd3a0b3c8f55242ccf0777:089deca6f538c7ae" class="tab-panel active"><div class="prose">A critical authentication bypass in phpBB lets an unauthenticated attacker gain a session as any user, potentially leading to full forum takeover and remote code execution via administrator access. Sites running phpBB 3.3.16 or earlier should upgrade immediately to 3.3.17, while 4.0.0-a2 users should move to the patched master branch.</div></div>
+                <div id="brief-32a5de1e06dd3a0b3c8f55242ccf0777:089deca6f538c7ae" class="tab-panel"><div class="prose"><p>Aikido says its AI pentesting tool, Aikido Attack, discovered a critical authentication bypass vulnerability in phpBB, a widely used open-source forum platform. The flaw affects versions 3.3.16 and below, as well as 4.0.0-a2. The article says affected users should upgrade immediately to phpBB 3.3.17 for the 3.x branch or to master for 4.x because there is no safe 4.x release yet.</p>
 
-<p>The vulnerability is described as exploitable in the default configuration with no special knowledge required. A single unauthenticated HTTP request can obtain a valid session as any user, and a public member list on default installs makes selecting a target trivial. If an administrator account is targeted, the attacker could gain full read, write, and delete access across the forum and, on the latest version, potentially reach <mark class="tag-hl">remote code execution</mark>.</p>
+<p>The vulnerability is described as exploitable in the default configuration with no special knowledge required. A single unauthenticated HTTP request can obtain a valid session as any user, and a public member list on default installs makes selecting a target trivial. If an administrator account is targeted, the attacker could gain full read, write, and delete access across the forum and, on the latest version, potentially reach remote code execution.</p>
 
-<p><mark class="tag-hl">Aikido</mark> reported the issue to <mark class="tag-hl">phpBB</mark> maintainers through <mark class="tag-hl">HackerOne</mark> on June 2, and a patch was released in <mark class="tag-hl">phpBB</mark> 3.3.17 on June 6. The article says technical details are being withheld temporarily to give administrators time to upgrade. It also notes a small breaking change for <mark class="tag-hl">phpBB</mark> instances using <mark class="tag-hl">OAuth</mark> authentication, where the redirect URI handler is now located at <code>/user/<mark class="tag-hl">oauth</mark>/authenticate/...</code>.</p>
+<p>Aikido reported the issue to phpBB maintainers through HackerOne on June 2, and a patch was released in phpBB 3.3.17 on June 6. The article says technical details are being withheld temporarily to give administrators time to upgrade. It also notes a small breaking change for phpBB instances using OAuth authentication, where the redirect URI handler is now located at <code>/user/oauth/authenticate/...</code>.</p>
 </div></div>
-                <div id="standard-ab0fb885e7a4fcad2dfee7e6ace39ea2:089deca6f538c7ae" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Aikido</mark> reports that its AI pentesting tool, <mark class="tag-hl">Aikido Attack</mark>, found a critical <mark class="tag-hl">authentication bypass</mark> vulnerability in <mark class="tag-hl">phpBB</mark>. The article says the vulnerability affects <mark class="tag-hl">phpBB</mark> 3.3.16 and below, as well as 4.0.0-a2. Users on affected 3.x versions are urged to upgrade to 3.3.17, while users on 4.0.0-a2 are told to upgrade to <code>master</code> because there is no safe 4.x release yet.</p>
+                <div id="standard-32a5de1e06dd3a0b3c8f55242ccf0777:089deca6f538c7ae" class="tab-panel"><div class="prose"><p>Aikido reports that its AI pentesting tool, Aikido Attack, found a critical authentication bypass vulnerability in phpBB. The article says the vulnerability affects phpBB 3.3.16 and below, as well as 4.0.0-a2. Users on affected 3.x versions are urged to upgrade to 3.3.17, while users on 4.0.0-a2 are told to upgrade to <code>master</code> because there is no safe 4.x release yet.</p>
 
-<p>The flaw is described as exploitable in the default configuration and requiring no special knowledge. According to the article, a single unauthenticated HTTP request is enough to obtain a valid session as any user. Because the member list is public on a default <mark class="tag-hl">phpBB</mark> install, selecting a target account is described as trivial.</p>
+<p>The flaw is described as exploitable in the default configuration and requiring no special knowledge. According to the article, a single unauthenticated HTTP request is enough to obtain a valid session as any user. Because the member list is public on a default phpBB install, selecting a target account is described as trivial.</p>
 
-<p>The impact depends on the account whose session is obtained. A standard user session exposes private messages and all content that user can access. An administrator session provides full read, write, and delete access across the forum and, on the latest version, opens the door to <mark class="tag-hl">remote code execution</mark> and complete takeover of the underlying system.</p>
+<p>The impact depends on the account whose session is obtained. A standard user session exposes private messages and all content that user can access. An administrator session provides full read, write, and delete access across the forum and, on the latest version, opens the door to remote code execution and complete takeover of the underlying system.</p>
 
-<p><mark class="tag-hl">Aikido</mark> reported the vulnerability to <mark class="tag-hl">phpBB</mark> maintainers through the <mark class="tag-hl">HackerOne</mark> Vulnerability Disclosure Program on June 2. The article says the issue was triaged quickly and that a working patch was released in <mark class="tag-hl">phpBB</mark> 3.3.17 on June 6. It links to <mark class="tag-hl">phpBB</mark>&rsquo;s official release notes for more details on the update.</p>
+<p>Aikido reported the vulnerability to phpBB maintainers through the HackerOne Vulnerability Disclosure Program on June 2. The article says the issue was triaged quickly and that a working patch was released in phpBB 3.3.17 on June 6. It links to phpBB&rsquo;s official release notes for more details on the update.</p>
 
-<p>The article gives background on <mark class="tag-hl">phpBB</mark> as open-source forum software dating back to 2000 and still used by communities such as Joomla&rsquo;s forum and forums.debian.net. It notes that <mark class="tag-hl">phpBB</mark>&rsquo;s Site Showcase alone represents over 6 million members, with more users on unlinked instances. It also recalls the 2004 <mark class="tag-hl">Santy</mark> worm, which abused a <mark class="tag-hl">phpBB</mark> <mark class="tag-hl">remote code execution</mark> flaw and used search engines to find and compromise many instances.</p>
+<p>The article gives background on phpBB as open-source forum software dating back to 2000 and still used by communities such as Joomla&rsquo;s forum and forums.debian.net. It notes that phpBB&rsquo;s Site Showcase alone represents over 6 million members, with more users on unlinked instances. It also recalls the 2004 Santy worm, which abused a phpBB remote code execution flaw and used search engines to find and compromise many instances.</p>
 
-<p><mark class="tag-hl">Aikido</mark> says it is withholding technical details for now to give administrators time to upgrade. It also says it has privately notified administrators of the largest online communities and asks readers to help reach other <mark class="tag-hl">phpBB</mark> instances that may not have received the news. The article notes one small breaking change for <mark class="tag-hl">OAuth</mark>-enabled instances: the redirect URI handler is now located at <code>/user/<mark class="tag-hl">oauth</mark>/authenticate/...</code>.</p>
+<p>Aikido says it is withholding technical details for now to give administrators time to upgrade. It also says it has privately notified administrators of the largest online communities and asks readers to help reach other phpBB instances that may not have received the news. The article notes one small breaking change for OAuth-enabled instances: the redirect URI handler is now located at <code>/user/oauth/authenticate/...</code>.</p>
 </div></div>
-                <div id="comprehensive-ab0fb885e7a4fcad2dfee7e6ace39ea2:089deca6f538c7ae" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-32a5de1e06dd3a0b3c8f55242ccf0777:089deca6f538c7ae" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Aikido</mark> reports that its AI pentesting tool, <mark class="tag-hl">Aikido Attack</mark>, discovered a critical <mark class="tag-hl">authentication bypass</mark> vulnerability in <mark class="tag-hl">phpBB</mark>. The vulnerability affects <mark class="tag-hl">phpBB</mark> versions 3.3.16 and below, as well as 4.0.0-a2. The article says the issue can lead to <mark class="tag-hl">remote code execution</mark> and a complete takeover of the underlying system.</p>
+<p>Aikido reports that its AI pentesting tool, Aikido Attack, discovered a critical authentication bypass vulnerability in phpBB. The vulnerability affects phpBB versions 3.3.16 and below, as well as 4.0.0-a2. The article says the issue can lead to remote code execution and a complete takeover of the underlying system.</p>
 
-<p><mark class="tag-hl">Aikido</mark> urges users on <mark class="tag-hl">phpBB</mark> 3.3.16 and below to upgrade immediately to 3.3.17. Users on <mark class="tag-hl">phpBB</mark> 4.0.0-a2 are advised to upgrade to <code>master</code>, because the article states there is no safe 4.x release yet.</p>
+<p>Aikido urges users on phpBB 3.3.16 and below to upgrade immediately to 3.3.17. Users on phpBB 4.0.0-a2 are advised to upgrade to <code>master</code>, because the article states there is no safe 4.x release yet.</p>
 
 <h2 id="disclosure-and-patch-timeline">Disclosure and Patch Timeline</h2>
 
-<p><mark class="tag-hl">Aikido</mark> says it reported the vulnerability to <mark class="tag-hl">phpBB</mark> maintainers on June 2 through <mark class="tag-hl">phpBB</mark>&rsquo;s <mark class="tag-hl">HackerOne</mark> Vulnerability Disclosure Program. After triage, a working patch was released four days later in <mark class="tag-hl">phpBB</mark> 3.3.17 on June 6. The article links to <mark class="tag-hl">phpBB</mark>&rsquo;s official release notes for more details about the update.</p>
+<p>Aikido says it reported the vulnerability to phpBB maintainers on June 2 through phpBB&rsquo;s HackerOne Vulnerability Disclosure Program. After triage, a working patch was released four days later in phpBB 3.3.17 on June 6. The article links to phpBB&rsquo;s official release notes for more details about the update.</p>
 
-<p><mark class="tag-hl">Aikido</mark> says it is withholding technical details for now to give administrators time to upgrade. It also says it will publish a second article with more detail in the near future.</p>
+<p>Aikido says it is withholding technical details for now to give administrators time to upgrade. It also says it will publish a second article with more detail in the near future.</p>
 
 <h2 id="technical-impact-described-in-the-article">Technical Impact Described in the Article</h2>
 
-<p>The vulnerability is described as exploitable in the default <mark class="tag-hl">phpBB</mark> configuration. The article says it requires no special knowledge. It also says a single unauthenticated HTTP request is enough to obtain a valid session as any user.</p>
+<p>The vulnerability is described as exploitable in the default phpBB configuration. The article says it requires no special knowledge. It also says a single unauthenticated HTTP request is enough to obtain a valid session as any user.</p>
 
-<p>On a default <mark class="tag-hl">phpBB</mark> installation, the member list is public. The article states that this makes choosing a target trivial.</p>
+<p>On a default phpBB installation, the member list is public. The article states that this makes choosing a target trivial.</p>
 
 <p>The impact depends on which user account is targeted:</p>
 
 <ul>
 <li>A standard user session exposes private messages and any content that user can access.</li>
 <li>An administrator session provides full read, write, and delete access across the forum.</li>
-<li>On the latest version, an administrator session can open the door to <mark class="tag-hl">remote code execution</mark>.</li>
+<li>On the latest version, an administrator session can open the door to remote code execution.</li>
 </ul>
 
 <h2 id="affected-versions-and-upgrade-guidance">Affected Versions and Upgrade Guidance</h2>
 
-<p>The article identifies the affected versions as all <mark class="tag-hl">phpBB</mark> releases up to and including 3.3.16 and 4.0.0-a2. It advises immediate upgrades for affected installations.</p>
+<p>The article identifies the affected versions as all phpBB releases up to and including 3.3.16 and 4.0.0-a2. It advises immediate upgrades for affected installations.</p>
 
 <p>The stated remediation guidance is:</p>
 
 <ul>
-<li>Upgrade <mark class="tag-hl">phpBB</mark> 3.3.16 and below to <mark class="tag-hl">phpBB</mark> 3.3.17.</li>
-<li>Upgrade <mark class="tag-hl">phpBB</mark> 4.0.0-a2 to <code>master</code>, because there is no safe 4.x release yet.</li>
+<li>Upgrade phpBB 3.3.16 and below to phpBB 3.3.17.</li>
+<li>Upgrade phpBB 4.0.0-a2 to <code>master</code>, because there is no safe 4.x release yet.</li>
 </ul>
 
-<h2 id="oauth-related-breaking-change"><mark class="tag-hl">OAuth</mark>-Related Breaking Change</h2>
+<h2 id="oauth-related-breaking-change">OAuth-Related Breaking Change</h2>
 
-<p>The article notes a small breaking change for <mark class="tag-hl">phpBB</mark> instances with <mark class="tag-hl">OAuth</mark> authentication enabled. The redirect URI handler is now located at <code>/user/<mark class="tag-hl">oauth</mark>/authenticate/...</code>. Aside from this change, the article says the upgrade should be smooth.</p>
+<p>The article notes a small breaking change for phpBB instances with OAuth authentication enabled. The redirect URI handler is now located at <code>/user/oauth/authenticate/...</code>. Aside from this change, the article says the upgrade should be smooth.</p>
 
-<h2 id="phpbb-context"><mark class="tag-hl">phpBB</mark> Context</h2>
+<h2 id="phpbb-context">phpBB Context</h2>
 
-<p>The article describes <mark class="tag-hl">phpBB</mark> as open-source forum software dating back to 2000 that remains in use. It names communities using <mark class="tag-hl">phpBB</mark>, including <code>forum.joomla.org</code> and <code>forums.debian.net</code>. It also states that <mark class="tag-hl">phpBB</mark>&rsquo;s Site Showcase alone has over 6 million members, with many more users on unlinked instances.</p>
+<p>The article describes phpBB as open-source forum software dating back to 2000 that remains in use. It names communities using phpBB, including <code>forum.joomla.org</code> and <code>forums.debian.net</code>. It also states that phpBB&rsquo;s Site Showcase alone has over 6 million members, with many more users on unlinked instances.</p>
 
-<p>The article notes that <mark class="tag-hl">phpBB</mark> has historically faced targeted attacks exploiting zero-days across the internet. It specifically cites the 2004 <mark class="tag-hl">Santy</mark> worm, which abused a vulnerability resulting in <mark class="tag-hl">remote code execution</mark>. The article describes <mark class="tag-hl">Santy</mark> as the first time a search engine like Google was used to instantly find and compromise tens of thousands of instances.</p>
+<p>The article notes that phpBB has historically faced targeted attacks exploiting zero-days across the internet. It specifically cites the 2004 Santy worm, which abused a vulnerability resulting in remote code execution. The article describes Santy as the first time a search engine like Google was used to instantly find and compromise tens of thousands of instances.</p>
 
 <h2 id="security-program-and-response">Security Program and Response</h2>
 
-<p>The article says <mark class="tag-hl">phpBB</mark> has a Vulnerability Disclosure Program on <mark class="tag-hl">HackerOne</mark> where researchers can get findings fixed. In this case, <mark class="tag-hl">Aikido</mark> reported the vulnerability through that program, and <mark class="tag-hl">phpBB</mark> released a patch within four days.</p>
+<p>The article says phpBB has a Vulnerability Disclosure Program on HackerOne where researchers can get findings fixed. In this case, Aikido reported the vulnerability through that program, and phpBB released a patch within four days.</p>
 
-<p><mark class="tag-hl">Aikido</mark> says it has privately notified administrators of the largest online communities about the update. It also asks readers to help reach out to any <mark class="tag-hl">phpBB</mark> instances they know that might not have received the news.</p>
+<p>Aikido says it has privately notified administrators of the largest online communities about the update. It also asks readers to help reach out to any phpBB instances they know that might not have received the news.</p>
 
 <h2 id="most-important-takeaway">Most Important Takeaway</h2>
 
-<p>The central takeaway is that affected <mark class="tag-hl">phpBB</mark> installations should be upgraded immediately because the article describes an <mark class="tag-hl">authentication bypass</mark> that can be exploited without authentication, in default configuration, to obtain a valid session as any user. If an administrator account is targeted, the article says the resulting access can include full forum control and, on the latest version, <mark class="tag-hl">remote code execution</mark>.</p>
+<p>The central takeaway is that affected phpBB installations should be upgraded immediately because the article describes an authentication bypass that can be exploited without authentication, in default configuration, to obtain a valid session as any user. If an administrator account is targeted, the article says the resulting access can include full forum control and, on the latest version, remote code execution.</p>
 </div></div>
-                <div id="insights-ab0fb885e7a4fcad2dfee7e6ace39ea2:089deca6f538c7ae" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Because <mark class="tag-hl">phpBB</mark>’s member list is public on a default install, administrators should not assume attackers need prior knowledge to choose high-value accounts to impersonate.</span></li><li><span class="kp-text">The practical impact depends heavily on which account is targeted, with administrator sessions enabling full forum control and, on the latest version, <mark class="tag-hl">remote code execution</mark>.</span></li><li><span class="kp-text">The researchers are intentionally withholding technical details temporarily, making the current period a patching window before broader exploit information is released.</span></li><li><span class="kp-text"><mark class="tag-hl">phpBB</mark> instances using <mark class="tag-hl">OAuth</mark> authentication need to account for a redirect URI handler change to /user/<mark class="tag-hl">oauth</mark>/authenticate/... when upgrading.</span></li></ul></div>
+                <div id="insights-32a5de1e06dd3a0b3c8f55242ccf0777:089deca6f538c7ae" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Because phpBB’s member list is public on a default install, administrators should not assume attackers need prior knowledge to choose high-value accounts to impersonate.</span></li><li><span class="kp-text">The practical impact depends heavily on which account is targeted, with administrator sessions enabling full forum control and, on the latest version, remote code execution.</span></li><li><span class="kp-text">The researchers are intentionally withholding technical details temporarily, making the current period a patching window before broader exploit information is released.</span></li><li><span class="kp-text">phpBB instances using OAuth authentication need to account for a redirect URI handler change to /user/oauth/authenticate/... when upgrading.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Aikido</mark>&#39;s AI pentesting tool <mark class="tag-hl">Aikido Attack</mark> discovered a critical <mark class="tag-hl">authentication bypass</mark> vulnerability in <mark class="tag-hl">phpBB</mark> that can lead to <mark class="tag-hl">remote code execution</mark> and complete takeover of the underlying system.</span></li><li><span class="kp-text">The vulnerability is exploitable in the default configuration, requires no special knowledge, and can be triggered with a single unauthenticated HTTP request to obtain a valid session as any user.</span></li><li><span class="kp-text">The vulnerability affects <mark class="tag-hl">phpBB</mark> versions 3.3.16 and below, as well as 4.0.0-a2, and users are advised to upgrade to 3.3.17 or the master branch for 4.x.</span></li><li><span class="kp-text"><mark class="tag-hl">Aikido</mark> reported the issue to <mark class="tag-hl">phpBB</mark> maintainers through <mark class="tag-hl">HackerOne</mark> on June 2, and <mark class="tag-hl">phpBB</mark> released a working patch in version 3.3.17 on June 6.</span></li><li><span class="kp-text">The <mark class="tag-hl">phpBB</mark> 3.3.17 update includes a breaking change for <mark class="tag-hl">OAuth</mark> authentication users because the redirect URI handler is now located at /user/<mark class="tag-hl">oauth</mark>/authenticate/....</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Aikido&#39;s AI pentesting tool Aikido Attack discovered a critical authentication bypass vulnerability in phpBB that can lead to remote code execution and complete takeover of the underlying system.</span></li><li><span class="kp-text">The vulnerability is exploitable in the default configuration, requires no special knowledge, and can be triggered with a single unauthenticated HTTP request to obtain a valid session as any user.</span></li><li><span class="kp-text">The vulnerability affects phpBB versions 3.3.16 and below, as well as 4.0.0-a2, and users are advised to upgrade to 3.3.17 or the master branch for 4.x.</span></li><li><span class="kp-text">Aikido reported the issue to phpBB maintainers through HackerOne on June 2, and phpBB released a working patch in version 3.3.17 on June 6.</span></li><li><span class="kp-text">The phpBB 3.3.17 update includes a breaking change for OAuth authentication users because the redirect URI handler is now located at /user/oauth/authenticate/....</span></li></ul></div>
+            
             <a href="https://www.aikido.dev/blog/phpbb-authentication-bypass-rce" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a critical patch notice for widely deployed forum software, describing an unauthenticated <mark class="tag-hl">authentication bypass</mark> that can grant sessions as any user and potentially lead to <mark class="tag-hl">remote code execution</mark> through administrator access. The vulnerability affects current and older <mark class="tag-hl">phpBB</mark> versions used across many communities, and administrators are urged to upgrade immediately.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a critical patch notice for widely deployed forum software, describing an unauthenticated authentication bypass that can grant sessions as any user and potentially lead to remote code execution through administrator access. The vulnerability affects current and older phpBB versions used across many communities, and administrators are urged to upgrade immediately.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.phpbb.com/community/viewtopic.php?t=2672170" target="_blank" rel="noopener">phpBB 3.3.17 Release Notes</a></div>
   <div class="report-meta">phpBB</div>
-  <div class="report-context">The article links to <mark class="tag-hl">phpBB</mark>&#39;s official release notes for more details about the 3.3.17 update that patches the vulnerability.</div>
+  <div class="report-context">The article links to phpBB&#39;s official release notes for more details about the 3.3.17 update that patches the vulnerability.</div>
 </li></ul></div>
             
           </div>
@@ -1609,90 +1764,91 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:94%"></div></div><span class="score-num score-num-high">94</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:4c14751f8755dbb3">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:4c14751f8755dbb3')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:4c14751f8755dbb3')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:4c14751f8755dbb3')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:4c14751f8755dbb3')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:4c14751f8755dbb3')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:4c14751f8755dbb3')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:4c14751f8755dbb3')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:4c14751f8755dbb3')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:4c14751f8755dbb3')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:4c14751f8755dbb3')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:4c14751f8755dbb3" class="tab-panel active"><div class="prose"><mark class="tag-hl">ServiceNow</mark> patched a flaw that could let unauthenticated attackers gain unauthorized access to certain customer instances, and said it found evidence of successful table queries against a subset of customers. The issue affects instances on the <mark class="tag-hl">Australia</mark> release or older releases with certain configuration changes, and impacted customers have been notified.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:4c14751f8755dbb3" class="tab-panel"><div class="prose"><p><mark class="tag-hl">ServiceNow</mark> warned of a security incident in which unknown threat actors exploited a flaw to obtain deeper unauthorized access to susceptible customer instances. The company said it applied a security update to hosted customer instances on June 5, 2026. The issue could allow an unauthenticated user, in certain circumstances, to gain greater access to <mark class="tag-hl">ServiceNow</mark> instances than intended.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:4c14751f8755dbb3" class="tab-panel active"><div class="prose">ServiceNow patched a flaw that could let unauthenticated attackers gain unauthorized access to certain customer instances, and said it found evidence of successful table queries against a subset of customers. The issue affects instances on the Australia release or older releases with certain configuration changes, and impacted customers have been notified.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:4c14751f8755dbb3" class="tab-panel"><div class="prose"><p>ServiceNow warned of a security incident in which unknown threat actors exploited a flaw to obtain deeper unauthorized access to susceptible customer instances. The company said it applied a security update to hosted customer instances on June 5, 2026. The issue could allow an unauthenticated user, in certain circumstances, to gain greater access to ServiceNow instances than intended.</p>
 
-<p><mark class="tag-hl">ServiceNow</mark> said the update changed an endpoint configuration to limit this access to authenticated users. The flaw currently does not have a CVE identifier, and details of the issue first emerged on <mark class="tag-hl">Reddit</mark>. <mark class="tag-hl">ServiceNow</mark> said it detected anomalous activity and saw evidence of successful queries of instance tables against a subset of customers.</p>
+<p>ServiceNow said the update changed an endpoint configuration to limit this access to authenticated users. The flaw currently does not have a CVE identifier, and details of the issue first emerged on Reddit. ServiceNow said it detected anomalous activity and saw evidence of successful queries of instance tables against a subset of customers.</p>
 
-<p>The company said impacted customers have been notified. The issue pertains to customers on the <mark class="tag-hl">Australia</mark> platform release or customers who made certain configuration changes to instances on releases prior to <mark class="tag-hl">Australia</mark>. A <mark class="tag-hl">Reddit</mark> user claimed <mark class="tag-hl">ServiceNow</mark> had been aware of the problem internally since April 7, 2026 and had treated it as non-urgent for about two months.</p>
+<p>The company said impacted customers have been notified. The issue pertains to customers on the Australia platform release or customers who made certain configuration changes to instances on releases prior to Australia. A Reddit user claimed ServiceNow had been aware of the problem internally since April 7, 2026 and had treated it as non-urgent for about two months.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:4c14751f8755dbb3" class="tab-panel"><div class="prose"><p><mark class="tag-hl">ServiceNow</mark> disclosed a security incident involving a flaw that unknown threat actors exploited to gain greater unauthorized access to susceptible customer instances. The company said it applied a security update to hosted customer instances on June 5, 2026. The update addressed a security issue that, in certain circumstances, could allow an unauthenticated user to gain more access to <mark class="tag-hl">ServiceNow</mark> instances than intended.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:4c14751f8755dbb3" class="tab-panel"><div class="prose"><p>ServiceNow disclosed a security incident involving a flaw that unknown threat actors exploited to gain greater unauthorized access to susceptible customer instances. The company said it applied a security update to hosted customer instances on June 5, 2026. The update addressed a security issue that, in certain circumstances, could allow an unauthenticated user to gain more access to ServiceNow instances than intended.</p>
 
-<p>The technical fix described by <mark class="tag-hl">ServiceNow</mark> involved changes to an endpoint configuration. According to the article, the update limits the access path to authenticated users. The security flaw currently does not have a CVE identifier.</p>
+<p>The technical fix described by ServiceNow involved changes to an endpoint configuration. According to the article, the update limits the access path to authenticated users. The security flaw currently does not have a CVE identifier.</p>
 
-<p><mark class="tag-hl">ServiceNow</mark> said it detected anomalous activity related to the issue. It also observed evidence of successful queries of instance tables against a subset of customers. The company said impacted customers have been notified.</p>
+<p>ServiceNow said it detected anomalous activity related to the issue. It also observed evidence of successful queries of instance tables against a subset of customers. The company said impacted customers have been notified.</p>
 
-<p>The affected scope described by <mark class="tag-hl">ServiceNow</mark> is limited to customers on the <mark class="tag-hl">Australia</mark> platform release or customers that made certain configuration changes to instances on releases prior to <mark class="tag-hl">Australia</mark>. The article does not name the affected customers. It also describes the threat actors only as unknown.</p>
+<p>The affected scope described by ServiceNow is limited to customers on the Australia platform release or customers that made certain configuration changes to instances on releases prior to Australia. The article does not name the affected customers. It also describes the threat actors only as unknown.</p>
 
-<p>Details of the issue first emerged on <mark class="tag-hl">Reddit</mark>. A <mark class="tag-hl">Reddit</mark> user named “d3s7iny” claimed that its security team reported the vulnerability to <mark class="tag-hl">ServiceNow</mark> and that <mark class="tag-hl">ServiceNow</mark> had been aware of the issue internally since April 7, 2026. The user claimed <mark class="tag-hl">ServiceNow</mark> classified it as non-urgent for about two months, with plans to remediate it in a future update.</p>
+<p>Details of the issue first emerged on Reddit. A Reddit user named “d3s7iny” claimed that its security team reported the vulnerability to ServiceNow and that ServiceNow had been aware of the issue internally since April 7, 2026. The user claimed ServiceNow classified it as non-urgent for about two months, with plans to remediate it in a future update.</p>
 
-<p>The Hacker News said it contacted <mark class="tag-hl">ServiceNow</mark> for comment and would update the story if it received a response. The article notes that the story is developing and asks readers to check back for more details.</p>
+<p>The Hacker News said it contacted ServiceNow for comment and would update the story if it received a response. The article notes that the story is developing and asks readers to check back for more details.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:4c14751f8755dbb3" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:4c14751f8755dbb3" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">ServiceNow</mark> warned about a security incident involving a flaw that allowed unknown threat actors to obtain deeper unauthorized access to susceptible customer instances. The company said the issue could allow an unauthenticated user, in certain circumstances, to gain greater access to <mark class="tag-hl">ServiceNow</mark> instances than intended.</p>
+<p>ServiceNow warned about a security incident involving a flaw that allowed unknown threat actors to obtain deeper unauthorized access to susceptible customer instances. The company said the issue could allow an unauthenticated user, in certain circumstances, to gain greater access to ServiceNow instances than intended.</p>
 
-<p><mark class="tag-hl">ServiceNow</mark> applied a security update to hosted customer instances on June 5, 2026. The company described the update as a response to a security issue affecting certain <mark class="tag-hl">ServiceNow</mark> instances.</p>
+<p>ServiceNow applied a security update to hosted customer instances on June 5, 2026. The company described the update as a response to a security issue affecting certain ServiceNow instances.</p>
 
 <h2 id="technical-details-disclosed">Technical Details Disclosed</h2>
 
-<p><mark class="tag-hl">ServiceNow</mark> said the security update made changes to an endpoint configuration. The purpose of the change was to limit the affected access to authenticated users.</p>
+<p>ServiceNow said the security update made changes to an endpoint configuration. The purpose of the change was to limit the affected access to authenticated users.</p>
 
-<p>The flaw currently does not have a CVE identifier. The article states that details of the issue first emerged on <mark class="tag-hl">Reddit</mark>.</p>
+<p>The flaw currently does not have a CVE identifier. The article states that details of the issue first emerged on Reddit.</p>
 
 <h2 id="observed-activity-and-impact">Observed Activity and Impact</h2>
 
-<p><mark class="tag-hl">ServiceNow</mark> said it detected anomalous activity related to the security issue. It also said it observed evidence of successful queries of instance tables against a subset of customers.</p>
+<p>ServiceNow said it detected anomalous activity related to the security issue. It also said it observed evidence of successful queries of instance tables against a subset of customers.</p>
 
 <p>The company said impacted customers have been notified. The article does not identify the affected customers or quantify how many customers were impacted.</p>
 
 <h2 id="affected-customers-and-releases">Affected Customers and Releases</h2>
 
-<p><mark class="tag-hl">ServiceNow</mark> said the issue pertains to customers who are on the <mark class="tag-hl">Australia</mark> platform release. It also affects customers who made certain configuration changes to instances on releases prior to <mark class="tag-hl">Australia</mark>.</p>
+<p>ServiceNow said the issue pertains to customers who are on the Australia platform release. It also affects customers who made certain configuration changes to instances on releases prior to Australia.</p>
 
-<p>The article frames the exposure as applying to susceptible instances rather than all <mark class="tag-hl">ServiceNow</mark> instances.</p>
+<p>The article frames the exposure as applying to susceptible instances rather than all ServiceNow instances.</p>
 
 <h2 id="threat-actors">Threat Actors</h2>
 
 <p>The article describes the responsible threat actors as unknown. It does not name any specific group, campaign, or individual actor associated with the exploitation.</p>
 
-<h2 id="reddit-claims"><mark class="tag-hl">Reddit</mark> Claims</h2>
+<h2 id="reddit-claims">Reddit Claims</h2>
 
-<p>The article says details of the issue first emerged on <mark class="tag-hl">Reddit</mark>. It cites a <mark class="tag-hl">Reddit</mark> comment from a user named “d3s7iny,” who claimed that its security team reported the vulnerability to <mark class="tag-hl">ServiceNow</mark>.</p>
+<p>The article says details of the issue first emerged on Reddit. It cites a Reddit comment from a user named “d3s7iny,” who claimed that its security team reported the vulnerability to ServiceNow.</p>
 
-<p>According to that <mark class="tag-hl">Reddit</mark> claim, <mark class="tag-hl">ServiceNow</mark> had been aware of the problem internally since April 7, 2026. The user also claimed that <mark class="tag-hl">ServiceNow</mark> classified the issue as non-urgent for about two months and planned to remediate it in a future update.</p>
+<p>According to that Reddit claim, ServiceNow had been aware of the problem internally since April 7, 2026. The user also claimed that ServiceNow classified the issue as non-urgent for about two months and planned to remediate it in a future update.</p>
 
 <h2 id="vendor-response-and-status">Vendor Response and Status</h2>
 
-<p><mark class="tag-hl">ServiceNow</mark> applied a security update on June 5, 2026 to hosted customer instances. The company also said affected customers have been notified.</p>
+<p>ServiceNow applied a security update on June 5, 2026 to hosted customer instances. The company also said affected customers have been notified.</p>
 
-<p>The Hacker News said it contacted <mark class="tag-hl">ServiceNow</mark> for comment and would update the story if it received a response. The article is described as a developing story.</p>
+<p>The Hacker News said it contacted ServiceNow for comment and would update the story if it received a response. The article is described as a developing story.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:4c14751f8755dbb3" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The issue is harder for defenders to track publicly because <mark class="tag-hl">ServiceNow</mark>’s advisory requires customer access and the flaw currently has no CVE identifier.</span></li><li><span class="kp-text">Exposure is tied to the <mark class="tag-hl">Australia</mark> platform release or specific configuration changes on earlier releases, so customers should assess risk based on release and configuration state rather than assuming all instances are equally affected.</span></li><li><span class="kp-text"><mark class="tag-hl">ServiceNow</mark>’s observation of successful instance table queries indicates that affected customers should focus investigation on unauthorized table access activity, not just authentication events.</span></li><li><span class="kp-text">A <mark class="tag-hl">Reddit</mark> user claimed <mark class="tag-hl">ServiceNow</mark> had known about the vulnerability internally since April 7, 2026 and treated it as non-urgent for about two months before remediation.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:4c14751f8755dbb3" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The issue is harder for defenders to track publicly because ServiceNow’s advisory requires customer access and the flaw currently has no CVE identifier.</span></li><li><span class="kp-text">Exposure is tied to the Australia platform release or specific configuration changes on earlier releases, so customers should assess risk based on release and configuration state rather than assuming all instances are equally affected.</span></li><li><span class="kp-text">ServiceNow’s observation of successful instance table queries indicates that affected customers should focus investigation on unauthorized table access activity, not just authentication events.</span></li><li><span class="kp-text">A Reddit user claimed ServiceNow had known about the vulnerability internally since April 7, 2026 and treated it as non-urgent for about two months before remediation.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">ServiceNow</mark> said unknown threat actors exploited a security issue to gain greater unauthorized access to susceptible customer instances than intended.</span></li><li><span class="kp-text"><mark class="tag-hl">ServiceNow</mark> applied a security update to hosted customer instances on June 5, 2026, changing an endpoint configuration to limit access to authenticated users.</span></li><li><span class="kp-text">The security flaw does not currently have a CVE identifier, and details of the issue first emerged on <mark class="tag-hl">Reddit</mark>.</span></li><li><span class="kp-text"><mark class="tag-hl">ServiceNow</mark> said it detected anomalous activity and observed evidence of successful queries of instance tables against a subset of customers, who have been notified.</span></li><li><span class="kp-text">The issue affects customers on the <mark class="tag-hl">Australia</mark> platform release or customers who made certain configuration changes to instances on releases prior to <mark class="tag-hl">Australia</mark>.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">ServiceNow said unknown threat actors exploited a security issue to gain greater unauthorized access to susceptible customer instances than intended.</span></li><li><span class="kp-text">ServiceNow applied a security update to hosted customer instances on June 5, 2026, changing an endpoint configuration to limit access to authenticated users.</span></li><li><span class="kp-text">The security flaw does not currently have a CVE identifier, and details of the issue first emerged on Reddit.</span></li><li><span class="kp-text">ServiceNow said it detected anomalous activity and observed evidence of successful queries of instance tables against a subset of customers, who have been notified.</span></li><li><span class="kp-text">The issue affects customers on the Australia platform release or customers who made certain configuration changes to instances on releases prior to Australia.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/servicenow-flaw-exploited-to-gain.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a <mark class="tag-hl">ServiceNow</mark> flaw that allowed unauthenticated users to gain unauthorized access to susceptible customer instances. <mark class="tag-hl">ServiceNow</mark> is widely deployed, the issue affected hosted customer instances, and the company observed successful table queries against a subset of customers.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a ServiceNow flaw that allowed unauthenticated users to gain unauthorized access to susceptible customer instances. ServiceNow is widely deployed, the issue affected hosted customer instances, and the company observed successful table queries against a subset of customers.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://support.servicenow.com/kb?id=kb_article_view&amp;sysparm_article=KB3067321" target="_blank" rel="noopener">ServiceNow security advisory KB3067321</a></div>
   <div class="report-meta">ServiceNow</div>
-  <div class="report-context">The article cites <mark class="tag-hl">ServiceNow</mark>’s advisory as the source for the June 5, 2026 security update and details about the <mark class="tag-hl">unauthenticated access</mark> issue affecting some customer instances.</div>
+  <div class="report-context">The article cites ServiceNow’s advisory as the source for the June 5, 2026 security update and details about the unauthenticated access issue affecting some customer instances.</div>
 </li></ul></div>
             
           </div>
@@ -1715,52 +1871,52 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:92%"></div></div><span class="score-num score-num-high">92</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:ceebaf82d917c858">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:ceebaf82d917c858')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:ceebaf82d917c858')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:ceebaf82d917c858')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:ceebaf82d917c858')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:ceebaf82d917c858')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:ceebaf82d917c858')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:ceebaf82d917c858')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:ceebaf82d917c858')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:ceebaf82d917c858')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:ceebaf82d917c858')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:ceebaf82d917c858" class="tab-panel active"><div class="prose"><mark class="tag-hl">Ivanti</mark> released patches for two critical Sentry vulnerabilities, including a maximum-severity <mark class="tag-hl">OS command injection</mark> flaw that could let remote attackers execute code as root. The company says there is no evidence of exploitation yet, but administrators should upgrade to the fixed versions immediately.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:ceebaf82d917c858" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Ivanti</mark> released patches for two critical vulnerabilities in its Sentry secure mobile gateway solution, formerly known as <mark class="tag-hl">MobileIron Sentry</mark>. The most severe issue, <mark class="tag-hl">CVE-2026-10520</mark>, is an <mark class="tag-hl">OS command injection</mark> flaw that can allow remote attackers to execute code with root privileges. A second flaw, <mark class="tag-hl">CVE-2026-10523</mark>, is an <mark class="tag-hl">authentication bypass</mark> that can let unauthenticated remote attackers create rogue administrative accounts and gain full administrative access.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:ceebaf82d917c858" class="tab-panel active"><div class="prose">Ivanti released patches for two critical Sentry vulnerabilities, including a maximum-severity OS command injection flaw that could let remote attackers execute code as root. The company says there is no evidence of exploitation yet, but administrators should upgrade to the fixed versions immediately.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:ceebaf82d917c858" class="tab-panel"><div class="prose"><p>Ivanti released patches for two critical vulnerabilities in its Sentry secure mobile gateway solution, formerly known as MobileIron Sentry. The most severe issue, CVE-2026-10520, is an OS command injection flaw that can allow remote attackers to execute code with root privileges. A second flaw, CVE-2026-10523, is an authentication bypass that can let unauthenticated remote attackers create rogue administrative accounts and gain full administrative access.</p>
 
-<p>The fixes were released in Sentry versions R10.5.2, R10.6.2, and R10.7.1. <mark class="tag-hl">Ivanti</mark> said it is not aware of any customers being exploited through these vulnerabilities at the time of disclosure and that there is no known public exploitation that could provide indicators of compromise. The company advised administrators to upgrade their systems to protect against potential attacks.</p>
+<p>The fixes were released in Sentry versions R10.5.2, R10.6.2, and R10.7.1. Ivanti said it is not aware of any customers being exploited through these vulnerabilities at the time of disclosure and that there is no known public exploitation that could provide indicators of compromise. The company advised administrators to upgrade their systems to protect against potential attacks.</p>
 
-<p>The article emphasizes that <mark class="tag-hl">Ivanti</mark> vulnerabilities have often been targeted in recent years because they can provide access into enterprise networks and sensitive data. It cites recent <mark class="tag-hl">CISA</mark> action requiring U.S. federal agencies to patch <mark class="tag-hl">Ivanti</mark> devices after a separate EPMM flaw was exploited as a zero-day. It also notes that <mark class="tag-hl">Ivanti</mark> products are used by more than 40,000 clients worldwide.</p>
+<p>The article emphasizes that Ivanti vulnerabilities have often been targeted in recent years because they can provide access into enterprise networks and sensitive data. It cites recent CISA action requiring U.S. federal agencies to patch Ivanti devices after a separate EPMM flaw was exploited as a zero-day. It also notes that Ivanti products are used by more than 40,000 clients worldwide.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:ceebaf82d917c858" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Ivanti</mark> has patched two critical vulnerabilities in <mark class="tag-hl">Ivanti Sentry</mark>, its secure mobile gateway appliance used to secure traffic between back-end corporate systems and remote mobile devices. The product was formerly known as <mark class="tag-hl">MobileIron Sentry</mark>. The company released fixed Sentry versions R10.5.2, R10.6.2, and R10.7.1 on Tuesday.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:ceebaf82d917c858" class="tab-panel"><div class="prose"><p>Ivanti has patched two critical vulnerabilities in Ivanti Sentry, its secure mobile gateway appliance used to secure traffic between back-end corporate systems and remote mobile devices. The product was formerly known as MobileIron Sentry. The company released fixed Sentry versions R10.5.2, R10.6.2, and R10.7.1 on Tuesday.</p>
 
-<p>The most severe vulnerability is <mark class="tag-hl">CVE-2026-10520</mark>, which the article describes as a maximum-severity <mark class="tag-hl">OS command injection</mark> flaw. It can allow remote attackers to execute code with root privileges. The second vulnerability, <mark class="tag-hl">CVE-2026-10523</mark>, is a critical <mark class="tag-hl">authentication bypass</mark> issue.</p>
+<p>The most severe vulnerability is CVE-2026-10520, which the article describes as a maximum-severity OS command injection flaw. It can allow remote attackers to execute code with root privileges. The second vulnerability, CVE-2026-10523, is a critical authentication bypass issue.</p>
 
-<p>According to the article, <mark class="tag-hl">CVE-2026-10523</mark> can be exploited remotely by unauthenticated attackers. Successful exploitation can allow attackers to create rogue administrative accounts and gain full administrative access. Both vulnerabilities affect <mark class="tag-hl">Ivanti Sentry</mark> and were addressed in the newly released versions.</p>
+<p>According to the article, CVE-2026-10523 can be exploited remotely by unauthenticated attackers. Successful exploitation can allow attackers to create rogue administrative accounts and gain full administrative access. Both vulnerabilities affect Ivanti Sentry and were addressed in the newly released versions.</p>
 
-<p><mark class="tag-hl">Ivanti</mark> said it has no evidence that the two vulnerabilities are being exploited in the wild. The company also said it is not aware of any customers being exploited at the time of disclosure. Because there is no known public exploitation, <mark class="tag-hl">Ivanti</mark> said there are no indicators of compromise available from public exploitation activity.</p>
+<p>Ivanti said it has no evidence that the two vulnerabilities are being exploited in the wild. The company also said it is not aware of any customers being exploited at the time of disclosure. Because there is no known public exploitation, Ivanti said there are no indicators of compromise available from public exploitation activity.</p>
 
-<p>The article places the patches in the context of repeated targeting of <mark class="tag-hl">Ivanti</mark> vulnerabilities in recent years. It notes that <mark class="tag-hl">Ivanti</mark> flaws have been used because they can help attackers breach enterprise networks and steal sensitive corporate and customer data. It also cites a recent <mark class="tag-hl">CISA</mark> order requiring U.S. federal agencies to patch <mark class="tag-hl">Ivanti</mark> devices after <mark class="tag-hl">Ivanti</mark> warned about a separate EPMM <mark class="tag-hl">remote code execution</mark> vulnerability exploited as a zero-day.</p>
+<p>The article places the patches in the context of repeated targeting of Ivanti vulnerabilities in recent years. It notes that Ivanti flaws have been used because they can help attackers breach enterprise networks and steal sensitive corporate and customer data. It also cites a recent CISA order requiring U.S. federal agencies to patch Ivanti devices after Ivanti warned about a separate EPMM remote code execution vulnerability exploited as a zero-day.</p>
 
-<p>No threat actor is identified as exploiting these two Sentry vulnerabilities. The article references prior <mark class="tag-hl">Ivanti</mark> zero-day exploitation against a range of targets, including government agencies worldwide and a very limited number of customers in other cases. <mark class="tag-hl">Ivanti</mark> says its IT asset management solutions are used by more than 40,000 clients worldwide and supported by over 7,000 partners and more than 3,000 employees.</p>
+<p>No threat actor is identified as exploiting these two Sentry vulnerabilities. The article references prior Ivanti zero-day exploitation against a range of targets, including government agencies worldwide and a very limited number of customers in other cases. Ivanti says its IT asset management solutions are used by more than 40,000 clients worldwide and supported by over 7,000 partners and more than 3,000 employees.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:ceebaf82d917c858" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:ceebaf82d917c858" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Ivanti</mark> released patches for two critical vulnerabilities in its Sentry secure mobile gateway solution. <mark class="tag-hl">Ivanti Sentry</mark>, formerly known as <mark class="tag-hl">MobileIron Sentry</mark>, is described as a security gateway appliance that secures traffic between back-end corporate systems and remote mobile devices.</p>
+<p>Ivanti released patches for two critical vulnerabilities in its Sentry secure mobile gateway solution. Ivanti Sentry, formerly known as MobileIron Sentry, is described as a security gateway appliance that secures traffic between back-end corporate systems and remote mobile devices.</p>
 
-<p>The two patched vulnerabilities are <mark class="tag-hl">CVE-2026-10520</mark> and <mark class="tag-hl">CVE-2026-10523</mark>. <mark class="tag-hl">Ivanti</mark> addressed both issues in Sentry versions R10.5.2, R10.6.2, and R10.7.1.</p>
+<p>The two patched vulnerabilities are CVE-2026-10520 and CVE-2026-10523. Ivanti addressed both issues in Sentry versions R10.5.2, R10.6.2, and R10.7.1.</p>
 
 <h2 id="technical-details">Technical Details</h2>
 
-<p>The most severe vulnerability is <mark class="tag-hl">CVE-2026-10520</mark>. The article describes it as a maximum-severity <mark class="tag-hl">OS command injection</mark> flaw that enables remote attackers to execute code with root privileges.</p>
+<p>The most severe vulnerability is CVE-2026-10520. The article describes it as a maximum-severity OS command injection flaw that enables remote attackers to execute code with root privileges.</p>
 
-<p>The second vulnerability is <mark class="tag-hl">CVE-2026-10523</mark>. It is described as a critical <mark class="tag-hl">authentication bypass</mark> vulnerability that can be exploited remotely by unauthenticated attackers.</p>
+<p>The second vulnerability is CVE-2026-10523. It is described as a critical authentication bypass vulnerability that can be exploited remotely by unauthenticated attackers.</p>
 
-<p>According to the article, exploitation of <mark class="tag-hl">CVE-2026-10523</mark> can allow attackers to:</p>
+<p>According to the article, exploitation of CVE-2026-10523 can allow attackers to:</p>
 
 <ul>
 <li>Create rogue administrative accounts.</li>
@@ -1769,7 +1925,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="affected-product-and-versions">Affected Product and Versions</h2>
 
-<p>The affected product is <mark class="tag-hl">Ivanti Sentry</mark>, a secure mobile gateway solution previously known as <mark class="tag-hl">MobileIron Sentry</mark>. The article states that <mark class="tag-hl">Ivanti</mark> patched the flaws with the release of the following versions:</p>
+<p>The affected product is Ivanti Sentry, a secure mobile gateway solution previously known as MobileIron Sentry. The article states that Ivanti patched the flaws with the release of the following versions:</p>
 
 <ul>
 <li>Sentry R10.5.2</li>
@@ -1777,57 +1933,58 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Sentry R10.7.1</li>
 </ul>
 
-<p><mark class="tag-hl">Ivanti</mark> advised administrators to upgrade their systems to protect against potential attacks.</p>
+<p>Ivanti advised administrators to upgrade their systems to protect against potential attacks.</p>
 
 <h2 id="exploitation-status">Exploitation Status</h2>
 
-<p><mark class="tag-hl">Ivanti</mark> said it has no evidence that the two Sentry vulnerabilities are being exploited in the wild. The company stated that it is not aware of any customers being exploited by these vulnerabilities at the time of disclosure.</p>
+<p>Ivanti said it has no evidence that the two Sentry vulnerabilities are being exploited in the wild. The company stated that it is not aware of any customers being exploited by these vulnerabilities at the time of disclosure.</p>
 
-<p><mark class="tag-hl">Ivanti</mark> also said there is no known public exploitation of the vulnerabilities that could be used to provide a list of indicators of compromise. The article does not identify any known or suspected threat actor exploiting these two Sentry flaws.</p>
+<p>Ivanti also said there is no known public exploitation of the vulnerabilities that could be used to provide a list of indicators of compromise. The article does not identify any known or suspected threat actor exploiting these two Sentry flaws.</p>
 
 <h2 id="significance-and-context">Significance and Context</h2>
 
-<p>The article emphasizes that <mark class="tag-hl">Ivanti</mark> vulnerabilities have often been targeted in attacks in recent years. It states that these vulnerabilities can provide cybercriminals with an easy way to breach enterprise networks and steal sensitive corporate and customer data.</p>
+<p>The article emphasizes that Ivanti vulnerabilities have often been targeted in attacks in recent years. It states that these vulnerabilities can provide cybercriminals with an easy way to breach enterprise networks and steal sensitive corporate and customer data.</p>
 
-<p>As a recent example, the article says the Cybersecurity and Infrastructure Security Agency ordered U.S. federal agencies in May to patch <mark class="tag-hl">Ivanti</mark> devices. That action followed <mark class="tag-hl">Ivanti</mark>’s warning to customers to immediately patch a high-severity <mark class="tag-hl">remote code execution</mark> vulnerability in Endpoint Manager Mobile, or EPMM, that was exploited in zero-day attacks.</p>
+<p>As a recent example, the article says the Cybersecurity and Infrastructure Security Agency ordered U.S. federal agencies in May to patch Ivanti devices. That action followed Ivanti’s warning to customers to immediately patch a high-severity remote code execution vulnerability in Endpoint Manager Mobile, or EPMM, that was exploited in zero-day attacks.</p>
 
-<p>The article also notes that multiple other <mark class="tag-hl">Ivanti</mark> zero-days have been exploited in recent years against a wide range of targets. Those targets included government agencies worldwide and a very limited number of customers affected by two critical EPMM vulnerabilities addressed by <mark class="tag-hl">Ivanti</mark> in January.</p>
+<p>The article also notes that multiple other Ivanti zero-days have been exploited in recent years against a wide range of targets. Those targets included government agencies worldwide and a very limited number of customers affected by two critical EPMM vulnerabilities addressed by Ivanti in January.</p>
 
 <h2 id="stakeholders-mentioned">Stakeholders Mentioned</h2>
 
 <p>The main stakeholders named in the article are:</p>
 
 <ul>
-<li><mark class="tag-hl">Ivanti</mark>, the vendor that released the patches.</li>
-<li><mark class="tag-hl">Ivanti Sentry</mark> customers and administrators, who are advised to upgrade.</li>
-<li>The Cybersecurity and Infrastructure Security Agency, which is referenced in relation to prior <mark class="tag-hl">Ivanti</mark> patching orders for U.S. federal agencies.</li>
-<li>U.S. federal agencies, which were previously ordered by <mark class="tag-hl">CISA</mark> to patch <mark class="tag-hl">Ivanti</mark> devices in a separate case.</li>
-<li>Government agencies worldwide, which are mentioned as previous targets of <mark class="tag-hl">Ivanti</mark> zero-day exploitation.</li>
+<li>Ivanti, the vendor that released the patches.</li>
+<li>Ivanti Sentry customers and administrators, who are advised to upgrade.</li>
+<li>The Cybersecurity and Infrastructure Security Agency, which is referenced in relation to prior Ivanti patching orders for U.S. federal agencies.</li>
+<li>U.S. federal agencies, which were previously ordered by CISA to patch Ivanti devices in a separate case.</li>
+<li>Government agencies worldwide, which are mentioned as previous targets of Ivanti zero-day exploitation.</li>
 </ul>
 
-<h2 id="broader-ivanti-exposure">Broader <mark class="tag-hl">Ivanti</mark> Exposure</h2>
+<h2 id="broader-ivanti-exposure">Broader Ivanti Exposure</h2>
 
-<p>The article states that <mark class="tag-hl">Ivanti</mark>’s IT asset management solutions are used by more than 40,000 clients worldwide. It also says <mark class="tag-hl">Ivanti</mark> is supported by a network of more than 7,000 partners and over 3,000 employees.</p>
+<p>The article states that Ivanti’s IT asset management solutions are used by more than 40,000 clients worldwide. It also says Ivanti is supported by a network of more than 7,000 partners and over 3,000 employees.</p>
 
-<p>In discussing historical exploitation, the article says <mark class="tag-hl">CISA</mark> has tagged 34 vulnerabilities across various SolarWinds products as actively exploited over the past several years, with 12 also used in ransomware attacks. This appears in the article’s broader context section about exploited vulnerabilities.</p>
+<p>In discussing historical exploitation, the article says CISA has tagged 34 vulnerabilities across various SolarWinds products as actively exploited over the past several years, with 12 also used in ransomware attacks. This appears in the article’s broader context section about exploited vulnerabilities.</p>
 
 <h2 id="response-and-recommended-action-in-the-article">Response and Recommended Action in the Article</h2>
 
-<p><mark class="tag-hl">Ivanti</mark>’s stated response was to release patched Sentry versions R10.5.2, R10.6.2, and R10.7.1. The company advised administrators to upgrade their systems.</p>
+<p>Ivanti’s stated response was to release patched Sentry versions R10.5.2, R10.6.2, and R10.7.1. The company advised administrators to upgrade their systems.</p>
 
-<p>The article does not provide indicators of compromise because <mark class="tag-hl">Ivanti</mark> said there is no known public exploitation of these vulnerabilities. It also does not report any confirmed customer compromise tied to <mark class="tag-hl">CVE-2026-10520</mark> or <mark class="tag-hl">CVE-2026-10523</mark> at the time of disclosure.</p>
+<p>The article does not provide indicators of compromise because Ivanti said there is no known public exploitation of these vulnerabilities. It also does not report any confirmed customer compromise tied to CVE-2026-10520 or CVE-2026-10523 at the time of disclosure.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:ceebaf82d917c858" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Because <mark class="tag-hl">Ivanti</mark> says there are no known public exploitation details or indicators of compromise for these Sentry flaws, upgrading to the fixed versions is the primary defensive action identified in the article.</span></li><li><span class="kp-text">The <mark class="tag-hl">authentication bypass</mark> vulnerability is especially actionable because the article says unauthenticated remote attackers could create rogue administrative accounts and gain full administrative access.</span></li><li><span class="kp-text">The affected product is a gateway between back-end corporate systems and remote mobile devices, making exposed Sentry appliances a high-priority asset to patch.</span></li><li><span class="kp-text">The article highlights that <mark class="tag-hl">Ivanti</mark> vulnerabilities have repeatedly been targeted in recent years, including zero-days affecting government agencies, which raises the urgency of patching even though these two Sentry flaws are not currently known to be exploited.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:ceebaf82d917c858" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Because Ivanti says there are no known public exploitation details or indicators of compromise for these Sentry flaws, upgrading to the fixed versions is the primary defensive action identified in the article.</span></li><li><span class="kp-text">The authentication bypass vulnerability is especially actionable because the article says unauthenticated remote attackers could create rogue administrative accounts and gain full administrative access.</span></li><li><span class="kp-text">The affected product is a gateway between back-end corporate systems and remote mobile devices, making exposed Sentry appliances a high-priority asset to patch.</span></li><li><span class="kp-text">The article highlights that Ivanti vulnerabilities have repeatedly been targeted in recent years, including zero-days affecting government agencies, which raises the urgency of patching even though these two Sentry flaws are not currently known to be exploited.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Ivanti</mark> released patches for two critical vulnerabilities in its Sentry secure mobile gateway solution.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2026-10520</mark> is a maximum-severity <mark class="tag-hl">OS command injection</mark> flaw that can allow remote attackers to execute code with root privileges.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2026-10523</mark> is a critical <mark class="tag-hl">authentication bypass</mark> that can allow unauthenticated remote attackers to create rogue administrative accounts and gain full administrative access.</span></li><li><span class="kp-text"><mark class="tag-hl">Ivanti</mark> fixed both vulnerabilities in Sentry versions R10.5.2, R10.6.2, and R10.7.1.</span></li><li><span class="kp-text"><mark class="tag-hl">Ivanti</mark> said it has no evidence that the two vulnerabilities are being exploited in the wild at the time of disclosure.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Ivanti released patches for two critical vulnerabilities in its Sentry secure mobile gateway solution.</span></li><li><span class="kp-text">CVE-2026-10520 is a maximum-severity OS command injection flaw that can allow remote attackers to execute code with root privileges.</span></li><li><span class="kp-text">CVE-2026-10523 is a critical authentication bypass that can allow unauthenticated remote attackers to create rogue administrative accounts and gain full administrative access.</span></li><li><span class="kp-text">Ivanti fixed both vulnerabilities in Sentry versions R10.5.2, R10.6.2, and R10.7.1.</span></li><li><span class="kp-text">Ivanti said it has no evidence that the two vulnerabilities are being exploited in the wild at the time of disclosure.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/new-max-severity-ivanti-sentry-flaw-allows-code-execution-as-root/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports critical patches for <mark class="tag-hl">Ivanti Sentry</mark>, including a maximum-severity <mark class="tag-hl">remote code execution</mark> flaw allowing root-level code execution and a critical <mark class="tag-hl">authentication bypass</mark>. Although <mark class="tag-hl">Ivanti</mark> says there is no known exploitation yet, the product’s enterprise gateway role and <mark class="tag-hl">Ivanti</mark>’s history of targeted vulnerabilities make timely patching highly important.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports critical patches for Ivanti Sentry, including a maximum-severity remote code execution flaw allowing root-level code execution and a critical authentication bypass. Although Ivanti says there is no known exploitation yet, the product’s enterprise gateway role and Ivanti’s history of targeted vulnerabilities make timely patching highly important.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog?search=&amp;field_date_added_wrapper=all&amp;field_cve=&amp;sort_by=field_date_added&amp;items_per_page=All&amp;url=&amp;f%5B0%5D=vendor_project%3A817" target="_blank" rel="noopener">Known Exploited Vulnerabilities Catalog</a></div>
   <div class="report-meta">Cybersecurity and Infrastructure Security Agency</div>
-  <div class="report-context">The article references <mark class="tag-hl">CISA</mark>&#39;s catalog to note prior <mark class="tag-hl">Ivanti</mark> vulnerabilities that have been tagged as actively exploited in attacks.</div>
+  <div class="report-context">The article references CISA&#39;s catalog to note prior Ivanti vulnerabilities that have been tagged as actively exploited in attacks.</div>
 </li></ul></div>
             
           </div>
@@ -1856,44 +2013,44 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:82%"></div></div><span class="score-num score-num-mid">82</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:b0434aacec54021b">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:b0434aacec54021b')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:b0434aacec54021b')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:b0434aacec54021b')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:b0434aacec54021b')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:b0434aacec54021b')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:b0434aacec54021b')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:b0434aacec54021b')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:b0434aacec54021b')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:b0434aacec54021b')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:b0434aacec54021b')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:b0434aacec54021b" class="tab-panel active"><div class="prose"><mark class="tag-hl">Anthropic</mark> launched <mark class="tag-hl">Claude Fable 5</mark> as its most powerful public model, but routes risky cyber, bio, chemistry, and <mark class="tag-hl">model-distillation</mark> requests to a weaker model while reserving the unrestricted <mark class="tag-hl">Claude Mythos 5</mark> for vetted defenders. The key takeaway is that frontier AI can now accelerate vulnerability discovery and exploit development enough that patching speed and controlled access have become major security concerns.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:b0434aacec54021b" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Anthropic</mark> released <mark class="tag-hl">Claude Fable 5</mark> on June 9 as its most capable public model, while keeping its cyber-unrestricted twin, <mark class="tag-hl">Claude Mythos 5</mark>, limited to vetted cyber defenders and critical infrastructure operators. The two products use the same underlying model, but Fable 5 includes safety classifiers that route certain flagged requests away from the full-capability model. <mark class="tag-hl">Anthropic</mark> calls Mythos 5 the strongest cybersecurity model in the world.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:b0434aacec54021b" class="tab-panel active"><div class="prose">Anthropic launched Claude Fable 5 as its most powerful public model, but routes risky cyber, bio, chemistry, and model-distillation requests to a weaker model while reserving the unrestricted Claude Mythos 5 for vetted defenders. The key takeaway is that frontier AI can now accelerate vulnerability discovery and exploit development enough that patching speed and controlled access have become major security concerns.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:b0434aacec54021b" class="tab-panel"><div class="prose"><p>Anthropic released Claude Fable 5 on June 9 as its most capable public model, while keeping its cyber-unrestricted twin, Claude Mythos 5, limited to vetted cyber defenders and critical infrastructure operators. The two products use the same underlying model, but Fable 5 includes safety classifiers that route certain flagged requests away from the full-capability model. Anthropic calls Mythos 5 the strongest cybersecurity model in the world.</p>
 
-<p>Fable 5 routes flagged cyber, biology, chemistry, and distillation requests to the weaker Claude Opus 4.8, while Mythos 5 keeps cyber capabilities available for approved users. <mark class="tag-hl">Anthropic</mark> says the safeguards are meant to reduce attacker uplift from models that can find and exploit software vulnerabilities. The company reports that fallback occurs in under 5% of all sessions, while more than 95% of sessions behave like the cyber-unrestricted Mythos 5.</p>
+<p>Fable 5 routes flagged cyber, biology, chemistry, and distillation requests to the weaker Claude Opus 4.8, while Mythos 5 keeps cyber capabilities available for approved users. Anthropic says the safeguards are meant to reduce attacker uplift from models that can find and exploit software vulnerabilities. The company reports that fallback occurs in under 5% of all sessions, while more than 95% of sessions behave like the cyber-unrestricted Mythos 5.</p>
 
-<p>The launch follows <mark class="tag-hl">Project Glasswing</mark>, where <mark class="tag-hl">Anthropic</mark> and roughly 50 partners used Mythos Preview to find more than ten thousand high- or critical-severity vulnerabilities in systemically important software. The article emphasizes that the bottleneck has shifted from finding bugs to verifying, triaging, and patching them, with high- or critical-severity model-found bugs taking about two weeks to patch on average. <mark class="tag-hl">Anthropic</mark> is also requiring 30-day retention for traffic on Fable 5, Mythos 5, and future models at this capability level for safety purposes.</p>
+<p>The launch follows Project Glasswing, where Anthropic and roughly 50 partners used Mythos Preview to find more than ten thousand high- or critical-severity vulnerabilities in systemically important software. The article emphasizes that the bottleneck has shifted from finding bugs to verifying, triaging, and patching them, with high- or critical-severity model-found bugs taking about two weeks to patch on average. Anthropic is also requiring 30-day retention for traffic on Fable 5, Mythos 5, and future models at this capability level for safety purposes.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:b0434aacec54021b" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Anthropic</mark> released <mark class="tag-hl">Claude Fable 5</mark> on June 9 and made it generally available through the Claude API. At the same time, it kept <mark class="tag-hl">Claude Mythos 5</mark>, the same underlying model without the cyber safeguards, restricted to vetted cyber defenders and critical infrastructure operators. <mark class="tag-hl">Anthropic</mark> describes Mythos 5 as the strongest cybersecurity model in the world. Both models are priced at <span class="math inline">\(10 per million input tokens and \)</span>50 per million output tokens.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:b0434aacec54021b" class="tab-panel"><div class="prose"><p>Anthropic released Claude Fable 5 on June 9 and made it generally available through the Claude API. At the same time, it kept Claude Mythos 5, the same underlying model without the cyber safeguards, restricted to vetted cyber defenders and critical infrastructure operators. Anthropic describes Mythos 5 as the strongest cybersecurity model in the world. Both models are priced at <span class="math inline">\(10 per million input tokens and \)</span>50 per million output tokens.</p>
 
-<p>The central technical distinction is a safety layer in Fable 5. Its classifiers monitor for flagged cyber, biology, chemistry, and distillation requests, then route those requests to Claude Opus 4.8 rather than refusing them outright. The user is told when the handoff happens. <mark class="tag-hl">Anthropic</mark> says distillation refers to extracting a model’s capabilities to train a competing model, which it blocks to prevent near-frontier abilities from leaking without safeguards.</p>
+<p>The central technical distinction is a safety layer in Fable 5. Its classifiers monitor for flagged cyber, biology, chemistry, and distillation requests, then route those requests to Claude Opus 4.8 rather than refusing them outright. The user is told when the handoff happens. Anthropic says distillation refers to extracting a model’s capabilities to train a competing model, which it blocks to prevent near-frontier abilities from leaking without safeguards.</p>
 
-<p><mark class="tag-hl">Anthropic</mark> says the cyber classifier is broad and is designed to block offensive cyber tasks such as reconnaissance, discovery, lateral movement, exploit development, and other agentic steps in real attacks. In internal evaluation, when Fable 5 was set to block rather than fall back and the test did not attempt to evade safeguards, the classifiers stopped progress on those tasks. An external partner found Fable 5 complied with zero harmful single-turn requests on cyberattack planning, exploit development, or defense evasion, including against 30 public <mark class="tag-hl">jailbreak</mark> techniques. <mark class="tag-hl">Anthropic</mark> also says an external bug bounty ran over 1,000 hours without producing a universal <mark class="tag-hl">jailbreak</mark>, though the UK’s AI Security Institute made progress toward one in a brief initial testing window.</p>
+<p>Anthropic says the cyber classifier is broad and is designed to block offensive cyber tasks such as reconnaissance, discovery, lateral movement, exploit development, and other agentic steps in real attacks. In internal evaluation, when Fable 5 was set to block rather than fall back and the test did not attempt to evade safeguards, the classifiers stopped progress on those tasks. An external partner found Fable 5 complied with zero harmful single-turn requests on cyberattack planning, exploit development, or defense evasion, including against 30 public jailbreak techniques. Anthropic also says an external bug bounty ran over 1,000 hours without producing a universal jailbreak, though the UK’s AI Security Institute made progress toward one in a brief initial testing window.</p>
 
-<p>The article explains why <mark class="tag-hl">Anthropic</mark> treats these capabilities as sensitive by referring to <mark class="tag-hl">Claude Mythos Preview</mark> and <mark class="tag-hl">Project Glasswing</mark>. <mark class="tag-hl">Anthropic</mark>’s red team said Mythos Preview identified and exploited zero-day vulnerabilities in every major operating system and every major web browser when directed by a user. It also autonomously wrote a <mark class="tag-hl">remote code execution</mark> exploit against FreeBSD’s NFS server from a 17-year-old bug, tracked as <mark class="tag-hl">CVE-2026-4747</mark>. <mark class="tag-hl">Anthropic</mark> says these skills emerged as a side effect of improvements in code, reasoning, and autonomy rather than from explicit training for them.</p>
+<p>The article explains why Anthropic treats these capabilities as sensitive by referring to Claude Mythos Preview and Project Glasswing. Anthropic’s red team said Mythos Preview identified and exploited zero-day vulnerabilities in every major operating system and every major web browser when directed by a user. It also autonomously wrote a remote code execution exploit against FreeBSD’s NFS server from a 17-year-old bug, tracked as CVE-2026-4747. Anthropic says these skills emerged as a side effect of improvements in code, reasoning, and autonomy rather than from explicit training for them.</p>
 
-<p>On the defensive side, <mark class="tag-hl">Anthropic</mark> and about 50 partners used Mythos Preview in <mark class="tag-hl">Project Glasswing</mark> to find more than ten thousand high- or critical-severity vulnerabilities in systemically important software. <mark class="tag-hl">Cloudflare</mark> found 2,000 bugs, including 400 high- or critical-severity issues, while <mark class="tag-hl">Mozilla</mark> found and fixed 271 issues in Firefox 150. The article says the practical bottleneck has moved from discovery to verification, triage, and patching, and that open-source maintainers have asked <mark class="tag-hl">Anthropic</mark> to slow disclosures because they cannot write patches fast enough.</p>
+<p>On the defensive side, Anthropic and about 50 partners used Mythos Preview in Project Glasswing to find more than ten thousand high- or critical-severity vulnerabilities in systemically important software. Cloudflare found 2,000 bugs, including 400 high- or critical-severity issues, while Mozilla found and fixed 271 issues in Firefox 150. The article says the practical bottleneck has moved from discovery to verification, triage, and patching, and that open-source maintainers have asked Anthropic to slow disclosures because they cannot write patches fast enough.</p>
 
-<p><mark class="tag-hl">Anthropic</mark> is also imposing 30-day data retention for all traffic on Fable 5, Mythos 5, and future models at this capability level, across both first- and third-party surfaces. The company says it will not use the data for training or any non-safety purpose, will log all human access, and will delete data after 30 days except where a safety investigation or legal obligation requires longer retention. The article says teams with strict data-handling requirements should account for that retention window before routing sensitive traffic through these models.</p>
+<p>Anthropic is also imposing 30-day data retention for all traffic on Fable 5, Mythos 5, and future models at this capability level, across both first- and third-party surfaces. The company says it will not use the data for training or any non-safety purpose, will log all human access, and will delete data after 30 days except where a safety investigation or legal obligation requires longer retention. The article says teams with strict data-handling requirements should account for that retention window before routing sensitive traffic through these models.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:b0434aacec54021b" class="tab-panel"><div class="prose"><h2 id="core-event">Core event</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:b0434aacec54021b" class="tab-panel"><div class="prose"><h2 id="core-event">Core event</h2>
 
-<p><mark class="tag-hl">Anthropic</mark> released <mark class="tag-hl">Claude Fable 5</mark> on June 9 as the most capable model it has made generally available. The company also shipped <mark class="tag-hl">Claude Mythos 5</mark>, which uses the same underlying model but removes the cyber safeguards for a vetted group of users. Fable 5 is available through the Claude API, while Mythos 5 is restricted to vetted cyber defenders and critical infrastructure operators.</p>
+<p>Anthropic released Claude Fable 5 on June 9 as the most capable model it has made generally available. The company also shipped Claude Mythos 5, which uses the same underlying model but removes the cyber safeguards for a vetted group of users. Fable 5 is available through the Claude API, while Mythos 5 is restricted to vetted cyber defenders and critical infrastructure operators.</p>
 
-<p><mark class="tag-hl">Anthropic</mark> describes Mythos 5 as the strongest cybersecurity model in the world. The launch is unusual because <mark class="tag-hl">Anthropic</mark> split one underlying model into two products based on a layer of safety classifiers rather than on core model capability.</p>
+<p>Anthropic describes Mythos 5 as the strongest cybersecurity model in the world. The launch is unusual because Anthropic split one underlying model into two products based on a layer of safety classifiers rather than on core model capability.</p>
 
 <h2 id="product-split-and-pricing">Product split and pricing</h2>
 
@@ -1912,53 +2069,53 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="how-the-safeguards-work">How the safeguards work</h2>
 
-<p><mark class="tag-hl">Anthropic</mark> uses classifiers as separate AI systems that monitor for misuse and <mark class="tag-hl">jailbreak</mark> attempts. When a request triggers one of these classifiers in Fable 5, the model does not refuse the request outright. Instead, the response is handed to Claude Opus 4.8, and the user is told that the handoff happened.</p>
+<p>Anthropic uses classifiers as separate AI systems that monitor for misuse and jailbreak attempts. When a request triggers one of these classifiers in Fable 5, the model does not refuse the request outright. Instead, the response is handed to Claude Opus 4.8, and the user is told that the handoff happened.</p>
 
-<p>The article highlights distillation as a distinct category among the safeguards. It defines distillation as extracting a model’s capabilities to train a competing model. <mark class="tag-hl">Anthropic</mark> blocks this to prevent near-frontier abilities from leaking out without safeguards attached.</p>
+<p>The article highlights distillation as a distinct category among the safeguards. It defines distillation as extracting a model’s capabilities to train a competing model. Anthropic blocks this to prevent near-frontier abilities from leaking out without safeguards attached.</p>
 
 <h2 id="scope-of-the-cyber-classifier">Scope of the cyber classifier</h2>
 
-<p>The cybersecurity classifier is described as broad. <mark class="tag-hl">Anthropic</mark> designed it to block not only exploit development but offensive cyber tasks in general. The article specifically names reconnaissance, discovery, lateral movement, and agentic steps that make up a real attack.</p>
+<p>The cybersecurity classifier is described as broad. Anthropic designed it to block not only exploit development but offensive cyber tasks in general. The article specifically names reconnaissance, discovery, lateral movement, and agentic steps that make up a real attack.</p>
 
-<p>In an internal evaluation, Fable 5 was configured to block rather than fall back, and the test did not attempt to evade safeguards. Under those conditions, <mark class="tag-hl">Anthropic</mark> says the classifiers stopped the model from making any progress on the blocked tasks. One external partner found that Fable 5 complied with zero harmful single-turn requests on cyberattack planning, exploit development, or defense evasion, including against 30 different public <mark class="tag-hl">jailbreak</mark> techniques.</p>
+<p>In an internal evaluation, Fable 5 was configured to block rather than fall back, and the test did not attempt to evade safeguards. Under those conditions, Anthropic says the classifiers stopped the model from making any progress on the blocked tasks. One external partner found that Fable 5 complied with zero harmful single-turn requests on cyberattack planning, exploit development, or defense evasion, including against 30 different public jailbreak techniques.</p>
 
 <h2 id="false-positives-and-robustness">False positives and robustness</h2>
 
-<p>The article says <mark class="tag-hl">Anthropic</mark> tuned the safeguards conservatively in order to ship quickly, which means they sometimes catch harmless requests. <mark class="tag-hl">Anthropic</mark> says fallback occurs in under 5% of all sessions. The article notes that this figure includes every fallback, including genuine blocks, so it caps total disruption rather than measuring the false-positive rate alone.</p>
+<p>The article says Anthropic tuned the safeguards conservatively in order to ship quickly, which means they sometimes catch harmless requests. Anthropic says fallback occurs in under 5% of all sessions. The article notes that this figure includes every fallback, including genuine blocks, so it caps total disruption rather than measuring the false-positive rate alone.</p>
 
-<p><mark class="tag-hl">Anthropic</mark> says it plans to narrow the safeguards and reduce false positives after launch. On robustness, the article says an external bug bounty ran for more than 1,000 hours and produced no universal <mark class="tag-hl">jailbreak</mark>, meaning no prompt or harness that strips the safeguards wholesale. External red teams also found no universal <mark class="tag-hl">jailbreak</mark> on long-form agentic tasks.</p>
+<p>Anthropic says it plans to narrow the safeguards and reduce false positives after launch. On robustness, the article says an external bug bounty ran for more than 1,000 hours and produced no universal jailbreak, meaning no prompt or harness that strips the safeguards wholesale. External red teams also found no universal jailbreak on long-form agentic tasks.</p>
 
-<p>The article includes one caveat: the UK’s AI Security Institute made progress toward a universal <mark class="tag-hl">jailbreak</mark> during a brief initial testing window. <mark class="tag-hl">Anthropic</mark> states that fully preventing universal jailbreaks is likely impossible, and says its goal is to make any remaining universal jailbreaks slow and costly enough to catch before they are used at scale.</p>
+<p>The article includes one caveat: the UK’s AI Security Institute made progress toward a universal jailbreak during a brief initial testing window. Anthropic states that fully preventing universal jailbreaks is likely impossible, and says its goal is to make any remaining universal jailbreaks slow and costly enough to catch before they are used at scale.</p>
 
-<h2 id="why-anthropic-treats-the-capability-as-sensitive">Why <mark class="tag-hl">Anthropic</mark> treats the capability as sensitive</h2>
+<h2 id="why-anthropic-treats-the-capability-as-sensitive">Why Anthropic treats the capability as sensitive</h2>
 
-<p>The article points to <mark class="tag-hl">Claude Mythos Preview</mark>, which <mark class="tag-hl">Anthropic</mark> released in April to a limited group through <mark class="tag-hl">Project Glasswing</mark>, as the basis for its concern. <mark class="tag-hl">Anthropic</mark>’s red team technical write-up said Mythos Preview identified and exploited zero-day vulnerabilities in every major operating system and every major web browser when directed by a user. The oldest bug it found was described as a 27-year-old flaw in OpenBSD.</p>
+<p>The article points to Claude Mythos Preview, which Anthropic released in April to a limited group through Project Glasswing, as the basis for its concern. Anthropic’s red team technical write-up said Mythos Preview identified and exploited zero-day vulnerabilities in every major operating system and every major web browser when directed by a user. The oldest bug it found was described as a 27-year-old flaw in OpenBSD.</p>
 
-<p>The article also says Mythos Preview autonomously wrote a <mark class="tag-hl">remote code execution</mark> exploit against FreeBSD’s NFS server from a 17-year-old bug, triaged as <mark class="tag-hl">CVE-2026-4747</mark>. <mark class="tag-hl">Anthropic</mark> described the result as full root access for an unauthenticated attacker from anywhere on the internet. The article notes that NVD’s entry is more measured, saying the stack overflow itself does not require client authentication, while kernel code execution is framed as reachable by an attacker able to send packets to the NFS server while the kgssapi.ko module is loaded.</p>
+<p>The article also says Mythos Preview autonomously wrote a remote code execution exploit against FreeBSD’s NFS server from a 17-year-old bug, triaged as CVE-2026-4747. Anthropic described the result as full root access for an unauthenticated attacker from anywhere on the internet. The article notes that NVD’s entry is more measured, saying the stack overflow itself does not require client authentication, while kernel code execution is framed as reachable by an attacker able to send packets to the NFS server while the kgssapi.ko module is loaded.</p>
 
-<p><mark class="tag-hl">Anthropic</mark> says it did not explicitly train these capabilities into the model. According to the article, they emerged as a side effect of broader improvements in code, reasoning, and autonomy. The same improvements also make the model better at patching.</p>
+<p>Anthropic says it did not explicitly train these capabilities into the model. According to the article, they emerged as a side effect of broader improvements in code, reasoning, and autonomy. The same improvements also make the model better at patching.</p>
 
-<h2 id="defensive-implications-from-project-glasswing">Defensive implications from <mark class="tag-hl">Project Glasswing</mark></h2>
+<h2 id="defensive-implications-from-project-glasswing">Defensive implications from Project Glasswing</h2>
 
-<p>The article says the defensive case for these models is not hypothetical. In the first weeks of <mark class="tag-hl">Project Glasswing</mark>, <mark class="tag-hl">Anthropic</mark> and roughly 50 partners used Mythos Preview to find more than ten thousand high- or critical-severity vulnerabilities in systemically important software.</p>
+<p>The article says the defensive case for these models is not hypothetical. In the first weeks of Project Glasswing, Anthropic and roughly 50 partners used Mythos Preview to find more than ten thousand high- or critical-severity vulnerabilities in systemically important software.</p>
 
 <p>Examples cited in the article include:</p>
 
 <ul>
-<li><mark class="tag-hl">Cloudflare</mark> found 2,000 bugs, including 400 high- or critical-severity bugs.</li>
-<li><mark class="tag-hl">Mozilla</mark> found and fixed 271 bugs in Firefox 150.</li>
-<li><mark class="tag-hl">Mozilla</mark>’s Firefox 150 result was more than ten times what it found in Firefox 148 using the older Opus 4.6.</li>
+<li>Cloudflare found 2,000 bugs, including 400 high- or critical-severity bugs.</li>
+<li>Mozilla found and fixed 271 bugs in Firefox 150.</li>
+<li>Mozilla’s Firefox 150 result was more than ten times what it found in Firefox 148 using the older Opus 4.6.</li>
 </ul>
 
-<p><mark class="tag-hl">Anthropic</mark> says similar pressure is visible outside Glasswing in vendors shipping unusually large security releases.</p>
+<p>Anthropic says similar pressure is visible outside Glasswing in vendors shipping unusually large security releases.</p>
 
 <h2 id="the-new-bottleneck-verification-triage-and-patching">The new bottleneck: verification, triage, and patching</h2>
 
-<p>The article emphasizes that finding bugs has become cheaper and faster, while verifying, triaging, and patching them still depends on human time. <mark class="tag-hl">Anthropic</mark> reports that open-source maintainers, already facing low-quality AI-generated bug reports, have asked it to slow disclosures because they cannot write patches fast enough. In Glasswing, <mark class="tag-hl">Anthropic</mark> says a high- or critical-severity model-found bug takes about two weeks to patch on average.</p>
+<p>The article emphasizes that finding bugs has become cheaper and faster, while verifying, triaging, and patching them still depends on human time. Anthropic reports that open-source maintainers, already facing low-quality AI-generated bug reports, have asked it to slow disclosures because they cannot write patches fast enough. In Glasswing, Anthropic says a high- or critical-severity model-found bug takes about two weeks to patch on average.</p>
 
 <p>The article states that the bottleneck has moved from discovery to the fix. It also emphasizes that the window between public disclosure and a deployed patch is where attackers operate.</p>
 
-<p><mark class="tag-hl">Anthropic</mark>’s red-team N-day experiments are presented as evidence of the shortened timeline. Starting with only a disclosed CVE and its patch, Mythos Preview built working Linux <mark class="tag-hl">privilege-escalation</mark> exploits in under a day each, at a few thousand dollars or less in compute.</p>
+<p>Anthropic’s red-team N-day experiments are presented as evidence of the shortened timeline. Starting with only a disclosed CVE and its patch, Mythos Preview built working Linux privilege-escalation exploits in under a day each, at a few thousand dollars or less in compute.</p>
 
 <h2 id="recommended-defensive-posture-described-in-the-article">Recommended defensive posture described in the article</h2>
 
@@ -1968,35 +2125,36 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="access-program-for-legitimate-offensive-work">Access program for legitimate offensive work</h2>
 
-<p><mark class="tag-hl">Anthropic</mark> has opened a Cyber Verification Program. The article says this program lets vetted security professionals use <mark class="tag-hl">Anthropic</mark>’s models for legitimate offensive work without the cyber safeguards. <mark class="tag-hl">Anthropic</mark> also plans to widen Mythos 5 access through a trusted-access program.</p>
+<p>Anthropic has opened a Cyber Verification Program. The article says this program lets vetted security professionals use Anthropic’s models for legitimate offensive work without the cyber safeguards. Anthropic also plans to widen Mythos 5 access through a trusted-access program.</p>
 
 <h2 id="data-retention-requirement">Data retention requirement</h2>
 
-<p><mark class="tag-hl">Anthropic</mark> is changing data handling for Mythos-class models. It will require 30-day retention for all traffic on Fable 5, Mythos 5, and future models at this capability level. This applies across both first-party and third-party surfaces.</p>
+<p>Anthropic is changing data handling for Mythos-class models. It will require 30-day retention for all traffic on Fable 5, Mythos 5, and future models at this capability level. This applies across both first-party and third-party surfaces.</p>
 
-<p><mark class="tag-hl">Anthropic</mark> says it will not use this data for training or any non-safety purpose. It also says it will log all human access and delete the data after 30 days, except where a safety investigation or legal obligation requires holding it longer.</p>
+<p>Anthropic says it will not use this data for training or any non-safety purpose. It also says it will log all human access and delete the data after 30 days, except where a safety investigation or legal obligation requires holding it longer.</p>
 
-<p>The stated reason for the retention requirement is defensive. <mark class="tag-hl">Anthropic</mark> says the retained data helps detect novel attacks and jailbreaks that operate across many requests. The article says teams with strict data-handling requirements should account for the retention window before sending sensitive traffic through these models.</p>
+<p>The stated reason for the retention requirement is defensive. Anthropic says the retained data helps detect novel attacks and jailbreaks that operate across many requests. The article says teams with strict data-handling requirements should account for the retention window before sending sensitive traffic through these models.</p>
 
 <h2 id="larger-industry-question-raised-by-the-launch">Larger industry question raised by the launch</h2>
 
-<p>The article closes by saying <mark class="tag-hl">Anthropic</mark> plans to fold Fable 5 back into subscription plans without the usage-credit premium once compute capacity catches up. It also says the broader issue is that similarly capable models from other labs are coming. The article’s final point is that not all such models may ship with comparable classifier safeguards, and that the defensive head start from <mark class="tag-hl">Project Glasswing</mark> only matters if the rest of the industry uses it.</p>
+<p>The article closes by saying Anthropic plans to fold Fable 5 back into subscription plans without the usage-credit premium once compute capacity catches up. It also says the broader issue is that similarly capable models from other labs are coming. The article’s final point is that not all such models may ship with comparable classifier safeguards, and that the defensive head start from Project Glasswing only matters if the rest of the industry uses it.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:b0434aacec54021b" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Anthropic</mark>’s fallback design means most users still receive Mythos-level capability in ordinary sessions, because the company says all safeguard-triggered fallbacks occur in under 5% of sessions.</span></li><li><span class="kp-text">The main defensive bottleneck described in the article is no longer finding serious bugs but verifying, triaging, and patching them, with Glasswing high- or critical-severity findings taking about two weeks to patch on average.</span></li><li><span class="kp-text">The article says defenders should assume a high-severity CVE can become a working exploit within hours of disclosure, because Mythos Preview built Linux <mark class="tag-hl">privilege-escalation</mark> exploits from disclosed CVEs and patches in under a day each.</span></li><li><span class="kp-text"><mark class="tag-hl">Anthropic</mark>’s own testing found no universal <mark class="tag-hl">jailbreak</mark> after more than 1,000 hours of external bug bounty work, but the company still acknowledges that fully preventing universal jailbreaks is likely impossible.</span></li><li><span class="kp-text">Teams with strict data-handling requirements may need to avoid or carefully govern Fable 5 and Mythos 5 usage because <mark class="tag-hl">Anthropic</mark> now requires 30-day retention for all traffic on these capability-level models.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:b0434aacec54021b" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Anthropic’s fallback design means most users still receive Mythos-level capability in ordinary sessions, because the company says all safeguard-triggered fallbacks occur in under 5% of sessions.</span></li><li><span class="kp-text">The main defensive bottleneck described in the article is no longer finding serious bugs but verifying, triaging, and patching them, with Glasswing high- or critical-severity findings taking about two weeks to patch on average.</span></li><li><span class="kp-text">The article says defenders should assume a high-severity CVE can become a working exploit within hours of disclosure, because Mythos Preview built Linux privilege-escalation exploits from disclosed CVEs and patches in under a day each.</span></li><li><span class="kp-text">Anthropic’s own testing found no universal jailbreak after more than 1,000 hours of external bug bounty work, but the company still acknowledges that fully preventing universal jailbreaks is likely impossible.</span></li><li><span class="kp-text">Teams with strict data-handling requirements may need to avoid or carefully govern Fable 5 and Mythos 5 usage because Anthropic now requires 30-day retention for all traffic on these capability-level models.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Anthropic</mark> released <mark class="tag-hl">Claude Fable 5</mark> to the public and kept its cyber-unrestricted twin, <mark class="tag-hl">Claude Mythos 5</mark>, limited to vetted cyber defenders and critical infrastructure operators.</span></li><li><span class="kp-text"><mark class="tag-hl">Claude Fable 5</mark> uses safety classifiers that route flagged cyber, biology, chemistry, and distillation requests to the weaker Claude Opus 4.8 instead of refusing them outright.</span></li><li><span class="kp-text"><mark class="tag-hl">Anthropic</mark> says Mythos-class models can find and exploit software vulnerabilities well enough that unrestricted public access would give attackers serious uplift.</span></li><li><span class="kp-text">During <mark class="tag-hl">Project Glasswing</mark>, <mark class="tag-hl">Anthropic</mark> and roughly 50 partners used <mark class="tag-hl">Claude Mythos Preview</mark> to find more than ten thousand high- or critical-severity vulnerabilities in systemically important software.</span></li><li><span class="kp-text"><mark class="tag-hl">Anthropic</mark> will require 30-day data retention for all traffic on Fable 5, Mythos 5, and future models at this capability level, while saying the data will not be used for training or non-safety purposes.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Anthropic released Claude Fable 5 to the public and kept its cyber-unrestricted twin, Claude Mythos 5, limited to vetted cyber defenders and critical infrastructure operators.</span></li><li><span class="kp-text">Claude Fable 5 uses safety classifiers that route flagged cyber, biology, chemistry, and distillation requests to the weaker Claude Opus 4.8 instead of refusing them outright.</span></li><li><span class="kp-text">Anthropic says Mythos-class models can find and exploit software vulnerabilities well enough that unrestricted public access would give attackers serious uplift.</span></li><li><span class="kp-text">During Project Glasswing, Anthropic and roughly 50 partners used Claude Mythos Preview to find more than ten thousand high- or critical-severity vulnerabilities in systemically important software.</span></li><li><span class="kp-text">Anthropic will require 30-day data retention for all traffic on Fable 5, Mythos 5, and future models at this capability level, while saying the data will not be used for training or non-safety purposes.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/anthropic-releases-claude-fable-5-its.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific, recent release of <mark class="tag-hl">Anthropic</mark>’s most capable public model and its restricted cyber-capable counterpart, with concrete details on safeguards, <mark class="tag-hl">jailbreak</mark> testing, data retention, and vulnerability exploitation capability. It is broadly relevant to security professionals because it describes how frontier AI may accelerate vulnerability discovery and exploit development, even though it is not an active exploitation campaign or urgent patch advisory.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific, recent release of Anthropic’s most capable public model and its restricted cyber-capable counterpart, with concrete details on safeguards, jailbreak testing, data retention, and vulnerability exploitation capability. It is broadly relevant to security professionals because it describes how frontier AI may accelerate vulnerability discovery and exploit development, even though it is not an active exploitation campaign or urgent patch advisory.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://red.anthropic.com/2026/mythos-preview/" target="_blank" rel="noopener">Claude Mythos Preview</a></div>
   <div class="report-meta">Anthropic Red Team</div>
-  <div class="report-context">The article identifies this as <mark class="tag-hl">Anthropic</mark>&#39;s red team technical write-up explaining Mythos Preview&#39;s vulnerability discovery and exploitation capabilities.</div>
+  <div class="report-context">The article identifies this as Anthropic&#39;s red team technical write-up explaining Mythos Preview&#39;s vulnerability discovery and exploitation capabilities.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://nvd.nist.gov/vuln/detail/CVE-2026-4747" target="_blank" rel="noopener">CVE-2026-4747</a></div>
   <div class="report-meta">National Vulnerability Database</div>
-  <div class="report-context">The article cites NVD&#39;s entry for <mark class="tag-hl">CVE-2026-4747</mark> to contrast <mark class="tag-hl">Anthropic</mark>&#39;s description of the FreeBSD NFS server issue with NVD&#39;s more measured framing.</div>
+  <div class="report-context">The article cites NVD&#39;s entry for CVE-2026-4747 to contrast Anthropic&#39;s description of the FreeBSD NFS server issue with NVD&#39;s more measured framing.</div>
 </li></ul></div>
             
           </div>
@@ -2019,16 +2177,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This coverage window is dominated by high-impact vulnerability disclosures affecting widely deployed enterprise and community platforms, including Windows, <mark class="tag-hl">phpBB</mark>, <mark class="tag-hl">ServiceNow</mark>, and <mark class="tag-hl">Ivanti Sentry</mark>. Several items involve either confirmed exploitation, public proof-of-concept activity, or flaws that enable full system or administrative compromise. A parallel theme is the increasing role of advanced AI systems in vulnerability discovery and the controls vendors are placing around cyber-capable models.</p>
+        <div class="overview-body prose"><p>This coverage window is dominated by high-impact vulnerability disclosures affecting widely deployed enterprise and community platforms, including Windows, phpBB, ServiceNow, and Ivanti Sentry. Several items involve either confirmed exploitation, public proof-of-concept activity, or flaws that enable full system or administrative compromise. A parallel theme is the increasing role of advanced AI systems in vulnerability discovery and the controls vendors are placing around cyber-capable models.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Windows Zero-Days and Public Exploit Pressure</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Microsoft</mark>’s June 2026 Patch Tuesday addressed three zero-day vulnerabilities known as <mark class="tag-hl">GreenPlasma</mark>, <mark class="tag-hl">MiniPlasma</mark>, and <mark class="tag-hl">YellowKey</mark>. <mark class="tag-hl">GreenPlasma</mark> and <mark class="tag-hl">MiniPlasma</mark> are <mark class="tag-hl">local privilege escalation</mark> flaws in the Collaborative Translation Framework and Cloud Files Mini Filter Driver, respectively, and can allow attackers to obtain SYSTEM privileges on fully patched Windows systems prior to remediation.</p>
+        <div class="overview-body prose"><p>Microsoft’s June 2026 Patch Tuesday addressed three zero-day vulnerabilities known as GreenPlasma, MiniPlasma, and YellowKey. GreenPlasma and MiniPlasma are local privilege escalation flaws in the Collaborative Translation Framework and Cloud Files Mini Filter Driver, respectively, and can allow attackers to obtain SYSTEM privileges on fully patched Windows systems prior to remediation.</p>
 
-<p><mark class="tag-hl">YellowKey</mark> is a <mark class="tag-hl">Windows Recovery Environment</mark> backdoor affecting unpatched <mark class="tag-hl">Windows 11</mark> and Windows Server <sup>2022</sup>&frasl;<sub>2025</sub> systems, enabling attackers with physical access to bypass <mark class="tag-hl">BitLocker</mark> protections. The vulnerabilities were disclosed by a researcher using the handle <mark class="tag-hl">Nightmare Eclipse</mark>, who framed the release as a protest against <mark class="tag-hl">Microsoft Security Response Center</mark> disclosure practices.</p>
+<p>YellowKey is a Windows Recovery Environment backdoor affecting unpatched Windows 11 and Windows Server <sup>2022</sup>&frasl;<sub>2025</sub> systems, enabling attackers with physical access to bypass BitLocker protections. The vulnerabilities were disclosed by a researcher using the handle Nightmare Eclipse, who framed the release as a protest against Microsoft Security Response Center disclosure practices.</p>
 
 <p>The same researcher has reportedly released proof-of-concept exploits for additional Windows zero-days, including BlueHammer, RedSun, UnDefend, and RoguePlanet. This creates a broader exposure pattern in which defenders face not only patched vulnerabilities, but also an expanding set of public exploit artifacts tied to unresolved or recently disclosed Windows flaws.</p>
 </div>
@@ -2037,33 +2195,33 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Critical Enterprise and Internet-Facing Platform Flaws</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Aikido</mark> reported a critical <mark class="tag-hl">phpBB</mark> <mark class="tag-hl">authentication bypass</mark> vulnerability that can lead to <mark class="tag-hl">remote code execution</mark> and complete takeover of the underlying system. The flaw affects <mark class="tag-hl">phpBB</mark> 3.3.16 and below, as well as 4.0.0-a2, and is exploitable in the default configuration with a single unauthenticated HTTP request to obtain a valid session as any user.</p>
+        <div class="overview-body prose"><p>Aikido reported a critical phpBB authentication bypass vulnerability that can lead to remote code execution and complete takeover of the underlying system. The flaw affects phpBB 3.3.16 and below, as well as 4.0.0-a2, and is exploitable in the default configuration with a single unauthenticated HTTP request to obtain a valid session as any user.</p>
 
-<p><mark class="tag-hl">phpBB</mark> released version 3.3.17 after the issue was reported through <mark class="tag-hl">HackerOne</mark> on June 2, with a working patch published on June 6. The update also introduces a breaking change for <mark class="tag-hl">OAuth</mark> authentication users because the redirect URI handler has moved to /user/<mark class="tag-hl">oauth</mark>/authenticate/&hellip;, which may affect deployments relying on existing <mark class="tag-hl">OAuth</mark> flows.</p>
+<p>phpBB released version 3.3.17 after the issue was reported through HackerOne on June 2, with a working patch published on June 6. The update also introduces a breaking change for OAuth authentication users because the redirect URI handler has moved to /user/oauth/authenticate/&hellip;, which may affect deployments relying on existing OAuth flows.</p>
 
-<p><mark class="tag-hl">Ivanti</mark> also disclosed two critical Sentry secure mobile gateway vulnerabilities. <mark class="tag-hl">CVE-2026-10520</mark> is a maximum-severity <mark class="tag-hl">OS command injection</mark> flaw allowing <mark class="tag-hl">remote code execution</mark> as root, while <mark class="tag-hl">CVE-2026-10523</mark> is an <mark class="tag-hl">authentication bypass</mark> that can allow unauthenticated remote attackers to create rogue administrative accounts and gain full administrative access; <mark class="tag-hl">Ivanti</mark> stated it had no evidence of exploitation at disclosure time.</p>
+<p>Ivanti also disclosed two critical Sentry secure mobile gateway vulnerabilities. CVE-2026-10520 is a maximum-severity OS command injection flaw allowing remote code execution as root, while CVE-2026-10523 is an authentication bypass that can allow unauthenticated remote attackers to create rogue administrative accounts and gain full administrative access; Ivanti stated it had no evidence of exploitation at disclosure time.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">03</span>
           <span class="overview-title">Confirmed Unauthorized Access in ServiceNow Instances</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">ServiceNow</mark> reported that unknown threat actors exploited a security issue to gain greater unauthorized access to susceptible customer instances than intended. The issue does not currently have a CVE identifier, and details first emerged publicly through <mark class="tag-hl">Reddit</mark> before <mark class="tag-hl">ServiceNow</mark> described anomalous activity and successful queries of instance tables affecting a subset of customers.</p>
+        <div class="overview-body prose"><p>ServiceNow reported that unknown threat actors exploited a security issue to gain greater unauthorized access to susceptible customer instances than intended. The issue does not currently have a CVE identifier, and details first emerged publicly through Reddit before ServiceNow described anomalous activity and successful queries of instance tables affecting a subset of customers.</p>
 
-<p><mark class="tag-hl">ServiceNow</mark> applied a hosted-instance security update on June 5, changing an endpoint configuration to restrict access to authenticated users. The affected population includes customers on the <mark class="tag-hl">Australia</mark> platform release and customers that made certain configuration changes to instances running releases prior to <mark class="tag-hl">Australia</mark>.</p>
+<p>ServiceNow applied a hosted-instance security update on June 5, changing an endpoint configuration to restrict access to authenticated users. The affected population includes customers on the Australia platform release and customers that made certain configuration changes to instances running releases prior to Australia.</p>
 
-<p>The incident is notable because it involves exploitation against a major enterprise workflow platform and successful access to customer instance data. <mark class="tag-hl">ServiceNow</mark> said affected customers were notified after evidence of successful table queries was observed.</p>
+<p>The incident is notable because it involves exploitation against a major enterprise workflow platform and successful access to customer instance data. ServiceNow said affected customers were notified after evidence of successful table queries was observed.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">04</span>
           <span class="overview-title">AI Model Capability Controls and Vulnerability Discovery</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Anthropic</mark> released <mark class="tag-hl">Claude Fable 5</mark> publicly while limiting its cyber-unrestricted counterpart, <mark class="tag-hl">Claude Mythos 5</mark>, to vetted cyber defenders and critical infrastructure operators. The company said Mythos-class models can find and exploit software vulnerabilities at a level where unrestricted public access would provide attackers with significant uplift.</p>
+        <div class="overview-body prose"><p>Anthropic released Claude Fable 5 publicly while limiting its cyber-unrestricted counterpart, Claude Mythos 5, to vetted cyber defenders and critical infrastructure operators. The company said Mythos-class models can find and exploit software vulnerabilities at a level where unrestricted public access would provide attackers with significant uplift.</p>
 
-<p><mark class="tag-hl">Claude Fable 5</mark> uses safety classifiers that route flagged cyber, biology, chemistry, and distillation requests to the weaker Claude Opus 4.8 rather than refusing them outright. <mark class="tag-hl">Anthropic</mark> also said that during <mark class="tag-hl">Project Glasswing</mark>, it and roughly 50 partners used <mark class="tag-hl">Claude Mythos Preview</mark> to identify more than ten thousand high- or critical-severity vulnerabilities in systemically important software.</p>
+<p>Claude Fable 5 uses safety classifiers that route flagged cyber, biology, chemistry, and distillation requests to the weaker Claude Opus 4.8 rather than refusing them outright. Anthropic also said that during Project Glasswing, it and roughly 50 partners used Claude Mythos Preview to identify more than ten thousand high- or critical-severity vulnerabilities in systemically important software.</p>
 
-<p><mark class="tag-hl">Anthropic</mark> will require 30-day data retention for traffic on Fable 5, Mythos 5, and future models at this capability level, while stating that retained data will not be used for training or non-safety purposes. The release reflects a widening gap between public AI capabilities and restricted cyber-specialized systems intended for controlled defensive use.</p>
+<p>Anthropic will require 30-day data retention for traffic on Fable 5, Mythos 5, and future models at this capability level, while stating that retained data will not be used for training or non-safety purposes. The release reflects a widening gap between public AI capabilities and restricted cyber-specialized systems intended for controlled defensive use.</p>
 </div>
       </div>
     </div>
@@ -2072,9 +2230,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-10 06:00 UTC · 4 hours window</span>
-  <span class="footer-right">5 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">5 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -2087,15 +2248,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2208,12 +2431,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2274,6 +2531,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

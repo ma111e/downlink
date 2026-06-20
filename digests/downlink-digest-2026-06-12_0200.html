@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,44 +1506,44 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:96%"></div></div><span class="score-num score-num-high">96</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="191ecb026c66371d46d293d79e69748c:82913b2b6caf9c43">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-918440726b33206f3d5e689dd4ebfd88:82913b2b6caf9c43')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-918440726b33206f3d5e689dd4ebfd88:82913b2b6caf9c43')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-918440726b33206f3d5e689dd4ebfd88:82913b2b6caf9c43')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-918440726b33206f3d5e689dd4ebfd88:82913b2b6caf9c43')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-918440726b33206f3d5e689dd4ebfd88:82913b2b6caf9c43')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-191ecb026c66371d46d293d79e69748c:82913b2b6caf9c43')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-191ecb026c66371d46d293d79e69748c:82913b2b6caf9c43')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-191ecb026c66371d46d293d79e69748c:82913b2b6caf9c43')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-191ecb026c66371d46d293d79e69748c:82913b2b6caf9c43')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-191ecb026c66371d46d293d79e69748c:82913b2b6caf9c43')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-918440726b33206f3d5e689dd4ebfd88:82913b2b6caf9c43" class="tab-panel active"><div class="prose"><mark class="tag-hl">watchTowr Labs</mark> found that <mark class="tag-hl">CVE-2026-50751</mark> in <mark class="tag-hl">Check Point Remote Access VPN</mark> lets an attacker use client-controlled IKEv1 Vendor ID flags to skip certificate and signature validation, allowing login as a valid user with a self-signed certificate and random signature. The flaw affects legacy IKEv1 remote access paths, including UDP 500 and TCP 443 <mark class="tag-hl">Visitor Mode</mark>, and is fixed by <mark class="tag-hl">Check Point</mark> hotfix <mark class="tag-hl">sk185033</mark>.</div></div>
-                <div id="brief-918440726b33206f3d5e689dd4ebfd88:82913b2b6caf9c43" class="tab-panel"><div class="prose"><p><mark class="tag-hl">watchTowr Labs</mark> analyzed <mark class="tag-hl">CVE-2026-50751</mark>, a CVSS 9.3 authentication bypass in <mark class="tag-hl">Check Point Mobile Access</mark>/SSL VPN, Remote Access VPN, and Spark Firewall products. <mark class="tag-hl">Check Point</mark> released hotfixes on June 8, 2026, and the article says the flaw had reportedly been exploited in the wild since May 7, 2026. The affected code is in deprecated IKEv1 VPN functionality across multiple Gaia versions.</p>
+                <div id="tldr-191ecb026c66371d46d293d79e69748c:82913b2b6caf9c43" class="tab-panel active"><div class="prose">watchTowr Labs found that CVE-2026-50751 in Check Point Remote Access VPN lets an attacker use client-controlled IKEv1 Vendor ID flags to skip certificate and signature validation, allowing login as a valid user with a self-signed certificate and random signature. The flaw affects legacy IKEv1 remote access paths, including UDP 500 and TCP 443 Visitor Mode, and is fixed by Check Point hotfix sk185033.</div></div>
+                <div id="brief-191ecb026c66371d46d293d79e69748c:82913b2b6caf9c43" class="tab-panel"><div class="prose"><p>watchTowr Labs analyzed CVE-2026-50751, a CVSS 9.3 authentication bypass in Check Point Mobile Access/SSL VPN, Remote Access VPN, and Spark Firewall products. Check Point released hotfixes on June 8, 2026, and the article says the flaw had reportedly been exploited in the wild since May 7, 2026. The affected code is in deprecated IKEv1 VPN functionality across multiple Gaia versions.</p>
 
 <p>The core issue is that the gateway allowed a client-controlled IKEv1 Vendor ID payload to influence whether authentication checks were performed. watchTowr found that a VPNExtFeatures Vendor ID could write flags into the negotiation state, causing certificate processing and phase-1 signature verification to be skipped. In the researchers’ test, a vulnerable gateway accepted a random signature and created a phase-1 IKE SA, while a patched gateway rejected the same attempt.</p>
 
-<p>The researchers demonstrated that an attacker could authenticate as a provisioned Remote Access user by using a valid username, the ICA organization string from the gateway’s public TLS certificate, a self-signed certificate, and an invalid signature. They also reported that exploitation worked over UDP 500 and over TCP 443 using <mark class="tag-hl">Check Point</mark> <mark class="tag-hl">Visitor Mode</mark>. The article states the bypass affected Certificate, Certificate with enrollment, and Mixed authentication modes, while Legacy username/password mode still required a real XAUTH password.</p>
+<p>The researchers demonstrated that an attacker could authenticate as a provisioned Remote Access user by using a valid username, the ICA organization string from the gateway’s public TLS certificate, a self-signed certificate, and an invalid signature. They also reported that exploitation worked over UDP 500 and over TCP 443 using Check Point Visitor Mode. The article states the bypass affected Certificate, Certificate with enrollment, and Mixed authentication modes, while Legacy username/password mode still required a real XAUTH password.</p>
 </div></div>
-                <div id="standard-918440726b33206f3d5e689dd4ebfd88:82913b2b6caf9c43" class="tab-panel"><div class="prose"><p><mark class="tag-hl">watchTowr Labs</mark> published a technical analysis of <mark class="tag-hl">CVE-2026-50751</mark>, an authentication bypass in <mark class="tag-hl">Check Point</mark>’s Mobile Access/SSL VPN, Remote Access VPN, and Spark Firewall products. <mark class="tag-hl">Check Point</mark> released hotfixes for this and another issue on June 8, 2026, affecting deprecated IKEv1 VPN code. The article lists affected Gaia releases including R80.20.X, R80.40, R81, R81.10, R81.10.X, R81.20, R82, R82.00.X, and R82.10.</p>
+                <div id="standard-191ecb026c66371d46d293d79e69748c:82913b2b6caf9c43" class="tab-panel"><div class="prose"><p>watchTowr Labs published a technical analysis of CVE-2026-50751, an authentication bypass in Check Point’s Mobile Access/SSL VPN, Remote Access VPN, and Spark Firewall products. Check Point released hotfixes for this and another issue on June 8, 2026, affecting deprecated IKEv1 VPN code. The article lists affected Gaia releases including R80.20.X, R80.40, R81, R81.10, R81.10.X, R81.20, R82, R82.00.X, and R82.10.</p>
 
-<p>The article says the vulnerability had reportedly been exploited in the wild since May 7, 2026, about a month before patches were available. It also says <mark class="tag-hl">Check Point</mark> described “a few dozen targeted organizations,” and that at least one incident had been linked to a <mark class="tag-hl">Qilin</mark> ransomware affiliate. The advisory was described as identifying a logic flaw in certificate validation during the IKEv1 key exchange.</p>
+<p>The article says the vulnerability had reportedly been exploited in the wild since May 7, 2026, about a month before patches were available. It also says Check Point described “a few dozen targeted organizations,” and that at least one incident had been linked to a Qilin ransomware affiliate. The advisory was described as identifying a logic flaw in certificate validation during the IKEv1 key exchange.</p>
 
-<p>watchTowr’s diffing compared R82.10 Jumbo Hotfix Take 19 against Take 19 plus the <mark class="tag-hl">sk185033</mark> hotfix. The researchers initially examined vpnd, but found that on R81.10 and later the IKE negotiation is handled by iked, which listens internally on UDP 30500. The important code changes appeared in ikeMainMode.cc, ikeAggressive.cc, and machine_cert_utils.cc, including removal of a process_cert_payloads argument that had controlled whether machine certificate payloads were processed.</p>
+<p>watchTowr’s diffing compared R82.10 Jumbo Hotfix Take 19 against Take 19 plus the sk185033 hotfix. The researchers initially examined vpnd, but found that on R81.10 and later the IKE negotiation is handled by iked, which listens internally on UDP 30500. The important code changes appeared in ikeMainMode.cc, ikeAggressive.cc, and machine_cert_utils.cc, including removal of a process_cert_payloads argument that had controlled whether machine certificate payloads were processed.</p>
 
 <p>The vulnerable path used a client-influenced flag word at state offset 0x4bc4 to decide whether authentication checks should run. In process_auth_pl, bit 0x2 controlled whether a 0xF9 signature payload was processed, and in verify_peer_auth, bit 0x4 could short-circuit verifyMessagePhase1 and return authentication success. watchTowr found that processVendorIDPayload wrote this flag word from four bytes supplied after the VPNExtFeatures Vendor ID magic value.</p>
 
-<p>The researchers proved the bypass by sending the VPNExtFeatures Vendor ID with bit 0x4 set, completing Diffie-Hellman, and sending a random HASH_I in the encrypted fifth Main Mode message. The vulnerable gateway logged that the peer was not a <mark class="tag-hl">Check Point</mark> peer but still created a phase-1 SA and saved the user, while the patched gateway logged an authentication failure and rejected the attempt. They later showed certificate-authentication bypass using an ID distinguished name for a provisioned user, a newly minted self-signed X.509 certificate, and a random signature.</p>
+<p>The researchers proved the bypass by sending the VPNExtFeatures Vendor ID with bit 0x4 set, completing Diffie-Hellman, and sending a random HASH_I in the encrypted fifth Main Mode message. The vulnerable gateway logged that the peer was not a Check Point peer but still created a phase-1 SA and saved the user, while the patched gateway logged an authentication failure and rejected the attempt. They later showed certificate-authentication bypass using an ID distinguished name for a provisioned user, a newly minted self-signed X.509 certificate, and a random signature.</p>
 
-<p>According to the article, an attacker needed a valid username and the ICA organization string, with the latter available from the gateway’s public TLS certificate. The same probe could act as a username oracle because wrong guesses failed at user lookup while right ones succeeded. watchTowr also reported that the bypass worked over both UDP 500 and TCP 443 <mark class="tag-hl">Visitor Mode</mark>, and across Certificate, Certificate with enrollment, and Mixed authentication modes, while Legacy username/password mode was not bypassable because XAUTH still required a password.</p>
+<p>According to the article, an attacker needed a valid username and the ICA organization string, with the latter available from the gateway’s public TLS certificate. The same probe could act as a username oracle because wrong guesses failed at user lookup while right ones succeeded. watchTowr also reported that the bypass worked over both UDP 500 and TCP 443 Visitor Mode, and across Certificate, Certificate with enrollment, and Mixed authentication modes, while Legacy username/password mode was not bypassable because XAUTH still required a password.</p>
 </div></div>
-                <div id="comprehensive-918440726b33206f3d5e689dd4ebfd88:82913b2b6caf9c43" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-191ecb026c66371d46d293d79e69748c:82913b2b6caf9c43" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">watchTowr Labs</mark> analyzed <mark class="tag-hl">CVE-2026-50751</mark>, a <mark class="tag-hl">Check Point Remote Access VPN</mark> IKEv1 authentication bypass with a CVSS score of 9.3. The vulnerability affects <mark class="tag-hl">Check Point Mobile Access</mark>/SSL VPN, Remote Access VPN, and Spark Firewall products, specifically in deprecated IKEv1 VPN code. <mark class="tag-hl">Check Point</mark> released hotfixes on June 8, 2026 through <mark class="tag-hl">sk185033</mark>.</p>
+<p>watchTowr Labs analyzed CVE-2026-50751, a Check Point Remote Access VPN IKEv1 authentication bypass with a CVSS score of 9.3. The vulnerability affects Check Point Mobile Access/SSL VPN, Remote Access VPN, and Spark Firewall products, specifically in deprecated IKEv1 VPN code. Check Point released hotfixes on June 8, 2026 through sk185033.</p>
 
-<p>The article states that the vulnerability had reportedly been exploited in the wild since May 7, 2026, roughly a month before patches were available. It also says <mark class="tag-hl">Check Point</mark> reported “a few dozen targeted organizations,” and that at least one incident had been linked to a <mark class="tag-hl">Qilin</mark> ransomware affiliate. The vulnerability was described as a logic flaw in how certificates are validated during the IKEv1 key exchange.</p>
+<p>The article states that the vulnerability had reportedly been exploited in the wild since May 7, 2026, roughly a month before patches were available. It also says Check Point reported “a few dozen targeted organizations,” and that at least one incident had been linked to a Qilin ransomware affiliate. The vulnerability was described as a logic flaw in how certificates are validated during the IKEv1 key exchange.</p>
 
 <h2 id="affected-products-and-preconditions">Affected Products and Preconditions</h2>
 
@@ -1420,7 +1573,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="research-method">Research Method</h2>
 
-<p>watchTowr compared R82.10 Jumbo Hotfix Take 19, which they describe as vulnerable, against the same build with the <mark class="tag-hl">sk185033</mark> hotfix applied. The researchers first examined vpnd, but found that vpnd did not bind UDP 500 or UDP 4500. They then determined that on R81.10 and later, <mark class="tag-hl">Check Point</mark> redirects IKE negotiation to a newer daemon, iked, which listens internally on UDP 30500.</p>
+<p>watchTowr compared R82.10 Jumbo Hotfix Take 19, which they describe as vulnerable, against the same build with the sk185033 hotfix applied. The researchers first examined vpnd, but found that vpnd did not bind UDP 500 or UDP 4500. They then determined that on R81.10 and later, Check Point redirects IKE negotiation to a newer daemon, iked, which listens internally on UDP 30500.</p>
 
 <p>After diffing the correct binary, the changed code appeared in:</p>
 
@@ -1434,7 +1587,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="root-cause">Root Cause</h2>
 
-<p>The vulnerable code allowed the decision to process certificate material and validate authentication to depend on flags that could be influenced by the client. In process_cert_payloads, the vulnerable implementation used a caller-supplied process_machine_certs flag to decide whether to process <mark class="tag-hl">Check Point</mark> machine certificate payloads of type 0xF6. The patched version removed that argument and used a field populated from the gateway’s configured machine certificate policy.</p>
+<p>The vulnerable code allowed the decision to process certificate material and validate authentication to depend on flags that could be influenced by the client. In process_cert_payloads, the vulnerable implementation used a caller-supplied process_machine_certs flag to decide whether to process Check Point machine certificate payloads of type 0xF6. The patched version removed that argument and used a field populated from the gateway’s configured machine certificate policy.</p>
 
 <p>The more important issue appeared in the caller process_auth_pl and in verify_peer_auth. In process_auth_pl, the code read a flags dword from state offset 0x4bc4 and tested bit 0x2. If this bit was not set, the code did not call seekPayload for the 0xF9 signature payload and did not call processSigPayload.</p>
 
@@ -1452,20 +1605,20 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The gateway logged this as VPNExtFeatures. According to the article, processVendorIDPayload required at least four bytes after the 16-byte magic value, read those four attacker-supplied bytes, byte-swapped them, and stored them directly into state + 0x4bc4. This meant the client could provide the flags used by the gateway to decide whether to perform authentication checks.</p>
 
-<p>The article highlights an additional inconsistency: a peer that sent only the VPNExtFeatures Vendor ID was logged by the gateway as “not a <mark class="tag-hl">Check Point</mark> peer,” while the gateway still honored the client-supplied flag that disabled authentication verification.</p>
+<p>The article highlights an additional inconsistency: a peer that sent only the VPNExtFeatures Vendor ID was logged by the gateway as “not a Check Point peer,” while the gateway still honored the client-supplied flag that disabled authentication verification.</p>
 
 <h2 id="proof-of-concept-behavior">Proof of Concept Behavior</h2>
 
-<p>To prove the issue, watchTowr wrote a minimal IKEv1 Main Mode client using AES-256, SHA1, Diffie-Hellman group 2, and <mark class="tag-hl">Check Point</mark>’s 0xFADD hybrid authentication method. They sent the VPNExtFeatures Vendor ID with the four trailing bytes set to 0x00000004, setting bit 0x4. They then completed Diffie-Hellman and sent a completely random HASH_I in encrypted message 5.</p>
+<p>To prove the issue, watchTowr wrote a minimal IKEv1 Main Mode client using AES-256, SHA1, Diffie-Hellman group 2, and Check Point’s 0xFADD hybrid authentication method. They sent the VPNExtFeatures Vendor ID with the four trailing bytes set to 0x00000004, setting bit 0x4. They then completed Diffie-Hellman and sent a completely random HASH_I in encrypted message 5.</p>
 
 <p>They tested identical packets against two gateways:</p>
 
 <ul>
 <li>A vulnerable R82.10 Take 19 appliance.</li>
-<li>A patched Take 19 appliance with <mark class="tag-hl">sk185033</mark>.</li>
+<li>A patched Take 19 appliance with sk185033.</li>
 </ul>
 
-<p>The vulnerable gateway logged that the peer was not a <mark class="tag-hl">Check Point</mark> peer, proceeded through MMCreate6, and saved the user in IkeSAFromState. The patched gateway logged an authentication failure with hybrid and sent an authentication failed notification. The article says the vulnerable gateway created a phase-1 SA based on a signature generated with os.urandom.</p>
+<p>The vulnerable gateway logged that the peer was not a Check Point peer, proceeded through MMCreate6, and saved the user in IkeSAFromState. The patched gateway logged an authentication failure with hybrid and sent an authentication failed notification. The article says the vulnerable gateway created a phase-1 SA based on a signature generated with os.urandom.</p>
 
 <p>watchTowr also performed negative controls:</p>
 
@@ -1505,11 +1658,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article states that the vulnerability was exploitable over UDP 500. It also says watchTowr was able to exploit it over TCP 443.</p>
 
-<p>When UDP 500 and UDP 4500 are filtered, <mark class="tag-hl">Check Point</mark> clients can fall back to <mark class="tag-hl">Visitor Mode</mark>. <mark class="tag-hl">Visitor Mode</mark> tunnels the same IKE exchange over a raw TCP stream on port 443 using a framing protocol called <mark class="tag-hl">TCPT</mark>. watchTowr says they reversed the protocol enough to demonstrate that the same bypass worked over this path.</p>
+<p>When UDP 500 and UDP 4500 are filtered, Check Point clients can fall back to Visitor Mode. Visitor Mode tunnels the same IKE exchange over a raw TCP stream on port 443 using a framing protocol called TCPT. watchTowr says they reversed the protocol enough to demonstrate that the same bypass worked over this path.</p>
 
 <h2 id="authentication-modes">Authentication Modes</h2>
 
-<p>watchTowr reports that the vulnerability appeared exploitable across several <mark class="tag-hl">Check Point</mark> certificate modes for <mark class="tag-hl">SSL Network Extender</mark> user authentication. Their table states:</p>
+<p>watchTowr reports that the vulnerability appeared exploitable across several Check Point certificate modes for SSL Network Extender user authentication. Their table states:</p>
 
 <ul>
 <li>Certificate mode was bypassed over UDP 500 and TCP 443.</li>
@@ -1522,21 +1675,22 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="response-and-detection-artifact">Response and Detection Artifact</h2>
 
-<p><mark class="tag-hl">Check Point</mark> released hotfixes through <mark class="tag-hl">sk185033</mark> on June 8, 2026. The patched code removed the client-controlled process_machine_certs function argument and instead based machine certificate processing on the gateway’s own configured policy. The patched gateway in watchTowr’s test rejected the malicious exchange with an authentication failure.</p>
+<p>Check Point released hotfixes through sk185033 on June 8, 2026. The patched code removed the client-controlled process_machine_certs function argument and instead based machine certificate processing on the gateway’s own configured policy. The patched gateway in watchTowr’s test rejected the malicious exchange with an authentication failure.</p>
 
-<p>watchTowr also released a Detection Artefact Generator at the GitHub repository watchtowrlabs/watchTowr-vs-<mark class="tag-hl">Check-Point</mark>-<mark class="tag-hl">CVE-2026-50751</mark>. The article says the decision to release it was based on the attackers having already had the vulnerability for a month.</p>
+<p>watchTowr also released a Detection Artefact Generator at the GitHub repository watchtowrlabs/watchTowr-vs-Check-Point-CVE-2026-50751. The article says the decision to release it was based on the attackers having already had the vulnerability for a month.</p>
 </div></div>
-                <div id="insights-918440726b33206f3d5e689dd4ebfd88:82913b2b6caf9c43" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The vulnerable gateway could log a peer as “not a <mark class="tag-hl">Check Point</mark> peer” while still honoring that peer’s client-supplied flag to skip authentication checks.</span></li><li><span class="kp-text">The bypass required only a valid username and the ICA organization string, and the article states the ICA organization value could be obtained from the gateway’s public TLS certificate.</span></li><li><span class="kp-text">Wrong username guesses failed at user lookup while valid usernames succeeded, making the same authentication probe usable as a username oracle.</span></li><li><span class="kp-text">Filtering UDP 500 or UDP 4500 was not sufficient mitigation in the researchers’ testing because the same IKEv1 exchange could be tunneled over TCP 443 using <mark class="tag-hl">Check Point</mark> <mark class="tag-hl">Visitor Mode</mark>.</span></li><li><span class="kp-text">The plain Legacy username/password mode was described as not bypassable because XAUTH still required a real password, while the certificate-based modes were bypassed.</span></li></ul></div>
+                <div id="insights-191ecb026c66371d46d293d79e69748c:82913b2b6caf9c43" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The vulnerable gateway could log a peer as “not a Check Point peer” while still honoring that peer’s client-supplied flag to skip authentication checks.</span></li><li><span class="kp-text">The bypass required only a valid username and the ICA organization string, and the article states the ICA organization value could be obtained from the gateway’s public TLS certificate.</span></li><li><span class="kp-text">Wrong username guesses failed at user lookup while valid usernames succeeded, making the same authentication probe usable as a username oracle.</span></li><li><span class="kp-text">Filtering UDP 500 or UDP 4500 was not sufficient mitigation in the researchers’ testing because the same IKEv1 exchange could be tunneled over TCP 443 using Check Point Visitor Mode.</span></li><li><span class="kp-text">The plain Legacy username/password mode was described as not bypassable because XAUTH still required a real password, while the certificate-based modes were bypassed.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Check Point</mark> released hotfixes on June 8, 2026 for <mark class="tag-hl">CVE-2026-50751</mark>, a 9.3 CVSS authentication bypass affecting Mobile Access/SSL VPN, Remote Access VPN, and Spark Firewall products in deprecated IKEv1 VPN code.</span></li><li><span class="kp-text"><mark class="tag-hl">watchTowr Labs</mark> found that the vulnerable IKEv1 implementation allowed a client-supplied VPNExtFeatures Vendor ID payload to write authentication flags that could cause certificate signature checks to be skipped.</span></li><li><span class="kp-text">The researchers demonstrated that a vulnerable gateway accepted a random HASH_I and created a phase-1 IKE SA, while a patched gateway rejected the same attempt with an authentication failure.</span></li><li><span class="kp-text">The article states that an attacker could authenticate as a provisioned Remote Access user by presenting a matching subject distinguished name, a self-signed X.509 certificate, and an invalid signature, because the gateway did not verify the signature or certificate trust chain.</span></li><li><span class="kp-text"><mark class="tag-hl">watchTowr Labs</mark> reported that the bypass worked over both UDP 500 and TCP 443 <mark class="tag-hl">Visitor Mode</mark>, and across the Certificate, Certificate with enrollment, and Mixed user authentication modes.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Check Point released hotfixes on June 8, 2026 for CVE-2026-50751, a 9.3 CVSS authentication bypass affecting Mobile Access/SSL VPN, Remote Access VPN, and Spark Firewall products in deprecated IKEv1 VPN code.</span></li><li><span class="kp-text">watchTowr Labs found that the vulnerable IKEv1 implementation allowed a client-supplied VPNExtFeatures Vendor ID payload to write authentication flags that could cause certificate signature checks to be skipped.</span></li><li><span class="kp-text">The researchers demonstrated that a vulnerable gateway accepted a random HASH_I and created a phase-1 IKE SA, while a patched gateway rejected the same attempt with an authentication failure.</span></li><li><span class="kp-text">The article states that an attacker could authenticate as a provisioned Remote Access user by presenting a matching subject distinguished name, a self-signed X.509 certificate, and an invalid signature, because the gateway did not verify the signature or certificate trust chain.</span></li><li><span class="kp-text">watchTowr Labs reported that the bypass worked over both UDP 500 and TCP 443 Visitor Mode, and across the Certificate, Certificate with enrollment, and Mixed user authentication modes.</span></li></ul></div>
+            
             <a href="https://labs.watchtowr.com/marking-your-own-homework-check-point-remote-access-vpn-ikev1-authentication-bypass-cve-2026-50751/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read technical analysis of a critical <mark class="tag-hl">Check Point Remote Access VPN</mark> authentication bypass that the article says was exploited in the wild before patches were released. It affects widely deployed perimeter VPN products, includes concrete exploitation details over UDP 500 and TCP 443, and ties the issue to targeted organizations and at least one <mark class="tag-hl">Qilin</mark> ransomware-linked incident.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read technical analysis of a critical Check Point Remote Access VPN authentication bypass that the article says was exploited in the wild before patches were released. It affects widely deployed perimeter VPN products, includes concrete exploitation details over UDP 500 and TCP 443, and ties the issue to targeted organizations and at least one Qilin ransomware-linked incident.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://support.checkpoint.com/results/sk/sk185033?_gl=1%2A5pnkru%2A_gcl_au%2AMjEzOTk1NjU4Ni4xNzgwOTI0NTY5&amp;ref=labs.watchtowr.com" target="_blank" rel="noopener">sk185033</a></div>
   <div class="report-meta">Check Point</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Check Point</mark>’s June 8, 2026 hotfix advisory for vulnerabilities in Mobile Access/SSL VPN, Remote Access VPN, and Spark Firewall products, including <mark class="tag-hl">CVE-2026-50751</mark>.</div>
+  <div class="report-context">The article cites Check Point’s June 8, 2026 hotfix advisory for vulnerabilities in Mobile Access/SSL VPN, Remote Access VPN, and Spark Firewall products, including CVE-2026-50751.</div>
 </li></ul></div>
             
           </div>
@@ -1565,46 +1719,46 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:88%"></div></div><span class="score-num score-num-mid">88</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="5a2bda2494f6f9fbb32e942cb72c5435:5b52500032e2feab">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-70d2a61c550bee962eef01aaf18e840c:5b52500032e2feab')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-70d2a61c550bee962eef01aaf18e840c:5b52500032e2feab')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-70d2a61c550bee962eef01aaf18e840c:5b52500032e2feab')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-70d2a61c550bee962eef01aaf18e840c:5b52500032e2feab')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-70d2a61c550bee962eef01aaf18e840c:5b52500032e2feab')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-5a2bda2494f6f9fbb32e942cb72c5435:5b52500032e2feab')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-5a2bda2494f6f9fbb32e942cb72c5435:5b52500032e2feab')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-5a2bda2494f6f9fbb32e942cb72c5435:5b52500032e2feab')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-5a2bda2494f6f9fbb32e942cb72c5435:5b52500032e2feab')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-5a2bda2494f6f9fbb32e942cb72c5435:5b52500032e2feab')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-70d2a61c550bee962eef01aaf18e840c:5b52500032e2feab" class="tab-panel active"><div class="prose">Cyble found a large <mark class="tag-hl">SEO-poisoning</mark> campaign abusing abandoned cloud DNS delegations, mainly Azure DNS zones, to host Thai gambling pages on trusted enterprise subdomains with valid TLS certificates. The key takeaway is that stale NS delegations left after cloud decommissioning can be reclaimed by attackers, so organizations must audit and remove abandoned DNS delegations before their domain trust is hijacked.</div></div>
-                <div id="brief-70d2a61c550bee962eef01aaf18e840c:5b52500032e2feab" class="tab-panel"><div class="prose"><p>Cyble Research &amp; Intelligence Labs identified an active <mark class="tag-hl">SEO poisoning</mark> campaign that abused abandoned cloud DNS zone delegations to serve Thai-language gambling content under trusted enterprise domains. The campaign compromised 163 organizations across more than 30 countries, including federal government agencies, national healthcare systems, financial institutions, critical infrastructure operators, and major universities. At the time of publication, 161 organizations remained actively compromised.</p>
+                <div id="tldr-5a2bda2494f6f9fbb32e942cb72c5435:5b52500032e2feab" class="tab-panel active"><div class="prose">Cyble found a large SEO-poisoning campaign abusing abandoned cloud DNS delegations, mainly Azure DNS zones, to host Thai gambling pages on trusted enterprise subdomains with valid TLS certificates. The key takeaway is that stale NS delegations left after cloud decommissioning can be reclaimed by attackers, so organizations must audit and remove abandoned DNS delegations before their domain trust is hijacked.</div></div>
+                <div id="brief-5a2bda2494f6f9fbb32e942cb72c5435:5b52500032e2feab" class="tab-panel"><div class="prose"><p>Cyble Research &amp; Intelligence Labs identified an active SEO poisoning campaign that abused abandoned cloud DNS zone delegations to serve Thai-language gambling content under trusted enterprise domains. The campaign compromised 163 organizations across more than 30 countries, including federal government agencies, national healthcare systems, financial institutions, critical infrastructure operators, and major universities. At the time of publication, 161 organizations remained actively compromised.</p>
 
-<p>The primary mechanism was <mark class="tag-hl">Azure DNS zone takeover</mark>, where NS delegations to deleted or abandoned Azure DNS zones remained in parent DNS zones and were later claimed by the actor under a new Azure subscription. The actor added wildcard records, obtained valid Let’s Encrypt wildcard TLS certificates, and deployed a Next.js gambling kit that appeared under the victim organization’s own domain. Other observed mechanisms included <mark class="tag-hl">DigitalOcean DNS zone takeover</mark>, direct wildcard DNS misconfiguration, and more than 1,000 individually named A records in a <mark class="tag-hl">Verizon</mark> subdomain environment.</p>
+<p>The primary mechanism was Azure DNS zone takeover, where NS delegations to deleted or abandoned Azure DNS zones remained in parent DNS zones and were later claimed by the actor under a new Azure subscription. The actor added wildcard records, obtained valid Let’s Encrypt wildcard TLS certificates, and deployed a Next.js gambling kit that appeared under the victim organization’s own domain. Other observed mechanisms included DigitalOcean DNS zone takeover, direct wildcard DNS misconfiguration, and more than 1,000 individually named A records in a Verizon subdomain environment.</p>
 
-<p>Cyble linked the campaign to three <mark class="tag-hl">OVH</mark> delivery nodes and a separate 103-node backend fleet in <mark class="tag-hl">Hong Kong</mark> under AS398478. The campaign used affiliate redirects, server-side <mark class="tag-hl">Thailand</mark>-focused referrer verification, and tracking codes such as ibiza99vip1, bigwinv1, link99, and seven77vip1. The article emphasizes that valid TLS certificates, clean IP reputation, trusted domains, and legitimate infrastructure caused conventional security controls to produce little or no signal.</p>
+<p>Cyble linked the campaign to three OVH delivery nodes and a separate 103-node backend fleet in Hong Kong under AS398478. The campaign used affiliate redirects, server-side Thailand-focused referrer verification, and tracking codes such as ibiza99vip1, bigwinv1, link99, and seven77vip1. The article emphasizes that valid TLS certificates, clean IP reputation, trusted domains, and legitimate infrastructure caused conventional security controls to produce little or no signal.</p>
 </div></div>
-                <div id="standard-70d2a61c550bee962eef01aaf18e840c:5b52500032e2feab" class="tab-panel"><div class="prose"><p>Cyble Research &amp; Intelligence Labs reported an active <mark class="tag-hl">SEO poisoning</mark> campaign that systematically exploited abandoned cloud DNS delegations to serve Thai-language gambling content from reputable enterprise domains. The investigation began with anomalous DNS resolution in the cardsforheroes.<mark class="tag-hl">verizon</mark>.com subdomain environment, where more than 1,000 individually named gambling-themed subdomains resolved to a single <mark class="tag-hl">OVH</mark> IP. From that starting point, Cyble pivoted to 162 additional compromised organizations, bringing the confirmed victim count to 163 organizations across more than 30 countries.</p>
+                <div id="standard-5a2bda2494f6f9fbb32e942cb72c5435:5b52500032e2feab" class="tab-panel"><div class="prose"><p>Cyble Research &amp; Intelligence Labs reported an active SEO poisoning campaign that systematically exploited abandoned cloud DNS delegations to serve Thai-language gambling content from reputable enterprise domains. The investigation began with anomalous DNS resolution in the cardsforheroes.verizon.com subdomain environment, where more than 1,000 individually named gambling-themed subdomains resolved to a single OVH IP. From that starting point, Cyble pivoted to 162 additional compromised organizations, bringing the confirmed victim count to 163 organizations across more than 30 countries.</p>
 
 <p>The article describes abandoned cloud DNS delegation as the central vulnerability class. Organizations had delegated subdomains to Azure DNS or other cloud DNS providers during project provisioning, but when infrastructure was decommissioned, the parent-zone NS records were often left in place. In Azure cases, the actor could claim the orphaned zone under a fresh Azure subscription, add wildcard A records, and obtain Let’s Encrypt wildcard certificates for the victim subdomain.</p>
 
-<p>Cyble identified four compromise mechanisms across the victim set. More than 150 organizations were affected through <mark class="tag-hl">Azure DNS zone takeover</mark>, two through <mark class="tag-hl">DigitalOcean DNS zone takeover</mark>, two through direct wildcard DNS records in organizational DNS zones, and one through per-subdomain A records. The <mark class="tag-hl">Verizon</mark> environment was distinct because it used more than 1,000 individually named A records instead of a wildcard, implying bulk record creation through DNS API access or DNS management credentials.</p>
+<p>Cyble identified four compromise mechanisms across the victim set. More than 150 organizations were affected through Azure DNS zone takeover, two through DigitalOcean DNS zone takeover, two through direct wildcard DNS records in organizational DNS zones, and one through per-subdomain A records. The Verizon environment was distinct because it used more than 1,000 individually named A records instead of a wildcard, implying bulk record creation through DNS API access or DNS management credentials.</p>
 
-<p>The delivered content was a consistent Thai-language Next.js gambling kit with the build ID QQOrXCFjoI6C9oF-4YVhl and the favicon path /img/ib99-hq.ico. The pages used valid TLS certificates, Thai-language SEO content, Schema.org FAQ data, AMP alternate links, and static assets served from the compromised enterprise domains. Outbound redirects carried affiliate codes including ibiza99vip1, bigwinv1, link99, and seven77vip1, and a server-side layer verified <mark class="tag-hl">Thailand</mark>-origin traffic before redirecting users.</p>
+<p>The delivered content was a consistent Thai-language Next.js gambling kit with the build ID QQOrXCFjoI6C9oF-4YVhl and the favicon path /img/ib99-hq.ico. The pages used valid TLS certificates, Thai-language SEO content, Schema.org FAQ data, AMP alternate links, and static assets served from the compromised enterprise domains. Outbound redirects carried affiliate codes including ibiza99vip1, bigwinv1, link99, and seven77vip1, and a server-side layer verified Thailand-origin traffic before redirecting users.</p>
 
-<p>Cyble attributed the infrastructure to three <mark class="tag-hl">OVH</mark> delivery nodes and a 103-node backend fleet hosted in <mark class="tag-hl">Hong Kong</mark> within AS398478, PEG TECH INC. The backend fleet shared multiple technical indicators, including the broker-xm.com certificate, an identical HTTP body MD5 hash across all 103 nodes, an Envoy proxy fingerprint, MySQL 5.7.44-log, BT-Panel certificate details, and a uniform JARM fingerprint. The article recommends removing abandoned NS delegations, reporting abandoned Azure zones to Microsoft MSRC, revoking affected Let’s Encrypt certificates, auditing cloud-delegated subdomains, and using Certificate Transparency monitoring and wildcard DNS testing for detection.</p>
+<p>Cyble attributed the infrastructure to three OVH delivery nodes and a 103-node backend fleet hosted in Hong Kong within AS398478, PEG TECH INC. The backend fleet shared multiple technical indicators, including the broker-xm.com certificate, an identical HTTP body MD5 hash across all 103 nodes, an Envoy proxy fingerprint, MySQL 5.7.44-log, BT-Panel certificate details, and a uniform JARM fingerprint. The article recommends removing abandoned NS delegations, reporting abandoned Azure zones to Microsoft MSRC, revoking affected Let’s Encrypt certificates, auditing cloud-delegated subdomains, and using Certificate Transparency monitoring and wildcard DNS testing for detection.</p>
 </div></div>
-                <div id="comprehensive-70d2a61c550bee962eef01aaf18e840c:5b52500032e2feab" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-5a2bda2494f6f9fbb32e942cb72c5435:5b52500032e2feab" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Cyble Research &amp; Intelligence Labs identified an active <mark class="tag-hl">SEO poisoning</mark> campaign abusing abandoned cloud DNS zone delegations to serve Thai-language gambling content under trusted enterprise domains. The campaign compromised 163 organizations across more than 30 countries, including federal government agencies, national healthcare systems, financial institutions, critical infrastructure operators, and major universities. At the time of publication, Cyble stated that 161 organizations remained actively compromised.</p>
+<p>Cyble Research &amp; Intelligence Labs identified an active SEO poisoning campaign abusing abandoned cloud DNS zone delegations to serve Thai-language gambling content under trusted enterprise domains. The campaign compromised 163 organizations across more than 30 countries, including federal government agencies, national healthcare systems, financial institutions, critical infrastructure operators, and major universities. At the time of publication, Cyble stated that 161 organizations remained actively compromised.</p>
 
 <p>The campaign’s core mechanism was the takeover of abandoned cloud DNS zones, especially Azure DNS zones. When organizations decommissioned cloud infrastructure but left NS delegations in their parent DNS zones, the actor identified those stale delegations, claimed the orphaned zones under a new Azure subscription, and used the victim’s domain authority to serve gambling SEO content. The pages were reachable with valid Let’s Encrypt wildcard TLS certificates and appeared under legitimate enterprise-owned domains.</p>
 
 <h2 id="initial-discovery">Initial Discovery</h2>
 
-<p>Cyble first identified anomalous DNS resolution in the cardsforheroes.<mark class="tag-hl">verizon</mark>.com subdomain environment during an ongoing vulnerability assessment. The <mark class="tag-hl">Verizon</mark> environment contained more than 1,000 individually named subdomains serving Thai-language online gambling content under <mark class="tag-hl">Verizon</mark>’s trusted domain authority. Each subdomain followed gambling brand keyword patterns with URL-encoded Thai characters, and all resolved to 51.79.199.51 at <mark class="tag-hl">OVH</mark> SAS, AS16276.</p>
+<p>Cyble first identified anomalous DNS resolution in the cardsforheroes.verizon.com subdomain environment during an ongoing vulnerability assessment. The Verizon environment contained more than 1,000 individually named subdomains serving Thai-language online gambling content under Verizon’s trusted domain authority. Each subdomain followed gambling brand keyword patterns with URL-encoded Thai characters, and all resolved to 51.79.199.51 at OVH SAS, AS16276.</p>
 
 <p>A representative endpoint loaded a fully rendered Next.js gambling application with outbound affiliate redirect links. Cyble found that the endpoint shared structural similarities with 97 other enterprise subdomains across unrelated organizations. The article states that affiliate referral parameters on every redirect established the campaign’s monetization intent as gambling registration commission rather than defacement or malware delivery.</p>
 
@@ -1618,17 +1772,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Cyble identified four distinct mechanisms accounting for the 163 confirmed victim organizations.</p>
 
-<h3 id="azure-dns-zone-takeover"><mark class="tag-hl">Azure DNS Zone Takeover</mark></h3>
+<h3 id="azure-dns-zone-takeover">Azure DNS Zone Takeover</h3>
 
-<p>More than 150 organizations were affected through <mark class="tag-hl">Azure DNS zone takeover</mark>. The actor identified subdomains whose NS records still pointed to Azure DNS nameservers after the underlying subscription or zone had been canceled or abandoned. The actor then created a new Azure subscription, claimed the orphaned zone by name, added wildcard A records pointing all subdomains to a delivery IP, and used ACME HTTP-01 validation to obtain Let’s Encrypt wildcard certificates.</p>
+<p>More than 150 organizations were affected through Azure DNS zone takeover. The actor identified subdomains whose NS records still pointed to Azure DNS nameservers after the underlying subscription or zone had been canceled or abandoned. The actor then created a new Azure subscription, claimed the orphaned zone by name, added wildcard A records pointing all subdomains to a delivery IP, and used ACME HTTP-01 validation to obtain Let’s Encrypt wildcard certificates.</p>
 
 <p>Cyble cites authoritative DNS evidence from Microsoft nameserver infrastructure showing the actor’s wildcard A records. Zone SOA serials of 1 on confirmed victims indicated that the zones were created from scratch by the actor rather than modified from an existing state. Certificate Transparency logs showed long dormancy gaps, including a pharmaceutical company pilot subdomain with a last legitimate certificate in October 2019 and an actor certificate on April 11, 2026.</p>
 
-<h3 id="digitalocean-dns-zone-takeover"><mark class="tag-hl">DigitalOcean DNS Zone Takeover</mark></h3>
+<h3 id="digitalocean-dns-zone-takeover">DigitalOcean DNS Zone Takeover</h3>
 
-<p>Two organizations were affected through <mark class="tag-hl">DigitalOcean DNS zone takeover</mark>: a U.S. luxury furniture retailer and an Indian university. Their compromised subdomains were delegated to <mark class="tag-hl">DigitalOcean</mark> nameservers rather than Azure. Both had wildcard records resolving to 38.127.8.49.</p>
+<p>Two organizations were affected through DigitalOcean DNS zone takeover: a U.S. luxury furniture retailer and an Indian university. Their compromised subdomains were delegated to DigitalOcean nameservers rather than Azure. Both had wildcard records resolving to 38.127.8.49.</p>
 
-<p>The article states that <mark class="tag-hl">DigitalOcean</mark>’s zone-claiming model carries the same structural vulnerability when abandoned DNS zones in canceled accounts become available for re-registration. Cyble concluded that the actor’s tooling targeted multiple cloud DNS providers.</p>
+<p>The article states that DigitalOcean’s zone-claiming model carries the same structural vulnerability when abandoned DNS zones in canceled accounts become available for re-registration. Cyble concluded that the actor’s tooling targeted multiple cloud DNS providers.</p>
 
 <h3 id="direct-wildcard-misconfiguration">Direct Wildcard Misconfiguration</h3>
 
@@ -1638,21 +1792,21 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h3 id="per-subdomain-a-records">Per-Subdomain A Records</h3>
 
-<p>The <mark class="tag-hl">Verizon</mark> environment represented a distinct mechanism. Instead of a single wildcard record, it contained more than 1,000 individually named A records pointing gambling-keyword subdomains to 51.79.199.51. Cyble states that this implied either an automated DNS API script with zone-write access or a compromised DNS management credential enabling bulk record creation.</p>
+<p>The Verizon environment represented a distinct mechanism. Instead of a single wildcard record, it contained more than 1,000 individually named A records pointing gambling-keyword subdomains to 51.79.199.51. Cyble states that this implied either an automated DNS API script with zone-write access or a compromised DNS management credential enabling bulk record creation.</p>
 
 <h2 id="pivoting-and-infrastructure-discovery">Pivoting and Infrastructure Discovery</h2>
 
-<p>Cyble pivoted from the initial <mark class="tag-hl">Verizon</mark> endpoint to a broader victim set using passive DNS data, page fingerprinting, and infrastructure indicators. The primary delivery IP, 51.79.199.51, revealed more than 90 enterprise subdomains serving identical content. These matched on the Next.js build ID QQOrXCFjoI6C9oF-4YVhl, the favicon path /img/ib99-hq.ico, and outbound affiliate redirects to the same three destination domains.</p>
+<p>Cyble pivoted from the initial Verizon endpoint to a broader victim set using passive DNS data, page fingerprinting, and infrastructure indicators. The primary delivery IP, 51.79.199.51, revealed more than 90 enterprise subdomains serving identical content. These matched on the Next.js build ID QQOrXCFjoI6C9oF-4YVhl, the favicon path /img/ib99-hq.ico, and outbound affiliate redirects to the same three destination domains.</p>
 
-<p>Passive DNS data against AS16276, <mark class="tag-hl">OVH</mark>, surfaced two additional delivery IPs: 139.99.82.106 and 38.127.8.49. Both served the same gambling kit with the same build fingerprint across a partially overlapping but distinct victim set. Together, the three <mark class="tag-hl">OVH</mark> delivery nodes accounted for the full 163-organization victim estate described in the article.</p>
+<p>Passive DNS data against AS16276, OVH, surfaced two additional delivery IPs: 139.99.82.106 and 38.127.8.49. Both served the same gambling kit with the same build fingerprint across a partially overlapping but distinct victim set. Together, the three OVH delivery nodes accounted for the full 163-organization victim estate described in the article.</p>
 
-<p>A JARM TLS fingerprinting pivot from the primary delivery node exposed 38.173.56.218 in <mark class="tag-hl">Hong Kong</mark> under AS398478, PEG TECH INC. Unlike thousands of generic shared-hosting JARM matches, this host presented a ThinkPHP application framework error on port 443, a Chinese server management panel certificate identity on port 21, and MySQL 5.7.44-log on port 3306. Cyble described this as the entry point from the <mark class="tag-hl">OVH</mark> delivery layer into the backend infrastructure.</p>
+<p>A JARM TLS fingerprinting pivot from the primary delivery node exposed 38.173.56.218 in Hong Kong under AS398478, PEG TECH INC. Unlike thousands of generic shared-hosting JARM matches, this host presented a ThinkPHP application framework error on port 443, a Chinese server management panel certificate identity on port 21, and MySQL 5.7.44-log on port 3306. Cyble described this as the entry point from the OVH delivery layer into the backend infrastructure.</p>
 
 <h2 id="affiliate-monetization-architecture">Affiliate Monetization Architecture</h2>
 
 <p>The campaign monetized traffic through gambling affiliate redirects. Every destination redirect carried a ?rc= affiliate code, including ibiza99vip1, bigwinv1, link99, or seven77vip1. The article states that these codes attributed completed registrations to the actor and triggered commission payouts from the destination platform.</p>
 
-<p>Cyble observed a server-side verification layer before redirect issuance. A POST request at a live endpoint returned a response including status “ok,” the message “TH - Referrer verified,” and data containing the referrer “link99.” The article states that the backend validated geographic origin server-side and did not redirect requests from outside <mark class="tag-hl">Thailand</mark>.</p>
+<p>Cyble observed a server-side verification layer before redirect issuance. A POST request at a live endpoint returned a response including status “ok,” the message “TH - Referrer verified,” and data containing the referrer “link99.” The article states that the backend validated geographic origin server-side and did not redirect requests from outside Thailand.</p>
 
 <p>The article describes link99 as a sub-affiliate publisher ID that sits above the ?rc= codes in the platform’s tracking hierarchy. Cyble states that the actor earned at both tiers: publisher-level credit under link99 for delivering Thai traffic and per-registration payout under the ?rc= code for each conversion. The two layers were described as independent, allowing campaign codes to rotate while link99 persisted as the actor’s platform identity.</p>
 
@@ -1662,11 +1816,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The gambling kit served from compromised enterprise subdomains returned a fully rendered Next.js page when requested with Thai locale headers. The pages included lang=&ldquo;th&rdquo;, Thai-language gambling branding, valid Let’s Encrypt wildcard TLS certificates matching victim subdomains, Schema.org FAQ structured data, AMP alternate links, and static assets served from paths under the compromised domain. The article states that the minimum deposit advertised across variants was 1 Thai Baht, approximately $0.03 USD.</p>
 
-<p>The kit fingerprint was consistent across the victim estate regardless of the victim domain or <mark class="tag-hl">OVH</mark> delivery node. Cyble states that this confirmed centralized build and deployment by a single operator.</p>
+<p>The kit fingerprint was consistent across the victim estate regardless of the victim domain or OVH delivery node. Cyble states that this confirmed centralized build and deployment by a single operator.</p>
 
 <h2 id="backend-infrastructure">Backend Infrastructure</h2>
 
-<p>The three <mark class="tag-hl">OVH</mark> delivery nodes handled content distribution, while the application layer was hosted in a separate backend fleet in <mark class="tag-hl">Hong Kong</mark>. Cyble identified 103 backend nodes distributed across seven /24 subnets within 38.173.0.0/16, all under AS398478, PEG TECH INC. The fleet was discovered by pivoting on a Let’s Encrypt certificate issued to broker-xm.com that was deployed across the nodes.</p>
+<p>The three OVH delivery nodes handled content distribution, while the application layer was hosted in a separate backend fleet in Hong Kong. Cyble identified 103 backend nodes distributed across seven /24 subnets within 38.173.0.0/16, all under AS398478, PEG TECH INC. The fleet was discovered by pivoting on a Let’s Encrypt certificate issued to broker-xm.com that was deployed across the nodes.</p>
 
 <p>Cyble listed multiple evidence points supporting single-operator control of the backend fleet:</p>
 
@@ -1690,9 +1844,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="remediation-guidance">Remediation Guidance</h2>
 
-<p>For <mark class="tag-hl">Azure DNS zone takeover</mark> victims, Cyble recommends removing the NS delegation from the parent DNS zone immediately. The article states that this severs the attack chain regardless of what the actor maintains inside the Azure zone, because that zone is under the actor’s control and cannot be directly modified by the victim organization. Cyble also recommends reporting the abandoned zone to Microsoft MSRC with the zone name and evidence.</p>
+<p>For Azure DNS zone takeover victims, Cyble recommends removing the NS delegation from the parent DNS zone immediately. The article states that this severs the attack chain regardless of what the actor maintains inside the Azure zone, because that zone is under the actor’s control and cannot be directly modified by the victim organization. Cyble also recommends reporting the abandoned zone to Microsoft MSRC with the zone name and evidence.</p>
 
-<p>The article further recommends requesting revocation of any Let’s Encrypt certificates issued against compromised subdomains using serial numbers from crt.sh. Organizations are advised to audit remaining subdomains for environment-style entries such as dev, uat, staging, preprod, pilot, lab, test, and sandbox, especially where they carry NS delegations to cloud providers. For <mark class="tag-hl">DigitalOcean</mark> takeover victims, Cyble recommends removing the NS delegation from the parent zone and verifying whether the <mark class="tag-hl">DigitalOcean</mark> zone exists in an account the organization owns.</p>
+<p>The article further recommends requesting revocation of any Let’s Encrypt certificates issued against compromised subdomains using serial numbers from crt.sh. Organizations are advised to audit remaining subdomains for environment-style entries such as dev, uat, staging, preprod, pilot, lab, test, and sandbox, especially where they carry NS delegations to cloud providers. For DigitalOcean takeover victims, Cyble recommends removing the NS delegation from the parent zone and verifying whether the DigitalOcean zone exists in an account the organization owns.</p>
 
 <p>For direct wildcard misconfiguration victims, Cyble recommends removing the wildcard A record from the DNS management console. If the origin of the record cannot be identified, the article says the DNS management credential should be treated as compromised and rotated immediately.</p>
 
@@ -1700,17 +1854,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Cyble states that the actor did not breach a perimeter or exploit an application vulnerability. Instead, the actor claimed abandoned DNS infrastructure and built a commercial affiliate operation on top of it. A single wildcard record beneath an abandoned Azure delegation could expose an unlimited subdomain namespace while inheriting the TLS-verified authority of the victim’s brand.</p>
 
-<p>The campaign’s scale was described as the result of automated scanning applied to one vulnerability class rather than 163 separate attacks. Its use of <mark class="tag-hl">OVH</mark> delivery nodes, Let’s Encrypt certificates, victim-owned domains, and organic search rankings allowed it to operate within legitimate infrastructure. The article concludes that abandoned NS delegations pointing to cloud providers remain candidates for future exploitation if organizations do not audit and remove them.</p>
+<p>The campaign’s scale was described as the result of automated scanning applied to one vulnerability class rather than 163 separate attacks. Its use of OVH delivery nodes, Let’s Encrypt certificates, victim-owned domains, and organic search rankings allowed it to operate within legitimate infrastructure. The article concludes that abandoned NS delegations pointing to cloud providers remain candidates for future exploitation if organizations do not audit and remove them.</p>
 
 <h2 id="mitre-att-ck-techniques-cited">MITRE ATT&amp;CK Techniques Cited</h2>
 
 <p>The article maps the campaign to several MITRE ATT&amp;CK techniques:</p>
 
 <ul>
-<li>Resource Development — Acquire Infrastructure, T1583.003, for <mark class="tag-hl">OVH</mark> VPS delivery and PEG TECH INC backend infrastructure.</li>
-<li>Resource Development — Compromise Infrastructure, T1584, for <mark class="tag-hl">Azure DNS zone takeover</mark> of legitimate enterprise subdomains.</li>
+<li>Resource Development — Acquire Infrastructure, T1583.003, for OVH VPS delivery and PEG TECH INC backend infrastructure.</li>
+<li>Resource Development — Compromise Infrastructure, T1584, for Azure DNS zone takeover of legitimate enterprise subdomains.</li>
 <li>Initial Access — Drive-by Compromise, T1189, for Thai users directed to compromised enterprise subdomains via organic search.</li>
-<li>Persistence — Valid Accounts, T1078, for DNS management credentials implied by <mark class="tag-hl">Verizon</mark> per-subdomain record creation.</li>
+<li>Persistence — Valid Accounts, T1078, for DNS management credentials implied by Verizon per-subdomain record creation.</li>
 <li>Defense Evasion — Impersonation, T1656, for gambling content served under legitimate enterprise TLS certificates.</li>
 <li>Defense Evasion — Valid Accounts: Cloud Accounts, T1078.004, for Azure accounts used to claim abandoned DNS zones.</li>
 <li>Collection — Adversary-in-the-Middle, T1557, for server-side affiliate referrer verification.</li>
@@ -1723,10 +1877,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Campaign kit indicators include the Next.js build ID QQOrXCFjoI6C9oF-4YVhl, the path /img/ib99-hq.ico, CSS hash main.af42a497.css, and Cloudflare R2 bucket pub-a4952b46ff9c4f6b8d5529cd21f9a1e3.r2.dev. Affiliate and destination infrastructure includes ibiza99.autos, big888.store, seven77.click, link99.nova555.rest, appbox.7y6texmeyy.com, appbox.devh5api27.xyz, and appbox.55u4g5g4k2.com. The article also lists 99997778.com and bevictor.com as parallel operations associated with AS398478.</p>
 </div></div>
-                <div id="insights-70d2a61c550bee962eef01aaf18e840c:5b52500032e2feab" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Certificate Transparency monitoring for unexpected Let’s Encrypt wildcard certificates on corporate subdomains would have detected every Azure takeover victim at certificate issuance, especially where there had been a long gap since legitimate certificate activity.</span></li><li><span class="kp-text">A single abandoned Azure NS delegation can expose an unlimited subdomain namespace because the actor can add a wildcard A record after reclaiming the orphaned zone.</span></li><li><span class="kp-text">Randomized nonsense-hostname DNS queries against Azure-delegated subdomains are an actionable validation method, because unexpected resolution can indicate an actor-controlled wildcard zone.</span></li><li><span class="kp-text">The campaign avoided many conventional security signals because it used valid TLS certificates, clean IP reputation, victim-owned domains, and legitimate cloud or hosting infrastructure rather than malware delivery.</span></li><li><span class="kp-text">The repeated SOA serial value of 1 on confirmed Azure takeover victims showed that the actor created the DNS zones from scratch rather than modifying existing victim-managed zones.</span></li></ul></div>
+                <div id="insights-5a2bda2494f6f9fbb32e942cb72c5435:5b52500032e2feab" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Certificate Transparency monitoring for unexpected Let’s Encrypt wildcard certificates on corporate subdomains would have detected every Azure takeover victim at certificate issuance, especially where there had been a long gap since legitimate certificate activity.</span></li><li><span class="kp-text">A single abandoned Azure NS delegation can expose an unlimited subdomain namespace because the actor can add a wildcard A record after reclaiming the orphaned zone.</span></li><li><span class="kp-text">Randomized nonsense-hostname DNS queries against Azure-delegated subdomains are an actionable validation method, because unexpected resolution can indicate an actor-controlled wildcard zone.</span></li><li><span class="kp-text">The campaign avoided many conventional security signals because it used valid TLS certificates, clean IP reputation, victim-owned domains, and legitimate cloud or hosting infrastructure rather than malware delivery.</span></li><li><span class="kp-text">The repeated SOA serial value of 1 on confirmed Azure takeover victims showed that the actor created the DNS zones from scratch rather than modifying existing victim-managed zones.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Cyble Research &amp; Intelligence Labs identified an <mark class="tag-hl">SEO poisoning</mark> campaign that compromised 163 organizations across more than 30 countries by serving Thai-language gambling content under trusted enterprise domains.</span></li><li><span class="kp-text">The primary technique was <mark class="tag-hl">Azure DNS zone takeover</mark>, where abandoned NS delegations to deleted Azure DNS zones were reclaimed by the actor under a new Azure subscription.</span></li><li><span class="kp-text">The campaign also used <mark class="tag-hl">DigitalOcean</mark> DNS zone takeovers, direct wildcard DNS misconfigurations, and individually created A records in at least one <mark class="tag-hl">Verizon</mark> subdomain environment.</span></li><li><span class="kp-text">The gambling kit used valid Let’s Encrypt wildcard TLS certificates, a consistent Next.js build fingerprint, Thai-language SEO content, and affiliate redirects with codes such as ibiza99vip1, bigwinv1, link99, and seven77vip1.</span></li><li><span class="kp-text">Cyble linked the operation to three <mark class="tag-hl">OVH</mark> delivery nodes and a 103-node backend fleet in <mark class="tag-hl">Hong Kong</mark> under AS398478, with shared fingerprints including a broker-xm.com certificate and identical HTTP body hash.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Cyble Research &amp; Intelligence Labs identified an SEO poisoning campaign that compromised 163 organizations across more than 30 countries by serving Thai-language gambling content under trusted enterprise domains.</span></li><li><span class="kp-text">The primary technique was Azure DNS zone takeover, where abandoned NS delegations to deleted Azure DNS zones were reclaimed by the actor under a new Azure subscription.</span></li><li><span class="kp-text">The campaign also used DigitalOcean DNS zone takeovers, direct wildcard DNS misconfigurations, and individually created A records in at least one Verizon subdomain environment.</span></li><li><span class="kp-text">The gambling kit used valid Let’s Encrypt wildcard TLS certificates, a consistent Next.js build fingerprint, Thai-language SEO content, and affiliate redirects with codes such as ibiza99vip1, bigwinv1, link99, and seven77vip1.</span></li><li><span class="kp-text">Cyble linked the operation to three OVH delivery nodes and a 103-node backend fleet in Hong Kong under AS398478, with shared fingerprints including a broker-xm.com certificate and identical HTTP body hash.</span></li></ul></div>
+            
             <a href="https://cyble.com/blog/borrowed-trust-cloud-dns-takeover-thai-gambling-seo-poisoning/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, active, high-impact campaign affecting 163 organizations across 30+ countries, with 161 reportedly still compromised at publication. It is broadly relevant to security professionals because it documents a scalable DNS takeover pattern, concrete detection indicators, and actionable remediation steps for abandoned cloud DNS delegations.</p>
 </div></div>
@@ -1759,9 +1914,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Check Point Remote Access VPN Authentication Bypass CVE-2026-50751</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Check Point</mark> released hotfixes on June 8, 2026 for <mark class="tag-hl">CVE-2026-50751</mark>, a critical authentication bypass rated CVSS 9.3 affecting Mobile Access/SSL VPN, Remote Access VPN, and Spark Firewall products. <mark class="tag-hl">watchTowr Labs</mark> analyzed the issue and attributed it to deprecated IKEv1 VPN code, where attacker-controlled input in a VPNExtFeatures Vendor ID payload could influence authentication-related flags inside the gateway implementation.</p>
+        <div class="overview-body prose"><p>Check Point released hotfixes on June 8, 2026 for CVE-2026-50751, a critical authentication bypass rated CVSS 9.3 affecting Mobile Access/SSL VPN, Remote Access VPN, and Spark Firewall products. watchTowr Labs analyzed the issue and attributed it to deprecated IKEv1 VPN code, where attacker-controlled input in a VPNExtFeatures Vendor ID payload could influence authentication-related flags inside the gateway implementation.</p>
 
-<p>According to the research, the vulnerable implementation could be made to skip certificate signature validation during IKE authentication. watchTowr demonstrated that a vulnerable gateway accepted a random HASH_I and created a phase-1 IKE security association, while a patched system rejected the same attempt with an authentication failure. The bypass reportedly worked across UDP 500 and TCP 443 <mark class="tag-hl">Visitor Mode</mark>.</p>
+<p>According to the research, the vulnerable implementation could be made to skip certificate signature validation during IKE authentication. watchTowr demonstrated that a vulnerable gateway accepted a random HASH_I and created a phase-1 IKE security association, while a patched system rejected the same attempt with an authentication failure. The bypass reportedly worked across UDP 500 and TCP 443 Visitor Mode.</p>
 
 <p>The article states that an attacker could authenticate as a provisioned Remote Access user by presenting a matching subject distinguished name, a self-signed X.509 certificate, and an invalid signature, because the gateway did not verify the signature or certificate trust chain. watchTowr reported successful exploitation across Certificate, Certificate with enrollment, and Mixed user authentication modes, making the issue relevant to multiple Remote Access deployment configurations.</p>
 </div>
@@ -1770,11 +1925,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Abandoned Cloud DNS Delegations Used for Enterprise-Domain SEO Poisoning</span>
         </div>
-        <div class="overview-body prose"><p>Cyble Research &amp; Intelligence Labs reported an <mark class="tag-hl">SEO poisoning</mark> campaign that served Thai-language gambling content from trusted enterprise domains by exploiting abandoned or misconfigured DNS infrastructure. The campaign affected 163 organizations across more than 30 countries, with the primary technique involving <mark class="tag-hl">Azure DNS zone takeover</mark> through reclaimed nameserver delegations tied to deleted Azure DNS zones.</p>
+        <div class="overview-body prose"><p>Cyble Research &amp; Intelligence Labs reported an SEO poisoning campaign that served Thai-language gambling content from trusted enterprise domains by exploiting abandoned or misconfigured DNS infrastructure. The campaign affected 163 organizations across more than 30 countries, with the primary technique involving Azure DNS zone takeover through reclaimed nameserver delegations tied to deleted Azure DNS zones.</p>
 
-<p>The campaign also used <mark class="tag-hl">DigitalOcean</mark> DNS zone takeovers, direct wildcard DNS misconfigurations, and individually created A records in at least one <mark class="tag-hl">Verizon</mark> subdomain environment. By inheriting authority over abandoned DNS delegations, the operators were able to publish gambling pages under otherwise legitimate organizational domains, increasing the apparent trust and search visibility of the content.</p>
+<p>The campaign also used DigitalOcean DNS zone takeovers, direct wildcard DNS misconfigurations, and individually created A records in at least one Verizon subdomain environment. By inheriting authority over abandoned DNS delegations, the operators were able to publish gambling pages under otherwise legitimate organizational domains, increasing the apparent trust and search visibility of the content.</p>
 
-<p>Cyble described a consistent technical footprint across the gambling kit, including valid Let’s Encrypt wildcard TLS certificates, a recurring Next.js build fingerprint, Thai-language SEO content, and affiliate redirect codes such as ibiza99vip1, bigwinv1, link99, and seven77vip1. The infrastructure was linked to three <mark class="tag-hl">OVH</mark> delivery nodes and a 103-node backend fleet in <mark class="tag-hl">Hong Kong</mark> under AS398478, with shared indicators including a broker-xm.com certificate and an identical HTTP body hash.</p>
+<p>Cyble described a consistent technical footprint across the gambling kit, including valid Let’s Encrypt wildcard TLS certificates, a recurring Next.js build fingerprint, Thai-language SEO content, and affiliate redirect codes such as ibiza99vip1, bigwinv1, link99, and seven77vip1. The infrastructure was linked to three OVH delivery nodes and a 103-node backend fleet in Hong Kong under AS398478, with shared indicators including a broker-xm.com certificate and an identical HTTP body hash.</p>
 </div>
       </div>
     </div>
@@ -1783,9 +1938,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-12 02:00 UTC · 4 hours window</span>
-  <span class="footer-right">2 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">2 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1798,15 +1956,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1919,12 +2139,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1985,6 +2239,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

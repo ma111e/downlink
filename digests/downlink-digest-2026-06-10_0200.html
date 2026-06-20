@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,83 +1506,83 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:86%"></div></div><span class="score-num score-num-mid">86</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:29b6d471bf34e0a0">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:29b6d471bf34e0a0')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:29b6d471bf34e0a0')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:29b6d471bf34e0a0')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:29b6d471bf34e0a0')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:29b6d471bf34e0a0')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:29b6d471bf34e0a0')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:29b6d471bf34e0a0')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:29b6d471bf34e0a0')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:29b6d471bf34e0a0')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:29b6d471bf34e0a0')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:29b6d471bf34e0a0" class="tab-panel active"><div class="prose">Researchers disclosed six protobuf.js vulnerabilities that could let attackers crash Node.js services or execute code when apps process malicious Protobuf schemas, descriptors, or payloads. Affected users should upgrade to protobufjs 7.5.6 or 8.0.2 and <mark class="tag-hl">protobufjs-cli</mark> 1.2.1 or 2.0.2.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:29b6d471bf34e0a0" class="tab-panel"><div class="prose"><p>Cybersecurity researchers at <mark class="tag-hl">Cyera</mark> flagged six vulnerabilities in protobuf.js, a JavaScript and TypeScript implementation of Protocol Buffers. The flaws, codenamed Proto6, could lead to remote code execution and denial-of-service attacks if successfully exploited. <mark class="tag-hl">Cyera</mark> said a single malicious protobuf schema, descriptor, or crafted payload could trigger crashes, runtime corruption, or code execution in affected environments.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:29b6d471bf34e0a0" class="tab-panel active"><div class="prose">Researchers disclosed six protobuf.js vulnerabilities that could let attackers crash Node.js services or execute code when apps process malicious Protobuf schemas, descriptors, or payloads. Affected users should upgrade to protobufjs 7.5.6 or 8.0.2 and protobufjs-cli 1.2.1 or 2.0.2.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:29b6d471bf34e0a0" class="tab-panel"><div class="prose"><p>Cybersecurity researchers at Cyera flagged six vulnerabilities in protobuf.js, a JavaScript and TypeScript implementation of Protocol Buffers. The flaws, codenamed Proto6, could lead to remote code execution and denial-of-service attacks if successfully exploited. Cyera said a single malicious protobuf schema, descriptor, or crafted payload could trigger crashes, runtime corruption, or code execution in affected environments.</p>
 
-<p>The vulnerabilities affect Node.js applications that use protobuf.js, <mark class="tag-hl">Google Cloud client libraries</mark>, messaging frameworks such as <mark class="tag-hl">Baileys</mark>, and CI/CD pipelines. <mark class="tag-hl">Cyera</mark> said any Node.js service that deserializes Protobuf data or generates code from schemas with protobuf.js is likely impacted. The flaws stem from the library handling schema and metadata as trusted by default.</p>
+<p>The vulnerabilities affect Node.js applications that use protobuf.js, Google Cloud client libraries, messaging frameworks such as Baileys, and CI/CD pipelines. Cyera said any Node.js service that deserializes Protobuf data or generates code from schemas with protobuf.js is likely impacted. The flaws stem from the library handling schema and metadata as trusted by default.</p>
 
-<p>The most severe vulnerability described in the article is <mark class="tag-hl">CVE-2026-44291</mark>, which can result in code execution when attacker-controlled input reaches a <mark class="tag-hl">prototype pollution</mark> gadget and protobuf.js later generates encoder or decoder code. Other issues include unbounded recursion, unsafe option paths, prototype injection, crafted field names, and <mark class="tag-hl">code injection</mark> in pbjs static output. Patches are available in protobufjs 7.5.6 and 8.0.2, and <mark class="tag-hl">protobufjs-cli</mark> 1.2.1 and 2.0.2.</p>
+<p>The most severe vulnerability described in the article is CVE-2026-44291, which can result in code execution when attacker-controlled input reaches a prototype pollution gadget and protobuf.js later generates encoder or decoder code. Other issues include unbounded recursion, unsafe option paths, prototype injection, crafted field names, and code injection in pbjs static output. Patches are available in protobufjs 7.5.6 and 8.0.2, and protobufjs-cli 1.2.1 and 2.0.2.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:29b6d471bf34e0a0" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Cyera</mark> researchers disclosed six vulnerabilities in protobuf.js, a JavaScript and TypeScript implementation of Protocol Buffers. The vulnerabilities have been codenamed Proto6 and may enable remote code execution and denial-of-service attacks. The article says exploitation could require specific conditions, but <mark class="tag-hl">Cyera</mark> noted those conditions are increasingly common in data and AI ecosystems that exchange data, schemas, and configuration files.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:29b6d471bf34e0a0" class="tab-panel"><div class="prose"><p>Cyera researchers disclosed six vulnerabilities in protobuf.js, a JavaScript and TypeScript implementation of Protocol Buffers. The vulnerabilities have been codenamed Proto6 and may enable remote code execution and denial-of-service attacks. The article says exploitation could require specific conditions, but Cyera noted those conditions are increasingly common in data and AI ecosystems that exchange data, schemas, and configuration files.</p>
 
-<p>The affected ecosystem includes Node.js applications using protobuf.js, <mark class="tag-hl">Google Cloud client libraries</mark>, messaging frameworks such as <mark class="tag-hl">Baileys</mark>, and CI/CD pipelines. <mark class="tag-hl">Cyera</mark> said any Node.js service that deserializes Protobuf data or generates code from schemas with protobuf.js is likely impacted. The article also notes that protobuf.js is heavily used inside databases, vector stores, inference pipelines, orchestration systems, CI/CD tooling, and cloud SDKs.</p>
+<p>The affected ecosystem includes Node.js applications using protobuf.js, Google Cloud client libraries, messaging frameworks such as Baileys, and CI/CD pipelines. Cyera said any Node.js service that deserializes Protobuf data or generates code from schemas with protobuf.js is likely impacted. The article also notes that protobuf.js is heavily used inside databases, vector stores, inference pipelines, orchestration systems, CI/CD tooling, and cloud SDKs.</p>
 
-<p>The six listed flaws are <mark class="tag-hl">CVE-2026-44289</mark>, <mark class="tag-hl">CVE-2026-44290</mark>, <mark class="tag-hl">CVE-2026-44291</mark>, <mark class="tag-hl">CVE-2026-44292</mark>, <mark class="tag-hl">CVE-2026-44294</mark>, and <mark class="tag-hl">CVE-2026-44295</mark>. They cover denial of service through unbounded protobuf recursion, process-wide denial of service from unsafe option paths, code generation after <mark class="tag-hl">prototype pollution</mark>, prototype injection in generated message constructors, denial of service from crafted field names, and <mark class="tag-hl">code injection</mark> in pbjs static output from crafted schema names. Their CVSS scores range from 5.3 to 8.7.</p>
+<p>The six listed flaws are CVE-2026-44289, CVE-2026-44290, CVE-2026-44291, CVE-2026-44292, CVE-2026-44294, and CVE-2026-44295. They cover denial of service through unbounded protobuf recursion, process-wide denial of service from unsafe option paths, code generation after prototype pollution, prototype injection in generated message constructors, denial of service from crafted field names, and code injection in pbjs static output from crafted schema names. Their CVSS scores range from 5.3 to 8.7.</p>
 
-<p><mark class="tag-hl">Cyera</mark> attributed the vulnerabilities to protobuf.js treating schemas and metadata as trusted by default. In one described attack scenario, an actor could introduce a malicious protobuf schema into CI/CD workflows and leak build secrets through <mark class="tag-hl">CVE-2026-44295</mark>. Another example in the article says specially crafted messages could crash Node.js services such as <mark class="tag-hl">WhatsApp</mark> bots built with <mark class="tag-hl">Baileys</mark> through <mark class="tag-hl">CVE-2026-44292</mark>.</p>
+<p>Cyera attributed the vulnerabilities to protobuf.js treating schemas and metadata as trusted by default. In one described attack scenario, an actor could introduce a malicious protobuf schema into CI/CD workflows and leak build secrets through CVE-2026-44295. Another example in the article says specially crafted messages could crash Node.js services such as WhatsApp bots built with Baileys through CVE-2026-44292.</p>
 
-<p>The most severe issue highlighted is <mark class="tag-hl">CVE-2026-44291</mark>, which can lead to arbitrary JavaScript execution inside a Node.js process. Vladimir Tokarev explained that attacker-controlled input can reach a <mark class="tag-hl">prototype pollution</mark> gadget, after which protobuf.js may resolve a polluted Object.prototype property as if it were a valid protobuf primitive. Protobuf.js then inserts the attacker-controlled string into a generated encoder or decoder function and compiles it with Function().</p>
+<p>The most severe issue highlighted is CVE-2026-44291, which can lead to arbitrary JavaScript execution inside a Node.js process. Vladimir Tokarev explained that attacker-controlled input can reach a prototype pollution gadget, after which protobuf.js may resolve a polluted Object.prototype property as if it were a valid protobuf primitive. Protobuf.js then inserts the attacker-controlled string into a generated encoder or decoder function and compiles it with Function().</p>
 
-<p>The vulnerable versions are protobuf.js versions up to 7.5.5 and versions 8.0.0 through 8.0.1, as well as <mark class="tag-hl">protobufjs-cli</mark> versions up to 1.2.0 and versions 2.0.0 through 2.0.1. Fixes are available in protobufjs 7.5.6 and 8.0.2, and <mark class="tag-hl">protobufjs-cli</mark> 1.2.1 and 2.0.2. Users are advised to apply the latest fixes to protect against potential threats.</p>
+<p>The vulnerable versions are protobuf.js versions up to 7.5.5 and versions 8.0.0 through 8.0.1, as well as protobufjs-cli versions up to 1.2.0 and versions 2.0.0 through 2.0.1. Fixes are available in protobufjs 7.5.6 and 8.0.2, and protobufjs-cli 1.2.1 and 2.0.2. Users are advised to apply the latest fixes to protect against potential threats.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:29b6d471bf34e0a0" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:29b6d471bf34e0a0" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>Cybersecurity researchers at <mark class="tag-hl">Cyera</mark> reported six vulnerabilities in protobuf.js, a JavaScript and TypeScript implementation of Protocol Buffers. The vulnerabilities are collectively codenamed Proto6. According to the article, successful exploitation could result in remote code execution and denial-of-service attacks.</p>
+<p>Cybersecurity researchers at Cyera reported six vulnerabilities in protobuf.js, a JavaScript and TypeScript implementation of Protocol Buffers. The vulnerabilities are collectively codenamed Proto6. According to the article, successful exploitation could result in remote code execution and denial-of-service attacks.</p>
 
-<p><mark class="tag-hl">Cyera</mark> researcher Assaf Morag said that, in affected environments, a single malicious protobuf schema, descriptor, or crafted payload could be enough to trigger crashes, runtime corruption, or code execution. The article frames the issue as significant because Protocol Buffers are widely used for serializing structured data, and protobuf.js is used across multiple Node.js and data-processing environments.</p>
+<p>Cyera researcher Assaf Morag said that, in affected environments, a single malicious protobuf schema, descriptor, or crafted payload could be enough to trigger crashes, runtime corruption, or code execution. The article frames the issue as significant because Protocol Buffers are widely used for serializing structured data, and protobuf.js is used across multiple Node.js and data-processing environments.</p>
 
 <h2 id="affected-ecosystem">Affected Ecosystem</h2>
 
-<p>The article states that the vulnerabilities affect Node.js applications that use protobuf.js. It also identifies <mark class="tag-hl">Google Cloud client libraries</mark>, messaging frameworks such as <mark class="tag-hl">Baileys</mark>, and CI/CD pipelines as affected areas.</p>
+<p>The article states that the vulnerabilities affect Node.js applications that use protobuf.js. It also identifies Google Cloud client libraries, messaging frameworks such as Baileys, and CI/CD pipelines as affected areas.</p>
 
-<p><mark class="tag-hl">Cyera</mark> said any Node.js service that deserializes Protobuf data or generates code from schemas with protobuf.js is likely impacted. The article further notes that protobuf.js is heavily used inside databases, vector stores, inference pipelines, orchestration systems, CI/CD tooling, and cloud SDKs.</p>
+<p>Cyera said any Node.js service that deserializes Protobuf data or generates code from schemas with protobuf.js is likely impacted. The article further notes that protobuf.js is heavily used inside databases, vector stores, inference pipelines, orchestration systems, CI/CD tooling, and cloud SDKs.</p>
 
 <h2 id="vulnerabilities-identified">Vulnerabilities Identified</h2>
 
 <p>The six vulnerabilities listed in the article are:</p>
 
 <ul>
-<li><mark class="tag-hl">CVE-2026-44289</mark>, with a CVSS score of 7.5, described as denial of service through unbounded protobuf recursion.</li>
-<li><mark class="tag-hl">CVE-2026-44290</mark>, with a CVSS score of 7.5, described as process-wide denial of service when loading schemas with unsafe option paths.</li>
-<li><mark class="tag-hl">CVE-2026-44291</mark>, with a CVSS score of 8.1, described as a code generation gadget after <mark class="tag-hl">prototype pollution</mark>.</li>
-<li><mark class="tag-hl">CVE-2026-44292</mark>, with a CVSS score of 5.3, described as prototype injection in generated message constructors.</li>
-<li><mark class="tag-hl">CVE-2026-44294</mark>, with a CVSS score of 5.3, described as denial of service from crafted field names in generated code.</li>
-<li><mark class="tag-hl">CVE-2026-44295</mark>, with a CVSS score of 8.7, described as <mark class="tag-hl">code injection</mark> in pbjs static output from crafted schema names.</li>
+<li>CVE-2026-44289, with a CVSS score of 7.5, described as denial of service through unbounded protobuf recursion.</li>
+<li>CVE-2026-44290, with a CVSS score of 7.5, described as process-wide denial of service when loading schemas with unsafe option paths.</li>
+<li>CVE-2026-44291, with a CVSS score of 8.1, described as a code generation gadget after prototype pollution.</li>
+<li>CVE-2026-44292, with a CVSS score of 5.3, described as prototype injection in generated message constructors.</li>
+<li>CVE-2026-44294, with a CVSS score of 5.3, described as denial of service from crafted field names in generated code.</li>
+<li>CVE-2026-44295, with a CVSS score of 8.7, described as code injection in pbjs static output from crafted schema names.</li>
 </ul>
 
-<h2 id="root-cause-described-by-cyera">Root Cause Described by <mark class="tag-hl">Cyera</mark></h2>
+<h2 id="root-cause-described-by-cyera">Root Cause Described by Cyera</h2>
 
-<p><mark class="tag-hl">Cyera</mark> said the vulnerabilities stem from protobuf.js handling schema and metadata as trusted by default. The article says this validation oversight could influence application behavior and lead to code execution.</p>
+<p>Cyera said the vulnerabilities stem from protobuf.js handling schema and metadata as trusted by default. The article says this validation oversight could influence application behavior and lead to code execution.</p>
 
 <p>Morag noted that exploitation generally requires specific conditions. However, the article quotes him as saying those conditions are increasingly common in data and AI ecosystems that exchange data, schemas, and configuration files across services, repositories, cloud platforms, and third-party integrations.</p>
 
-<h2 id="technical-detail-on-cve-2026-44291">Technical Detail on <mark class="tag-hl">CVE-2026-44291</mark></h2>
+<h2 id="technical-detail-on-cve-2026-44291">Technical Detail on CVE-2026-44291</h2>
 
-<p>The article identifies <mark class="tag-hl">CVE-2026-44291</mark> as the most severe of the disclosed issues. It says the flaw can result in code execution when a Node.js application accepts attacker-controlled input.</p>
+<p>The article identifies CVE-2026-44291 as the most severe of the disclosed issues. It says the flaw can result in code execution when a Node.js application accepts attacker-controlled input.</p>
 
-<p>Security researcher Vladimir Tokarev explained that the attacker-controlled input reaches a <mark class="tag-hl">prototype pollution</mark> gadget. Later, the same process uses protobuf.js to encode or decode a message. Because protobuf.js resolves type names through plain property lookups, a polluted Object.prototype can make an attacker-controlled string appear to be a valid protobuf primitive.</p>
+<p>Security researcher Vladimir Tokarev explained that the attacker-controlled input reaches a prototype pollution gadget. Later, the same process uses protobuf.js to encode or decode a message. Because protobuf.js resolves type names through plain property lookups, a polluted Object.prototype can make an attacker-controlled string appear to be a valid protobuf primitive.</p>
 
 <p>Tokarev said protobuf.js then inserts that string into a generated encoder or decoder function and compiles it with Function(). According to the article, this gives the attacker arbitrary JavaScript execution inside the Node.js process.</p>
 
 <h2 id="example-attack-scenarios-mentioned">Example Attack Scenarios Mentioned</h2>
 
-<p>The article describes a scenario in which a malicious protobuf schema could be introduced into CI/CD workflows. In that case, <mark class="tag-hl">CVE-2026-44295</mark> could poison CI/CD workflows and leak build secrets.</p>
+<p>The article describes a scenario in which a malicious protobuf schema could be introduced into CI/CD workflows. In that case, CVE-2026-44295 could poison CI/CD workflows and leak build secrets.</p>
 
-<p>The article also gives an example involving Node.js services such as <mark class="tag-hl">WhatsApp</mark> bots built using <mark class="tag-hl">Baileys</mark>, a <mark class="tag-hl">WhatsApp</mark> Web API automation TypeScript library. It says those services could be crashed through a specially crafted message by exploiting <mark class="tag-hl">CVE-2026-44292</mark>.</p>
+<p>The article also gives an example involving Node.js services such as WhatsApp bots built using Baileys, a WhatsApp Web API automation TypeScript library. It says those services could be crashed through a specially crafted message by exploiting CVE-2026-44292.</p>
 
 <h2 id="vulnerable-versions">Vulnerable Versions</h2>
 
@@ -1440,40 +1593,41 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>protobuf.js versions greater than or equal to 8.0.0 and less than or equal to 8.0.1.</li>
 </ul>
 
-<p>The vulnerable <mark class="tag-hl">protobufjs-cli</mark> versions listed in the article are:</p>
+<p>The vulnerable protobufjs-cli versions listed in the article are:</p>
 
 <ul>
-<li><mark class="tag-hl">protobufjs-cli</mark> versions less than or equal to 1.2.0.</li>
-<li><mark class="tag-hl">protobufjs-cli</mark> versions greater than or equal to 2.0.0 and less than or equal to 2.0.1.</li>
+<li>protobufjs-cli versions less than or equal to 1.2.0.</li>
+<li>protobufjs-cli versions greater than or equal to 2.0.0 and less than or equal to 2.0.1.</li>
 </ul>
 
 <h2 id="response-and-mitigation">Response and Mitigation</h2>
 
-<p>The article states that patches are available in protobufjs 7.5.6 and 8.0.2. Patches are also available in <mark class="tag-hl">protobufjs-cli</mark> 1.2.1 and 2.0.2.</p>
+<p>The article states that patches are available in protobufjs 7.5.6 and 8.0.2. Patches are also available in protobufjs-cli 1.2.1 and 2.0.2.</p>
 
 <p>Users are advised to apply the latest fixes to safeguard against potential threats. No named threat actor or active exploitation campaign is identified in the article.</p>
 
 <h2 id="significance">Significance</h2>
 
-<p><mark class="tag-hl">Cyera</mark> said successful exploitation could affect sensitive enterprise and AI workloads at scale because protobuf.js is used inside databases, vector stores, inference pipelines, orchestration systems, CI/CD tooling, and cloud SDKs. The article emphasizes that modern software increasingly treats schemas, metadata, and configuration files as trusted inputs that drive automation, orchestration, and code generation.</p>
+<p>Cyera said successful exploitation could affect sensitive enterprise and AI workloads at scale because protobuf.js is used inside databases, vector stores, inference pipelines, orchestration systems, CI/CD tooling, and cloud SDKs. The article emphasizes that modern software increasingly treats schemas, metadata, and configuration files as trusted inputs that drive automation, orchestration, and code generation.</p>
 
-<p><mark class="tag-hl">Cyera</mark> concluded that when those trust assumptions break, data can become behavior. The article presents Proto6 as an example of how schemas and metadata can create attack surfaces when they are used to drive code generation and runtime behavior without sufficient validation.</p>
+<p>Cyera concluded that when those trust assumptions break, data can become behavior. The article presents Proto6 as an example of how schemas and metadata can create attack surfaces when they are used to drive code generation and runtime behavior without sufficient validation.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:29b6d471bf34e0a0" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">A single malicious protobuf schema, descriptor, or crafted payload may be sufficient to trigger crashes, runtime corruption, or code execution in affected environments.</span></li><li><span class="kp-text">The attack surface is broader than direct application parsing because protobuf.js is used inside cloud SDKs, CI/CD tooling, databases, vector stores, inference pipelines, and orchestration systems.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2026-44295</mark> is especially actionable for build environments because a malicious schema introduced into CI/CD workflows could poison generated static output and leak build secrets.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2026-44291</mark> shows that prior <mark class="tag-hl">prototype pollution</mark> in the same Node.js process can turn protobuf.js code generation into an execution path through its use of Function().</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:29b6d471bf34e0a0" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">A single malicious protobuf schema, descriptor, or crafted payload may be sufficient to trigger crashes, runtime corruption, or code execution in affected environments.</span></li><li><span class="kp-text">The attack surface is broader than direct application parsing because protobuf.js is used inside cloud SDKs, CI/CD tooling, databases, vector stores, inference pipelines, and orchestration systems.</span></li><li><span class="kp-text">CVE-2026-44295 is especially actionable for build environments because a malicious schema introduced into CI/CD workflows could poison generated static output and leak build secrets.</span></li><li><span class="kp-text">CVE-2026-44291 shows that prior prototype pollution in the same Node.js process can turn protobuf.js code generation into an execution path through its use of Function().</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Cybersecurity researchers at <mark class="tag-hl">Cyera</mark> identified six vulnerabilities, collectively called Proto6, in protobuf.js that could enable remote code execution and denial-of-service attacks in affected Node.js environments.</span></li><li><span class="kp-text">The vulnerabilities affect Node.js applications using protobuf.js, <mark class="tag-hl">Google Cloud client libraries</mark>, messaging frameworks such as <mark class="tag-hl">Baileys</mark>, and CI/CD pipelines that deserialize Protobuf data or generate code from schemas.</span></li><li><span class="kp-text">The flaws stem from protobuf.js treating schema and metadata as trusted by default, which <mark class="tag-hl">Cyera</mark> said can influence application behavior and lead to code execution.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2026-44291</mark> is described as the most severe issue because it can allow arbitrary JavaScript execution when attacker-controlled input reaches a <mark class="tag-hl">prototype pollution</mark> gadget before protobuf.js encodes or decodes a message.</span></li><li><span class="kp-text">Patches are available in protobufjs 7.5.6 and 8.0.2 and <mark class="tag-hl">protobufjs-cli</mark> 1.2.1 and 2.0.2, and users are advised to apply the latest fixes.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Cybersecurity researchers at Cyera identified six vulnerabilities, collectively called Proto6, in protobuf.js that could enable remote code execution and denial-of-service attacks in affected Node.js environments.</span></li><li><span class="kp-text">The vulnerabilities affect Node.js applications using protobuf.js, Google Cloud client libraries, messaging frameworks such as Baileys, and CI/CD pipelines that deserialize Protobuf data or generate code from schemas.</span></li><li><span class="kp-text">The flaws stem from protobuf.js treating schema and metadata as trusted by default, which Cyera said can influence application behavior and lead to code execution.</span></li><li><span class="kp-text">CVE-2026-44291 is described as the most severe issue because it can allow arbitrary JavaScript execution when attacker-controlled input reaches a prototype pollution gadget before protobuf.js encodes or decodes a message.</span></li><li><span class="kp-text">Patches are available in protobufjs 7.5.6 and 8.0.2 and protobufjs-cli 1.2.1 and 2.0.2, and users are advised to apply the latest fixes.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/six-proto6-vulnerabilities-in.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific vulnerability disclosure affecting widely used protobuf.js and <mark class="tag-hl">protobufjs-cli</mark> versions, with potential RCE and DoS impact across Node.js services, cloud SDKs, CI/CD pipelines, and AI/data infrastructure. No active exploitation is reported, but the breadth of affected ecosystems and available patches make it a high-priority read for security professionals.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific vulnerability disclosure affecting widely used protobuf.js and protobufjs-cli versions, with potential RCE and DoS impact across Node.js services, cloud SDKs, CI/CD pipelines, and AI/data infrastructure. No active exploitation is reported, but the breadth of affected ecosystems and available patches make it a high-priority read for security professionals.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.cyera.com/blog/cyera-research-uncovers-six-protobuf-js-vulnerabilities-impacting-the-backbone-of-data-and-ai-systems" target="_blank" rel="noopener">Cyera Research Uncovers Six protobuf.js Vulnerabilities Impacting the Backbone of Data and AI Systems</a></div>
   <div class="report-meta">Cyera</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Cyera</mark>&#39;s research disclosure as the source identifying the six Proto6 vulnerabilities in protobuf.js.</div>
+  <div class="report-context">The article cites Cyera&#39;s research disclosure as the source identifying the six Proto6 vulnerabilities in protobuf.js.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.cyera.com/research/proto6-the-schema-was-not-supposed-to-run" target="_blank" rel="noopener">Proto6: The Schema Was Not Supposed to Run</a></div>
   <div class="report-meta">Cyera</div>
-  <div class="report-context">The article links to Vladimir Tokarev&#39;s technical explanation of how <mark class="tag-hl">CVE-2026-44291</mark> can lead to arbitrary JavaScript execution through <mark class="tag-hl">prototype pollution</mark> and protobuf.js code generation.</div>
+  <div class="report-context">The article links to Vladimir Tokarev&#39;s technical explanation of how CVE-2026-44291 can lead to arbitrary JavaScript execution through prototype pollution and protobuf.js code generation.</div>
 </li></ul></div>
             
           </div>
@@ -1502,60 +1656,60 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:65%"></div></div><span class="score-num score-num-low">65</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:62f21e3a67161d1f">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:62f21e3a67161d1f')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:62f21e3a67161d1f')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:62f21e3a67161d1f')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:62f21e3a67161d1f')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:62f21e3a67161d1f')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:62f21e3a67161d1f')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:62f21e3a67161d1f')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:62f21e3a67161d1f')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:62f21e3a67161d1f')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:62f21e3a67161d1f')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:62f21e3a67161d1f" class="tab-panel active"><div class="prose"><mark class="tag-hl">Anthropic</mark> is temporarily making its new <mark class="tag-hl">Claude Fable 5</mark> model available to Pro, Max, and Enterprise users with added guardrails to reduce misuse of Mythos-class capabilities. The model is powerful but extremely token-intensive, especially in Workflow mode, and will move to usage-based pricing after June 22.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:62f21e3a67161d1f" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Anthropic</mark> has begun rolling out <mark class="tag-hl">Claude Fable 5</mark>, a new model based on the same underlying model class as Mythos, which the company previously described as powerful enough to pose security risks. The article says Mythos-class capabilities could potentially help bad actors attack public and private software, which led <mark class="tag-hl">Anthropic</mark> to limit access to such models. Fable 5 is presented as a safer version with guardrails intended to block or divert sensitive requests.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:62f21e3a67161d1f" class="tab-panel active"><div class="prose">Anthropic is temporarily making its new Claude Fable 5 model available to Pro, Max, and Enterprise users with added guardrails to reduce misuse of Mythos-class capabilities. The model is powerful but extremely token-intensive, especially in Workflow mode, and will move to usage-based pricing after June 22.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:62f21e3a67161d1f" class="tab-panel"><div class="prose"><p>Anthropic has begun rolling out Claude Fable 5, a new model based on the same underlying model class as Mythos, which the company previously described as powerful enough to pose security risks. The article says Mythos-class capabilities could potentially help bad actors attack public and private software, which led Anthropic to limit access to such models. Fable 5 is presented as a safer version with guardrails intended to block or divert sensitive requests.</p>
 
-<p><mark class="tag-hl">Anthropic</mark> says sensitive queries involving offensive cybersecurity, biology, or chemistry will be blocked or diverted to Claude Opus 4.8. The unrestricted version, <mark class="tag-hl">Claude Mythos 5</mark>, has those safeguards lifted and is available only to a highly vetted group of trusted partners, including government cyberdefenders and specific life sciences researchers. Fable 5 is available to Pro, Max, and Enterprise customers until June 22, after which it will move to usage-based pricing.</p>
+<p>Anthropic says sensitive queries involving offensive cybersecurity, biology, or chemistry will be blocked or diverted to Claude Opus 4.8. The unrestricted version, Claude Mythos 5, has those safeguards lifted and is available only to a highly vetted group of trusted partners, including government cyberdefenders and specific life sciences researchers. Fable 5 is available to Pro, Max, and Enterprise customers until June 22, after which it will move to usage-based pricing.</p>
 
 <p>BleepingComputer reported that Fable 5 can consume a very large number of tokens, especially when used with Workflow mode and high model thinking. In its testing, Fable 5 used about 1 million tokens in 8 minutes and exhausted a $100 Max subscription’s daily usage in about 9 minutes. The article says that even outside Workflow in extra-high effort, Fable 5 consumes usage about two times faster than the Opus model.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:62f21e3a67161d1f" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Anthropic</mark> has started rolling out <mark class="tag-hl">Claude Fable 5</mark>, a new model based on the same underlying model as Mythos, its most powerful AI model class. <mark class="tag-hl">Anthropic</mark> previously said Mythos was a state-of-the-art model that posed security risks to companies around the world. The company warned that such tools could give an advantage to attackers in the short term if frontier labs were not careful about releases.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:62f21e3a67161d1f" class="tab-panel"><div class="prose"><p>Anthropic has started rolling out Claude Fable 5, a new model based on the same underlying model as Mythos, its most powerful AI model class. Anthropic previously said Mythos was a state-of-the-art model that posed security risks to companies around the world. The company warned that such tools could give an advantage to attackers in the short term if frontier labs were not careful about releases.</p>
 
-<p>The article explains that Mythos-class models could potentially be abused to find and exploit vulnerabilities in applications such as Firefox. Because of those risks, <mark class="tag-hl">Anthropic</mark> previously decided to limit access to models like Mythos and make them available only to cybersecurity experts and trusted companies. <mark class="tag-hl">Anthropic</mark> now says it has developed strong guardrails for the same model class, enabling a safer version called Fable 5.</p>
+<p>The article explains that Mythos-class models could potentially be abused to find and exploit vulnerabilities in applications such as Firefox. Because of those risks, Anthropic previously decided to limit access to models like Mythos and make them available only to cybersecurity experts and trusted companies. Anthropic now says it has developed strong guardrails for the same model class, enabling a safer version called Fable 5.</p>
 
-<p>According to the article, Fable 5 has strict safeguards that block or divert sensitive queries involving areas such as offensive cybersecurity, biology, or chemistry. Those queries may be sent to the previous model, Claude Opus 4.8. <mark class="tag-hl">Claude Mythos 5</mark> is described as the unrestricted version of the same model with those safeguards lifted.</p>
+<p>According to the article, Fable 5 has strict safeguards that block or divert sensitive queries involving areas such as offensive cybersecurity, biology, or chemistry. Those queries may be sent to the previous model, Claude Opus 4.8. Claude Mythos 5 is described as the unrestricted version of the same model with those safeguards lifted.</p>
 
-<p>Access to <mark class="tag-hl">Claude Mythos 5</mark> remains restricted because of the risks involved. The article says it is available only to a highly vetted group of trusted partners, such as government cyberdefenders and specific life sciences researchers. Fable 5, by contrast, is being offered to all Pro, Max, and Enterprise customers until June 22.</p>
+<p>Access to Claude Mythos 5 remains restricted because of the risks involved. The article says it is available only to a highly vetted group of trusted partners, such as government cyberdefenders and specific life sciences researchers. Fable 5, by contrast, is being offered to all Pro, Max, and Enterprise customers until June 22.</p>
 
-<p><mark class="tag-hl">Anthropic</mark> says Fable 5 is expensive because it requires significant compute, so it cannot be offered as easily as Opus 4.8 or previous models. After the limited availability window ends, Fable 5 will switch to usage-based pricing. BleepingComputer observed that the model used about 1 million tokens in 8 minutes and exhausted a $100 Max subscription’s daily usage in about 9 minutes when used with Workflow mode and high model thinking.</p>
+<p>Anthropic says Fable 5 is expensive because it requires significant compute, so it cannot be offered as easily as Opus 4.8 or previous models. After the limited availability window ends, Fable 5 will switch to usage-based pricing. BleepingComputer observed that the model used about 1 million tokens in 8 minutes and exhausted a $100 Max subscription’s daily usage in about 9 minutes when used with Workflow mode and high model thinking.</p>
 
 <p>The article notes that this heavy consumption was particularly visible when using Workflow, a new execution system that lets Claude break complex prompts into smaller tasks and run parallel subagents. It adds that casual interactions do not cause the same behavior, but Workflow mode with high thinking can consume all tokens within minutes. Even without Workflow in extra-high effort, the article says Fable 5 consumes usage about two times faster than the Opus model.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:62f21e3a67161d1f" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:62f21e3a67161d1f" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Anthropic</mark> has begun rolling out <mark class="tag-hl">Claude Fable 5</mark>, a new model based on the same underlying model class as Mythos. The article describes Mythos as <mark class="tag-hl">Anthropic</mark>’s most powerful AI model class and says the company previously identified it as a state-of-the-art model that could pose security risks to companies around the world.</p>
+<p>Anthropic has begun rolling out Claude Fable 5, a new model based on the same underlying model class as Mythos. The article describes Mythos as Anthropic’s most powerful AI model class and says the company previously identified it as a state-of-the-art model that could pose security risks to companies around the world.</p>
 
-<p><mark class="tag-hl">Anthropic</mark> had previously warned that Mythos was powerful enough to potentially help bad actors attack public and private software. The article states that this could include being abused to find and exploit vulnerabilities in applications such as Firefox.</p>
+<p>Anthropic had previously warned that Mythos was powerful enough to potentially help bad actors attack public and private software. The article states that this could include being abused to find and exploit vulnerabilities in applications such as Firefox.</p>
 
 <h2 id="why-mythos-class-models-were-restricted">Why Mythos-Class Models Were Restricted</h2>
 
-<p><mark class="tag-hl">Anthropic</mark> previously said that, in the short term, attackers could benefit from these tools if frontier labs were not careful about how they released them. It also said that, in the long term, defenders could use the models to direct resources more efficiently and fix bugs before new code ships.</p>
+<p>Anthropic previously said that, in the short term, attackers could benefit from these tools if frontier labs were not careful about how they released them. It also said that, in the long term, defenders could use the models to direct resources more efficiently and fix bugs before new code ships.</p>
 
-<p>Because of the risks involved, <mark class="tag-hl">Anthropic</mark> decided to limit access to models like Mythos. The article says access was offered only to cybersecurity experts and trusted companies.</p>
+<p>Because of the risks involved, Anthropic decided to limit access to models like Mythos. The article says access was offered only to cybersecurity experts and trusted companies.</p>
 
 <h2 id="fable-5-as-a-guarded-version">Fable 5 as a Guarded Version</h2>
 
-<p><mark class="tag-hl">Anthropic</mark> now says it has developed strong guardrails for the same model class. According to the article, those guardrails are intended to prevent these powerful AI models from being easily exploited by bad actors.</p>
+<p>Anthropic now says it has developed strong guardrails for the same model class. According to the article, those guardrails are intended to prevent these powerful AI models from being easily exploited by bad actors.</p>
 
-<p>As a result, <mark class="tag-hl">Anthropic</mark> is launching a safer version called <mark class="tag-hl">Claude Fable 5</mark>. The article says <mark class="tag-hl">Claude Code</mark> now shows the Fable 5 model.</p>
+<p>As a result, Anthropic is launching a safer version called Claude Fable 5. The article says Claude Code now shows the Fable 5 model.</p>
 
 <h2 id="safeguards-and-sensitive-query-handling">Safeguards and Sensitive Query Handling</h2>
 
-<p>According to <mark class="tag-hl">Anthropic</mark>, Fable 5 includes strict safeguards that will block or divert sensitive queries. The article specifically identifies sensitive areas such as:</p>
+<p>According to Anthropic, Fable 5 includes strict safeguards that will block or divert sensitive queries. The article specifically identifies sensitive areas such as:</p>
 
 <ul>
 <li>Offensive cybersecurity</li>
@@ -1563,11 +1717,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Chemistry</li>
 </ul>
 
-<p>The article says those sensitive queries may be diverted to <mark class="tag-hl">Anthropic</mark>’s previous model, Claude Opus 4.8.</p>
+<p>The article says those sensitive queries may be diverted to Anthropic’s previous model, Claude Opus 4.8.</p>
 
 <h2 id="mythos-5-access-remains-restricted">Mythos 5 Access Remains Restricted</h2>
 
-<p><mark class="tag-hl">Claude Mythos 5</mark> is described as the unrestricted version of the same model, with Fable 5’s safeguards lifted. Because of the risks involved, the article says Mythos 5 is available only to a highly vetted group of trusted partners.</p>
+<p>Claude Mythos 5 is described as the unrestricted version of the same model, with Fable 5’s safeguards lifted. Because of the risks involved, the article says Mythos 5 is available only to a highly vetted group of trusted partners.</p>
 
 <p>Examples of trusted partners cited in the article include:</p>
 
@@ -1578,9 +1732,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="availability-and-pricing">Availability and Pricing</h2>
 
-<p>Fable 5 is available for a limited time to all Pro, Max, and Enterprise customers. <mark class="tag-hl">Anthropic</mark> says this access will last until June 22.</p>
+<p>Fable 5 is available for a limited time to all Pro, Max, and Enterprise customers. Anthropic says this access will last until June 22.</p>
 
-<p>After that window expires, the article says Fable 5 will switch to usage-based pricing. <mark class="tag-hl">Anthropic</mark> describes the model as expensive because it requires a large amount of compute, which limits the company’s ability to make it available as easily as Opus 4.8 or earlier models.</p>
+<p>After that window expires, the article says Fable 5 will switch to usage-based pricing. Anthropic describes the model as expensive because it requires a large amount of compute, which limits the company’s ability to make it available as easily as Opus 4.8 or earlier models.</p>
 
 <h2 id="token-consumption-observed-by-bleepingcomputer">Token Consumption Observed by BleepingComputer</h2>
 
@@ -1588,11 +1742,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The author specifically noticed this behavior when using Workflow, a new execution system that allows Claude to break complex prompts into smaller tasks and spin up parallel subagents to implement them.</p>
 
-<p>In one test, <mark class="tag-hl">Claude Fable 5</mark> exhausted the author’s $100 Max subscription daily usage in about 9 minutes. The article states that the daily usage had been at zero when the author started using the model.</p>
+<p>In one test, Claude Fable 5 exhausted the author’s $100 Max subscription daily usage in about 9 minutes. The article states that the daily usage had been at zero when the author started using the model.</p>
 
 <h2 id="workflow-mode-and-high-thinking-settings">Workflow Mode and High Thinking Settings</h2>
 
-<p>The article says this rapid usage does not happen during casual interaction with <mark class="tag-hl">Claude Fable 5</mark>. However, it warns that switching to Workflow mode and setting model thinking to high can consume all available tokens within minutes.</p>
+<p>The article says this rapid usage does not happen during casual interaction with Claude Fable 5. However, it warns that switching to Workflow mode and setting model thinking to high can consume all available tokens within minutes.</p>
 
 <p>The article also states that even without using Fable 5 with Workflow in extra-high effort, the model still consumes usage about two times faster than the Opus model.</p>
 
@@ -1600,14 +1754,15 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The main user-facing impact described in the article is rapid token and usage consumption. Pro, Max, and Enterprise users can try Fable 5 during the limited free access period, but heavy use, especially through Workflow mode and high thinking settings, may quickly exhaust available usage.</p>
 
-<p>The article says this token consumption helps explain why <mark class="tag-hl">Anthropic</mark> is hesitant to unlock Fable 5 in the same capacity as Opus and other models. It also notes that this could change in the coming weeks, stating that <mark class="tag-hl">Anthropic</mark> is known for reducing model capacity and increasing it later.</p>
+<p>The article says this token consumption helps explain why Anthropic is hesitant to unlock Fable 5 in the same capacity as Opus and other models. It also notes that this could change in the coming weeks, stating that Anthropic is known for reducing model capacity and increasing it later.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:62f21e3a67161d1f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Users testing Fable 5 should avoid Workflow mode with high model thinking unless necessary, because the article reports this combination can burn through a Max subscription’s daily usage within minutes.</span></li><li><span class="kp-text"><mark class="tag-hl">Anthropic</mark>’s approach separates capability from access: the guarded Fable 5 is broadly available for a limited time, while the unrestricted Mythos 5 remains limited to vetted partners such as government cyberdefenders and selected life sciences researchers.</span></li><li><span class="kp-text">Sensitive prompts may not be handled by Fable 5 at all, because <mark class="tag-hl">Anthropic</mark> says queries involving offensive cybersecurity, biology, or chemistry can be blocked or diverted to Opus 4.8.</span></li><li><span class="kp-text">The limited free access period appears tied to compute cost rather than only safety concerns, as the article says Fable 5 is expensive to run and consumes usage faster than Opus.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:62f21e3a67161d1f" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Users testing Fable 5 should avoid Workflow mode with high model thinking unless necessary, because the article reports this combination can burn through a Max subscription’s daily usage within minutes.</span></li><li><span class="kp-text">Anthropic’s approach separates capability from access: the guarded Fable 5 is broadly available for a limited time, while the unrestricted Mythos 5 remains limited to vetted partners such as government cyberdefenders and selected life sciences researchers.</span></li><li><span class="kp-text">Sensitive prompts may not be handled by Fable 5 at all, because Anthropic says queries involving offensive cybersecurity, biology, or chemistry can be blocked or diverted to Opus 4.8.</span></li><li><span class="kp-text">The limited free access period appears tied to compute cost rather than only safety concerns, as the article says Fable 5 is expensive to run and consumes usage faster than Opus.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Anthropic</mark> has begun rolling out <mark class="tag-hl">Claude Fable 5</mark>, a safer version of a Mythos-class model with guardrails designed to block or divert sensitive queries involving areas such as offensive cybersecurity, biology, or chemistry.</span></li><li><span class="kp-text"><mark class="tag-hl">Claude Mythos 5</mark> is the unrestricted version of the same model and is available only to a highly vetted group of trusted partners, including government cyberdefenders and specific life sciences researchers.</span></li><li><span class="kp-text">Fable 5 is being offered to all Pro, Max, and Enterprise customers until June 22, after which <mark class="tag-hl">Anthropic</mark> says it will switch to usage-based pricing.</span></li><li><span class="kp-text">BleepingComputer observed that <mark class="tag-hl">Claude Fable 5</mark> used about 1 million tokens in 8 minutes and exhausted a $100 Max subscription&#39;s daily usage in about 9 minutes when used with Workflow mode and high model thinking.</span></li><li><span class="kp-text">The article states that even without Workflow in extra-high effort, Fable 5 consumes usage about two times faster than the Opus model.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Anthropic has begun rolling out Claude Fable 5, a safer version of a Mythos-class model with guardrails designed to block or divert sensitive queries involving areas such as offensive cybersecurity, biology, or chemistry.</span></li><li><span class="kp-text">Claude Mythos 5 is the unrestricted version of the same model and is available only to a highly vetted group of trusted partners, including government cyberdefenders and specific life sciences researchers.</span></li><li><span class="kp-text">Fable 5 is being offered to all Pro, Max, and Enterprise customers until June 22, after which Anthropic says it will switch to usage-based pricing.</span></li><li><span class="kp-text">BleepingComputer observed that Claude Fable 5 used about 1 million tokens in 8 minutes and exhausted a $100 Max subscription&#39;s daily usage in about 9 minutes when used with Workflow mode and high model thinking.</span></li><li><span class="kp-text">The article states that even without Workflow in extra-high effort, Fable 5 consumes usage about two times faster than the Opus model.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/artificial-intelligence/anthropic-rolls-out-claude-fable-5-but-its-available-for-a-limited-time/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific product release with security relevance because <mark class="tag-hl">Anthropic</mark> is exposing a guarded Mythos-class model while keeping unrestricted access limited to vetted cyberdefenders and researchers. It is not an active exploitation event, breach, or patch advisory, so it is useful context rather than urgent reading for most security professionals.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific product release with security relevance because Anthropic is exposing a guarded Mythos-class model while keeping unrestricted access limited to vetted cyberdefenders and researchers. It is not an active exploitation event, breach, or patch advisory, so it is useful context rather than urgent reading for most security professionals.</p>
 </div></div>
             
             
@@ -1637,58 +1792,58 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:58%"></div></div><span class="score-num score-num-low">58</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="465bab5c3f86d8b6a947bdc64f75fb81:8201f46d45a7586c">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-f50bb5ddf6ff3159d730b092128dba63:8201f46d45a7586c')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-f50bb5ddf6ff3159d730b092128dba63:8201f46d45a7586c')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-f50bb5ddf6ff3159d730b092128dba63:8201f46d45a7586c')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-f50bb5ddf6ff3159d730b092128dba63:8201f46d45a7586c')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-f50bb5ddf6ff3159d730b092128dba63:8201f46d45a7586c')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-465bab5c3f86d8b6a947bdc64f75fb81:8201f46d45a7586c')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-465bab5c3f86d8b6a947bdc64f75fb81:8201f46d45a7586c')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-465bab5c3f86d8b6a947bdc64f75fb81:8201f46d45a7586c')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-465bab5c3f86d8b6a947bdc64f75fb81:8201f46d45a7586c')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-465bab5c3f86d8b6a947bdc64f75fb81:8201f46d45a7586c')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-f50bb5ddf6ff3159d730b092128dba63:8201f46d45a7586c" class="tab-panel active"><div class="prose"><mark class="tag-hl">SpecterOps</mark> demonstrates how <mark class="tag-hl">GEPA</mark> can make prompt engineering for security agents measurable by iteratively testing, scoring, and refining an LLM-based web CTF agent’s prompt. The key takeaway is that structured evaluation, actionable run feedback, and Pareto-based candidate selection can improve agent performance, but results depend heavily on dataset quality and reward design.</div></div>
-                <div id="brief-f50bb5ddf6ff3159d730b092128dba63:8201f46d45a7586c" class="tab-panel"><div class="prose"><p><mark class="tag-hl">SpecterOps</mark> describes a proof-of-concept for using <mark class="tag-hl">GEPA</mark>, or Genetic-Pareto optimization, to make prompt engineering for security agents more measurable. The article focuses on improving an <code>AGENTS.md</code> prompt for a web CTF agent rather than relying on subjective judgment about whether prompt edits improve performance. The work is presented as part of <mark class="tag-hl">SpecterOps</mark>’ <mark class="tag-hl">GhostWorks</mark> initiative for AI security.</p>
+                <div id="tldr-465bab5c3f86d8b6a947bdc64f75fb81:8201f46d45a7586c" class="tab-panel active"><div class="prose">SpecterOps demonstrates how GEPA can make prompt engineering for security agents measurable by iteratively testing, scoring, and refining an LLM-based web CTF agent’s prompt. The key takeaway is that structured evaluation, actionable run feedback, and Pareto-based candidate selection can improve agent performance, but results depend heavily on dataset quality and reward design.</div></div>
+                <div id="brief-465bab5c3f86d8b6a947bdc64f75fb81:8201f46d45a7586c" class="tab-panel"><div class="prose"><p>SpecterOps describes a proof-of-concept for using GEPA, or Genetic-Pareto optimization, to make prompt engineering for security agents more measurable. The article focuses on improving an <code>AGENTS.md</code> prompt for a web CTF agent rather than relying on subjective judgment about whether prompt edits improve performance. The work is presented as part of SpecterOps’ GhostWorks initiative for AI security.</p>
 
-<p>The example agent is evaluated on Dockerized CSI CTF web challenges and given tools such as shell execution, file reading and writing, web requests, and a <code>submit_flag</code> validator. The scoring function rewards only solved challenges and weights fewer agent turns more heavily than shorter duration. <mark class="tag-hl">GEPA</mark> uses scores plus actionable side information from agent runs, such as reasoning, tool use, return values, and errors, to generate improved prompt candidates.</p>
+<p>The example agent is evaluated on Dockerized CSI CTF web challenges and given tools such as shell execution, file reading and writing, web requests, and a <code>submit_flag</code> validator. The scoring function rewards only solved challenges and weights fewer agent turns more heavily than shorter duration. GEPA uses scores plus actionable side information from agent runs, such as reasoning, tool use, return values, and errors, to generate improved prompt candidates.</p>
 
-<p>The article explains how <mark class="tag-hl">GEPA</mark> evaluates prompts in minibatches, validates improved candidates, and uses a Pareto frontier to keep strong prompts in play across different challenge types. In the proof-of-concept, the optimized prompt improved scores on two validation challenges and slightly reduced the score on one. The author notes that the small dataset caused signs of overfitting and emphasizes the importance of lab variety, dataset selection, and mature reward functions.</p>
+<p>The article explains how GEPA evaluates prompts in minibatches, validates improved candidates, and uses a Pareto frontier to keep strong prompts in play across different challenge types. In the proof-of-concept, the optimized prompt improved scores on two validation challenges and slightly reduced the score on one. The author notes that the small dataset caused signs of overfitting and emphasizes the importance of lab variety, dataset selection, and mature reward functions.</p>
 </div></div>
-                <div id="standard-f50bb5ddf6ff3159d730b092128dba63:8201f46d45a7586c" class="tab-panel"><div class="prose"><p>The article presents a technical walkthrough of applying <mark class="tag-hl">GEPA</mark> to prompt engineering for security agents. <mark class="tag-hl">SpecterOps</mark> frames the problem as the difficulty of measuring whether changes to an agent prompt actually improve behavior. The author uses a web CTF agent as a concrete example and aims to improve its performance by refining only the prompt.</p>
+                <div id="standard-465bab5c3f86d8b6a947bdc64f75fb81:8201f46d45a7586c" class="tab-panel"><div class="prose"><p>The article presents a technical walkthrough of applying GEPA to prompt engineering for security agents. SpecterOps frames the problem as the difficulty of measuring whether changes to an agent prompt actually improve behavior. The author uses a web CTF agent as a concrete example and aims to improve its performance by refining only the prompt.</p>
 
-<p><mark class="tag-hl">GEPA</mark> is described as an optimization framework originally published in a paper and positioned as an alternative to reinforcement learning approaches such as GRPO. The article highlights that <mark class="tag-hl">GEPA</mark> can work with closed-source and remote-hosted LLMs because it optimizes prompts rather than training model weights. It also notes that <mark class="tag-hl">GEPA</mark> requires relatively little compute but can consume many tokens during optimization.</p>
+<p>GEPA is described as an optimization framework originally published in a paper and positioned as an alternative to reinforcement learning approaches such as GRPO. The article highlights that GEPA can work with closed-source and remote-hosted LLMs because it optimizes prompts rather than training model weights. It also notes that GEPA requires relatively little compute but can consume many tokens during optimization.</p>
 
-<p>The proof-of-concept uses a simple ReAct-style CTF agent with tools for shell execution, file access, web requests, and flag submission. The challenge set comes from CSI CTF challenges hosted in <mark class="tag-hl">Docker</mark> containers. The initial prompt is a basic instruction set telling the agent to solve a web CTF challenge, submit the flag, explain actions, and stop after completion.</p>
+<p>The proof-of-concept uses a simple ReAct-style CTF agent with tools for shell execution, file access, web requests, and flag submission. The challenge set comes from CSI CTF challenges hosted in Docker containers. The initial prompt is a basic instruction set telling the agent to solve a web CTF challenge, submit the flag, explain actions, and stop after completion.</p>
 
-<p>The evaluation design measures whether the challenge was solved, how many agent turns were used, and how long the attempt took. The reward function returns zero for unsolved challenges and otherwise combines a duration score with a turn score, weighted 25% for duration and 75% for turns. The author stresses that reward design matters because <mark class="tag-hl">GEPA</mark> uses the score to steer prompt optimization.</p>
+<p>The evaluation design measures whether the challenge was solved, how many agent turns were used, and how long the attempt took. The reward function returns zero for unsolved challenges and otherwise combines a duration score with a turn score, weighted 25% for duration and 75% for turns. The author stresses that reward design matters because GEPA uses the score to steer prompt optimization.</p>
 
-<p>A major part of the process is actionable side information, which includes textual traces from each run such as reasoning, tool usage, parameters, return values, and errors. <mark class="tag-hl">GEPA</mark> uses this information to identify successful behaviors and failure patterns, such as quickly identifying <mark class="tag-hl">SQL injection</mark> but spending many turns on syntax or misidentifying the database. Candidate prompts are tested on minibatches, retained only when they improve scores, and then evaluated against validation challenges.</p>
+<p>A major part of the process is actionable side information, which includes textual traces from each run such as reasoning, tool usage, parameters, return values, and errors. GEPA uses this information to identify successful behaviors and failure patterns, such as quickly identifying SQL injection but spending many turns on syntax or misidentifying the database. Candidate prompts are tested on minibatches, retained only when they improve scores, and then evaluated against validation challenges.</p>
 
-<p>The article explains that <mark class="tag-hl">GEPA</mark> uses Pareto frontier selection to preserve prompts that perform strongly on different challenge types rather than choosing only one overall winner. In the demonstrated run using GPT-5.5-Cyber for both evaluation and optimization, <mark class="tag-hl">GEPA</mark> selected prompt 11 after 250 metric calls. The optimized prompt improved two challenge scores while slightly decreasing one, and the author notes that specific challenge-tailored content in the final prompt shows overfitting due to the small training and validation set.</p>
+<p>The article explains that GEPA uses Pareto frontier selection to preserve prompts that perform strongly on different challenge types rather than choosing only one overall winner. In the demonstrated run using GPT-5.5-Cyber for both evaluation and optimization, GEPA selected prompt 11 after 250 metric calls. The optimized prompt improved two challenge scores while slightly decreasing one, and the author notes that specific challenge-tailored content in the final prompt shows overfitting due to the small training and validation set.</p>
 </div></div>
-                <div id="comprehensive-f50bb5ddf6ff3159d730b092128dba63:8201f46d45a7586c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-465bab5c3f86d8b6a947bdc64f75fb81:8201f46d45a7586c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">SpecterOps</mark> presents a technical walkthrough of using <mark class="tag-hl">GEPA</mark>, or Genetic-Pareto optimization, to make LLM prompt engineering for security agents measurable. The article is tied to the company’s <mark class="tag-hl">GhostWorks</mark> initiative for AI security and focuses on a practical proof-of-concept rather than a product release. The central problem is that prompt changes for agents are often judged by subjective impressions rather than by repeatable measurements.</p>
+<p>SpecterOps presents a technical walkthrough of using GEPA, or Genetic-Pareto optimization, to make LLM prompt engineering for security agents measurable. The article is tied to the company’s GhostWorks initiative for AI security and focuses on a practical proof-of-concept rather than a product release. The central problem is that prompt changes for agents are often judged by subjective impressions rather than by repeatable measurements.</p>
 
-<p>The author applies <mark class="tag-hl">GEPA</mark> to a simple web CTF agent and attempts to improve the agent’s performance by optimizing its <code>AGENTS.md</code> prompt. The goal is to find and submit flags in CTF web challenges using the agent’s available tools. The article emphasizes that the optimization is performed through prompt refinement, not model training.</p>
+<p>The author applies GEPA to a simple web CTF agent and attempts to improve the agent’s performance by optimizing its <code>AGENTS.md</code> prompt. The goal is to find and submit flags in CTF web challenges using the agent’s available tools. The article emphasizes that the optimization is performed through prompt refinement, not model training.</p>
 
-<h2 id="what-gepa-is-used-for">What <mark class="tag-hl">GEPA</mark> Is Used For</h2>
+<h2 id="what-gepa-is-used-for">What GEPA Is Used For</h2>
 
-<p><mark class="tag-hl">GEPA</mark> is described as an optimization framework positioned by its authors as an alternative to reinforcement learning techniques such as GRPO. The article says <mark class="tag-hl">GEPA</mark> was primarily created for prompt refinement, although it can be applied to other optimization tasks. The framework takes an existing prompt and uses an LLM to produce refined versions that are evaluated against measurable goals.</p>
+<p>GEPA is described as an optimization framework positioned by its authors as an alternative to reinforcement learning techniques such as GRPO. The article says GEPA was primarily created for prompt refinement, although it can be applied to other optimization tasks. The framework takes an existing prompt and uses an LLM to produce refined versions that are evaluated against measurable goals.</p>
 
-<p>The author highlights three practical advantages of <mark class="tag-hl">GEPA</mark>:</p>
+<p>The author highlights three practical advantages of GEPA:</p>
 
 <ul>
 <li>It can improve LLM efficiency on closed-source and remote-hosted models because it only modifies prompts.</li>
 <li>It requires relatively little compute because it relies on inference and evaluation rather than training.</li>
-<li><mark class="tag-hl">GEPA</mark> already has a Python framework, <mark class="tag-hl">GEPA-ai</mark>, which makes implementation straightforward.</li>
+<li>GEPA already has a Python framework, GEPA-ai, which makes implementation straightforward.</li>
 </ul>
 
-<p>The article also warns that <mark class="tag-hl">GEPA</mark> runs can consume many tokens during optimization, even though the framework includes controls to reduce token usage.</p>
+<p>The article also warns that GEPA runs can consume many tokens during optimization, even though the framework includes controls to reduce token usage.</p>
 
 <h2 id="ctf-agent-scenario">CTF Agent Scenario</h2>
 
@@ -1701,13 +1856,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>A <code>submit_flag</code> tool that validates whether a submitted flag is correct.</li>
 </ul>
 
-<p>The starting <code>AGENTS.md</code> prompt is intentionally basic. It tells the agent that it is an expert CTF player specializing in web CTF challenges, must find and submit the flag, should explain its reasoning before and after commands, cannot ask for help, and should provide a final writeup after solving the challenge. The flag format is described as usually being <code><mark class="tag-hl">csictf</mark>{…}</code>.</p>
+<p>The starting <code>AGENTS.md</code> prompt is intentionally basic. It tells the agent that it is an expert CTF player specializing in web CTF challenges, must find and submit the flag, should explain its reasoning before and after commands, cannot ask for help, and should provide a final writeup after solving the challenge. The flag format is described as usually being <code>csictf{…}</code>.</p>
 
-<p>The challenges used in the proof-of-concept come from the CSI CTF challenge repository. Each challenge is hosted in a <mark class="tag-hl">Docker</mark> container, which makes the lab environment easy to deploy.</p>
+<p>The challenges used in the proof-of-concept come from the CSI CTF challenge repository. Each challenge is hosted in a Docker container, which makes the lab environment easy to deploy.</p>
 
 <h2 id="defining-what-good-means">Defining What “Good” Means</h2>
 
-<p>The article argues that <mark class="tag-hl">GEPA</mark> requires explicit measurement criteria and a clear optimization goal. For the CTF agent, the goal is: find the flag in the CTF challenge and submit it using the <code>submit_flag</code> tool.</p>
+<p>The article argues that GEPA requires explicit measurement criteria and a clear optimization goal. For the CTF agent, the goal is: find the flag in the CTF challenge and submit it using the <code>submit_flag</code> tool.</p>
 
 <p>The author evaluates each run using three questions:</p>
 
@@ -1719,11 +1874,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The reward function returns <code>0.0</code> if the challenge is not solved. If the challenge is solved, it calculates a duration score and a turns score, then combines them with 25% weight on duration and 75% weight on turns. This makes turn efficiency more important than elapsed time in the proof-of-concept.</p>
 
-<p>The article gives examples showing that a failed run scores zero regardless of time or turns, while solved runs receive higher scores when they use fewer turns and less time. The author cautions that reward functions should be designed carefully because <mark class="tag-hl">GEPA</mark> uses the score heavily to steer prompt optimization.</p>
+<p>The article gives examples showing that a failed run scores zero regardless of time or turns, while solved runs receive higher scores when they use fewer turns and less time. The author cautions that reward functions should be designed carefully because GEPA uses the score heavily to steer prompt optimization.</p>
 
 <h2 id="actionable-side-information">Actionable Side Information</h2>
 
-<p>A core part of the <mark class="tag-hl">GEPA</mark> process is actionable side information, abbreviated as ASI in the article. The paper calls this natural language reflection, while the <mark class="tag-hl">GEPA-ai</mark> <code>optimize_anything</code> framework calls it actionable side information.</p>
+<p>A core part of the GEPA process is actionable side information, abbreviated as ASI in the article. The paper calls this natural language reflection, while the GEPA-ai <code>optimize_anything</code> framework calls it actionable side information.</p>
 
 <p>In the CTF example, ASI includes useful textual information from each lab run, such as:</p>
 
@@ -1737,11 +1892,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article explains that ASI lets the optimizer go beyond a numerical score. It can identify what worked, what failed, and what should be adjusted in future prompt candidates.</p>
 
-<p>For example, a run might show that the agent quickly identified <mark class="tag-hl">SQL injection</mark> and extracted the flag, but took too many turns to get SQL syntax correct and misidentified MySQL as Postgres. Feeding these traces into the optimizer can encourage useful behavior while adding prompt guidance for verifying SQL syntax and database type.</p>
+<p>For example, a run might show that the agent quickly identified SQL injection and extracted the flag, but took too many turns to get SQL syntax correct and misidentified MySQL as Postgres. Feeding these traces into the optimizer can encourage useful behavior while adding prompt guidance for verifying SQL syntax and database type.</p>
 
 <h2 id="batch-evaluation-and-candidate-filtering">Batch Evaluation and Candidate Filtering</h2>
 
-<p>The article explains that <mark class="tag-hl">GEPA</mark> uses minibatches to manage evaluation cost. In the example, a pool of 10 CTF challenges is split into 7 training challenges and 3 validation challenges. If the minibatch size is set to 3, <mark class="tag-hl">GEPA</mark> selects 3 of the 7 training challenges for a round of execution.</p>
+<p>The article explains that GEPA uses minibatches to manage evaluation cost. In the example, a pool of 10 CTF challenges is split into 7 training challenges and 3 validation challenges. If the minibatch size is set to 3, GEPA selects 3 of the 7 training challenges for a round of execution.</p>
 
 <p>Each selected challenge is run, ideally in parallel. After the runs finish, the score and ASI for each run are combined and passed to the optimizer LLM. The optimizer receives the optimization goal, the current prompt, and the evaluation results, then produces a complete replacement prompt.</p>
 
@@ -1756,12 +1911,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>In the CTF setting, different prompts may perform better on different challenge categories, such as:</p>
 
 <ul>
-<li><mark class="tag-hl">SQL injection</mark>.</li>
+<li>SQL injection.</li>
 <li>Deserialization.</li>
-<li><mark class="tag-hl">Remote file include</mark>.</li>
+<li>Remote file include.</li>
 </ul>
 
-<p>Rather than choosing only one prompt as universally best, <mark class="tag-hl">GEPA</mark> keeps candidates that are strongest across different parts of the score matrix. Prompts are selected stochastically, weighted by the number of challenge scores where a prompt performs best. This means prompts that perform well across more challenges are more likely to be selected, while specialist prompts that excel on fewer challenges can still remain in the process.</p>
+<p>Rather than choosing only one prompt as universally best, GEPA keeps candidates that are strongest across different parts of the score matrix. Prompts are selected stochastically, weighted by the number of challenge scores where a prompt performs best. This means prompts that perform well across more challenges are more likely to be selected, while specialist prompts that excel on fewer challenges can still remain in the process.</p>
 
 <p>The article describes two optimization mechanisms:</p>
 
@@ -1774,7 +1929,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="implementation-details">Implementation Details</h2>
 
-<p>The article includes Python code for a <code>GEPATrainer</code> class using the <mark class="tag-hl">GEPA-ai</mark> <code>optimize_anything</code> API. The code defines a list of 10 CTF challenge targets with difficulty labels, splits them into training and validation sets, configures <mark class="tag-hl">GEPA</mark>, and evaluates candidate prompts.</p>
+<p>The article includes Python code for a <code>GEPATrainer</code> class using the GEPA-ai <code>optimize_anything</code> API. The code defines a list of 10 CTF challenge targets with difficulty labels, splits them into training and validation sets, configures GEPA, and evaluates candidate prompts.</p>
 
 <p>Important configuration details include:</p>
 
@@ -1792,27 +1947,27 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="results">Results</h2>
 
-<p>After 250 metric calls, the <mark class="tag-hl">GEPA</mark> run produced a matrix of prompt candidates and scores across three validation challenges. The article says the latest <mark class="tag-hl">GEPA-ai</mark> release includes a tree view that helps visualize the optimization process.</p>
+<p>After 250 metric calls, the GEPA run produced a matrix of prompt candidates and scores across three validation challenges. The article says the latest GEPA-ai release includes a tree view that helps visualize the optimization process.</p>
 
-<p><mark class="tag-hl">GEPA</mark> selected prompt 11 as the strongest candidate. The resulting optimized prompt is much more detailed than the initial prompt and includes specific instructions for web CTF methodology, including:</p>
+<p>GEPA selected prompt 11 as the strongest candidate. The resulting optimized prompt is much more detailed than the initial prompt and includes specific instructions for web CTF methodology, including:</p>
 
 <ul>
 <li>Initial reconnaissance with <code>curl</code>.</li>
 <li>Inspecting headers, redirects, cookies, comments, forms, hidden inputs, scripts, and assets.</li>
 <li>Searching fetched responses for flag-like strings.</li>
 <li>Handling cookies, headers, tokens, and JWTs.</li>
-<li>Testing file and path behavior for <mark class="tag-hl">local file inclusion</mark> and <mark class="tag-hl">path traversal</mark>.</li>
+<li>Testing file and path behavior for local file inclusion and path traversal.</li>
 <li>Handling encodings such as URL encoding, base64, hex, ROT13, HTML entities, JSON escapes, XOR, Caesar shifts, and reversed strings.</li>
-<li>Fetching explicitly referenced external resources such as <mark class="tag-hl">GitHub</mark> files when the challenge points to them.</li>
+<li>Fetching explicitly referenced external resources such as GitHub files when the challenge points to them.</li>
 <li>Performing focused route discovery.</li>
 <li>Using compact Bash and Python snippets for low-volume checks.</li>
 </ul>
 
-<p>The prompt also includes challenge-specific heuristics learned from prior failures, including instructions for file-library-style challenges and CCC/<mark class="tag-hl">JWT</mark>/<mark class="tag-hl">GitHub</mark>-style challenges.</p>
+<p>The prompt also includes challenge-specific heuristics learned from prior failures, including instructions for file-library-style challenges and CCC/JWT/GitHub-style challenges.</p>
 
 <h2 id="measured-impact">Measured Impact</h2>
 
-<p>The article compares the baseline first run with the refined prompt selected by <mark class="tag-hl">GEPA</mark>. The baseline scores were:</p>
+<p>The article compares the baseline first run with the refined prompt selected by GEPA. The baseline scores were:</p>
 
 <ul>
 <li>Challenge 1: 0.9172955506046614.</li>
@@ -1834,29 +1989,30 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article emphasizes that the proof-of-concept used a very small training and validation set. The optimized prompt includes highly specific instructions tied to particular lab challenges, which the author identifies as overfitting. One example is guidance related to <code>/getFile?file=a.cpp</code> returning code that runs <code>cat flag.txt</code>, which is clearly tied to a specific challenge pattern.</p>
 
-<p>The author states that using more labs would give <mark class="tag-hl">GEPA</mark> more opportunity to generalize and reduce this type of overfitting. The article also notes that the reward function used in the proof-of-concept is naive because it gives high scores for simply solving the challenge and heavily penalizes unsolved runs.</p>
+<p>The author states that using more labs would give GEPA more opportunity to generalize and reduce this type of overfitting. The article also notes that the reward function used in the proof-of-concept is naive because it gives high scores for simply solving the challenge and heavily penalizes unsolved runs.</p>
 
-<p>The final lesson is that <mark class="tag-hl">GEPA</mark> does not eliminate standard machine learning concerns. Dataset selection, lab variety, and mature reward functions remain key to achieving useful improvements.</p>
+<p>The final lesson is that GEPA does not eliminate standard machine learning concerns. Dataset selection, lab variety, and mature reward functions remain key to achieving useful improvements.</p>
 </div></div>
-                <div id="insights-f50bb5ddf6ff3159d730b092128dba63:8201f46d45a7586c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">GEPA</mark> can discard candidate prompts before validation if they do not improve scores on the same minibatch, which helps avoid spending additional tokens on prompts that show no measurable gain.</span></li><li><span class="kp-text">The quality of actionable side information is critical because the optimizer can use both high-scoring and low-scoring traces to preserve useful behaviors while explicitly avoiding observed failure patterns.</span></li><li><span class="kp-text">Pareto-based selection keeps specialist prompts in the optimization process even when they are weaker overall, allowing lessons from prompts that perform well on specific challenge types to influence later candidates.</span></li><li><span class="kp-text">The proof-of-concept showed that prompt optimization can introduce challenge-specific overfitting, such as adding instructions tailored to a particular file-library challenge, when the training and validation set is too small.</span></li><li><span class="kp-text">Reward-function design directly steers <mark class="tag-hl">GEPA</mark>’s improvements, so naive scoring that heavily rewards solved challenges and turn efficiency can shape the optimized prompt toward those measured behaviors rather than broader generalization.</span></li></ul></div>
+                <div id="insights-465bab5c3f86d8b6a947bdc64f75fb81:8201f46d45a7586c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">GEPA can discard candidate prompts before validation if they do not improve scores on the same minibatch, which helps avoid spending additional tokens on prompts that show no measurable gain.</span></li><li><span class="kp-text">The quality of actionable side information is critical because the optimizer can use both high-scoring and low-scoring traces to preserve useful behaviors while explicitly avoiding observed failure patterns.</span></li><li><span class="kp-text">Pareto-based selection keeps specialist prompts in the optimization process even when they are weaker overall, allowing lessons from prompts that perform well on specific challenge types to influence later candidates.</span></li><li><span class="kp-text">The proof-of-concept showed that prompt optimization can introduce challenge-specific overfitting, such as adding instructions tailored to a particular file-library challenge, when the training and validation set is too small.</span></li><li><span class="kp-text">Reward-function design directly steers GEPA’s improvements, so naive scoring that heavily rewards solved challenges and turn efficiency can shape the optimized prompt toward those measured behaviors rather than broader generalization.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The article describes <mark class="tag-hl">GEPA</mark> as an optimization framework that refines prompts using LLM inference rather than reinforcement learning, making it applicable to closed-source and remote-hosted models with relatively little compute.</span></li><li><span class="kp-text">The author demonstrates <mark class="tag-hl">GEPA</mark> by optimizing an AGENTS.md prompt for a web CTF agent that uses tools such as shell execution, file access, web requests, and a submit_flag tool.</span></li><li><span class="kp-text">The evaluation function scores only solved challenges and weights turn efficiency more heavily than duration, using a formula with 75% weight on turns and 25% on time.</span></li><li><span class="kp-text"><mark class="tag-hl">GEPA</mark> uses actionable side information from agent runs, including reasoning output, tool usage, return values, and errors, to help the optimizer identify success patterns and failure modes.</span></li><li><span class="kp-text">In the proof-of-concept run, the optimized prompt slightly reduced the score on one challenge but improved two others, while also showing signs of overfitting due to the small training and validation set.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The article describes GEPA as an optimization framework that refines prompts using LLM inference rather than reinforcement learning, making it applicable to closed-source and remote-hosted models with relatively little compute.</span></li><li><span class="kp-text">The author demonstrates GEPA by optimizing an AGENTS.md prompt for a web CTF agent that uses tools such as shell execution, file access, web requests, and a submit_flag tool.</span></li><li><span class="kp-text">The evaluation function scores only solved challenges and weights turn efficiency more heavily than duration, using a formula with 75% weight on turns and 25% on time.</span></li><li><span class="kp-text">GEPA uses actionable side information from agent runs, including reasoning output, tool usage, return values, and errors, to help the optimizer identify success patterns and failure modes.</span></li><li><span class="kp-text">In the proof-of-concept run, the optimized prompt slightly reduced the score on one challenge but improved two others, while also showing signs of overfitting due to the small training and validation set.</span></li></ul></div>
+            
             <a href="https://specterops.io/blog/2026/06/09/prompt-engineering-security-agents-gepa/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a useful technical guide for practitioners experimenting with LLM-based security agents, especially around measurable prompt optimization with <mark class="tag-hl">GEPA</mark>. It does not report a breach, active exploitation, critical patch, or named threat actor activity, so it remains low priority under the scoring rubric.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a useful technical guide for practitioners experimenting with LLM-based security agents, especially around measurable prompt optimization with GEPA. It does not report a breach, active exploitation, critical patch, or named threat actor activity, so it remains low priority under the scoring rubric.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://arxiv.org/abs/2507.19457" target="_blank" rel="noopener">GEPA (Genetic-Pareto) paper</a></div>
   <div class="report-meta">arXiv</div>
-  <div class="report-context">The article cites this paper as the original publication of the <mark class="tag-hl">GEPA</mark> framework used for prompt refinement.</div>
+  <div class="report-context">The article cites this paper as the original publication of the GEPA framework used for prompt refinement.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://gepa-ai.github.io/gepa/tutorials/3d_unicorn_optimization/" target="_blank" rel="noopener">3D Unicorn Optimization Tutorial</a></div>
   <div class="report-meta">GEPA-ai</div>
-  <div class="report-context">The article references this tutorial as an example showing that <mark class="tag-hl">GEPA</mark> can be applied beyond prompt refinement to other optimization tasks.</div>
+  <div class="report-context">The article references this tutorial as an example showing that GEPA can be applied beyond prompt refinement to other optimization tasks.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://gepa-ai.github.io/gepa/guides/#3-optimize_anything-api" target="_blank" rel="noopener">optimize_anything API Guide</a></div>
   <div class="report-meta">GEPA-ai</div>
-  <div class="report-context">The article links to this guide when explaining that its proof-of-concept uses the optimize_anything Python framework to implement <mark class="tag-hl">GEPA</mark> optimization.</div>
+  <div class="report-context">The article links to this guide when explaining that its proof-of-concept uses the optimize_anything Python framework to implement GEPA optimization.</div>
 </li></ul></div>
             
           </div>
@@ -1879,64 +2035,64 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:45%"></div></div><span class="score-num score-num-low">45</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="465bab5c3f86d8b6a947bdc64f75fb81:435b370e3cd6effd">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-f50bb5ddf6ff3159d730b092128dba63:435b370e3cd6effd')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-f50bb5ddf6ff3159d730b092128dba63:435b370e3cd6effd')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-f50bb5ddf6ff3159d730b092128dba63:435b370e3cd6effd')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-f50bb5ddf6ff3159d730b092128dba63:435b370e3cd6effd')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-f50bb5ddf6ff3159d730b092128dba63:435b370e3cd6effd')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-465bab5c3f86d8b6a947bdc64f75fb81:435b370e3cd6effd')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-465bab5c3f86d8b6a947bdc64f75fb81:435b370e3cd6effd')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-465bab5c3f86d8b6a947bdc64f75fb81:435b370e3cd6effd')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-465bab5c3f86d8b6a947bdc64f75fb81:435b370e3cd6effd')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-465bab5c3f86d8b6a947bdc64f75fb81:435b370e3cd6effd')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-f50bb5ddf6ff3159d730b092128dba63:435b370e3cd6effd" class="tab-panel active"><div class="prose"><mark class="tag-hl">SpecterOps</mark> launched <mark class="tag-hl">GhostWorks</mark>, an AI-focused engineering and research initiative to evaluate frontier AI tools against real identity-security problems and turn proven experiments into practical products, research, open source, internal tooling, or documented failures.</div></div>
-                <div id="brief-f50bb5ddf6ff3159d730b092128dba63:435b370e3cd6effd" class="tab-panel"><div class="prose"><p><mark class="tag-hl">SpecterOps</mark> introduced <mark class="tag-hl">GhostWorks</mark>, an AI-focused engineering and research initiative for disciplined exploration of frontier AI-enabled cybersecurity tooling. The initiative is focused on testing emerging AI capabilities against real identity-security problems, documenting limitations, and handing off work that is ready to operate outside the lab. <mark class="tag-hl">SpecterOps</mark> emphasizes that <mark class="tag-hl">GhostWorks</mark> is not a company-wide AI mandate, a replacement for product teams, or a claim that every workflow needs an agent.</p>
+                <div id="tldr-465bab5c3f86d8b6a947bdc64f75fb81:435b370e3cd6effd" class="tab-panel active"><div class="prose">SpecterOps launched GhostWorks, an AI-focused engineering and research initiative to evaluate frontier AI tools against real identity-security problems and turn proven experiments into practical products, research, open source, internal tooling, or documented failures.</div></div>
+                <div id="brief-465bab5c3f86d8b6a947bdc64f75fb81:435b370e3cd6effd" class="tab-panel"><div class="prose"><p>SpecterOps introduced GhostWorks, an AI-focused engineering and research initiative for disciplined exploration of frontier AI-enabled cybersecurity tooling. The initiative is focused on testing emerging AI capabilities against real identity-security problems, documenting limitations, and handing off work that is ready to operate outside the lab. SpecterOps emphasizes that GhostWorks is not a company-wide AI mandate, a replacement for product teams, or a claim that every workflow needs an agent.</p>
 
-<p>The article frames <mark class="tag-hl">GhostWorks</mark> as a pragmatic middle ground between broad optimism and broad pessimism about LLM tools in cybersecurity. <mark class="tag-hl">SpecterOps</mark> says the goal is to find where the technology fits best, measure outcomes, and make informed decisions. The initiative builds on prior work with <mark class="tag-hl">OpenAI</mark>, participation in <mark class="tag-hl">OpenAI</mark>’s <mark class="tag-hl">Trusted Access for Cyber</mark> program, and <mark class="tag-hl">SpecterOps</mark>’ role in helping build <mark class="tag-hl">The Last Ones</mark> cyber range used by the <mark class="tag-hl">UK AI Security Institute</mark>.</p>
+<p>The article frames GhostWorks as a pragmatic middle ground between broad optimism and broad pessimism about LLM tools in cybersecurity. SpecterOps says the goal is to find where the technology fits best, measure outcomes, and make informed decisions. The initiative builds on prior work with OpenAI, participation in OpenAI’s Trusted Access for Cyber program, and SpecterOps’ role in helping build The Last Ones cyber range used by the UK AI Security Institute.</p>
 
-<p><mark class="tag-hl">GhostWorks</mark> will prototype AI-enabled capabilities and determine whether they should become product features, research initiatives, open source or internal tooling, demos, evaluation frameworks, or documented failures. <mark class="tag-hl">SpecterOps</mark> plans to publish research and testing results through blog posts and the Know Your Adversary podcast. The first linked blog in the series is about prompt engineering for security agents using GEPA.</p>
+<p>GhostWorks will prototype AI-enabled capabilities and determine whether they should become product features, research initiatives, open source or internal tooling, demos, evaluation frameworks, or documented failures. SpecterOps plans to publish research and testing results through blog posts and the Know Your Adversary podcast. The first linked blog in the series is about prompt engineering for security agents using GEPA.</p>
 </div></div>
-                <div id="standard-f50bb5ddf6ff3159d730b092128dba63:435b370e3cd6effd" class="tab-panel"><div class="prose"><p><mark class="tag-hl">SpecterOps</mark> announced <mark class="tag-hl">GhostWorks</mark> as an AI-focused engineering and research initiative dedicated to exploring frontier AI-enabled cybersecurity tooling in a disciplined way. The initiative will test emerging capabilities against real identity-security problems, document where they fail, and hand off work that is mature enough to survive outside the lab. The company explicitly states that <mark class="tag-hl">GhostWorks</mark> is not a company-wide AI mandate, a replacement for product teams, or a promise that every workflow needs an AI agent.</p>
+                <div id="standard-465bab5c3f86d8b6a947bdc64f75fb81:435b370e3cd6effd" class="tab-panel"><div class="prose"><p>SpecterOps announced GhostWorks as an AI-focused engineering and research initiative dedicated to exploring frontier AI-enabled cybersecurity tooling in a disciplined way. The initiative will test emerging capabilities against real identity-security problems, document where they fail, and hand off work that is mature enough to survive outside the lab. The company explicitly states that GhostWorks is not a company-wide AI mandate, a replacement for product teams, or a promise that every workflow needs an AI agent.</p>
 
-<p>The article places <mark class="tag-hl">GhostWorks</mark> within a broader discussion about LLM tools entering cybersecurity operations and everyday technology use. It mentions examples such as <mark class="tag-hl">Mythos</mark> and <mark class="tag-hl">Project Glasswing</mark> while stressing that LLMs are not only relevant to adversary tradecraft. <mark class="tag-hl">SpecterOps</mark> argues that public discussion of LLMs often falls into extremes of optimism or pessimism, while practical value is found through measured evaluation and strategic application.</p>
+<p>The article places GhostWorks within a broader discussion about LLM tools entering cybersecurity operations and everyday technology use. It mentions examples such as Mythos and Project Glasswing while stressing that LLMs are not only relevant to adversary tradecraft. SpecterOps argues that public discussion of LLMs often falls into extremes of optimism or pessimism, while practical value is found through measured evaluation and strategic application.</p>
 
-<p><mark class="tag-hl">SpecterOps</mark> describes <mark class="tag-hl">GhostWorks</mark> as an extension of its tradecraft-focused approach to new adversary methods, technologies, and methodologies. The article says that understanding adversary tradecraft is the first step toward defending against it, and it applies that logic to LLM tooling including <mark class="tag-hl">Codex</mark>, <mark class="tag-hl">GPT Cyber</mark>, <mark class="tag-hl">Mythos</mark>, and <mark class="tag-hl">Project Glasswing</mark>. The stated approach is to identify where AI technology fits best, measure everything, and make informed decisions.</p>
+<p>SpecterOps describes GhostWorks as an extension of its tradecraft-focused approach to new adversary methods, technologies, and methodologies. The article says that understanding adversary tradecraft is the first step toward defending against it, and it applies that logic to LLM tooling including Codex, GPT Cyber, Mythos, and Project Glasswing. The stated approach is to identify where AI technology fits best, measure everything, and make informed decisions.</p>
 
-<p><mark class="tag-hl">GhostWorks</mark> builds on AI-related work <mark class="tag-hl">SpecterOps</mark> says was already underway before the initiative had a name. The article cites <mark class="tag-hl">SpecterOps</mark>’ partnership with <mark class="tag-hl">OpenAI</mark> on continuous adversarial red teaming and advanced skills training, its participation in <mark class="tag-hl">OpenAI</mark>’s <mark class="tag-hl">Trusted Access for Cyber</mark> program, and its work helping build <mark class="tag-hl">The Last Ones</mark>, an enterprise cyber range used by the <mark class="tag-hl">UK AI Security Institute</mark>. That range is described as measuring frontier models against an intrusion path.</p>
+<p>GhostWorks builds on AI-related work SpecterOps says was already underway before the initiative had a name. The article cites SpecterOps’ partnership with OpenAI on continuous adversarial red teaming and advanced skills training, its participation in OpenAI’s Trusted Access for Cyber program, and its work helping build The Last Ones, an enterprise cyber range used by the UK AI Security Institute. That range is described as measuring frontier models against an intrusion path.</p>
 
-<p>The initiative will prototype AI-enabled capabilities and decide which efforts should become product features, research initiatives, open source tools, internal tools, demos, evaluation frameworks, or documented failures. <mark class="tag-hl">SpecterOps</mark> connects this engineering-oriented model to prior tools and products including <mark class="tag-hl">Mythic</mark>, <mark class="tag-hl">Ghostwriter</mark>, <mark class="tag-hl">Nemesis</mark>, <mark class="tag-hl">BloodHound</mark>, and <mark class="tag-hl">BloodHound</mark> Enterprise. The company says it will publish <mark class="tag-hl">GhostWorks</mark> research and testing results through future blogs and the Know Your Adversary podcast.</p>
+<p>The initiative will prototype AI-enabled capabilities and decide which efforts should become product features, research initiatives, open source tools, internal tools, demos, evaluation frameworks, or documented failures. SpecterOps connects this engineering-oriented model to prior tools and products including Mythic, Ghostwriter, Nemesis, BloodHound, and BloodHound Enterprise. The company says it will publish GhostWorks research and testing results through future blogs and the Know Your Adversary podcast.</p>
 </div></div>
-                <div id="comprehensive-f50bb5ddf6ff3159d730b092128dba63:435b370e3cd6effd" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-465bab5c3f86d8b6a947bdc64f75fb81:435b370e3cd6effd" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">SpecterOps</mark> introduced <mark class="tag-hl">GhostWorks</mark> as an AI-focused engineering and research initiative centered on frontier AI-enabled cybersecurity tooling. The initiative is intended to explore emerging AI capabilities with pragmatism and discipline, especially in the context of identity-security problems. <mark class="tag-hl">SpecterOps</mark> states that <mark class="tag-hl">GhostWorks</mark> will test capabilities against real problems, document limitations, and hand off work that is ready to operate outside the lab.</p>
+<p>SpecterOps introduced GhostWorks as an AI-focused engineering and research initiative centered on frontier AI-enabled cybersecurity tooling. The initiative is intended to explore emerging AI capabilities with pragmatism and discipline, especially in the context of identity-security problems. SpecterOps states that GhostWorks will test capabilities against real problems, document limitations, and hand off work that is ready to operate outside the lab.</p>
 
-<p>The company explicitly limits the scope of the initiative. <mark class="tag-hl">GhostWorks</mark> is not presented as a company-wide AI mandate, a replacement for product teams, or a claim that every workflow should use an AI agent. Instead, it is described as an intentional home for AI experiments, evaluations, and prototype tooling.</p>
+<p>The company explicitly limits the scope of the initiative. GhostWorks is not presented as a company-wide AI mandate, a replacement for product teams, or a claim that every workflow should use an AI agent. Instead, it is described as an intentional home for AI experiments, evaluations, and prototype tooling.</p>
 
 <h2 id="context-for-the-initiative">Context for the initiative</h2>
 
-<p>The article frames <mark class="tag-hl">GhostWorks</mark> against the broader rise of LLM tools in cybersecurity and everyday technology. <mark class="tag-hl">SpecterOps</mark> notes that LLM tools have entered cybersecurity operations through efforts such as <mark class="tag-hl">Mythos</mark> and <mark class="tag-hl">Project Glasswing</mark>, but it also says LLMs are appearing across many areas of daily life. The article references major technology companies such as Google, Apple, and Microsoft as pushing people toward speech and camera-based interactions for everyday tasks.</p>
+<p>The article frames GhostWorks against the broader rise of LLM tools in cybersecurity and everyday technology. SpecterOps notes that LLM tools have entered cybersecurity operations through efforts such as Mythos and Project Glasswing, but it also says LLMs are appearing across many areas of daily life. The article references major technology companies such as Google, Apple, and Microsoft as pushing people toward speech and camera-based interactions for everyday tasks.</p>
 
-<p><mark class="tag-hl">SpecterOps</mark> argues that the public conversation around LLMs often falls into two extremes. One side claims large productivity gains and warns that leaders who do not engage with LLM tools are falling behind. The other side argues that claimed improvements are difficult to measure or false. <mark class="tag-hl">SpecterOps</mark> positions <mark class="tag-hl">GhostWorks</mark> as an attempt to operate in the middle ground by evaluating AI tools pragmatically.</p>
+<p>SpecterOps argues that the public conversation around LLMs often falls into two extremes. One side claims large productivity gains and warns that leaders who do not engage with LLM tools are falling behind. The other side argues that claimed improvements are difficult to measure or false. SpecterOps positions GhostWorks as an attempt to operate in the middle ground by evaluating AI tools pragmatically.</p>
 
 <h2 id="tradecraft-framing">Tradecraft framing</h2>
 
-<p>The article links <mark class="tag-hl">GhostWorks</mark> to <mark class="tag-hl">SpecterOps</mark>’ broader approach to adversary tradecraft. <mark class="tag-hl">SpecterOps</mark> says understanding tradecraft is a first step toward defending against it, and it applies that principle to LLM tooling. The article names <mark class="tag-hl">Codex</mark>, <mark class="tag-hl">GPT Cyber</mark>, <mark class="tag-hl">Mythos</mark>, and <mark class="tag-hl">Project Glasswing</mark> as examples of LLM tooling relevant to this discussion.</p>
+<p>The article links GhostWorks to SpecterOps’ broader approach to adversary tradecraft. SpecterOps says understanding tradecraft is a first step toward defending against it, and it applies that principle to LLM tooling. The article names Codex, GPT Cyber, Mythos, and Project Glasswing as examples of LLM tooling relevant to this discussion.</p>
 
-<p><mark class="tag-hl">SpecterOps</mark> describes the desired outcome in practical terms: identify where the technology fits best, measure everything, and make informed decisions. The article says this is the core rationale for creating <mark class="tag-hl">GhostWorks</mark>. It also states that if attackers can create exploits in hours, <mark class="tag-hl">SpecterOps</mark> sees it as its job to understand how they are doing it and build tools to defend against it.</p>
+<p>SpecterOps describes the desired outcome in practical terms: identify where the technology fits best, measure everything, and make informed decisions. The article says this is the core rationale for creating GhostWorks. It also states that if attackers can create exploits in hours, SpecterOps sees it as its job to understand how they are doing it and build tools to defend against it.</p>
 
-<h2 id="prior-work-behind-ghostworks">Prior work behind <mark class="tag-hl">GhostWorks</mark></h2>
+<h2 id="prior-work-behind-ghostworks">Prior work behind GhostWorks</h2>
 
-<p><mark class="tag-hl">SpecterOps</mark> says <mark class="tag-hl">GhostWorks</mark> is not the beginning of its AI work. Before the initiative had a name, the company says it was already partnering with <mark class="tag-hl">OpenAI</mark> on continuous adversarial red teaming and advanced skills training. <mark class="tag-hl">SpecterOps</mark> also says it is an active participant in <mark class="tag-hl">OpenAI</mark>’s <mark class="tag-hl">Trusted Access for Cyber</mark> program.</p>
+<p>SpecterOps says GhostWorks is not the beginning of its AI work. Before the initiative had a name, the company says it was already partnering with OpenAI on continuous adversarial red teaming and advanced skills training. SpecterOps also says it is an active participant in OpenAI’s Trusted Access for Cyber program.</p>
 
-<p>The article also highlights <mark class="tag-hl">SpecterOps</mark>’ role in helping build <mark class="tag-hl">The Last Ones</mark>. <mark class="tag-hl">The Last Ones</mark> is described as a realistic enterprise cyber range used by the <mark class="tag-hl">UK AI Security Institute</mark> to measure frontier models against an intrusion path. In the further reading section, the article describes this as a 32-step simulated corporate network attack range built with <mark class="tag-hl">SpecterOps</mark> and used to evaluate model performance on end-to-end cyber tasks.</p>
+<p>The article also highlights SpecterOps’ role in helping build The Last Ones. The Last Ones is described as a realistic enterprise cyber range used by the UK AI Security Institute to measure frontier models against an intrusion path. In the further reading section, the article describes this as a 32-step simulated corporate network attack range built with SpecterOps and used to evaluate model performance on end-to-end cyber tasks.</p>
 
-<h2 id="what-ghostworks-will-produce">What <mark class="tag-hl">GhostWorks</mark> will produce</h2>
+<h2 id="what-ghostworks-will-produce">What GhostWorks will produce</h2>
 
-<p><mark class="tag-hl">GhostWorks</mark> is described as a mechanism for prototyping AI-enabled capabilities and deciding what should happen to them. Potential outcomes include:</p>
+<p>GhostWorks is described as a mechanism for prototyping AI-enabled capabilities and deciding what should happen to them. Potential outcomes include:</p>
 
 <ul>
 <li>Product features.</li>
@@ -1949,35 +2105,36 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Lessons about where the technology fails.</li>
 </ul>
 
-<p>The article emphasizes that the point is not to chase novelty. Instead, <mark class="tag-hl">SpecterOps</mark> says <mark class="tag-hl">GhostWorks</mark> is meant to turn uncertainty into evidence and measurable results.</p>
+<p>The article emphasizes that the point is not to chase novelty. Instead, SpecterOps says GhostWorks is meant to turn uncertainty into evidence and measurable results.</p>
 
 <h2 id="engineering-approach">Engineering approach</h2>
 
-<p><mark class="tag-hl">SpecterOps</mark> describes <mark class="tag-hl">GhostWorks</mark> as an engineering-focused initiative that combines expert engineering with deep security domain expertise. The article compares the approach to earlier <mark class="tag-hl">SpecterOps</mark> software efforts including <mark class="tag-hl">Mythic</mark>, <mark class="tag-hl">Ghostwriter</mark>, <mark class="tag-hl">Nemesis</mark>, <mark class="tag-hl">BloodHound</mark>, and <mark class="tag-hl">BloodHound</mark> Enterprise. <mark class="tag-hl">SpecterOps</mark> says those efforts exist at the intersection of engineering and security expertise.</p>
+<p>SpecterOps describes GhostWorks as an engineering-focused initiative that combines expert engineering with deep security domain expertise. The article compares the approach to earlier SpecterOps software efforts including Mythic, Ghostwriter, Nemesis, BloodHound, and BloodHound Enterprise. SpecterOps says those efforts exist at the intersection of engineering and security expertise.</p>
 
-<p>The article also frames the initiative as a builder-oriented effort. <mark class="tag-hl">SpecterOps</mark> says it wants to approach AI tooling not only as security practitioners, but also as engineers and builders who take systems apart, understand how they work, and reconfigure them for practical purposes.</p>
+<p>The article also frames the initiative as a builder-oriented effort. SpecterOps says it wants to approach AI tooling not only as security practitioners, but also as engineers and builders who take systems apart, understand how they work, and reconfigure them for practical purposes.</p>
 
 <h2 id="planned-publications-and-discussion">Planned publications and discussion</h2>
 
-<p><mark class="tag-hl">SpecterOps</mark> says it will publish the results of <mark class="tag-hl">GhostWorks</mark> research and testing over the coming weeks and months. These outputs will include a series of blogs and discussions on the Know Your Adversary podcast. The stated goal is to support practical conversation for defenders and red teamers about what AI technology means, what it does not mean, and how it applies in real-world environments.</p>
+<p>SpecterOps says it will publish the results of GhostWorks research and testing over the coming weeks and months. These outputs will include a series of blogs and discussions on the Know Your Adversary podcast. The stated goal is to support practical conversation for defenders and red teamers about what AI technology means, what it does not mean, and how it applies in real-world environments.</p>
 
-<p>The article links to the first blog in the series, titled “Prompt Engineering for Security Agents: A Measurable Approach with GEPA.” It also includes further reading from <mark class="tag-hl">OpenAI</mark>, <mark class="tag-hl">SpecterOps</mark>, and the <mark class="tag-hl">UK AI Security Institute</mark> related to adversarial red teaming, <mark class="tag-hl">Trusted Access for Cyber</mark>, and evaluations of <mark class="tag-hl">OpenAI</mark> cyber capabilities.</p>
+<p>The article links to the first blog in the series, titled “Prompt Engineering for Security Agents: A Measurable Approach with GEPA.” It also includes further reading from OpenAI, SpecterOps, and the UK AI Security Institute related to adversarial red teaming, Trusted Access for Cyber, and evaluations of OpenAI cyber capabilities.</p>
 </div></div>
-                <div id="insights-f50bb5ddf6ff3159d730b092128dba63:435b370e3cd6effd" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">SpecterOps</mark> frames <mark class="tag-hl">GhostWorks</mark> as a filtering mechanism for AI work, where experiments may become product features, research initiatives, open source or internal tools, evaluation frameworks, demos, or documented failures.</span></li><li><span class="kp-text">The initiative explicitly treats failed AI experiments as valuable outputs when they clarify where frontier AI tooling does not work in real identity-security environments.</span></li><li><span class="kp-text"><mark class="tag-hl">SpecterOps</mark> positions understanding AI-enabled adversary tradecraft as a prerequisite for defense, comparing it to its historical approach to emerging attacker methodologies.</span></li><li><span class="kp-text"><mark class="tag-hl">GhostWorks</mark> is intended to move AI experimentation from isolated prototypes into disciplined engineering outcomes measured against practical security problems.</span></li></ul></div>
+                <div id="insights-465bab5c3f86d8b6a947bdc64f75fb81:435b370e3cd6effd" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">SpecterOps frames GhostWorks as a filtering mechanism for AI work, where experiments may become product features, research initiatives, open source or internal tools, evaluation frameworks, demos, or documented failures.</span></li><li><span class="kp-text">The initiative explicitly treats failed AI experiments as valuable outputs when they clarify where frontier AI tooling does not work in real identity-security environments.</span></li><li><span class="kp-text">SpecterOps positions understanding AI-enabled adversary tradecraft as a prerequisite for defense, comparing it to its historical approach to emerging attacker methodologies.</span></li><li><span class="kp-text">GhostWorks is intended to move AI experimentation from isolated prototypes into disciplined engineering outcomes measured against practical security problems.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">SpecterOps</mark> introduced <mark class="tag-hl">GhostWorks</mark> as an AI-focused engineering and research initiative for disciplined exploration of frontier AI-enabled cybersecurity tooling.</span></li><li><span class="kp-text"><mark class="tag-hl">GhostWorks</mark> is not a company-wide AI mandate, a replacement for product teams, or a claim that every workflow needs an AI agent.</span></li><li><span class="kp-text">The initiative will test emerging AI capabilities against real identity-security problems, document limitations, and hand off work that is ready to survive outside the lab.</span></li><li><span class="kp-text"><mark class="tag-hl">SpecterOps</mark> said <mark class="tag-hl">GhostWorks</mark> builds on prior AI-related work including partnering with <mark class="tag-hl">OpenAI</mark> on adversarial red teaming and participating in <mark class="tag-hl">OpenAI</mark>’s <mark class="tag-hl">Trusted Access for Cyber</mark> program.</span></li><li><span class="kp-text"><mark class="tag-hl">SpecterOps</mark> plans to publish <mark class="tag-hl">GhostWorks</mark> research and testing results through blog posts and discussions on the Know Your Adversary podcast.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">SpecterOps introduced GhostWorks as an AI-focused engineering and research initiative for disciplined exploration of frontier AI-enabled cybersecurity tooling.</span></li><li><span class="kp-text">GhostWorks is not a company-wide AI mandate, a replacement for product teams, or a claim that every workflow needs an AI agent.</span></li><li><span class="kp-text">The initiative will test emerging AI capabilities against real identity-security problems, document limitations, and hand off work that is ready to survive outside the lab.</span></li><li><span class="kp-text">SpecterOps said GhostWorks builds on prior AI-related work including partnering with OpenAI on adversarial red teaming and participating in OpenAI’s Trusted Access for Cyber program.</span></li><li><span class="kp-text">SpecterOps plans to publish GhostWorks research and testing results through blog posts and discussions on the Know Your Adversary podcast.</span></li></ul></div>
+            
             <a href="https://specterops.io/blog/2026/06/09/introducing-ghostworks-ai-cybersecurity-research/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a company initiative announcement about <mark class="tag-hl">SpecterOps</mark>’ <mark class="tag-hl">GhostWorks</mark> AI research effort, not a specific incident, vulnerability, breach, or active threat. It may be useful for tracking AI-security research direction, but it has low immediate operational urgency for most security professionals.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a company initiative announcement about SpecterOps’ GhostWorks AI research effort, not a specific incident, vulnerability, breach, or active threat. It may be useful for tracking AI-security research direction, but it has low immediate operational urgency for most security professionals.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://openai.com/index/security-on-the-path-to-agi/" target="_blank" rel="noopener">Security on the Path to AGI</a></div>
   <div class="report-meta">OpenAI</div>
-  <div class="report-context">The article cites <mark class="tag-hl">OpenAI</mark>’s March 2025 security update as naming <mark class="tag-hl">SpecterOps</mark> as a partner for continuous adversarial red teaming and advanced skills training.</div>
+  <div class="report-context">The article cites OpenAI’s March 2025 security update as naming SpecterOps as a partner for continuous adversarial red teaming and advanced skills training.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.aisi.gov.uk/blog/our-evaluation-of-openais-gpt-5-5-cyber-capabilities" target="_blank" rel="noopener">Our evaluation of OpenAI’s GPT-5.5 cyber capabilities</a></div>
   <div class="report-meta">UK AI Security Institute</div>
-  <div class="report-context">The article cites <mark class="tag-hl">UK</mark> AISI’s April 2026 evaluation describing <mark class="tag-hl">The Last Ones</mark>, a simulated corporate network attack range built with <mark class="tag-hl">SpecterOps</mark> to evaluate model performance on end-to-end cyber tasks.</div>
+  <div class="report-context">The article cites UK AISI’s April 2026 evaluation describing The Last Ones, a simulated corporate network attack range built with SpecterOps to evaluate model performance on end-to-end cyber tasks.</div>
 </li></ul></div>
             
           </div>
@@ -2007,11 +2164,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Proto6 Vulnerabilities in protobuf.js and Node.js Supply Chain Exposure</span>
         </div>
-        <div class="overview-body prose"><p>Researchers at <mark class="tag-hl">Cyera</mark> disclosed six vulnerabilities collectively named Proto6 in protobuf.js, a widely used JavaScript implementation for Protocol Buffers. The issues can expose affected Node.js applications to remote code execution and denial-of-service conditions, particularly where applications deserialize Protobuf data or generate code from schemas.</p>
+        <div class="overview-body prose"><p>Researchers at Cyera disclosed six vulnerabilities collectively named Proto6 in protobuf.js, a widely used JavaScript implementation for Protocol Buffers. The issues can expose affected Node.js applications to remote code execution and denial-of-service conditions, particularly where applications deserialize Protobuf data or generate code from schemas.</p>
 
-<p>The flaws center on protobuf.js treating schema and metadata as trusted by default. According to the reporting, this behavior can allow attacker-controlled schema-related input to influence application behavior and, in certain paths, reach code execution conditions. The most severe issue highlighted is <mark class="tag-hl">CVE-2026-44291</mark>, which can allow arbitrary JavaScript execution when attacker-controlled input reaches a <mark class="tag-hl">prototype pollution</mark> gadget before protobuf.js encodes or decodes a message.</p>
+<p>The flaws center on protobuf.js treating schema and metadata as trusted by default. According to the reporting, this behavior can allow attacker-controlled schema-related input to influence application behavior and, in certain paths, reach code execution conditions. The most severe issue highlighted is CVE-2026-44291, which can allow arbitrary JavaScript execution when attacker-controlled input reaches a prototype pollution gadget before protobuf.js encodes or decodes a message.</p>
 
-<p>The affected exposure surface extends beyond direct protobuf.js use. The article identifies <mark class="tag-hl">Google Cloud client libraries</mark>, messaging frameworks such as <mark class="tag-hl">Baileys</mark>, Node.js services handling Protobuf data, and CI/CD pipelines that generate code from schemas as potentially impacted environments. Fixes are reported in protobufjs 7.5.6 and 8.0.2, along with <mark class="tag-hl">protobufjs-cli</mark> 1.2.1 and 2.0.2.</p>
+<p>The affected exposure surface extends beyond direct protobuf.js use. The article identifies Google Cloud client libraries, messaging frameworks such as Baileys, Node.js services handling Protobuf data, and CI/CD pipelines that generate code from schemas as potentially impacted environments. Fixes are reported in protobufjs 7.5.6 and 8.0.2, along with protobufjs-cli 1.2.1 and 2.0.2.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
@@ -2033,9 +2190,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-10 02:00 UTC · 4 hours window</span>
-  <span class="footer-right">4 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">4 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -2048,15 +2208,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2169,12 +2391,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2235,6 +2491,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

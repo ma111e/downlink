@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,14 +1506,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                 </div><div class="toc-row-tags"><span class="toc-tags-label">TAGS</span><span class="meta-tag" data-tag="cve-2026-35273" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">cve-2026-35273</span><span class="meta-tag" data-tag="have-i-been-pwned" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">have-i-been-pwned</span><span class="meta-tag" data-tag="mandiant" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">mandiant</span><span class="meta-tag" data-tag="meshcentral" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">meshcentral</span><span class="meta-tag" data-tag="netntlm" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">netntlm</span><span class="meta-tag" data-tag="oracle" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">oracle</span><span class="meta-tag" data-tag="oracle-peoplesoft" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">oracle-peoplesoft</span><span class="meta-tag" data-tag="peoplesoft-peopletools" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">peoplesoft-peopletools</span><span class="meta-tag" data-tag="python-simplehttpserver" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">python-simplehttpserver</span><span class="meta-tag" data-tag="shinyhunters" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">shinyhunters</span><span class="meta-tag" data-tag="ssh-password-spraying" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">ssh-password-spraying</span><span class="meta-tag" data-tag="unc6240" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">unc6240</span><span class="meta-tag" data-tag="united-states" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">united-states</span><span class="meta-tag" data-tag="university-of-nottingham" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">university-of-nottingham</span><span class="meta-tag" data-tag="xmldecoder" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">xmldecoder</span></div>
               </div>
               <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:96%"></div></div><span class="score-num score-num-high">96</span></div>
-              <span class="toc-row-chevron" id="chevron-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
+              <span class="toc-row-chevron" id="chevron-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
             </summary>
             <ul class="toc-cluster-members">
               <li class="toc-cluster-member" data-category="advisory">
                 <span class="toc-child-indent">└</span>
                 <div style="flex:1;min-width:0">
                   <div class="toc-cat-label">advisory</div>
-                  <div class="toc-child-title" onclick="toggleTocMember(this,'member-body-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263')" style="cursor:pointer">Oracle mitigates PeopleSoft zero-day exploited in data theft attacks</div>
+                  <div class="toc-child-title" onclick="toggleTocMember(this,'member-body-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263')" style="cursor:pointer">Oracle mitigates PeopleSoft zero-day exploited in data theft attacks</div>
                   <div class="toc-row-meta">
                     <span class="source-dot" style="background:var(--p10)"></span>
                     <span class="source-name" style="color:var(--p10)">bleepingcomputer.com</span>
@@ -1368,81 +1521,81 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                     <span class="meta-time">2026-06-11 19:39</span>
                     <span class="meta-provider">openai-codex / gpt-5.5</span>
                   </div><div class="toc-row-tags"><span class="toc-tags-label">TAGS</span><span class="meta-tag" data-tag="cve-2026-35273" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">cve-2026-35273</span><span class="meta-tag" data-tag="gadget-chain" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">gadget-chain</span><span class="meta-tag" data-tag="google-cloud" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">google-cloud</span><span class="meta-tag" data-tag="mandiant" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">mandiant</span><span class="meta-tag" data-tag="oracle" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">oracle</span><span class="meta-tag" data-tag="peoplesoft-enterprise-applications" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">peoplesoft-enterprise-applications</span><span class="meta-tag" data-tag="peoplesoft-peopletools" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">peoplesoft-peopletools</span><span class="meta-tag" data-tag="shinyhunters" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">shinyhunters</span><span class="meta-tag" data-tag="unauthenticated-remote-code-execution" onclick="event.stopPropagation();toggleTag(this.dataset.tag)">unauthenticated-remote-code-execution</span></div>
-                  <div class="article-body" id="member-body-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263">
+                  <div class="article-body" id="member-body-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263">
                     
                     
                     
                     <div class="panel-section">
                       <div class="panel-subhead panel-subhead--summary">Summary
                         <div class="summary-switch">
-                          <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263')">TL;DR</button>
-                          <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263')">Brief</button>
-                          <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263')">Standard</button>
-                          <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263')">Comprehensive</button>
-                          <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263')">Insights</button>
+                          <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263')">TL;DR</button>
+                          <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263')">Brief</button>
+                          <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263')">Standard</button>
+                          <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263')">Comprehensive</button>
+                          <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263')">Insights</button>
                         </div>
                       </div>
                       <div class="summary-body">
-                        <div id="tldr-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263" class="tab-panel active"><div class="prose"><mark class="tag-hl">Oracle</mark> issued emergency mitigations for a critical <mark class="tag-hl">PeopleSoft PeopleTools</mark> zero-day, <mark class="tag-hl">CVE-2026-35273</mark>, that enables <mark class="tag-hl">unauthenticated remote code execution</mark>. The flaw is reportedly being actively exploited by <mark class="tag-hl">ShinyHunters</mark> to steal data from PeopleSoft instances, so affected organizations should apply mitigations and check logs for related indicators.</div></div>
-                        <div id="brief-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Oracle</mark> is warning customers about <mark class="tag-hl">CVE-2026-35273</mark>, a critical zero-day vulnerability in <mark class="tag-hl">Oracle</mark> <mark class="tag-hl">PeopleSoft PeopleTools</mark>. The flaw is remotely exploitable without authentication and can result in remote code execution. <mark class="tag-hl">Oracle</mark> says <mark class="tag-hl">PeopleSoft Enterprise Applications</mark> customers may also be affected.</p>
+                        <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263" class="tab-panel active"><div class="prose">Oracle issued emergency mitigations for a critical PeopleSoft PeopleTools zero-day, CVE-2026-35273, that enables unauthenticated remote code execution. The flaw is reportedly being actively exploited by ShinyHunters to steal data from PeopleSoft instances, so affected organizations should apply mitigations and check logs for related indicators.</div></div>
+                        <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263" class="tab-panel"><div class="prose"><p>Oracle is warning customers about CVE-2026-35273, a critical zero-day vulnerability in Oracle PeopleSoft PeopleTools. The flaw is remotely exploitable without authentication and can result in remote code execution. Oracle says PeopleSoft Enterprise Applications customers may also be affected.</p>
 
-<p>The vulnerability has a CVSS base score of 9.8 and affects PeopleSoft Enterprise PeopleTools versions 8.61 and 8.62. <mark class="tag-hl">Oracle</mark> has released emergency mitigations and says a patch is coming soon. The disclosure follows reports that a PeopleSoft zero-day was used in data theft attacks attributed to <mark class="tag-hl">ShinyHunters</mark>.</p>
+<p>The vulnerability has a CVSS base score of 9.8 and affects PeopleSoft Enterprise PeopleTools versions 8.61 and 8.62. Oracle has released emergency mitigations and says a patch is coming soon. The disclosure follows reports that a PeopleSoft zero-day was used in data theft attacks attributed to ShinyHunters.</p>
 
-<p>BleepingComputer reported that <mark class="tag-hl">CVE-2026-35273</mark> is the zero-day exploited in those attacks, and <mark class="tag-hl">Mandiant</mark>’s Charles Carmakal also confirmed active exploitation on LinkedIn. <mark class="tag-hl">ShinyHunters</mark> claimed it used a “<mark class="tag-hl">gadget chain</mark>” of old and zero-day flaws to breach PeopleSoft instances. The group allegedly stole data from 300 instances across more than 100 organizations.</p>
+<p>BleepingComputer reported that CVE-2026-35273 is the zero-day exploited in those attacks, and Mandiant’s Charles Carmakal also confirmed active exploitation on LinkedIn. ShinyHunters claimed it used a “gadget chain” of old and zero-day flaws to breach PeopleSoft instances. The group allegedly stole data from 300 instances across more than 100 organizations.</p>
 </div></div>
-                        <div id="standard-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Oracle</mark> issued a security alert for <mark class="tag-hl">CVE-2026-35273</mark>, a critical zero-day vulnerability in <mark class="tag-hl">Oracle</mark> <mark class="tag-hl">PeopleSoft PeopleTools</mark>. The flaw has a CVSS base score of 9.8 and is remotely exploitable without authentication. <mark class="tag-hl">Oracle</mark> said successful exploitation may result in remote code execution.</p>
+                        <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263" class="tab-panel"><div class="prose"><p>Oracle issued a security alert for CVE-2026-35273, a critical zero-day vulnerability in Oracle PeopleSoft PeopleTools. The flaw has a CVSS base score of 9.8 and is remotely exploitable without authentication. Oracle said successful exploitation may result in remote code execution.</p>
 
-<p><mark class="tag-hl">Oracle</mark> confirmed that the vulnerability affects PeopleSoft Enterprise PeopleTools versions 8.61 and 8.62. The company released emergency mitigations to address the flaw and said a patch is coming soon. <mark class="tag-hl">Oracle</mark> also noted that <mark class="tag-hl">PeopleSoft Enterprise Applications</mark> customers may be affected.</p>
+<p>Oracle confirmed that the vulnerability affects PeopleSoft Enterprise PeopleTools versions 8.61 and 8.62. The company released emergency mitigations to address the flaw and said a patch is coming soon. Oracle also noted that PeopleSoft Enterprise Applications customers may be affected.</p>
 
-<p>The disclosure came after BleepingComputer reported that <mark class="tag-hl">Oracle</mark> PeopleSoft servers had been targeted in data theft attacks involving a PeopleSoft zero-day. BleepingComputer later said it learned that <mark class="tag-hl">CVE-2026-35273</mark> is the zero-day exploited in those attacks. Charles Carmakal, CTO at <mark class="tag-hl">Mandiant</mark> - <mark class="tag-hl">Google Cloud</mark>, also confirmed on LinkedIn that the vulnerability is actively exploited and said <mark class="tag-hl">Oracle</mark> had released mitigations.</p>
+<p>The disclosure came after BleepingComputer reported that Oracle PeopleSoft servers had been targeted in data theft attacks involving a PeopleSoft zero-day. BleepingComputer later said it learned that CVE-2026-35273 is the zero-day exploited in those attacks. Charles Carmakal, CTO at Mandiant - Google Cloud, also confirmed on LinkedIn that the vulnerability is actively exploited and said Oracle had released mitigations.</p>
 
-<p>The attacks are attributed in the article to the <mark class="tag-hl">ShinyHunters</mark> extortion gang, which BleepingComputer says confirmed it was behind them. <mark class="tag-hl">ShinyHunters</mark> claimed it used a “<mark class="tag-hl">gadget chain</mark>” of old and zero-day flaws to breach PeopleSoft instances. The group allegedly stole data from 300 instances across more than 100 organizations.</p>
+<p>The attacks are attributed in the article to the ShinyHunters extortion gang, which BleepingComputer says confirmed it was behind them. ShinyHunters claimed it used a “gadget chain” of old and zero-day flaws to breach PeopleSoft instances. The group allegedly stole data from 300 instances across more than 100 organizations.</p>
 
-<p>The article says <mark class="tag-hl">ShinyHunters</mark> is known for breaching cloud SaaS instances, CRMs, and enterprise platforms that store large volumes of corporate data. After gaining access, the group downloads data and demands a ransom to prevent public leaks. The article also links the group to high-profile attacks involving SnowFlake, Salesforce, and third-party integration providers over the past year.</p>
+<p>The article says ShinyHunters is known for breaching cloud SaaS instances, CRMs, and enterprise platforms that store large volumes of corporate data. After gaining access, the group downloads data and demands a ransom to prevent public leaks. The article also links the group to high-profile attacks involving SnowFlake, Salesforce, and third-party integration providers over the past year.</p>
 
-<p>Cybersecurity researcher Michael R found exposed online directories containing attack-related tooling and shared IP addresses used in the attacks. The article advises organizations running <mark class="tag-hl">Oracle</mark> PeopleSoft to analyze logs for connections from those IP addresses to determine whether they were targeted. BleepingComputer said it contacted <mark class="tag-hl">Oracle</mark> with questions about the vulnerability and attacks but had not received a response.</p>
+<p>Cybersecurity researcher Michael R found exposed online directories containing attack-related tooling and shared IP addresses used in the attacks. The article advises organizations running Oracle PeopleSoft to analyze logs for connections from those IP addresses to determine whether they were targeted. BleepingComputer said it contacted Oracle with questions about the vulnerability and attacks but had not received a response.</p>
 </div></div>
-                        <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                        <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Oracle</mark> is warning about <mark class="tag-hl">CVE-2026-35273</mark>, a critical zero-day vulnerability in <mark class="tag-hl">Oracle</mark> <mark class="tag-hl">PeopleSoft PeopleTools</mark>. The vulnerability allows <mark class="tag-hl">unauthenticated remote code execution</mark> and has a CVSS base score of 9.8. <mark class="tag-hl">Oracle</mark> said the vulnerability is remotely exploitable without authentication and that successful exploitation may result in remote code execution.</p>
+<p>Oracle is warning about CVE-2026-35273, a critical zero-day vulnerability in Oracle PeopleSoft PeopleTools. The vulnerability allows unauthenticated remote code execution and has a CVSS base score of 9.8. Oracle said the vulnerability is remotely exploitable without authentication and that successful exploitation may result in remote code execution.</p>
 
-<p>The article reports that the flaw is being actively exploited in <mark class="tag-hl">ShinyHunters</mark> data theft attacks. Although <mark class="tag-hl">Oracle</mark>’s advisory does not state that the vulnerability is actively exploited, BleepingComputer says it learned that <mark class="tag-hl">CVE-2026-35273</mark> is the zero-day used in the attacks. Charles Carmakal, CTO at <mark class="tag-hl">Mandiant</mark> - <mark class="tag-hl">Google Cloud</mark>, also confirmed on LinkedIn that the vulnerability is actively exploited.</p>
+<p>The article reports that the flaw is being actively exploited in ShinyHunters data theft attacks. Although Oracle’s advisory does not state that the vulnerability is actively exploited, BleepingComputer says it learned that CVE-2026-35273 is the zero-day used in the attacks. Charles Carmakal, CTO at Mandiant - Google Cloud, also confirmed on LinkedIn that the vulnerability is actively exploited.</p>
 
 <h2 id="affected-products">Affected Products</h2>
 
-<p><mark class="tag-hl">Oracle</mark> confirmed that <mark class="tag-hl">CVE-2026-35273</mark> affects <mark class="tag-hl">Oracle</mark> PeopleSoft Enterprise PeopleTools versions 8.61 and 8.62. <mark class="tag-hl">Oracle</mark> also stated that <mark class="tag-hl">PeopleSoft Enterprise Applications</mark> customers may be affected by the vulnerability.</p>
+<p>Oracle confirmed that CVE-2026-35273 affects Oracle PeopleSoft Enterprise PeopleTools versions 8.61 and 8.62. Oracle also stated that PeopleSoft Enterprise Applications customers may be affected by the vulnerability.</p>
 
 <p>The affected product and versions identified in the article are:</p>
 
 <ul>
-<li><mark class="tag-hl">Oracle</mark> PeopleSoft Enterprise PeopleTools 8.61</li>
-<li><mark class="tag-hl">Oracle</mark> PeopleSoft Enterprise PeopleTools 8.62</li>
-<li>Potentially affected <mark class="tag-hl">Oracle</mark> <mark class="tag-hl">PeopleSoft Enterprise Applications</mark> customers</li>
+<li>Oracle PeopleSoft Enterprise PeopleTools 8.61</li>
+<li>Oracle PeopleSoft Enterprise PeopleTools 8.62</li>
+<li>Potentially affected Oracle PeopleSoft Enterprise Applications customers</li>
 </ul>
 
-<h2 id="oracle-response"><mark class="tag-hl">Oracle</mark> Response</h2>
+<h2 id="oracle-response">Oracle Response</h2>
 
-<p><mark class="tag-hl">Oracle</mark> released emergency mitigations for <mark class="tag-hl">CVE-2026-35273</mark>. The company said a patch is coming soon.</p>
+<p>Oracle released emergency mitigations for CVE-2026-35273. The company said a patch is coming soon.</p>
 
-<p><mark class="tag-hl">Oracle</mark>’s advisory states that the vulnerability is remotely exploitable without authentication. It also states that successful exploitation may result in remote code execution.</p>
+<p>Oracle’s advisory states that the vulnerability is remotely exploitable without authentication. It also states that successful exploitation may result in remote code execution.</p>
 
-<p>BleepingComputer said it contacted <mark class="tag-hl">Oracle</mark> with questions about the vulnerability and the attacks but had not received a response.</p>
+<p>BleepingComputer said it contacted Oracle with questions about the vulnerability and the attacks but had not received a response.</p>
 
 <h2 id="reported-exploitation">Reported Exploitation</h2>
 
-<p>The article says the <mark class="tag-hl">Oracle</mark> disclosure followed BleepingComputer’s earlier report that <mark class="tag-hl">ShinyHunters</mark> was exploiting a PeopleSoft zero-day vulnerability to breach instances and steal data. BleepingComputer later said it learned that <mark class="tag-hl">CVE-2026-35273</mark> is that zero-day.</p>
+<p>The article says the Oracle disclosure followed BleepingComputer’s earlier report that ShinyHunters was exploiting a PeopleSoft zero-day vulnerability to breach instances and steal data. BleepingComputer later said it learned that CVE-2026-35273 is that zero-day.</p>
 
-<p>Charles Carmakal of <mark class="tag-hl">Mandiant</mark> - <mark class="tag-hl">Google Cloud</mark> also confirmed on LinkedIn that <mark class="tag-hl">CVE-2026-35273</mark> is actively exploited. He also stated that <mark class="tag-hl">Oracle</mark> released mitigations for the flaw.</p>
+<p>Charles Carmakal of Mandiant - Google Cloud also confirmed on LinkedIn that CVE-2026-35273 is actively exploited. He also stated that Oracle released mitigations for the flaw.</p>
 
 <h2 id="threat-actor-activity">Threat Actor Activity</h2>
 
-<p>The article attributes the data theft attacks to <mark class="tag-hl">ShinyHunters</mark>. BleepingComputer says <mark class="tag-hl">ShinyHunters</mark> confirmed that it was behind the attacks.</p>
+<p>The article attributes the data theft attacks to ShinyHunters. BleepingComputer says ShinyHunters confirmed that it was behind the attacks.</p>
 
-<p>According to the article, <mark class="tag-hl">ShinyHunters</mark> claimed it used a “<mark class="tag-hl">gadget chain</mark>” of old and zero-day flaws to breach PeopleSoft instances. The threat actor allegedly stole data from 300 instances across more than 100 organizations.</p>
+<p>According to the article, ShinyHunters claimed it used a “gadget chain” of old and zero-day flaws to breach PeopleSoft instances. The threat actor allegedly stole data from 300 instances across more than 100 organizations.</p>
 
-<p>The article describes <mark class="tag-hl">ShinyHunters</mark> as a well-known extortion gang that commonly breaches cloud SaaS instances, CRMs, and enterprise platforms that host large volumes of corporate data. After gaining access to an instance, the group downloads the data and demands a ransom to prevent public leaking.</p>
+<p>The article describes ShinyHunters as a well-known extortion gang that commonly breaches cloud SaaS instances, CRMs, and enterprise platforms that host large volumes of corporate data. After gaining access to an instance, the group downloads the data and demands a ransom to prevent public leaking.</p>
 
-<p>The article also says <mark class="tag-hl">ShinyHunters</mark> has been linked to high-profile attacks targeting:</p>
+<p>The article also says ShinyHunters has been linked to high-profile attacks targeting:</p>
 
 <ul>
 <li>SnowFlake</li>
@@ -1466,27 +1619,28 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>176.120.22[.]24</li>
 </ul>
 
-<p>The article strongly advises organizations running <mark class="tag-hl">Oracle</mark> PeopleSoft to analyze logs for connections from those IP addresses. The stated purpose is to determine whether they were targeted in the attacks.</p>
+<p>The article strongly advises organizations running Oracle PeopleSoft to analyze logs for connections from those IP addresses. The stated purpose is to determine whether they were targeted in the attacks.</p>
 
 <h2 id="significance">Significance</h2>
 
-<p>The vulnerability is significant because it is a critical <mark class="tag-hl">unauthenticated remote code execution</mark> flaw in <mark class="tag-hl">Oracle</mark> <mark class="tag-hl">PeopleSoft PeopleTools</mark>. It affects PeopleTools versions 8.61 and 8.62 and may also impact <mark class="tag-hl">PeopleSoft Enterprise Applications</mark> customers.</p>
+<p>The vulnerability is significant because it is a critical unauthenticated remote code execution flaw in Oracle PeopleSoft PeopleTools. It affects PeopleTools versions 8.61 and 8.62 and may also impact PeopleSoft Enterprise Applications customers.</p>
 
-<p>The reported exploitation is tied to data theft and extortion activity. The article says <mark class="tag-hl">ShinyHunters</mark> allegedly stole data from 300 instances across more than 100 organizations using a “<mark class="tag-hl">gadget chain</mark>” of old and zero-day flaws.</p>
+<p>The reported exploitation is tied to data theft and extortion activity. The article says ShinyHunters allegedly stole data from 300 instances across more than 100 organizations using a “gadget chain” of old and zero-day flaws.</p>
 
-<p><mark class="tag-hl">Oracle</mark> has made emergency mitigations available while a full patch is still pending. Organizations running <mark class="tag-hl">Oracle</mark> PeopleSoft are advised in the article to apply the mitigations and review logs for the listed IP addresses.</p>
+<p>Oracle has made emergency mitigations available while a full patch is still pending. Organizations running Oracle PeopleSoft are advised in the article to apply the mitigations and review logs for the listed IP addresses.</p>
 </div></div>
-                        <div id="insights-9b0668029ed36930305fba71c3bfe542:ee959a58a8a78263" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Oracle</mark>’s advisory does not state that <mark class="tag-hl">CVE-2026-35273</mark> is actively exploited, but BleepingComputer and <mark class="tag-hl">Mandiant</mark>’s Charles Carmakal both identified it as the PeopleSoft zero-day used in ongoing attacks.</span></li><li><span class="kp-text">The article provides seven specific IP addresses linked to the attacks, giving PeopleSoft operators concrete indicators to search for in logs: 142.11.200.186 through 142.11.200.190, 108.174.202.99, and 176.120.22.24.</span></li><li><span class="kp-text">Because <mark class="tag-hl">Oracle</mark> has released emergency mitigations while a full patch is still pending, affected PeopleSoft Enterprise PeopleTools 8.61 and 8.62 customers have an interim defensive action available immediately.</span></li><li><span class="kp-text"><mark class="tag-hl">ShinyHunters</mark> claimed it used a “<mark class="tag-hl">gadget chain</mark>” combining old and zero-day flaws, indicating organizations should not limit reviews to <mark class="tag-hl">CVE-2026-35273</mark> alone when investigating possible PeopleSoft compromise.</span></li></ul></div>
+                        <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:ee959a58a8a78263" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Oracle’s advisory does not state that CVE-2026-35273 is actively exploited, but BleepingComputer and Mandiant’s Charles Carmakal both identified it as the PeopleSoft zero-day used in ongoing attacks.</span></li><li><span class="kp-text">The article provides seven specific IP addresses linked to the attacks, giving PeopleSoft operators concrete indicators to search for in logs: 142.11.200.186 through 142.11.200.190, 108.174.202.99, and 176.120.22.24.</span></li><li><span class="kp-text">Because Oracle has released emergency mitigations while a full patch is still pending, affected PeopleSoft Enterprise PeopleTools 8.61 and 8.62 customers have an interim defensive action available immediately.</span></li><li><span class="kp-text">ShinyHunters claimed it used a “gadget chain” combining old and zero-day flaws, indicating organizations should not limit reviews to CVE-2026-35273 alone when investigating possible PeopleSoft compromise.</span></li></ul></div>
                       </div>
                     </div>
-                    <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Oracle</mark> warned about <mark class="tag-hl">CVE-2026-35273</mark>, a critical zero-day vulnerability in <mark class="tag-hl">PeopleSoft PeopleTools</mark> that allows <mark class="tag-hl">unauthenticated remote code execution</mark> and has a CVSS base score of 9.8.</span></li><li><span class="kp-text"><mark class="tag-hl">Oracle</mark> confirmed that <mark class="tag-hl">CVE-2026-35273</mark> affects PeopleSoft Enterprise PeopleTools versions 8.61 and 8.62 and released emergency mitigations, with a patch coming soon.</span></li><li><span class="kp-text">BleepingComputer reported that <mark class="tag-hl">CVE-2026-35273</mark> is the zero-day exploited in <mark class="tag-hl">ShinyHunters</mark> data theft attacks against <mark class="tag-hl">Oracle</mark> PeopleSoft instances.</span></li><li><span class="kp-text"><mark class="tag-hl">ShinyHunters</mark> claimed it used a “<mark class="tag-hl">gadget chain</mark>” of old and zero-day flaws to breach PeopleSoft instances and allegedly stole data from 300 instances across more than 100 organizations.</span></li><li><span class="kp-text">Cybersecurity researcher Michael R found exposed online directories containing attack-related tooling and shared IP addresses that organizations running <mark class="tag-hl">Oracle</mark> PeopleSoft are advised to check in their logs.</span></li></ul></div>
+                    <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Oracle warned about CVE-2026-35273, a critical zero-day vulnerability in PeopleSoft PeopleTools that allows unauthenticated remote code execution and has a CVSS base score of 9.8.</span></li><li><span class="kp-text">Oracle confirmed that CVE-2026-35273 affects PeopleSoft Enterprise PeopleTools versions 8.61 and 8.62 and released emergency mitigations, with a patch coming soon.</span></li><li><span class="kp-text">BleepingComputer reported that CVE-2026-35273 is the zero-day exploited in ShinyHunters data theft attacks against Oracle PeopleSoft instances.</span></li><li><span class="kp-text">ShinyHunters claimed it used a “gadget chain” of old and zero-day flaws to breach PeopleSoft instances and allegedly stole data from 300 instances across more than 100 organizations.</span></li><li><span class="kp-text">Cybersecurity researcher Michael R found exposed online directories containing attack-related tooling and shared IP addresses that organizations running Oracle PeopleSoft are advised to check in their logs.</span></li></ul></div>
+                    
                     <a href="https://www.bleepingcomputer.com/news/security/oracle-mitigates-peoplesoft-zero-day-exploited-in-data-theft-attacks/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-                    <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a critical <mark class="tag-hl">unauthenticated remote code execution</mark> zero-day in <mark class="tag-hl">Oracle</mark> <mark class="tag-hl">PeopleSoft PeopleTools</mark>, with emergency mitigations available and a patch pending. The article also ties exploitation to <mark class="tag-hl">ShinyHunters</mark> data theft attacks and provides concrete indicators for defenders to check in logs.</p>
+                    <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a critical unauthenticated remote code execution zero-day in Oracle PeopleSoft PeopleTools, with emergency mitigations available and a patch pending. The article also ties exploitation to ShinyHunters data theft attacks and provides concrete indicators for defenders to check in logs.</p>
 </div></div>
                     <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://support.oracle.com/support/?documentId=CPU187" target="_blank" rel="noopener">Oracle Security Alert for CVE-2026-35273</a></div>
   <div class="report-meta">Oracle</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Oracle</mark>’s advisory and emergency mitigations for the <mark class="tag-hl">PeopleSoft PeopleTools</mark> zero-day vulnerability <mark class="tag-hl">CVE-2026-35273</mark>.</div>
+  <div class="report-context">The article cites Oracle’s advisory and emergency mitigations for the PeopleSoft PeopleTools zero-day vulnerability CVE-2026-35273.</div>
 </li></ul></div>
                     
                   </div>
@@ -1495,92 +1649,92 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </li>
             </ul>
           </details>
-          <div class="toc-row-body" id="canon-body-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc">
+          <div class="toc-row-body" id="canon-body-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc" data-article-id="2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc" class="tab-panel active"><div class="prose"><mark class="tag-hl">ShinyHunters</mark> exploited a zero-day remote code execution flaw in <mark class="tag-hl">Oracle PeopleSoft</mark> to breach universities and steal sensitive data before <mark class="tag-hl">Oracle</mark> disclosed the issue. Organizations running PeopleSoft should immediately restrict or disable exposed PSEMHUB and related endpoints, apply available patches, and hunt for signs of compromise.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc" class="tab-panel"><div class="prose"><p><mark class="tag-hl">ShinyHunters</mark> exploited an unpatched <mark class="tag-hl">Oracle PeopleSoft</mark> flaw, <mark class="tag-hl">CVE-2026-35273</mark>, to breach enterprise systems, steal data, and demand payment to keep it private. Google <mark class="tag-hl">Mandiant</mark> attributes the activity to <mark class="tag-hl">UNC6240</mark> and says it occurred between May 27 and June 9. <mark class="tag-hl">Oracle</mark> published its advisory on June 10, meaning the bug was a zero-day during the reported campaign.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc" class="tab-panel active"><div class="prose">ShinyHunters exploited a zero-day remote code execution flaw in Oracle PeopleSoft to breach universities and steal sensitive data before Oracle disclosed the issue. Organizations running PeopleSoft should immediately restrict or disable exposed PSEMHUB and related endpoints, apply available patches, and hunt for signs of compromise.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc" class="tab-panel"><div class="prose"><p>ShinyHunters exploited an unpatched Oracle PeopleSoft flaw, CVE-2026-35273, to breach enterprise systems, steal data, and demand payment to keep it private. Google Mandiant attributes the activity to UNC6240 and says it occurred between May 27 and June 9. Oracle published its advisory on June 10, meaning the bug was a zero-day during the reported campaign.</p>
 
-<p><mark class="tag-hl">CVE-2026-35273</mark> is a remote code execution vulnerability in PeopleSoft Enterprise PeopleTools rated 9.8 out of 10. It requires no login or user interaction and can be exploited over HTTP when the Environment Management Hub is reachable from the network. <mark class="tag-hl">Oracle</mark> lists PeopleTools 8.61 and 8.62 as affected and says earlier unsupported versions are probably vulnerable as well.</p>
+<p>CVE-2026-35273 is a remote code execution vulnerability in PeopleSoft Enterprise PeopleTools rated 9.8 out of 10. It requires no login or user interaction and can be exploited over HTTP when the Environment Management Hub is reachable from the network. Oracle lists PeopleTools 8.61 and 8.62 as affected and says earlier unsupported versions are probably vulnerable as well.</p>
 
-<p><mark class="tag-hl">Mandiant</mark> notified more than 100 organizations with vulnerable endpoints, 68% of which were in higher education, mostly in the <mark class="tag-hl">United States</mark>. The <mark class="tag-hl">University of Nottingham</mark> is a confirmed victim, with <mark class="tag-hl">Have I Been Pwned</mark> counting about 455,000 unique email addresses in the leaked data set. <mark class="tag-hl">Oracle</mark>’s guidance is to disable or remove the Environment Management Hub where possible, or block external access to specific PSEMHUB and PSIGW endpoints.</p>
+<p>Mandiant notified more than 100 organizations with vulnerable endpoints, 68% of which were in higher education, mostly in the United States. The University of Nottingham is a confirmed victim, with Have I Been Pwned counting about 455,000 unique email addresses in the leaked data set. Oracle’s guidance is to disable or remove the Environment Management Hub where possible, or block external access to specific PSEMHUB and PSIGW endpoints.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc" class="tab-panel"><div class="prose"><p>The article reports that the <mark class="tag-hl">ShinyHunters</mark> extortion crew exploited a zero-day in <mark class="tag-hl">Oracle PeopleSoft</mark> to compromise enterprise systems, steal data, and pressure victims for payment. Google <mark class="tag-hl">Mandiant</mark> attributes the campaign to <mark class="tag-hl">UNC6240</mark> and places the activity between May 27 and June 9. <mark class="tag-hl">Oracle</mark> did not publish its advisory for <mark class="tag-hl">CVE-2026-35273</mark> until June 10, so the flaw was unpatched throughout the observed activity.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc" class="tab-panel"><div class="prose"><p>The article reports that the ShinyHunters extortion crew exploited a zero-day in Oracle PeopleSoft to compromise enterprise systems, steal data, and pressure victims for payment. Google Mandiant attributes the campaign to UNC6240 and places the activity between May 27 and June 9. Oracle did not publish its advisory for CVE-2026-35273 until June 10, so the flaw was unpatched throughout the observed activity.</p>
 
-<p><mark class="tag-hl">CVE-2026-35273</mark> is described as a 9.8-rated remote code execution bug in PeopleSoft Enterprise PeopleTools. The flaw requires no authentication and no user interaction, only HTTP network access to the affected service. The vulnerable area is the Updates Environment Management component behind the Environment Management Hub, also referred to as PSEMHUB.</p>
+<p>CVE-2026-35273 is described as a 9.8-rated remote code execution bug in PeopleSoft Enterprise PeopleTools. The flaw requires no authentication and no user interaction, only HTTP network access to the affected service. The vulnerable area is the Updates Environment Management component behind the Environment Management Hub, also referred to as PSEMHUB.</p>
 
-<p><mark class="tag-hl">Oracle</mark> lists PeopleTools 8.61 and 8.62 as affected and says earlier unsupported versions are probably vulnerable too. The advisory credits researchers from TrendAI Zero Day Initiative and TrendAI Research for the report. The article says <mark class="tag-hl">Oracle</mark>’s patch availability details are behind a support login and that whether a full fix is broadly available is unclear, while current guidance focuses on mitigation.</p>
+<p>Oracle lists PeopleTools 8.61 and 8.62 as affected and says earlier unsupported versions are probably vulnerable too. The advisory credits researchers from TrendAI Zero Day Initiative and TrendAI Research for the report. The article says Oracle’s patch availability details are behind a support login and that whether a full fix is broadly available is unclear, while current guidance focuses on mitigation.</p>
 
-<p>Operational details emerged because the attackers left their own infrastructure exposed. Researcher @nahamike01 publicly flagged open directories, and <mark class="tag-hl">Mandiant</mark> examined five sequential IP addresses running Python’s SimpleHTTP server on port 8888. The exposed files included shared bash history, custom <mark class="tag-hl">MeshCentral</mark> remote-management agents disguised as Microsoft Azure binaries, and a lateral-movement script.</p>
+<p>Operational details emerged because the attackers left their own infrastructure exposed. Researcher @nahamike01 publicly flagged open directories, and Mandiant examined five sequential IP addresses running Python’s SimpleHTTP server on port 8888. The exposed files included shared bash history, custom MeshCentral remote-management agents disguised as Microsoft Azure binaries, and a lateral-movement script.</p>
 
-<p>The agents connected to azurenetfiles.net, a domain chosen to resemble Azure NetApp Files. The lateral-movement script used SSH with hardcoded usernames and passwords against internal hosts from /etc/hosts and dropped a marker file into PeopleSoft directories. Command history showed data compressed with zstd and an outbound SSH connection to the server hosting the public mirror of the <mark class="tag-hl">ShinyHunters</mark> leak site.</p>
+<p>The agents connected to azurenetfiles.net, a domain chosen to resemble Azure NetApp Files. The lateral-movement script used SSH with hardcoded usernames and passwords against internal hosts from /etc/hosts and dropped a marker file into PeopleSoft directories. Command history showed data compressed with zstd and an outbound SSH connection to the server hosting the public mirror of the ShinyHunters leak site.</p>
 
-<p><mark class="tag-hl">Mandiant</mark> notified more than 100 organizations whose IPs matched vulnerable endpoints, with 68% in higher education and most in the <mark class="tag-hl">United States</mark>. The <mark class="tag-hl">University of Nottingham</mark> is one confirmed victim, and <mark class="tag-hl">Have I Been Pwned</mark> counted about 455,000 unique email addresses in the leaked set, along with names, addresses, phone numbers, passport numbers, and details on ethnicity and disabilities. <mark class="tag-hl">Oracle</mark> advises disabling or removing the Environment Management Hub or blocking external access to /PSEMHUB/*, especially /PSEMHUB/hub, and /PSIGW/HttpListeningConnector.</p>
+<p>Mandiant notified more than 100 organizations whose IPs matched vulnerable endpoints, with 68% in higher education and most in the United States. The University of Nottingham is one confirmed victim, and Have I Been Pwned counted about 455,000 unique email addresses in the leaked set, along with names, addresses, phone numbers, passport numbers, and details on ethnicity and disabilities. Oracle advises disabling or removing the Environment Management Hub or blocking external access to /PSEMHUB/*, especially /PSEMHUB/hub, and /PSIGW/HttpListeningConnector.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The article reports that <mark class="tag-hl">ShinyHunters</mark> exploited an unpatched <mark class="tag-hl">Oracle PeopleSoft</mark> vulnerability, <mark class="tag-hl">CVE-2026-35273</mark>, to breach enterprise systems, steal data, and demand payment to keep the information private. Google <mark class="tag-hl">Mandiant</mark> attributes the activity to <mark class="tag-hl">UNC6240</mark> and dates it between May 27 and June 9. <mark class="tag-hl">Oracle</mark> published its advisory on June 10, meaning the flaw was a zero-day for the entire period described by <mark class="tag-hl">Mandiant</mark>.</p>
+<p>The article reports that ShinyHunters exploited an unpatched Oracle PeopleSoft vulnerability, CVE-2026-35273, to breach enterprise systems, steal data, and demand payment to keep the information private. Google Mandiant attributes the activity to UNC6240 and dates it between May 27 and June 9. Oracle published its advisory on June 10, meaning the flaw was a zero-day for the entire period described by Mandiant.</p>
 
-<p>The campaign hit universities hardest. <mark class="tag-hl">Mandiant</mark> notified more than 100 organizations whose IP addresses matched vulnerable endpoints, and 68% were in higher education, mostly in the <mark class="tag-hl">United States</mark>. Some organizations blocked the activity, while others were compromised and had data posted to the <mark class="tag-hl">ShinyHunters</mark> leak site.</p>
+<p>The campaign hit universities hardest. Mandiant notified more than 100 organizations whose IP addresses matched vulnerable endpoints, and 68% were in higher education, mostly in the United States. Some organizations blocked the activity, while others were compromised and had data posted to the ShinyHunters leak site.</p>
 
 <h2 id="vulnerability-and-affected-product">Vulnerability and affected product</h2>
 
-<p><mark class="tag-hl">CVE-2026-35273</mark> is a remote code execution vulnerability in <mark class="tag-hl">Oracle PeopleSoft</mark> Enterprise PeopleTools. The article states that it is rated 9.8 out of 10 and requires no login and no user interaction. Exploitation requires network access over HTTP and can result in takeover of the server.</p>
+<p>CVE-2026-35273 is a remote code execution vulnerability in Oracle PeopleSoft Enterprise PeopleTools. The article states that it is rated 9.8 out of 10 and requires no login and no user interaction. Exploitation requires network access over HTTP and can result in takeover of the server.</p>
 
-<p>The vulnerability is located in the Updates Environment Management component, which sits behind the Environment Management Hub, also known as PSEMHUB. <mark class="tag-hl">Oracle</mark> lists PeopleTools 8.61 and 8.62 as affected and says earlier unsupported versions are probably vulnerable too. <mark class="tag-hl">Oracle</mark> credits researchers from TrendAI Zero Day Initiative and TrendAI Research for reporting the issue.</p>
+<p>The vulnerability is located in the Updates Environment Management component, which sits behind the Environment Management Hub, also known as PSEMHUB. Oracle lists PeopleTools 8.61 and 8.62 as affected and says earlier unsupported versions are probably vulnerable too. Oracle credits researchers from TrendAI Zero Day Initiative and TrendAI Research for reporting the issue.</p>
 
 <p>The exposure described in the article applies to PeopleSoft deployments where the Environment Management Hub is reachable from outside. The article says the immediate action for such deployments is to lock those endpoints down.</p>
 
 <h2 id="attribution-and-timing">Attribution and timing</h2>
 
-<p>Google <mark class="tag-hl">Mandiant</mark> attributes the campaign to the group it tracks as <mark class="tag-hl">UNC6240</mark>, identified in the article as <mark class="tag-hl">ShinyHunters</mark>. <mark class="tag-hl">Mandiant</mark> CTO Charles Carmakal confirmed that the bug is being exploited in the wild. The article notes that <mark class="tag-hl">Oracle</mark> has not said whether it has observed exploitation.</p>
+<p>Google Mandiant attributes the campaign to the group it tracks as UNC6240, identified in the article as ShinyHunters. Mandiant CTO Charles Carmakal confirmed that the bug is being exploited in the wild. The article notes that Oracle has not said whether it has observed exploitation.</p>
 
-<p><mark class="tag-hl">Mandiant</mark> dates the activity from May 27 to June 9. <mark class="tag-hl">Oracle</mark>’s advisory appeared on June 10, after the observed activity window. Because of that timing, the article describes the vulnerability as a zero-day during the campaign.</p>
+<p>Mandiant dates the activity from May 27 to June 9. Oracle’s advisory appeared on June 10, after the observed activity window. Because of that timing, the article describes the vulnerability as a zero-day during the campaign.</p>
 
 <h2 id="attacker-infrastructure-and-tooling">Attacker infrastructure and tooling</h2>
 
-<p>The article says operational details became public because the attackers left their own infrastructure exposed. Researcher @nahamike01 publicly flagged open directories, after which <mark class="tag-hl">Mandiant</mark> triaged five sequential IP addresses running Python’s SimpleHTTP server on port 8888.</p>
+<p>The article says operational details became public because the attackers left their own infrastructure exposed. Researcher @nahamike01 publicly flagged open directories, after which Mandiant triaged five sequential IP addresses running Python’s SimpleHTTP server on port 8888.</p>
 
 <p>Those exposed servers contained staging files, including:</p>
 
 <ul>
 <li>A shared <code>.bash_history</code> file.</li>
-<li>Custom <mark class="tag-hl">MeshCentral</mark> remote-management agents disguised as Microsoft Azure binaries.</li>
+<li>Custom MeshCentral remote-management agents disguised as Microsoft Azure binaries.</li>
 <li>A lateral-movement script.</li>
 </ul>
 
-<p>The <mark class="tag-hl">MeshCentral</mark> agents called home to a command-and-control server at <code>azurenetfiles.net</code>. The article says the domain was selected to look like Azure NetApp Files.</p>
+<p>The MeshCentral agents called home to a command-and-control server at <code>azurenetfiles.net</code>. The article says the domain was selected to look like Azure NetApp Files.</p>
 
 <h2 id="lateral-movement-and-data-handling">Lateral movement and data handling</h2>
 
 <p>The lateral-movement script was named <code>[victim]_fanout.sh</code>. According to the article, it spreads over SSH by spraying a hardcoded list of usernames and passwords against internal hosts pulled from <code>/etc/hosts</code>. It then drops a marker file named <code>README-IF-YOU-SEE-THIS-YOUVE-BEEN-HACKED.TXT</code> into PeopleSoft directories.</p>
 
-<p>The command history showed data being compressed with <code>zstd</code>. It also showed an outbound SSH connection to the server hosting the public mirror of the <mark class="tag-hl">ShinyHunters</mark> leak site.</p>
+<p>The command history showed data being compressed with <code>zstd</code>. It also showed an outbound SSH connection to the server hosting the public mirror of the ShinyHunters leak site.</p>
 
 <h2 id="victims-and-impact">Victims and impact</h2>
 
-<p><mark class="tag-hl">Mandiant</mark> notified more than 100 organizations whose IP addresses matched vulnerable endpoints. The article states that 68% were in higher education, most of them in the <mark class="tag-hl">United States</mark>. Some organizations blocked the activity, while others were compromised and had data posted to the leak site.</p>
+<p>Mandiant notified more than 100 organizations whose IP addresses matched vulnerable endpoints. The article states that 68% were in higher education, most of them in the United States. Some organizations blocked the activity, while others were compromised and had data posted to the leak site.</p>
 
-<p>The <mark class="tag-hl">University of Nottingham</mark> is identified as one of the first confirmed victims. <mark class="tag-hl">Have I Been Pwned</mark> counted about 455,000 unique email addresses in the leaked set. The data covered current students and alumni and included names, addresses, phone numbers, passport numbers, and details on ethnicity and disabilities.</p>
+<p>The University of Nottingham is identified as one of the first confirmed victims. Have I Been Pwned counted about 455,000 unique email addresses in the leaked set. The data covered current students and alumni and included names, addresses, phone numbers, passport numbers, and details on ethnicity and disabilities.</p>
 
-<p>The <mark class="tag-hl">University of Nottingham</mark> confirmed the breach. The article also states that <mark class="tag-hl">ShinyHunters</mark> says victim outreach has only just started and that it has not posted most of the organizations it claims, so more names are likely.</p>
+<p>The University of Nottingham confirmed the breach. The article also states that ShinyHunters says victim outreach has only just started and that it has not posted most of the organizations it claims, so more names are likely.</p>
 
 <h2 id="mitigation-guidance">Mitigation guidance</h2>
 
-<p><mark class="tag-hl">Oracle</mark>’s guidance is to disable the Environment Management Hub service on multi-server setups. For single-server setups, <mark class="tag-hl">Oracle</mark> advises removing the PSEMHUB application outright. If neither option is possible, organizations should block external access to <code>/PSEMHUB/*</code>, especially <code>/PSEMHUB/hub</code>, and <code>/PSIGW/HttpListeningConnector</code> at the perimeter.</p>
+<p>Oracle’s guidance is to disable the Environment Management Hub service on multi-server setups. For single-server setups, Oracle advises removing the PSEMHUB application outright. If neither option is possible, organizations should block external access to <code>/PSEMHUB/*</code>, especially <code>/PSEMHUB/hub</code>, and <code>/PSIGW/HttpListeningConnector</code> at the perimeter.</p>
 
-<p><mark class="tag-hl">Mandiant</mark> warns that WAF body-inspection rules alone are not sufficient because they can be bypassed. The article also notes that restricting these endpoints does not break normal user sessions. Organizations are advised to apply <mark class="tag-hl">Oracle</mark>’s update for the relevant PeopleTools version once they confirm it is available in My <mark class="tag-hl">Oracle</mark> Support.</p>
+<p>Mandiant warns that WAF body-inspection rules alone are not sufficient because they can be bypassed. The article also notes that restricting these endpoints does not break normal user sessions. Organizations are advised to apply Oracle’s update for the relevant PeopleTools version once they confirm it is available in My Oracle Support.</p>
 
 <h2 id="hunting-guidance-and-indicators">Hunting guidance and indicators</h2>
 
@@ -1594,29 +1748,30 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Outbound SMB traffic on port 445 from PeopleSoft hosts to external destinations.</li>
 </ul>
 
-<p>The article explains that the XML files can be abused for <mark class="tag-hl">XMLDecoder</mark> persistence that triggers on the next restart. It also says the exploit chain may use outbound SMB traffic to capture machine-account <mark class="tag-hl">NetNTLM</mark> hashes.</p>
+<p>The article explains that the XML files can be abused for XMLDecoder persistence that triggers on the next restart. It also says the exploit chain may use outbound SMB traffic to capture machine-account NetNTLM hashes.</p>
 
 <h2 id="significance">Significance</h2>
 
-<p>The article frames the campaign as notable because <mark class="tag-hl">ShinyHunters</mark> has recently focused on vishing, stolen tokens, and weak access controls against SaaS and education platforms. Examples cited include Salesforce customers and Canvas. In contrast, a server-side zero-day in on-premises ERP software represents a different method aimed at the same data-rich targets.</p>
+<p>The article frames the campaign as notable because ShinyHunters has recently focused on vishing, stolen tokens, and weak access controls against SaaS and education platforms. Examples cited include Salesforce customers and Canvas. In contrast, a server-side zero-day in on-premises ERP software represents a different method aimed at the same data-rich targets.</p>
 
-<p>The article closes by saying the open question is whether this was a one-off borrowed zero-day or the start of <mark class="tag-hl">ShinyHunters</mark> moving into ERP exploitation.</p>
+<p>The article closes by saying the open question is whether this was a one-off borrowed zero-day or the start of ShinyHunters moving into ERP exploitation.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:752b90fa61064ecc" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Mandiant</mark> warned that WAF body-inspection rules alone are insufficient because they can be bypassed, while restricting the exposed PeopleSoft endpoints does not break normal user sessions.</span></li><li><span class="kp-text">The attackers exposed their own staging infrastructure, allowing researchers to recover operational details such as shared bash history, disguised <mark class="tag-hl">MeshCentral</mark> agents, and a lateral-movement script.</span></li><li><span class="kp-text">The lateral-movement script used hardcoded username and password spraying over SSH against internal hosts from /etc/hosts, indicating defenders should review internal SSH authentication attempts from PeopleSoft systems.</span></li><li><span class="kp-text">Recently modified XML files under envmetadata/data/environment are a notable persistence indicator because they can be abused for <mark class="tag-hl">XMLDecoder</mark> persistence that triggers on the next restart.</span></li><li><span class="kp-text">Outbound SMB traffic on port 445 from PeopleSoft hosts to external destinations is a specific hunting signal because the exploit chain may use it to capture machine-account <mark class="tag-hl">NetNTLM</mark> hashes.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:752b90fa61064ecc" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Mandiant warned that WAF body-inspection rules alone are insufficient because they can be bypassed, while restricting the exposed PeopleSoft endpoints does not break normal user sessions.</span></li><li><span class="kp-text">The attackers exposed their own staging infrastructure, allowing researchers to recover operational details such as shared bash history, disguised MeshCentral agents, and a lateral-movement script.</span></li><li><span class="kp-text">The lateral-movement script used hardcoded username and password spraying over SSH against internal hosts from /etc/hosts, indicating defenders should review internal SSH authentication attempts from PeopleSoft systems.</span></li><li><span class="kp-text">Recently modified XML files under envmetadata/data/environment are a notable persistence indicator because they can be abused for XMLDecoder persistence that triggers on the next restart.</span></li><li><span class="kp-text">Outbound SMB traffic on port 445 from PeopleSoft hosts to external destinations is a specific hunting signal because the exploit chain may use it to capture machine-account NetNTLM hashes.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Google <mark class="tag-hl">Mandiant</mark> attributes the <mark class="tag-hl">Oracle PeopleSoft</mark> exploitation campaign to <mark class="tag-hl">ShinyHunters</mark>, tracked as <mark class="tag-hl">UNC6240</mark>, and dates the activity between May 27 and June 9.</span></li><li><span class="kp-text"><mark class="tag-hl">CVE-2026-35273</mark> is a 9.8-rated remote code execution flaw in <mark class="tag-hl">Oracle PeopleSoft</mark> Enterprise PeopleTools that requires no login or user interaction and can be exploited over HTTP.</span></li><li><span class="kp-text"><mark class="tag-hl">Mandiant</mark> notified more than 100 organizations with vulnerable endpoints, and 68% of them were in higher education, mostly in the <mark class="tag-hl">United States</mark>.</span></li><li><span class="kp-text">The <mark class="tag-hl">University of Nottingham</mark> confirmed a breach, and <mark class="tag-hl">Have I Been Pwned</mark> counted about 455,000 unique email addresses in the leaked data set.</span></li><li><span class="kp-text"><mark class="tag-hl">Oracle</mark> advised disabling or removing the Environment Management Hub service, or blocking external access to /PSEMHUB/* and /PSIGW/HttpListeningConnector if disabling is not possible.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Google Mandiant attributes the Oracle PeopleSoft exploitation campaign to ShinyHunters, tracked as UNC6240, and dates the activity between May 27 and June 9.</span></li><li><span class="kp-text">CVE-2026-35273 is a 9.8-rated remote code execution flaw in Oracle PeopleSoft Enterprise PeopleTools that requires no login or user interaction and can be exploited over HTTP.</span></li><li><span class="kp-text">Mandiant notified more than 100 organizations with vulnerable endpoints, and 68% of them were in higher education, mostly in the United States.</span></li><li><span class="kp-text">The University of Nottingham confirmed a breach, and Have I Been Pwned counted about 455,000 unique email addresses in the leaked data set.</span></li><li><span class="kp-text">Oracle advised disabling or removing the Environment Management Hub service, or blocking external access to /PSEMHUB/* and /PSIGW/HttpListeningConnector if disabling is not possible.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/06/shinyhunters-exploits-oracle-peoplesoft.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a critical unauthenticated <mark class="tag-hl">Oracle PeopleSoft</mark> RCE zero-day by a named threat actor, with confirmed university breaches and data leaks. It also includes concrete mitigation and hunting guidance for exposed PSEMHUB and PSIGW endpoints, making it immediately actionable for defenders.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a critical unauthenticated Oracle PeopleSoft RCE zero-day by a named threat actor, with confirmed university breaches and data leaks. It also includes concrete mitigation and hunting guidance for exposed PSEMHUB and PSIGW endpoints, making it immediately actionable for defenders.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://cloud.google.com/blog/topics/threat-intelligence/shinyhunters-targets-education-sector-oracle-exploit/" target="_blank" rel="noopener">ShinyHunters Targets Education Sector Using Oracle Exploit</a></div>
   <div class="report-meta">Google Mandiant</div>
-  <div class="report-context">The article cites <mark class="tag-hl">Mandiant</mark>’s threat intelligence analysis for attribution to <mark class="tag-hl">UNC6240</mark>, campaign timing, victim notification, attacker infrastructure, tooling, and hunting guidance.</div>
+  <div class="report-context">The article cites Mandiant’s threat intelligence analysis for attribution to UNC6240, campaign timing, victim notification, attacker infrastructure, tooling, and hunting guidance.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.oracle.com/security-alerts/alert-cve-2026-35273.html" target="_blank" rel="noopener">Oracle Security Alert Advisory - CVE-2026-35273</a></div>
   <div class="report-meta">Oracle</div>
-  <div class="report-context">The article references <mark class="tag-hl">Oracle</mark>’s advisory for the affected PeopleSoft Enterprise PeopleTools versions, severity, exposure details, and mitigation guidance.</div>
+  <div class="report-context">The article references Oracle’s advisory for the affected PeopleSoft Enterprise PeopleTools versions, severity, exposure details, and mitigation guidance.</div>
 </li></ul></div>
             
           </div>
@@ -1645,38 +1800,38 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:40%"></div></div><span class="score-num score-num-low">40</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="804fc63e630aa5ae8876d035b1757a94:e499abb864b9a8c1">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-91fb0bbbe2d718ffe7e9a042e9e5cf94:e499abb864b9a8c1')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-91fb0bbbe2d718ffe7e9a042e9e5cf94:e499abb864b9a8c1')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-91fb0bbbe2d718ffe7e9a042e9e5cf94:e499abb864b9a8c1')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-91fb0bbbe2d718ffe7e9a042e9e5cf94:e499abb864b9a8c1')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-91fb0bbbe2d718ffe7e9a042e9e5cf94:e499abb864b9a8c1')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-804fc63e630aa5ae8876d035b1757a94:e499abb864b9a8c1')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-804fc63e630aa5ae8876d035b1757a94:e499abb864b9a8c1')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-804fc63e630aa5ae8876d035b1757a94:e499abb864b9a8c1')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-804fc63e630aa5ae8876d035b1757a94:e499abb864b9a8c1')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-804fc63e630aa5ae8876d035b1757a94:e499abb864b9a8c1')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-91fb0bbbe2d718ffe7e9a042e9e5cf94:e499abb864b9a8c1" class="tab-panel active"><div class="prose">Talos argues that AI-driven <mark class="tag-hl">zero-day</mark> discovery is accelerating too fast for traditional patch-first security to keep up. Organizations should focus on resilience through MFA, hardening, segmentation, behavioral detection, and tested incident response.</div></div>
-                <div id="brief-91fb0bbbe2d718ffe7e9a042e9e5cf94:e499abb864b9a8c1" class="tab-panel"><div class="prose"><p>This Threat Source newsletter centers on Talos’ warning that AI-driven vulnerability discovery has outpaced human patching capabilities. It cites a blog by Yuri Kramarz arguing that frontier AI models can autonomously discover and exploit zero-days in minutes. The article says this has collapsed the traditional vulnerability lifecycle and made patch-reliant security strategies insufficient.</p>
+                <div id="tldr-804fc63e630aa5ae8876d035b1757a94:e499abb864b9a8c1" class="tab-panel active"><div class="prose">Talos argues that AI-driven zero-day discovery is accelerating too fast for traditional patch-first security to keep up. Organizations should focus on resilience through MFA, hardening, segmentation, behavioral detection, and tested incident response.</div></div>
+                <div id="brief-804fc63e630aa5ae8876d035b1757a94:e499abb864b9a8c1" class="tab-panel"><div class="prose"><p>This Threat Source newsletter centers on Talos’ warning that AI-driven vulnerability discovery has outpaced human patching capabilities. It cites a blog by Yuri Kramarz arguing that frontier AI models can autonomously discover and exploit zero-days in minutes. The article says this has collapsed the traditional vulnerability lifecycle and made patch-reliant security strategies insufficient.</p>
 
 <p>The key recommendation is to adopt a fallback model rooted in foundational security practices rather than relying only on vulnerability management. Talos advises enforcing MFA, hardening devices with CIS benchmarks, and using strict network segmentation to limit an attacker’s blast radius. It also recommends behavioral-based EDR, NDR, and XDR, along with penetration testing and purple team exercises to validate controls and incident response playbooks.</p>
 
-<p>The newsletter also rounds up major security headlines, including a <mark class="tag-hl">Check Point</mark> VPN bug under attack by <mark class="tag-hl">Qilin</mark>, Anthropic’s Claude Fable 5 launch, Microsoft <mark class="tag-hl">zero-day</mark> fixes, WhatsApp’s allegations against NSO, and a Linux nf_tables <mark class="tag-hl">use-after-free</mark> issue. It lists recent Talos content, upcoming events, and prevalent malware files observed in Talos telemetry.</p>
+<p>The newsletter also rounds up major security headlines, including a Check Point VPN bug under attack by Qilin, Anthropic’s Claude Fable 5 launch, Microsoft zero-day fixes, WhatsApp’s allegations against NSO, and a Linux nf_tables use-after-free issue. It lists recent Talos content, upcoming events, and prevalent malware files observed in Talos telemetry.</p>
 </div></div>
-                <div id="standard-91fb0bbbe2d718ffe7e9a042e9e5cf94:e499abb864b9a8c1" class="tab-panel"><div class="prose"><p>This edition of the Threat Source newsletter opens with a personal reflection on older communication and computing devices, including a Handspring Visor and walkie talkies. The anecdote is used to introduce the idea that unprotected communications can be intercepted, with the author joking that people should use encrypted channels if they do not want others listening in. The main security focus then shifts to AI-driven vulnerability discovery and defensive resilience.</p>
+                <div id="standard-804fc63e630aa5ae8876d035b1757a94:e499abb864b9a8c1" class="tab-panel"><div class="prose"><p>This edition of the Threat Source newsletter opens with a personal reflection on older communication and computing devices, including a Handspring Visor and walkie talkies. The anecdote is used to introduce the idea that unprotected communications can be intercepted, with the author joking that people should use encrypted channels if they do not want others listening in. The main security focus then shifts to AI-driven vulnerability discovery and defensive resilience.</p>
 
 <p>The central item is a Talos blog by Yuri Kramarz about security in what the newsletter calls a hyper-accelerated threat environment. According to the article, AI-driven vulnerability discovery has completely outpaced human patching capabilities. It states that frontier AI models can autonomously discover and exploit zero-days in minutes, causing the traditional vulnerability lifecycle to collapse.</p>
 
-<p>The newsletter argues that speed has become a major multiplier in the traditional risk equation. It says that when an AI can uncover a decades-old <mark class="tag-hl">zero-day</mark> and write an exploit for it in minutes, relying only on vulnerability management is a losing strategy. Talos frames the new measure of security as the ability to absorb, detect, and survive the initial blow, rather than just preventing exploitation.</p>
+<p>The newsletter argues that speed has become a major multiplier in the traditional risk equation. It says that when an AI can uncover a decades-old zero-day and write an exploit for it in minutes, relying only on vulnerability management is a losing strategy. Talos frames the new measure of security as the ability to absorb, detect, and survive the initial blow, rather than just preventing exploitation.</p>
 
 <p>Talos recommends that organizations stop treating basic security controls as optional compliance checkboxes. The advised controls include enforcing MFA everywhere, hardening devices with CIS benchmarks, and implementing strict network segmentation to reduce an attacker’s blast radius. The article also says hardened systems only slow attackers down, so defenders should use behavioral-based EDR, NDR, and XDR to catch post-exploitation activity missed by signatures.</p>
 
-<p>The newsletter’s headline roundup includes several separate security developments. These include <mark class="tag-hl">CISA</mark> giving U.S. federal agencies three days to fix a <mark class="tag-hl">Check Point</mark> VPN-related bug under attack by <mark class="tag-hl">Qilin</mark>, Anthropic launching Claude Fable 5 with cybersecurity guardrails, Microsoft fixing two high-severity zero-days, WhatsApp accusing NSO of violating a no-hacking court order, and a Linux nf_tables <mark class="tag-hl">use-after-free</mark> issue caused by a faulty character. The issue also highlights additional Talos content, upcoming Cisco Connect <mark class="tag-hl">Germany</mark>, Black Hat USA, and DEF CON 34 appearances, and four prevalent malware files from Talos telemetry.</p>
+<p>The newsletter’s headline roundup includes several separate security developments. These include CISA giving U.S. federal agencies three days to fix a Check Point VPN-related bug under attack by Qilin, Anthropic launching Claude Fable 5 with cybersecurity guardrails, Microsoft fixing two high-severity zero-days, WhatsApp accusing NSO of violating a no-hacking court order, and a Linux nf_tables use-after-free issue caused by a faulty character. The issue also highlights additional Talos content, upcoming Cisco Connect Germany, Black Hat USA, and DEF CON 34 appearances, and four prevalent malware files from Talos telemetry.</p>
 </div></div>
-                <div id="comprehensive-91fb0bbbe2d718ffe7e9a042e9e5cf94:e499abb864b9a8c1" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-804fc63e630aa5ae8876d035b1757a94:e499abb864b9a8c1" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
 <p>This Threat Source newsletter combines a personal introduction about older technology with a security-focused discussion of AI-driven vulnerability discovery. The author recalls using devices such as a Handspring Visor and walkie talkies, including an anecdote about a walkie talkie capturing a child’s voice on an open channel. The story is used to make a light point about interception of communications and the value of encrypted channels.</p>
 
@@ -1688,7 +1843,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="ai-accelerated-vulnerability-discovery">AI-Accelerated Vulnerability Discovery</h2>
 
-<p>The newsletter says speed is the “new, terrifying multiplier” in the traditional risk equation. It gives the example of an AI uncovering a decades-old <mark class="tag-hl">zero-day</mark> and writing an exploit for it in minutes. In that scenario, relying solely on vulnerability management is described as a losing game.</p>
+<p>The newsletter says speed is the “new, terrifying multiplier” in the traditional risk equation. It gives the example of an AI uncovering a decades-old zero-day and writing an exploit for it in minutes. In that scenario, relying solely on vulnerability management is described as a losing game.</p>
 
 <p>The article frames this as a shift in what security programs should measure. Prevention remains important, but the newsletter says the true measure of security is now how well an environment can handle the initial blow. This includes absorbing impact, detecting post-exploitation activity, and surviving compromise attempts.</p>
 
@@ -1719,18 +1874,18 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The newsletter includes a roundup of major security headlines from the week:</p>
 
 <ul>
-<li><mark class="tag-hl">CISA</mark> gave U.S. federal agencies three days to fix a <mark class="tag-hl">Check Point</mark> VPN-related bug that was under attack by <mark class="tag-hl">Qilin</mark>.</li>
+<li>CISA gave U.S. federal agencies three days to fix a Check Point VPN-related bug that was under attack by Qilin.</li>
 <li>Anthropic launched Claude Fable 5, described as a Mythos-class AI model with cybersecurity guardrails.</li>
-<li>Microsoft fixed two high-severity zero-days disclosed by a researcher, including a <mark class="tag-hl">local privilege escalation</mark> issue that could be chained with another vulnerability to gain SYSTEM rights.</li>
-<li>WhatsApp said spyware maker NSO violated a permanent injunction and reported learning of a <mark class="tag-hl">social engineering</mark> attack attempting to trick users into clicking malicious links.</li>
-<li>Ars Technica reported a high-severity Linux vulnerability in nf_tables caused by a single faulty exclamation point, resulting in a <mark class="tag-hl">use-after-free</mark> issue.</li>
+<li>Microsoft fixed two high-severity zero-days disclosed by a researcher, including a local privilege escalation issue that could be chained with another vulnerability to gain SYSTEM rights.</li>
+<li>WhatsApp said spyware maker NSO violated a permanent injunction and reported learning of a social engineering attack attempting to trick users into clicking malicious links.</li>
+<li>Ars Technica reported a high-severity Linux vulnerability in nf_tables caused by a single faulty exclamation point, resulting in a use-after-free issue.</li>
 </ul>
 
 <p>These headlines are presented as brief external news items rather than the central topic of the newsletter.</p>
 
 <h2 id="additional-talos-content">Additional Talos Content</h2>
 
-<p>The newsletter also promotes additional Talos material. One item explains how <mark class="tag-hl">Cisco Talos</mark> Threat Hunting uses hypothesis-driven methods and multi-domain telemetry correlation to find stealthy threats operating below automated detection thresholds. Another features Tony Giandomenico discussing Talos Threat Hunting, major product launches, and Ironman triathlons.</p>
+<p>The newsletter also promotes additional Talos material. One item explains how Cisco Talos Threat Hunting uses hypothesis-driven methods and multi-domain telemetry correlation to find stealthy threats operating below automated detection thresholds. Another features Tony Giandomenico discussing Talos Threat Hunting, major product launches, and Ironman triathlons.</p>
 
 <p>A Talos Takes episode is also highlighted, focusing on David Bianco’s open-source project EvidenceForge. The episode discusses why traditional synthetic data may fall short and how EvidenceForge generates coherent attack stories for better detection.</p>
 
@@ -1739,9 +1894,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The article lists upcoming events where Talos can be found:</p>
 
 <ul>
-<li>Cisco Connect <mark class="tag-hl">Germany</mark> on June 16 in Frankfurt, <mark class="tag-hl">Germany</mark>.</li>
-<li>Black Hat USA from Aug. 1 to Aug. 6 in <mark class="tag-hl">Las Vegas</mark>, Nevada.</li>
-<li>DEF CON 34 from Aug. 6 to Aug. 9 in <mark class="tag-hl">Las Vegas</mark>, Nevada.</li>
+<li>Cisco Connect Germany on June 16 in Frankfurt, Germany.</li>
+<li>Black Hat USA from Aug. 1 to Aug. 6 in Las Vegas, Nevada.</li>
+<li>DEF CON 34 from Aug. 6 to Aug. 9 in Las Vegas, Nevada.</li>
 </ul>
 
 <h2 id="malware-telemetry">Malware Telemetry</h2>
@@ -1761,10 +1916,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article’s central significance is its argument that AI has changed the speed and practicality of vulnerability exploitation. Talos presents this as a reason to prioritize resilience, segmentation, hardening, behavioral detection, and practiced response. The newsletter’s main security message is that patching remains important, but organizations must prepare for exploitation that happens faster than traditional patch cycles can address.</p>
 </div></div>
-                <div id="insights-91fb0bbbe2d718ffe7e9a042e9e5cf94:e499abb864b9a8c1" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The article reframes security success as the ability to absorb, detect, and survive initial compromise rather than simply preventing exploitation.</span></li><li><span class="kp-text">Talos treats foundational controls such as MFA, CIS-based hardening, and segmentation as operational necessities in an AI-accelerated threat environment, not compliance tasks.</span></li><li><span class="kp-text">The article emphasizes that hardened systems are expected only to slow attackers down, so behavioral EDR, NDR, and XDR are needed to catch activity that signature-based detections may miss.</span></li><li><span class="kp-text">Talos argues that penetration testing and purple team exercises are necessary to turn incident response playbooks into practiced operational routines.</span></li></ul></div>
+                <div id="insights-804fc63e630aa5ae8876d035b1757a94:e499abb864b9a8c1" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The article reframes security success as the ability to absorb, detect, and survive initial compromise rather than simply preventing exploitation.</span></li><li><span class="kp-text">Talos treats foundational controls such as MFA, CIS-based hardening, and segmentation as operational necessities in an AI-accelerated threat environment, not compliance tasks.</span></li><li><span class="kp-text">The article emphasizes that hardened systems are expected only to slow attackers down, so behavioral EDR, NDR, and XDR are needed to catch activity that signature-based detections may miss.</span></li><li><span class="kp-text">Talos argues that penetration testing and purple team exercises are necessary to turn incident response playbooks into practiced operational routines.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Talos highlighted Yuri Kramarz’s blog arguing that AI-driven vulnerability discovery has outpaced human patching capabilities.</span></li><li><span class="kp-text">The article says frontier AI models can autonomously discover and exploit zero-days in minutes, collapsing the traditional vulnerability lifecycle.</span></li><li><span class="kp-text">Talos recommends organizations move away from patch-reliant strategies and adopt a three-stage fallback model based on foundational security principles.</span></li><li><span class="kp-text">Recommended controls include enforcing MFA, hardening devices with CIS benchmarks, and implementing strict network segmentation to limit an attacker’s blast radius.</span></li><li><span class="kp-text">The article advises deploying behavioral-based EDR, NDR, and XDR and validating controls through penetration testing and purple team exercises.</span></li></ul></div>
+            
             <a href="https://blog.talosintelligence.com/a-tale-of-two-eras/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a Threat Source newsletter that aggregates commentary, weekly security headlines, Talos content, events, and malware telemetry rather than covering a single specific incident. Per the scoring rule for digest or roundup pieces, it is assigned exactly 40.</p>
 </div></div>
@@ -1790,30 +1946,31 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:25%"></div></div><span class="score-num score-num-low">25</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="631e71d966a074cd40ec4a433366acf0:65a5bf836650d7c3">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-05657f893447e3496b186d96d8afc5bb:65a5bf836650d7c3')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-05657f893447e3496b186d96d8afc5bb:65a5bf836650d7c3')">Brief</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-631e71d966a074cd40ec4a433366acf0:65a5bf836650d7c3')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-631e71d966a074cd40ec4a433366acf0:65a5bf836650d7c3')">Brief</button>
                   
                   
-                  <button class="tab-btn" onclick="switchTab(this,'insights-05657f893447e3496b186d96d8afc5bb:65a5bf836650d7c3')">Insights</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-631e71d966a074cd40ec4a433366acf0:65a5bf836650d7c3')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-05657f893447e3496b186d96d8afc5bb:65a5bf836650d7c3" class="tab-panel active"><div class="prose"><mark class="tag-hl">Permiso</mark> announced that its Identity Threat Detection and Response platform won Best ITDR Platform at the 2026 <mark class="tag-hl">Cybersecurity Stars Awards</mark> presented by <mark class="tag-hl">The Hacker News</mark>.</div></div>
-                <div id="brief-05657f893447e3496b186d96d8afc5bb:65a5bf836650d7c3" class="tab-panel"><div class="prose"></div></div>
+                <div id="tldr-631e71d966a074cd40ec4a433366acf0:65a5bf836650d7c3" class="tab-panel active"><div class="prose">Permiso announced that its Identity Threat Detection and Response platform won Best ITDR Platform at the 2026 Cybersecurity Stars Awards presented by The Hacker News.</div></div>
+                <div id="brief-631e71d966a074cd40ec4a433366acf0:65a5bf836650d7c3" class="tab-panel"><div class="prose"></div></div>
                 
                 
-                <div id="insights-05657f893447e3496b186d96d8afc5bb:65a5bf836650d7c3" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The article does not provide technical details about <mark class="tag-hl">Permiso</mark>’s ITDR platform, such as detection methods, integrations, or response capabilities.</span></li><li><span class="kp-text">The announcement cites <mark class="tag-hl">The Hacker News</mark> and the <mark class="tag-hl">Cybersecurity Stars Awards</mark> as the source of recognition, with links provided to the award winner page and awards site.</span></li></ul></div>
+                <div id="insights-631e71d966a074cd40ec4a433366acf0:65a5bf836650d7c3" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The article does not provide technical details about Permiso’s ITDR platform, such as detection methods, integrations, or response capabilities.</span></li><li><span class="kp-text">The announcement cites The Hacker News and the Cybersecurity Stars Awards as the source of recognition, with links provided to the award winner page and awards site.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Permiso</mark> announced that it won Best Identity Threat Detection and Response Platform at the 2026 <mark class="tag-hl">Cybersecurity Stars Awards</mark>.</span></li><li><span class="kp-text">The 2026 <mark class="tag-hl">Cybersecurity Stars Awards</mark> are presented by <mark class="tag-hl">The Hacker News</mark>.</span></li><li><span class="kp-text">The award recognized <mark class="tag-hl">Permiso</mark>’s Identity Threat Detection and Response platform.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Permiso announced that it won Best Identity Threat Detection and Response Platform at the 2026 Cybersecurity Stars Awards.</span></li><li><span class="kp-text">The 2026 Cybersecurity Stars Awards are presented by The Hacker News.</span></li><li><span class="kp-text">The award recognized Permiso’s Identity Threat Detection and Response platform.</span></li></ul></div>
+            
             <a href="https://permiso.io/blog/best-itdr-platform-hacker-news-cybersecurity-stars-2026" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a brief company award announcement for <mark class="tag-hl">Permiso</mark>’s ITDR platform, not a report on a threat, vulnerability, breach, patch, or technical finding. It provides little actionable information for security professionals beyond vendor recognition.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a brief company award announcement for Permiso’s ITDR platform, not a report on a threat, vulnerability, breach, patch, or technical finding. It provides little actionable information for security professionals beyond vendor recognition.</p>
 </div></div>
             
             
@@ -1837,18 +1994,18 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest window is dominated by reporting on active exploitation of <mark class="tag-hl">Oracle PeopleSoft</mark> <mark class="tag-hl">CVE-2026-35273</mark>, a critical unauthenticated remote code execution zero-day tied to data theft activity attributed to <mark class="tag-hl">ShinyHunters</mark>. The reporting also reflects a broader concern that AI-assisted vulnerability discovery may be compressing exploit timelines faster than traditional patch cycles can absorb.</p>
+        <div class="overview-body prose"><p>This digest window is dominated by reporting on active exploitation of Oracle PeopleSoft CVE-2026-35273, a critical unauthenticated remote code execution zero-day tied to data theft activity attributed to ShinyHunters. The reporting also reflects a broader concern that AI-assisted vulnerability discovery may be compressing exploit timelines faster than traditional patch cycles can absorb.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Oracle PeopleSoft CVE-2026-35273 Exploitation by ShinyHunters</span>
         </div>
-        <div class="overview-body prose"><p>Google <mark class="tag-hl">Mandiant</mark> attributed a PeopleSoft exploitation campaign to <mark class="tag-hl">ShinyHunters</mark>, tracked as <mark class="tag-hl">UNC6240</mark>, with observed activity dated between May 27 and June 9. The exploited vulnerability, <mark class="tag-hl">CVE-2026-35273</mark>, affects <mark class="tag-hl">Oracle PeopleSoft</mark> Enterprise PeopleTools and carries a CVSS score of 9.8 due to unauthenticated remote code execution over HTTP without user interaction.</p>
+        <div class="overview-body prose"><p>Google Mandiant attributed a PeopleSoft exploitation campaign to ShinyHunters, tracked as UNC6240, with observed activity dated between May 27 and June 9. The exploited vulnerability, CVE-2026-35273, affects Oracle PeopleSoft Enterprise PeopleTools and carries a CVSS score of 9.8 due to unauthenticated remote code execution over HTTP without user interaction.</p>
 
-<p>The campaign appears heavily concentrated in higher education. <mark class="tag-hl">Mandiant</mark> notified more than 100 organizations with vulnerable endpoints, and 68% were in higher education, mostly in the <mark class="tag-hl">United States</mark>. The <mark class="tag-hl">University of Nottingham</mark> confirmed a breach, and <mark class="tag-hl">Have I Been Pwned</mark> counted approximately 455,000 unique email addresses in a leaked dataset associated with the incident.</p>
+<p>The campaign appears heavily concentrated in higher education. Mandiant notified more than 100 organizations with vulnerable endpoints, and 68% were in higher education, mostly in the United States. The University of Nottingham confirmed a breach, and Have I Been Pwned counted approximately 455,000 unique email addresses in a leaked dataset associated with the incident.</p>
 
-<p><mark class="tag-hl">Oracle</mark> confirmed that <mark class="tag-hl">CVE-2026-35273</mark> affects PeopleSoft Enterprise PeopleTools versions 8.61 and 8.62 and released emergency mitigations while indicating that a patch is forthcoming. BleepingComputer reported that <mark class="tag-hl">ShinyHunters</mark> claimed to have used a “gadget chain” combining older flaws and zero-day vulnerabilities, allegedly stealing data from 300 PeopleSoft instances across more than 100 organizations. Researcher Michael R also identified exposed online directories containing attack-related tooling and shared IP addresses relevant to the campaign.</p>
+<p>Oracle confirmed that CVE-2026-35273 affects PeopleSoft Enterprise PeopleTools versions 8.61 and 8.62 and released emergency mitigations while indicating that a patch is forthcoming. BleepingComputer reported that ShinyHunters claimed to have used a “gadget chain” combining older flaws and zero-day vulnerabilities, allegedly stealing data from 300 PeopleSoft instances across more than 100 organizations. Researcher Michael R also identified exposed online directories containing attack-related tooling and shared IP addresses relevant to the campaign.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
@@ -1873,9 +2030,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-11 18:00 UTC · 4 hours window</span>
-  <span class="footer-right">4 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">4 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1888,15 +2048,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2009,12 +2231,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2075,6 +2331,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

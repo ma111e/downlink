@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1344,26 +1497,26 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:94%"></div></div><span class="score-num score-num-high">94</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:466a56392d617a9c">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:466a56392d617a9c')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:466a56392d617a9c')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:466a56392d617a9c')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:466a56392d617a9c')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:466a56392d617a9c')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:466a56392d617a9c')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:466a56392d617a9c')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:466a56392d617a9c')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:466a56392d617a9c')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:466a56392d617a9c')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:466a56392d617a9c" class="tab-panel active"><div class="prose">A critical unpatched-before-3.15.0.3 flaw in the WordPress Funnel Builder plugin is being actively exploited to inject fake Google Tag Manager scripts into WooCommerce checkout pages and steal payment details. Store owners should update immediately and inspect Funnel Builder’s External Scripts settings for unfamiliar code.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:466a56392d617a9c" class="tab-panel"><div class="prose"><p>A critical security vulnerability in the Funnel Builder plugin for WordPress is being actively exploited to inject malicious JavaScript into WooCommerce checkout pages. The flaw affects all plugin versions before 3.15.0.3, currently has no official CVE identifier, and impacts a plugin used by more than 40,000 WooCommerce stores. FunnelKit has released a patch in version 3.15.0.3.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:466a56392d617a9c" class="tab-panel active"><div class="prose">A critical unpatched-before-3.15.0.3 flaw in the WordPress Funnel Builder plugin is being actively exploited to inject fake Google Tag Manager scripts into WooCommerce checkout pages and steal payment details. Store owners should update immediately and inspect Funnel Builder’s External Scripts settings for unfamiliar code.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:466a56392d617a9c" class="tab-panel"><div class="prose"><p>A critical security vulnerability in the Funnel Builder plugin for WordPress is being actively exploited to inject malicious JavaScript into WooCommerce checkout pages. The flaw affects all plugin versions before 3.15.0.3, currently has no official CVE identifier, and impacts a plugin used by more than 40,000 WooCommerce stores. FunnelKit has released a patch in version 3.15.0.3.</p>
 
 <p>Sansec reported that attackers are planting fake Google Tag Manager scripts into the plugin’s External Scripts setting. The injected code appears similar to ordinary analytics tags but loads a payment skimmer designed to steal credit card numbers, CVVs, billing addresses, and other checkout data. Site owners are advised to update the plugin and review Settings &gt; Checkout &gt; External Scripts for unfamiliar entries.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:466a56392d617a9c" class="tab-panel"><div class="prose"><p>A critical vulnerability in the Funnel Builder plugin for WordPress has come under active exploitation in the wild. The flaw enables attackers to inject malicious JavaScript into WooCommerce checkout pages to steal payment data. The issue affects all versions of the plugin before 3.15.0.3 and currently does not have an official CVE identifier.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:466a56392d617a9c" class="tab-panel"><div class="prose"><p>A critical vulnerability in the Funnel Builder plugin for WordPress has come under active exploitation in the wild. The flaw enables attackers to inject malicious JavaScript into WooCommerce checkout pages to steal payment data. The issue affects all versions of the plugin before 3.15.0.3 and currently does not have an official CVE identifier.</p>
 
 <p>The activity was detailed by Sansec, which said the vulnerability allows unauthenticated attackers to inject arbitrary JavaScript into every checkout page on a store. Funnel Builder is used in more than 40,000 WooCommerce stores. FunnelKit, the maintainer of Funnel Builder, has released a patch in version 3.15.0.3.</p>
 
@@ -1373,7 +1526,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Sansec observed at least one payload masquerading as a Google Tag Manager loader and launching JavaScript from a remote domain. The payload then opened a WebSocket connection to the attacker’s command-and-control server at wss://protect-wss[.]com/ws to retrieve a skimmer tailored to the victim’s storefront. Store owners are advised to update Funnel Builder and inspect Settings &gt; Checkout &gt; External Scripts for unfamiliar code.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:466a56392d617a9c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:466a56392d617a9c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
 <p>A critical security vulnerability affecting the Funnel Builder plugin for WordPress is being actively exploited in the wild. The attacks target WooCommerce checkout pages by injecting malicious JavaScript intended to steal payment information from customers.</p>
 
@@ -1429,10 +1582,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>That Joomla campaign is described as having the ultimate aim of abusing the compromised sites’ reputation to inject spam.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:466a56392d617a9c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The exploit abuses a publicly exposed checkout endpoint that allowed unauthenticated requests to invoke internal plugin methods without permission checks or an allowlist of permitted methods.</span></li><li><span class="kp-text">The malicious code is inserted into Funnel Builder’s global settings, which causes the skimmer to appear on every Funnel Builder checkout page rather than requiring attackers to modify individual pages.</span></li><li><span class="kp-text">At least one observed payload disguised itself as a Google Tag Manager loader and then used a WebSocket connection to wss://protect-wss[.]com/ws to retrieve a storefront-specific skimmer.</span></li><li><span class="kp-text">A practical detection step for store owners is to inspect the plugin’s Settings &gt; Checkout &gt; External Scripts area for unfamiliar entries, because attackers are planting the skimmer through that setting.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:466a56392d617a9c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The exploit abuses a publicly exposed checkout endpoint that allowed unauthenticated requests to invoke internal plugin methods without permission checks or an allowlist of permitted methods.</span></li><li><span class="kp-text">The malicious code is inserted into Funnel Builder’s global settings, which causes the skimmer to appear on every Funnel Builder checkout page rather than requiring attackers to modify individual pages.</span></li><li><span class="kp-text">At least one observed payload disguised itself as a Google Tag Manager loader and then used a WebSocket connection to wss://protect-wss[.]com/ws to retrieve a storefront-specific skimmer.</span></li><li><span class="kp-text">A practical detection step for store owners is to inspect the plugin’s Settings &gt; Checkout &gt; External Scripts area for unfamiliar entries, because attackers are planting the skimmer through that setting.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">A critical security vulnerability in the Funnel Builder plugin for WordPress is being actively exploited to inject malicious JavaScript into WooCommerce checkout pages.</span></li><li><span class="kp-text">The vulnerability affects all versions of Funnel Builder before 3.15.0.3 and currently does not have an official CVE identifier.</span></li><li><span class="kp-text">Attackers are abusing the plugin&#39;s External Scripts setting to plant fake Google Tag Manager scripts that load payment skimmers.</span></li><li><span class="kp-text">The injected skimmer is designed to steal credit card numbers, CVVs, billing addresses, and other personal information entered during checkout.</span></li><li><span class="kp-text">Site owners are advised to update Funnel Builder to the latest version and review Settings &gt; Checkout &gt; External Scripts for unfamiliar entries.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/05/funnel-builder-flaw-under-active.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active exploitation of a critical vulnerability in a WordPress/WooCommerce plugin used by more than 40,000 stores. The flaw enables unauthenticated injection of checkout skimmers that steal payment data, and a patched version plus specific remediation steps are available.</p>
 </div></div>
@@ -1472,28 +1626,28 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:84%"></div></div><span class="score-num score-num-mid">84</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:8295eb13b2dc4fce">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:8295eb13b2dc4fce')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:8295eb13b2dc4fce')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:8295eb13b2dc4fce')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:8295eb13b2dc4fce')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:8295eb13b2dc4fce')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:8295eb13b2dc4fce')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:8295eb13b2dc4fce')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:8295eb13b2dc4fce')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:8295eb13b2dc4fce')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:8295eb13b2dc4fce')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:8295eb13b2dc4fce" class="tab-panel active"><div class="prose">Russian-linked Secret Blizzard has evolved the Kazuar backdoor into a stealthy modular P2P botnet that elects an internal leader to communicate with command-and-control servers while other infected hosts stay quiet. Microsoft says defenders should prioritize behavioral detection because Kazuar is highly configurable, persistent, and designed for long-term espionage and data theft.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:8295eb13b2dc4fce" class="tab-panel"><div class="prose"><p>The Russian hacker group Secret Blizzard has developed the long-running Kazuar backdoor into a modular peer-to-peer botnet. The new design is intended for long-term persistence, stealth, and data collection. Secret Blizzard’s activity overlaps with Turla, Uroburos, and Venomous Bear, and the group has been associated with Russia’s FSB.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:8295eb13b2dc4fce" class="tab-panel active"><div class="prose">Russian-linked Secret Blizzard has evolved the Kazuar backdoor into a stealthy modular P2P botnet that elects an internal leader to communicate with command-and-control servers while other infected hosts stay quiet. Microsoft says defenders should prioritize behavioral detection because Kazuar is highly configurable, persistent, and designed for long-term espionage and data theft.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:8295eb13b2dc4fce" class="tab-panel"><div class="prose"><p>The Russian hacker group Secret Blizzard has developed the long-running Kazuar backdoor into a modular peer-to-peer botnet. The new design is intended for long-term persistence, stealth, and data collection. Secret Blizzard’s activity overlaps with Turla, Uroburos, and Venomous Bear, and the group has been associated with Russia’s FSB.</p>
 
 <p>Microsoft researchers analyzed a recent Kazuar variant and found that it now operates with three distinct modules: Kernel, Bridge, and Worker. The Kernel module coordinates tasks, manages other modules, elects a leader, and orchestrates communications and data flow. The elected leader communicates with command-and-control infrastructure, while non-leader infected systems remain silent to reduce external visibility.</p>
 
 <p>Kazuar’s Worker module carries out espionage functions such as keylogging, screenshot capture, filesystem harvesting, system and network reconnaissance, email and MAPI collection, window monitoring, and recent file theft. The malware also supports 150 configuration options, including AMSI, ETW, and WLDP bypasses. Microsoft recommends behavioral detection because Kazuar’s modular and highly configurable nature makes it evasive.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:8295eb13b2dc4fce" class="tab-panel"><div class="prose"><p>Secret Blizzard has evolved the Kazuar backdoor into a modular peer-to-peer botnet built for long-term persistence, stealth, and data collection. The group’s activity overlaps with Turla, Uroburos, and Venomous Bear, and it has been associated with the Russian intelligence service FSB. The article says Secret Blizzard is known for targeting government and diplomatic organizations, defense-related entities, and critical systems across Europe, Asia, and Ukraine.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:8295eb13b2dc4fce" class="tab-panel"><div class="prose"><p>Secret Blizzard has evolved the Kazuar backdoor into a modular peer-to-peer botnet built for long-term persistence, stealth, and data collection. The group’s activity overlaps with Turla, Uroburos, and Venomous Bear, and it has been associated with the Russian intelligence service FSB. The article says Secret Blizzard is known for targeting government and diplomatic organizations, defense-related entities, and critical systems across Europe, Asia, and Ukraine.</p>
 
 <p>Kazuar has been documented since 2017, and researchers found that its code lineage goes back to 2005. Its activity has been linked to the Turla espionage group working for the FSB. The malware was previously observed in attacks targeting European government organizations in 2020 and in attacks against Ukraine three years later.</p>
 
@@ -1505,7 +1659,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Microsoft says Kazuar supports 150 configuration options for security bypasses, task scheduling, exfiltration timing and chunk size, process injection, task management, and command execution. The malware includes bypass options for AMSI, ETW, and WLDP. Microsoft recommends that companies focus defenses on behavioral detection rather than static signatures because Kazuar’s modular and highly configurable nature makes the threat particularly evasive.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:8295eb13b2dc4fce" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:8295eb13b2dc4fce" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
 <p>Secret Blizzard has developed the long-running Kazuar backdoor into a modular peer-to-peer botnet. The article describes the updated Kazuar as designed for long-term persistence, stealth, and data collection. Microsoft researchers analyzed a recent Kazuar variant and found that it now operates through three distinct modules: Kernel, Bridge, and Worker.</p>
 
@@ -1585,10 +1739,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Microsoft recommends that companies focus their defenses on behavioral detection rather than static signatures. The article states that Kazuar’s modular and highly configurable nature makes the threat particularly evasive.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:8295eb13b2dc4fce" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Kazuar reduces detection opportunities by routing external command-and-control traffic through a single elected infected host, meaning defenders may need to investigate internal peer communications even when only one system shows outbound C2 activity.</span></li><li><span class="kp-text">Leader selection is autonomous and based on uptime, reboot, and interruption counts, indicating that stable, long-running infected systems are more likely to become the botnet’s external communications point.</span></li><li><span class="kp-text">Kazuar blends internal communications into normal Windows operational noise by using IPC mechanisms such as Windows Messaging, Mailslots, and named pipes, with messages encrypted using AES and serialized with Protobuf.</span></li><li><span class="kp-text">Kazuar’s support for 150 configuration options allows operators to selectively enable security bypasses, schedule tasks, control exfiltration timing and chunk size, and manage process injection or command execution, making static detection less reliable.</span></li><li><span class="kp-text">The malware includes bypass options for AMSI, ETW, and WLDP, so monitoring for attempted impairment of these Windows security mechanisms is particularly relevant for detecting Kazuar activity.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:8295eb13b2dc4fce" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Kazuar reduces detection opportunities by routing external command-and-control traffic through a single elected infected host, meaning defenders may need to investigate internal peer communications even when only one system shows outbound C2 activity.</span></li><li><span class="kp-text">Leader selection is autonomous and based on uptime, reboot, and interruption counts, indicating that stable, long-running infected systems are more likely to become the botnet’s external communications point.</span></li><li><span class="kp-text">Kazuar blends internal communications into normal Windows operational noise by using IPC mechanisms such as Windows Messaging, Mailslots, and named pipes, with messages encrypted using AES and serialized with Protobuf.</span></li><li><span class="kp-text">Kazuar’s support for 150 configuration options allows operators to selectively enable security bypasses, schedule tasks, control exfiltration timing and chunk size, and manage process injection or command execution, making static detection less reliable.</span></li><li><span class="kp-text">The malware includes bypass options for AMSI, ETW, and WLDP, so monitoring for attempted impairment of these Windows security mechanisms is particularly relevant for detecting Kazuar activity.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The Russian hacker group Secret Blizzard has developed the Kazuar backdoor into a modular peer-to-peer botnet designed for long-term persistence, stealth, and data collection.</span></li><li><span class="kp-text">Microsoft researchers found that the recent Kazuar variant uses three modules: Kernel, Bridge, and Worker.</span></li><li><span class="kp-text">Kazuar elects one infected system as a leader to communicate with command-and-control infrastructure, while non-leader systems remain silent to reduce external traffic and detection risk.</span></li><li><span class="kp-text">The Worker module performs espionage activities including keylogging, screenshot capture, filesystem data harvesting, system and network reconnaissance, email and MAPI data collection, window monitoring, and recent file theft.</span></li><li><span class="kp-text">Microsoft recommends focusing defenses on behavioral detection because Kazuar’s modular and highly configurable design makes it difficult to detect with static signatures.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/russian-hackers-turn-kazuar-backdoor-into-modular-p2p-botnet/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a should-read item because it reports Microsoft’s concrete technical analysis of a recent Kazuar variant used by the Russian-linked Secret Blizzard/Turla activity cluster, including new modular P2P botnet behavior and stealth mechanisms. It is broadly relevant to defenders monitoring government, diplomatic, defense, and critical systems, though it does not describe an ongoing mass exploitation campaign or urgent patching requirement.</p>
 </div></div>
@@ -1651,9 +1806,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-05-16 22:01 UTC · 1 day window</span>
-  <span class="footer-right">2 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">2 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1666,15 +1824,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1787,12 +2007,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1853,6 +2107,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

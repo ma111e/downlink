@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1344,14 +1497,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                 </div>
               </div>
               <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:95%"></div></div><span class="score-num score-num-high">95</span></div>
-              <span class="toc-row-chevron" id="chevron-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
+              <span class="toc-row-chevron" id="chevron-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
             </summary>
             <ul class="toc-cluster-members">
               <li class="toc-cluster-member" data-category="">
                 <span class="toc-child-indent">└</span>
                 <div style="flex:1;min-width:0">
                   
-                  <div class="toc-child-title" onclick="toggleTocMember(this,'member-body-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4')" style="cursor:pointer">25th May – Threat Intelligence Report</div>
+                  <div class="toc-child-title" onclick="toggleTocMember(this,'member-body-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4')" style="cursor:pointer">25th May – Threat Intelligence Report</div>
                   <div class="toc-row-meta">
                     <span class="source-dot" style="background:var(--p4)"></span>
                     <span class="source-name" style="color:var(--p4)">research.checkpoint.com</span>
@@ -1359,27 +1512,27 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                     <span class="meta-time">2026-05-25 15:08</span>
                     <span class="meta-provider">openai / deepseek-v4-pro</span>
                   </div>
-                  <div class="article-body" id="member-body-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4">
+                  <div class="article-body" id="member-body-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4" data-article-id="55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4">
                     
                     
                     
                     <div class="panel-section">
                       <div class="panel-subhead panel-subhead--summary">Summary
                         <div class="summary-switch">
-                          <button class="tab-btn active" onclick="switchTab(this,'tldr-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4')">TL;DR</button>
-                          <button class="tab-btn" onclick="switchTab(this,'brief-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4')">Brief</button>
-                          <button class="tab-btn" onclick="switchTab(this,'standard-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4')">Standard</button>
-                          <button class="tab-btn" onclick="switchTab(this,'comprehensive-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4')">Comprehensive</button>
-                          <button class="tab-btn" onclick="switchTab(this,'insights-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4')">Insights</button>
+                          <button class="tab-btn active" onclick="switchTab(this,'tldr-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4')">TL;DR</button>
+                          <button class="tab-btn" onclick="switchTab(this,'brief-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4')">Brief</button>
+                          <button class="tab-btn" onclick="switchTab(this,'standard-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4')">Standard</button>
+                          <button class="tab-btn" onclick="switchTab(this,'comprehensive-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4')">Comprehensive</button>
+                          <button class="tab-btn" onclick="switchTab(this,'insights-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4')">Insights</button>
                         </div>
                       </div>
                       <div class="summary-body">
-                        <div id="tldr-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4" class="tab-panel active"><div class="prose">Multiple high-profile breaches and a critical actively exploited Drupal vulnerability highlight the week, while AI-driven attacks have moved from experimental to routine criminal use, including automated government compromises and phishing that evades AI email filters.</div></div>
-                        <div id="brief-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4" class="tab-panel"><div class="prose"><p>The week of May 25th was marked by multiple high-profile breaches and the increasing weaponization of AI in cyberattacks. 7-Eleven confirmed unauthorized access to franchisee documents, with ShinyHunters claiming theft of 600,000 Salesforce records, while GitHub lost approximately 3,800 internal repositories after attackers compromised an employee device via a malicious Visual Studio Code extension. Grafana Labs also disclosed a breach from a compromised GitHub token, though no customer data was exposed.</p>
+                        <div id="tldr-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4" class="tab-panel active"><div class="prose">Multiple high-profile breaches and a critical actively exploited Drupal vulnerability highlight the week, while AI-driven attacks have moved from experimental to routine criminal use, including automated government compromises and phishing that evades AI email filters.</div></div>
+                        <div id="brief-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4" class="tab-panel"><div class="prose"><p>The week of May 25th was marked by multiple high-profile breaches and the increasing weaponization of AI in cyberattacks. 7-Eleven confirmed unauthorized access to franchisee documents, with ShinyHunters claiming theft of 600,000 Salesforce records, while GitHub lost approximately 3,800 internal repositories after attackers compromised an employee device via a malicious Visual Studio Code extension. Grafana Labs also disclosed a breach from a compromised GitHub token, though no customer data was exposed.</p>
 
 <p>AI-driven threats have entered routine criminal use: Check Point Research highlighted a campaign where a single operator used commercial AI to compromise nine Mexican government agencies and execute over 5,000 automated commands. The FBI warned about Kali365, a phishing-as-a-service kit that leverages device-code phishing to capture Microsoft 365 OAuth tokens and bypass MFA. A critical actively exploited Drupal SQL injection flaw (CVE-2026-9082) and a supply chain attack on Laravel Lang packages delivering a credential stealer round out a week of escalating threats.</p>
 </div></div>
-                        <div id="standard-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4" class="tab-panel"><div class="prose"><p>The week’s top attacks and breaches include 7-Eleven, which confirmed unauthorized access to systems used for franchisee documents, with the ShinyHunters group claiming responsibility and stating it stole over 600,000 Salesforce records containing personal and corporate information. GitHub suffered a breach after attackers weaponized a Visual Studio Code extension to compromise an employee device, exfiltrating an estimated 3,800 internal repositories; the company found no impact on customer-facing systems. Grafana Labs disclosed a breach where a compromised GitHub token allowed intruders to access parts of its source code, but no customer data was exposed and no ransom was paid.</p>
+                        <div id="standard-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4" class="tab-panel"><div class="prose"><p>The week’s top attacks and breaches include 7-Eleven, which confirmed unauthorized access to systems used for franchisee documents, with the ShinyHunters group claiming responsibility and stating it stole over 600,000 Salesforce records containing personal and corporate information. GitHub suffered a breach after attackers weaponized a Visual Studio Code extension to compromise an employee device, exfiltrating an estimated 3,800 internal repositories; the company found no impact on customer-facing systems. Grafana Labs disclosed a breach where a compromised GitHub token allowed intruders to access parts of its source code, but no customer data was exposed and no ransom was paid.</p>
 
 <p>The criminal application of AI has moved from experimental to routine, as shown in Check Point Research’s March-April 2026 AI Threat Landscape digest. The report cites a campaign using commercial AI to penetrate nine Mexican government agencies and execute over 5,000 automated commands, while also noting malicious configuration files, commercial toolkits, and stolen API keys. Separately, phishing campaigns were observed embedding invisible text via zero-size fonts or background-matched colors to inject attacker instructions into AI email scanners, tricking the filters while presenting benign content to recipients.</p>
 
@@ -1389,7 +1542,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Threat intelligence reports highlighted geopolitical and supply chain risks. Nimbus Manticore, an IRGC-linked group, resurfaced during Operation Epic Fury using SEO poisoning and career-themed phishing to deliver a new MiniFast backdoor across the US, Europe, and the Middle East. Researchers also reported a 124% surge in hacktivism and ransomware in Germany, Austria, and Switzerland, with major groups like Akira, Qilin, and Safepay leading attacks. A new modular Linux malware family named Showboat, attributed to Chinese threat actors, was used against international telecom providers. A Laravel Lang supply chain attack compromised hundreds of package versions to deploy a credential stealer targeting cloud keys, developer tokens, and browser passwords. Finally, over 1,350 C2 servers were identified in Middle Eastern telecom networks, linked to Phorpiex, Eagle Werewolf, and RondoDox activity.</p>
 </div></div>
-                        <div id="comprehensive-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4" class="tab-panel"><div class="prose"><h3 id="overview">Overview</h3>
+                        <div id="comprehensive-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4" class="tab-panel"><div class="prose"><h3 id="overview">Overview</h3>
 
 <p>The Check Point Threat Intelligence Report for the week of May 25th, 2026, details a landscape marked by major data breaches, the commoditization of AI-driven attacks, critical vulnerability exploitation, and a surge in geopolitical cyber operations. The report covers incidents affecting global brands, open-source platforms, government agencies, and telecommunications providers, while also providing actionable defenses from Check Point products.</p>
 
@@ -1428,10 +1581,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li><strong>Middle Eastern Telecom Abuse</strong>: Over 1,350 C2 servers were identified across 98 providers in the region, linked to Phorpiex, Eagle Werewolf espionage, a React Native CLI flaw exploitation, and the RondoDox botnet.</li>
 </ul>
 </div></div>
-                        <div id="insights-9d7248906cb0dc741935d141408905ad:bf533f73c83febb4" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">AI-driven attacks are now commoditized and used for routine criminal operations, as demonstrated by a campaign where a single operator used commercial AI to compromise nine Mexican government agencies and execute over 5,000 automated commands.</span></li><li><span class="kp-text">Attackers are evading AI-based email defenses by embedding invisible text with indirect prompt injections, using techniques like zero-size fonts or background-matched colors to manipulate security scanning systems.</span></li><li><span class="kp-text">Kali365 phishing-as-a-service uses device-code phishing to capture OAuth access and refresh tokens, enabling persistent access to Microsoft 365 services while bypassing multi-factor authentication.</span></li><li><span class="kp-text">The supply chain attack on Laravel Lang localization packages exploited GitHub tag rewriting to distribute a cross-platform credential stealer across hundreds of versions, demonstrating that even minor package ecosystems can be effective delivery vectors.</span></li><li><span class="kp-text">Hacktivism and ransomware surged by 124% in Germany, Austria, and Switzerland in 2025, with Germany bearing the majority of incidents, indicating an intensifying threat landscape driven by geopolitical motivations.</span></li></ul></div>
+                        <div id="insights-55cdd34c987b450dce5de6a98f23dc79:bf533f73c83febb4" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">AI-driven attacks are now commoditized and used for routine criminal operations, as demonstrated by a campaign where a single operator used commercial AI to compromise nine Mexican government agencies and execute over 5,000 automated commands.</span></li><li><span class="kp-text">Attackers are evading AI-based email defenses by embedding invisible text with indirect prompt injections, using techniques like zero-size fonts or background-matched colors to manipulate security scanning systems.</span></li><li><span class="kp-text">Kali365 phishing-as-a-service uses device-code phishing to capture OAuth access and refresh tokens, enabling persistent access to Microsoft 365 services while bypassing multi-factor authentication.</span></li><li><span class="kp-text">The supply chain attack on Laravel Lang localization packages exploited GitHub tag rewriting to distribute a cross-platform credential stealer across hundreds of versions, demonstrating that even minor package ecosystems can be effective delivery vectors.</span></li><li><span class="kp-text">Hacktivism and ransomware surged by 124% in Germany, Austria, and Switzerland in 2025, with Germany bearing the majority of incidents, indicating an intensifying threat landscape driven by geopolitical motivations.</span></li></ul></div>
                       </div>
                     </div>
                     <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">7-Eleven confirmed a breach in which ShinyHunters claimed to have stolen over 600,000 Salesforce records containing personal and corporate information.</span></li><li><span class="kp-text">GitHub suffered a breach after attackers weaponized a Visual Studio Code extension to compromise an employee device and exfiltrate approximately 3,800 internal repositories.</span></li><li><span class="kp-text">The FBI warns about Kali365, a phishing-as-a-service kit that uses device-code phishing to capture OAuth tokens and bypass MFA on Microsoft 365.</span></li><li><span class="kp-text">Check Point Research&#39;s AI Threat Landscape digest shows AI-driven attacks have entered routine criminal use, citing a campaign where a single operator compromised nine Mexican government agencies and executed over 5,000 automated commands.</span></li><li><span class="kp-text">Drupal released emergency patches for a critical SQL injection flaw (CVE-2026-9082) that is actively exploited on sites using PostgreSQL.</span></li></ul></div>
+                    
                     <a href="https://research.checkpoint.com/2026/25th-may-threat-intelligence-report/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
                     <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports multiple actively exploited vulnerabilities (including a critical Drupal SQL injection under attack), major breaches at global companies, a named threat actor campaign, and the rapid criminalization of AI-driven attacks, making it essential for immediate defensive action and situational awareness.</p>
 </div></div>
@@ -1459,26 +1613,26 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </li>
             </ul>
           </details>
-          <div class="toc-row-body" id="canon-body-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963">
+          <div class="toc-row-body" id="canon-body-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963" class="tab-panel active"><div class="prose">The FBI warns that the Kali365 phishing-as-a-service platform abuses OAuth device code authentication to hijack Microsoft 365 accounts and bypass MFA, urging organizations to restrict these flows immediately.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963" class="tab-panel"><div class="prose"><p>The FBI has issued a warning about Kali365, a phishing-as-a-service platform that abuses OAuth device code authentication to hijack Microsoft 365 accounts and bypass multi-factor authentication. Instead of stealing credentials or MFA codes, attackers trick victims into entering a legitimate device code at Microsoft&rsquo;s login portal, then capture the session token that grants full account access.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963" class="tab-panel active"><div class="prose">The FBI warns that the Kali365 phishing-as-a-service platform abuses OAuth device code authentication to hijack Microsoft 365 accounts and bypass MFA, urging organizations to restrict these flows immediately.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963" class="tab-panel"><div class="prose"><p>The FBI has issued a warning about Kali365, a phishing-as-a-service platform that abuses OAuth device code authentication to hijack Microsoft 365 accounts and bypass multi-factor authentication. Instead of stealing credentials or MFA codes, attackers trick victims into entering a legitimate device code at Microsoft&rsquo;s login portal, then capture the session token that grants full account access.</p>
 
 <p>The platform lowers the barrier for low-skilled attackers by offering AI-generated lures, real-time dashboards, and automated token capture, and it operates as a structured criminal business with admins, resellers, and affiliates. The FBI urges organizations to restrict device code authentication flows and audit their usage to defend against this growing threat.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963" class="tab-panel"><div class="prose"><p>The FBI is warning about the Kali365 phishing-as-a-service (PhaaS) platform, which targets Microsoft 365 accounts by exploiting the OAuth 2.0 device authorization grant flow. Kali365 first appeared in April 2026 and is distributed via Telegram channels, giving cybercriminals a way to compromise accounts without stealing passwords or intercepting MFA codes. The platform uses device code phishing, a technique that abuses Microsoft&rsquo;s legitimate device login portal (microsoft.com/devicelogin), designed for devices with limited input capabilities to authenticate via a short code.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963" class="tab-panel"><div class="prose"><p>The FBI is warning about the Kali365 phishing-as-a-service (PhaaS) platform, which targets Microsoft 365 accounts by exploiting the OAuth 2.0 device authorization grant flow. Kali365 first appeared in April 2026 and is distributed via Telegram channels, giving cybercriminals a way to compromise accounts without stealing passwords or intercepting MFA codes. The platform uses device code phishing, a technique that abuses Microsoft&rsquo;s legitimate device login portal (microsoft.com/devicelogin), designed for devices with limited input capabilities to authenticate via a short code.</p>
 
 <p>In a device code phishing attack, the threat actor initiates the device authorization process to generate a code, then lures the victim into entering that code on the genuine Microsoft login page through phishing or social engineering. Once the victim enters the code and completes the MFA challenge, Microsoft issues an OAuth access token to the attacker, granting full access without requiring the attacker to solve any MFA challenges. This token then provides access to all single-sign-on applications, including Microsoft 365 and Salesforce, enabling data theft.</p>
 
@@ -1488,7 +1642,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The FBI&rsquo;s public service announcement recommends that organizations restrict or completely block device code authentication flows using Conditional Access policies where possible, audit existing device code usage, and block authentication transfer policies that allow sessions to move between devices. The agency also urges affected entities to report incidents to the Internet Crime Complaint Center and retain phishing emails, suspicious login information, and unauthorized device registrations. The article notes that device code phishing has seen widespread adoption in 2026, with platforms like EvilTokens and Tycoon2FA also using the technique to compromise Microsoft 365 and Entra accounts.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
 <p>The FBI has issued a public service announcement (PSA 260521) warning about the Kali365 phishing-as-a-service platform, which is used to hijack Microsoft 365 accounts by abusing OAuth device code authentication. This method allows attackers to steal session tokens and bypass multi-factor authentication (MFA), giving them full access to victims&rsquo; cloud environments without ever obtaining passwords or MFA codes.</p>
 
@@ -1569,10 +1723,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>This trend underscores that the device code authentication flow has become a favored attack vector across the cybercriminal ecosystem, making the FBI&rsquo;s recommendations especially urgent for organizations relying on Microsoft 365 and Entra ID.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:0a1b52a38abf5963" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Because victims are directed to Microsoft&#39;s legitimate device code login portal, traditional anti-phishing training that relies on spotting fake domains is ineffective against this attack.</span></li><li><span class="kp-text">Kali365 operates with a structured business hierarchy of admins, resellers, and affiliates, showing that phishing-as-a-service has matured into a professional, scalable criminal enterprise.</span></li><li><span class="kp-text">The platform offers both device code phishing and an adversary-in-the-middle &#39;Cookie Link&#39; mode, giving attackers flexibility to pivot techniques if one method is blocked.</span></li><li><span class="kp-text">Post-compromise actions such as creating hidden inbox rules and registering unauthorized devices provide specific detection opportunities that defenders can monitor to identify intrusions.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:0a1b52a38abf5963" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Because victims are directed to Microsoft&#39;s legitimate device code login portal, traditional anti-phishing training that relies on spotting fake domains is ineffective against this attack.</span></li><li><span class="kp-text">Kali365 operates with a structured business hierarchy of admins, resellers, and affiliates, showing that phishing-as-a-service has matured into a professional, scalable criminal enterprise.</span></li><li><span class="kp-text">The platform offers both device code phishing and an adversary-in-the-middle &#39;Cookie Link&#39; mode, giving attackers flexibility to pivot techniques if one method is blocked.</span></li><li><span class="kp-text">Post-compromise actions such as creating hidden inbox rules and registering unauthorized devices provide specific detection opportunities that defenders can monitor to identify intrusions.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The FBI warns that the Kali365 phishing-as-a-service platform uses OAuth device code phishing to hijack Microsoft 365 accounts and bypass multi-factor authentication.</span></li><li><span class="kp-text">Attackers trick victims into entering a legitimate device code at Microsoft&#39;s portal, then capture the resulting OAuth access token to gain full account access.</span></li><li><span class="kp-text">Kali365 provides low-skilled attackers with AI-generated lures, real-time dashboards, and automated token capture, lowering the barrier to sophisticated phishing campaigns.</span></li><li><span class="kp-text">Arctic Wolf researchers found that Kali365 operates as a criminal business with admins, resellers, and affiliates, offering both device code phishing and an adversary-in-the-middle attack mode.</span></li><li><span class="kp-text">The FBI recommends blocking or restricting device code authentication flows, auditing device code usage, and reporting incidents to defend against these attacks.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/fbi-warns-of-kali365-phishing-service-targeting-microsoft-365-accounts/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports an active FBI advisory about the Kali365 phishing-as-a-service platform exploiting OAuth device code flow to bypass MFA in Microsoft 365, with confirmed widespread campaigns observed by Arctic Wolf. This is a timely, high-impact threat intelligence that demands immediate defensive action.</p>
 </div></div>
@@ -1606,26 +1761,26 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:95%"></div></div><span class="score-num score-num-high">95</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:b4e2c28cbb2b305c">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:b4e2c28cbb2b305c')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:b4e2c28cbb2b305c')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:b4e2c28cbb2b305c')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:b4e2c28cbb2b305c')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:b4e2c28cbb2b305c')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:b4e2c28cbb2b305c')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:b4e2c28cbb2b305c')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:b4e2c28cbb2b305c')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:b4e2c28cbb2b305c')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:b4e2c28cbb2b305c')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:b4e2c28cbb2b305c" class="tab-panel active"><div class="prose">A critical Ghost CMS SQL injection flaw (CVE-2026-26980) was exploited to seize admin API keys and silently inject malicious JavaScript into over 700 legitimate sites, fueling large-scale ClickFix attacks that trick visitors into running malware.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:b4e2c28cbb2b305c" class="tab-panel"><div class="prose"><p>Attackers are exploiting a critical SQL injection vulnerability (CVE-2026-26980, CVSS 9.4) in Ghost CMS to steal admin API keys and silently inject malicious JavaScript into more than 700 legitimate websites. The campaign, first spotted on May 7, 2026, weaponizes the flaw to poison site content and fuel fake CAPTCHA-based ClickFix attacks, leveraging the compromised sites&rsquo; trusted reputations across sectors like universities, blockchain, AI, and security research.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:b4e2c28cbb2b305c" class="tab-panel active"><div class="prose">A critical Ghost CMS SQL injection flaw (CVE-2026-26980) was exploited to seize admin API keys and silently inject malicious JavaScript into over 700 legitimate sites, fueling large-scale ClickFix attacks that trick visitors into running malware.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:b4e2c28cbb2b305c" class="tab-panel"><div class="prose"><p>Attackers are exploiting a critical SQL injection vulnerability (CVE-2026-26980, CVSS 9.4) in Ghost CMS to steal admin API keys and silently inject malicious JavaScript into more than 700 legitimate websites. The campaign, first spotted on May 7, 2026, weaponizes the flaw to poison site content and fuel fake CAPTCHA-based ClickFix attacks, leveraging the compromised sites&rsquo; trusted reputations across sectors like universities, blockchain, AI, and security research.</p>
 
 <p>The injected JavaScript acts as a two-stage loader that fetches a cloaked payload from an external domain using the commercial Adspect service, ensuring only real visitors receive the attack while scanners see benign content. Ultimately, victims who follow the fake CAPTCHA instructions run a dropper that installs a persistent remote-access trojan (a signed PuTTY or a modified Grape desktop client), giving attackers long-term control of the infected machines.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:b4e2c28cbb2b305c" class="tab-panel"><div class="prose"><p>A large-scale website poisoning campaign is exploiting a recently disclosed Ghost CMS vulnerability to hijack sites and serve ClickFix malware. The flaw, CVE-2026-26980, is a SQL injection in the Content API with a CVSS score of 9.4 that allows unauthenticated attackers to read arbitrary database contents, including the admin API key. The vulnerability was discovered by Anthropic using Claude and patched in Ghost version 6.19.1 (February 2026). QiAnXin XLab, which reported the exploitation, states the campaign started on May 7, 2026, and involves at least two distinct threat clusters.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:b4e2c28cbb2b305c" class="tab-panel"><div class="prose"><p>A large-scale website poisoning campaign is exploiting a recently disclosed Ghost CMS vulnerability to hijack sites and serve ClickFix malware. The flaw, CVE-2026-26980, is a SQL injection in the Content API with a CVSS score of 9.4 that allows unauthenticated attackers to read arbitrary database contents, including the admin API key. The vulnerability was discovered by Anthropic using Claude and patched in Ghost version 6.19.1 (February 2026). QiAnXin XLab, which reported the exploitation, states the campaign started on May 7, 2026, and involves at least two distinct threat clusters.</p>
 
 <p>Attackers use the SQL injection to obtain the target site&rsquo;s admin API key without authorization, then leverage the Ghost Admin API to bulk-modify articles. They inject a two-stage JavaScript loader at the bottom of pages. This loader contacts an external domain, &ldquo;clo4shara[.]xyz/11z77u3.php&rdquo;, which hosts a traffic distribution script powered by Adspect, a commercial cloaking service. The script collects browser fingerprints and uses 19 different commands to selectively redirect, pop up, or download payloads—only real victims receive the malicious content, while crawlers see a benign page.</p>
 
@@ -1635,7 +1790,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Ghost CMS administrators are urged to upgrade to the latest version, rotate all credentials, purge injected content, audit access logs for suspicious activity, and warn users who may have visited the site during the contamination window. The incident underscores how a single vulnerability in a widely used CMS can enable a stealthy, bulk-compromise operation that blends malicious code into authentic content via legitimate API channels.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:b4e2c28cbb2b305c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:b4e2c28cbb2b305c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
 <p>A critical SQL injection vulnerability in Ghost CMS (CVE-2026-26980) is being actively exploited in a large-scale website poisoning campaign. Attackers steal the admin API key from vulnerable instances, then abuse the Ghost Admin API to inject malicious JavaScript into articles, ultimately delivering ClickFix malware to site visitors. QiAnXin XLab first detected the activity on May 7, 2026, and reports that over 700 websites across multiple sectors have been compromised.</p>
 
@@ -1727,10 +1882,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>This campaign demonstrates how a single vulnerability in a widely used CMS can be weaponized to turn hundreds of trusted websites into malware distribution platforms, using legitimate API features to make detection and cleanup more difficult.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:b4e2c28cbb2b305c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The SQL injection flaw directly exposed the admin API key, allowing attackers to modify sites via legitimate API calls, making the injected content indistinguishable from normal admin changes and bypassing typical integrity checks.</span></li><li><span class="kp-text">The attackers relied on a commercial cloaking service (Adspect) that provides 19 distinct commands for fine-grained remote browser control, enabling tailored attacks beyond simple redirection or malware delivery.</span></li><li><span class="kp-text">The campaign targeted security research websites along with other sectors, potentially undermining the credibility of those sites and tricking a more security-savvy audience, thereby amplifying the attack&#39;s effectiveness.</span></li><li><span class="kp-text">The payload evolved mid-campaign from a DLL dropper to a JavaScript-based loader, indicating active attacker monitoring and adaptation to evade detection or improve persistence.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:b4e2c28cbb2b305c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The SQL injection flaw directly exposed the admin API key, allowing attackers to modify sites via legitimate API calls, making the injected content indistinguishable from normal admin changes and bypassing typical integrity checks.</span></li><li><span class="kp-text">The attackers relied on a commercial cloaking service (Adspect) that provides 19 distinct commands for fine-grained remote browser control, enabling tailored attacks beyond simple redirection or malware delivery.</span></li><li><span class="kp-text">The campaign targeted security research websites along with other sectors, potentially undermining the credibility of those sites and tricking a more security-savvy audience, thereby amplifying the attack&#39;s effectiveness.</span></li><li><span class="kp-text">The payload evolved mid-campaign from a DLL dropper to a JavaScript-based loader, indicating active attacker monitoring and adaptation to evade detection or improve persistence.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">A critical SQL injection vulnerability in Ghost CMS (CVE-2026-26980, CVSS 9.4) allows unauthenticated attackers to read arbitrary data, including the admin API key, enabling unauthorized site modification.</span></li><li><span class="kp-text">The threat actor exploited this flaw to gain admin API keys and bulk-inject malicious JavaScript loaders into articles on over 700 legitimate websites.</span></li><li><span class="kp-text">The injected JavaScript acts as a two-stage loader that retrieves a cloaked payload via the Adspect service from an external domain, evading scanners and delivering the attack only to real visitors.</span></li><li><span class="kp-text">Targeted visitors are shown a fake CAPTCHA as part of a ClickFix attack, ultimately dropping a Windows executable—either a signed PuTTY client or a modified Grape desktop client—that establishes persistence and remote control.</span></li><li><span class="kp-text">The compromised sites span universities, blockchain, AI, SaaS, security research, media, and fintech sectors, amplifying the attack&#39;s success by leveraging their trusted reputations.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/05/ghost-cms-cve-2026-26980-exploited-to.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This article reports active, ongoing exploitation of a critical Ghost CMS vulnerability (CVE-2026-26980, CVSS 9.4) in the wild, with over 700 legitimate websites compromised to deliver ClickFix malware. It requires immediate attention from security professionals managing Ghost instances or concerned with web-based attack chains.</p>
 </div></div>
@@ -1768,34 +1924,34 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                 </div>
               </div>
               <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:94%"></div></div><span class="score-num score-num-high">94</span></div>
-              <span class="toc-row-chevron" id="chevron-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
+              <span class="toc-row-chevron" id="chevron-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
             </summary>
             <ul class="toc-cluster-members">
               
             </ul>
           </details>
-          <div class="toc-row-body" id="canon-body-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153">
+          <div class="toc-row-body" id="canon-body-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153" data-article-id="2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153" class="tab-panel active"><div class="prose">Attackers are relentlessly exploiting old, unpatched vulnerabilities and supply chain blind spots, proving that neglecting basic patch management and developer tool security inevitably leads to widespread breaches.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153" class="tab-panel"><div class="prose"><p>A compromised VS Code extension (Nx Console) led to the breach of GitHub’s internal repositories, with about 3,800 repos exfiltrated by the TeamPCP group. This supply chain attack, linked to a prior TanStack compromise, highlights the cascading downstream risk from poisoned developer tools.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153" class="tab-panel active"><div class="prose">Attackers are relentlessly exploiting old, unpatched vulnerabilities and supply chain blind spots, proving that neglecting basic patch management and developer tool security inevitably leads to widespread breaches.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153" class="tab-panel"><div class="prose"><p>A compromised VS Code extension (Nx Console) led to the breach of GitHub’s internal repositories, with about 3,800 repos exfiltrated by the TeamPCP group. This supply chain attack, linked to a prior TanStack compromise, highlights the cascading downstream risk from poisoned developer tools.</p>
 
 <p>Meanwhile, multiple high-severity vulnerabilities are being actively exploited: a nine-year-old Linux kernel flaw allows local root command execution, two Microsoft Defender zero-days grant SYSTEM privileges or cause denial-of-service, and a Drupal Core SQL injection bug is under mass attack. Even security products themselves—like Cisco Secure Workload with a CVSS 10.0 flaw—required urgent patches.</p>
 
 <p>Verizon’s 2026 DBIR reveals a landmark shift: for the first time in nearly two decades, vulnerability exploitation overtook compromised credentials as the top initial access vector for breaches. Organizations are patching slower (median time to remediate rose to 43 days), and only 26% of CISA KEV entries were fully remediated, even as ransomware remains involved in 48% of breaches.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153" class="tab-panel"><div class="prose"><p>The week was defined by a high‑profile supply chain breach at GitHub. Threat actor TeamPCP poisoned the Nx Console VS Code extension, compromising an employee device and exfiltrating roughly 3,800 internal repositories. The attack was an aftershock of the TanStack supply chain incident; affected parties also include OpenAI, Mistral AI, and Grafana Labs, with Grafana refusing an extortion demand. TeamPCP’s public release of the Shai-Hulud worm code now provides a blueprint for similar attacks against open-source and developer environments.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153" class="tab-panel"><div class="prose"><p>The week was defined by a high‑profile supply chain breach at GitHub. Threat actor TeamPCP poisoned the Nx Console VS Code extension, compromising an employee device and exfiltrating roughly 3,800 internal repositories. The attack was an aftershock of the TanStack supply chain incident; affected parties also include OpenAI, Mistral AI, and Grafana Labs, with Grafana refusing an extortion demand. TeamPCP’s public release of the Shai-Hulud worm code now provides a blueprint for similar attacks against open-source and developer environments.</p>
 
 <p>A series of critical vulnerabilities drew attention. A nine-year-old Linux kernel flaw (CVE-2026-46333) lets local users escalate to root on default Debian, Fedora, and Ubuntu installs. Microsoft disclosed two actively exploited Defender vulnerabilities—one for SYSTEM escalation, the other for denial‑of‑service—and a BitLocker bypass (YellowKey) requiring physical access. Drupal Core’s SQL injection bug (CVE-2026-9082) was hit with over 15,000 attack attempts within days of disclosure, while Cisco patched a CVSS 10.0 Secure Workload flaw allowing unauthenticated REST API access.</p>
 
@@ -1807,7 +1963,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Law enforcement and industry moves offered some counterbalance. The Dutch FIOD arrested two individuals and seized 800 servers linked to the sanctioned Stark Industries hosting entity. CISA launched a public KEV nomination form to speed up identification of exploited vulnerabilities. Anthropic’s Project Glasswing found over 10,000 high‑severity bugs in systemically important software, but only 97 were patched upstream—highlighting a dangerous remediation gap. Proton Pass introduced AI access tokens with logging so users can let AI agents access credentials securely, and open‑source tools like Bumblebee and Claude‑BugHunter emerged to help developers scan for supply‑chain risks and security flaws.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
 <p>This weekly recap covers a broad spectrum of cybersecurity incidents and trends. The most prominent story is a supply chain compromise that breached GitHub’s internal code repositories through a tainted VS Code extension. Beyond that, multiple critical vulnerabilities—some years old, some in security products themselves—are under active exploitation. At the same time, the threat landscape is shifting: vulnerability exploitation has overtaken credential theft as the primary initial access vector, botnets are adopting novel C2 mechanisms, and phishing services are bypassing multi‑factor authentication in real time. The article also highlights regulatory actions, new security tools, and persistent patching gaps.</p>
 
@@ -1883,10 +2039,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The week’s events reinforce that the gap between vulnerability discovery and exploitation continues to shrink. Attackers are exploiting years‑old bugs, supply chain weak points, and security products themselves. The shift toward vulnerability exploitation as the dominant initial access vector demands faster, more complete patching, yet organizations are falling behind. Meanwhile, botnets and phishing services are innovating with blockchain C2 and real‑time MFA bypass, while law enforcement steps up actions against enabling services. The overarching message: the basics of timely patching, developer tool security, and credential protection remain the most impactful defenses.</p>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:346b515712cf3153" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">For the first time in nearly two decades, vulnerability exploitation has overtaken compromised credentials as the most common initial access vector in data breaches, marking a fundamental shift in how attackers gain entry.</span></li><li><span class="kp-text">TeamPCP&#39;s public release of the Shai-Hulud supply chain worm code gives other attackers a ready-made blueprint for creating similar worms that target open-source repositories and development environments.</span></li><li><span class="kp-text">Despite the active exploitation of known vulnerabilities, only 26% of CISA KEV entries were fully remediated in 2025, and the median time to patch rose to 43 days, showing a dangerous decline in organizational patching performance.</span></li><li><span class="kp-text">AI-powered vulnerability discovery (Anthropic&#39;s Project Glasswing) found over 10,000 high- or critical-severity flaws in systemically important software in just one month, yet only 97 were patched upstream, highlighting a severe remediation bottleneck.</span></li><li><span class="kp-text">Chinese-language phishing-as-a-service platforms now intercept one-time passcodes in real time through live admin panels and immediately provision victims&#39; payment cards into digital wallets, effectively bypassing multi-factor authentication and monetizing stolen data within seconds.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:346b515712cf3153" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">For the first time in nearly two decades, vulnerability exploitation has overtaken compromised credentials as the most common initial access vector in data breaches, marking a fundamental shift in how attackers gain entry.</span></li><li><span class="kp-text">TeamPCP&#39;s public release of the Shai-Hulud supply chain worm code gives other attackers a ready-made blueprint for creating similar worms that target open-source repositories and development environments.</span></li><li><span class="kp-text">Despite the active exploitation of known vulnerabilities, only 26% of CISA KEV entries were fully remediated in 2025, and the median time to patch rose to 43 days, showing a dangerous decline in organizational patching performance.</span></li><li><span class="kp-text">AI-powered vulnerability discovery (Anthropic&#39;s Project Glasswing) found over 10,000 high- or critical-severity flaws in systemically important software in just one month, yet only 97 were patched upstream, highlighting a severe remediation bottleneck.</span></li><li><span class="kp-text">Chinese-language phishing-as-a-service platforms now intercept one-time passcodes in real time through live admin panels and immediately provision victims&#39; payment cards into digital wallets, effectively bypassing multi-factor authentication and monetizing stolen data within seconds.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">GitHub&#39;s internal breach was caused by a poisoned Nx Console VS Code extension and resulted in the exfiltration of about 3,800 repositories.</span></li><li><span class="kp-text">A nine-year-old vulnerability in the Linux kernel (CVE-2026-46333) allows unprivileged local users to execute commands as root on default installations of Debian, Fedora, and Ubuntu.</span></li><li><span class="kp-text">Microsoft disclosed that two Defender vulnerabilities, one enabling SYSTEM privilege escalation and the other causing denial-of-service, are under active exploitation.</span></li><li><span class="kp-text">According to Verizon&#39;s 2026 Data Breach Investigations Report, vulnerability exploitation overtook compromised credentials as the most common initial access vector for data breaches for the first time in nearly two decades.</span></li><li><span class="kp-text">Ransomware accounted for 48% of breaches last year, but the median ransom payment declined to almost $140,000.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/05/weekly-recap-linux-flaws-defender-0.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The recap reports multiple actively exploited vulnerabilities (Microsoft Defender zero-days, Drupal SQL injection, Linux kernel flaw) and a major supply chain breach at GitHub, providing immediate, actionable threat intelligence that defenders need to prioritize patching and risk assessment.</p>
 </div></div>
@@ -1954,28 +2111,28 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:88%"></div></div><span class="score-num score-num-mid">88</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:9eed8ef67596e0bd">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:9eed8ef67596e0bd')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:9eed8ef67596e0bd')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:9eed8ef67596e0bd')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:9eed8ef67596e0bd')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:9eed8ef67596e0bd')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:9eed8ef67596e0bd')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:9eed8ef67596e0bd')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:9eed8ef67596e0bd')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:9eed8ef67596e0bd')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:9eed8ef67596e0bd')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:9eed8ef67596e0bd" class="tab-panel active"><div class="prose">Anthropic&#39;s highly capable but risky &#39;Mythos&#39; AI model, which uncovered over 10,000 high-severity vulnerabilities in its first month, is being prepared for public release after brief appearances in Claude Code and Claude Security.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:9eed8ef67596e0bd" class="tab-panel"><div class="prose"><p>Anthropic&rsquo;s restricted Mythos model, initially kept out of public reach due to its ability to generate professional-grade cyberattacks, appears to be nearing release after brief appearances in Claude Code and Claude Security. The model, called claude-mythos-1-preview, was seen as a toggle in the public version of Claude Code before it was taken offline. This confirms that Anthropic is preparing for a public rollout, though it is unclear if all subscription tiers will have access.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:9eed8ef67596e0bd" class="tab-panel active"><div class="prose">Anthropic&#39;s highly capable but risky &#39;Mythos&#39; AI model, which uncovered over 10,000 high-severity vulnerabilities in its first month, is being prepared for public release after brief appearances in Claude Code and Claude Security.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:9eed8ef67596e0bd" class="tab-panel"><div class="prose"><p>Anthropic&rsquo;s restricted Mythos model, initially kept out of public reach due to its ability to generate professional-grade cyberattacks, appears to be nearing release after brief appearances in Claude Code and Claude Security. The model, called claude-mythos-1-preview, was seen as a toggle in the public version of Claude Code before it was taken offline. This confirms that Anthropic is preparing for a public rollout, though it is unclear if all subscription tiers will have access.</p>
 
 <p>Announced in April as a new frontier model, Mythos shows major improvements in code reasoning and autonomy, far above the current flagship Opus 4.7. Anthropic found that the model can automatically develop functional cyberattacks at a highly professional level, posing a severe risk to global digital infrastructure. The company warned that in the short term attackers could have the advantage if labs aren’t careful, but in the long term defenders would use these models to fix bugs before new code ships.</p>
 
 <p>Through the Glasswing project, Anthropic collaborated with up to 50 organizational partners to secure critical software from AI-driven exploits, using the Mythos Preview. The model uncovered over 10,000 high- or critical-severity vulnerabilities in its first month alone. This staggering volume of discovered bugs underscores why Anthropic initially delayed public release and focused on building a robust guardrail system.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:9eed8ef67596e0bd" class="tab-panel"><div class="prose"><p>In April, Anthropic announced a preview of its Mythos model, describing it as a new frontier model with strikingly advanced computer security capabilities. The model exhibited major improvements in code reasoning and autonomy that far surpassed its flagship Opus 4.7. Due to these capabilities, the company designated it a restricted model and warned that an uncontrolled rollout could pose a severe risk to global digital infrastructure.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:9eed8ef67596e0bd" class="tab-panel"><div class="prose"><p>In April, Anthropic announced a preview of its Mythos model, describing it as a new frontier model with strikingly advanced computer security capabilities. The model exhibited major improvements in code reasoning and autonomy that far surpassed its flagship Opus 4.7. Due to these capabilities, the company designated it a restricted model and warned that an uncontrolled rollout could pose a severe risk to global digital infrastructure.</p>
 
 <p>Mythos is capable of autonomously developing functional cyberattacks at a highly professional level, a step change that led Anthropic to explicitly warn about an adversarial advantage in the short term. The company stated that if not released carefully, attackers could exploit the model to find and weaponize unpatched vulnerabilities in popular applications like Firefox. In the long term, however, Anthropic believes defenders will use such models to efficiently fix bugs before code is ever shipped.</p>
 
@@ -1985,7 +2142,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The combination of Glasswing&rsquo;s results and the Claude Code interface leak indicates that Mythos is both a powerful vulnerability discovery engine and a dual-use tool that requires careful governance. Anthropic&rsquo;s approach—pairing a managed partnership program with eventual public access—reflects an attempt to balance the defensive potential of the model against its inherent offensive risks.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:9eed8ef67596e0bd" class="tab-panel"><div class="prose"><p>Anthropic is moving towards a public release of its highly capable but dangerous &ldquo;Mythos&rdquo; model, originally held back due to its ability to conduct professional-grade cyberattacks. This analysis examines the model&rsquo;s background, capabilities, early signs of rollout, and the defensive vulnerability work already underway.</p>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:9eed8ef67596e0bd" class="tab-panel"><div class="prose"><p>Anthropic is moving towards a public release of its highly capable but dangerous &ldquo;Mythos&rdquo; model, originally held back due to its ability to conduct professional-grade cyberattacks. This analysis examines the model&rsquo;s background, capabilities, early signs of rollout, and the defensive vulnerability work already underway.</p>
 
 <h2 id="background-the-restricted-mythos-preview">Background: The Restricted Mythos Preview</h2>
 
@@ -2030,10 +2187,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>By acknowledging both the offensive dangers and the defensive promise, Anthropic is framing the model’s release as an inflection point that could determine whether AI security tools primarily empower attackers or defenders in the immediate future.</li>
 </ul>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:9eed8ef67596e0bd" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The brief, inadvertent appearance of the Mythos toggle in a public-facing product like Claude Code suggests that user-interface readiness for the model&#39;s release may have outpaced its safety review, creating a visible operational slip during a high-stakes rollout.</span></li><li><span class="kp-text">There is a fundamental tension in the release strategy: Mythos is deemed capable of producing professional-grade cyberattacks that threaten global infrastructure, yet it is simultaneously being positioned for integration into developer tools, implying Anthropic is betting that its internal guardrails can mitigate risks that it publicly describes as severe.</span></li><li><span class="kp-text">The sheer volume of over 10,000 high- or critical-severity vulnerabilities found in just a month by a single unreleased model reveals that the existing vulnerability discovery ecosystem has left a massive, exploitable backlog in widely deployed software, which the model could rapidly illuminate for both defenders and attackers.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:9eed8ef67596e0bd" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The brief, inadvertent appearance of the Mythos toggle in a public-facing product like Claude Code suggests that user-interface readiness for the model&#39;s release may have outpaced its safety review, creating a visible operational slip during a high-stakes rollout.</span></li><li><span class="kp-text">There is a fundamental tension in the release strategy: Mythos is deemed capable of producing professional-grade cyberattacks that threaten global infrastructure, yet it is simultaneously being positioned for integration into developer tools, implying Anthropic is betting that its internal guardrails can mitigate risks that it publicly describes as severe.</span></li><li><span class="kp-text">The sheer volume of over 10,000 high- or critical-severity vulnerabilities found in just a month by a single unreleased model reveals that the existing vulnerability discovery ecosystem has left a massive, exploitable backlog in widely deployed software, which the model could rapidly illuminate for both defenders and attackers.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Anthropic&#39;s Mythos model possesses advanced code reasoning and can autonomously develop functional cyberattacks at a professional level, far surpassing the company&#39;s previous flagship models.</span></li><li><span class="kp-text">Due to the severe risk it poses to global digital infrastructure, Anthropic initially withheld Mythos from public release, but references to the model briefly surfaced in Claude Code and Claude Security, indicating a public rollout is being prepared.</span></li><li><span class="kp-text">Anthropic warned that in the short term attackers could benefit from such powerful tools if not released carefully, while in the long term defenders are expected to use them more efficiently to fix vulnerabilities before they are exploited.</span></li><li><span class="kp-text">Through the Glasswing project, the unreleased Mythos Preview helped up to 50 organizational partners and uncovered over 10,000 high- or critical-severity vulnerabilities in its first month.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/artificial-intelligence/anthropics-restricted-claude-mythos-model-may-be-coming-to-claude-code/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This article reports a specific, high-impact event: the imminent public release of Anthropic&rsquo;s Mythos model, which can autonomously develop professional-grade cyberattacks and has already uncovered over 10,000 critical vulnerabilities. The brief appearance of the model toggle in production tools signals a concrete and potentially urgent shift in the threat landscape that security professionals should track.</p>
 </div></div>
@@ -2065,26 +2223,26 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:50%"></div></div><span class="score-num score-num-low">50</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="2c649f836c802c9bcc9197615b1d78bf:20355ec40e64f8b7">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d529ee07a31d4053c3d3914adab6a72a:20355ec40e64f8b7')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d529ee07a31d4053c3d3914adab6a72a:20355ec40e64f8b7')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d529ee07a31d4053c3d3914adab6a72a:20355ec40e64f8b7')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d529ee07a31d4053c3d3914adab6a72a:20355ec40e64f8b7')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d529ee07a31d4053c3d3914adab6a72a:20355ec40e64f8b7')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-2c649f836c802c9bcc9197615b1d78bf:20355ec40e64f8b7')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-2c649f836c802c9bcc9197615b1d78bf:20355ec40e64f8b7')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-2c649f836c802c9bcc9197615b1d78bf:20355ec40e64f8b7')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-2c649f836c802c9bcc9197615b1d78bf:20355ec40e64f8b7')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-2c649f836c802c9bcc9197615b1d78bf:20355ec40e64f8b7')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d529ee07a31d4053c3d3914adab6a72a:20355ec40e64f8b7" class="tab-panel active"><div class="prose">Agentic AI transforms Network Detection and Response from a noisy firehose into a high-fidelity, prioritized alert system that catches more threats with less manual tuning.</div></div>
-                <div id="brief-d529ee07a31d4053c3d3914adab6a72a:20355ec40e64f8b7" class="tab-panel"><div class="prose"><p>Network Detection and Response (NDR) has long been plagued by a reputation for generating alert firehoses and excessive noise, often due to insufficient tuning. A new generation of NDR incorporating agentic AI is fundamentally changing this dynamic by autonomously fetching data, triaging alerts, correlating low-severity signals, and presenting analysts with a small set of prioritized, evidence-backed detections. This shift turns the historical weakness of high data volume into a strategic asset, as AI can surface actionable threat narratives that would otherwise be missed.</p>
+                <div id="tldr-2c649f836c802c9bcc9197615b1d78bf:20355ec40e64f8b7" class="tab-panel active"><div class="prose">Agentic AI transforms Network Detection and Response from a noisy firehose into a high-fidelity, prioritized alert system that catches more threats with less manual tuning.</div></div>
+                <div id="brief-2c649f836c802c9bcc9197615b1d78bf:20355ec40e64f8b7" class="tab-panel"><div class="prose"><p>Network Detection and Response (NDR) has long been plagued by a reputation for generating alert firehoses and excessive noise, often due to insufficient tuning. A new generation of NDR incorporating agentic AI is fundamentally changing this dynamic by autonomously fetching data, triaging alerts, correlating low-severity signals, and presenting analysts with a small set of prioritized, evidence-backed detections. This shift turns the historical weakness of high data volume into a strategic asset, as AI can surface actionable threat narratives that would otherwise be missed.</p>
 
 <p>Proper deployment remains essential: networks must be baselined for normal behavior, regular tuning must adapt to changes, and the NDR must integrate strategically into the SOC. When these conditions are met, agentic AI dramatically reduces manual tuning dependencies, elevates analyst focus to genuinely high-severity threats, and fuels downstream SOC tools with high-fidelity data. The result is faster, more accurate threat detection that helps security operations finally keep pace with the network.</p>
 </div></div>
-                <div id="standard-d529ee07a31d4053c3d3914adab6a72a:20355ec40e64f8b7" class="tab-panel"><div class="prose"><p>The article examines how Network Detection and Response (NDR) technology has evolved beyond its outdated reputation as a noisy, overwhelming alert source. Historically, many NDR deployments required extensive manual tuning to prevent SIEM overload, and organizations that neglected this step suffered from alert fatigue. These failures cemented the perception that NDR produces too much data and too many false positives. In reality, the technology has advanced considerably, and the article argues that incorporating agentic AI transforms those same data volumes into a powerful detection engine.</p>
+                <div id="standard-2c649f836c802c9bcc9197615b1d78bf:20355ec40e64f8b7" class="tab-panel"><div class="prose"><p>The article examines how Network Detection and Response (NDR) technology has evolved beyond its outdated reputation as a noisy, overwhelming alert source. Historically, many NDR deployments required extensive manual tuning to prevent SIEM overload, and organizations that neglected this step suffered from alert fatigue. These failures cemented the perception that NDR produces too much data and too many false positives. In reality, the technology has advanced considerably, and the article argues that incorporating agentic AI transforms those same data volumes into a powerful detection engine.</p>
 
 <p>Agentic AI autonomously handles the repetitive, time-consuming work that once buried analysts: it fetches data, triages alerts, correlates disparate events, and performs initial analysis. By simultaneously analyzing thousands of data points, the AI can identify connections between low-severity or informational alerts that most SOC teams would never have the capacity to piece together. The output is no longer a flood of raw anomalies but a curated set of prioritized detections, each accompanied by supporting evidence and suggested response actions. Analysts can examine the AI&rsquo;s reasoning to verify conclusions, fostering transparency and trust.</p>
 
@@ -2092,7 +2250,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>A supporting study is cited to underscore the importance of data quality. In that study, high-fidelity network data improved Capture the Flag (CTF) test scores by over 350%, raised model accuracy from 26% to 95%, and yielded nearly 300% more incident response findings compared to common log formats. Importantly, frontier AI models performed at comparable levels, indicating that data quality had a far greater impact on security outcomes than the choice of model. This finding reinforces the article&rsquo;s central thesis: NDR can shed its noisy legacy when backed by rich data and intelligent, autonomous analysis.</p>
 </div></div>
-                <div id="comprehensive-d529ee07a31d4053c3d3914adab6a72a:20355ec40e64f8b7" class="tab-panel"><div class="prose"><h1 id="the-evolution-of-ndr-from-noise-to-narratives-with-agentic-ai">The Evolution of NDR: From Noise to Narratives with Agentic AI</h1>
+                <div id="comprehensive-2c649f836c802c9bcc9197615b1d78bf:20355ec40e64f8b7" class="tab-panel"><div class="prose"><h1 id="the-evolution-of-ndr-from-noise-to-narratives-with-agentic-ai">The Evolution of NDR: From Noise to Narratives with Agentic AI</h1>
 
 <h2 id="the-lingering-reputation-of-ndr">The Lingering Reputation of NDR</h2>
 
@@ -2151,10 +2309,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Proper deployment handles the remaining noise, resulting in NDR that delivers better visibility, faster response, and helps the SOC keep pace with the network.</li>
 </ul>
 </div></div>
-                <div id="insights-d529ee07a31d4053c3d3914adab6a72a:20355ec40e64f8b7" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Agentic AI reduces the need for manual tuning of NDR by automatically identifying and implementing detection improvements, directly addressing the historical pain point that cemented NDR&#39;s noisy reputation.</span></li><li><span class="kp-text">Data quality has a far greater impact on AI-driven security outcomes than model selection, with one study showing that using high-fidelity network data improved test scores by over 350%, accuracy from 26% to 95%, and incident response findings by nearly 300%, indicating that data fidelity should be prioritized over chasing advanced AI models.</span></li><li><span class="kp-text">The high volume of network data, once considered a liability, becomes a strategic asset with AI because it can correlate low-severity and informational events into actionable threat signals that human analysts would likely miss.</span></li><li><span class="kp-text">Agentic AI provides full transparency into its reasoning, allowing analysts to inspect the logical steps behind detections, which can accelerate trust, verification, and response decisions.</span></li></ul></div>
+                <div id="insights-2c649f836c802c9bcc9197615b1d78bf:20355ec40e64f8b7" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Agentic AI reduces the need for manual tuning of NDR by automatically identifying and implementing detection improvements, directly addressing the historical pain point that cemented NDR&#39;s noisy reputation.</span></li><li><span class="kp-text">Data quality has a far greater impact on AI-driven security outcomes than model selection, with one study showing that using high-fidelity network data improved test scores by over 350%, accuracy from 26% to 95%, and incident response findings by nearly 300%, indicating that data fidelity should be prioritized over chasing advanced AI models.</span></li><li><span class="kp-text">The high volume of network data, once considered a liability, becomes a strategic asset with AI because it can correlate low-severity and informational events into actionable threat signals that human analysts would likely miss.</span></li><li><span class="kp-text">Agentic AI provides full transparency into its reasoning, allowing analysts to inspect the logical steps behind detections, which can accelerate trust, verification, and response decisions.</span></li></ul></div>
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Agentic AI transforms Network Detection and Response from a noisy alert firehose into a system that catches threats earlier, triages faster, and reduces false positives.</span></li><li><span class="kp-text">Agentic AI autonomously fetches data, triages alerts, and performs correlation and initial analysis, freeing analysts to focus on the most critical threats.</span></li><li><span class="kp-text">The high volume of network data, once overwhelming, becomes a strategic asset because AI can surface actionable signals from low-severity activity that analysts would otherwise miss.</span></li><li><span class="kp-text">Proper NDR deployment still requires baselining normal network behavior, regular tuning to account for changes, and strategic SOC integration to minimize false positives.</span></li><li><span class="kp-text">High-quality data dramatically improves security outcomes, with one study showing a 350% improvement in test scores, 95% accuracy versus 26%, and nearly 300% more incident response findings.</span></li></ul></div>
+            
             <a href="https://thehackernews.com/2026/05/the-alert-firehose-finally-meets-its.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article is a generic, vendor-aligned trend piece about NDR evolution with agentic AI, lacking a specific, recent incident, breach, or vulnerability. It offers no actionable alert or breaking event, placing it in the low-priority, evergreen category.</p>
 </div></div>
@@ -2227,9 +2386,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-05-25 00:00 UTC · 1 day window</span>
-  <span class="footer-right">6 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">6 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -2242,15 +2404,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2363,12 +2587,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -2429,6 +2687,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

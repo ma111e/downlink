@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,44 +1506,44 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:88%"></div></div><span class="score-num score-num-mid">88</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:60bf91b4795059bb">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:60bf91b4795059bb')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:60bf91b4795059bb')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:60bf91b4795059bb')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:60bf91b4795059bb')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:60bf91b4795059bb')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:60bf91b4795059bb')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:60bf91b4795059bb')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:60bf91b4795059bb')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:60bf91b4795059bb')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:60bf91b4795059bb')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:60bf91b4795059bb" class="tab-panel active"><div class="prose"><mark class="tag-hl">Silent Ransom Group</mark> is targeting U.S. law firms with fake IT support calls that trick employees into granting remote access, enabling attackers to steal sensitive client and financial data within hours. The group now focuses on rapid data-theft extortion rather than ransomware encryption, using aggressive ransom demands and threats to contact clients directly.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:60bf91b4795059bb" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Silent Ransom Group</mark> is actively targeting U.S. law firms and professional services organizations with social engineering attacks that can lead to data theft within hours of first contact, according to Mandiant. The group is tracked as <mark class="tag-hl">UNC3753</mark>, <mark class="tag-hl">Luna Moth</mark>, and <mark class="tag-hl">Chatty Spider</mark>, and Mandiant said it targeted dozens of organizations in the legal, financial, and professional services sectors between January and May 2026. The report follows an FBI FLASH advisory warning that the group was targeting U.S. law firms through social engineering and even in-person data theft attacks.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:60bf91b4795059bb" class="tab-panel active"><div class="prose">Silent Ransom Group is targeting U.S. law firms with fake IT support calls that trick employees into granting remote access, enabling attackers to steal sensitive client and financial data within hours. The group now focuses on rapid data-theft extortion rather than ransomware encryption, using aggressive ransom demands and threats to contact clients directly.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:60bf91b4795059bb" class="tab-panel"><div class="prose"><p>Silent Ransom Group is actively targeting U.S. law firms and professional services organizations with social engineering attacks that can lead to data theft within hours of first contact, according to Mandiant. The group is tracked as UNC3753, Luna Moth, and Chatty Spider, and Mandiant said it targeted dozens of organizations in the legal, financial, and professional services sectors between January and May 2026. The report follows an FBI FLASH advisory warning that the group was targeting U.S. law firms through social engineering and even in-person data theft attacks.</p>
 
-<p>The attacks begin with invoice-themed phishing emails from consumer email accounts that contain no malicious links or attachments. Attackers then follow up by phone while impersonating corporate IT staff and convince employees to join remote support sessions using platforms such as Microsoft Teams, Zoom, Quick Assist, or Microsoft Terminal Services. During those sessions, victims are tricked into installing remote monitoring and management tools such as <mark class="tag-hl">AnyDesk</mark>, <mark class="tag-hl">Zoho Assist</mark>, <mark class="tag-hl">Bomgar</mark>, or <mark class="tag-hl">SuperOps</mark>.</p>
+<p>The attacks begin with invoice-themed phishing emails from consumer email accounts that contain no malicious links or attachments. Attackers then follow up by phone while impersonating corporate IT staff and convince employees to join remote support sessions using platforms such as Microsoft Teams, Zoom, Quick Assist, or Microsoft Terminal Services. During those sessions, victims are tricked into installing remote monitoring and management tools such as AnyDesk, Zoho Assist, Bomgar, or SuperOps.</p>
 
-<p>Once inside a network, the group searches for sensitive legal and financial documents, including contracts, tax records, Social Security numbers, and merger or acquisition files. Mandiant said the attackers commonly target document management platforms and cloud storage repositories before exfiltrating data with tools such as <mark class="tag-hl">WinSCP</mark> or <mark class="tag-hl">Rclone</mark>. The extortion operation is described as highly aggressive, with ransom demands often arriving within 30 minutes of the attackers leaving the victim environment.</p>
+<p>Once inside a network, the group searches for sensitive legal and financial documents, including contracts, tax records, Social Security numbers, and merger or acquisition files. Mandiant said the attackers commonly target document management platforms and cloud storage repositories before exfiltrating data with tools such as WinSCP or Rclone. The extortion operation is described as highly aggressive, with ransom demands often arriving within 30 minutes of the attackers leaving the victim environment.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:60bf91b4795059bb" class="tab-panel"><div class="prose"><p>Mandiant reported that <mark class="tag-hl">Silent Ransom Group</mark> is actively targeting U.S. law firms and professional services organizations in social engineering attacks that can lead to data theft within hours. The group is tracked as <mark class="tag-hl">UNC3753</mark>, <mark class="tag-hl">Luna Moth</mark>, and <mark class="tag-hl">Chatty Spider</mark>, and Mandiant said it targeted dozens of organizations across the legal, financial, and professional services sectors between January and May 2026. The report follows an FBI FLASH advisory that warned the group was targeting U.S. law firms with social engineering and in-person data theft attacks.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:60bf91b4795059bb" class="tab-panel"><div class="prose"><p>Mandiant reported that Silent Ransom Group is actively targeting U.S. law firms and professional services organizations in social engineering attacks that can lead to data theft within hours. The group is tracked as UNC3753, Luna Moth, and Chatty Spider, and Mandiant said it targeted dozens of organizations across the legal, financial, and professional services sectors between January and May 2026. The report follows an FBI FLASH advisory that warned the group was targeting U.S. law firms with social engineering and in-person data theft attacks.</p>
 
 <p>Mandiant said legal services firms are high-value targets because they maintain sensitive client transaction files, merger and acquisition plans, trade secrets, and corporate regulatory reports. The report states that threat groups recognize legal entities face reputational and regulatory exposure and may be motivated to resolve extortion situations quietly. This makes law firms especially attractive for data-theft extortion operations.</p>
 
 <p>The attacks start with invoice-themed phishing emails sent from consumer email accounts, but the emails do not include malicious links or attachments. Instead, they act as a precursor to follow-up calls from attackers impersonating corporate IT staff. The attackers then convince employees to join remote support sessions through Microsoft Teams, Zoom, Quick Assist, or Microsoft Terminal Services.</p>
 
-<p>During the remote sessions, the attackers trick targets into installing remote monitoring and management tools such as <mark class="tag-hl">AnyDesk</mark>, <mark class="tag-hl">Zoho Assist</mark>, <mark class="tag-hl">Bomgar</mark>, or <mark class="tag-hl">SuperOps</mark>. Mandiant also identified phishing domains that impersonate internal IT portals using naming patterns such as organization-specific IT desk or help desk domains. The attackers also use privnote.com to share installation links and commands, which Mandiant said helps reduce forensic artifacts in browser histories or corporate chat logs.</p>
+<p>During the remote sessions, the attackers trick targets into installing remote monitoring and management tools such as AnyDesk, Zoho Assist, Bomgar, or SuperOps. Mandiant also identified phishing domains that impersonate internal IT portals using naming patterns such as organization-specific IT desk or help desk domains. The attackers also use privnote.com to share installation links and commands, which Mandiant said helps reduce forensic artifacts in browser histories or corporate chat logs.</p>
 
-<p>After gaining access, the group searches for sensitive legal and financial documents, including contracts, tax records, Social Security numbers, and merger or acquisition files. The attackers commonly target document management platforms and cloud storage repositories and exfiltrate data using tools such as <mark class="tag-hl">WinSCP</mark> or <mark class="tag-hl">Rclone</mark>. Mandiant said ransom demands often arrive within 30 minutes after the attackers leave the victim environment and give organizations three days to respond.</p>
+<p>After gaining access, the group searches for sensitive legal and financial documents, including contracts, tax records, Social Security numbers, and merger or acquisition files. The attackers commonly target document management platforms and cloud storage repositories and exfiltrate data using tools such as WinSCP or Rclone. Mandiant said ransom demands often arrive within 30 minutes after the attackers leave the victim environment and give organizations three days to respond.</p>
 
-<p>The article also notes that the FBI warned of suspected in-person data theft activity in which attackers impersonate internal IT staff and attempt to physically visit offices to image computers or create backups while stealing files. Mandiant said there was limited forensic evidence, but the suspected in-person activity is likely linked to <mark class="tag-hl">UNC3753</mark> based on similarities in targeting, timelines, and operational behavior. Resecurity separately reported that the group uses <mark class="tag-hl">DNS fast-flux</mark> infrastructure with residential IP addresses across multiple countries and ISPs to protect data-leak platforms.</p>
+<p>The article also notes that the FBI warned of suspected in-person data theft activity in which attackers impersonate internal IT staff and attempt to physically visit offices to image computers or create backups while stealing files. Mandiant said there was limited forensic evidence, but the suspected in-person activity is likely linked to UNC3753 based on similarities in targeting, timelines, and operational behavior. Resecurity separately reported that the group uses DNS fast-flux infrastructure with residential IP addresses across multiple countries and ISPs to protect data-leak platforms.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:60bf91b4795059bb" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:60bf91b4795059bb" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Silent Ransom Group</mark> is actively targeting U.S. law firms and professional services organizations in social engineering attacks, according to a new report from Mandiant. The attacks often lead to data theft within hours of initial contact. Mandiant tracks the group as <mark class="tag-hl">UNC3753</mark>, <mark class="tag-hl">Luna Moth</mark>, and <mark class="tag-hl">Chatty Spider</mark>.</p>
+<p>Silent Ransom Group is actively targeting U.S. law firms and professional services organizations in social engineering attacks, according to a new report from Mandiant. The attacks often lead to data theft within hours of initial contact. Mandiant tracks the group as UNC3753, Luna Moth, and Chatty Spider.</p>
 
-<p>The report follows an FBI FLASH advisory published the previous week that warned <mark class="tag-hl">Silent Ransom Group</mark> was targeting U.S. law firms through social engineering and even in-person data theft attacks. Mandiant’s report adds technical details about how these intrusions are carried out. The firm said the group targeted dozens of organizations across the legal, financial, and professional services sectors between January and May 2026.</p>
+<p>The report follows an FBI FLASH advisory published the previous week that warned Silent Ransom Group was targeting U.S. law firms through social engineering and even in-person data theft attacks. Mandiant’s report adds technical details about how these intrusions are carried out. The firm said the group targeted dozens of organizations across the legal, financial, and professional services sectors between January and May 2026.</p>
 
 <h2 id="why-law-firms-are-being-targeted">Why law firms are being targeted</h2>
 
@@ -1402,7 +1555,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The attacks begin with invoice-themed phishing emails sent from consumer email accounts. These emails do not contain malicious links or attachments. Instead, they serve as a precursor for follow-up phone calls from attackers impersonating corporate IT staff.</p>
 
-<p>Mandiant described the activity as part of a long-running voice-based tactic used by these actors. The article notes that the group previously used <mark class="tag-hl">BazarCall</mark> social engineering campaigns tied to <mark class="tag-hl">Ryuk</mark> and <mark class="tag-hl">Conti</mark> ransomware attacks. In the current campaign, the attackers impersonate IT help desks and convince employees to join remote support sessions.</p>
+<p>Mandiant described the activity as part of a long-running voice-based tactic used by these actors. The article notes that the group previously used BazarCall social engineering campaigns tied to Ryuk and Conti ransomware attacks. In the current campaign, the attackers impersonate IT help desks and convince employees to join remote support sessions.</p>
 
 <p>Remote support sessions may be conducted through:</p>
 
@@ -1416,10 +1569,10 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>During these sessions, the attackers trick targets into installing remote monitoring and management tools that provide initial access to the corporate network. Tools named in the article include:</p>
 
 <ul>
-<li><mark class="tag-hl">AnyDesk</mark></li>
-<li><mark class="tag-hl">Zoho Assist</mark></li>
-<li><mark class="tag-hl">Bomgar</mark></li>
-<li><mark class="tag-hl">SuperOps</mark></li>
+<li>AnyDesk</li>
+<li>Zoho Assist</li>
+<li>Bomgar</li>
+<li>SuperOps</li>
 </ul>
 
 <h2 id="phishing-domains-and-use-of-self-destructing-messages">Phishing domains and use of self-destructing messages</h2>
@@ -1436,9 +1589,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="data-discovery-and-exfiltration">Data discovery and exfiltration</h2>
 
-<p>Once inside a network, <mark class="tag-hl">Silent Ransom Group</mark> searches for sensitive legal and financial documents. The article names contracts, tax records, Social Security numbers, and merger or acquisition files as targeted data types.</p>
+<p>Once inside a network, Silent Ransom Group searches for sensitive legal and financial documents. The article names contracts, tax records, Social Security numbers, and merger or acquisition files as targeted data types.</p>
 
-<p>The attackers commonly target document management platforms and cloud storage repositories. Mandiant said the group exfiltrates data using tools such as <mark class="tag-hl">WinSCP</mark> or <mark class="tag-hl">Rclone</mark>.</p>
+<p>The attackers commonly target document management platforms and cloud storage repositories. Mandiant said the group exfiltrates data using tools such as WinSCP or Rclone.</p>
 
 <h2 id="extortion-behavior">Extortion behavior</h2>
 
@@ -1450,19 +1603,19 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="fbi-warning-on-in-person-activity">FBI warning on in-person activity</h2>
 
-<p>The article also references the FBI’s recent advisory about in-person data theft attacks linked to <mark class="tag-hl">Silent Ransom Group</mark>. According to the FBI, attackers impersonate internal IT staff over phone calls and emails and then attempt to gain remote access or physically visit offices.</p>
+<p>The article also references the FBI’s recent advisory about in-person data theft attacks linked to Silent Ransom Group. According to the FBI, attackers impersonate internal IT staff over phone calls and emails and then attempt to gain remote access or physically visit offices.</p>
 
-<p>During these physical visits, attackers allegedly attempt to “image” computers or create backups while secretly stealing files. Mandiant said there was limited forensic evidence, but the researchers believe these in-person attacks are likely linked to <mark class="tag-hl">UNC3753</mark> based on similarities in targeting, timelines, and operational behavior.</p>
+<p>During these physical visits, attackers allegedly attempt to “image” computers or create backups while secretly stealing files. Mandiant said there was limited forensic evidence, but the researchers believe these in-person attacks are likely linked to UNC3753 based on similarities in targeting, timelines, and operational behavior.</p>
 
 <h2 id="group-background-and-evolution">Group background and evolution</h2>
 
-<p><mark class="tag-hl">Silent Ransom Group</mark> has been active since at least 2022, when it was part of the <mark class="tag-hl">Ryuk</mark> and <mark class="tag-hl">Conti</mark> cybercrime syndicate. The article says the actors were previously linked to <mark class="tag-hl">BazarCall</mark> callback phishing campaigns that provided initial access in <mark class="tag-hl">Conti</mark> and <mark class="tag-hl">Ryuk</mark> ransomware attacks.</p>
+<p>Silent Ransom Group has been active since at least 2022, when it was part of the Ryuk and Conti cybercrime syndicate. The article says the actors were previously linked to BazarCall callback phishing campaigns that provided initial access in Conti and Ryuk ransomware attacks.</p>
 
-<p>After the <mark class="tag-hl">Conti</mark> syndicate shut down in 2022, the group shifted to standalone data theft and extortion operations under the <mark class="tag-hl">Silent Ransom Group</mark> branding. Researchers said the group no longer relies on traditional ransomware encryption and instead focuses entirely on data-theft extortion, stealing sensitive data and pressuring victims to pay to prevent leaks.</p>
+<p>After the Conti syndicate shut down in 2022, the group shifted to standalone data theft and extortion operations under the Silent Ransom Group branding. Researchers said the group no longer relies on traditional ransomware encryption and instead focuses entirely on data-theft extortion, stealing sensitive data and pressuring victims to pay to prevent leaks.</p>
 
 <h2 id="fast-flux-infrastructure">Fast-flux infrastructure</h2>
 
-<p>A separate report released by Resecurity found that the gang is operating fast-flux infrastructure to hide and protect its data-leak platforms. The article explains <mark class="tag-hl">DNS fast flux</mark> as a method in which attackers constantly rotate a domain’s IP addresses through a large pool of compromised devices to hide infrastructure and make takedowns or blocking more difficult.</p>
+<p>A separate report released by Resecurity found that the gang is operating fast-flux infrastructure to hide and protect its data-leak platforms. The article explains DNS fast flux as a method in which attackers constantly rotate a domain’s IP addresses through a large pool of compromised devices to hide infrastructure and make takedowns or blocking more difficult.</p>
 
 <p>Resecurity said the infrastructure uses residential IP addresses across multiple countries and ISPs. The company also said the group’s <code>business-data-leaks[.]com</code> leak site and related infrastructure rely on residential proxy networks spread across Latin America, Eastern Europe, Central Asia, the Middle East, and Asia. Resecurity also linked the infrastructure to other cybercrime-related services and domains.</p>
 
@@ -1480,21 +1633,22 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>These recommendations directly address the group’s use of fake IT support calls, remote access tooling, and possible physical office visits.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:60bf91b4795059bb" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Because the initial phishing emails contain no malicious links or attachments, defenses that rely mainly on scanning email payloads may miss the early stage of these attacks.</span></li><li><span class="kp-text">The use of privnote.com to share installation links and commands is specifically intended to reduce forensic artifacts in browser histories and corporate chat logs.</span></li><li><span class="kp-text">The group’s extortion strategy is built around legal firms’ reputational and regulatory exposure, with threats to contact employees and external clients directly if victims do not respond within three days.</span></li><li><span class="kp-text">The reported in-person office visits show that verification procedures for IT support interactions need to cover both remote help desk requests and physical access requests.</span></li><li><span class="kp-text">Resecurity found that the group uses <mark class="tag-hl">DNS fast-flux</mark> infrastructure with residential IP addresses across multiple countries and ISPs, making takedowns and blocking more difficult.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:60bf91b4795059bb" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Because the initial phishing emails contain no malicious links or attachments, defenses that rely mainly on scanning email payloads may miss the early stage of these attacks.</span></li><li><span class="kp-text">The use of privnote.com to share installation links and commands is specifically intended to reduce forensic artifacts in browser histories and corporate chat logs.</span></li><li><span class="kp-text">The group’s extortion strategy is built around legal firms’ reputational and regulatory exposure, with threats to contact employees and external clients directly if victims do not respond within three days.</span></li><li><span class="kp-text">The reported in-person office visits show that verification procedures for IT support interactions need to cover both remote help desk requests and physical access requests.</span></li><li><span class="kp-text">Resecurity found that the group uses DNS fast-flux infrastructure with residential IP addresses across multiple countries and ISPs, making takedowns and blocking more difficult.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Mandiant reported that the <mark class="tag-hl">Silent Ransom Group</mark>, tracked as <mark class="tag-hl">UNC3753</mark>, <mark class="tag-hl">Luna Moth</mark>, and <mark class="tag-hl">Chatty Spider</mark>, targeted dozens of legal, financial, and professional services organizations between January and May 2026.</span></li><li><span class="kp-text">The attacks begin with invoice-themed phishing emails from consumer email accounts, followed by phone calls in which attackers impersonate corporate IT staff.</span></li><li><span class="kp-text">Attackers convince employees to join remote support sessions through tools such as Microsoft Teams, Zoom, Quick Assist, or Microsoft Terminal Services and install remote monitoring and management tools such as <mark class="tag-hl">AnyDesk</mark>, <mark class="tag-hl">Zoho Assist</mark>, <mark class="tag-hl">Bomgar</mark>, or <mark class="tag-hl">SuperOps</mark>.</span></li><li><span class="kp-text">Once inside a network, the group searches for sensitive legal and financial documents and exfiltrates data using tools such as <mark class="tag-hl">WinSCP</mark> or <mark class="tag-hl">Rclone</mark>.</span></li><li><span class="kp-text">Mandiant said ransom demands often arrive within 30 minutes of the attackers leaving the victim environment and give organizations three days to respond.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Mandiant reported that the Silent Ransom Group, tracked as UNC3753, Luna Moth, and Chatty Spider, targeted dozens of legal, financial, and professional services organizations between January and May 2026.</span></li><li><span class="kp-text">The attacks begin with invoice-themed phishing emails from consumer email accounts, followed by phone calls in which attackers impersonate corporate IT staff.</span></li><li><span class="kp-text">Attackers convince employees to join remote support sessions through tools such as Microsoft Teams, Zoom, Quick Assist, or Microsoft Terminal Services and install remote monitoring and management tools such as AnyDesk, Zoho Assist, Bomgar, or SuperOps.</span></li><li><span class="kp-text">Once inside a network, the group searches for sensitive legal and financial documents and exfiltrates data using tools such as WinSCP or Rclone.</span></li><li><span class="kp-text">Mandiant said ransom demands often arrive within 30 minutes of the attackers leaving the victim environment and give organizations three days to respond.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/silent-ransom-group-targets-law-firms-with-fake-it-support-calls/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific named threat actor operation actively targeting U.S. law firms and professional services organizations, with Mandiant and FBI reporting concrete tactics, tools, and extortion behavior. It is broadly relevant for security teams because the campaign uses payload-free phishing, fake IT support calls, remote management tools, and rapid data-theft extortion that can bypass common email defenses.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="http://cloud.google.com/blog/topics/threat-intelligence/targeted-campaign-us-law-firms" target="_blank" rel="noopener">Targeted Campaign Against U.S. Law Firms</a></div>
   <div class="report-meta">Mandiant</div>
-  <div class="report-context">The article is based on Mandiant&#39;s report describing <mark class="tag-hl">Silent Ransom Group</mark> activity against legal, financial, and professional services organizations and explaining the intrusion methods.</div>
+  <div class="report-context">The article is based on Mandiant&#39;s report describing Silent Ransom Group activity against legal, financial, and professional services organizations and explaining the intrusion methods.</div>
 </li><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.resecurity.com/blog/article/silent-ransom-group-srg-uncovering-dns-fast-flux-infrastructure" target="_blank" rel="noopener">Silent Ransom Group (SRG): Uncovering DNS Fast-Flux Infrastructure</a></div>
   <div class="report-meta">Resecurity</div>
-  <div class="report-context">The article cites Resecurity&#39;s separate report on <mark class="tag-hl">Silent Ransom Group</mark>&#39;s <mark class="tag-hl">DNS fast-flux</mark> infrastructure used to hide and protect data-leak platforms.</div>
+  <div class="report-context">The article cites Resecurity&#39;s separate report on Silent Ransom Group&#39;s DNS fast-flux infrastructure used to hide and protect data-leak platforms.</div>
 </li></ul></div>
             
           </div>
@@ -1517,56 +1671,56 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:84%"></div></div><span class="score-num score-num-mid">84</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:8e1be0ce669efcf8">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:8e1be0ce669efcf8')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:8e1be0ce669efcf8')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:8e1be0ce669efcf8')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:8e1be0ce669efcf8')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:8e1be0ce669efcf8')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:8e1be0ce669efcf8')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:8e1be0ce669efcf8')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:8e1be0ce669efcf8')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:8e1be0ce669efcf8')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:8e1be0ce669efcf8')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:8e1be0ce669efcf8" class="tab-panel active"><div class="prose">A new <mark class="tag-hl">Gafgyt</mark> variant called <mark class="tag-hl">C0XMO</mark> is exploiting a <mark class="tag-hl">DD-WRT</mark> router flaw to infect devices across multiple CPU architectures, spread via scanning and weak SSH/Telnet credentials, and launch DDoS attacks. It also removes rival malware and persistence mechanisms, showing more sophistication than typical IoT botnets.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:8e1be0ce669efcf8" class="tab-panel"><div class="prose"><p>A new variant of the <mark class="tag-hl">Gafgyt</mark> botnet called <mark class="tag-hl">C0XMO</mark> is targeting <mark class="tag-hl">DD-WRT</mark> router firmware and can spread to other device types across multiple CPU architectures. <mark class="tag-hl">Fortinet</mark> researchers found samples for ARM, MIPS, PowerPC, SuperH, x86, x86_64, and other architectures. The botnet was seen targeting a Japanese technology company, while the observed source IP address belonged to a device in <mark class="tag-hl">Germany</mark>.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:8e1be0ce669efcf8" class="tab-panel active"><div class="prose">A new Gafgyt variant called C0XMO is exploiting a DD-WRT router flaw to infect devices across multiple CPU architectures, spread via scanning and weak SSH/Telnet credentials, and launch DDoS attacks. It also removes rival malware and persistence mechanisms, showing more sophistication than typical IoT botnets.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:8e1be0ce669efcf8" class="tab-panel"><div class="prose"><p>A new variant of the Gafgyt botnet called C0XMO is targeting DD-WRT router firmware and can spread to other device types across multiple CPU architectures. Fortinet researchers found samples for ARM, MIPS, PowerPC, SuperH, x86, x86_64, and other architectures. The botnet was seen targeting a Japanese technology company, while the observed source IP address belonged to a device in Germany.</p>
 
-<p><mark class="tag-hl">C0XMO</mark> is delivered by exploiting <mark class="tag-hl">CVE-2021-27137</mark>, an unauthenticated buffer overflow vulnerability caused by insufficient user input that can allow arbitrary code execution. The malware uses a Python scanner to find internet-facing systems, brute-force weak Telnet and SSH credentials, detect CPU architecture, and deploy a compatible binary. It also establishes persistence through hidden file locations, cron jobs, and shell startup modifications.</p>
+<p>C0XMO is delivered by exploiting CVE-2021-27137, an unauthenticated buffer overflow vulnerability caused by insufficient user input that can allow arbitrary code execution. The malware uses a Python scanner to find internet-facing systems, brute-force weak Telnet and SSH credentials, detect CPU architecture, and deploy a compatible binary. It also establishes persistence through hidden file locations, cron jobs, and shell startup modifications.</p>
 
-<p>The botnet’s main purpose is launching distributed denial-of-service attacks, with 19 supported methods including UDP, TCP, SYN, and ICMP floods, as well as NTP and <mark class="tag-hl">Memcached amplification</mark>. <mark class="tag-hl">C0XMO</mark> also kills rival botnet clients and removes persistence mechanisms that may interfere with its operation. <mark class="tag-hl">Fortinet</mark> described it as more advanced and operationally sophisticated than typical <mark class="tag-hl">Gafgyt</mark> malware.</p>
+<p>The botnet’s main purpose is launching distributed denial-of-service attacks, with 19 supported methods including UDP, TCP, SYN, and ICMP floods, as well as NTP and Memcached amplification. C0XMO also kills rival botnet clients and removes persistence mechanisms that may interfere with its operation. Fortinet described it as more advanced and operationally sophisticated than typical Gafgyt malware.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:8e1be0ce669efcf8" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Fortinet</mark> researchers discovered <mark class="tag-hl">C0XMO</mark>, a new variant of the <mark class="tag-hl">Gafgyt</mark> botnet that targets <mark class="tag-hl">DD-WRT</mark> router firmware and can move to other device types. The researchers found samples built for multiple CPU architectures, including ARM, MIPS, PowerPC, SuperH, x86, and x86_64. The botnet was observed targeting a Japanese technology company, though the source IP address was associated with a device located in <mark class="tag-hl">Germany</mark>.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:8e1be0ce669efcf8" class="tab-panel"><div class="prose"><p>Fortinet researchers discovered C0XMO, a new variant of the Gafgyt botnet that targets DD-WRT router firmware and can move to other device types. The researchers found samples built for multiple CPU architectures, including ARM, MIPS, PowerPC, SuperH, x86, and x86_64. The botnet was observed targeting a Japanese technology company, though the source IP address was associated with a device located in Germany.</p>
 
-<p>The malware is delivered through exploitation of <mark class="tag-hl">CVE-2021-27137</mark>, a buffer overflow vulnerability caused by insufficient user input. According to the article, the flaw can be exploited without authentication and can lead to arbitrary code execution. <mark class="tag-hl">C0XMO</mark>’s modular design allows operators to update exploitation techniques, add or remove targeted architectures, and expand lateral movement capabilities separately from the main payload.</p>
+<p>The malware is delivered through exploitation of CVE-2021-27137, a buffer overflow vulnerability caused by insufficient user input. According to the article, the flaw can be exploited without authentication and can lead to arbitrary code execution. C0XMO’s modular design allows operators to update exploitation techniques, add or remove targeted architectures, and expand lateral movement capabilities separately from the main payload.</p>
 
-<p>For wider distribution, <mark class="tag-hl">C0XMO</mark> downloads a Python script that installs packages including requests, paramiko, and beautifulsoup4. The scanner uses worker threads to randomly scan internet-facing systems on ports such as 22, 23, 80, 443, 7547, 8080, 8443, and 8888. After identifying a target, it attempts to brute-force weak Telnet and SSH credentials, detects the CPU architecture, and deploys a compatible <mark class="tag-hl">C0XMO</mark> binary.</p>
+<p>For wider distribution, C0XMO downloads a Python script that installs packages including requests, paramiko, and beautifulsoup4. The scanner uses worker threads to randomly scan internet-facing systems on ports such as 22, 23, 80, 443, 7547, 8080, 8443, and 8888. After identifying a target, it attempts to brute-force weak Telnet and SSH credentials, detects the CPU architecture, and deploys a compatible C0XMO binary.</p>
 
-<p>After gaining access, the malware copies itself to hidden paths such as /tmp/.sys, /var/tmp/.sys, and /dev/shm/.sys. It creates cron jobs to relaunch itself every 15 minutes and modifies shell startup files to enable automatic execution. <mark class="tag-hl">C0XMO</mark> also scans running processes to identify competitor botnet clients, red-team tools, programming tools, and network services that may interfere with its operation.</p>
+<p>After gaining access, the malware copies itself to hidden paths such as /tmp/.sys, /var/tmp/.sys, and /dev/shm/.sys. It creates cron jobs to relaunch itself every 15 minutes and modifies shell startup files to enable automatic execution. C0XMO also scans running processes to identify competitor botnet clients, red-team tools, programming tools, and network services that may interfere with its operation.</p>
 
-<p>The botnet connects to a hardcoded command-and-control address using a custom multi-stage handshake involving magic strings and shared secrets. Its supported commands include heartbeat checks, starting and stopping scans, and launching DDoS attacks using one of 19 methods. <mark class="tag-hl">Fortinet</mark> said the malware has a considerably more advanced architecture and feature set than earlier IoT botnets, and recommended keeping devices updated, using unique admin credentials, and disabling unnecessary remote access capabilities.</p>
+<p>The botnet connects to a hardcoded command-and-control address using a custom multi-stage handshake involving magic strings and shared secrets. Its supported commands include heartbeat checks, starting and stopping scans, and launching DDoS attacks using one of 19 methods. Fortinet said the malware has a considerably more advanced architecture and feature set than earlier IoT botnets, and recommended keeping devices updated, using unique admin credentials, and disabling unnecessary remote access capabilities.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:8e1be0ce669efcf8" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:8e1be0ce669efcf8" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Fortinet</mark> researchers discovered <mark class="tag-hl">C0XMO</mark>, a new variant of the <mark class="tag-hl">Gafgyt</mark> botnet that targets <mark class="tag-hl">DD-WRT</mark> router firmware. The malware can move beyond <mark class="tag-hl">DD-WRT</mark> routers to other device types and supports a wide range of CPU architectures. Researchers found samples for ARM, MIPS, PowerPC, SuperH, x86, x86_64, and other architectures.</p>
+<p>Fortinet researchers discovered C0XMO, a new variant of the Gafgyt botnet that targets DD-WRT router firmware. The malware can move beyond DD-WRT routers to other device types and supports a wide range of CPU architectures. Researchers found samples for ARM, MIPS, PowerPC, SuperH, x86, x86_64, and other architectures.</p>
 
-<p>The botnet was observed targeting a Japanese technology company. However, the article states that the source IP address was associated with a device located in <mark class="tag-hl">Germany</mark>. The article does not identify the botnet operators.</p>
+<p>The botnet was observed targeting a Japanese technology company. However, the article states that the source IP address was associated with a device located in Germany. The article does not identify the botnet operators.</p>
 
 <h2 id="significance">Significance</h2>
 
-<p><mark class="tag-hl">C0XMO</mark> is described as a DDoS-focused botnet with a more advanced architecture and feature set than earlier IoT botnets. <mark class="tag-hl">Fortinet</mark> researchers said its overall design shows greater operational sophistication and complexity than typical <mark class="tag-hl">Gafgyt</mark> malware. Its modular structure allows operators to update exploitation techniques, add or remove supported architectures, and expand lateral movement capabilities independently of the main payload.</p>
+<p>C0XMO is described as a DDoS-focused botnet with a more advanced architecture and feature set than earlier IoT botnets. Fortinet researchers said its overall design shows greater operational sophistication and complexity than typical Gafgyt malware. Its modular structure allows operators to update exploitation techniques, add or remove supported architectures, and expand lateral movement capabilities independently of the main payload.</p>
 
 <h2 id="initial-access-and-vulnerability">Initial Access and Vulnerability</h2>
 
-<p><mark class="tag-hl">C0XMO</mark> is delivered by exploiting <mark class="tag-hl">CVE-2021-27137</mark>. The article describes this as a buffer overflow vulnerability caused by insufficient user input. It can be exploited without authentication and can lead to arbitrary code execution.</p>
+<p>C0XMO is delivered by exploiting CVE-2021-27137. The article describes this as a buffer overflow vulnerability caused by insufficient user input. It can be exploited without authentication and can lead to arbitrary code execution.</p>
 
-<p>The article identifies <mark class="tag-hl">DD-WRT</mark> router firmware as a key target for this activity. It also states that the malware includes exploits for DVRs, routers, video management platforms, and <mark class="tag-hl">Android</mark>-based devices.</p>
+<p>The article identifies DD-WRT router firmware as a key target for this activity. It also states that the malware includes exploits for DVRs, routers, video management platforms, and Android-based devices.</p>
 
 <h2 id="scanning-and-spread">Scanning and Spread</h2>
 
-<p>For broader distribution, <mark class="tag-hl">C0XMO</mark> downloads a Python script that installs additional packages. These include:</p>
+<p>For broader distribution, C0XMO downloads a Python script that installs additional packages. These include:</p>
 
 <ul>
 <li>requests</li>
@@ -1586,13 +1740,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>8888</li>
 </ul>
 
-<p>After finding a target, the malware attempts to brute-force weak Telnet and SSH credentials. It then detects the target device’s CPU architecture and deploys a compatible <mark class="tag-hl">C0XMO</mark> binary.</p>
+<p>After finding a target, the malware attempts to brute-force weak Telnet and SSH credentials. It then detects the target device’s CPU architecture and deploys a compatible C0XMO binary.</p>
 
-<p>The Python script contains almost two dozen functions for scanning, exploiting HTTP and <mark class="tag-hl">ADB</mark>-based vulnerabilities, detecting CPU architecture, logging in over SSH and Telnet, and checking IP addresses. The article states that its main purpose is lateral movement on the network.</p>
+<p>The Python script contains almost two dozen functions for scanning, exploiting HTTP and ADB-based vulnerabilities, detecting CPU architecture, logging in over SSH and Telnet, and checking IP addresses. The article states that its main purpose is lateral movement on the network.</p>
 
 <h2 id="persistence-and-host-control">Persistence and Host Control</h2>
 
-<p>Once <mark class="tag-hl">C0XMO</mark> gains access to a device, it copies itself to hidden locations. The article names these paths:</p>
+<p>Once C0XMO gains access to a device, it copies itself to hidden locations. The article names these paths:</p>
 
 <ul>
 <li>/tmp/.sys</li>
@@ -1604,13 +1758,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="removal-of-rival-malware-and-tools">Removal of Rival Malware and Tools</h2>
 
-<p><mark class="tag-hl">C0XMO</mark> scans running processes to identify competitor botnet clients on the host. It also looks for red-team tools, programming tools, and network services that may interfere with its operation. When it finds these, it terminates them.</p>
+<p>C0XMO scans running processes to identify competitor botnet clients on the host. It also looks for red-team tools, programming tools, and network services that may interfere with its operation. When it finds these, it terminates them.</p>
 
-<p>The malware also deletes binaries and removes persistence mechanisms. The article specifically names cron jobs, init scripts, system services, and shell profile entries as persistence mechanisms that <mark class="tag-hl">C0XMO</mark> removes.</p>
+<p>The malware also deletes binaries and removes persistence mechanisms. The article specifically names cron jobs, init scripts, system services, and shell profile entries as persistence mechanisms that C0XMO removes.</p>
 
 <h2 id="command-and-control-and-capabilities">Command-and-Control and Capabilities</h2>
 
-<p>After establishing itself, <mark class="tag-hl">C0XMO</mark> connects to a hardcoded command-and-control address. The connection uses a custom multi-stage handshake that includes magic strings and shared secrets. The malware then waits for commands.</p>
+<p>After establishing itself, C0XMO connects to a hardcoded command-and-control address. The connection uses a custom multi-stage handshake that includes magic strings and shared secrets. The malware then waits for commands.</p>
 
 <p>Supported commands include:</p>
 
@@ -1621,22 +1775,23 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Launching DDoS attacks</li>
 </ul>
 
-<p><mark class="tag-hl">C0XMO</mark> supports 19 DDoS methods. The article lists methods including UDP, TCP, SYN, and ICMP floods, “ping of death,” NTP and <mark class="tag-hl">Memcached amplification</mark>, <mark class="tag-hl">Discord</mark> voice UDP floods, and <mark class="tag-hl">Valve</mark>-specific floods.</p>
+<p>C0XMO supports 19 DDoS methods. The article lists methods including UDP, TCP, SYN, and ICMP floods, “ping of death,” NTP and Memcached amplification, Discord voice UDP floods, and Valve-specific floods.</p>
 
 <h2 id="defensive-guidance-mentioned-in-the-article">Defensive Guidance Mentioned in the Article</h2>
 
-<p>The article gives general recommendations for defending against <mark class="tag-hl">C0XMO</mark> and other botnet malware. These include keeping devices up to date, using unique administrator credentials, and disabling remote access capabilities when they are not needed.</p>
+<p>The article gives general recommendations for defending against C0XMO and other botnet malware. These include keeping devices up to date, using unique administrator credentials, and disabling remote access capabilities when they are not needed.</p>
 
 <h2 id="reported-impact-and-affected-parties">Reported Impact and Affected Parties</h2>
 
-<p>The article states that <mark class="tag-hl">C0XMO</mark> was seen targeting a Japanese technology company. It also states that the source IP address was tied to a device located in <mark class="tag-hl">Germany</mark>. The broader affected ecosystem includes <mark class="tag-hl">DD-WRT</mark> router firmware and other device types such as DVRs, routers, video management platforms, and <mark class="tag-hl">Android</mark>-based devices.</p>
+<p>The article states that C0XMO was seen targeting a Japanese technology company. It also states that the source IP address was tied to a device located in Germany. The broader affected ecosystem includes DD-WRT router firmware and other device types such as DVRs, routers, video management platforms, and Android-based devices.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:8e1be0ce669efcf8" class="tab-panel"><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">C0XMO</mark>’s modular design lets operators update exploitation techniques, change targeted CPU architectures, and expand lateral movement capabilities independently of the main payload.</span></li><li><span class="kp-text">Defenders should treat unexplained removal of cron jobs, init scripts, system services, or shell profile entries as potentially malicious because <mark class="tag-hl">C0XMO</mark> deletes rival malware and its persistence mechanisms.</span></li><li><span class="kp-text">The botnet’s scanner targets both standard remote access ports and less common service ports such as 7547, 8443, and 8888, making exposed device management interfaces a practical hardening priority.</span></li><li><span class="kp-text"><mark class="tag-hl">C0XMO</mark>’s use of a German source IP while targeting a Japanese technology company shows that observed attack traffic may originate from already-compromised third-party devices rather than the operators’ location.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:8e1be0ce669efcf8" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">C0XMO’s modular design lets operators update exploitation techniques, change targeted CPU architectures, and expand lateral movement capabilities independently of the main payload.</span></li><li><span class="kp-text">Defenders should treat unexplained removal of cron jobs, init scripts, system services, or shell profile entries as potentially malicious because C0XMO deletes rival malware and its persistence mechanisms.</span></li><li><span class="kp-text">The botnet’s scanner targets both standard remote access ports and less common service ports such as 7547, 8443, and 8888, making exposed device management interfaces a practical hardening priority.</span></li><li><span class="kp-text">C0XMO’s use of a German source IP while targeting a Japanese technology company shows that observed attack traffic may originate from already-compromised third-party devices rather than the operators’ location.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Fortinet</mark> researchers discovered a new <mark class="tag-hl">Gafgyt</mark> variant called <mark class="tag-hl">C0XMO</mark> that targets <mark class="tag-hl">DD-WRT</mark> router firmware and supports multiple CPU architectures, including ARM, MIPS, PowerPC, SuperH, x86, and x86_64.</span></li><li><span class="kp-text"><mark class="tag-hl">C0XMO</mark> is delivered by exploiting <mark class="tag-hl">CVE-2021-27137</mark>, an unauthenticated buffer overflow vulnerability that can lead to arbitrary code execution.</span></li><li><span class="kp-text">The botnet downloads a Python scanner that scans internet-facing systems, brute-forces weak Telnet and SSH credentials, detects CPU architecture, and deploys a compatible <mark class="tag-hl">C0XMO</mark> binary.</span></li><li><span class="kp-text">After gaining access, <mark class="tag-hl">C0XMO</mark> copies itself to hidden locations, creates cron jobs for persistence, and modifies shell startup files for automatic execution.</span></li><li><span class="kp-text"><mark class="tag-hl">C0XMO</mark> can terminate competitor botnet clients and interfering tools, then connects to a hardcoded command-and-control server to receive commands including DDoS attacks using 19 supported methods.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Fortinet researchers discovered a new Gafgyt variant called C0XMO that targets DD-WRT router firmware and supports multiple CPU architectures, including ARM, MIPS, PowerPC, SuperH, x86, and x86_64.</span></li><li><span class="kp-text">C0XMO is delivered by exploiting CVE-2021-27137, an unauthenticated buffer overflow vulnerability that can lead to arbitrary code execution.</span></li><li><span class="kp-text">The botnet downloads a Python scanner that scans internet-facing systems, brute-forces weak Telnet and SSH credentials, detects CPU architecture, and deploys a compatible C0XMO binary.</span></li><li><span class="kp-text">After gaining access, C0XMO copies itself to hidden locations, creates cron jobs for persistence, and modifies shell startup files for automatic execution.</span></li><li><span class="kp-text">C0XMO can terminate competitor botnet clients and interfering tools, then connects to a hardcoded command-and-control server to receive commands including DDoS attacks using 19 supported methods.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/c0xmo-botnet-spreads-via-dd-wrt-router-flaw-kills-rival-malware/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, active botnet finding involving exploitation of <mark class="tag-hl">CVE-2021-27137</mark> against <mark class="tag-hl">DD-WRT</mark> routers, multi-architecture payloads, lateral movement, persistence, and DDoS capability. It is broadly relevant to defenders responsible for internet-facing routers and IoT devices, though it is not framed as a major breach or critical patch event.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, active botnet finding involving exploitation of CVE-2021-27137 against DD-WRT routers, multi-architecture payloads, lateral movement, persistence, and DDoS capability. It is broadly relevant to defenders responsible for internet-facing routers and IoT devices, though it is not framed as a major breach or critical patch event.</p>
 </div></div>
             
             
@@ -1667,22 +1822,22 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Edge Device Botnets and DD-WRT Exploitation</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Fortinet</mark> researchers reported a new <mark class="tag-hl">Gafgyt</mark> variant named <mark class="tag-hl">C0XMO</mark> that targets <mark class="tag-hl">DD-WRT</mark> router firmware through <mark class="tag-hl">CVE-2021-27137</mark>, an unauthenticated buffer overflow vulnerability that can enable arbitrary code execution. The malware supports multiple CPU architectures, including ARM, MIPS, PowerPC, SuperH, x86, and x86_64, allowing it to operate across a broad range of embedded and router environments.</p>
+        <div class="overview-body prose"><p>Fortinet researchers reported a new Gafgyt variant named C0XMO that targets DD-WRT router firmware through CVE-2021-27137, an unauthenticated buffer overflow vulnerability that can enable arbitrary code execution. The malware supports multiple CPU architectures, including ARM, MIPS, PowerPC, SuperH, x86, and x86_64, allowing it to operate across a broad range of embedded and router environments.</p>
 
-<p><mark class="tag-hl">C0XMO</mark>’s infection chain includes deployment of a Python scanner that searches for internet-facing systems, brute-forces weak Telnet and SSH credentials, identifies the target CPU architecture, and installs a compatible malware binary. Once deployed, the botnet copies itself into hidden locations, establishes cron-based persistence, and modifies shell startup files to support automatic execution after reboot or login.</p>
+<p>C0XMO’s infection chain includes deployment of a Python scanner that searches for internet-facing systems, brute-forces weak Telnet and SSH credentials, identifies the target CPU architecture, and installs a compatible malware binary. Once deployed, the botnet copies itself into hidden locations, establishes cron-based persistence, and modifies shell startup files to support automatic execution after reboot or login.</p>
 
-<p>The malware also includes competitive botnet suppression behavior, terminating rival malware clients and tools that could interfere with its operation. After installation, <mark class="tag-hl">C0XMO</mark> connects to a hardcoded command-and-control server and can receive commands for distributed denial-of-service activity, with 19 DDoS methods reportedly supported.</p>
+<p>The malware also includes competitive botnet suppression behavior, terminating rival malware clients and tools that could interfere with its operation. After installation, C0XMO connects to a hardcoded command-and-control server and can receive commands for distributed denial-of-service activity, with 19 DDoS methods reportedly supported.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Social Engineering and Data Extortion Against Legal and Professional Services</span>
         </div>
-        <div class="overview-body prose"><p>Mandiant reported that <mark class="tag-hl">Silent Ransom Group</mark>, also tracked as <mark class="tag-hl">UNC3753</mark>, <mark class="tag-hl">Luna Moth</mark>, and <mark class="tag-hl">Chatty Spider</mark>, targeted dozens of legal, financial, and professional services organizations between January and May 2026. The campaign begins with invoice-themed phishing messages sent from consumer email accounts, followed by phone calls in which the attackers impersonate corporate IT personnel.</p>
+        <div class="overview-body prose"><p>Mandiant reported that Silent Ransom Group, also tracked as UNC3753, Luna Moth, and Chatty Spider, targeted dozens of legal, financial, and professional services organizations between January and May 2026. The campaign begins with invoice-themed phishing messages sent from consumer email accounts, followed by phone calls in which the attackers impersonate corporate IT personnel.</p>
 
-<p>The group’s intrusion workflow relies heavily on social engineering and legitimate remote access channels rather than traditional malware deployment. Victims are persuaded to join remote support sessions through tools such as Microsoft Teams, Zoom, Quick Assist, or Microsoft Terminal Services, after which attackers install remote monitoring and management software including <mark class="tag-hl">AnyDesk</mark>, <mark class="tag-hl">Zoho Assist</mark>, <mark class="tag-hl">Bomgar</mark>, or <mark class="tag-hl">SuperOps</mark>.</p>
+<p>The group’s intrusion workflow relies heavily on social engineering and legitimate remote access channels rather than traditional malware deployment. Victims are persuaded to join remote support sessions through tools such as Microsoft Teams, Zoom, Quick Assist, or Microsoft Terminal Services, after which attackers install remote monitoring and management software including AnyDesk, Zoho Assist, Bomgar, or SuperOps.</p>
 
-<p>Once inside victim environments, the attackers search for sensitive legal and financial documents and exfiltrate data using utilities such as <mark class="tag-hl">WinSCP</mark> or <mark class="tag-hl">Rclone</mark>. Mandiant reported that ransom demands often arrive within 30 minutes after the operators leave the environment, with victims typically given three days to respond.</p>
+<p>Once inside victim environments, the attackers search for sensitive legal and financial documents and exfiltrate data using utilities such as WinSCP or Rclone. Mandiant reported that ransom demands often arrive within 30 minutes after the operators leave the environment, with victims typically given three days to respond.</p>
 </div>
       </div>
     </div>
@@ -1691,9 +1846,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-07 14:00 UTC · 4 hours window</span>
-  <span class="footer-right">2 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">2 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1706,15 +1864,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1827,12 +2047,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1893,6 +2147,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

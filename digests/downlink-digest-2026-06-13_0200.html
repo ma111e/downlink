@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,60 +1506,60 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:92%"></div></div><span class="score-num score-num-high">92</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="ae9067a09556aec77039afd5995795d5:3debb2efed812419">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d5ba5c2d979259df2a32448fab113605:3debb2efed812419')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d5ba5c2d979259df2a32448fab113605:3debb2efed812419')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d5ba5c2d979259df2a32448fab113605:3debb2efed812419')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d5ba5c2d979259df2a32448fab113605:3debb2efed812419')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d5ba5c2d979259df2a32448fab113605:3debb2efed812419')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-ae9067a09556aec77039afd5995795d5:3debb2efed812419')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-ae9067a09556aec77039afd5995795d5:3debb2efed812419')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-ae9067a09556aec77039afd5995795d5:3debb2efed812419')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-ae9067a09556aec77039afd5995795d5:3debb2efed812419')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-ae9067a09556aec77039afd5995795d5:3debb2efed812419')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d5ba5c2d979259df2a32448fab113605:3debb2efed812419" class="tab-panel active"><div class="prose">Attackers hijacked 400+ trusted AUR packages by adopting abandoned projects and adding malicious dependencies that steal developer and CI credentials. Any affected Arch-based host should be treated as compromised, rebuilt from clean media, and have exposed secrets rotated.</div></div>
-                <div id="brief-d5ba5c2d979259df2a32448fab113605:3debb2efed812419" class="tab-panel"><div class="prose"><p>Security researchers and the <mark class="tag-hl">Arch Linux</mark> community disclosed a June 2026 supply-chain attack against the <mark class="tag-hl">Arch User Repository</mark>, or AUR. Attackers hijacked more than 400 community packages by adopting orphaned packages and modifying them to execute attacker-controlled code. The article describes the campaign, dubbed “<mark class="tag-hl">Atomic Arch</mark>” by <mark class="tag-hl">Sonatype</mark> researchers, as a textbook example of trust abuse in open-source ecosystems.</p>
+                <div id="tldr-ae9067a09556aec77039afd5995795d5:3debb2efed812419" class="tab-panel active"><div class="prose">Attackers hijacked 400+ trusted AUR packages by adopting abandoned projects and adding malicious dependencies that steal developer and CI credentials. Any affected Arch-based host should be treated as compromised, rebuilt from clean media, and have exposed secrets rotated.</div></div>
+                <div id="brief-ae9067a09556aec77039afd5995795d5:3debb2efed812419" class="tab-panel"><div class="prose"><p>Security researchers and the Arch Linux community disclosed a June 2026 supply-chain attack against the Arch User Repository, or AUR. Attackers hijacked more than 400 community packages by adopting orphaned packages and modifying them to execute attacker-controlled code. The article describes the campaign, dubbed “Atomic Arch” by Sonatype researchers, as a textbook example of trust abuse in open-source ecosystems.</p>
 
-<p>The attack worked by adding malicious dependencies such as <mark class="tag-hl">atomic-lockfile</mark> and <mark class="tag-hl">js-digest</mark> through PKGBUILDs or install hooks. When users installed or updated affected AUR packages, the malicious dependency was fetched and executed on the local system. The payload is described as a Rust credential stealer that targets developer and CI assets including browser sessions, SSH keys, GitHub and <mark class="tag-hl">npm</mark> tokens, chat sessions, container credentials, and cloud keys.</p>
+<p>The attack worked by adding malicious dependencies such as atomic-lockfile and js-digest through PKGBUILDs or install hooks. When users installed or updated affected AUR packages, the malicious dependency was fetched and executed on the local system. The payload is described as a Rust credential stealer that targets developer and CI assets including browser sessions, SSH keys, GitHub and npm tokens, chat sessions, container credentials, and cloud keys.</p>
 
-<p>The article says the direct impact is limited to <mark class="tag-hl">Arch Linux</mark> and Arch-based environments that use AUR, including self-hosted CI runners and Arch under <mark class="tag-hl">WSL2</mark>. However, it emphasizes that stolen credentials can let attackers pivot into GitHub, <mark class="tag-hl">npm</mark>, cloud accounts, and production systems that are not Arch-based. Recommended response includes identifying affected hosts, rotating exposed secrets, rebuilding systems where the payload may have run as root, and adding behavioral monitoring.</p>
+<p>The article says the direct impact is limited to Arch Linux and Arch-based environments that use AUR, including self-hosted CI runners and Arch under WSL2. However, it emphasizes that stolen credentials can let attackers pivot into GitHub, npm, cloud accounts, and production systems that are not Arch-based. Recommended response includes identifying affected hosts, rotating exposed secrets, rebuilding systems where the payload may have run as root, and adding behavioral monitoring.</p>
 </div></div>
-                <div id="standard-d5ba5c2d979259df2a32448fab113605:3debb2efed812419" class="tab-panel"><div class="prose"><p>The article reports that on June 11, 2026, security researchers and the <mark class="tag-hl">Arch Linux</mark> community disclosed a large-scale supply-chain attack against the <mark class="tag-hl">Arch User Repository</mark>. More than 400 AUR community packages were hijacked and converted into a malware delivery network. The campaign was dubbed “<mark class="tag-hl">Atomic Arch</mark>” by <mark class="tag-hl">Sonatype</mark> researchers and is presented as an example of attackers abusing trust in open-source package ecosystems.</p>
+                <div id="standard-ae9067a09556aec77039afd5995795d5:3debb2efed812419" class="tab-panel"><div class="prose"><p>The article reports that on June 11, 2026, security researchers and the Arch Linux community disclosed a large-scale supply-chain attack against the Arch User Repository. More than 400 AUR community packages were hijacked and converted into a malware delivery network. The campaign was dubbed “Atomic Arch” by Sonatype researchers and is presented as an example of attackers abusing trust in open-source package ecosystems.</p>
 
-<p>AUR is described as a community repository where <mark class="tag-hl">Arch Linux</mark> users share PKGBUILD scripts for software outside the official repositories. Because users or AUR helpers build packages locally, malicious logic in those scripts can execute directly on a developer’s machine during build or installation. The article highlights AUR’s ownership-transfer mechanism, where abandoned packages can be adopted by new maintainers, as a key avenue used in the campaign.</p>
+<p>AUR is described as a community repository where Arch Linux users share PKGBUILD scripts for software outside the official repositories. Because users or AUR helpers build packages locally, malicious logic in those scripts can execute directly on a developer’s machine during build or installation. The article highlights AUR’s ownership-transfer mechanism, where abandoned packages can be adopted by new maintainers, as a key avenue used in the campaign.</p>
 
-<p>The attackers targeted orphaned packages that already had users and legitimate history. They modified PKGBUILDs or install hooks to run <mark class="tag-hl">npm</mark> install <mark class="tag-hl">atomic-lockfile</mark> and variants such as <mark class="tag-hl">js-digest</mark>. This caused affected AUR installs or updates to transparently fetch and execute malicious Node package dependencies.</p>
+<p>The attackers targeted orphaned packages that already had users and legitimate history. They modified PKGBUILDs or install hooks to run npm install atomic-lockfile and variants such as js-digest. This caused affected AUR installs or updates to transparently fetch and execute malicious Node package dependencies.</p>
 
-<p>The malware is described as a Rust-based credential stealer embedded in a malicious <mark class="tag-hl">npm</mark> package masquerading as <mark class="tag-hl">atomic-lockfile</mark>. It targets browser cookies and session tokens, SSH keys and known_hosts, GitHub and <mark class="tag-hl">npm</mark> tokens, Slack, Discord, and Teams sessions, Docker and Podman credentials, and cloud access keys. On systems where it gains elevated privileges, the article says it can attempt <mark class="tag-hl">eBPF</mark>-based persistence to hide process and file activity.</p>
+<p>The malware is described as a Rust-based credential stealer embedded in a malicious npm package masquerading as atomic-lockfile. It targets browser cookies and session tokens, SSH keys and known_hosts, GitHub and npm tokens, Slack, Discord, and Teams sessions, Docker and Podman credentials, and cloud access keys. On systems where it gains elevated privileges, the article says it can attempt eBPF-based persistence to hide process and file activity.</p>
 
-<p>Directly affected systems include <mark class="tag-hl">Arch Linux</mark> and Arch-based distributions such as <mark class="tag-hl">EndeavourOS</mark> and <mark class="tag-hl">Manjaro</mark> when AUR is used, self-hosted CI runners or build agents running Arch, and Windows developers using Arch under <mark class="tag-hl">WSL2</mark> with AUR packages. The article says GitHub-hosted runners and non-Arch self-hosted runners are not directly affected by this vector unless they pull in Arch or AUR through nested environments. It also notes that macOS and Windows developer machines are not directly affected, while macOS faces structurally similar risks through <mark class="tag-hl">Homebrew</mark>’s ownership-transfer model.</p>
+<p>Directly affected systems include Arch Linux and Arch-based distributions such as EndeavourOS and Manjaro when AUR is used, self-hosted CI runners or build agents running Arch, and Windows developers using Arch under WSL2 with AUR packages. The article says GitHub-hosted runners and non-Arch self-hosted runners are not directly affected by this vector unless they pull in Arch or AUR through nested environments. It also notes that macOS and Windows developer machines are not directly affected, while macOS faces structurally similar risks through Homebrew’s ownership-transfer model.</p>
 
-<p>The article recommends treating this as an incident-response moment for organizations using Arch on workstations or CI systems. It advises enumerating affected hosts, reviewing AUR install and upgrade history since early June 2026, rotating developer and cloud credentials if a bad package ran, and rebuilding systems where the payload may have run as root. It also recommends monitoring build hosts and runners for unexpected package manager activity, network egress during build steps, suspicious systemd units, <mark class="tag-hl">eBPF</mark> objects, and anomalous outbound connections.</p>
+<p>The article recommends treating this as an incident-response moment for organizations using Arch on workstations or CI systems. It advises enumerating affected hosts, reviewing AUR install and upgrade history since early June 2026, rotating developer and cloud credentials if a bad package ran, and rebuilding systems where the payload may have run as root. It also recommends monitoring build hosts and runners for unexpected package manager activity, network egress during build steps, suspicious systemd units, eBPF objects, and anomalous outbound connections.</p>
 </div></div>
-                <div id="comprehensive-d5ba5c2d979259df2a32448fab113605:3debb2efed812419" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-ae9067a09556aec77039afd5995795d5:3debb2efed812419" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The article describes a June 2026 supply-chain attack against the <mark class="tag-hl">Arch User Repository</mark>, or AUR, disclosed by security researchers and the <mark class="tag-hl">Arch Linux</mark> community. Attackers hijacked more than 400 community packages and turned them into a malware delivery network. The campaign was dubbed “<mark class="tag-hl">Atomic Arch</mark>” by <mark class="tag-hl">Sonatype</mark> researchers.</p>
+<p>The article describes a June 2026 supply-chain attack against the Arch User Repository, or AUR, disclosed by security researchers and the Arch Linux community. Attackers hijacked more than 400 community packages and turned them into a malware delivery network. The campaign was dubbed “Atomic Arch” by Sonatype researchers.</p>
 
-<p>The article frames the incident as immediately relevant to <mark class="tag-hl">Arch Linux</mark> users, but also as a broader example of how attackers can compromise developers and CI infrastructure by abusing trust in open-source ecosystems. It emphasizes that while the direct vector is Arch-specific, the targeted assets include developer credentials, CI secrets, cloud keys, and sessions that can affect organizations beyond Arch-based systems.</p>
+<p>The article frames the incident as immediately relevant to Arch Linux users, but also as a broader example of how attackers can compromise developers and CI infrastructure by abusing trust in open-source ecosystems. It emphasizes that while the direct vector is Arch-specific, the targeted assets include developer credentials, CI secrets, cloud keys, and sessions that can affect organizations beyond Arch-based systems.</p>
 
 <h2 id="aur-context">AUR Context</h2>
 
-<p>The <mark class="tag-hl">Arch User Repository</mark> is described as a community-driven repository where <mark class="tag-hl">Arch Linux</mark> users share PKGBUILD scripts for software not found in official repositories. Users or AUR helpers clone these scripts and build native packages locally. Because the build happens on the user’s system, malicious logic in a PKGBUILD or install hook can execute directly on the developer’s machine during build or installation.</p>
+<p>The Arch User Repository is described as a community-driven repository where Arch Linux users share PKGBUILD scripts for software not found in official repositories. Users or AUR helpers clone these scripts and build native packages locally. Because the build happens on the user’s system, malicious logic in a PKGBUILD or install hook can execute directly on the developer’s machine during build or installation.</p>
 
 <p>The article highlights AUR’s package ownership-transfer feature as central to the attack. If a package maintainer abandons a package, another user can request to adopt it and inherit the package name and reputation. The article states that this keeps useful software alive, but also creates an opportunity for attackers to take over trusted packages quietly.</p>
 
 <h2 id="attack-pattern">Attack Pattern</h2>
 
-<p>According to the article, the attackers systematically adopted orphaned AUR packages with existing users and legitimate history. They then injected malicious build logic into the packages. The modifications caused affected packages to pull in attacker-controlled <mark class="tag-hl">npm</mark> dependencies.</p>
+<p>According to the article, the attackers systematically adopted orphaned AUR packages with existing users and legitimate history. They then injected malicious build logic into the packages. The modifications caused affected packages to pull in attacker-controlled npm dependencies.</p>
 
 <p>The article describes the main attack sequence as follows:</p>
 
 <ul>
 <li>Attackers adopted orphaned AUR packages that had accumulated trust over time.</li>
-<li>They modified PKGBUILDs or install hooks to run <mark class="tag-hl">npm</mark> install <mark class="tag-hl">atomic-lockfile</mark> or variants such as <mark class="tag-hl">js-digest</mark>.</li>
+<li>They modified PKGBUILDs or install hooks to run npm install atomic-lockfile or variants such as js-digest.</li>
 <li>When users installed or updated the AUR package, the malicious dependency was fetched and executed silently.</li>
 </ul>
 
@@ -1414,26 +1567,26 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="malware-behavior">Malware Behavior</h2>
 
-<p>The malicious <mark class="tag-hl">npm</mark> package masquerading as <mark class="tag-hl">atomic-lockfile</mark> is described as containing a credential-stealing payload written in Rust. The article says the payload is tuned for developer and CI environments rather than random consumer data. It targets assets that can unlock broader organizational systems.</p>
+<p>The malicious npm package masquerading as atomic-lockfile is described as containing a credential-stealing payload written in Rust. The article says the payload is tuned for developer and CI environments rather than random consumer data. It targets assets that can unlock broader organizational systems.</p>
 
 <p>The targeted assets listed in the article include:</p>
 
 <ul>
 <li>Browser cookies and session tokens for SSO, cloud consoles, and SaaS applications.</li>
 <li>SSH keys and known_hosts.</li>
-<li>GitHub, <mark class="tag-hl">npm</mark>, and other developer tokens.</li>
+<li>GitHub, npm, and other developer tokens.</li>
 <li>Slack, Discord, and Teams sessions.</li>
 <li>Docker and Podman credentials.</li>
 <li>Cloud access keys.</li>
 </ul>
 
-<p>The article also states that when the malware runs with elevated privileges, it can attempt <mark class="tag-hl">eBPF</mark>-based persistence to hide processes and file activity. Because of this, the article says a compromised host should be treated as fully untrusted, rebuilt from clean media, and have exposed credentials rotated. It explicitly says a one-off malware scan is not sufficient.</p>
+<p>The article also states that when the malware runs with elevated privileges, it can attempt eBPF-based persistence to hide processes and file activity. Because of this, the article says a compromised host should be treated as fully untrusted, rebuilt from clean media, and have exposed credentials rotated. It explicitly says a one-off malware scan is not sufficient.</p>
 
 <h2 id="affected-and-unaffected-environments">Affected and Unaffected Environments</h2>
 
-<p>The article says the AUR is an <mark class="tag-hl">Arch Linux</mark>-specific ecosystem. Directly affected environments include <mark class="tag-hl">Arch Linux</mark> and Arch-based distributions when AUR is used. It names <mark class="tag-hl">EndeavourOS</mark> and <mark class="tag-hl">Manjaro</mark> as examples when AUR packages are installed.</p>
+<p>The article says the AUR is an Arch Linux-specific ecosystem. Directly affected environments include Arch Linux and Arch-based distributions when AUR is used. It names EndeavourOS and Manjaro as examples when AUR packages are installed.</p>
 
-<p>The article also identifies self-hosted CI runners or build agents running Arch as directly affected if they install AUR packages in bootstrap or job steps. It includes Windows developers running Arch under <mark class="tag-hl">WSL2</mark> and installing AUR packages inside that environment.</p>
+<p>The article also identifies self-hosted CI runners or build agents running Arch as directly affected if they install AUR packages in bootstrap or job steps. It includes Windows developers running Arch under WSL2 and installing AUR packages inside that environment.</p>
 
 <p>The article says the following are not directly affected by this vector:</p>
 
@@ -1443,36 +1596,37 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>macOS and Windows developer machines as direct targets of this vector.</li>
 </ul>
 
-<p>At the same time, the article notes that macOS faces structurally similar risks through <mark class="tag-hl">Homebrew</mark> because of a similar package ownership-transfer model. It states that a hijacking campaign against abandoned <mark class="tag-hl">Homebrew</mark> formulae or third-party taps would affect macOS developer machines in the same way.</p>
+<p>At the same time, the article notes that macOS faces structurally similar risks through Homebrew because of a similar package ownership-transfer model. It states that a hijacking campaign against abandoned Homebrew formulae or third-party taps would affect macOS developer machines in the same way.</p>
 
 <h2 id="broader-significance">Broader Significance</h2>
 
 <p>The article argues that the importance of the campaign extends beyond the Arch community. One major point is that ownership hijacking can be more effective than typosquatting. Instead of publishing lookalike packages, attackers can take over abandoned but trusted packages and inherit users and reputation.</p>
 
-<p>The article also stresses that build scripts are an execution environment. It groups PKGBUILDs, postinstall hooks, <mark class="tag-hl">GitHub Actions</mark> workflows, and Dockerfiles as examples of scripts that run with powerful privileges but may be casually reviewed.</p>
+<p>The article also stresses that build scripts are an execution environment. It groups PKGBUILDs, postinstall hooks, GitHub Actions workflows, and Dockerfiles as examples of scripts that run with powerful privileges but may be casually reviewed.</p>
 
-<p>The article says the payload is aligned with recent campaigns in which compromised <mark class="tag-hl">npm</mark> packages or <mark class="tag-hl">GitHub Actions</mark> exfiltrated CI secrets at scale. It emphasizes that even organizations that never use Arch can still be affected if an Arch-based developer laptop is compromised and used as a pivot into GitHub, <mark class="tag-hl">npm</mark>, or cloud accounts.</p>
+<p>The article says the payload is aligned with recent campaigns in which compromised npm packages or GitHub Actions exfiltrated CI secrets at scale. It emphasizes that even organizations that never use Arch can still be affected if an Arch-based developer laptop is compromised and used as a pivot into GitHub, npm, or cloud accounts.</p>
 
 <h2 id="recommended-response">Recommended Response</h2>
 
 <p>The article recommends that organizations using Arch for developer workstations or self-hosted runners treat the campaign as an incident-response moment. It advises first identifying potentially affected hosts, including laptops, lab machines, and self-hosted CI runners running Arch or Arch derivatives. It also recommends reviewing AUR install and upgrade history since early June 2026 and cross-checking against known-bad package lists.</p>
 
-<p>If a bad package ran, the article recommends assuming credential exposure. It specifically calls for rotating SSH keys, GitHub tokens, <mark class="tag-hl">npm</mark> tokens, cloud API keys, Vault tokens, and other secrets stored or used on affected machines. It also recommends invalidating browser sessions and regenerating passkeys where possible, especially for admin and SSO accounts.</p>
+<p>If a bad package ran, the article recommends assuming credential exposure. It specifically calls for rotating SSH keys, GitHub tokens, npm tokens, cloud API keys, Vault tokens, and other secrets stored or used on affected machines. It also recommends invalidating browser sessions and regenerating passkeys where possible, especially for admin and SSO accounts.</p>
 
 <p>For systems where the malicious payload may have run as root, the article recommends treating the host as compromised. It advises rebuilding from trusted media and only rejoining systems to CI or infrastructure after reinstallation and re-provisioning with fresh credentials.</p>
 
-<p>The article also recommends behavioral monitoring. It says teams should monitor build hosts and runners for unexpected package manager calls, unexpected network egress during build steps, suspicious systemd units, <mark class="tag-hl">eBPF</mark> objects, and anomalous outbound connections to paste sites, file-sharing services, or Tor.</p>
+<p>The article also recommends behavioral monitoring. It says teams should monitor build hosts and runners for unexpected package manager calls, unexpected network egress during build steps, suspicious systemd units, eBPF objects, and anomalous outbound connections to paste sites, file-sharing services, or Tor.</p>
 
 <h2 id="vendor-tooling-mentioned">Vendor Tooling Mentioned</h2>
 
-<p>The article includes a section on StepSecurity’s products. It says Harden-Runner monitors <mark class="tag-hl">GitHub Actions</mark>, GitLab CI, and Azure DevOps pipeline steps at runtime for unexpected network egress, unauthorized process spawning, and anomalous package manager activity. It also says Dev Machine Guard provides visibility on developer workstations and alerts on suspicious activity.</p>
+<p>The article includes a section on StepSecurity’s products. It says Harden-Runner monitors GitHub Actions, GitLab CI, and Azure DevOps pipeline steps at runtime for unexpected network egress, unauthorized process spawning, and anomalous package manager activity. It also says Dev Machine Guard provides visibility on developer workstations and alerts on suspicious activity.</p>
 
-<p>The article connects these products to the behaviors described in the <mark class="tag-hl">Atomic Arch</mark> campaign, particularly malware execution on build hosts and credential theft from developer machines. It concludes that visibility into what build environments and developer machines are doing is important for detecting unexpected activity before secrets leave the device.</p>
+<p>The article connects these products to the behaviors described in the Atomic Arch campaign, particularly malware execution on build hosts and credential theft from developer machines. It concludes that visibility into what build environments and developer machines are doing is important for detecting unexpected activity before secrets leave the device.</p>
 </div></div>
-                <div id="insights-d5ba5c2d979259df2a32448fab113605:3debb2efed812419" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The campaign shows that ownership transfer of abandoned but trusted packages can be more effective than typosquatting because attackers inherit an existing user base and package reputation.</span></li><li><span class="kp-text">A single added install-time dependency in a build script can turn routine package installation into code execution on developer machines and CI hosts.</span></li><li><span class="kp-text">The article emphasizes that the main organizational risk is not limited to Arch systems because stolen developer credentials can be used to pivot into GitHub, <mark class="tag-hl">npm</mark>, cloud accounts, and non-Arch production environments.</span></li><li><span class="kp-text">The presence of possible <mark class="tag-hl">eBPF</mark>-based persistence means a malware scan is not considered sufficient for privileged infections, and affected systems should be rebuilt from trusted media.</span></li><li><span class="kp-text">Windows developers using Arch under <mark class="tag-hl">WSL2</mark> are included in the affected population if they installed AUR packages inside that environment.</span></li></ul></div>
+                <div id="insights-ae9067a09556aec77039afd5995795d5:3debb2efed812419" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The campaign shows that ownership transfer of abandoned but trusted packages can be more effective than typosquatting because attackers inherit an existing user base and package reputation.</span></li><li><span class="kp-text">A single added install-time dependency in a build script can turn routine package installation into code execution on developer machines and CI hosts.</span></li><li><span class="kp-text">The article emphasizes that the main organizational risk is not limited to Arch systems because stolen developer credentials can be used to pivot into GitHub, npm, cloud accounts, and non-Arch production environments.</span></li><li><span class="kp-text">The presence of possible eBPF-based persistence means a malware scan is not considered sufficient for privileged infections, and affected systems should be rebuilt from trusted media.</span></li><li><span class="kp-text">Windows developers using Arch under WSL2 are included in the affected population if they installed AUR packages inside that environment.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Security researchers and the <mark class="tag-hl">Arch Linux</mark> community disclosed a June 2026 supply-chain attack in which attackers hijacked more than 400 <mark class="tag-hl">Arch User Repository</mark> packages.</span></li><li><span class="kp-text">The attackers adopted orphaned AUR packages with existing users and modified PKGBUILDs or install hooks to run malicious <mark class="tag-hl">npm</mark> dependencies such as <mark class="tag-hl">atomic-lockfile</mark> and <mark class="tag-hl">js-digest</mark>.</span></li><li><span class="kp-text">The malicious <mark class="tag-hl">npm</mark> package contained a Rust credential-stealing payload that targeted browser cookies, SSH keys, developer tokens, chat sessions, Docker or Podman credentials, and cloud access keys.</span></li><li><span class="kp-text">The article says affected Arch or Arch-based systems, including self-hosted CI runners and <mark class="tag-hl">WSL2</mark> Arch environments, should be reviewed if they installed AUR packages during the relevant period.</span></li><li><span class="kp-text">The article recommends treating hosts where the payload may have run as root as compromised, rebuilding them from trusted media, and rotating exposed credentials.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Security researchers and the Arch Linux community disclosed a June 2026 supply-chain attack in which attackers hijacked more than 400 Arch User Repository packages.</span></li><li><span class="kp-text">The attackers adopted orphaned AUR packages with existing users and modified PKGBUILDs or install hooks to run malicious npm dependencies such as atomic-lockfile and js-digest.</span></li><li><span class="kp-text">The malicious npm package contained a Rust credential-stealing payload that targeted browser cookies, SSH keys, developer tokens, chat sessions, Docker or Podman credentials, and cloud access keys.</span></li><li><span class="kp-text">The article says affected Arch or Arch-based systems, including self-hosted CI runners and WSL2 Arch environments, should be reviewed if they installed AUR packages during the relevant period.</span></li><li><span class="kp-text">The article recommends treating hosts where the payload may have run as root as compromised, rebuilding them from trusted media, and rotating exposed credentials.</span></li></ul></div>
+            
             <a href="https://www.stepsecurity.io/blog/400-aur-packages-hijacked-atomic-arch-campaign" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific large-scale supply-chain attack in which more than 400 trusted AUR packages were hijacked to deliver credential-stealing malware. It is especially important for security professionals because the payload targets developer and CI credentials that can enable broader organizational compromise beyond Arch systems.</p>
 </div></div>
@@ -1504,63 +1658,63 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:55%"></div></div><span class="score-num score-num-low">55</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="32a5de1e06dd3a0b3c8f55242ccf0777:7f6152d105bcd805">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-ab0fb885e7a4fcad2dfee7e6ace39ea2:7f6152d105bcd805')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-ab0fb885e7a4fcad2dfee7e6ace39ea2:7f6152d105bcd805')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-ab0fb885e7a4fcad2dfee7e6ace39ea2:7f6152d105bcd805')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-ab0fb885e7a4fcad2dfee7e6ace39ea2:7f6152d105bcd805')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-ab0fb885e7a4fcad2dfee7e6ace39ea2:7f6152d105bcd805')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-32a5de1e06dd3a0b3c8f55242ccf0777:7f6152d105bcd805')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-32a5de1e06dd3a0b3c8f55242ccf0777:7f6152d105bcd805')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-32a5de1e06dd3a0b3c8f55242ccf0777:7f6152d105bcd805')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-32a5de1e06dd3a0b3c8f55242ccf0777:7f6152d105bcd805')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-32a5de1e06dd3a0b3c8f55242ccf0777:7f6152d105bcd805')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-ab0fb885e7a4fcad2dfee7e6ace39ea2:7f6152d105bcd805" class="tab-panel active"><div class="prose"><mark class="tag-hl">Anthropic</mark>’s public <mark class="tag-hl">Claude Fable 5</mark> release is not the unrestricted Mythos model, and its cybersecurity queries are routed to a safer model, making “AI hacker” hype misleading. The author argues the real impact of these models will be defensive work like exposure management, misconfiguration discovery, and remediation rather than a zero-day arms race.</div></div>
-                <div id="brief-ab0fb885e7a4fcad2dfee7e6ace39ea2:7f6152d105bcd805" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Anthropic</mark> announced the availability of <mark class="tag-hl">Claude Fable 5</mark>, a descendant of its <mark class="tag-hl">Mythos Preview</mark> model, while <mark class="tag-hl">Microsoft</mark> published its largest Patch Tuesday in history with more than 200 vulnerabilities. The article argues that coverage of <mark class="tag-hl">Anthropic</mark>’s model has caused misunderstandings, especially around whether <mark class="tag-hl">Mythos Preview</mark> was made public. According to the article, <mark class="tag-hl">Mythos Preview</mark> remains limited to the original <mark class="tag-hl">Glasswing initiative</mark> companies, while <mark class="tag-hl">Claude Mythos 5</mark> is available to a second cohort of about 150 additional organizations.</p>
+                <div id="tldr-32a5de1e06dd3a0b3c8f55242ccf0777:7f6152d105bcd805" class="tab-panel active"><div class="prose">Anthropic’s public Claude Fable 5 release is not the unrestricted Mythos model, and its cybersecurity queries are routed to a safer model, making “AI hacker” hype misleading. The author argues the real impact of these models will be defensive work like exposure management, misconfiguration discovery, and remediation rather than a zero-day arms race.</div></div>
+                <div id="brief-32a5de1e06dd3a0b3c8f55242ccf0777:7f6152d105bcd805" class="tab-panel"><div class="prose"><p>Anthropic announced the availability of Claude Fable 5, a descendant of its Mythos Preview model, while Microsoft published its largest Patch Tuesday in history with more than 200 vulnerabilities. The article argues that coverage of Anthropic’s model has caused misunderstandings, especially around whether Mythos Preview was made public. According to the article, Mythos Preview remains limited to the original Glasswing initiative companies, while Claude Mythos 5 is available to a second cohort of about 150 additional organizations.</p>
 
-<p>The key technical detail is that <mark class="tag-hl">Claude Fable 5</mark> routes cybersecurity prompts and discussions to an Opus 4.8 model to make it safe for general usage. The author says this makes cybersecurity benchmarking of Fable 5 pointless because such tests would effectively measure Opus 4.8 behavior instead. The article also says bioweapons-related queries are handled by a lesser model as part of <mark class="tag-hl">Anthropic</mark>’s safety compromise.</p>
+<p>The key technical detail is that Claude Fable 5 routes cybersecurity prompts and discussions to an Opus 4.8 model to make it safe for general usage. The author says this makes cybersecurity benchmarking of Fable 5 pointless because such tests would effectively measure Opus 4.8 behavior instead. The article also says bioweapons-related queries are handled by a lesser model as part of Anthropic’s safety compromise.</p>
 
 <p>The article’s broader argument is that Mythos has been incorrectly framed as an “AI hacker,” when the more important issue is defensive security work. The author argues that vulnerability discovery is only a portion of what organizations need to fix, with many risks coming from misconfigurations, exposed services, stale permissions, ghost assets, broken identity edges, and SaaS workflow problems. The article concludes that tokens are more likely to be spent on defensive scanning, remediation workflows, exposure management, and security hygiene than on a zero-day arms race.</p>
 </div></div>
-                <div id="standard-ab0fb885e7a4fcad2dfee7e6ace39ea2:7f6152d105bcd805" class="tab-panel"><div class="prose"><p>The article discusses <mark class="tag-hl">Anthropic</mark>’s release of <mark class="tag-hl">Claude Fable 5</mark>, describing it as a descendant of the <mark class="tag-hl">Mythos Preview</mark> model rather than a public release of <mark class="tag-hl">Mythos Preview</mark> itself. It says <mark class="tag-hl">Mythos Preview</mark> remains available only to the original <mark class="tag-hl">Glasswing initiative</mark> companies, while a second cohort of about 150 additional organizations can access <mark class="tag-hl">Claude Mythos 5</mark>. The article also notes that <mark class="tag-hl">Microsoft</mark> published its largest Patch Tuesday in history with more than 200 vulnerabilities during the same week.</p>
+                <div id="standard-32a5de1e06dd3a0b3c8f55242ccf0777:7f6152d105bcd805" class="tab-panel"><div class="prose"><p>The article discusses Anthropic’s release of Claude Fable 5, describing it as a descendant of the Mythos Preview model rather than a public release of Mythos Preview itself. It says Mythos Preview remains available only to the original Glasswing initiative companies, while a second cohort of about 150 additional organizations can access Claude Mythos 5. The article also notes that Microsoft published its largest Patch Tuesday in history with more than 200 vulnerabilities during the same week.</p>
 
-<p>A major point of clarification is that <mark class="tag-hl">Claude Fable 5</mark> has been designed to route cybersecurity prompts and discussions to an Opus 4.8 model for safety. Because of this routing behavior, the author says it is pointless to benchmark Fable 5 for cybersecurity capabilities. The article also states that queries about making bioweapons are met with a lesser model, which the author describes as part of <mark class="tag-hl">Anthropic</mark>’s compromise in releasing a model with capabilities associated with <mark class="tag-hl">Mythos Preview</mark>.</p>
+<p>A major point of clarification is that Claude Fable 5 has been designed to route cybersecurity prompts and discussions to an Opus 4.8 model for safety. Because of this routing behavior, the author says it is pointless to benchmark Fable 5 for cybersecurity capabilities. The article also states that queries about making bioweapons are met with a lesser model, which the author describes as part of Anthropic’s compromise in releasing a model with capabilities associated with Mythos Preview.</p>
 
-<p>The author says early access to <mark class="tag-hl">Mythos Preview</mark> dates back to the end of March during <mark class="tag-hl">RSAC Conference</mark> in <mark class="tag-hl">San Francisco</mark> for a select few. Although the author did not have access to the model, they spoke with people who used it to scan and probe software repositories. The article characterizes the reality of <mark class="tag-hl">Mythos Preview</mark> as being between alarmist claims and dismissive interpretations.</p>
+<p>The author says early access to Mythos Preview dates back to the end of March during RSAC Conference in San Francisco for a select few. Although the author did not have access to the model, they spoke with people who used it to scan and probe software repositories. The article characterizes the reality of Mythos Preview as being between alarmist claims and dismissive interpretations.</p>
 
 <p>The article argues that the dominant “AI hacker” framing of Mythos is misleading because Mythos was not designed specifically for vulnerability discovery or hacking. It says the more important security story is about resilient infrastructure and the many non-CVE issues that organizations must address. These include misconfigurations, exposed services, stale permissions, ghost assets, broken identity edges, duct-taped SaaS workflows, and other operational problems.</p>
 
 <p>The article also disputes the idea that AI-generated vulnerability discovery will automatically produce an exploitation surge. It argues that zero-days were not supply constrained, and that adding thousands of vulnerabilities does not create equivalent buyer demand because buyers have budgets, operational limits, targeting requirements, and oversight. The author cites research from Resecurity as estimating demand for new vulnerabilities at roughly 30 per month.</p>
 
-<p>The article’s conclusion is that the most likely use of Mythos and Fable 5 tokens will be defensive scans, remediation workflows, exposure management, and hygiene rather than threat actor scanning and attacks. It says threat actors tend to favor cheaper and easier methods such as social engineering, invoice approval fraud, MFA reset abuse, and phishing. The author mentions threat actors, nation states, and bored teenagers such as Shiny Hunters and <mark class="tag-hl">TeamPCP</mark> as part of the broader people-centered nature of information security.</p>
+<p>The article’s conclusion is that the most likely use of Mythos and Fable 5 tokens will be defensive scans, remediation workflows, exposure management, and hygiene rather than threat actor scanning and attacks. It says threat actors tend to favor cheaper and easier methods such as social engineering, invoice approval fraud, MFA reset abuse, and phishing. The author mentions threat actors, nation states, and bored teenagers such as Shiny Hunters and TeamPCP as part of the broader people-centered nature of information security.</p>
 </div></div>
-                <div id="comprehensive-ab0fb885e7a4fcad2dfee7e6ace39ea2:7f6152d105bcd805" class="tab-panel"><div class="prose"><h2 id="core-event">Core event</h2>
+                <div id="comprehensive-32a5de1e06dd3a0b3c8f55242ccf0777:7f6152d105bcd805" class="tab-panel"><div class="prose"><h2 id="core-event">Core event</h2>
 
-<p><mark class="tag-hl">Anthropic</mark> announced the availability of <mark class="tag-hl">Claude Fable 5</mark>, which the article describes as a descendant of the company’s <mark class="tag-hl">Mythos Preview</mark> model. The article emphasizes that <mark class="tag-hl">Anthropic</mark> did not release <mark class="tag-hl">Mythos Preview</mark> as a publicly available model. Instead, <mark class="tag-hl">Mythos Preview</mark> remains available only to the original <mark class="tag-hl">Glasswing initiative</mark> companies, while a second cohort of about 150 additional organizations can access <mark class="tag-hl">Claude Mythos 5</mark>.</p>
+<p>Anthropic announced the availability of Claude Fable 5, which the article describes as a descendant of the company’s Mythos Preview model. The article emphasizes that Anthropic did not release Mythos Preview as a publicly available model. Instead, Mythos Preview remains available only to the original Glasswing initiative companies, while a second cohort of about 150 additional organizations can access Claude Mythos 5.</p>
 
-<p>The article also notes that, in the same week, <mark class="tag-hl">Microsoft</mark> published its largest Patch Tuesday in history, with more than 200 vulnerabilities. The author says the <mark class="tag-hl">Anthropic</mark> release and <mark class="tag-hl">Microsoft</mark>’s Patch Tuesday are “not unrelated,” but the article’s main focus is <mark class="tag-hl">Anthropic</mark>’s model release and the narratives surrounding AI-assisted security work.</p>
+<p>The article also notes that, in the same week, Microsoft published its largest Patch Tuesday in history, with more than 200 vulnerabilities. The author says the Anthropic release and Microsoft’s Patch Tuesday are “not unrelated,” but the article’s main focus is Anthropic’s model release and the narratives surrounding AI-assisted security work.</p>
 
 <h2 id="model-access-distinctions">Model-access distinctions</h2>
 
-<p>The article distinguishes between several <mark class="tag-hl">Anthropic</mark> models and access levels:</p>
+<p>The article distinguishes between several Anthropic models and access levels:</p>
 
 <ul>
-<li><strong><mark class="tag-hl">Mythos Preview</mark></strong> is not publicly available and remains limited to the original <mark class="tag-hl">Glasswing initiative</mark> companies.</li>
-<li><strong><mark class="tag-hl">Claude Mythos 5</mark></strong> is available to a second cohort of about 150 additional organizations and is described as largely identical to <mark class="tag-hl">Claude Fable 5</mark> but with some safeguards reduced.</li>
-<li><strong><mark class="tag-hl">Claude Fable 5</mark></strong> is the publicly released model of similar capabilities, but it has been crafted to route certain sensitive prompts away from the main model.</li>
-<li><strong>Opus 4.8</strong> receives cybersecurity prompts and discussions routed from <mark class="tag-hl">Claude Fable 5</mark>.</li>
+<li><strong>Mythos Preview</strong> is not publicly available and remains limited to the original Glasswing initiative companies.</li>
+<li><strong>Claude Mythos 5</strong> is available to a second cohort of about 150 additional organizations and is described as largely identical to Claude Fable 5 but with some safeguards reduced.</li>
+<li><strong>Claude Fable 5</strong> is the publicly released model of similar capabilities, but it has been crafted to route certain sensitive prompts away from the main model.</li>
+<li><strong>Opus 4.8</strong> receives cybersecurity prompts and discussions routed from Claude Fable 5.</li>
 </ul>
 
-<p>The author says this routing behavior means benchmarking <mark class="tag-hl">Claude Fable 5</mark> for cybersecurity capability is pointless, because those cybersecurity interactions are handled by Opus 4.8 rather than by Fable 5 directly. The article also states that queries about making bioweapons are met with a lesser model, which the author frames as part of <mark class="tag-hl">Anthropic</mark>’s safety compromise.</p>
+<p>The author says this routing behavior means benchmarking Claude Fable 5 for cybersecurity capability is pointless, because those cybersecurity interactions are handled by Opus 4.8 rather than by Fable 5 directly. The article also states that queries about making bioweapons are met with a lesser model, which the author frames as part of Anthropic’s safety compromise.</p>
 
-<h2 id="early-mythos-preview-context">Early <mark class="tag-hl">Mythos Preview</mark> context</h2>
+<h2 id="early-mythos-preview-context">Early Mythos Preview context</h2>
 
-<p>The article says a select group first interacted with <mark class="tag-hl">Mythos Preview</mark> at the end of March during <mark class="tag-hl">RSAC Conference</mark> in <mark class="tag-hl">San Francisco</mark>. The author states that they personally did not have access to the model, but they met with several people who used it to scan and probe software repositories. Based on those conversations, the author says the reality appears to sit between a panic-driven “sky is falling” reaction and a dismissive “nothingburger” interpretation.</p>
+<p>The article says a select group first interacted with Mythos Preview at the end of March during RSAC Conference in San Francisco. The author states that they personally did not have access to the model, but they met with several people who used it to scan and probe software repositories. Based on those conversations, the author says the reality appears to sit between a panic-driven “sky is falling” reaction and a dismissive “nothingburger” interpretation.</p>
 
-<p>The author is critical of what they describe as the marketing and transparency around <mark class="tag-hl">Anthropic</mark>’s work. They say <mark class="tag-hl">Anthropic</mark> has drawn significant attention and concern from <mark class="tag-hl">Mythos Preview</mark> while not providing much depth of transparency, despite publishing blog posts that present each latest model as especially impressive.</p>
+<p>The author is critical of what they describe as the marketing and transparency around Anthropic’s work. They say Anthropic has drawn significant attention and concern from Mythos Preview while not providing much depth of transparency, despite publishing blog posts that present each latest model as especially impressive.</p>
 
 <h2 id="the-article-s-critique-of-the-ai-hacker-framing">The article’s critique of the “AI hacker” framing</h2>
 
@@ -1578,7 +1732,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Operational problems caused by human and procurement realities.</li>
 </ul>
 
-<p>The article argues that CVEs are “kind of dead in the water” as a practical prioritization primitive, while acknowledging that they still matter. It also says the same can be said of the <mark class="tag-hl">CISA KEV</mark> catalog, criticizing what the author sees as an excessive focus on severity scoring and CVE-centered security narratives.</p>
+<p>The article argues that CVEs are “kind of dead in the water” as a practical prioritization primitive, while acknowledging that they still matter. It also says the same can be said of the CISA KEV catalog, criticizing what the author sees as an excessive focus on severity scoring and CVE-centered security narratives.</p>
 
 <h2 id="zero-day-supply-and-demand">Zero-day supply and demand</h2>
 
@@ -1602,13 +1756,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="threat-actors-and-people-centered-security">Threat actors and people-centered security</h2>
 
-<p>The article does not describe a specific incident attributed to a named threat actor. It does, however, refer broadly to attackers, threat actors, nation states, and “bored teenagers” such as Shiny Hunters and <mark class="tag-hl">TeamPCP</mark>. These references are used to support the author’s broader argument that information security is fundamentally a people problem.</p>
+<p>The article does not describe a specific incident attributed to a named threat actor. It does, however, refer broadly to attackers, threat actors, nation states, and “bored teenagers” such as Shiny Hunters and TeamPCP. These references are used to support the author’s broader argument that information security is fundamentally a people problem.</p>
 
 <p>The author argues that security discussions are too focused on technology and not enough on the “who” and “why” behind attacker behavior. In this framing, attacker incentives and practical economics matter more than the mere existence of more vulnerabilities.</p>
 
-<h2 id="aikido-examples-and-defensive-security-framing"><mark class="tag-hl">Aikido</mark> examples and defensive security framing</h2>
+<h2 id="aikido-examples-and-defensive-security-framing">Aikido examples and defensive security framing</h2>
 
-<p>The author references <mark class="tag-hl">Aikido</mark>’s work on self-securing software and autonomous pentesting. They state that organizations do not need <mark class="tag-hl">Mythos Preview</mark> or Fable 5 to secure software effectively or find vulnerabilities, IDORs, and business logic flaws. As an example, the article describes a recent pentest in which a client’s JWTs existed but were irrelevant and unused for API-call authentication.</p>
+<p>The author references Aikido’s work on self-securing software and autonomous pentesting. They state that organizations do not need Mythos Preview or Fable 5 to secure software effectively or find vulnerabilities, IDORs, and business logic flaws. As an example, the article describes a recent pentest in which a client’s JWTs existed but were irrelevant and unused for API-call authentication.</p>
 
 <p>This example supports the article’s broader claim that many serious security problems are not necessarily novel CVEs. Instead, they may be flaws in authentication logic, business logic, configuration, or system design that have persisted undiscovered for long periods.</p>
 
@@ -1616,14 +1770,15 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article concludes that the bell is tolling for the simple story that more vulnerability discovery automatically means more hacking. It argues that the more important transformation is the ability of defenders to map existing security problems across organizations, including abandoned assets, stale permissions, misconfigurations, and other non-CVE weaknesses.</p>
 
-<p>The author’s final position is that <mark class="tag-hl">Claude Fable 5</mark> and Mythos should not be understood primarily as engines of a zero-day arms race. Instead, the article presents them as part of a shift toward defensive exposure management, remediation, and security hygiene. It closes by saying that the unreleased Fable 1, 2, 3, and 4 models are likely left inside <mark class="tag-hl">Anthropic</mark> as earlier imperfect model iterations that will not be made public.</p>
+<p>The author’s final position is that Claude Fable 5 and Mythos should not be understood primarily as engines of a zero-day arms race. Instead, the article presents them as part of a shift toward defensive exposure management, remediation, and security hygiene. It closes by saying that the unreleased Fable 1, 2, 3, and 4 models are likely left inside Anthropic as earlier imperfect model iterations that will not be made public.</p>
 </div></div>
-                <div id="insights-ab0fb885e7a4fcad2dfee7e6ace39ea2:7f6152d105bcd805" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The article challenges the assumption that more AI-discovered vulnerabilities will automatically increase real-world exploitation, arguing that zero-day demand is constrained by buyer budgets, targeting needs, and operational limits rather than supply.</span></li><li><span class="kp-text">The author frames CVEs and the <mark class="tag-hl">CISA KEV</mark> catalog as increasingly weak prioritization tools because major organizational risk often resides in non-CVE issues such as identity edges, configuration drift, abandoned assets, and broken workflows.</span></li><li><span class="kp-text">The article argues that attackers are unlikely to spend heavily on advanced AI-driven exploit discovery when lower-cost tactics such as invoice fraud, MFA reset abuse, and phishing remain effective.</span></li><li><span class="kp-text">The author suggests that the most valuable use of high-capability AI models in security may be mapping and remediating existing organizational exposure rather than finding novel software bugs.</span></li></ul></div>
+                <div id="insights-32a5de1e06dd3a0b3c8f55242ccf0777:7f6152d105bcd805" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The article challenges the assumption that more AI-discovered vulnerabilities will automatically increase real-world exploitation, arguing that zero-day demand is constrained by buyer budgets, targeting needs, and operational limits rather than supply.</span></li><li><span class="kp-text">The author frames CVEs and the CISA KEV catalog as increasingly weak prioritization tools because major organizational risk often resides in non-CVE issues such as identity edges, configuration drift, abandoned assets, and broken workflows.</span></li><li><span class="kp-text">The article argues that attackers are unlikely to spend heavily on advanced AI-driven exploit discovery when lower-cost tactics such as invoice fraud, MFA reset abuse, and phishing remain effective.</span></li><li><span class="kp-text">The author suggests that the most valuable use of high-capability AI models in security may be mapping and remediating existing organizational exposure rather than finding novel software bugs.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Anthropic</mark> released <mark class="tag-hl">Claude Fable 5</mark> publicly, but did not release <mark class="tag-hl">Mythos Preview</mark> as a publicly available model.</span></li><li><span class="kp-text"><mark class="tag-hl">Claude Fable 5</mark> routes cybersecurity prompts and discussions to an Opus 4.8 model, so the article says benchmarking Fable 5 for cybersecurity capabilities is pointless.</span></li><li><span class="kp-text"><mark class="tag-hl">Claude Mythos 5</mark> remains available only to the original <mark class="tag-hl">Glasswing initiative</mark> companies and a second cohort of about 150 additional organizations, with safeguards reduced compared with Fable 5.</span></li><li><span class="kp-text">The article argues that vulnerability discovery is only about 20% of what security teams need to fix, while the other 80% includes misconfigurations, exposed services, stale permissions, ghost assets, broken identity edges, and duct-taped SaaS workflows.</span></li><li><span class="kp-text">The author argues that tokens for Mythos and Fable 5 are more likely to be spent on defensive scans, remediation workflows, exposure management, and security hygiene than on threat actor scans and attacks.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Anthropic released Claude Fable 5 publicly, but did not release Mythos Preview as a publicly available model.</span></li><li><span class="kp-text">Claude Fable 5 routes cybersecurity prompts and discussions to an Opus 4.8 model, so the article says benchmarking Fable 5 for cybersecurity capabilities is pointless.</span></li><li><span class="kp-text">Claude Mythos 5 remains available only to the original Glasswing initiative companies and a second cohort of about 150 additional organizations, with safeguards reduced compared with Fable 5.</span></li><li><span class="kp-text">The article argues that vulnerability discovery is only about 20% of what security teams need to fix, while the other 80% includes misconfigurations, exposed services, stale permissions, ghost assets, broken identity edges, and duct-taped SaaS workflows.</span></li><li><span class="kp-text">The author argues that tokens for Mythos and Fable 5 are more likely to be spent on defensive scans, remediation workflows, exposure management, and security hygiene than on threat actor scans and attacks.</span></li></ul></div>
+            
             <a href="https://www.aikido.dev/blog/fable-5-release-full-fathom" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is primarily an opinion and trend piece about <mark class="tag-hl">Anthropic</mark>’s <mark class="tag-hl">Claude Fable 5</mark>/Mythos framing and the likely defensive value of AI in security, rather than a report on an urgent incident, active exploitation, or critical patch. It may be useful for strategic perspective, but it does not provide actionable technical details or a concrete high-impact threat requiring immediate attention.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is primarily an opinion and trend piece about Anthropic’s Claude Fable 5/Mythos framing and the likely defensive value of AI in security, rather than a report on an urgent incident, active exploitation, or critical patch. It may be useful for strategic perspective, but it does not provide actionable technical details or a concrete high-impact threat requiring immediate attention.</p>
 </div></div>
             
             
@@ -1647,16 +1802,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest window is dominated by two distinct but relevant security themes: software supply-chain compromise in developer ecosystems and the evolving role of frontier AI models in cybersecurity workflows. The most operationally significant item is the reported “<mark class="tag-hl">Atomic Arch</mark>” campaign affecting more than 400 <mark class="tag-hl">Arch User Repository</mark> packages, while the AI-focused reporting centers on Anthropic’s Claude Fable 5 public release and continued restricted access to Claude Mythos 5.</p>
+        <div class="overview-body prose"><p>This digest window is dominated by two distinct but relevant security themes: software supply-chain compromise in developer ecosystems and the evolving role of frontier AI models in cybersecurity workflows. The most operationally significant item is the reported “Atomic Arch” campaign affecting more than 400 Arch User Repository packages, while the AI-focused reporting centers on Anthropic’s Claude Fable 5 public release and continued restricted access to Claude Mythos 5.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Arch Linux AUR Supply-Chain Compromise</span>
         </div>
-        <div class="overview-body prose"><p>Security researchers and the <mark class="tag-hl">Arch Linux</mark> community disclosed a June 2026 supply-chain attack involving more than 400 hijacked <mark class="tag-hl">Arch User Repository</mark> packages. According to the reporting, attackers adopted orphaned AUR packages that already had users, then modified PKGBUILDs or install hooks to execute malicious <mark class="tag-hl">npm</mark> dependencies, including packages named <code><mark class="tag-hl">atomic-lockfile</mark></code> and <code><mark class="tag-hl">js-digest</mark></code>.</p>
+        <div class="overview-body prose"><p>Security researchers and the Arch Linux community disclosed a June 2026 supply-chain attack involving more than 400 hijacked Arch User Repository packages. According to the reporting, attackers adopted orphaned AUR packages that already had users, then modified PKGBUILDs or install hooks to execute malicious npm dependencies, including packages named <code>atomic-lockfile</code> and <code>js-digest</code>.</p>
 
-<p>The malicious <mark class="tag-hl">npm</mark> package reportedly contained a Rust-based credential-stealing payload. Targeted data included browser cookies, SSH keys, developer tokens, chat sessions, Docker or Podman credentials, and cloud access keys, making the campaign particularly relevant to developer workstations, self-hosted CI runners, Arch-based environments, and <mark class="tag-hl">WSL2</mark> Arch installations.</p>
+<p>The malicious npm package reportedly contained a Rust-based credential-stealing payload. Targeted data included browser cookies, SSH keys, developer tokens, chat sessions, Docker or Podman credentials, and cloud access keys, making the campaign particularly relevant to developer workstations, self-hosted CI runners, Arch-based environments, and WSL2 Arch installations.</p>
 
 <p>The incident illustrates continued attacker interest in community-maintained package ecosystems where trust, maintainer turnover, and transitive execution paths can create opportunities for broad compromise. The campaign also reflects a common supply-chain pattern: attackers do not need to compromise a flagship upstream project when they can inherit abandoned packages with existing install bases and introduce malicious build-time or install-time behavior.</p>
 </div>
@@ -1678,9 +1833,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-13 02:00 UTC · 4 hours window</span>
-  <span class="footer-right">2 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">2 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1693,15 +1851,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1814,12 +2034,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1880,6 +2134,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

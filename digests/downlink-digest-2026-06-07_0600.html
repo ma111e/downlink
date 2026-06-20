@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1350,44 +1503,44 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-low" style="width:55%"></div></div><span class="score-num score-num-low">55</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="8fb952c1b24e2b94aa058d538fb6f486:56553b2b6e3f1911">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-0a3fd708c41962b4e0b600a9250fd11b:56553b2b6e3f1911')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-0a3fd708c41962b4e0b600a9250fd11b:56553b2b6e3f1911')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-0a3fd708c41962b4e0b600a9250fd11b:56553b2b6e3f1911')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-0a3fd708c41962b4e0b600a9250fd11b:56553b2b6e3f1911')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-0a3fd708c41962b4e0b600a9250fd11b:56553b2b6e3f1911')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-8fb952c1b24e2b94aa058d538fb6f486:56553b2b6e3f1911')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-8fb952c1b24e2b94aa058d538fb6f486:56553b2b6e3f1911')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-8fb952c1b24e2b94aa058d538fb6f486:56553b2b6e3f1911')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-8fb952c1b24e2b94aa058d538fb6f486:56553b2b6e3f1911')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-8fb952c1b24e2b94aa058d538fb6f486:56553b2b6e3f1911')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-0a3fd708c41962b4e0b600a9250fd11b:56553b2b6e3f1911" class="tab-panel active"><div class="prose"><mark class="tag-hl">CyCognito</mark> CEO <mark class="tag-hl">Rob Gurzeev</mark> argues that the biggest breach risks come from unknown internet-facing assets that traditional vulnerability management and pen testing often miss. He says security teams should focus on external attack surface visibility and reducing critical-issue remediation time to hours as AI accelerates attackers’ ability to find and exploit exposed systems.</div></div>
-                <div id="brief-0a3fd708c41962b4e0b600a9250fd11b:56553b2b6e3f1911" class="tab-panel"><div class="prose"><p>The article presents a Security Strategist podcast conversation between <mark class="tag-hl">Richard Stiennon</mark> of <mark class="tag-hl">IT-Harvest</mark> and <mark class="tag-hl">Rob Gurzeev</mark>, CEO of <mark class="tag-hl">CyCognito</mark>, about external attack surface management. Gurzeev argues that many organizations believe they understand their security posture because they run penetration tests, buy tools, and build security teams. He says breaches can still occur through assets that no one knew existed, which is the gap <mark class="tag-hl">CyCognito</mark> was built to address.</p>
+                <div id="tldr-8fb952c1b24e2b94aa058d538fb6f486:56553b2b6e3f1911" class="tab-panel active"><div class="prose">CyCognito CEO Rob Gurzeev argues that the biggest breach risks come from unknown internet-facing assets that traditional vulnerability management and pen testing often miss. He says security teams should focus on external attack surface visibility and reducing critical-issue remediation time to hours as AI accelerates attackers’ ability to find and exploit exposed systems.</div></div>
+                <div id="brief-8fb952c1b24e2b94aa058d538fb6f486:56553b2b6e3f1911" class="tab-panel"><div class="prose"><p>The article presents a Security Strategist podcast conversation between Richard Stiennon of IT-Harvest and Rob Gurzeev, CEO of CyCognito, about external attack surface management. Gurzeev argues that many organizations believe they understand their security posture because they run penetration tests, buy tools, and build security teams. He says breaches can still occur through assets that no one knew existed, which is the gap CyCognito was built to address.</p>
 
 <p>A central point is that external attack surface management differs from vulnerability management because it focuses on discovering, classifying, and understanding internet-facing assets from an attacker’s perspective. Gurzeev says the highest risk often lies in blind spots, including assets created by subsidiaries, third parties, joint ventures, or business users outside central security control. He describes recall and precision as important measures because teams must find as much of the real attack surface as possible without flooding themselves with wrongly attributed assets.</p>
 
 <p>The article also emphasizes that AI is accelerating both the attack surface problem and the need for faster remediation. Gurzeev says AI can help less technical people exploit applications and complex systems within minutes, making mean time to remediation a critical metric. His main recommendation for CISOs and CIOs is to honestly assess whether critical issues are remediated in hours, days, weeks, or months, and whether current processes can reduce that time to one or two hours.</p>
 </div></div>
-                <div id="standard-0a3fd708c41962b4e0b600a9250fd11b:56553b2b6e3f1911" class="tab-panel"><div class="prose"><p>The article is based on a conversation between <mark class="tag-hl">Richard Stiennon</mark>, Chief Research Analyst and founder of <mark class="tag-hl">IT-Harvest</mark>, and <mark class="tag-hl">Rob Gurzeev</mark>, CEO of <mark class="tag-hl">CyCognito</mark>, on the Security Strategist podcast. The discussion focuses on external attack surface management and why organizations often lack visibility into all internet-facing assets. Gurzeev says many organizations think they understand their security posture because they conduct penetration tests, invest in tools, and build teams, but breaches can still happen through unknown assets.</p>
+                <div id="standard-8fb952c1b24e2b94aa058d538fb6f486:56553b2b6e3f1911" class="tab-panel"><div class="prose"><p>The article is based on a conversation between Richard Stiennon, Chief Research Analyst and founder of IT-Harvest, and Rob Gurzeev, CEO of CyCognito, on the Security Strategist podcast. The discussion focuses on external attack surface management and why organizations often lack visibility into all internet-facing assets. Gurzeev says many organizations think they understand their security posture because they conduct penetration tests, invest in tools, and build teams, but breaches can still happen through unknown assets.</p>
 
 <p>Gurzeev explains that his background in intelligence work shaped his attacker-oriented view of cybersecurity. He describes attack surface management as finding the path of least resistance into systems, rather than starting from the assets a defender already knows about. He contrasts this with much of the cybersecurity industry, which he says has built layers of defense around assets that organizations already know exist.</p>
 
-<p>The article identifies blind spots as a major source of risk in modern environments. Gurzeev says third-party marketing applications, subsidiaries with their own technology stacks, and joint ventures can create or operate assets that are effectively part of an organization’s external presence but are not under direct central control. He says that when <mark class="tag-hl">CyCognito</mark> comes in, between 10 and 50 percent of applications, devices, and cloud assets may not be known by any existing technology or database.</p>
+<p>The article identifies blind spots as a major source of risk in modern environments. Gurzeev says third-party marketing applications, subsidiaries with their own technology stacks, and joint ventures can create or operate assets that are effectively part of an organization’s external presence but are not under direct central control. He says that when CyCognito comes in, between 10 and 50 percent of applications, devices, and cloud assets may not be known by any existing technology or database.</p>
 
-<p>Gurzeev distinguishes vulnerability management from external attack surface management. He says vulnerability scanning and management map potential vulnerabilities, while attack surface management maps, classifies, and understands what an organization has. He adds that internal asset management can rely on integrations with tools such as <mark class="tag-hl">ServiceNow</mark>, endpoint protection platforms, and <mark class="tag-hl">AWS</mark>, but external attack surface management is harder because no one has a definitive internal source of truth for internet-facing reality.</p>
+<p>Gurzeev distinguishes vulnerability management from external attack surface management. He says vulnerability scanning and management map potential vulnerabilities, while attack surface management maps, classifies, and understands what an organization has. He adds that internal asset management can rely on integrations with tools such as ServiceNow, endpoint protection platforms, and AWS, but external attack surface management is harder because no one has a definitive internal source of truth for internet-facing reality.</p>
 
-<p>The discussion also covers how the attack surface has expanded as it has become easier to build applications and change network configurations. Gurzeev says large companies may have between 100,000 applications, devices, and cloud assets exposed to the internet, and <mark class="tag-hl">CyCognito</mark>’s largest customer has 100 million internet-connected items that external attackers can interact with. He also says tools such as <mark class="tag-hl">Claude Code</mark> or <mark class="tag-hl">Lovable</mark> can allow people in business functions like HR and finance to assemble sensitive information into internet-exposed applications, intentionally or accidentally.</p>
+<p>The discussion also covers how the attack surface has expanded as it has become easier to build applications and change network configurations. Gurzeev says large companies may have between 100,000 applications, devices, and cloud assets exposed to the internet, and CyCognito’s largest customer has 100 million internet-connected items that external attackers can interact with. He also says tools such as Claude Code or Lovable can allow people in business functions like HR and finance to assemble sensitive information into internet-exposed applications, intentionally or accidentally.</p>
 
 <p>AI is presented as a force that increases urgency around remediation. Gurzeev says there is now consensus that mean time to remediation for critical issues needs to be measured in hours rather than days, while many companies still take months. His closing recommendation is for CISOs and CIOs to examine how long it really takes to remediate critical issues and ask whether their current efforts, processes, and technologies can reduce that time to one or two hours.</p>
 </div></div>
-                <div id="comprehensive-0a3fd708c41962b4e0b600a9250fd11b:56553b2b6e3f1911" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-8fb952c1b24e2b94aa058d538fb6f486:56553b2b6e3f1911" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The article presents a Security Strategist podcast conversation between <mark class="tag-hl">Richard Stiennon</mark>, Chief Research Analyst and founder of <mark class="tag-hl">IT-Harvest</mark>, and <mark class="tag-hl">Rob Gurzeev</mark>, CEO of <mark class="tag-hl">CyCognito</mark>. The topic is external attack surface management and why it remains difficult for organizations to understand and manage their internet-facing exposure.</p>
+<p>The article presents a Security Strategist podcast conversation between Richard Stiennon, Chief Research Analyst and founder of IT-Harvest, and Rob Gurzeev, CEO of CyCognito. The topic is external attack surface management and why it remains difficult for organizations to understand and manage their internet-facing exposure.</p>
 
-<p>Gurzeev’s central argument is that many organizations believe they understand their security posture because they run penetration tests, invest in tools, and build teams, but breaches can still occur through assets that no one knew existed. He says this gap is what <mark class="tag-hl">CyCognito</mark> was built to close.</p>
+<p>Gurzeev’s central argument is that many organizations believe they understand their security posture because they run penetration tests, invest in tools, and build teams, but breaches can still occur through assets that no one knew existed. He says this gap is what CyCognito was built to close.</p>
 
 <h2 id="background-and-perspective">Background and Perspective</h2>
 
@@ -1407,17 +1560,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="growth-of-the-modern-attack-surface">Growth of the Modern Attack Surface</h2>
 
-<p>Gurzeev says the complexity of enterprise attack surfaces has grown significantly. He contrasts the environment 20 years ago, when <mark class="tag-hl">Apple</mark> and <mark class="tag-hl">Google</mark> each had one main website or one internet-connected thing, with modern large companies that may have between 100,000 applications, devices, and cloud assets exposed to the internet.</p>
+<p>Gurzeev says the complexity of enterprise attack surfaces has grown significantly. He contrasts the environment 20 years ago, when Apple and Google each had one main website or one internet-connected thing, with modern large companies that may have between 100,000 applications, devices, and cloud assets exposed to the internet.</p>
 
-<p>He says <mark class="tag-hl">CyCognito</mark>’s largest customer has 100 million internet-connected items that external attackers can interact with. He notes that manual penetration testing may cover 100, 500, or perhaps 1,000 web applications, leaving open the question of what happens to the rest.</p>
+<p>He says CyCognito’s largest customer has 100 million internet-connected items that external attackers can interact with. He notes that manual penetration testing may cover 100, 500, or perhaps 1,000 web applications, leaving open the question of what happens to the rest.</p>
 
-<p>He attributes part of the growth to the increased ease of building applications and changing network configurations. Twenty years ago, he says, one person in a company might have had the authority to make major network changes. Now, he says, people in departments such as HR and finance can use tools like <mark class="tag-hl">Claude Code</mark> or <mark class="tag-hl">Lovable</mark> to assemble sensitive information, build applications, and expose them to the internet either intentionally or accidentally.</p>
+<p>He attributes part of the growth to the increased ease of building applications and changing network configurations. Twenty years ago, he says, one person in a company might have had the authority to make major network changes. Now, he says, people in departments such as HR and finance can use tools like Claude Code or Lovable to assemble sensitive information, build applications, and expose them to the internet either intentionally or accidentally.</p>
 
 <h2 id="external-attack-surface-management-versus-vulnerability-management">External Attack Surface Management Versus Vulnerability Management</h2>
 
 <p>The article distinguishes between vulnerability management and external attack surface management while noting that they are adjacent. Gurzeev says vulnerability scanning and management focus on mapping potential vulnerabilities. Attack surface management, in his description, focuses on mapping, classifying, and understanding what an organization has.</p>
 
-<p>He says the internal and external views are significantly different. For internal attack surface management, he says teams can use integrations with sources such as <mark class="tag-hl">ServiceNow</mark>, endpoint protection tools, and <mark class="tag-hl">AWS</mark> instances, with deduplication and presentation being major challenges. In that case, he says, the data is there.</p>
+<p>He says the internal and external views are significantly different. For internal attack surface management, he says teams can use integrations with sources such as ServiceNow, endpoint protection tools, and AWS instances, with deduplication and presentation being major challenges. In that case, he says, the data is there.</p>
 
 <p>External attack surface management is described as much harder because no one knows the full reality. Gurzeev gives examples such as:</p>
 
@@ -1425,10 +1578,10 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>A third party building a marketing campaign application with the company’s logo and customers’ PII.</li>
 <li>A company having 100 subsidiaries, each with its own technology stack.</li>
 <li>Subsidiaries that may not cooperate with the global security team.</li>
-<li>A joint venture in <mark class="tag-hl">China</mark> or an engineer somewhere creating assets outside central visibility.</li>
+<li>A joint venture in China or an engineer somewhere creating assets outside central visibility.</li>
 </ul>
 
-<p>He says that between 10 and 50 percent of applications, devices, and cloud assets may not be known by any technology or database when <mark class="tag-hl">CyCognito</mark> begins working with an organization. He emphasizes that only one unknown or undermanaged asset is needed to enable a breach.</p>
+<p>He says that between 10 and 50 percent of applications, devices, and cloud assets may not be known by any technology or database when CyCognito begins working with an organization. He emphasizes that only one unknown or undermanaged asset is needed to enable a breach.</p>
 
 <h2 id="recall-precision-and-blind-spots">Recall, Precision, and Blind Spots</h2>
 
@@ -1446,7 +1599,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>This makes it more important, in his view, for organizations to know what is exposed and to quickly determine where relevant assets are when a new emerging threat appears. He says he hears from customers multiple times per week about code-red emerging threats.</p>
 
-<p>Gurzeev also says <mark class="tag-hl">CyCognito</mark> is spending time expanding deterministic security testing capabilities into AI-enabled creative testing at scale. He describes deep testing of one asset at a time as almost a solved problem with AI, while continuously testing all assets within budget remains the next major problem to solve.</p>
+<p>Gurzeev also says CyCognito is spending time expanding deterministic security testing capabilities into AI-enabled creative testing at scale. He describes deep testing of one asset at a time as almost a solved problem with AI, while continuously testing all assets within budget remains the next major problem to solve.</p>
 
 <h2 id="main-recommendation-for-security-leaders">Main Recommendation for Security Leaders</h2>
 
@@ -1457,13 +1610,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <h2 id="key-parties-mentioned">Key Parties Mentioned</h2>
 
 <ul>
-<li><strong><mark class="tag-hl">Rob Gurzeev</mark>:</strong> CEO of <mark class="tag-hl">CyCognito</mark> and the primary speaker discussing external attack surface management.</li>
-<li><strong><mark class="tag-hl">Richard Stiennon</mark>:</strong> Chief Research Analyst and founder of <mark class="tag-hl">IT-Harvest</mark>, and host of the Security Strategist podcast episode.</li>
-<li><strong><mark class="tag-hl">CyCognito</mark>:</strong> The company described as being built to close the gap around unknown external assets.</li>
-<li><strong><mark class="tag-hl">IT-Harvest</mark>:</strong> Stiennon’s organization.</li>
-<li><strong><mark class="tag-hl">EM360Tech</mark>:</strong> Mentioned in connection with the podcast’s social presence.</li>
-<li><strong><mark class="tag-hl">ServiceNow</mark>, <mark class="tag-hl">AWS</mark>, <mark class="tag-hl">Claude Code</mark>, and <mark class="tag-hl">Lovable</mark>:</strong> Mentioned as examples of platforms or tools in the discussion of asset data, cloud instances, and application creation.</li>
-<li><strong><mark class="tag-hl">Apple</mark> and <mark class="tag-hl">Google</mark>:</strong> Mentioned as examples in the contrast between earlier, simpler internet presences and modern complex attack surfaces.</li>
+<li><strong>Rob Gurzeev:</strong> CEO of CyCognito and the primary speaker discussing external attack surface management.</li>
+<li><strong>Richard Stiennon:</strong> Chief Research Analyst and founder of IT-Harvest, and host of the Security Strategist podcast episode.</li>
+<li><strong>CyCognito:</strong> The company described as being built to close the gap around unknown external assets.</li>
+<li><strong>IT-Harvest:</strong> Stiennon’s organization.</li>
+<li><strong>EM360Tech:</strong> Mentioned in connection with the podcast’s social presence.</li>
+<li><strong>ServiceNow, AWS, Claude Code, and Lovable:</strong> Mentioned as examples of platforms or tools in the discussion of asset data, cloud instances, and application creation.</li>
+<li><strong>Apple and Google:</strong> Mentioned as examples in the contrast between earlier, simpler internet presences and modern complex attack surfaces.</li>
 </ul>
 
 <h2 id="overall-takeaway">Overall Takeaway</h2>
@@ -1472,10 +1625,11 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article presents mean time to remediation as the practical metric that matters most. In the context of AI-enabled exploitation and rapidly emerging threats, Gurzeev says organizations should aim to reduce remediation of critical issues to one or two hours.</p>
 </div></div>
-                <div id="insights-0a3fd708c41962b4e0b600a9250fd11b:56553b2b6e3f1911" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Gurzeev frames recall and precision as critical measures for external attack surface management, because finding nearly all assets is not enough if the results are polluted with large volumes of incorrectly attributed assets.</span></li><li><span class="kp-text">The article highlights a governance gap in which third-party marketing campaigns, subsidiaries, and joint ventures can create de facto company applications containing logos or customer PII while remaining outside the direct control of central security teams.</span></li><li><span class="kp-text">Gurzeev suggests that organizational incentives can suppress attack surface visibility problems, because security leaders may not be rewarded for telling boards that existing processes such as penetration testing cover only a small fraction of internet-facing applications.</span></li><li><span class="kp-text">The article identifies non-technical business users building internet-exposed applications with tools such as <mark class="tag-hl">Claude Code</mark> or <mark class="tag-hl">Lovable</mark> as a newer source of unmanaged attack surface complexity.</span></li></ul></div>
+                <div id="insights-8fb952c1b24e2b94aa058d538fb6f486:56553b2b6e3f1911" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">Gurzeev frames recall and precision as critical measures for external attack surface management, because finding nearly all assets is not enough if the results are polluted with large volumes of incorrectly attributed assets.</span></li><li><span class="kp-text">The article highlights a governance gap in which third-party marketing campaigns, subsidiaries, and joint ventures can create de facto company applications containing logos or customer PII while remaining outside the direct control of central security teams.</span></li><li><span class="kp-text">Gurzeev suggests that organizational incentives can suppress attack surface visibility problems, because security leaders may not be rewarded for telling boards that existing processes such as penetration testing cover only a small fraction of internet-facing applications.</span></li><li><span class="kp-text">The article identifies non-technical business users building internet-exposed applications with tools such as Claude Code or Lovable as a newer source of unmanaged attack surface complexity.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Rob Gurzeev</mark> says the greatest external attack surface risk often comes from complete blind spots, such as assets that no one in the organization knows exist.</span></li><li><span class="kp-text">Gurzeev distinguishes vulnerability management as mapping potential vulnerabilities from external attack surface management, which maps, classifies, and understands internet-facing assets from an outside perspective.</span></li><li><span class="kp-text">The article states that large organizations can have between 100,000 applications, devices, and cloud assets exposed to the internet, while <mark class="tag-hl">CyCognito</mark>’s largest customer has 100 million internet-connected assets.</span></li><li><span class="kp-text">Gurzeev says AI is accelerating the need for organizations to reduce mean time to remediation for critical issues from days or months to hours.</span></li><li><span class="kp-text">Gurzeev recommends that CISOs and CIOs assess whether their current processes and technologies can reduce critical-issue remediation time to one or two hours.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Rob Gurzeev says the greatest external attack surface risk often comes from complete blind spots, such as assets that no one in the organization knows exist.</span></li><li><span class="kp-text">Gurzeev distinguishes vulnerability management as mapping potential vulnerabilities from external attack surface management, which maps, classifies, and understands internet-facing assets from an outside perspective.</span></li><li><span class="kp-text">The article states that large organizations can have between 100,000 applications, devices, and cloud assets exposed to the internet, while CyCognito’s largest customer has 100 million internet-connected assets.</span></li><li><span class="kp-text">Gurzeev says AI is accelerating the need for organizations to reduce mean time to remediation for critical issues from days or months to hours.</span></li><li><span class="kp-text">Gurzeev recommends that CISOs and CIOs assess whether their current processes and technologies can reduce critical-issue remediation time to one or two hours.</span></li></ul></div>
+            
             <a href="https://www.cycognito.com/blog/thinking-like-an-attacker-how-to-strengthen-modern-cyber-defence-strategies/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article is a broad opinion and best-practice discussion about external attack surface management, blind spots, AI, and remediation timelines rather than coverage of a specific incident, vulnerability, advisory, or named threat actor operation. It is relevant for security leaders, but under the scoring guidance generic or evergreen strategy content must remain low priority.</p>
 </div></div>
@@ -1528,9 +1682,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-07 06:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1543,15 +1700,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1664,12 +1883,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1730,6 +1983,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

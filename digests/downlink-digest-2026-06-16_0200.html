@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,50 +1506,50 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:84%"></div></div><span class="score-num score-num-mid">84</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="d75ab45f002ca4c77eb7f0c0b134fe7c:413c7a060a6aab4c">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-81f4a4dbe564e28bdcbe7bc1a6408c5b:413c7a060a6aab4c')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-81f4a4dbe564e28bdcbe7bc1a6408c5b:413c7a060a6aab4c')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-81f4a4dbe564e28bdcbe7bc1a6408c5b:413c7a060a6aab4c')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-81f4a4dbe564e28bdcbe7bc1a6408c5b:413c7a060a6aab4c')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-81f4a4dbe564e28bdcbe7bc1a6408c5b:413c7a060a6aab4c')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d75ab45f002ca4c77eb7f0c0b134fe7c:413c7a060a6aab4c')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-d75ab45f002ca4c77eb7f0c0b134fe7c:413c7a060a6aab4c')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-d75ab45f002ca4c77eb7f0c0b134fe7c:413c7a060a6aab4c')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d75ab45f002ca4c77eb7f0c0b134fe7c:413c7a060a6aab4c')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-d75ab45f002ca4c77eb7f0c0b134fe7c:413c7a060a6aab4c')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-81f4a4dbe564e28bdcbe7bc1a6408c5b:413c7a060a6aab4c" class="tab-panel active"><div class="prose"><mark class="tag-hl">Mitiga Labs</mark> found that AI agent instruction files are becoming a malware-like supply-chain risk, with real-world cases of <mark class="tag-hl">prompt exfiltration</mark>, Claude traffic hijacking via base URL overrides, unsafe permission defaults, and over 1,230 exposed API keys. The company released <mark class="tag-hl">Skillgate</mark>, a free scanner to detect risky or malicious AI skills, hooks, MCP configs, and related agent files before agents trust and execute them.</div></div>
-                <div id="brief-81f4a4dbe564e28bdcbe7bc1a6408c5b:413c7a060a6aab4c" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Mitiga Labs</mark> investigated AI instruction files over six months, including <mark class="tag-hl">Cursor rules</mark>, Anthropic Skills, <mark class="tag-hl">Claude Hooks</mark>, AGENTS.md and CLAUDE.md files, MCP server configs, package.json droppers, and hidden bytecode artifacts. The company says it found <mark class="tag-hl">prompt-exfiltration</mark> tradecraft in the wild, attacker-controlled ANTHROPIC_BASE_URL overrides routing Claude traffic through man-in-the-middle proxies, permission-bypass defaults, and more than 1,230 hardcoded API keys and JWT tokens. <mark class="tag-hl">Mitiga Labs</mark> released <mark class="tag-hl">Skillgate</mark>, a free scanner built during the research to detect risks in AI agent skills and configurations.</p>
+                <div id="tldr-d75ab45f002ca4c77eb7f0c0b134fe7c:413c7a060a6aab4c" class="tab-panel active"><div class="prose">Mitiga Labs found that AI agent instruction files are becoming a malware-like supply-chain risk, with real-world cases of prompt exfiltration, Claude traffic hijacking via base URL overrides, unsafe permission defaults, and over 1,230 exposed API keys. The company released Skillgate, a free scanner to detect risky or malicious AI skills, hooks, MCP configs, and related agent files before agents trust and execute them.</div></div>
+                <div id="brief-d75ab45f002ca4c77eb7f0c0b134fe7c:413c7a060a6aab4c" class="tab-panel"><div class="prose"><p>Mitiga Labs investigated AI instruction files over six months, including Cursor rules, Anthropic Skills, Claude Hooks, AGENTS.md and CLAUDE.md files, MCP server configs, package.json droppers, and hidden bytecode artifacts. The company says it found prompt-exfiltration tradecraft in the wild, attacker-controlled ANTHROPIC_BASE_URL overrides routing Claude traffic through man-in-the-middle proxies, permission-bypass defaults, and more than 1,230 hardcoded API keys and JWT tokens. Mitiga Labs released Skillgate, a free scanner built during the research to detect risks in AI agent skills and configurations.</p>
 
-<p>The article frames malicious instruction files as “modern-day malware” because AI agents read and follow them with near-zero validation and high trust. <mark class="tag-hl">Mitiga Labs</mark> says a legitimate-looking <mark class="tag-hl">GitHub</mark> repository with pre-staged instructions can deliver an attack chain involving <mark class="tag-hl">npm</mark> install, an injected project path, a Claude Hook firing a dropper, and Skills invoked on a heartbeat cadence. The reported risks include supply-chain compromise, unauthorized access through MITM proxying, and stolen credentials.</p>
+<p>The article frames malicious instruction files as “modern-day malware” because AI agents read and follow them with near-zero validation and high trust. Mitiga Labs says a legitimate-looking GitHub repository with pre-staged instructions can deliver an attack chain involving npm install, an injected project path, a Claude Hook firing a dropper, and Skills invoked on a heartbeat cadence. The reported risks include supply-chain compromise, unauthorized access through MITM proxying, and stolen credentials.</p>
 
-<p><mark class="tag-hl">Skillgate</mark> currently scans multiple AI-agent file types and has processed more than 50,000 files across over 7,000 public repositories. Its more than 80 detection rules cover direct execution, prompt manipulation, tool and <mark class="tag-hl">MCP server poisoning</mark>, supply-chain and distribution attacks, obfuscation and evasion, and credential exposure and data exfiltration. <mark class="tag-hl">Mitiga Labs</mark> recommends scanning instruction files before committing them or letting AI agents ingest them, and blocking merges for high-risk findings until human review.</p>
+<p>Skillgate currently scans multiple AI-agent file types and has processed more than 50,000 files across over 7,000 public repositories. Its more than 80 detection rules cover direct execution, prompt manipulation, tool and MCP server poisoning, supply-chain and distribution attacks, obfuscation and evasion, and credential exposure and data exfiltration. Mitiga Labs recommends scanning instruction files before committing them or letting AI agents ingest them, and blocking merges for high-risk findings until human review.</p>
 </div></div>
-                <div id="standard-81f4a4dbe564e28bdcbe7bc1a6408c5b:413c7a060a6aab4c" class="tab-panel"><div class="prose"><p><mark class="tag-hl">Mitiga Labs</mark> published research on security risks in AI agent instruction files and released <mark class="tag-hl">Skillgate</mark>, a free scanner for AI skills, hooks, MCP configurations, and related files. Over six months, the company examined <mark class="tag-hl">Cursor rules</mark>, Anthropic Skills, <mark class="tag-hl">Claude Hooks</mark>, AGENTS.md and CLAUDE.md context files, MCP server configs, supply-chain droppers, and bytecode artifacts. The research found <mark class="tag-hl">prompt-exfiltration</mark> tradecraft in the wild, attacker-controlled ANTHROPIC_BASE_URL overrides, permission-bypass overrides, and more than 1,230 hardcoded API keys and JWT tokens.</p>
+                <div id="standard-d75ab45f002ca4c77eb7f0c0b134fe7c:413c7a060a6aab4c" class="tab-panel"><div class="prose"><p>Mitiga Labs published research on security risks in AI agent instruction files and released Skillgate, a free scanner for AI skills, hooks, MCP configurations, and related files. Over six months, the company examined Cursor rules, Anthropic Skills, Claude Hooks, AGENTS.md and CLAUDE.md context files, MCP server configs, supply-chain droppers, and bytecode artifacts. The research found prompt-exfiltration tradecraft in the wild, attacker-controlled ANTHROPIC_BASE_URL overrides, permission-bypass overrides, and more than 1,230 hardcoded API keys and JWT tokens.</p>
 
-<p>The article says AI agents follow instruction files with near-zero validation and full trust, making these files a high-risk supply-chain surface. <mark class="tag-hl">Mitiga Labs</mark> describes a strong observed attack chain that begins with <mark class="tag-hl">npm</mark> install, injects an approved project path, has a developer launch the AI inside that project, triggers a Claude Hook to fire a dropper, and uses Skills on a heartbeat cadence. Each Skill can chain to the next to pull a fresh dropper or execute an operator objective.</p>
+<p>The article says AI agents follow instruction files with near-zero validation and full trust, making these files a high-risk supply-chain surface. Mitiga Labs describes a strong observed attack chain that begins with npm install, injects an approved project path, has a developer launch the AI inside that project, triggers a Claude Hook to fire a dropper, and uses Skills on a heartbeat cadence. Each Skill can chain to the next to pull a fresh dropper or execute an operator objective.</p>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> built two paired tools during the research: <mark class="tag-hl">Skillforge</mark> and <mark class="tag-hl">Skillgate</mark>. <mark class="tag-hl">Skillforge</mark> is an internal web application that forges malicious skills based on public research, red-team work, and adversarial behavior mapped to MITRE ATT&amp;CK and adjacent frameworks. <mark class="tag-hl">Skillgate</mark> is the public scanner that detects those techniques, with rules informed by internal research, <mark class="tag-hl">Skillforge</mark>-generated examples, public research, and incidents observed in the wild.</p>
+<p>Mitiga Labs built two paired tools during the research: Skillforge and Skillgate. Skillforge is an internal web application that forges malicious skills based on public research, red-team work, and adversarial behavior mapped to MITRE ATT&amp;CK and adjacent frameworks. Skillgate is the public scanner that detects those techniques, with rules informed by internal research, Skillforge-generated examples, public research, and incidents observed in the wild.</p>
 
-<p><mark class="tag-hl">Skillgate</mark> has scanned more than 50,000 files across over 7,000 distinct public repositories from <mark class="tag-hl">GitHub</mark>, arXiv-referenced samples, and <mark class="tag-hl">Skillforge</mark>-generated adversarial inputs. It includes more than 80 detection rules across families such as direct execution and configuration abuse, prompt manipulation and instruction subversion, tool and <mark class="tag-hl">MCP server poisoning</mark>, supply-chain and distribution attacks, obfuscation and evasion, and credential exposure and data exfiltration. It also uses the <mark class="tag-hl">Gator Agent</mark>, an LLM-based reviewer that performs a second pass on flagged artifacts.</p>
+<p>Skillgate has scanned more than 50,000 files across over 7,000 distinct public repositories from GitHub, arXiv-referenced samples, and Skillforge-generated adversarial inputs. It includes more than 80 detection rules across families such as direct execution and configuration abuse, prompt manipulation and instruction subversion, tool and MCP server poisoning, supply-chain and distribution attacks, obfuscation and evasion, and credential exposure and data exfiltration. It also uses the Gator Agent, an LLM-based reviewer that performs a second pass on flagged artifacts.</p>
 
-<p>The article highlights several in-the-wild risk patterns, including <mark class="tag-hl">prompt exfiltration</mark>, external URL fetch-and-execute permissions, hardcoded IP addresses as MCP endpoints, YOLO mode paired with ANTHROPIC_BASE_URL overrides, public service bindings to 0.0.0.0 paired with hardcoded Postgres credentials, and exposed provider keys. <mark class="tag-hl">Mitiga Labs</mark> says manually verified findings came from roles including DevOps engineers, researchers, AI engineers, full-stack developers, founders, CEOs, PhD students, and product or project managers. The company states it did not access, use, authenticate with, weaponize, propagate, or test discovered credentials or tradecraft.</p>
+<p>The article highlights several in-the-wild risk patterns, including prompt exfiltration, external URL fetch-and-execute permissions, hardcoded IP addresses as MCP endpoints, YOLO mode paired with ANTHROPIC_BASE_URL overrides, public service bindings to 0.0.0.0 paired with hardcoded Postgres credentials, and exposed provider keys. Mitiga Labs says manually verified findings came from roles including DevOps engineers, researchers, AI engineers, full-stack developers, founders, CEOs, PhD students, and product or project managers. The company states it did not access, use, authenticate with, weaponize, propagate, or test discovered credentials or tradecraft.</p>
 </div></div>
-                <div id="comprehensive-81f4a4dbe564e28bdcbe7bc1a6408c5b:413c7a060a6aab4c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-d75ab45f002ca4c77eb7f0c0b134fe7c:413c7a060a6aab4c" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> published research on risks in AI agent instruction files and released <mark class="tag-hl">Skillgate</mark>, a free scanner for detecting risky or malicious patterns in AI skills and configurations. The research covered a six-month investigation into files that AI agents and coding assistants read and trust, including <mark class="tag-hl">Cursor rules</mark>, Anthropic Skills, <mark class="tag-hl">Claude Hooks</mark>, AGENTS.md and CLAUDE.md files, MCP server configs, package.json droppers, and hidden bytecode artifacts.</p>
+<p>Mitiga Labs published research on risks in AI agent instruction files and released Skillgate, a free scanner for detecting risky or malicious patterns in AI skills and configurations. The research covered a six-month investigation into files that AI agents and coding assistants read and trust, including Cursor rules, Anthropic Skills, Claude Hooks, AGENTS.md and CLAUDE.md files, MCP server configs, package.json droppers, and hidden bytecode artifacts.</p>
 
-<p>The article’s central claim is that instruction files can function like malware because the agent follows them automatically, often with near-zero validation. <mark class="tag-hl">Mitiga Labs</mark> says it found <mark class="tag-hl">prompt-exfiltration</mark> tradecraft in the wild, attacker-controlled ANTHROPIC_BASE_URL overrides routing Claude traffic through man-in-the-middle proxies, permission-bypass defaults, and more than 1,230 hardcoded API keys and JWT tokens.</p>
+<p>The article’s central claim is that instruction files can function like malware because the agent follows them automatically, often with near-zero validation. Mitiga Labs says it found prompt-exfiltration tradecraft in the wild, attacker-controlled ANTHROPIC_BASE_URL overrides routing Claude traffic through man-in-the-middle proxies, permission-bypass defaults, and more than 1,230 hardcoded API keys and JWT tokens.</p>
 
 <h2 id="instruction-file-surface">Instruction File Surface</h2>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> mapped several categories of AI-agent instruction and configuration files that it says matter to modern coding assistants and agents:</p>
+<p>Mitiga Labs mapped several categories of AI-agent instruction and configuration files that it says matter to modern coding assistants and agents:</p>
 
 <ul>
 <li>Skills, such as MD files that provide task-specific context and instructions.</li>
-<li><mark class="tag-hl">Claude Hooks</mark>, which are JSON-defined bash commands fired on <mark class="tag-hl">Claude Code</mark> triggers.</li>
+<li>Claude Hooks, which are JSON-defined bash commands fired on Claude Code triggers.</li>
 <li>Agent brain files such as AGENTS.md and CLAUDE.md.</li>
 <li>MCP server configs, including settings.json or mcp.json blocks.</li>
 <li>Agentic rules and tool configs such as .cursorrules, aider YAML, opencode, Continue, and equivalents.</li>
@@ -1408,12 +1561,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="research-objective-and-attack-chain">Research Objective and Attack Chain</h2>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> says its earlier research showed that AI agents follow these files with near-zero validation and full trust. The article states that a legitimate-looking <mark class="tag-hl">GitHub</mark> repository with instructions already staged is the easiest delivery vector demonstrated in its recent work.</p>
+<p>Mitiga Labs says its earlier research showed that AI agents follow these files with near-zero validation and full trust. The article states that a legitimate-looking GitHub repository with instructions already staged is the easiest delivery vector demonstrated in its recent work.</p>
 
 <p>The strongest chain described in the article combines several steps:</p>
 
 <ul>
-<li>An <mark class="tag-hl">npm</mark> install occurs.</li>
+<li>An npm install occurs.</li>
 <li>An approved project path is injected.</li>
 <li>The developer launches the AI inside that project.</li>
 <li>A Claude Hook fires a dropper.</li>
@@ -1421,64 +1574,64 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Each Skill can chain to the next to pull a fresh dropper or execute the operator’s objective.</li>
 </ul>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> presents this as a path from <mark class="tag-hl">npm</mark> install to persistent AI agent compromise.</p>
+<p>Mitiga Labs presents this as a path from npm install to persistent AI agent compromise.</p>
 
-<h2 id="skillforge-and-skillgate"><mark class="tag-hl">Skillforge</mark> and <mark class="tag-hl">Skillgate</mark></h2>
+<h2 id="skillforge-and-skillgate">Skillforge and Skillgate</h2>
 
 <p>The article describes two paired tools developed during the research.</p>
 
-<p><mark class="tag-hl">Skillforge</mark> is an internal <mark class="tag-hl">Mitiga Labs</mark> web application that forges malicious skills. It is built from public research, Mitiga’s red-team work, and adversarial behavior mapped on MITRE ATT&amp;CK and adjacent frameworks.</p>
+<p>Skillforge is an internal Mitiga Labs web application that forges malicious skills. It is built from public research, Mitiga’s red-team work, and adversarial behavior mapped on MITRE ATT&amp;CK and adjacent frameworks.</p>
 
-<p><mark class="tag-hl">Skillgate</mark> is the community-facing scanner released by <mark class="tag-hl">Mitiga Labs</mark>. It detects malicious or risky techniques inside skills and other instruction files. Its rule set is fed by internal research, <mark class="tag-hl">Skillforge</mark>-generated samples, public research, and incidents observed in the wild.</p>
+<p>Skillgate is the community-facing scanner released by Mitiga Labs. It detects malicious or risky techniques inside skills and other instruction files. Its rule set is fed by internal research, Skillforge-generated samples, public research, and incidents observed in the wild.</p>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> says the two systems operate as a closed learning loop in which adversarial skills are generated, scanned, and used to improve <mark class="tag-hl">Skillgate</mark>’s detection rules. The article says this cycle has run on a near-daily basis for four to five months.</p>
+<p>Mitiga Labs says the two systems operate as a closed learning loop in which adversarial skills are generated, scanned, and used to improve Skillgate’s detection rules. The article says this cycle has run on a near-daily basis for four to five months.</p>
 
-<h2 id="skillgate-capabilities"><mark class="tag-hl">Skillgate</mark> Capabilities</h2>
+<h2 id="skillgate-capabilities">Skillgate Capabilities</h2>
 
-<p>According to the article, <mark class="tag-hl">Skillgate</mark> currently provides simultaneous scanning across skills, hooks, agent brain files, MCP configs, agentic rules, supply-chain droppers, and bytecode artifacts. It has scanned more than 50,000 files across more than 7,000 distinct public repositories.</p>
+<p>According to the article, Skillgate currently provides simultaneous scanning across skills, hooks, agent brain files, MCP configs, agentic rules, supply-chain droppers, and bytecode artifacts. It has scanned more than 50,000 files across more than 7,000 distinct public repositories.</p>
 
-<p>The scanned corpus came from <mark class="tag-hl">GitHub</mark>, arXiv-referenced samples, and <mark class="tag-hl">Skillforge</mark>-generated adversarial inputs. <mark class="tag-hl">Skillgate</mark> contains more than 80 detection rules organized into technique families. It also includes the <mark class="tag-hl">Gator Agent</mark>, an LLM-based reviewer that runs a second pass on flagged artifacts and was iterated against thousands of real and synthetic samples.</p>
+<p>The scanned corpus came from GitHub, arXiv-referenced samples, and Skillforge-generated adversarial inputs. Skillgate contains more than 80 detection rules organized into technique families. It also includes the Gator Agent, an LLM-based reviewer that runs a second pass on flagged artifacts and was iterated against thousands of real and synthetic samples.</p>
 
 <h2 id="detection-technique-families">Detection Technique Families</h2>
 
-<p>The article lists several technique families covered by <mark class="tag-hl">Skillgate</mark>:</p>
+<p>The article lists several technique families covered by Skillgate:</p>
 
 <ul>
 <li>Direct execution and configuration abuse, including shell commands in hooks, dangerous settings toggles, permission-escalation patterns, and supply-chain droppers.</li>
-<li>Prompt manipulation and instruction subversion, including prompt injection, jailbreaks, trigger phrases, instruction overrides, prompt leakage, and <mark class="tag-hl">prompt exfiltration</mark>.</li>
-<li>Tool and <mark class="tag-hl">MCP server poisoning</mark>, targeting the agent’s tool layer.</li>
-<li>Supply-chain and distribution attacks, including poisoned bytecode, external-binary indirection, <mark class="tag-hl">npm</mark> post-install droppers, and configurations that add untrusted sources.</li>
+<li>Prompt manipulation and instruction subversion, including prompt injection, jailbreaks, trigger phrases, instruction overrides, prompt leakage, and prompt exfiltration.</li>
+<li>Tool and MCP server poisoning, targeting the agent’s tool layer.</li>
+<li>Supply-chain and distribution attacks, including poisoned bytecode, external-binary indirection, npm post-install droppers, and configurations that add untrusted sources.</li>
 <li>Obfuscation and evasion, including Unicode tricks, homoglyph substitutions, encoding chains, and steganography.</li>
 <li>Credential exposure and data exfiltration, including hardcoded provider keys, secret leakage through logging or telemetry-shaped instructions, file-system exfiltration patterns, and instructions to send data somewhere it should not go.</li>
 </ul>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> says each rule is documented in the platform and backed by at least one public CVE, named research disclosure, <mark class="tag-hl">Skillforge</mark>-generated synthetic sample, or artifact captured in the wild.</p>
+<p>Mitiga Labs says each rule is documented in the platform and backed by at least one public CVE, named research disclosure, Skillforge-generated synthetic sample, or artifact captured in the wild.</p>
 
 <h2 id="in-the-wild-findings">In-the-Wild Findings</h2>
 
-<h3 id="prompt-exfiltration"><mark class="tag-hl">Prompt Exfiltration</mark></h3>
+<h3 id="prompt-exfiltration">Prompt Exfiltration</h3>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> identifies <mark class="tag-hl">prompt exfiltration</mark> as one of the most consequential classes it tracks. The article describes it as a malicious instruction file telling the agent to capture the developer’s prompts and quietly send them to an operator-controlled endpoint.</p>
+<p>Mitiga Labs identifies prompt exfiltration as one of the most consequential classes it tracks. The article describes it as a malicious instruction file telling the agent to capture the developer’s prompts and quietly send them to an operator-controlled endpoint.</p>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> says it caught a live instance of this technique in the wild, but it is holding the full breakdown for a dedicated report. The article states that <mark class="tag-hl">Skillgate</mark> already detects the technique class.</p>
+<p>Mitiga Labs says it caught a live instance of this technique in the wild, but it is holding the full breakdown for a dedicated report. The article states that Skillgate already detects the technique class.</p>
 
 <h3 id="supply-chain-trust-through-external-urls">Supply-Chain Trust Through External URLs</h3>
 
-<p>The article shows <mark class="tag-hl">Skillgate</mark> detecting a file that grants an agent permission to use cURL against an external address. <mark class="tag-hl">Mitiga Labs</mark> says a dependency may be benign at the time of review, but a configuration that allows the agent to fetch and execute content from a URL can become an arbitrary code-execution primitive if that URL is compromised or controlled by an untrusted operator.</p>
+<p>The article shows Skillgate detecting a file that grants an agent permission to use cURL against an external address. Mitiga Labs says a dependency may be benign at the time of review, but a configuration that allows the agent to fetch and execute content from a URL can become an arbitrary code-execution primitive if that URL is compromised or controlled by an untrusted operator.</p>
 
 <h3 id="mcp-proxying-via-hardcoded-ip-addresses">MCP Proxying via Hardcoded IP Addresses</h3>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> shows <mark class="tag-hl">Skillgate</mark> flagging an MCP server endpoint set to a hardcoded IP address. The article presents this as a sign of possible man-in-the-middle proxying.</p>
+<p>Mitiga Labs shows Skillgate flagging an MCP server endpoint set to a hardcoded IP address. The article presents this as a sign of possible man-in-the-middle proxying.</p>
 
 <h3 id="yolo-mode-and-anthropic-base-url-overrides">YOLO Mode and ANTHROPIC_BASE_URL Overrides</h3>
 
-<p>The article highlights a configuration pairing YOLO mode with an ANTHROPIC_BASE_URL override. <mark class="tag-hl">Mitiga Labs</mark> says the issue is not Anthropic’s own endpoint, but rather that the override can redirect all Claude API traffic from the developer’s machine through a third-party host.</p>
+<p>The article highlights a configuration pairing YOLO mode with an ANTHROPIC_BASE_URL override. Mitiga Labs says the issue is not Anthropic’s own endpoint, but rather that the override can redirect all Claude API traffic from the developer’s machine through a third-party host.</p>
 
-<p>The article states that such a third-party host would be positioned to log, replay, or modify every conversation. It also shows <mark class="tag-hl">Skillgate</mark> detections for change modification being permitted, PowerShell execution, and policy bypass in a SKILL.md file.</p>
+<p>The article states that such a third-party host would be positioned to log, replay, or modify every conversation. It also shows Skillgate detections for change modification being permitted, PowerShell execution, and policy bypass in a SKILL.md file.</p>
 
 <h2 id="affected-roles-and-environments">Affected Roles and Environments</h2>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> says AI coding assistants have made many roles into part-time developers, increasing the threat surface beyond traditional software engineering teams. The article says manually verified in-the-wild findings came from roles including:</p>
+<p>Mitiga Labs says AI coding assistants have made many roles into part-time developers, increasing the threat surface beyond traditional software engineering teams. The article says manually verified in-the-wild findings came from roles including:</p>
 
 <ul>
 <li>DevOps engineers at security companies.</li>
@@ -1494,17 +1647,17 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="infrastructure-and-environment-configuration-risks">Infrastructure and Environment Configuration Risks</h2>
 
-<p>For infrastructure configuration, <mark class="tag-hl">Mitiga Labs</mark> shows <mark class="tag-hl">Skillgate</mark> flagging a service bound to 0.0.0.0 alongside hardcoded Postgres credentials. The article states that pairing these creates a compromise primitive consisting of a publicly bound service plus a credential pair, gated only by an inbound firewall rule.</p>
+<p>For infrastructure configuration, Mitiga Labs shows Skillgate flagging a service bound to 0.0.0.0 alongside hardcoded Postgres credentials. The article states that pairing these creates a compromise primitive consisting of a publicly bound service plus a credential pair, gated only by an inbound firewall rule.</p>
 
-<p>For environment configuration, the article shows <mark class="tag-hl">Skillgate</mark> flagging hardcoded provider API keys exposed in AI-agent configuration files. Provider categories mentioned include <mark class="tag-hl">Anthropic Claude</mark>, OpenAI, Google Gemini, xAI Grok, Chinese-vendor models including MiniMax and DeepSeek, Context7, Databricks, Supabase, Vercel, YouTube, Langsmith, and Google Cloud Storage signed URLs and bucket API keys.</p>
+<p>For environment configuration, the article shows Skillgate flagging hardcoded provider API keys exposed in AI-agent configuration files. Provider categories mentioned include Anthropic Claude, OpenAI, Google Gemini, xAI Grok, Chinese-vendor models including MiniMax and DeepSeek, Context7, Databricks, Supabase, Vercel, YouTube, Langsmith, and Google Cloud Storage signed URLs and bucket API keys.</p>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> notes that flipping a repository to private after exposure is not enough because public mirrors and code-search indexes may already have cached the commits and embedded tokens. The article recommends rotating every applicable key, auditing for unauthorized use, and then addressing repository visibility.</p>
+<p>Mitiga Labs notes that flipping a repository to private after exposure is not enough because public mirrors and code-search indexes may already have cached the commits and embedded tokens. The article recommends rotating every applicable key, auditing for unauthorized use, and then addressing repository visibility.</p>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> states that it did not access, use, or attempt to authenticate with any discovered credential and treated all keys as in scope only for responsible disclosure.</p>
+<p>Mitiga Labs states that it did not access, use, or attempt to authenticate with any discovered credential and treated all keys as in scope only for responsible disclosure.</p>
 
 <h2 id="impact-and-blast-radius">Impact and Blast Radius</h2>
 
-<p>The article says <mark class="tag-hl">Mitiga Labs</mark> did not weaponize, propagate, or test any discovered tradecraft. Based on what it observed, it ranks realistic impact as follows:</p>
+<p>The article says Mitiga Labs did not weaponize, propagate, or test any discovered tradecraft. Based on what it observed, it ranks realistic impact as follows:</p>
 
 <ul>
 <li>Supply-chain compromise, described as the highest-value outcome for an adversary because a poisoned instruction file inside a popular agent template can reach every developer who clones it.</li>
@@ -1512,37 +1665,38 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Stolen credentials, with potential direct financial impact through provider wallet abuse and direct data impact through ingested data or tenant access.</li>
 </ul>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> characterizes these as early outcomes in a broader emerging era.</p>
+<p>Mitiga Labs characterizes these as early outcomes in a broader emerging era.</p>
 
 <h2 id="methodology-and-limits">Methodology and Limits</h2>
 
-<p>The article states that the corpus included more than 50,000 instruction files across more than 7,000 distinct public repositories scanned from April to June 2026. Sources included public <mark class="tag-hl">GitHub</mark> repositories containing recognized instruction-file patterns, arXiv-referenced skill samples, and <mark class="tag-hl">Skillforge</mark>-generated adversarial inputs.</p>
+<p>The article states that the corpus included more than 50,000 instruction files across more than 7,000 distinct public repositories scanned from April to June 2026. Sources included public GitHub repositories containing recognized instruction-file patterns, arXiv-referenced skill samples, and Skillforge-generated adversarial inputs.</p>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> says every in-the-wild finding cited in the article was manually triaged by the <mark class="tag-hl">Gator Agent</mark> and a human reviewer. It also states that raw scanner output is not published as a finding.</p>
+<p>Mitiga Labs says every in-the-wild finding cited in the article was manually triaged by the Gator Agent and a human reviewer. It also states that raw scanner output is not published as a finding.</p>
 
-<p>The article notes that <mark class="tag-hl">Skillgate</mark> flags configurations that are risky in context, and some YOLO-mode or cURL-allowlist findings may be intentional choices in trusted environments. It advises readers to treat each flag as requiring review rather than as proof of malware.</p>
+<p>The article notes that Skillgate flags configurations that are risky in context, and some YOLO-mode or cURL-allowlist findings may be intentional choices in trusted environments. It advises readers to treat each flag as requiring review rather than as proof of malware.</p>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> says it did not measure actual exploitation, did not honeypot, contact, or test operator infrastructure, and went no further than identifying repository owners for disclosure.</p>
+<p>Mitiga Labs says it did not measure actual exploitation, did not honeypot, contact, or test operator infrastructure, and went no further than identifying repository owners for disclosure.</p>
 
 <h2 id="recommended-workflow">Recommended Workflow</h2>
 
-<p><mark class="tag-hl">Mitiga Labs</mark> recommends that teams using AI-agent instruction files take several steps:</p>
+<p>Mitiga Labs recommends that teams using AI-agent instruction files take several steps:</p>
 
 <ul>
-<li>Run <mark class="tag-hl">Skillgate</mark> against instruction-file paths added to source control, including .cursorrules, .claude/, CLAUDE.md, AGENTS.md, .continue/, mcp.json, and post-install scripts in the agent’s working directory.</li>
-<li>Block merges if <mark class="tag-hl">Skillgate</mark> raises findings in the Direct Execution, Tool and MCP Poisoning, or Credential Exposure families until a human reviewer signs off.</li>
+<li>Run Skillgate against instruction-file paths added to source control, including .cursorrules, .claude/, CLAUDE.md, AGENTS.md, .continue/, mcp.json, and post-install scripts in the agent’s working directory.</li>
+<li>Block merges if Skillgate raises findings in the Direct Execution, Tool and MCP Poisoning, or Credential Exposure families until a human reviewer signs off.</li>
 <li>Re-scan on every model or agent upgrade because new runtime permissions may ship quickly.</li>
-<li>For external repositories, run <mark class="tag-hl">Skillgate</mark> before cloning or opening the files in an editor.</li>
+<li>For external repositories, run Skillgate before cloning or opening the files in an editor.</li>
 </ul>
 
-<p>The article states that <mark class="tag-hl">Skillgate</mark> is free at <mark class="tag-hl">skillgate</mark>.mitiga.ai and that public scans can be browsed anonymously, while submitting a skill or repository for scanning requires a free account.</p>
+<p>The article states that Skillgate is free at skillgate.mitiga.ai and that public scans can be browsed anonymously, while submitting a skill or repository for scanning requires a free account.</p>
 </div></div>
-                <div id="insights-81f4a4dbe564e28bdcbe7bc1a6408c5b:413c7a060a6aab4c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">AI agent compromise can occur without traditional malware because a malicious instruction file can make the trusted agent itself capture prompts, read files, or send data externally.</span></li><li><span class="kp-text">A base-URL override such as ANTHROPIC_BASE_URL can turn a normal Claude configuration into a man-in-the-middle risk by routing all Claude API traffic through a third-party host.</span></li><li><span class="kp-text">Repository privacy changes are insufficient after secrets are exposed because public mirrors and code-search indexes may already have cached the commits and embedded tokens.</span></li><li><span class="kp-text">Risky AI-agent configurations are not limited to software engineers, as Mitiga manually verified findings tied to roles including founders, CEOs, product managers, researchers, and PhD students.</span></li><li><span class="kp-text">A benign dependency can still create a supply-chain execution risk when an agent is granted standing permission to fetch and execute content from an external URL controlled by someone else.</span></li></ul></div>
+                <div id="insights-d75ab45f002ca4c77eb7f0c0b134fe7c:413c7a060a6aab4c" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">AI agent compromise can occur without traditional malware because a malicious instruction file can make the trusted agent itself capture prompts, read files, or send data externally.</span></li><li><span class="kp-text">A base-URL override such as ANTHROPIC_BASE_URL can turn a normal Claude configuration into a man-in-the-middle risk by routing all Claude API traffic through a third-party host.</span></li><li><span class="kp-text">Repository privacy changes are insufficient after secrets are exposed because public mirrors and code-search indexes may already have cached the commits and embedded tokens.</span></li><li><span class="kp-text">Risky AI-agent configurations are not limited to software engineers, as Mitiga manually verified findings tied to roles including founders, CEOs, product managers, researchers, and PhD students.</span></li><li><span class="kp-text">A benign dependency can still create a supply-chain execution risk when an agent is granted standing permission to fetch and execute content from an external URL controlled by someone else.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text"><mark class="tag-hl">Mitiga Labs</mark> investigated AI instruction files over six months and found <mark class="tag-hl">prompt-exfiltration</mark> tradecraft, attacker-controlled ANTHROPIC_BASE_URL overrides, permission-bypass defaults, and more than 1,230 hardcoded API keys and JWT tokens.</span></li><li><span class="kp-text">The research covered AI agent artifacts including <mark class="tag-hl">Cursor rules</mark>, Anthropic Skills, <mark class="tag-hl">Claude Hooks</mark>, AGENTS.md and CLAUDE.md files, MCP server configurations, package.json droppers, and hidden .pyc bytecode files.</span></li><li><span class="kp-text"><mark class="tag-hl">Mitiga Labs</mark> released <mark class="tag-hl">Skillgate</mark>, a free scanner that detects risky techniques across skills, hooks, agent brain files, MCP configurations, agentic rules, supply-chain droppers, and bytecode artifacts.</span></li><li><span class="kp-text"><mark class="tag-hl">Skillgate</mark> has scanned over 50,000 files across more than 7,000 public repositories and currently includes over 80 detection rules organized into technique families such as direct execution, prompt manipulation, <mark class="tag-hl">MCP server poisoning</mark>, supply-chain attacks, obfuscation, and credential exposure.</span></li><li><span class="kp-text"><mark class="tag-hl">Mitiga Labs</mark> said it manually verified in-the-wild findings, did not access or authenticate with discovered credentials, and recommends scanning AI instruction files before agents ingest them or before external repositories are cloned.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Mitiga Labs investigated AI instruction files over six months and found prompt-exfiltration tradecraft, attacker-controlled ANTHROPIC_BASE_URL overrides, permission-bypass defaults, and more than 1,230 hardcoded API keys and JWT tokens.</span></li><li><span class="kp-text">The research covered AI agent artifacts including Cursor rules, Anthropic Skills, Claude Hooks, AGENTS.md and CLAUDE.md files, MCP server configurations, package.json droppers, and hidden .pyc bytecode files.</span></li><li><span class="kp-text">Mitiga Labs released Skillgate, a free scanner that detects risky techniques across skills, hooks, agent brain files, MCP configurations, agentic rules, supply-chain droppers, and bytecode artifacts.</span></li><li><span class="kp-text">Skillgate has scanned over 50,000 files across more than 7,000 public repositories and currently includes over 80 detection rules organized into technique families such as direct execution, prompt manipulation, MCP server poisoning, supply-chain attacks, obfuscation, and credential exposure.</span></li><li><span class="kp-text">Mitiga Labs said it manually verified in-the-wild findings, did not access or authenticate with discovered credentials, and recommends scanning AI instruction files before agents ingest them or before external repositories are cloned.</span></li></ul></div>
+            
             <a href="https://www.mitiga.io/blog/malware-in-ai-instruction-files-skillgate" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports concrete research findings with broad relevance to teams using AI coding agents, including in-the-wild <mark class="tag-hl">prompt exfiltration</mark>, base-URL hijacking risks, unsafe agent permissions, and over 1,230 exposed API keys. It is not a critical patch or fully detailed active campaign report, but it identifies a specific emerging supply-chain risk surface and provides actionable scanning guidance.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports concrete research findings with broad relevance to teams using AI coding agents, including in-the-wild prompt exfiltration, base-URL hijacking risks, unsafe agent permissions, and over 1,230 exposed API keys. It is not a critical patch or fully detailed active campaign report, but it identifies a specific emerging supply-chain risk surface and provides actionable scanning guidance.</p>
 </div></div>
             
             
@@ -1566,16 +1720,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest covers a focused but significant development in the emerging security landscape around AI agents and developer-assistant ecosystems. <mark class="tag-hl">Mitiga Labs</mark> reported that AI instruction files and agent configuration artifacts are increasingly showing malware-like tradecraft, including <mark class="tag-hl">prompt exfiltration</mark>, model endpoint hijacking, permission bypasses, and exposed credentials.</p>
+        <div class="overview-body prose"><p>This digest covers a focused but significant development in the emerging security landscape around AI agents and developer-assistant ecosystems. Mitiga Labs reported that AI instruction files and agent configuration artifacts are increasingly showing malware-like tradecraft, including prompt exfiltration, model endpoint hijacking, permission bypasses, and exposed credentials.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">AI Agent Instruction Files as a Malware and Supply-Chain Surface</span>
         </div>
-        <div class="overview-body prose"><p><mark class="tag-hl">Mitiga Labs</mark> published research based on a six-month investigation into AI agent artifacts such as <mark class="tag-hl">Cursor rules</mark>, Anthropic Skills, <mark class="tag-hl">Claude Hooks</mark>, AGENTS.md and CLAUDE.md files, MCP server configurations, package.json droppers, and hidden <code>.pyc</code> bytecode files. The findings indicate that files intended to guide or configure AI agents can also carry techniques associated with spyware, credential exposure, execution abuse, and supply-chain manipulation.</p>
+        <div class="overview-body prose"><p>Mitiga Labs published research based on a six-month investigation into AI agent artifacts such as Cursor rules, Anthropic Skills, Claude Hooks, AGENTS.md and CLAUDE.md files, MCP server configurations, package.json droppers, and hidden <code>.pyc</code> bytecode files. The findings indicate that files intended to guide or configure AI agents can also carry techniques associated with spyware, credential exposure, execution abuse, and supply-chain manipulation.</p>
 
-<p>The research identified <mark class="tag-hl">prompt-exfiltration</mark> tradecraft, attacker-controlled <code>ANTHROPIC_BASE_URL</code> overrides, and permission-bypass defaults embedded in AI instruction and configuration files. The <code>ANTHROPIC_BASE_URL</code> behavior is particularly notable because it can redirect model traffic toward attacker-controlled infrastructure when agent environments honor the variable, creating an opportunity for interception or manipulation of AI workflows.</p>
+<p>The research identified prompt-exfiltration tradecraft, attacker-controlled <code>ANTHROPIC_BASE_URL</code> overrides, and permission-bypass defaults embedded in AI instruction and configuration files. The <code>ANTHROPIC_BASE_URL</code> behavior is particularly notable because it can redirect model traffic toward attacker-controlled infrastructure when agent environments honor the variable, creating an opportunity for interception or manipulation of AI workflows.</p>
 
 <p>Mitiga also reported finding more than 1,230 hardcoded API keys and JWT tokens across the examined public repository content. The company said it manually verified in-the-wild findings and did not access or authenticate with the discovered credentials, framing the exposure as part of a broader pattern of sensitive data and control logic being embedded in artifacts consumed by AI coding assistants and agentic systems.</p>
 </div>
@@ -1584,9 +1738,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Skillgate Scanner and Detection Coverage</span>
         </div>
-        <div class="overview-body prose"><p>Alongside the research, <mark class="tag-hl">Mitiga Labs</mark> released <mark class="tag-hl">Skillgate</mark>, a free scanner designed to detect risky patterns across AI instruction files, skills, hooks, agent brain files, MCP configurations, supply-chain droppers, and bytecode artifacts. According to Mitiga, <mark class="tag-hl">Skillgate</mark> has scanned more than 50,000 files across over 7,000 public repositories.</p>
+        <div class="overview-body prose"><p>Alongside the research, Mitiga Labs released Skillgate, a free scanner designed to detect risky patterns across AI instruction files, skills, hooks, agent brain files, MCP configurations, supply-chain droppers, and bytecode artifacts. According to Mitiga, Skillgate has scanned more than 50,000 files across over 7,000 public repositories.</p>
 
-<p>The tool currently includes more than 80 detection rules organized into technique families including direct execution, prompt manipulation, <mark class="tag-hl">MCP server poisoning</mark>, supply-chain attacks, obfuscation, and credential exposure. This rule structure reflects how AI agent ecosystems are beginning to develop their own recognizable abuse patterns, overlapping with traditional malware and software supply-chain techniques while adding AI-specific vectors such as prompt manipulation and agent instruction poisoning.</p>
+<p>The tool currently includes more than 80 detection rules organized into technique families including direct execution, prompt manipulation, MCP server poisoning, supply-chain attacks, obfuscation, and credential exposure. This rule structure reflects how AI agent ecosystems are beginning to develop their own recognizable abuse patterns, overlapping with traditional malware and software supply-chain techniques while adding AI-specific vectors such as prompt manipulation and agent instruction poisoning.</p>
 
 <p>The reporting highlights a shift in attacker opportunity from conventional source code alone to the broader operational context surrounding AI-assisted development. As AI agents increasingly ingest repository-level instructions and configuration files, those artifacts become part of the executable or decision-influencing environment, expanding the set of files that may affect developer workflows, automation behavior, and sensitive credential handling.</p>
 </div>
@@ -1597,9 +1751,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-16 02:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1612,15 +1769,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1733,12 +1952,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1799,6 +2052,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

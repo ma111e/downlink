@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,48 +1506,48 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <span class="score-tip" data-tip="Severity 4/4 · Specificity 4/4 · Breadth 3/4 · Actionability 4/4 · Novelty 4/4 · Credibility 4/4"><div class="score-bar"><div class="score-track"><div class="score-fill score-fill-high" style="width:95%"></div></div><span class="score-num score-num-high">95</span></div></span>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="ae9067a09556aec77039afd5995795d5:6be75c5184b888d0">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-d5ba5c2d979259df2a32448fab113605:6be75c5184b888d0')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-d5ba5c2d979259df2a32448fab113605:6be75c5184b888d0')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-d5ba5c2d979259df2a32448fab113605:6be75c5184b888d0')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-d5ba5c2d979259df2a32448fab113605:6be75c5184b888d0')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-d5ba5c2d979259df2a32448fab113605:6be75c5184b888d0')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-ae9067a09556aec77039afd5995795d5:6be75c5184b888d0')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-ae9067a09556aec77039afd5995795d5:6be75c5184b888d0')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-ae9067a09556aec77039afd5995795d5:6be75c5184b888d0')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-ae9067a09556aec77039afd5995795d5:6be75c5184b888d0')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-ae9067a09556aec77039afd5995795d5:6be75c5184b888d0')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-d5ba5c2d979259df2a32448fab113605:6be75c5184b888d0" class="tab-panel active"><div class="prose">The @<mark class="tag-hl">mastra</mark> <mark class="tag-hl">npm</mark> organization was compromised and 140+ packages were republished with a typosquatted dependency, <mark class="tag-hl">easy-day-js</mark>, whose malicious <mark class="tag-hl">postinstall script</mark> downloaded and ran a second-stage payload. Anyone who installed affected @<mark class="tag-hl">mastra</mark> packages on June 17, 2026 should treat their environment and exposed secrets as compromised.</div></div>
-                <div id="brief-d5ba5c2d979259df2a32448fab113605:6be75c5184b888d0" class="tab-panel"><div class="prose"><p>On June 17, 2026, an attacker compromised the <code>@<mark class="tag-hl">mastra</mark></code> <mark class="tag-hl">npm</mark> organization and added <code><mark class="tag-hl">easy-day-js</mark></code> as a dependency across more than 140 packages in the <mark class="tag-hl">Mastra</mark> AI framework ecosystem. The affected packages had combined weekly downloads exceeding 1.1 million, and the article states that anyone who installed an <code>@<mark class="tag-hl">mastra</mark></code> package that day should treat the environment as compromised. The campaign was described as ongoing at publication time, with additional <code>@<mark class="tag-hl">mastra</mark></code> packages continuing to be compromised.</p>
+                <div id="tldr-ae9067a09556aec77039afd5995795d5:6be75c5184b888d0" class="tab-panel active"><div class="prose">The @mastra npm organization was compromised and 140+ packages were republished with a typosquatted dependency, easy-day-js, whose malicious postinstall script downloaded and ran a second-stage payload. Anyone who installed affected @mastra packages on June 17, 2026 should treat their environment and exposed secrets as compromised.</div></div>
+                <div id="brief-ae9067a09556aec77039afd5995795d5:6be75c5184b888d0" class="tab-panel"><div class="prose"><p>On June 17, 2026, an attacker compromised the <code>@mastra</code> npm organization and added <code>easy-day-js</code> as a dependency across more than 140 packages in the Mastra AI framework ecosystem. The affected packages had combined weekly downloads exceeding 1.1 million, and the article states that anyone who installed an <code>@mastra</code> package that day should treat the environment as compromised. The campaign was described as ongoing at publication time, with additional <code>@mastra</code> packages continuing to be compromised.</p>
 
-<p>The malicious dependency, <code><mark class="tag-hl">easy-day-js</mark></code>, was a typosquat of the popular <code><mark class="tag-hl">dayjs</mark></code> date library. A clean bait version, <code><mark class="tag-hl">easy-day-js</mark>@1.11.21</code>, was first published on June 16, and the compromised <mark class="tag-hl">Mastra</mark> packages referenced it with the caret range <code>^1.11.21</code>, allowing <mark class="tag-hl">npm</mark> installs to resolve later to the malicious <code>1.11.22</code> version. That malicious version added a <code>setup.cjs</code> file and a <code>postinstall</code> hook that executed an obfuscated dropper.</p>
+<p>The malicious dependency, <code>easy-day-js</code>, was a typosquat of the popular <code>dayjs</code> date library. A clean bait version, <code>easy-day-js@1.11.21</code>, was first published on June 16, and the compromised Mastra packages referenced it with the caret range <code>^1.11.21</code>, allowing npm installs to resolve later to the malicious <code>1.11.22</code> version. That malicious version added a <code>setup.cjs</code> file and a <code>postinstall</code> hook that executed an obfuscated dropper.</p>
 
-<p>When installed, the dropper disabled TLS certificate verification, wrote beacon files into the temporary directory, downloaded a second-stage payload from <code>https://23.254.164.92:8000/update/49890878</code>, spawned it as a detached Node.js process with <code>23.254.164.123:443</code> as an argument, and deleted itself. StepSecurity reported that Harden Runner in block mode intercepted and blocked the outbound call to <code>23.254.164.92:8000</code> during a controlled <mark class="tag-hl">GitHub Actions</mark> test, preventing the stage-two payload from downloading and stopping the rest of the chain.</p>
+<p>When installed, the dropper disabled TLS certificate verification, wrote beacon files into the temporary directory, downloaded a second-stage payload from <code>https://23.254.164.92:8000/update/49890878</code>, spawned it as a detached Node.js process with <code>23.254.164.123:443</code> as an argument, and deleted itself. StepSecurity reported that Harden Runner in block mode intercepted and blocked the outbound call to <code>23.254.164.92:8000</code> during a controlled GitHub Actions test, preventing the stage-two payload from downloading and stopping the rest of the chain.</p>
 </div></div>
-                <div id="standard-d5ba5c2d979259df2a32448fab113605:6be75c5184b888d0" class="tab-panel"><div class="prose"><p>On June 17, 2026, an attacker compromised the <code>@<mark class="tag-hl">mastra</mark></code> <mark class="tag-hl">npm</mark> organization and republished more than 140 <mark class="tag-hl">Mastra</mark> ecosystem packages with a new production dependency on <code><mark class="tag-hl">easy-day-js</mark></code>. <mark class="tag-hl">Mastra</mark> is described in the article as a TypeScript framework for AI agents, workflows, RAG pipelines, LLM integrations, memory, MCP servers, vector databases, and cloud deployment targets. Because <mark class="tag-hl">Mastra</mark> packages are often installed in environments containing LLM API keys, cloud credentials, database tokens, CI/CD secrets, VCS tokens, and <mark class="tag-hl">npm</mark> tokens, the article identifies the ecosystem as a high-value target.</p>
+                <div id="standard-ae9067a09556aec77039afd5995795d5:6be75c5184b888d0" class="tab-panel"><div class="prose"><p>On June 17, 2026, an attacker compromised the <code>@mastra</code> npm organization and republished more than 140 Mastra ecosystem packages with a new production dependency on <code>easy-day-js</code>. Mastra is described in the article as a TypeScript framework for AI agents, workflows, RAG pipelines, LLM integrations, memory, MCP servers, vector databases, and cloud deployment targets. Because Mastra packages are often installed in environments containing LLM API keys, cloud credentials, database tokens, CI/CD secrets, VCS tokens, and npm tokens, the article identifies the ecosystem as a high-value target.</p>
 
-<p>The attack began with pre-positioning on June 16, 2026, when <mark class="tag-hl">npm</mark> user <code><mark class="tag-hl">sergey2016</mark></code> published <code><mark class="tag-hl">easy-day-js</mark>@1.11.21</code> as a clean copy of the legitimate <code><mark class="tag-hl">dayjs</mark></code> library. The package mirrored <code><mark class="tag-hl">dayjs</mark></code> versioning, metadata, homepage, repository URL, license, and keywords to appear credible. The compromised <mark class="tag-hl">Mastra</mark> packages added <code><mark class="tag-hl">easy-day-js</mark></code> as <code>^1.11.21</code>, which meant <mark class="tag-hl">npm</mark> would resolve fresh installs to the latest matching version once a newer release appeared.</p>
+<p>The attack began with pre-positioning on June 16, 2026, when npm user <code>sergey2016</code> published <code>easy-day-js@1.11.21</code> as a clean copy of the legitimate <code>dayjs</code> library. The package mirrored <code>dayjs</code> versioning, metadata, homepage, repository URL, license, and keywords to appear credible. The compromised Mastra packages added <code>easy-day-js</code> as <code>^1.11.21</code>, which meant npm would resolve fresh installs to the latest matching version once a newer release appeared.</p>
 
-<p>At 01:01 UTC on June 17, <code><mark class="tag-hl">sergey2016</mark></code> published <code><mark class="tag-hl">easy-day-js</mark>@1.11.22</code>, which added <code>setup.cjs</code> and a <code>postinstall</code> script of <code>node setup.cjs --no-warnings</code>. Eleven minutes later, the attacker began publishing compromised <code>@<mark class="tag-hl">mastra</mark></code> packages, starting with <code>@<mark class="tag-hl">mastra</mark>/schema-compat@1.2.12</code>, followed by core packages such as <code>@<mark class="tag-hl">mastra</mark>/core@1.42.1</code>, <code>@<mark class="tag-hl">mastra</mark>/memory@1.20.4</code>, <code>@<mark class="tag-hl">mastra</mark>/server@2.1.1</code>, and the top-level <code><mark class="tag-hl">mastra</mark>@1.13.1</code>. The article states that the publishing cadence was consistent with an automated script enumerating and processing packages in batches.</p>
+<p>At 01:01 UTC on June 17, <code>sergey2016</code> published <code>easy-day-js@1.11.22</code>, which added <code>setup.cjs</code> and a <code>postinstall</code> script of <code>node setup.cjs --no-warnings</code>. Eleven minutes later, the attacker began publishing compromised <code>@mastra</code> packages, starting with <code>@mastra/schema-compat@1.2.12</code>, followed by core packages such as <code>@mastra/core@1.42.1</code>, <code>@mastra/memory@1.20.4</code>, <code>@mastra/server@2.1.1</code>, and the top-level <code>mastra@1.13.1</code>. The article states that the publishing cadence was consistent with an automated script enumerating and processing packages in batches.</p>
 
 <p>The <code>setup.cjs</code> dropper was obfuscated with a custom-alphabet Base64 scheme, an array rotation and integrity check, and an XOR-encoded package marker. At install time, it set <code>NODE_TLS_REJECT_UNAUTHORIZED=0</code>, wrote <code>.pkg_history</code> and <code>.pkg_logs</code> into the temp directory, fetched a second-stage payload from <code>https://23.254.164.92:8000/update/49890878</code>, wrote it to a random 24-hex-character JavaScript filename, and spawned it detached with <code>23.254.164.123:443</code> as the command-and-control argument. The script then deleted itself with <code>fs.rmSync(__filename, { force: true })</code>.</p>
 
-<p>StepSecurity tested the behavior in a controlled <mark class="tag-hl">GitHub Actions</mark> workflow using Harden Runner in block mode. Harden Runner blocked the outbound connection to <code>23.254.164.92:8000</code>, so the stage-two payload was not downloaded, no detached child process was spawned, and the stage-two command-and-control address was not contacted. The article also lists indicators of compromise, including <code><mark class="tag-hl">easy-day-js</mark>@1.11.22</code>, <code><mark class="tag-hl">easy-day-js</mark>@1.11.21</code>, <mark class="tag-hl">npm</mark> maintainer <code><mark class="tag-hl">sergey2016</mark></code>, <code>setup.cjs</code>, the two IP addresses, the stage-two URL, temporary files, and the <mark class="tag-hl">postinstall script</mark>.</p>
+<p>StepSecurity tested the behavior in a controlled GitHub Actions workflow using Harden Runner in block mode. Harden Runner blocked the outbound connection to <code>23.254.164.92:8000</code>, so the stage-two payload was not downloaded, no detached child process was spawned, and the stage-two command-and-control address was not contacted. The article also lists indicators of compromise, including <code>easy-day-js@1.11.22</code>, <code>easy-day-js@1.11.21</code>, npm maintainer <code>sergey2016</code>, <code>setup.cjs</code>, the two IP addresses, the stage-two URL, temporary files, and the postinstall script.</p>
 </div></div>
-                <div id="comprehensive-d5ba5c2d979259df2a32448fab113605:6be75c5184b888d0" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-ae9067a09556aec77039afd5995795d5:6be75c5184b888d0" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>On June 17, 2026, an attacker compromised the <code>@<mark class="tag-hl">mastra</mark></code> <mark class="tag-hl">npm</mark> organization and added the dependency <code><mark class="tag-hl">easy-day-js</mark></code> across more than 140 packages in the <mark class="tag-hl">Mastra</mark> AI framework ecosystem. The article describes <code><mark class="tag-hl">easy-day-js</mark></code> as a typosquat of the popular <code><mark class="tag-hl">dayjs</mark></code> date library. Packages with combined weekly downloads exceeding 1.1 million were exposed, and the article states that anyone who installed an <code>@<mark class="tag-hl">mastra</mark></code> package that day should treat the environment as compromised.</p>
+<p>On June 17, 2026, an attacker compromised the <code>@mastra</code> npm organization and added the dependency <code>easy-day-js</code> across more than 140 packages in the Mastra AI framework ecosystem. The article describes <code>easy-day-js</code> as a typosquat of the popular <code>dayjs</code> date library. Packages with combined weekly downloads exceeding 1.1 million were exposed, and the article states that anyone who installed an <code>@mastra</code> package that day should treat the environment as compromised.</p>
 
-<p>The article says the incident was ongoing at the time of publication. It also says additional <code>@<mark class="tag-hl">mastra</mark></code> packages were continuing to be compromised and that the issue was responsibly disclosed in the <mark class="tag-hl">Mastra</mark> GitHub repository at <code>https://github.com/<mark class="tag-hl">mastra</mark>-ai/<mark class="tag-hl">mastra</mark>/issues/18045</code>.</p>
+<p>The article says the incident was ongoing at the time of publication. It also says additional <code>@mastra</code> packages were continuing to be compromised and that the issue was responsibly disclosed in the Mastra GitHub repository at <code>https://github.com/mastra-ai/mastra/issues/18045</code>.</p>
 
-<h2 id="mastra-context-and-significance"><mark class="tag-hl">Mastra</mark> Context and Significance</h2>
+<h2 id="mastra-context-and-significance">Mastra Context and Significance</h2>
 
-<p><mark class="tag-hl">Mastra</mark> is described as a rapidly growing open-source TypeScript framework for building AI agents, multi-step workflows, and retrieval-augmented generation pipelines. It includes integrations for major LLM providers such as OpenAI, Anthropic, and Google, as well as persistent agent memory, Model Context Protocol servers, vector databases, and cloud deployment targets.</p>
+<p>Mastra is described as a rapidly growing open-source TypeScript framework for building AI agents, multi-step workflows, and retrieval-augmented generation pipelines. It includes integrations for major LLM providers such as OpenAI, Anthropic, and Google, as well as persistent agent memory, Model Context Protocol servers, vector databases, and cloud deployment targets.</p>
 
-<p>The article emphasizes that <mark class="tag-hl">Mastra</mark> packages are commonly installed in sensitive development and infrastructure environments. Examples of credentials that may exist in those environments include:</p>
+<p>The article emphasizes that Mastra packages are commonly installed in sensitive development and infrastructure environments. Examples of credentials that may exist in those environments include:</p>
 
 <ul>
 <li><code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, and <code>GOOGLE_API_KEY</code></li>
@@ -1403,13 +1556,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>CI/CD secrets and VCS tokens such as <code>GITHUB_TOKEN</code> and <code>NPM_TOKEN</code></li>
 </ul>
 
-<p>Because of this, the article characterizes the <mark class="tag-hl">Mastra</mark> ecosystem as a high-value target for supply-chain attackers.</p>
+<p>Because of this, the article characterizes the Mastra ecosystem as a high-value target for supply-chain attackers.</p>
 
 <h2 id="pre-positioning-with-a-clean-typosquat">Pre-positioning With a Clean Typosquat</h2>
 
-<p>The attack began on June 16, 2026 at 07:05 UTC, when <mark class="tag-hl">npm</mark> user <code><mark class="tag-hl">sergey2016</mark></code> published <code><mark class="tag-hl">easy-day-js</mark>@1.11.21</code>. The article states that this version was clean and functioned as a copy of the legitimate <code><mark class="tag-hl">dayjs</mark></code> library, with no malicious code. Its purpose was to look credible.</p>
+<p>The attack began on June 16, 2026 at 07:05 UTC, when npm user <code>sergey2016</code> published <code>easy-day-js@1.11.21</code>. The article states that this version was clean and functioned as a copy of the legitimate <code>dayjs</code> library, with no malicious code. Its purpose was to look credible.</p>
 
-<p>The package mirrored several attributes of <code><mark class="tag-hl">dayjs</mark></code>, including:</p>
+<p>The package mirrored several attributes of <code>dayjs</code>, including:</p>
 
 <ul>
 <li><code>1.11.x</code> version numbering</li>
@@ -1417,14 +1570,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Homepage URL</li>
 <li>Repository URL</li>
 <li>MIT license</li>
-<li>Keywords such as <code><mark class="tag-hl">dayjs</mark></code>, <code>date</code>, <code>time</code>, and <code>moment</code></li>
+<li>Keywords such as <code>dayjs</code>, <code>date</code>, <code>time</code>, and <code>moment</code></li>
 </ul>
 
-<p>This clean version was the dependency inserted into the <code>@<mark class="tag-hl">mastra</mark></code> packages. The dependency was specified as <code>&quot;<mark class="tag-hl">easy-day-js</mark>&quot;: &quot;^1.11.21&quot;</code>, which allowed <mark class="tag-hl">npm</mark> to resolve the dependency to the latest matching version at install time.</p>
+<p>This clean version was the dependency inserted into the <code>@mastra</code> packages. The dependency was specified as <code>&quot;easy-day-js&quot;: &quot;^1.11.21&quot;</code>, which allowed npm to resolve the dependency to the latest matching version at install time.</p>
 
 <h2 id="malicious-version-publication">Malicious Version Publication</h2>
 
-<p>At 01:01 UTC on June 17, 2026, <code><mark class="tag-hl">sergey2016</mark></code> published <code><mark class="tag-hl">easy-day-js</mark>@1.11.22</code>. The article says this version was identical to <code>1.11.21</code> except for the addition of a file named <code>setup.cjs</code> and a <code>postinstall</code> hook.</p>
+<p>At 01:01 UTC on June 17, 2026, <code>sergey2016</code> published <code>easy-day-js@1.11.22</code>. The article says this version was identical to <code>1.11.21</code> except for the addition of a file named <code>setup.cjs</code> and a <code>postinstall</code> hook.</p>
 
 <p>The <code>postinstall</code> hook was:</p>
 
@@ -1433,27 +1586,27 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The article notes that <code>--no-warnings</code> suppresses Node.js runtime warnings that could alert the user. The added <code>setup.cjs</code> file was 4,572 bytes and contained an obfuscated dropper.</p>
 
-<h2 id="mastra-organization-compromise-and-mass-publishing">@<mark class="tag-hl">mastra</mark> Organization Compromise and Mass Publishing</h2>
+<h2 id="mastra-organization-compromise-and-mass-publishing">@mastra Organization Compromise and Mass Publishing</h2>
 
-<p>Eleven minutes after the malicious <code><mark class="tag-hl">easy-day-js</mark></code> version was published, the attacker used compromised <code>@<mark class="tag-hl">mastra</mark></code> organization credentials to begin a mass publishing campaign. The campaign ran from 01:12 UTC to 02:39 UTC, during which more than 140 packages were republished with <code><mark class="tag-hl">easy-day-js</mark></code> added as a production dependency.</p>
+<p>Eleven minutes after the malicious <code>easy-day-js</code> version was published, the attacker used compromised <code>@mastra</code> organization credentials to begin a mass publishing campaign. The campaign ran from 01:12 UTC to 02:39 UTC, during which more than 140 packages were republished with <code>easy-day-js</code> added as a production dependency.</p>
 
 <p>The article lists this sequence of observed activity:</p>
 
 <ul>
-<li>01:01 UTC: <code><mark class="tag-hl">easy-day-js</mark>@1.11.22</code> was published by <code><mark class="tag-hl">sergey2016</mark></code> with the malicious <code>setup.cjs</code> dropper.</li>
-<li>01:12 UTC: The first <code>@<mark class="tag-hl">mastra</mark></code> package was hit, <code>@<mark class="tag-hl">mastra</mark>/schema-compat@1.2.12</code>.</li>
-<li>01:15–01:20 UTC: Core packages such as <code>@<mark class="tag-hl">mastra</mark>/core@1.42.1</code>, <code>@<mark class="tag-hl">mastra</mark>/memory@1.20.4</code>, <code>@<mark class="tag-hl">mastra</mark>/server@2.1.1</code>, <code>@<mark class="tag-hl">mastra</mark>/loggers@1.1.3</code>, <code>@<mark class="tag-hl">mastra</mark>/observability@1.14.2</code>, and <code>@<mark class="tag-hl">mastra</mark>/deployer@1.42.1</code> were published.</li>
-<li>01:24 UTC: The top-level framework package <code><mark class="tag-hl">mastra</mark>@1.13.1</code> was published.</li>
-<li>01:25–01:30 UTC: Infrastructure packages such as <code>@<mark class="tag-hl">mastra</mark>/pg@1.13.1</code>, <code>@<mark class="tag-hl">mastra</mark>/mcp@1.10.1</code>, <code>@<mark class="tag-hl">mastra</mark>/libsql@1.13.1</code>, <code>@<mark class="tag-hl">mastra</mark>/evals@1.3.1</code>, <code>@<mark class="tag-hl">mastra</mark>/rag@2.2.2</code>, and <code>@<mark class="tag-hl">mastra</mark>/datadog@1.2.5</code> were published.</li>
+<li>01:01 UTC: <code>easy-day-js@1.11.22</code> was published by <code>sergey2016</code> with the malicious <code>setup.cjs</code> dropper.</li>
+<li>01:12 UTC: The first <code>@mastra</code> package was hit, <code>@mastra/schema-compat@1.2.12</code>.</li>
+<li>01:15–01:20 UTC: Core packages such as <code>@mastra/core@1.42.1</code>, <code>@mastra/memory@1.20.4</code>, <code>@mastra/server@2.1.1</code>, <code>@mastra/loggers@1.1.3</code>, <code>@mastra/observability@1.14.2</code>, and <code>@mastra/deployer@1.42.1</code> were published.</li>
+<li>01:24 UTC: The top-level framework package <code>mastra@1.13.1</code> was published.</li>
+<li>01:25–01:30 UTC: Infrastructure packages such as <code>@mastra/pg@1.13.1</code>, <code>@mastra/mcp@1.10.1</code>, <code>@mastra/libsql@1.13.1</code>, <code>@mastra/evals@1.3.1</code>, <code>@mastra/rag@2.2.2</code>, and <code>@mastra/datadog@1.2.5</code> were published.</li>
 <li>01:34–02:09 UTC: Database adapters, observability integrations, voice providers, auth plugins, and deployer targets were published.</li>
-<li>02:19–02:39 UTC: More packages continued to be compromised, with <code>@<mark class="tag-hl">mastra</mark>/dane</code> last observed at 02:39 UTC.</li>
+<li>02:19–02:39 UTC: More packages continued to be compromised, with <code>@mastra/dane</code> last observed at 02:39 UTC.</li>
 </ul>
 
-<p>The article states that the publishing cadence was clearly not manual and was consistent with a script that enumerated the <code>@<mark class="tag-hl">mastra</mark></code> organization and processed packages in batches.</p>
+<p>The article states that the publishing cadence was clearly not manual and was consistent with a script that enumerated the <code>@mastra</code> organization and processed packages in batches.</p>
 
 <h2 id="install-time-execution-chain">Install-Time Execution Chain</h2>
 
-<p>When a developer installed an affected package, <mark class="tag-hl">npm</mark> resolved <code><mark class="tag-hl">easy-day-js</mark></code> to version <code>1.11.22</code>, because it was the latest patch version matching <code>^1.11.21</code>. <mark class="tag-hl">npm</mark> then automatically ran the malicious <code>postinstall</code> hook.</p>
+<p>When a developer installed an affected package, npm resolved <code>easy-day-js</code> to version <code>1.11.22</code>, because it was the latest patch version matching <code>^1.11.21</code>. npm then automatically ran the malicious <code>postinstall</code> hook.</p>
 
 <p>The article deobfuscates the dropper logic as performing the following actions:</p>
 
@@ -1467,7 +1620,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>Downloading the second-stage payload</li>
 <li>Writing the payload to a randomly named JavaScript file in the temp directory</li>
 <li>Spawning the payload as a detached Node.js process with ignored standard I/O and <code>windowsHide: true</code></li>
-<li>Calling <code>.unref()</code> so the process could continue after <mark class="tag-hl">npm</mark> exited</li>
+<li>Calling <code>.unref()</code> so the process could continue after npm exited</li>
 <li>Deleting <code>setup.cjs</code> with <code>fs.rmSync(__filename, { force: true })</code></li>
 </ul>
 
@@ -1479,7 +1632,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Second, the dropper wrote beacon information before fetching the payload. It wrote the package installation path to <code>&lt;tmpdir&gt;/.pkg_history</code>, which the article says gave the attacker a map of affected machines.</p>
 
-<p>Third, the second-stage payload was spawned as a detached background process using <code>detached: true</code>, <code>stdio: 'ignore'</code>, and <code>.unref()</code>. The article says this allowed it to keep running after <mark class="tag-hl">npm</mark> exited, without visible output.</p>
+<p>Third, the second-stage payload was spawned as a detached background process using <code>detached: true</code>, <code>stdio: 'ignore'</code>, and <code>.unref()</code>. The article says this allowed it to keep running after npm exited, without visible output.</p>
 
 <p>Fourth, the dropper deleted itself after running. The article identifies this as destruction of the main forensic artifact.</p>
 
@@ -1487,13 +1640,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>The stage-two payload was fetched at runtime from <code>https://23.254.164.92:8000/update/49890878</code>. The article says it was not embedded in any tarball, so static analysis of package contents could not reach it.</p>
 
-<p>The stage-two process was executed with <code>23.254.164.123:443</code> passed as its first argument. The article describes this as almost certainly the command-and-control address. It also states that, given the kinds of credentials commonly present in <mark class="tag-hl">Mastra</mark> environments, the most likely outcome of stage-two execution was environment variable harvesting and exfiltration to that C2.</p>
+<p>The stage-two process was executed with <code>23.254.164.123:443</code> passed as its first argument. The article describes this as almost certainly the command-and-control address. It also states that, given the kinds of credentials commonly present in Mastra environments, the most likely outcome of stage-two execution was environment variable harvesting and exfiltration to that C2.</p>
 
 <h2 id="runtime-analysis-with-harden-runner">Runtime Analysis With Harden Runner</h2>
 
-<p>StepSecurity tested the malware in a controlled <mark class="tag-hl">GitHub Actions</mark> workflow by installing <code>@<mark class="tag-hl">mastra</mark>/core@1.42.1</code> with <mark class="tag-hl">StepSecurity Harden Runner</mark> enabled in block mode. Harden Runner was configured to enforce an allowlist of permitted outbound endpoints at the step level.</p>
+<p>StepSecurity tested the malware in a controlled GitHub Actions workflow by installing <code>@mastra/core@1.42.1</code> with StepSecurity Harden Runner enabled in block mode. Harden Runner was configured to enforce an allowlist of permitted outbound endpoints at the step level.</p>
 
-<p>When the <code><mark class="tag-hl">easy-day-js</mark>@1.11.22</code> postinstall hook executed, Harden Runner intercepted and blocked the outbound call to <code>23.254.164.92:8000</code>. The article states that because the stage-two payload could not be downloaded, the rest of the attack chain did not execute.</p>
+<p>When the <code>easy-day-js@1.11.22</code> postinstall hook executed, Harden Runner intercepted and blocked the outbound call to <code>23.254.164.92:8000</code>. The article states that because the stage-two payload could not be downloaded, the rest of the attack chain did not execute.</p>
 
 <p>The article lists these results from the controlled run:</p>
 
@@ -1506,22 +1659,22 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <li>The block was logged in Harden Runner network events.</li>
 </ul>
 
-<p>The article also says <code>23.254.164.92</code> was added to the <mark class="tag-hl">StepSecurity Harden Runner</mark> Global Block List.</p>
+<p>The article also says <code>23.254.164.92</code> was added to the StepSecurity Harden Runner Global Block List.</p>
 
 <h2 id="typosquat-characteristics">Typosquat Characteristics</h2>
 
-<p>The article describes <code><mark class="tag-hl">easy-day-js</mark></code> as deliberately chosen to impersonate <code><mark class="tag-hl">dayjs</mark></code>. It copied metadata from the legitimate library closely enough that the article says routine review of <code>package.json</code> or <code><mark class="tag-hl">npm</mark> audit</code> would have no obvious signal that something was wrong.</p>
+<p>The article describes <code>easy-day-js</code> as deliberately chosen to impersonate <code>dayjs</code>. It copied metadata from the legitimate library closely enough that the article says routine review of <code>package.json</code> or <code>npm audit</code> would have no obvious signal that something was wrong.</p>
 
 <p>The article identifies the reliable distinguishing features as:</p>
 
 <ul>
-<li>The <mark class="tag-hl">npm</mark> maintainer <code><mark class="tag-hl">sergey2016</mark></code></li>
-<li>The email <code><mark class="tag-hl">sergey2016</mark>@tutamail.com</code></li>
+<li>The npm maintainer <code>sergey2016</code></li>
+<li>The email <code>sergey2016@tutamail.com</code></li>
 <li>The presence of <code>setup.cjs</code> in the tarball</li>
-<li>The <code>postinstall</code> hook in <code><mark class="tag-hl">easy-day-js</mark>@1.11.22</code></li>
+<li>The <code>postinstall</code> hook in <code>easy-day-js@1.11.22</code></li>
 </ul>
 
-<p>The legitimate <code><mark class="tag-hl">dayjs</mark></code> package had no malicious <code>setup.cjs</code> file and no postinstall hook according to the comparison in the article.</p>
+<p>The legitimate <code>dayjs</code> package had no malicious <code>setup.cjs</code> file and no postinstall hook according to the comparison in the article.</p>
 
 <h2 id="obfuscation-layers">Obfuscation Layers</h2>
 
@@ -1531,7 +1684,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>Second, the decoded 40-element string array had to be rotated 34 positions before an arithmetic checksum equaled <code>0x4c11d</code>, or 311,581. The article says this design was intended to disrupt static analysis tools that evaluated the array before the rotation ran.</p>
 
-<p>Third, the package name <code><mark class="tag-hl">easy-day-js</mark></code> was stored as the byte sequence <code>[0xe5, 0xe1, 0xf3, 0xf9, 0xad, 0xe4, 0xe1, 0xf9, 0xad, 0xea, 0xf3]</code> and written to <code>.pkg_logs</code> as raw binary. The article says this prevented the plaintext string from appearing in files written to disk.</p>
+<p>Third, the package name <code>easy-day-js</code> was stored as the byte sequence <code>[0xe5, 0xe1, 0xf3, 0xf9, 0xad, 0xe4, 0xe1, 0xf9, 0xad, 0xea, 0xf3]</code> and written to <code>.pkg_logs</code> as raw binary. The article says this prevented the plaintext string from appearing in files written to disk.</p>
 
 <p>The article also notes that the C2 URL appeared in plaintext within the obfuscated source, which it describes as unusual and possibly indicating that the dropper was prepared under time pressure.</p>
 
@@ -1540,9 +1693,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 <p>The article lists the following indicators of compromise:</p>
 
 <ul>
-<li><code><mark class="tag-hl">easy-day-js</mark>@1.11.22</code>, described as the primary malicious package</li>
-<li><code><mark class="tag-hl">easy-day-js</mark>@1.11.21</code>, described as the clean bait version injected as a dependency</li>
-<li><mark class="tag-hl">npm</mark> maintainer <code><mark class="tag-hl">sergey2016</mark></code> and <code><mark class="tag-hl">sergey2016</mark>@tutamail.com</code></li>
+<li><code>easy-day-js@1.11.22</code>, described as the primary malicious package</li>
+<li><code>easy-day-js@1.11.21</code>, described as the clean bait version injected as a dependency</li>
+<li>npm maintainer <code>sergey2016</code> and <code>sergey2016@tutamail.com</code></li>
 <li><code>setup.cjs</code>, a 4,572-byte obfuscated stage-one dropper</li>
 <li><code>23.254.164.92</code>, described as the stage-one C2 serving the stage-two payload on port 8000</li>
 <li><code>23.254.164.123</code>, described as the stage-two C2 on port 443</li>
@@ -1556,26 +1709,26 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <h2 id="affected-packages">Affected Packages</h2>
 
-<p>The article states that more than 140 packages across the <mark class="tag-hl">Mastra</mark> organization were compromised, and that any listed version published on June 17, 2026 should be considered malicious. Examples shown in the article include:</p>
+<p>The article states that more than 140 packages across the Mastra organization were compromised, and that any listed version published on June 17, 2026 should be considered malicious. Examples shown in the article include:</p>
 
 <ul>
-<li><code>@<mark class="tag-hl">mastra</mark>/acp@0.2.2</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/agent-builder@1.0.42</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/ai-sdk@1.4.6</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/auth@1.0.3</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/client-js@1.24.1</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/core@1.42.1</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/datadog@1.2.5</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/deployer@1.42.1</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/deployer-cloud@1.42.1</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/deployer-cloudflare@1.1.44</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/deployer-netlify@1.1.20</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/deployer-vercel@1.1.38</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/e2b@0.3.4</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/pg@1.13.1</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/mcp@1.10.1</code></li>
-<li><code>@<mark class="tag-hl">mastra</mark>/rag@2.2.2</code></li>
-<li><code><mark class="tag-hl">mastra</mark>@1.13.1</code></li>
+<li><code>@mastra/acp@0.2.2</code></li>
+<li><code>@mastra/agent-builder@1.0.42</code></li>
+<li><code>@mastra/ai-sdk@1.4.6</code></li>
+<li><code>@mastra/auth@1.0.3</code></li>
+<li><code>@mastra/client-js@1.24.1</code></li>
+<li><code>@mastra/core@1.42.1</code></li>
+<li><code>@mastra/datadog@1.2.5</code></li>
+<li><code>@mastra/deployer@1.42.1</code></li>
+<li><code>@mastra/deployer-cloud@1.42.1</code></li>
+<li><code>@mastra/deployer-cloudflare@1.1.44</code></li>
+<li><code>@mastra/deployer-netlify@1.1.20</code></li>
+<li><code>@mastra/deployer-vercel@1.1.38</code></li>
+<li><code>@mastra/e2b@0.3.4</code></li>
+<li><code>@mastra/pg@1.13.1</code></li>
+<li><code>@mastra/mcp@1.10.1</code></li>
+<li><code>@mastra/rag@2.2.2</code></li>
+<li><code>mastra@1.13.1</code></li>
 </ul>
 
 <p>The article also references a downloadable CSV and notes that StepSecurity Enterprise customers can query compromised packages through the Threat Center API.</p>
@@ -1586,20 +1739,21 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <p>It says StepSecurity published a Threat Center alert containing relevant links, an attack summary, technical analysis, IOCs, affected packages, malicious versions, and remediation steps. It also says Threat Center alerts are delivered into SIEM workflows.</p>
 
-<p>It describes Harden Runner as monitoring network events, process executions, file access, and outbound network connections at the step level in <mark class="tag-hl">GitHub Actions</mark>. In this incident, Harden Runner detected and blocked the outbound call to the C2 IP address in the controlled test.</p>
+<p>It describes Harden Runner as monitoring network events, process executions, file access, and outbound network connections at the step level in GitHub Actions. In this incident, Harden Runner detected and blocked the outbound call to the C2 IP address in the controlled test.</p>
 
-<p>It describes Secure Registry as a dedicated, policy-enforced <mark class="tag-hl">npm</mark> registry that applies security policies before serving packages. The article says the primary defense in this case was a cooldown period for newly published package versions and that Secure Registry customers were not exposed when the compromised packages were published to <mark class="tag-hl">npm</mark>.</p>
+<p>It describes Secure Registry as a dedicated, policy-enforced npm registry that applies security policies before serving packages. The article says the primary defense in this case was a cooldown period for newly published package versions and that Secure Registry customers were not exposed when the compromised packages were published to npm.</p>
 
-<p>It also describes Dev Machine Guard as providing visibility into <mark class="tag-hl">npm</mark> packages installed across enrolled developer devices. The article says security teams can search by package name and version to identify affected machines.</p>
+<p>It also describes Dev Machine Guard as providing visibility into npm packages installed across enrolled developer devices. The article says security teams can search by package name and version to identify affected machines.</p>
 
-<p>Finally, the article discusses <mark class="tag-hl">npm</mark> Package Cooldown Check, <mark class="tag-hl">npm</mark> Package Compromised Updates Check, and <mark class="tag-hl">npm</mark> Package Search as mechanisms to block newly published packages during a cooldown window, block known compromised packages, and search across pull requests, default branches, and developer machines for affected packages.</p>
+<p>Finally, the article discusses npm Package Cooldown Check, npm Package Compromised Updates Check, and npm Package Search as mechanisms to block newly published packages during a cooldown window, block known compromised packages, and search across pull requests, default branches, and developer machines for affected packages.</p>
 </div></div>
-                <div id="insights-d5ba5c2d979259df2a32448fab113605:6be75c5184b888d0" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The attacker used a clean bait version of <mark class="tag-hl">easy-day-js</mark> with a caret dependency range, so the compromised @<mark class="tag-hl">mastra</mark> packages could initially reference version 1.11.21 while fresh installs later resolved automatically to the malicious 1.11.22 release.</span></li><li><span class="kp-text">The malicious setup.cjs file deleted itself after execution, so investigators should not rely only on the installed package tree and should also check temporary files such as .pkg_history, .pkg_logs, and randomly named 24-hex-character JavaScript files.</span></li><li><span class="kp-text">The typosquat copied <mark class="tag-hl">dayjs</mark> metadata closely enough that routine package.json review or <mark class="tag-hl">npm</mark> audit would provide little obvious warning; the maintainer identity <mark class="tag-hl">sergey2016</mark> and the setup.cjs postinstall hook were the reliable distinguishing indicators cited in the article.</span></li><li><span class="kp-text">Network egress controls during <mark class="tag-hl">npm</mark> install were shown to stop the attack chain before the second-stage payload executed, because blocking the first connection to 23.254.164.92:8000 prevented the payload download and detached child process.</span></li></ul></div>
+                <div id="insights-ae9067a09556aec77039afd5995795d5:6be75c5184b888d0" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The attacker used a clean bait version of easy-day-js with a caret dependency range, so the compromised @mastra packages could initially reference version 1.11.21 while fresh installs later resolved automatically to the malicious 1.11.22 release.</span></li><li><span class="kp-text">The malicious setup.cjs file deleted itself after execution, so investigators should not rely only on the installed package tree and should also check temporary files such as .pkg_history, .pkg_logs, and randomly named 24-hex-character JavaScript files.</span></li><li><span class="kp-text">The typosquat copied dayjs metadata closely enough that routine package.json review or npm audit would provide little obvious warning; the maintainer identity sergey2016 and the setup.cjs postinstall hook were the reliable distinguishing indicators cited in the article.</span></li><li><span class="kp-text">Network egress controls during npm install were shown to stop the attack chain before the second-stage payload executed, because blocking the first connection to 23.254.164.92:8000 prevented the payload download and detached child process.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">On June 17, 2026, an attacker compromised the @<mark class="tag-hl">mastra</mark> <mark class="tag-hl">npm</mark> organization and added <mark class="tag-hl">easy-day-js</mark> as a dependency across more than 140 <mark class="tag-hl">Mastra</mark> AI framework packages.</span></li><li><span class="kp-text">The <mark class="tag-hl">easy-day-js</mark> package was a typosquat of <mark class="tag-hl">dayjs</mark>, with version 1.11.21 published as a clean bait package and version 1.11.22 containing an obfuscated postinstall dropper.</span></li><li><span class="kp-text">The malicious <mark class="tag-hl">postinstall script</mark> downloaded a second-stage payload from https://23.254.164.92:8000/update/49890878, spawned it as a detached Node.js process, and deleted setup.cjs after execution.</span></li><li><span class="kp-text">The article says affected <mark class="tag-hl">Mastra</mark> packages had combined weekly downloads exceeding 1.1 million and that anyone who installed an @<mark class="tag-hl">mastra</mark> package that day should treat their environment as compromised.</span></li><li><span class="kp-text">StepSecurity reported that Harden Runner in block mode intercepted and blocked the outbound connection to 23.254.164.92:8000 during a controlled <mark class="tag-hl">GitHub Actions</mark> test, preventing the stage-two payload from downloading.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">On June 17, 2026, an attacker compromised the @mastra npm organization and added easy-day-js as a dependency across more than 140 Mastra AI framework packages.</span></li><li><span class="kp-text">The easy-day-js package was a typosquat of dayjs, with version 1.11.21 published as a clean bait package and version 1.11.22 containing an obfuscated postinstall dropper.</span></li><li><span class="kp-text">The malicious postinstall script downloaded a second-stage payload from https://23.254.164.92:8000/update/49890878, spawned it as a detached Node.js process, and deleted setup.cjs after execution.</span></li><li><span class="kp-text">The article says affected Mastra packages had combined weekly downloads exceeding 1.1 million and that anyone who installed an @mastra package that day should treat their environment as compromised.</span></li><li><span class="kp-text">StepSecurity reported that Harden Runner in block mode intercepted and blocked the outbound connection to 23.254.164.92:8000 during a controlled GitHub Actions test, preventing the stage-two payload from downloading.</span></li></ul></div>
+            
             <a href="https://www.stepsecurity.io/blog/mastra-npm-packages-compromised-using-easy-day-js" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific active <mark class="tag-hl">npm</mark> supply-chain compromise affecting named @<mark class="tag-hl">mastra</mark> packages, with concrete timelines, payload behavior, IOCs, and affected versions. The impact is severe because malicious postinstall execution exposed developer and CI environments that may contain secrets, and defenders get immediate indicators and affected package versions to investigate. It is presented as an original technical writeup with runtime validation using StepSecurity tooling rather than a roundup.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific active npm supply-chain compromise affecting named @mastra packages, with concrete timelines, payload behavior, IOCs, and affected versions. The impact is severe because malicious postinstall execution exposed developer and CI environments that may contain secrets, and defenders get immediate indicators and affected package versions to investigate. It is presented as an original technical writeup with runtime validation using StepSecurity tooling rather than a roundup.</p>
 </div></div>
             
             
@@ -1623,36 +1777,36 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>The coverage window is dominated by a significant <mark class="tag-hl">npm</mark> supply chain compromise affecting the <mark class="tag-hl">Mastra</mark> AI framework ecosystem. Reporting from StepSecurity describes a coordinated package manipulation incident in which a typosquatted dependency was introduced across more than 140 packages under the @<mark class="tag-hl">mastra</mark> <mark class="tag-hl">npm</mark> organization, exposing downstream development and CI/CD environments to a postinstall-based payload chain.</p>
+        <div class="overview-body prose"><p>The coverage window is dominated by a significant npm supply chain compromise affecting the Mastra AI framework ecosystem. Reporting from StepSecurity describes a coordinated package manipulation incident in which a typosquatted dependency was introduced across more than 140 packages under the @mastra npm organization, exposing downstream development and CI/CD environments to a postinstall-based payload chain.</p>
 
-<p>The incident is notable for its scale, its targeting of an AI framework package namespace, and its use of a staged delivery mechanism designed to execute during package installation. The affected <mark class="tag-hl">Mastra</mark> packages reportedly had combined weekly downloads exceeding 1.1 million, making this a high-impact software supply chain event for organizations consuming JavaScript and AI development dependencies.</p>
+<p>The incident is notable for its scale, its targeting of an AI framework package namespace, and its use of a staged delivery mechanism designed to execute during package installation. The affected Mastra packages reportedly had combined weekly downloads exceeding 1.1 million, making this a high-impact software supply chain event for organizations consuming JavaScript and AI development dependencies.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-b">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">npm Supply Chain Compromise Targeting Mastra AI Packages</span>
         </div>
-        <div class="overview-body prose"><p>StepSecurity reported that on June 17, 2026, an attacker compromised the @<mark class="tag-hl">mastra</mark> <mark class="tag-hl">npm</mark> organization and added a dependency named <mark class="tag-hl">easy-day-js</mark> across more than 140 <mark class="tag-hl">Mastra</mark> packages. The package name closely resembled the legitimate <mark class="tag-hl">dayjs</mark> library, indicating a <mark class="tag-hl">typosquatting</mark> approach intended to blend into JavaScript dependency trees and exploit developer familiarity with common date/time libraries.</p>
+        <div class="overview-body prose"><p>StepSecurity reported that on June 17, 2026, an attacker compromised the @mastra npm organization and added a dependency named easy-day-js across more than 140 Mastra packages. The package name closely resembled the legitimate dayjs library, indicating a typosquatting approach intended to blend into JavaScript dependency trees and exploit developer familiarity with common date/time libraries.</p>
 
-<p>The malicious package was staged across versions. Version 1.11.21 of <mark class="tag-hl">easy-day-js</mark> was reportedly published as a clean bait package, while version 1.11.22 introduced an obfuscated postinstall dropper. This sequencing is consistent with supply chain tradecraft in which an attacker first establishes a benign-looking package history before pushing a malicious update after trust or dependency inclusion has been achieved.</p>
+<p>The malicious package was staged across versions. Version 1.11.21 of easy-day-js was reportedly published as a clean bait package, while version 1.11.22 introduced an obfuscated postinstall dropper. This sequencing is consistent with supply chain tradecraft in which an attacker first establishes a benign-looking package history before pushing a malicious update after trust or dependency inclusion has been achieved.</p>
 </div>
       </div><div class="overview-cell overview-cell-border-r">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">02</span>
           <span class="overview-title">Postinstall Dropper and Second-Stage Payload Delivery</span>
         </div>
-        <div class="overview-body prose"><p>The reported malicious behavior centered on <mark class="tag-hl">npm</mark>’s postinstall lifecycle hook. According to StepSecurity, the obfuscated script attempted to download a second-stage payload from <code>https://23.254.164.92:8000/update/49890878</code>, spawn it as a detached Node.js process, and then delete <code>setup.cjs</code> after execution. This design indicates an effort to move beyond package-level code execution into a more persistent or independently running payload while reducing local forensic artifacts tied to the installer script.</p>
+        <div class="overview-body prose"><p>The reported malicious behavior centered on npm’s postinstall lifecycle hook. According to StepSecurity, the obfuscated script attempted to download a second-stage payload from <code>https://23.254.164.92:8000/update/49890878</code>, spawn it as a detached Node.js process, and then delete <code>setup.cjs</code> after execution. This design indicates an effort to move beyond package-level code execution into a more persistent or independently running payload while reducing local forensic artifacts tied to the installer script.</p>
 
-<p>The use of a direct IP address and nonstandard port for payload retrieval suggests attacker-controlled infrastructure rather than a commodity package registry-hosted payload. StepSecurity also reported that, during a controlled <mark class="tag-hl">GitHub Actions</mark> test, its Harden Runner in block mode intercepted and blocked the outbound connection to <code>23.254.164.92:8000</code>, preventing the stage-two payload from being retrieved in that environment.</p>
+<p>The use of a direct IP address and nonstandard port for payload retrieval suggests attacker-controlled infrastructure rather than a commodity package registry-hosted payload. StepSecurity also reported that, during a controlled GitHub Actions test, its Harden Runner in block mode intercepted and blocked the outbound connection to <code>23.254.164.92:8000</code>, preventing the stage-two payload from being retrieved in that environment.</p>
 </div>
       </div><div class="overview-cell">
         <div class="overview-cell-head">
           <span class="overview-tag overview-tag-num">03</span>
           <span class="overview-title">Exposure Scope and Intelligence Significance</span>
         </div>
-        <div class="overview-body prose"><p>The reported scale of the compromised package set places this incident among high-concern <mark class="tag-hl">npm</mark> ecosystem supply chain events, particularly because it affected an AI framework namespace with broad downstream usage. StepSecurity stated that the affected <mark class="tag-hl">Mastra</mark> packages had more than 1.1 million combined weekly downloads, and assessed that anyone who installed an @<mark class="tag-hl">mastra</mark> package on the day of the compromise should consider the environment compromised.</p>
+        <div class="overview-body prose"><p>The reported scale of the compromised package set places this incident among high-concern npm ecosystem supply chain events, particularly because it affected an AI framework namespace with broad downstream usage. StepSecurity stated that the affected Mastra packages had more than 1.1 million combined weekly downloads, and assessed that anyone who installed an @mastra package on the day of the compromise should consider the environment compromised.</p>
 
-<p>For threat hunters and detection engineers, the reporting provides concrete infrastructure and behavioral details: the package name <code><mark class="tag-hl">easy-day-js</mark></code>, malicious version <code>1.11.22</code>, postinstall execution, retrieval from <code>23.254.164.92:8000</code>, and execution of a detached Node.js second stage. The incident reinforces ongoing adversary interest in developer ecosystems, CI/CD workflows, and trusted open-source dependency chains as distribution mechanisms for code execution at scale.</p>
+<p>For threat hunters and detection engineers, the reporting provides concrete infrastructure and behavioral details: the package name <code>easy-day-js</code>, malicious version <code>1.11.22</code>, postinstall execution, retrieval from <code>23.254.164.92:8000</code>, and execution of a detached Node.js second stage. The incident reinforces ongoing adversary interest in developer ecosystems, CI/CD workflows, and trusted open-source dependency chains as distribution mechanisms for code execution at scale.</p>
 </div>
       </div>
     </div>
@@ -1661,9 +1815,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-17 02:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1676,15 +1833,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1797,12 +2016,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1863,6 +2116,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 

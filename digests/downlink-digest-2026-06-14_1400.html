@@ -11,7 +11,14 @@
     var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    if (localStorage.getItem('downlink.glossary') === 'on') document.documentElement.dataset.glossary = 'on';
+    
+    if (localStorage.getItem('downlink.learning') === 'on') {
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
+      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
+      d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
+    }
   } catch(e){}
 })();
 </script>
@@ -353,7 +360,11 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:hover { border-color: var(--cyan); color: var(--text); }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
-.nav-glossary-toggle {
+.nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.nav-learn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -365,13 +376,105 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   text-transform: uppercase;
 }
-.nav-glossary-toggle:hover { border-color: var(--should); color: var(--text); }
-.nav-glossary-toggle:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
-.nav-glossary-toggle[aria-pressed="true"] {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.nav-learn-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.nav-learn-switch[aria-checked="true"] {
   color: var(--should);
   border-color: color-mix(in oklch, var(--should) 45%, transparent);
   background: color-mix(in oklch, var(--should) 10%, transparent);
 }
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+.nav-learn-caret {
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 3px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
+.learn-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+}
+.learn-card[hidden] { display: none; }
+.learn-card-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 4px 6px;
+}
+.learn-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+}
+.learn-feature:hover { background: color-mix(in oklch, var(--should) 8%, transparent); color: var(--text); }
+.learn-feature:focus-visible { outline: 1px solid var(--should); outline-offset: -1px; }
+.learn-switch {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border2);
+  transition: background .15s;
+  flex: none;
+}
+.learn-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .15s, background .15s;
+}
+.learn-feature[aria-checked="true"] { color: var(--text); }
+.learn-feature[aria-checked="true"] .learn-switch { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.learn-feature[aria-checked="true"] .learn-switch-knob { transform: translateX(12px); background: var(--should); }
 
  
 .nav-switcher {
@@ -996,18 +1099,62 @@ a:hover { text-decoration: underline; }
 
  
 mark.tag-hl {
-  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  background: transparent;
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
-  cursor: pointer;
   position: relative;  
   z-index: 2;
   transition: background .15s;
 }
-mark.tag-hl:hover {
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl {
+  background: color-mix(in oklch, var(--cyan) 14%, transparent);
+  cursor: help;
+}
+html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
+}
+
+ 
+ 
+.glossary-popup {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  max-width: 22rem;
+  width: calc(100% - 2rem);
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.glossary-popup[hidden] { display: none; }
+.glossary-popup.is-enter { opacity: 0; transform: translateY(8px); }
+.glossary-popup-close {
+  position: absolute; top: .4rem; right: .5rem;
+  background: none; border: none; color: var(--text2);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: .1rem .3rem;
+}
+.glossary-popup-close:hover { color: var(--text); }
+.glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
+.glossary-popup-type {
+  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text2);
+}
+.glossary-popup-type[hidden] { display: none; }
+.glossary-popup-def { margin: 0; color: var(--text); line-height: 1.5; font-size: .92rem; }
+.glossary-popup-context { margin: .55rem 0 0; color: var(--text2); line-height: 1.45; font-size: .85rem; }
+.glossary-popup-context[hidden] { display: none; }
+.glossary-popup-context-label {
+  display: inline-block; margin-right: .35rem;
+  color: var(--cyan); font-weight: 600; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .03em;
 }
 
 .kp-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1085,13 +1232,17 @@ mark.tag-hl:hover {
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
 .panel-subhead--glossary  { --panel-c: var(--should); }
+.panel-subhead--why       { --panel-c: var(--must); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary { color: var(--panel-c); }
+.panel-subhead--glossary,
+.panel-subhead--why { color: var(--panel-c); }
  
 .glossary-block { display: none; }
-html[data-glossary="on"] .glossary-block { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.why-block { display: none; }
+html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
 .glossary-list { margin: 0.7rem 0 0; padding: 0; }
 .glossary-term {
   font-family: var(--mono);
@@ -1195,12 +1346,14 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   justify-content: space-between;
   align-items: center;
 }
-.footer-left, .footer-right {
+.footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.06em;
 }
+.footer-mid a { color: var(--text3); text-decoration: underline; text-underline-offset: 2px; }
+.footer-mid a:hover { color: var(--cyan); }
 
  
 #back-top {
@@ -1353,101 +1506,102 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
             <div class="score-bar"><div class="score-track"><div class="score-fill score-fill-mid" style="width:86%"></div></div><span class="score-num score-num-mid">86</span></div>
             <span class="toc-row-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>
           </div>
-          <div class="toc-row-body">
+          <div class="toc-row-body" data-article-id="10e42be178e1c35c4f0a0ce639f63d44:886d877ce365675a">
             
             
             <div class="panel-section">
               <div class="panel-subhead panel-subhead--summary">Summary
                 <div class="summary-switch">
-                  <button class="tab-btn active" onclick="switchTab(this,'tldr-9b0668029ed36930305fba71c3bfe542:886d877ce365675a')">TL;DR</button>
-                  <button class="tab-btn" onclick="switchTab(this,'brief-9b0668029ed36930305fba71c3bfe542:886d877ce365675a')">Brief</button>
-                  <button class="tab-btn" onclick="switchTab(this,'standard-9b0668029ed36930305fba71c3bfe542:886d877ce365675a')">Standard</button>
-                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-9b0668029ed36930305fba71c3bfe542:886d877ce365675a')">Comprehensive</button>
-                  <button class="tab-btn" onclick="switchTab(this,'insights-9b0668029ed36930305fba71c3bfe542:886d877ce365675a')">Insights</button>
+                  <button class="tab-btn active" onclick="switchTab(this,'tldr-10e42be178e1c35c4f0a0ce639f63d44:886d877ce365675a')">TL;DR</button>
+                  <button class="tab-btn" onclick="switchTab(this,'brief-10e42be178e1c35c4f0a0ce639f63d44:886d877ce365675a')">Brief</button>
+                  <button class="tab-btn" onclick="switchTab(this,'standard-10e42be178e1c35c4f0a0ce639f63d44:886d877ce365675a')">Standard</button>
+                  <button class="tab-btn" onclick="switchTab(this,'comprehensive-10e42be178e1c35c4f0a0ce639f63d44:886d877ce365675a')">Comprehensive</button>
+                  <button class="tab-btn" onclick="switchTab(this,'insights-10e42be178e1c35c4f0a0ce639f63d44:886d877ce365675a')">Insights</button>
                 </div>
               </div>
               <div class="summary-body">
-                <div id="tldr-9b0668029ed36930305fba71c3bfe542:886d877ce365675a" class="tab-panel active"><div class="prose">The <mark class="tag-hl">FBI</mark>, with <mark class="tag-hl">Google</mark> and <mark class="tag-hl">Black Lotus Labs</mark>, disrupted <mark class="tag-hl">Outsider Enterprise</mark>, a <mark class="tag-hl">China</mark>-based AI-assisted <mark class="tag-hl">phishing-as-a-service</mark> operation tied to over a million fraudulent URLs and millions of stolen credit card records. The takedown seized servers, domains, wallets, and a <mark class="tag-hl">Telegram</mark> bot as part of <mark class="tag-hl">Operation Riptide</mark>.</div></div>
-                <div id="brief-9b0668029ed36930305fba71c3bfe542:886d877ce365675a" class="tab-panel"><div class="prose"><p>The <mark class="tag-hl">FBI</mark>, working with <mark class="tag-hl">Google</mark> and <mark class="tag-hl">Black Lotus Labs</mark>, dismantled a large Chinese <mark class="tag-hl">phishing-as-a-service</mark> operation called <mark class="tag-hl">Outsider Enterprise</mark>. The operation used AI and distributed phishing kits to run campaigns impersonating trusted brands in text messages sent through AT&amp;T, <mark class="tag-hl">T-Mobile</mark>, and <mark class="tag-hl">Verizon</mark>. <mark class="tag-hl">Google</mark> linked the operation to 9,000 fake websites and more than a million fraudulent URLs.</p>
+                <div id="tldr-10e42be178e1c35c4f0a0ce639f63d44:886d877ce365675a" class="tab-panel active"><div class="prose">The FBI, with Google and Black Lotus Labs, disrupted Outsider Enterprise, a China-based AI-assisted phishing-as-a-service operation tied to over a million fraudulent URLs and millions of stolen credit card records. The takedown seized servers, domains, wallets, and a Telegram bot as part of Operation Riptide.</div></div>
+                <div id="brief-10e42be178e1c35c4f0a0ce639f63d44:886d877ce365675a" class="tab-panel"><div class="prose"><p>The FBI, working with Google and Black Lotus Labs, dismantled a large Chinese phishing-as-a-service operation called Outsider Enterprise. The operation used AI and distributed phishing kits to run campaigns impersonating trusted brands in text messages sent through AT&amp;T, T-Mobile, and Verizon. Google linked the operation to 9,000 fake websites and more than a million fraudulent URLs.</p>
 
-<p>Authorities believe campaigns powered by <mark class="tag-hl">Outsider Enterprise</mark> stole more than 3.8 million credit card records and caused an estimated <span class="math inline">\(1.9 billion in losses. The <mark class="tag-hl">FBI</mark> action was part of <mark class="tag-hl">Operation Riptide</mark> and included technical and legal components. Seized assets included administration servers, a <mark class="tag-hl">Shopify</mark> storefront, a testing account, about \)</span>100,000 in USDT, phishing domains, and a <mark class="tag-hl">Telegram</mark> bot linked to the service.</p>
+<p>Authorities believe campaigns powered by Outsider Enterprise stole more than 3.8 million credit card records and caused an estimated <span class="math inline">\(1.9 billion in losses. The FBI action was part of Operation Riptide and included technical and legal components. Seized assets included administration servers, a Shopify storefront, a testing account, about \)</span>100,000 in USDT, phishing domains, and a Telegram bot linked to the service.</p>
 
-<p><mark class="tag-hl">Google</mark> said the operation affected hundreds of thousands of users worldwide and sent 2.5 million SMS messages to Android users over a two-week period in May. Android users flagged 55,000 of those messages as fraudulent. <mark class="tag-hl">Google</mark> also filed a civil lawsuit targeting the infrastructure and is coordinating with AT&amp;T, <mark class="tag-hl">T-Mobile</mark>, and <mark class="tag-hl">Verizon</mark> to block fraudulent messages before they reach subscribers.</p>
+<p>Google said the operation affected hundreds of thousands of users worldwide and sent 2.5 million SMS messages to Android users over a two-week period in May. Android users flagged 55,000 of those messages as fraudulent. Google also filed a civil lawsuit targeting the infrastructure and is coordinating with AT&amp;T, T-Mobile, and Verizon to block fraudulent messages before they reach subscribers.</p>
 </div></div>
-                <div id="standard-9b0668029ed36930305fba71c3bfe542:886d877ce365675a" class="tab-panel"><div class="prose"><p>The <mark class="tag-hl">FBI</mark>, in coordination with <mark class="tag-hl">Google</mark> and <mark class="tag-hl">Black Lotus Labs</mark>, disrupted a major Chinese <mark class="tag-hl">phishing-as-a-service</mark> operation known as <mark class="tag-hl">Outsider Enterprise</mark>. The operation had been active since at least 2023 and used thousands of phishing websites to steal credit card data and passwords. <mark class="tag-hl">Google</mark> connected <mark class="tag-hl">Outsider Enterprise</mark> to 9,000 fake websites and more than a million fraudulent URLs.</p>
+                <div id="standard-10e42be178e1c35c4f0a0ce639f63d44:886d877ce365675a" class="tab-panel"><div class="prose"><p>The FBI, in coordination with Google and Black Lotus Labs, disrupted a major Chinese phishing-as-a-service operation known as Outsider Enterprise. The operation had been active since at least 2023 and used thousands of phishing websites to steal credit card data and passwords. Google connected Outsider Enterprise to 9,000 fake websites and more than a million fraudulent URLs.</p>
 
-<p><mark class="tag-hl">Outsider Enterprise</mark> used AI and distributed phishing kits to support campaigns that impersonated trusted brands. The campaigns were delivered through text messages sent through AT&amp;T, <mark class="tag-hl">T-Mobile</mark>, and <mark class="tag-hl">Verizon</mark>. <mark class="tag-hl">Google</mark> said the operation coordinated through <mark class="tag-hl">Telegram</mark> and distributed phishing kits that allowed criminals to send fake text campaigns appearing to come from <mark class="tag-hl">Google</mark> and other trusted brands.</p>
+<p>Outsider Enterprise used AI and distributed phishing kits to support campaigns that impersonated trusted brands. The campaigns were delivered through text messages sent through AT&amp;T, T-Mobile, and Verizon. Google said the operation coordinated through Telegram and distributed phishing kits that allowed criminals to send fake text campaigns appearing to come from Google and other trusted brands.</p>
 
-<p>Authorities believe the phishing campaigns powered by <mark class="tag-hl">Outsider Enterprise</mark> led to the theft of more than 3.8 million credit card records. The estimated losses were placed at $1.9 billion. <mark class="tag-hl">Google</mark> said the AI-assisted phishing operation affected hundreds of thousands of users worldwide and that victims lost millions to the scams.</p>
+<p>Authorities believe the phishing campaigns powered by Outsider Enterprise led to the theft of more than 3.8 million credit card records. The estimated losses were placed at $1.9 billion. Google said the AI-assisted phishing operation affected hundreds of thousands of users worldwide and that victims lost millions to the scams.</p>
 
-<p>The takedown was part of the <mark class="tag-hl">FBI</mark>’s broader <mark class="tag-hl">Operation Riptide</mark>, which targets cybercrime activity and infrastructure. During the technical action, the <mark class="tag-hl">FBI</mark> and partners seized multiple administration servers, a <mark class="tag-hl">Shopify</mark> e-commerce storefront, and an account used by the threat actor to test the phishing service. The agency also seized about $100,000 in USDT from Outsider payment wallets and redirected thousands of phishing domains registered at U.S. providers to an <mark class="tag-hl">FBI</mark> splash page.</p>
+<p>The takedown was part of the FBI’s broader Operation Riptide, which targets cybercrime activity and infrastructure. During the technical action, the FBI and partners seized multiple administration servers, a Shopify e-commerce storefront, and an account used by the threat actor to test the phishing service. The agency also seized about $100,000 in USDT from Outsider payment wallets and redirected thousands of phishing domains registered at U.S. providers to an FBI splash page.</p>
 
-<p>The <mark class="tag-hl">FBI</mark> also took over a <mark class="tag-hl">Telegram</mark> bot linked to <mark class="tag-hl">Outsider Enterprise</mark> that contained information on customers of the phishing service. <mark class="tag-hl">Google</mark> filed a civil lawsuit targeting the operation’s infrastructure and is working with AT&amp;T, <mark class="tag-hl">T-Mobile</mark>, and <mark class="tag-hl">Verizon</mark> to block fraudulent messages before they reach subscribers. <mark class="tag-hl">Google</mark> also cited Android protections, including scam detection for suspicious calls and messaging protections that block more than 10 billion malicious messages every month.</p>
+<p>The FBI also took over a Telegram bot linked to Outsider Enterprise that contained information on customers of the phishing service. Google filed a civil lawsuit targeting the operation’s infrastructure and is working with AT&amp;T, T-Mobile, and Verizon to block fraudulent messages before they reach subscribers. Google also cited Android protections, including scam detection for suspicious calls and messaging protections that block more than 10 billion malicious messages every month.</p>
 
-<p>Over a two-week period in May, <mark class="tag-hl">Google</mark> said 2.5 million SMS messages were sent to Android users from <mark class="tag-hl">Outsider Enterprise</mark> infrastructure. Android users flagged 55,000 of those messages as fraudulent. <mark class="tag-hl">Google</mark> is using the case to support seven bipartisan U.S. anti-scam bills, including the Stop SCAMS Act, which would require the <mark class="tag-hl">FBI</mark> to lead a coordinated national anti-scam strategy.</p>
+<p>Over a two-week period in May, Google said 2.5 million SMS messages were sent to Android users from Outsider Enterprise infrastructure. Android users flagged 55,000 of those messages as fraudulent. Google is using the case to support seven bipartisan U.S. anti-scam bills, including the Stop SCAMS Act, which would require the FBI to lead a coordinated national anti-scam strategy.</p>
 </div></div>
-                <div id="comprehensive-9b0668029ed36930305fba71c3bfe542:886d877ce365675a" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
+                <div id="comprehensive-10e42be178e1c35c4f0a0ce639f63d44:886d877ce365675a" class="tab-panel"><div class="prose"><h2 id="overview">Overview</h2>
 
-<p>The <mark class="tag-hl">FBI</mark>, working with <mark class="tag-hl">Google</mark> and <mark class="tag-hl">Black Lotus Labs</mark>, dismantled a large Chinese <mark class="tag-hl">phishing-as-a-service</mark> operation called <mark class="tag-hl">Outsider Enterprise</mark>. The operation used AI and distributed phishing kits to support campaigns that impersonated trusted brands and attempted to steal credit card data and passwords. The campaigns were delivered through text messages sent through AT&amp;T, <mark class="tag-hl">T-Mobile</mark>, and <mark class="tag-hl">Verizon</mark>.</p>
+<p>The FBI, working with Google and Black Lotus Labs, dismantled a large Chinese phishing-as-a-service operation called Outsider Enterprise. The operation used AI and distributed phishing kits to support campaigns that impersonated trusted brands and attempted to steal credit card data and passwords. The campaigns were delivered through text messages sent through AT&amp;T, T-Mobile, and Verizon.</p>
 
-<p><mark class="tag-hl">Outsider Enterprise</mark> had been active since at least 2023. <mark class="tag-hl">Google</mark> linked the operation to 9,000 fake websites and more than a million fraudulent URLs. Authorities believe campaigns powered by the service led to the theft of more than 3.8 million credit card records and caused an estimated $1.9 billion in losses.</p>
+<p>Outsider Enterprise had been active since at least 2023. Google linked the operation to 9,000 fake websites and more than a million fraudulent URLs. Authorities believe campaigns powered by the service led to the theft of more than 3.8 million credit card records and caused an estimated $1.9 billion in losses.</p>
 
-<h2 id="operation-riptide-and-the-takedown"><mark class="tag-hl">Operation Riptide</mark> and the takedown</h2>
+<h2 id="operation-riptide-and-the-takedown">Operation Riptide and the takedown</h2>
 
-<p>The action against <mark class="tag-hl">Outsider Enterprise</mark> was part of the <mark class="tag-hl">FBI</mark>’s broader <mark class="tag-hl">Operation Riptide</mark>, which targets cybercrime activity and infrastructure. The effort had both technical and legal components.</p>
+<p>The action against Outsider Enterprise was part of the FBI’s broader Operation Riptide, which targets cybercrime activity and infrastructure. The effort had both technical and legal components.</p>
 
-<p>During the technical takedown, the <mark class="tag-hl">FBI</mark> and partners seized multiple pieces of infrastructure and assets, including:</p>
+<p>During the technical takedown, the FBI and partners seized multiple pieces of infrastructure and assets, including:</p>
 
 <ul>
 <li>Multiple administration servers.</li>
-<li>A <mark class="tag-hl">Shopify</mark> e-commerce storefront.</li>
+<li>A Shopify e-commerce storefront.</li>
 <li>An account the threat actor used to test the phishing service.</li>
 <li>Around $100,000 in USDT from Outsider payment wallets.</li>
-<li>Thousands of phishing domains registered at U.S. providers, which now redirect to an <mark class="tag-hl">FBI</mark> splash page.</li>
-<li>A <mark class="tag-hl">Telegram</mark> bot linked to <mark class="tag-hl">Outsider Enterprise</mark> that contained information on customers of the phishing service.</li>
+<li>Thousands of phishing domains registered at U.S. providers, which now redirect to an FBI splash page.</li>
+<li>A Telegram bot linked to Outsider Enterprise that contained information on customers of the phishing service.</li>
 </ul>
 
 <h2 id="phishing-infrastructure-and-techniques">Phishing infrastructure and techniques</h2>
 
-<p>The article describes <mark class="tag-hl">Outsider Enterprise</mark> as a <mark class="tag-hl">phishing-as-a-service</mark> operation that distributed phishing kits. <mark class="tag-hl">Google</mark> said the network coordinated through <mark class="tag-hl">Telegram</mark> and provided kits that allowed criminals to send fake text campaigns appearing to come from <mark class="tag-hl">Google</mark> and other trusted brands.</p>
+<p>The article describes Outsider Enterprise as a phishing-as-a-service operation that distributed phishing kits. Google said the network coordinated through Telegram and provided kits that allowed criminals to send fake text campaigns appearing to come from Google and other trusted brands.</p>
 
-<p>The operation used AI in support of phishing campaigns. The campaigns impersonated trusted brands in SMS messages and directed users toward phishing infrastructure. <mark class="tag-hl">Google</mark> said the AI-assisted phishing operation affected hundreds of thousands of users worldwide.</p>
+<p>The operation used AI in support of phishing campaigns. The campaigns impersonated trusted brands in SMS messages and directed users toward phishing infrastructure. Google said the AI-assisted phishing operation affected hundreds of thousands of users worldwide.</p>
 
-<p><mark class="tag-hl">Google</mark> reported that, over a two-week period in May, 2.5 million SMS messages were sent to Android users from <mark class="tag-hl">Outsider Enterprise</mark> infrastructure. Android users flagged 55,000 of those messages as fraudulent.</p>
+<p>Google reported that, over a two-week period in May, 2.5 million SMS messages were sent to Android users from Outsider Enterprise infrastructure. Android users flagged 55,000 of those messages as fraudulent.</p>
 
 <h2 id="impact">Impact</h2>
 
-<p>The article cites several impact figures tied to <mark class="tag-hl">Outsider Enterprise</mark> and its campaigns:</p>
+<p>The article cites several impact figures tied to Outsider Enterprise and its campaigns:</p>
 
 <ul>
-<li><mark class="tag-hl">Google</mark> linked the operation to 9,000 fake websites.</li>
-<li><mark class="tag-hl">Google</mark> connected the operation to more than one million fraudulent URLs.</li>
+<li>Google linked the operation to 9,000 fake websites.</li>
+<li>Google connected the operation to more than one million fraudulent URLs.</li>
 <li>Authorities believe more than 3.8 million credit card records were stolen through campaigns powered by the service.</li>
 <li>Estimated losses were placed at $1.9 billion.</li>
-<li><mark class="tag-hl">Google</mark> said hundreds of thousands of users worldwide were affected.</li>
-<li><mark class="tag-hl">Google</mark> estimated that hundreds of thousands of victims lost millions to these scams.</li>
+<li>Google said hundreds of thousands of users worldwide were affected.</li>
+<li>Google estimated that hundreds of thousands of victims lost millions to these scams.</li>
 </ul>
 
 <h2 id="legal-and-private-sector-response">Legal and private-sector response</h2>
 
-<p><mark class="tag-hl">Google</mark> filed a civil lawsuit targeting the operation’s infrastructure. The company is also coordinating with AT&amp;T, <mark class="tag-hl">T-Mobile</mark>, and <mark class="tag-hl">Verizon</mark> to block fraudulent messages before they reach subscribers.</p>
+<p>Google filed a civil lawsuit targeting the operation’s infrastructure. The company is also coordinating with AT&amp;T, T-Mobile, and Verizon to block fraudulent messages before they reach subscribers.</p>
 
-<p><mark class="tag-hl">Google</mark> said it is using the case to combine aggressive legal action with collaboration involving federal and state governments. It is also advocating for seven bipartisan U.S. anti-scam bills, including the Stop SCAMS Act.</p>
+<p>Google said it is using the case to combine aggressive legal action with collaboration involving federal and state governments. It is also advocating for seven bipartisan U.S. anti-scam bills, including the Stop SCAMS Act.</p>
 
-<p>The article states that the Stop SCAMS Act would require the <mark class="tag-hl">FBI</mark> to lead a coordinated national anti-scam strategy. That strategy would bring together federal agencies, law enforcement, and private companies to better track, disrupt, and prevent fraud and scam operations.</p>
+<p>The article states that the Stop SCAMS Act would require the FBI to lead a coordinated national anti-scam strategy. That strategy would bring together federal agencies, law enforcement, and private companies to better track, disrupt, and prevent fraud and scam operations.</p>
 
-<h2 id="android-protections-described-by-google">Android protections described by <mark class="tag-hl">Google</mark></h2>
+<h2 id="android-protections-described-by-google">Android protections described by Google</h2>
 
-<p><mark class="tag-hl">Google</mark> said Android users are protected from these threats by AI-powered defenses. The defenses include scam detection on Android that warns users about suspicious calls and messaging protections that block more than 10 billion malicious messages every month.</p>
+<p>Google said Android users are protected from these threats by AI-powered defenses. The defenses include scam detection on Android that warns users about suspicious calls and messaging protections that block more than 10 billion malicious messages every month.</p>
 
-<p>The article presents these Android protections alongside <mark class="tag-hl">Google</mark>’s legal action and coordination with telecommunications providers. Together, the response described in the article includes law enforcement seizures, civil litigation, telecom blocking, domain redirection, and platform-level defenses.</p>
+<p>The article presents these Android protections alongside Google’s legal action and coordination with telecommunications providers. Together, the response described in the article includes law enforcement seizures, civil litigation, telecom blocking, domain redirection, and platform-level defenses.</p>
 </div></div>
-                <div id="insights-9b0668029ed36930305fba71c3bfe542:886d877ce365675a" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The disruption combined law enforcement seizures, private-sector litigation, telecom filtering, and domain redirection, showing that the response targeted both the operators and the delivery infrastructure of the phishing service.</span></li><li><span class="kp-text"><mark class="tag-hl">Outsider Enterprise</mark>’s use of <mark class="tag-hl">Telegram</mark> for coordination and a bot containing customer information indicates that takedowns of criminal communication tools can expose downstream users of <mark class="tag-hl">phishing-as-a-service</mark> platforms.</span></li><li><span class="kp-text">The article highlights SMS as a major delivery channel for AI-assisted phishing, with <mark class="tag-hl">Google</mark> reporting 2.5 million messages sent to Android users in just two weeks from <mark class="tag-hl">Outsider Enterprise</mark> infrastructure.</span></li><li><span class="kp-text"><mark class="tag-hl">Google</mark> is pairing technical defenses with policy advocacy, using the case to support bipartisan anti-scam legislation such as the Stop SCAMS Act.</span></li></ul></div>
+                <div id="insights-10e42be178e1c35c4f0a0ce639f63d44:886d877ce365675a" class="tab-panel"><ul class="kp-list"><li><span class="kp-text">The disruption combined law enforcement seizures, private-sector litigation, telecom filtering, and domain redirection, showing that the response targeted both the operators and the delivery infrastructure of the phishing service.</span></li><li><span class="kp-text">Outsider Enterprise’s use of Telegram for coordination and a bot containing customer information indicates that takedowns of criminal communication tools can expose downstream users of phishing-as-a-service platforms.</span></li><li><span class="kp-text">The article highlights SMS as a major delivery channel for AI-assisted phishing, with Google reporting 2.5 million messages sent to Android users in just two weeks from Outsider Enterprise infrastructure.</span></li><li><span class="kp-text">Google is pairing technical defenses with policy advocacy, using the case to support bipartisan anti-scam legislation such as the Stop SCAMS Act.</span></li></ul></div>
               </div>
             </div>
-            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The <mark class="tag-hl">FBI</mark>, working with <mark class="tag-hl">Google</mark> and <mark class="tag-hl">Black Lotus Labs</mark>, dismantled a Chinese <mark class="tag-hl">phishing-as-a-service</mark> operation called <mark class="tag-hl">Outsider Enterprise</mark> that used thousands of phishing websites to steal credit card data and passwords.</span></li><li><span class="kp-text"><mark class="tag-hl">Google</mark> linked <mark class="tag-hl">Outsider Enterprise</mark> to 9,000 fake websites and more than a million fraudulent URLs, and authorities believe its campaigns stole more than 3.8 million credit card records causing an estimated $1.9 billion in losses.</span></li><li><span class="kp-text">During the takedown, the <mark class="tag-hl">FBI</mark> and partners seized multiple administration servers, a <mark class="tag-hl">Shopify</mark> storefront, a testing account, about $100,000 in USDT, and a <mark class="tag-hl">Telegram</mark> bot linked to <mark class="tag-hl">Outsider Enterprise</mark>.</span></li><li><span class="kp-text"><mark class="tag-hl">Google</mark> filed a civil lawsuit targeting the operation’s infrastructure and is coordinating with AT&amp;T, <mark class="tag-hl">T-Mobile</mark>, and <mark class="tag-hl">Verizon</mark> to block fraudulent messages before they reach subscribers.</span></li><li><span class="kp-text"><mark class="tag-hl">Google</mark> said <mark class="tag-hl">Outsider Enterprise</mark> sent 2.5 million SMS messages to Android users over a two-week period in May, with Android users flagging 55,000 of them as fraudulent.</span></li></ul></div>
+            <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The FBI, working with Google and Black Lotus Labs, dismantled a Chinese phishing-as-a-service operation called Outsider Enterprise that used thousands of phishing websites to steal credit card data and passwords.</span></li><li><span class="kp-text">Google linked Outsider Enterprise to 9,000 fake websites and more than a million fraudulent URLs, and authorities believe its campaigns stole more than 3.8 million credit card records causing an estimated $1.9 billion in losses.</span></li><li><span class="kp-text">During the takedown, the FBI and partners seized multiple administration servers, a Shopify storefront, a testing account, about $100,000 in USDT, and a Telegram bot linked to Outsider Enterprise.</span></li><li><span class="kp-text">Google filed a civil lawsuit targeting the operation’s infrastructure and is coordinating with AT&amp;T, T-Mobile, and Verizon to block fraudulent messages before they reach subscribers.</span></li><li><span class="kp-text">Google said Outsider Enterprise sent 2.5 million SMS messages to Android users over a two-week period in May, with Android users flagging 55,000 of them as fraudulent.</span></li></ul></div>
+            
             <a href="https://www.bleepingcomputer.com/news/security/fbi-disrupts-massive-ai-powered-phishing-service-using-a-million-urls/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific, high-impact law enforcement disruption of a large AI-assisted <mark class="tag-hl">phishing-as-a-service</mark> operation tied to over a million fraudulent URLs, millions of stolen credit card records, and major financial losses. It is broadly relevant to security professionals because it covers current phishing infrastructure, SMS delivery channels, telecom coordination, and platform-level defenses.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific, high-impact law enforcement disruption of a large AI-assisted phishing-as-a-service operation tied to over a million fraudulent URLs, millions of stolen credit card records, and major financial losses. It is broadly relevant to security professionals because it covers current phishing infrastructure, SMS delivery channels, telecom coordination, and platform-level defenses.</p>
 </div></div>
             
             
@@ -1471,7 +1625,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-exec">EXEC</span>
           <span class="overview-title">Executive Overview</span>
         </div>
-        <div class="overview-body prose"><p>This digest window is dominated by a major law enforcement disruption of a large-scale <mark class="tag-hl">phishing-as-a-service</mark> ecosystem attributed to a Chinese operation known as <mark class="tag-hl">Outsider Enterprise</mark>. Reporting indicates the service industrialized credential and payment-card theft through thousands of phishing sites, more than a million fraudulent URLs, SMS delivery at scale, and AI-enabled tooling.</p>
+        <div class="overview-body prose"><p>This digest window is dominated by a major law enforcement disruption of a large-scale phishing-as-a-service ecosystem attributed to a Chinese operation known as Outsider Enterprise. Reporting indicates the service industrialized credential and payment-card theft through thousands of phishing sites, more than a million fraudulent URLs, SMS delivery at scale, and AI-enabled tooling.</p>
 
 <p>The case reflects continued convergence between cybercrime infrastructure, mobile messaging abuse, automation, and hosted e-commerce-style service models. It also highlights growing collaboration between law enforcement, cloud and internet infrastructure providers, telecommunications carriers, and security researchers in disrupting fraud operations before messages and phishing links reach end users.</p>
 </div>
@@ -1480,13 +1634,13 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <span class="overview-tag overview-tag-num">01</span>
           <span class="overview-title">Outsider Enterprise Phishing-as-a-Service Takedown</span>
         </div>
-        <div class="overview-body prose"><p>The <mark class="tag-hl">FBI</mark>, working with <mark class="tag-hl">Google</mark> and <mark class="tag-hl">Black Lotus Labs</mark>, dismantled infrastructure tied to <mark class="tag-hl">Outsider Enterprise</mark>, a Chinese <mark class="tag-hl">phishing-as-a-service</mark> operation accused of running thousands of fraudulent websites designed to steal credit card data and passwords. <mark class="tag-hl">Google</mark> linked the operation to approximately 9,000 fake websites and more than one million fraudulent URLs, illustrating the scale at which the group generated and distributed phishing infrastructure.</p>
+        <div class="overview-body prose"><p>The FBI, working with Google and Black Lotus Labs, dismantled infrastructure tied to Outsider Enterprise, a Chinese phishing-as-a-service operation accused of running thousands of fraudulent websites designed to steal credit card data and passwords. Google linked the operation to approximately 9,000 fake websites and more than one million fraudulent URLs, illustrating the scale at which the group generated and distributed phishing infrastructure.</p>
 
-<p>Authorities believe campaigns connected to <mark class="tag-hl">Outsider Enterprise</mark> stole more than 3.8 million credit card records and caused an estimated <span class="math inline">\(1.9 billion in losses. During the disruption, the <mark class="tag-hl">FBI</mark> and partners seized multiple administration servers, a <mark class="tag-hl">Shopify</mark> storefront, a testing account, roughly \)</span>100,000 in USDT, and a <mark class="tag-hl">Telegram</mark> bot associated with the operation. The seized assets point to a mature service model spanning web hosting, testing workflows, payment infrastructure, and operator communications.</p>
+<p>Authorities believe campaigns connected to Outsider Enterprise stole more than 3.8 million credit card records and caused an estimated <span class="math inline">\(1.9 billion in losses. During the disruption, the FBI and partners seized multiple administration servers, a Shopify storefront, a testing account, roughly \)</span>100,000 in USDT, and a Telegram bot associated with the operation. The seized assets point to a mature service model spanning web hosting, testing workflows, payment infrastructure, and operator communications.</p>
 
-<p><mark class="tag-hl">Google</mark> also filed a civil lawsuit targeting the operation’s infrastructure and said it is coordinating with AT&amp;T, <mark class="tag-hl">T-Mobile</mark>, and <mark class="tag-hl">Verizon</mark> to block fraudulent messages before they reach subscribers. According to <mark class="tag-hl">Google</mark>, <mark class="tag-hl">Outsider Enterprise</mark> sent 2.5 million SMS messages to Android users over a two-week period in May, and Android users flagged 55,000 of those messages as fraudulent. The reported SMS volume underscores the role of mobile delivery channels in modern phishing operations and the operational emphasis on rapid, high-volume lure distribution.</p>
+<p>Google also filed a civil lawsuit targeting the operation’s infrastructure and said it is coordinating with AT&amp;T, T-Mobile, and Verizon to block fraudulent messages before they reach subscribers. According to Google, Outsider Enterprise sent 2.5 million SMS messages to Android users over a two-week period in May, and Android users flagged 55,000 of those messages as fraudulent. The reported SMS volume underscores the role of mobile delivery channels in modern phishing operations and the operational emphasis on rapid, high-volume lure distribution.</p>
 
-<p>The reporting characterizes <mark class="tag-hl">Outsider Enterprise</mark> as AI-powered, reflecting the broader trend of fraud services adopting automation and generative tooling to scale phishing content, infrastructure, and campaign management. While the article focuses on the takedown rather than technical indicators, the scope of domains, URLs, SMS traffic, and stolen payment records makes the operation one of the more significant recent examples of <mark class="tag-hl">phishing-as-a-service</mark> disruption.</p>
+<p>The reporting characterizes Outsider Enterprise as AI-powered, reflecting the broader trend of fraud services adopting automation and generative tooling to scale phishing content, infrastructure, and campaign management. While the article focuses on the takedown rather than technical indicators, the scope of domains, URLs, SMS traffic, and stolen payment records makes the operation one of the more significant recent examples of phishing-as-a-service disruption.</p>
 </div>
       </div>
     </div>
@@ -1495,9 +1649,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <a id="back-top" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">↑ TOP</a>
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-14 14:00 UTC · 4 hours window</span>
-  <span class="footer-right">1 articles · d36791c</span>
+  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-right">1 articles · 6fa23d0</span>
 </footer>
 
 <script>
@@ -1510,15 +1667,77 @@ function applyTheme(t) {
 
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-function toggleGlossary() {
-  var on = document.documentElement.dataset.glossary === 'on';
-  if (on) { delete document.documentElement.dataset.glossary; } else { document.documentElement.dataset.glossary = 'on'; }
-  try { localStorage.setItem('downlink.glossary', on ? 'off' : 'on'); } catch(e){}
-  var btn = document.getElementById('nav-glossary-toggle');
-  if (btn) btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+
+
+
+var LEARN_FEATURES = {
+  glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
+  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
+  define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
+};
+function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function toggleLearning() {
+  var d = document.documentElement.dataset;
+  var on = d.learning === 'on';
+  if (on) {
+    delete d.learning;
+    closeLearnMenu();
+  } else {
+    d.learning = 'on';
+    
+    Object.keys(LEARN_FEATURES).forEach(function(f){
+      var cfg = LEARN_FEATURES[f];
+      if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
+    });
+  }
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnFeature(f) {
+  var cfg = LEARN_FEATURES[f];
+  if (!cfg) return;
+  var d = document.documentElement.dataset;
+  var on = d[cfg.attr] === 'on';
+  d[cfg.attr] = on ? 'off' : 'on';
+  learnSetItem(cfg.key, on ? 'off' : 'on');
+  syncLearnUI();
+}
+function toggleLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (!card) return;
+  if (card.hidden) { card.hidden = false; } else { card.hidden = true; }
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', card.hidden ? 'false' : 'true');
+}
+function closeLearnMenu() {
+  var card = document.getElementById('learn-card');
+  if (card) card.hidden = true;
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
-(function(){ var btn = document.getElementById('nav-glossary-toggle'); if (btn) btn.setAttribute('aria-pressed', document.documentElement.dataset.glossary === 'on' ? 'true' : 'false'); })();
+function syncLearnUI() {
+  var d = document.documentElement.dataset;
+  var learningOn = d.learning === 'on';
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  var caret = document.getElementById('nav-learn-caret');
+  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  Object.keys(LEARN_FEATURES).forEach(function(f){
+    var cfg = LEARN_FEATURES[f];
+    var el = document.getElementById(cfg.el);
+    if (el) el.setAttribute('aria-checked', d[cfg.attr] === 'on' ? 'true' : 'false');
+  });
+}
+syncLearnUI();
+
+document.addEventListener('click', function(e){
+  var card = document.getElementById('learn-card');
+  if (!card || card.hidden) return;
+  if (e.target.closest('#nav-learn')) return;
+  closeLearnMenu();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLearnMenu(); });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -1631,12 +1850,46 @@ function toggleTag(tag) {
 
 
 
+
+
+
+
+var GLOSSARY = {};
+var CONTEXT = {};
+function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+function openGlossaryPopup(term, def, type, ctx){
+  document.getElementById('glossary-popup-term').textContent = term;
+  document.getElementById('glossary-popup-def').textContent = def;
+  var typeEl = document.getElementById('glossary-popup-type');
+  if (type) { typeEl.textContent = type; typeEl.hidden = false; } else { typeEl.hidden = true; }
+  var ctxEl = document.getElementById('glossary-popup-context');
+  if (ctx) { document.getElementById('glossary-popup-context-text').textContent = ctx; ctxEl.hidden = false; } else { ctxEl.hidden = true; }
+  var p = document.getElementById('glossary-popup');
+  
+  p.hidden = false;
+  p.classList.add('is-enter');
+  requestAnimationFrame(function(){ p.classList.remove('is-enter'); });
+}
+function closeGlossaryPopup(){
+  var p = document.getElementById('glossary-popup');
+  if (p) p.hidden = true;
+}
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
   if (!m) return;
   e.stopPropagation(); 
-  toggleTag(m.textContent.trim().toLowerCase().replace(/[\s-]+/g, '-'));
+  var dd = document.documentElement.dataset;
+  if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; 
+  var key = glossaryKey(m.textContent);
+  var entry = GLOSSARY[key];
+  if (!entry) return;
+  
+  var ctx = '';
+  var host = m.closest('[data-article-id]');
+  if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
 
 function setCategoryFilter(btn) {
   document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
@@ -1697,6 +1950,8 @@ function showMoreTags(btn) {
 </script>
 </body>
 </html>
+
+
 
 
 
