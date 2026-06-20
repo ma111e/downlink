@@ -49,14 +49,6 @@ type RenderedAnalysis struct {
 	Insights               []template.HTML
 	ReferencedReports      []RenderedReport
 	GlossaryExplanation    template.HTML
-	GlossaryTerms          []RenderedGlossaryTerm
-}
-
-// RenderedGlossaryTerm is a glossary-mode jargon term prepared for the template, with
-// its definition tag-highlighted.
-type RenderedGlossaryTerm struct {
-	Term       string
-	Definition template.HTML
 }
 
 // RenderedReport is a referenced report prepared for the digest template, with its
@@ -261,13 +253,14 @@ type digestTemplateData struct {
 	OverviewSections    []OverviewSection
 	TOCGroups           []TOCGroup
 	ArticleEntries      []ArticleEntry
-	Categories          []string       // categories present among articles, for the TOC category filter
-	CategoryCounts      map[string]int // TOC rows per category, for the category filter badges
-	PriorityCounts      map[string]int // TOC rows per priority key (must/should/may), for the priority filter badges
-	Tags                []TagCount     // distinct tags present among TOC rows (with match counts), for the tag filter cloud
-	HasLearning         bool           // true when the digest has beginner aids (glossary or why-it-matters), gating the Learning switch + popup
-	GlossaryJSON        template.JS    // normalized-key → {term, def, type} map baked in for the definition popup
-	GlossaryContextJSON template.JS    // articleId → {normalized-key → context} for per-article popup context
+	Categories          []string             // categories present among articles, for the TOC category filter
+	CategoryCounts      map[string]int       // TOC rows per category, for the category filter badges
+	PriorityCounts      map[string]int       // TOC rows per priority key (must/should/may), for the priority filter badges
+	Tags                []TagCount           // distinct tags present among TOC rows (with match counts), for the tag filter cloud
+	HasLearning         bool                 // true when the digest has beginner aids (glossary or why-it-matters), gating the Learning switch + popup
+	GlossaryJSON        template.JS          // normalized-key → {term, def, type} map baked in for the definition popup
+	GlossaryContextJSON template.JS          // articleId → {normalized-key → context} for per-article popup context
+	GlossaryPanel       []GlossaryPanelEntry // deduped term list for the right-side glossary drawer
 	Commit              string
 }
 
@@ -277,6 +270,14 @@ type glossaryJSEntry struct {
 	Def  string `json:"def"`
 	Type string `json:"type,omitempty"`
 	Tag  string `json:"tag,omitempty"`
+}
+
+// GlossaryPanelEntry is one deduplicated term shown in the right-side glossary drawer
+// (term + semantic type + general definition; no per-article context).
+type GlossaryPanelEntry struct {
+	Term       string
+	Type       string
+	Definition string
 }
 
 // TagCount is a tag and the number of TOC rows that carry it (matching the row-level
@@ -322,6 +323,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 	// resolves to a definition in the popup. When the digest has no glossary, highlighting is off.
 	glossaryByKey := make(map[string]glossaryJSEntry, len(digest.DigestGlossary))
 	glossaryTerms := make([]string, 0, len(digest.DigestGlossary))
+	glossaryPanel := make([]GlossaryPanelEntry, 0, len(digest.DigestGlossary))
 	for _, dg := range digest.DigestGlossary {
 		if dg.Entry == nil {
 			continue
@@ -336,9 +338,14 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		}
 		glossaryByKey[key] = glossaryJSEntry{Term: dg.Entry.Term, Def: def, Type: dg.Entry.Category, Tag: dg.Entry.TagId}
 		glossaryTerms = append(glossaryTerms, dg.Entry.Term)
+		glossaryPanel = append(glossaryPanel, GlossaryPanelEntry{Term: dg.Entry.Term, Type: dg.Entry.Category, Definition: def})
 	}
 	glossaryActive := len(glossaryByKey) > 0
 	glossaryRe := compileTagRegexp(glossaryTerms) // nil when no glossary → highlighting is a no-op
+	// Consolidated, deduplicated glossary for the right-side panel, sorted by term.
+	sort.SliceStable(glossaryPanel, func(i, j int) bool {
+		return strings.ToLower(glossaryPanel[i].Term) < strings.ToLower(glossaryPanel[j].Term)
+	})
 
 	// Per-article context: key → "why this term matters in this article". Only kept for terms
 	// that are part of the digest glossary (so it lines up with what gets highlighted). The popup
@@ -424,7 +431,6 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 				Insights:               highlightPlainSlice(analysis.Insights, tagRe),
 				ReferencedReports:      renderReports(analysis.ReferencedReports, tagRe),
 				GlossaryExplanation:    highlightHTMLFragment(markdownToHTML(analysis.GlossaryExplanation), tagRe),
-				GlossaryTerms:          renderGlossary(analysis.GlossaryTerms, tagRe),
 			}
 		}
 
@@ -581,6 +587,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		HasLearning:         hasLearning,
 		GlossaryJSON:        marshalGlossaryJS(glossaryByKey),
 		GlossaryContextJSON: marshalGlossaryContextJS(glossaryContext),
+		GlossaryPanel:       glossaryPanel,
 		Commit:              version.Commit,
 	}
 
@@ -837,22 +844,6 @@ func renderReports(reports []models.ReferencedReport, re *regexp.Regexp) []Rende
 			Category:  r.Category,
 			Primary:   r.Primary,
 			Context:   highlightPlain(r.Context, re),
-		}
-	}
-	return out
-}
-
-// renderGlossary prepares glossary-mode terms for the template, tag-highlighting
-// each definition while leaving the term itself plain-escaped by the template.
-func renderGlossary(terms []models.GlossaryTerm, re *regexp.Regexp) []RenderedGlossaryTerm {
-	if len(terms) == 0 {
-		return nil
-	}
-	out := make([]RenderedGlossaryTerm, len(terms))
-	for i, t := range terms {
-		out[i] = RenderedGlossaryTerm{
-			Term:       t.Term,
-			Definition: highlightPlain(t.Definition, re),
 		}
 	}
 	return out

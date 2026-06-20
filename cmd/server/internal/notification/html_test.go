@@ -295,9 +295,20 @@ func TestRenderDigestHTMLGlossaryMode(t *testing.T) {
 					ImportanceScore:     95,
 					BriefOverview:       "Brief.",
 					GlossaryExplanation: "A flaw lets attackers run code on a server.",
-					GlossaryTerms: []models.GlossaryTerm{
-						{Term: "RCE", Definition: "Running your own commands on someone else's computer."},
-					},
+				},
+			},
+		},
+		DigestGlossary: []models.DigestGlossary{
+			{
+				DigestId: "digest-glossary",
+				EntryId:  "entry-rce",
+				Entry: &models.GlossaryEntry{
+					Id:            "entry-rce",
+					NormalizedKey: models.NormalizeGlossaryKey("RCE"),
+					Term:          "RCE",
+					Kind:          models.GlossaryKindJargon,
+					Category:      "concept",
+					Definition:    "Running your own commands on someone else's computer.",
 				},
 			},
 		},
@@ -321,18 +332,26 @@ func TestRenderDigestHTMLGlossaryMode(t *testing.T) {
 		`onclick="toggleLearnFeature('define')"`,
 		`downlink.learning`,
 		`data-learning`,
-		// The per-article glossary block with explanation + terms.
+		// The per-article block keeps its plain-language explanation (no term list now).
 		`class="panel-section glossary-block"`,
 		`A flaw lets attackers run code on a server.`,
-		`<dt class="glossary-term">RCE</dt>`,
+		// Terms now live in the consolidated right-side glossary drawer.
+		`id="glossary-panel"`,
+		`id="glossary-panel-toggle"`,
+		`<dt class="glossary-panel-term">RCE`,
 		`Running your own commands on someone else&#39;s computer.`,
-		// Hidden by default, revealed only by Learning mode + the Glossary feature.
-		`.glossary-block { display: none; }`,
-		`html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }`,
+		`github.com/ma111e/downlink/issues/new`,
+		// Drawer is hidden until Learning mode + the Glossary feature are on.
+		`html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: flex; }`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderDigestHTML() missing learning/glossary fragment %q:\n%s", want, html)
 		}
+	}
+
+	// The per-article term list markup must be gone (moved to the panel).
+	if strings.Contains(html, `class="glossary-term"`) {
+		t.Fatal("RenderDigestHTML() still renders the per-article glossary term list")
 	}
 }
 

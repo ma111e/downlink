@@ -262,19 +262,20 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		sendProgress(stream, "dedupe", fmt.Sprintf("found %d duplicate groups", len(groupingResult.DuplicateGroups)), 0, 0)
 	}
 
-	// Step 3: Generate digest summary presentation
+	// Step 3: Generate digest title (always) and optional executive summary
 	var digestTitle, digestSummary string
 	var summaryProviderType, summaryModelName string
-	if !executiveSummaryEnabled(req.ExecutiveSummary) {
-		log.Info("Skipping digest summary generation (executive_summary disabled)")
+	withSummary := executiveSummaryEnabled(req.ExecutiveSummary)
+	sendProgress(stream, "summarize", "generating digest title...", 0, 0)
+	digestTitle, digestSummary, summaryProviderType, summaryModelName, err = s.generateDigestSummary(ctx, analyses, articleMap, windowStart, windowEnd, req.Provider, req.Model, withSummary)
+	if err != nil {
+		log.WithError(err).Warn("Failed to generate digest title/summary, continuing without it")
 	} else {
-		sendProgress(stream, "summarize", "generating digest summary...", 0, 0)
-		digestTitle, digestSummary, summaryProviderType, summaryModelName, err = s.generateDigestSummary(ctx, analyses, articleMap, windowStart, windowEnd, req.Provider, req.Model)
-		if err != nil {
-			log.WithError(err).Warn("Failed to generate digest summary, continuing without it")
-		} else {
-			sendProgress(stream, "summarize", "digest summary generated", 0, 0)
+		msg := "digest title generated"
+		if withSummary {
+			msg = "digest summary generated"
 		}
+		sendProgress(stream, "summarize", msg, 0, 0)
 	}
 
 	// Step 4: Build the digest object
@@ -926,10 +927,10 @@ type digestSummaryResponse struct {
 	Summary string `json:"summary"`
 }
 
-// generateDigestSummary creates a presentation/summary of the digest from articles and their key points.
+// generateDigestSummary creates a title (always) and optional executive summary for the digest.
 // Returns (title, summary, providerType, modelName, error).
-func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time, provider, model string) (string, string, string, string, error) {
-	prompt := buildDigestSummaryPrompt(analyses, articleMap, windowStart, windowEnd)
+func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time, provider, model string, withSummary bool) (string, string, string, string, error) {
+	prompt := buildDigestSummaryPrompt(analyses, articleMap, windowStart, windowEnd, withSummary)
 
 	summaryTemp := 0.5
 	resolved, err := ResolveLLM(LLMRequest{Provider: provider, ModelName: model, Temperature: &summaryTemp})
@@ -941,7 +942,8 @@ func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []mod
 		"provider":     resolved.ProviderType,
 		"model":        resolved.ModelName,
 		"articleCount": len(analyses),
-	}).Info("Generating digest summary")
+		"withSummary":  withSummary,
+	}).Info("Generating digest title/summary")
 
 	stepCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
@@ -1169,7 +1171,7 @@ func entityDefinitionsFromResult(raw map[string]entityDefinition) map[string]ent
 	return out
 }
 
-func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time) string {
+func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time, withSummary bool) string {
 	var articlesList strings.Builder
 	for i, analysis := range analyses {
 		article, ok := articleMap[analysis.ArticleId]
@@ -1198,6 +1200,29 @@ func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[
 		}
 	}
 
+	titleInstruction := `<concise title of 5-20 words that captures the dominant theme of this digest. Be factual and specific so a reader immediately knows what's inside: name the actual CVEs, products, threat actors, campaigns, or incidents driving the digest. Avoid vague, abstract framing like 'AI-Accelerated Vulnerability Discovery and Advanced Espionage Campaigns Define Current Threat Landscape' when the underlying articles cover concrete, nameable items>`
+
+	if !withSummary {
+		return fmt.Sprintf(`You are a senior cyber threat intelligence analyst authoring a news digest for a technical security audience.
+
+Below is a list of articles with their key points, selected for the digest coverage window shown below.
+%s
+Digest coverage window:
+- Start: %s
+- End: %s
+- Duration: %s
+
+<articles>
+%s
+</articles>
+
+Respond with a JSON object in this exact format (no markdown fences, no extra text):
+{
+  "title": "%s"
+}
+`, styleBlock, windowStart.UTC().Format(time.RFC3339), windowEnd.UTC().Format(time.RFC3339), windowDuration.String(), articlesList.String(), titleInstruction)
+	}
+
 	return fmt.Sprintf(`You are a senior cyber threat intelligence analyst authoring a news digest for a technical security audience (threat hunters, detection engineers, SOC analysts, and incident responders).
 
 Below is a list of articles with their key points. These articles were selected for the digest coverage window shown below. Use this window to frame the digest, but do not imply the reported events occurred exactly within the window unless the article details say so.
@@ -1220,12 +1245,12 @@ Digest coverage window:
 
 Respond with a JSON object in this exact format (no markdown fences, no extra text):
 {
-  "title": "<concise title of 5-20 words that captures the dominant theme of this digest. Be factual and specific so a reader immediately knows what's inside: name the actual CVEs, products, threat actors, campaigns, or incidents driving the digest. Avoid vague, abstract framing like 'AI-Accelerated Vulnerability Discovery and Advanced Espionage Campaigns Define Current Threat Landscape' when the underlying articles cover concrete, nameable items>",
+  "title": "%s",
   "summary": "<digest summary written in markdown. Begin with 2-3 introductory sentences (no heading) giving an overall snapshot of the threat landscape covered in this digest. Then organize the remaining content into thematic sections using ## markdown headings. Each section should group multiple related articles under a shared threat theme, event type, or actor cluster — do not create a section for a single article unless it stands alone with no thematic peers. Aim for the fewest sections that still meaningfully separate distinct areas; prefer broader groupings over narrow ones. Section titles must be concrete and specific (e.g. '## Ransomware Campaigns', '## Critical Infrastructure Attacks', '## Espionage & APT Activity'), not generic labels. Within each section, write 2-3 markdown paragraphs (blank line between each), 2-4 sentences per paragraph. Total length approximately 300-600 words.>"
 }
 
 The summary must be purely factual and descriptive. Do NOT include sections on strategic recommendations, action items, mitigation advice, or "what you should do." This digest is for intelligence reporting only: present threats, incidents, and trends as reported, without prescribing any response.
-`, styleBlock, windowStart.UTC().Format(time.RFC3339), windowEnd.UTC().Format(time.RFC3339), windowDuration.String(), articlesList.String())
+`, styleBlock, windowStart.UTC().Format(time.RFC3339), windowEnd.UTC().Format(time.RFC3339), windowDuration.String(), articlesList.String(), titleInstruction)
 }
 
 // buildDigestAnalyses creates DigestAnalysis entries from analyses and grouping results
