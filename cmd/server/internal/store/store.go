@@ -41,6 +41,7 @@ type Store interface {
 
 	UpsertGlossaryEntry(entry *models.GlossaryEntry) error
 	GetGlossaryEntriesByKeys(keys []string) (map[string]*models.GlossaryEntry, error)
+	ListGlossaryEntries(limit int) ([]models.GlossaryEntry, error)
 	StoreDigestGlossaryBatch(rows []models.DigestGlossary) error
 	GetDigestGlossary(digestId string) ([]models.DigestGlossary, error)
 	SetGlossaryManualOverride(key, curatedDef string) error

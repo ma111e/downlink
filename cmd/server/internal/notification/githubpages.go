@@ -116,6 +116,16 @@ func (p *GitHubPagesPublisher) SendDigest(digest models.Digest) error {
 	return err
 }
 
+// PublishAndWait publishes the digest and blocks until the pushed commit's
+// GitHub Pages build deploys. It is the deploy-aware counterpart to SendDigest.
+func (p *GitHubPagesPublisher) PublishAndWait(digest models.Digest) error {
+	sha, err := p.sendDigest(digest)
+	if err != nil {
+		return err
+	}
+	return p.WaitForPagesBuild(sha)
+}
+
 // sendDigest performs the work of SendDigest and additionally returns the SHA
 // of the pushed commit so callers (e.g. Republish) can wait for the
 // corresponding GitHub Pages build to deploy.
@@ -280,28 +290,8 @@ func (p *GitHubPagesPublisher) RemoveDigest(title string) (string, error) {
 		return "", fmt.Errorf("github pages: failed to commit: %w", err)
 	}
 
-	pushOpts := &gogit.PushOptions{
-		RemoteName: "origin",
-		Auth:       auth,
-	}
-	if err := repo.Push(pushOpts); err != nil {
-		if isNonFastForward(err) {
-			log.Warn("GitHub Pages push rejected (non-fast-forward); pulling and retrying")
-			pullErr := wt.Pull(&gogit.PullOptions{
-				RemoteName:    "origin",
-				ReferenceName: plumbing.NewBranchReferenceName(p.cfg.Branch),
-				Auth:          auth,
-				Force:         true,
-			})
-			if pullErr != nil && pullErr != gogit.NoErrAlreadyUpToDate {
-				return "", fmt.Errorf("github pages: rebase pull failed: %w", pullErr)
-			}
-			if retryErr := repo.Push(pushOpts); retryErr != nil {
-				return "", fmt.Errorf("github pages: push retry failed: %w", retryErr)
-			}
-		} else {
-			return "", fmt.Errorf("github pages: push failed: %w", err)
-		}
+	if err := p.pushWithRetry(repo, wt, auth); err != nil {
+		return "", err
 	}
 
 	log.WithField("title", title).Info("Digest removed from GitHub Pages")
@@ -609,10 +599,8 @@ func (p *GitHubPagesPublisher) InitPages(reinit bool) error {
 	}
 	if !hasStaged {
 		log.Info("GitHub Pages: nothing to commit, repository already initialised")
-		if p.cfg.ConfigurePages {
-			if err := p.configureGitHubPagesSource(); err != nil {
-				return fmt.Errorf("github pages: configure source: %w", err)
-			}
+		if err := p.configureGitHubPagesSourceIfEnabled(); err != nil {
+			return err
 		}
 		return nil
 	}
@@ -631,17 +619,12 @@ func (p *GitHubPagesPublisher) InitPages(reinit bool) error {
 		return fmt.Errorf("github pages: commit: %w", err)
 	}
 
-	if err := gitRepo.Push(&gogit.PushOptions{
-		RemoteName: "origin",
-		Auth:       auth,
-	}); err != nil {
-		return fmt.Errorf("github pages: push: %w", err)
+	if err := p.pushWithRetry(gitRepo, wt, auth); err != nil {
+		return err
 	}
 
-	if p.cfg.ConfigurePages {
-		if err := p.configureGitHubPagesSource(); err != nil {
-			return fmt.Errorf("github pages: configure source: %w", err)
-		}
+	if err := p.configureGitHubPagesSourceIfEnabled(); err != nil {
+		return err
 	}
 
 	log.WithField("branch", p.cfg.Branch).Info("GitHub Pages initialised successfully")

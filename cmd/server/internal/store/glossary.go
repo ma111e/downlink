@@ -40,6 +40,10 @@ func (s *GormStore) UpsertGlossaryEntry(entry *models.GlossaryEntry) error {
 		updates["tag_id"] = entry.TagId
 		updates["kind"] = models.GlossaryKindEntity
 	}
+	if (existing.Category == "" || existing.Category == models.GlossaryCategoryOther) &&
+		entry.Category != "" && entry.Category != models.GlossaryCategoryOther {
+		updates["category"] = entry.Category
+	}
 	if len(updates) > 0 {
 		if err := s.db.Model(&models.GlossaryEntry{}).Where("id = ?", existing.Id).Updates(updates).Error; err != nil {
 			return fmt.Errorf("failed to update glossary entry: %w", err)
@@ -66,6 +70,19 @@ func (s *GormStore) GetGlossaryEntriesByKeys(keys []string) (map[string]*models.
 		out[entries[i].NormalizedKey] = &entries[i]
 	}
 	return out, nil
+}
+
+// ListGlossaryEntries returns persisted glossary entries ordered by term. limit <= 0 returns all.
+func (s *GormStore) ListGlossaryEntries(limit int) ([]models.GlossaryEntry, error) {
+	var entries []models.GlossaryEntry
+	q := s.db.Order("term COLLATE NOCASE ASC")
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+	if err := q.Find(&entries).Error; err != nil {
+		return nil, fmt.Errorf("failed to list glossary entries: %w", err)
+	}
+	return entries, nil
 }
 
 // StoreDigestGlossaryBatch records the glossary entries referenced by a digest. Existing

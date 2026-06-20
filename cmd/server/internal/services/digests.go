@@ -991,6 +991,7 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 				NormalizedKey:   key,
 				Term:            strings.TrimSpace(term.Term),
 				Kind:            models.GlossaryKindJargon,
+				Category:        models.NormalizeGlossaryCategory(term.Type),
 				Definition:      strings.TrimSpace(term.Definition),
 				DefinitionModel: model,
 				Source:          "analysis:" + analyses[i].Id,
@@ -1040,7 +1041,7 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 			if err != nil {
 				log.WithError(err).Warn("Failed to generate entity definitions for glossary")
 			}
-			for key, def := range defs {
+			for key, ed := range defs {
 				slug := slugByKey[key]
 				if slug == "" {
 					slug = key
@@ -1049,7 +1050,8 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 					NormalizedKey:   key,
 					Term:            slug,
 					Kind:            models.GlossaryKindEntity,
-					Definition:      def,
+					Category:        ed.Type,
+					Definition:      ed.Def,
 					TagId:           slug,
 					DefinitionModel: model,
 					Source:          "tag",
@@ -1078,12 +1080,18 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 	return len(rows), nil
 }
 
-// defineEntities asks the model for a one-line plain-language definition of each named
-// entity, returned keyed by NormalizedGlossaryKey. Unknown entities (empty definitions)
+// entityDefinition is a generated definition plus its semantic type for a named entity.
+type entityDefinition struct {
+	Def  string
+	Type string
+}
+
+// defineEntities asks the model for a one-line plain-language definition and a type for each
+// named entity, returned keyed by NormalizedGlossaryKey. Unknown entities (empty definitions)
 // are dropped so they can be retried on a future digest.
-func (s *DigestServer) defineEntities(ctx context.Context, entities []string, provider, model string) (map[string]string, error) {
+func (s *DigestServer) defineEntities(ctx context.Context, entities []string, provider, model string) (map[string]entityDefinition, error) {
 	if len(entities) == 0 {
-		return map[string]string{}, nil
+		return map[string]entityDefinition{}, nil
 	}
 
 	var list strings.Builder
@@ -1095,8 +1103,11 @@ func (s *DigestServer) defineEntities(ctx context.Context, entities []string, pr
 	prompt := fmt.Sprintf(`You are explaining cybersecurity terms to a complete beginner. For each named
 entity below (threat actor, malware family, tool, CVE, technique, vendor, organization, or
 country relevant to a security story), give one plain-language sentence a newcomer can
-understand. If you do not recognize an entity, or cannot define it confidently, return an
-empty string for it — do not guess.
+understand, and classify its type. If you do not recognize an entity, or cannot define it
+confidently, return an empty definition for it — do not guess.
+
+type must be ONE of: threat-actor, malware, tool, technique, vulnerability, protocol, concept,
+organization, product, other.
 
 Echo back each entity exactly as given (the key).
 
@@ -1107,7 +1118,7 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 
 {
   "definitions": {
-    "<entity>": "<one plain-language sentence, or empty string if unknown>"
+    "<entity>": {"definition": "<one plain-language sentence, or empty string if unknown>", "type": "<category>"}
   }
 }`, list.String())
 
@@ -1123,7 +1134,10 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 
 	cleaned := llmutil.CleanLLMResponse(rawResponse)
 	var parsed struct {
-		Definitions map[string]string `json:"definitions"`
+		Definitions map[string]struct {
+			Definition string `json:"definition"`
+			Type       string `json:"type"`
+		} `json:"definitions"`
 	}
 	if err := json.Unmarshal([]byte(cleaned), &parsed); err != nil {
 		if err := json.Unmarshal([]byte(llmutil.ExtractJSON(cleaned)), &parsed); err != nil {
@@ -1131,14 +1145,18 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 		}
 	}
 
-	return entityDefinitionsFromResult(parsed.Definitions), nil
+	raw := make(map[string]entityDefinition, len(parsed.Definitions))
+	for entity, v := range parsed.Definitions {
+		raw[entity] = entityDefinition{Def: v.Definition, Type: v.Type}
+	}
+	return entityDefinitionsFromResult(raw), nil
 }
 
-// entityDefinitionsFromResult normalizes entity-definition keys and drops empty definitions.
-func entityDefinitionsFromResult(raw map[string]string) map[string]string {
-	out := make(map[string]string)
-	for entity, def := range raw {
-		def = strings.TrimSpace(def)
+// entityDefinitionsFromResult normalizes entity keys, coerces types, and drops empty definitions.
+func entityDefinitionsFromResult(raw map[string]entityDefinition) map[string]entityDefinition {
+	out := make(map[string]entityDefinition)
+	for entity, v := range raw {
+		def := strings.TrimSpace(v.Def)
 		if def == "" {
 			continue
 		}
@@ -1146,7 +1164,7 @@ func entityDefinitionsFromResult(raw map[string]string) map[string]string {
 		if key == "" {
 			continue
 		}
-		out[key] = def
+		out[key] = entityDefinition{Def: def, Type: models.NormalizeGlossaryCategory(v.Type)}
 	}
 	return out
 }

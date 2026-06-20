@@ -143,6 +143,7 @@ the branch will be lost. Prompts for confirmation before proceeding.`,
 		},
 	}
 
+	var addNoWait bool
 	addCmd := &cobra.Command{
 		Use:   "add [digest-id]",
 		Short: "Fetch a digest from the server and publish it to the GitHub Pages archive",
@@ -205,9 +206,13 @@ This command requires a running downlink server (--address / --port).`,
 			publisher.SetSourceLister(func() ([]models.Feed, error) {
 				return client.ListFeeds()
 			})
-			return publisher.SendDigest(digest)
+			if addNoWait {
+				return publisher.SendDigest(digest)
+			}
+			return publisher.PublishAndWait(digest)
 		},
 	}
+	addCmd.Flags().BoolVar(&addNoWait, "no-wait", false, "Push and exit without waiting for the GitHub Pages deploy")
 
 	var removeNoWait bool
 	removeCmd := &cobra.Command{

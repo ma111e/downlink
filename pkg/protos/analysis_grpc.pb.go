@@ -21,6 +21,8 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	AnalysisService_GetAllArticleAnalyses_FullMethodName = "/downlink.AnalysisService/GetAllArticleAnalyses"
 	AnalysisService_GetAnalysis_FullMethodName           = "/downlink.AnalysisService/GetAnalysis"
+	AnalysisService_ListGlossaryEntries_FullMethodName   = "/downlink.AnalysisService/ListGlossaryEntries"
+	AnalysisService_SetGlossaryOverride_FullMethodName   = "/downlink.AnalysisService/SetGlossaryOverride"
 )
 
 // AnalysisServiceClient is the client API for AnalysisService service.
@@ -32,6 +34,10 @@ type AnalysisServiceClient interface {
 	// GetAllArticleAnalyses retrieves all analysis results for a specific article
 	GetAllArticleAnalyses(ctx context.Context, in *GetAllArticleAnalysesRequest, opts ...grpc.CallOption) (*GetAllArticleAnalysesResponse, error)
 	GetAnalysis(ctx context.Context, in *GetAnalysisRequest, opts ...grpc.CallOption) (*ArticleAnalysis, error)
+	// ListGlossaryEntries lists entries from the persistent global glossary.
+	ListGlossaryEntries(ctx context.Context, in *ListGlossaryEntriesRequest, opts ...grpc.CallOption) (*ListGlossaryEntriesResponse, error)
+	// SetGlossaryOverride sets a curated definition for a term that survives regeneration.
+	SetGlossaryOverride(ctx context.Context, in *SetGlossaryOverrideRequest, opts ...grpc.CallOption) (*SetGlossaryOverrideResponse, error)
 }
 
 type analysisServiceClient struct {
@@ -62,6 +68,26 @@ func (c *analysisServiceClient) GetAnalysis(ctx context.Context, in *GetAnalysis
 	return out, nil
 }
 
+func (c *analysisServiceClient) ListGlossaryEntries(ctx context.Context, in *ListGlossaryEntriesRequest, opts ...grpc.CallOption) (*ListGlossaryEntriesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListGlossaryEntriesResponse)
+	err := c.cc.Invoke(ctx, AnalysisService_ListGlossaryEntries_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *analysisServiceClient) SetGlossaryOverride(ctx context.Context, in *SetGlossaryOverrideRequest, opts ...grpc.CallOption) (*SetGlossaryOverrideResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetGlossaryOverrideResponse)
+	err := c.cc.Invoke(ctx, AnalysisService_SetGlossaryOverride_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AnalysisServiceServer is the server API for AnalysisService service.
 // All implementations must embed UnimplementedAnalysisServiceServer
 // for forward compatibility.
@@ -71,6 +97,10 @@ type AnalysisServiceServer interface {
 	// GetAllArticleAnalyses retrieves all analysis results for a specific article
 	GetAllArticleAnalyses(context.Context, *GetAllArticleAnalysesRequest) (*GetAllArticleAnalysesResponse, error)
 	GetAnalysis(context.Context, *GetAnalysisRequest) (*ArticleAnalysis, error)
+	// ListGlossaryEntries lists entries from the persistent global glossary.
+	ListGlossaryEntries(context.Context, *ListGlossaryEntriesRequest) (*ListGlossaryEntriesResponse, error)
+	// SetGlossaryOverride sets a curated definition for a term that survives regeneration.
+	SetGlossaryOverride(context.Context, *SetGlossaryOverrideRequest) (*SetGlossaryOverrideResponse, error)
 	mustEmbedUnimplementedAnalysisServiceServer()
 }
 
@@ -86,6 +116,12 @@ func (UnimplementedAnalysisServiceServer) GetAllArticleAnalyses(context.Context,
 }
 func (UnimplementedAnalysisServiceServer) GetAnalysis(context.Context, *GetAnalysisRequest) (*ArticleAnalysis, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAnalysis not implemented")
+}
+func (UnimplementedAnalysisServiceServer) ListGlossaryEntries(context.Context, *ListGlossaryEntriesRequest) (*ListGlossaryEntriesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListGlossaryEntries not implemented")
+}
+func (UnimplementedAnalysisServiceServer) SetGlossaryOverride(context.Context, *SetGlossaryOverrideRequest) (*SetGlossaryOverrideResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetGlossaryOverride not implemented")
 }
 func (UnimplementedAnalysisServiceServer) mustEmbedUnimplementedAnalysisServiceServer() {}
 func (UnimplementedAnalysisServiceServer) testEmbeddedByValue()                         {}
@@ -144,6 +180,42 @@ func _AnalysisService_GetAnalysis_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AnalysisService_ListGlossaryEntries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListGlossaryEntriesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AnalysisServiceServer).ListGlossaryEntries(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AnalysisService_ListGlossaryEntries_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AnalysisServiceServer).ListGlossaryEntries(ctx, req.(*ListGlossaryEntriesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AnalysisService_SetGlossaryOverride_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetGlossaryOverrideRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AnalysisServiceServer).SetGlossaryOverride(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AnalysisService_SetGlossaryOverride_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AnalysisServiceServer).SetGlossaryOverride(ctx, req.(*SetGlossaryOverrideRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AnalysisService_ServiceDesc is the grpc.ServiceDesc for AnalysisService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -158,6 +230,14 @@ var AnalysisService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAnalysis",
 			Handler:    _AnalysisService_GetAnalysis_Handler,
+		},
+		{
+			MethodName: "ListGlossaryEntries",
+			Handler:    _AnalysisService_ListGlossaryEntries_Handler,
+		},
+		{
+			MethodName: "SetGlossaryOverride",
+			Handler:    _AnalysisService_SetGlossaryOverride_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

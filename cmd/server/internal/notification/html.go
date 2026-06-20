@@ -40,6 +40,7 @@ type RenderedAnalysis struct {
 	ProviderType           string
 	ModelName              string
 	Tldr                   template.HTML
+	WhyItMatters           template.HTML
 	Justification          template.HTML
 	BriefOverview          template.HTML
 	StandardSynthesis      template.HTML
@@ -247,32 +248,34 @@ type OverviewSection struct {
 
 // digestTemplateData is the root data passed to the HTML template
 type digestTemplateData struct {
-	StartedAt        string
-	ArticleCount     int
-	ModelName        string
-	TimeWindow       string
-	SwipeFilename    string
-	DigestTitle      string
-	Theme            string        // resolved data-theme attribute value
-	Themes           []themeOption // all known themes, for the picker + pre-paint allowlist
-	PaletteCSS       template.CSS  // per-theme --pN source-color custom properties
-	DigestSummary    template.HTML // kept for backwards compat; OverviewSections is used for rendering
-	OverviewSections []OverviewSection
-	TOCGroups        []TOCGroup
-	ArticleEntries   []ArticleEntry
-	Categories       []string       // categories present among articles, for the TOC category filter
-	CategoryCounts   map[string]int // TOC rows per category, for the category filter badges
-	PriorityCounts   map[string]int // TOC rows per priority key (must/should/may), for the priority filter badges
-	Tags             []TagCount     // distinct tags present among TOC rows (with match counts), for the tag filter cloud
-	HasGlossary      bool           // true when the digest has glossary content, gating the nav switch + modal
-	GlossaryJSON     template.JS    // normalized-key → {term, def} map baked in for the definition modal
-	Commit           string
+	StartedAt           string
+	ArticleCount        int
+	ModelName           string
+	TimeWindow          string
+	SwipeFilename       string
+	DigestTitle         string
+	Theme               string        // resolved data-theme attribute value
+	Themes              []themeOption // all known themes, for the picker + pre-paint allowlist
+	PaletteCSS          template.CSS  // per-theme --pN source-color custom properties
+	DigestSummary       template.HTML // kept for backwards compat; OverviewSections is used for rendering
+	OverviewSections    []OverviewSection
+	TOCGroups           []TOCGroup
+	ArticleEntries      []ArticleEntry
+	Categories          []string       // categories present among articles, for the TOC category filter
+	CategoryCounts      map[string]int // TOC rows per category, for the category filter badges
+	PriorityCounts      map[string]int // TOC rows per priority key (must/should/may), for the priority filter badges
+	Tags                []TagCount     // distinct tags present among TOC rows (with match counts), for the tag filter cloud
+	HasLearning         bool           // true when the digest has beginner aids (glossary or why-it-matters), gating the Learning switch + popup
+	GlossaryJSON        template.JS    // normalized-key → {term, def, type} map baked in for the definition popup
+	GlossaryContextJSON template.JS    // articleId → {normalized-key → context} for per-article popup context
+	Commit              string
 }
 
 // glossaryJSEntry is one entry in the page's baked-in term→definition lookup.
 type glossaryJSEntry struct {
 	Term string `json:"term"`
 	Def  string `json:"def"`
+	Type string `json:"type,omitempty"`
 	Tag  string `json:"tag,omitempty"`
 }
 
@@ -316,7 +319,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 
 	// Build the digest-wide glossary lookup from the entries this digest references. In-prose
 	// highlighting is driven by this set (defined jargon + defined entities), so every highlight
-	// resolves to a definition in the modal. When the digest has no glossary, highlighting is off.
+	// resolves to a definition in the popup. When the digest has no glossary, highlighting is off.
 	glossaryByKey := make(map[string]glossaryJSEntry, len(digest.DigestGlossary))
 	glossaryTerms := make([]string, 0, len(digest.DigestGlossary))
 	for _, dg := range digest.DigestGlossary {
@@ -331,11 +334,16 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 		if _, seen := glossaryByKey[key]; seen {
 			continue
 		}
-		glossaryByKey[key] = glossaryJSEntry{Term: dg.Entry.Term, Def: def, Tag: dg.Entry.TagId}
+		glossaryByKey[key] = glossaryJSEntry{Term: dg.Entry.Term, Def: def, Type: dg.Entry.Category, Tag: dg.Entry.TagId}
 		glossaryTerms = append(glossaryTerms, dg.Entry.Term)
 	}
 	glossaryActive := len(glossaryByKey) > 0
 	glossaryRe := compileTagRegexp(glossaryTerms) // nil when no glossary → highlighting is a no-op
+
+	// Per-article context: key → "why this term matters in this article". Only kept for terms
+	// that are part of the digest glossary (so it lines up with what gets highlighted). The popup
+	// shows the global definition plus, when present, the context for the article the mark sits in.
+	glossaryContext := make(map[string]map[string]string)
 
 	digestModelName := strings.Join(digestAllModelNames(digest), " · ")
 
@@ -364,6 +372,24 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 			scoreTip = scoreTooltip(analysis.ScoreDimensions)
 		}
 
+		// Collect this article's per-term context for terms that are in the digest glossary.
+		if glossaryActive && analysis != nil {
+			for _, gt := range analysis.GlossaryTerms {
+				ctx := strings.TrimSpace(gt.Context)
+				if ctx == "" {
+					continue
+				}
+				key := models.NormalizeGlossaryKey(gt.Term)
+				if _, ok := glossaryByKey[key]; !ok {
+					continue
+				}
+				if glossaryContext[art.Id] == nil {
+					glossaryContext[art.Id] = make(map[string]string)
+				}
+				glossaryContext[art.Id][key] = ctx
+			}
+		}
+
 		tocEntries = append(tocEntries, TOCEntry{
 			Id:                  art.Id,
 			Title:               articleTitle(art.Title),
@@ -389,6 +415,7 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 				ProviderType:           analysis.ProviderType,
 				ModelName:              analysis.ModelName,
 				Tldr:                   highlightPlain(analysis.Tldr, tagRe),
+				WhyItMatters:           highlightHTMLFragment(markdownToHTML(analysis.WhyItMatters), tagRe),
 				Justification:          highlightHTMLFragment(markdownToHTML(analysis.Justification), tagRe),
 				BriefOverview:          highlightHTMLFragment(markdownToHTML(analysis.BriefOverview), tagRe),
 				StandardSynthesis:      mdProseOrEmpty(analysis.StandardSynthesis, tagRe),
@@ -516,14 +543,16 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 	})
 
 	// In glossary mode, highlight the executive summary against the glossary term set (so its
-	// highlights open the definition modal); otherwise leave the summary unhighlighted.
+	// highlights open the definition popup); otherwise leave the summary unhighlighted.
 	summaryTagRe := glossaryRe
 
-	hasGlossary := glossaryActive
-	if !hasGlossary {
+	// hasLearning means "has beginner aids" — it gates the reader's Learning switch and the
+	// data-learning consent gate that reveals glossary explanations AND the "Why it matters" blocks.
+	hasLearning := glossaryActive
+	if !hasLearning {
 		for _, e := range articleEntries {
-			if e.Analysis != nil && e.Analysis.GlossaryExplanation != "" {
-				hasGlossary = true
+			if e.Analysis != nil && (e.Analysis.GlossaryExplanation != "" || e.Analysis.WhyItMatters != "") {
+				hasLearning = true
 				break
 			}
 		}
@@ -532,26 +561,27 @@ func RenderDigestHTML(digest models.Digest, theme string) ([]byte, error) {
 	data := digestTemplateData{
 		// CreatedAt is the article-selection window start; show it directly so the
 		// digest page matches the archive index's period_start (see ManifestEntryFromDigest).
-		StartedAt:        digest.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
-		ArticleCount:     articleCount,
-		ModelName:        digestModelName,
-		TimeWindow:       formatDuration(digest.TimeWindow),
-		SwipeFilename:    SwipeHTMLFilename(digest),
-		DigestTitle:      digest.Title,
-		DigestSummary:    markdownToHTML(digest.DigestSummary),
-		OverviewSections: parseOverviewSections(digest.DigestSummary, summaryTagRe),
-		TOCGroups:        tocGroups,
-		ArticleEntries:   articleEntries,
-		Categories:       categories,
-		CategoryCounts:   categoryCounts,
-		PriorityCounts:   priorityCounts,
-		Tags:             tags,
-		Theme:            normalizeTheme(theme),
-		Themes:           themeOptions(),
-		PaletteCSS:       paletteCSS(),
-		HasGlossary:      hasGlossary,
-		GlossaryJSON:     marshalGlossaryJS(glossaryByKey),
-		Commit:           version.Commit,
+		StartedAt:           digest.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
+		ArticleCount:        articleCount,
+		ModelName:           digestModelName,
+		TimeWindow:          formatDuration(digest.TimeWindow),
+		SwipeFilename:       SwipeHTMLFilename(digest),
+		DigestTitle:         digest.Title,
+		DigestSummary:       markdownToHTML(digest.DigestSummary),
+		OverviewSections:    parseOverviewSections(digest.DigestSummary, summaryTagRe),
+		TOCGroups:           tocGroups,
+		ArticleEntries:      articleEntries,
+		Categories:          categories,
+		CategoryCounts:      categoryCounts,
+		PriorityCounts:      priorityCounts,
+		Tags:                tags,
+		Theme:               normalizeTheme(theme),
+		Themes:              themeOptions(),
+		PaletteCSS:          paletteCSS(),
+		HasLearning:         hasLearning,
+		GlossaryJSON:        marshalGlossaryJS(glossaryByKey),
+		GlossaryContextJSON: marshalGlossaryContextJS(glossaryContext),
+		Commit:              version.Commit,
 	}
 
 	funcMap := template.FuncMap{
@@ -689,9 +719,22 @@ func markdownToHTML(md string) template.HTML {
 var htmlTagSplit = regexp.MustCompile(`<[^>]*>`)
 
 // marshalGlossaryJS serializes the term→definition lookup into a JS object literal for the
-// definition modal. encoding/json escapes '<', '>' and '&' (e.g. "</script>" → "</script>"),
+// definition popup. encoding/json escapes '<', '>' and '&' (e.g. "</script>" → "</script>"),
 // so the result is safe to inject inside a <script> block via template.JS. Returns "{}" when empty.
 func marshalGlossaryJS(m map[string]glossaryJSEntry) template.JS {
+	if len(m) == 0 {
+		return template.JS("{}")
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return template.JS("{}")
+	}
+	return template.JS(b) //nolint:gosec // values are JSON-encoded; encoding/json escapes HTML-significant runes
+}
+
+// marshalGlossaryContextJS serializes the per-article context lookup (articleId → key → context)
+// into a JS object literal, with the same escaping guarantees as marshalGlossaryJS.
+func marshalGlossaryContextJS(m map[string]map[string]string) template.JS {
 	if len(m) == 0 {
 		return template.JS("{}")
 	}

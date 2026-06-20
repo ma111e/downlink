@@ -306,27 +306,33 @@ func TestRenderDigestHTMLGlossaryMode(t *testing.T) {
 	html := string(htmlBytes)
 
 	for _, want := range []string{
-		// Nav switch + persistence plumbing appear when glossary content exists.
-		`id="nav-glossary-toggle"`,
-		`onclick="toggleGlossary()"`,
-		`downlink.glossary`,
-		`data-glossary`,
+		// Learning switch + persistence plumbing appear when beginner-aid content exists.
+		`id="nav-learn-switch"`,
+		`onclick="toggleLearning()"`,
+		`id="learn-card"`,
+		`id="nav-learn-caret"`,
+		// The three per-feature switches inside the card.
+		`onclick="toggleLearnFeature('glossary')"`,
+		`onclick="toggleLearnFeature('why')"`,
+		`onclick="toggleLearnFeature('define')"`,
+		`downlink.learning`,
+		`data-learning`,
 		// The per-article glossary block with explanation + terms.
 		`class="panel-section glossary-block"`,
 		`A flaw lets attackers run code on a server.`,
 		`<dt class="glossary-term">RCE</dt>`,
 		`Running your own commands on someone else&#39;s computer.`,
-		// Hidden by default, revealed by the switch.
+		// Hidden by default, revealed only by Learning mode + the Glossary feature.
 		`.glossary-block { display: none; }`,
-		`html[data-glossary="on"] .glossary-block { display: block; }`,
+		`html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }`,
 	} {
 		if !strings.Contains(html, want) {
-			t.Fatalf("RenderDigestHTML() missing glossary fragment %q:\n%s", want, html)
+			t.Fatalf("RenderDigestHTML() missing learning/glossary fragment %q:\n%s", want, html)
 		}
 	}
 }
 
-func TestRenderDigestHTMLGlossaryModal(t *testing.T) {
+func TestRenderDigestHTMLGlossaryPopup(t *testing.T) {
 	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
 	category := "news"
 	digest := models.Digest{
@@ -344,6 +350,9 @@ func TestRenderDigestHTMLGlossaryModal(t *testing.T) {
 					ProviderType:  "openai",
 					ModelName:     "gpt-test",
 					BriefOverview: "The crew deployed Cobalt Strike across the estate.",
+					GlossaryTerms: []models.GlossaryTerm{
+						{Term: "cobalt-strike", Type: "tool", Definition: "A commercial hacking toolkit.", Context: "It was the main implant used in this intrusion."},
+					},
 				},
 			},
 		},
@@ -356,6 +365,7 @@ func TestRenderDigestHTMLGlossaryModal(t *testing.T) {
 					NormalizedKey: models.NormalizeGlossaryKey("cobalt-strike"),
 					Term:          "cobalt-strike",
 					Kind:          models.GlossaryKindEntity,
+					Category:      "tool",
 					Definition:    "A commercial hacking toolkit often abused by attackers.",
 					TagId:         "cobalt-strike",
 				},
@@ -370,26 +380,83 @@ func TestRenderDigestHTMLGlossaryModal(t *testing.T) {
 	html := string(htmlBytes)
 
 	for _, want := range []string{
-		// The term→definition map is baked in, keyed by the normalized key.
+		// The term→definition map is baked in, keyed by the normalized key, with its type.
 		`var GLOSSARY = {`,
 		`"cobalt strike":`,
 		`A commercial hacking toolkit often abused by attackers.`,
-		// The modal scaffold is present.
-		`id="glossary-modal"`,
-		`id="glossary-modal-def"`,
+		`"type":"tool"`,
+		// The per-article context map is baked in and keyed by article id then term key.
+		`var CONTEXT = {`,
+		`"article-c":`,
+		`It was the main implant used in this intrusion.`,
+		// The article body carries its id so the click handler can resolve per-article context.
+		`data-article-id="article-c"`,
+		// The definition popup scaffold (incl. type badge + context line) is present.
+		`id="glossary-popup"`,
+		`id="glossary-popup-def"`,
+		`id="glossary-popup-type"`,
+		`id="glossary-popup-context"`,
 		// The entity name is highlighted in the prose (regex matches "Cobalt Strike" from slug).
 		`<mark class="tag-hl">Cobalt Strike</mark>`,
-		// Toggle is rendered since the digest has glossary content.
-		`id="nav-glossary-toggle"`,
+		// Learning switch is rendered since the digest has beginner-aid content.
+		`id="nav-learn-switch"`,
 	} {
 		if !strings.Contains(html, want) {
-			t.Fatalf("RenderDigestHTML() missing glossary-modal fragment %q:\n%s", want, html)
+			t.Fatalf("RenderDigestHTML() missing glossary-popup fragment %q:\n%s", want, html)
 		}
 	}
 
 	// The baked key must equal NormalizeGlossaryKey output for the term.
 	if !strings.Contains(html, `"`+models.NormalizeGlossaryKey("Cobalt Strike")+`":`) {
 		t.Fatal("baked glossary key does not match NormalizeGlossaryKey output")
+	}
+}
+
+func TestRenderDigestHTMLWhyItMatters(t *testing.T) {
+	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+	category := "news"
+	digest := models.Digest{
+		Id:         "digest-why",
+		CreatedAt:  createdAt,
+		TimeWindow: 24 * time.Hour,
+		Articles: []models.Article{
+			{Id: "article-w", Title: "Why Article", Link: "https://example.com/w", PublishedAt: createdAt, CategoryName: &category},
+		},
+		DigestAnalyses: []models.DigestAnalysis{
+			{
+				ArticleId: "article-w",
+				Analysis: &models.ArticleAnalysis{
+					ArticleId:    "article-w",
+					ProviderType: "openai",
+					ModelName:    "gpt-test",
+					KeyPoints:    []string{"A breach exposed customer data."},
+					WhyItMatters: "Millions of ordinary customers could see their personal details misused.",
+					// No glossary content at all.
+				},
+			},
+		},
+	}
+
+	htmlBytes, err := RenderDigestHTML(digest, "dark")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML() error = %v", err)
+	}
+	html := string(htmlBytes)
+
+	for _, want := range []string{
+		// The block, its label, and its content render.
+		`class="panel-section why-block"`,
+		`Why it matters`,
+		`Millions of ordinary customers could see their personal details misused.`,
+		// Consent gate: hidden by default, revealed only under Learning mode + the Why it matters feature.
+		`.why-block { display: none; }`,
+		`html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }`,
+		// The Learning switch is available even though the digest has no glossary content.
+		`id="nav-learn-switch"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("RenderDigestHTML() missing why-it-matters fragment %q:\n%s", want, html)
+		}
 	}
 }
 
@@ -401,8 +468,8 @@ func TestRenderDigestHTMLNoGlossaryToggleWhenAbsent(t *testing.T) {
 	}
 	html := string(htmlBytes)
 
-	if strings.Contains(html, `id="nav-glossary-toggle"`) {
-		t.Fatal("RenderDigestHTML() rendered the glossary toggle for a digest with no glossary content")
+	if strings.Contains(html, `id="nav-learn-switch"`) {
+		t.Fatal("RenderDigestHTML() rendered the Learning switch for a digest with no beginner-aid content")
 	}
 	if strings.Contains(html, `class="panel-section glossary-block"`) {
 		t.Fatal("RenderDigestHTML() rendered a glossary block for a digest with no glossary content")

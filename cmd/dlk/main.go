@@ -49,6 +49,7 @@ func main() {
 	rootCmd.AddCommand(createAnalysisCommands())
 	rootCmd.AddCommand(createModelCommands())
 	rootCmd.AddCommand(createDigestCommands())
+	rootCmd.AddCommand(createGlossaryCommands())
 	rootCmd.AddCommand(createConfigCommands())
 	rootCmd.AddCommand(createQueueCommands())
 	rootCmd.AddCommand(createPublishCommands())

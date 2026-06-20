@@ -37,6 +37,32 @@ func (pc *DownlinkClient) GetAnalysis(articleId string) (models.ArticleAnalysis,
 	return models.ArticleAnalysis{}, nil
 }
 
+// ListGlossaryEntries lists entries from the persistent global glossary (limit <= 0 = all).
+func (pc *DownlinkClient) ListGlossaryEntries(limit int) ([]models.GlossaryEntry, error) {
+	protoRes, err := pc.analysisClient.ListGlossaryEntries(pc.ctx, &protos.ListGlossaryEntriesRequest{
+		Limit: int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return mappers.AllGlossaryEntriesToModels(protoRes.Entries), nil
+}
+
+// SetGlossaryOverride sets a curated definition for a term and returns the updated entry.
+func (pc *DownlinkClient) SetGlossaryOverride(term, definition string) (models.GlossaryEntry, error) {
+	protoRes, err := pc.analysisClient.SetGlossaryOverride(pc.ctx, &protos.SetGlossaryOverrideRequest{
+		Term:       term,
+		Definition: definition,
+	})
+	if err != nil {
+		return models.GlossaryEntry{}, err
+	}
+	if e := mappers.GlossaryEntryToModel(protoRes.Entry); e != nil {
+		return *e, nil
+	}
+	return models.GlossaryEntry{}, nil
+}
+
 // UpdateAnalysisConfig updates the enrichment configuration
 func (pc *DownlinkClient) UpdateAnalysisConfig(analysisConfig models.AnalysisConfig) error {
 	_, err := pc.serverConfigClient.UpdateAnalysisConfig(pc.ctx, &protos.UpdateAnalysisConfigRequest{

@@ -70,7 +70,10 @@ func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
 	}
 
 	// Generate feed Id
-	feedId := generateFeedId(config.URL)
+	feedId, err := generateFeedId(config.URL)
+	if err != nil {
+		return fmt.Errorf("invalid feed URL %s: %w", config.URL, err)
+	}
 
 	// Build the scraper params map, merging structured feed config fields in.
 	scraperMap := make(datatypes.JSONMap)

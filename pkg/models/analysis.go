@@ -23,10 +23,14 @@ type ReferencedReport struct {
 
 // GlossaryTerm is a single jargon term and its plain-language definition, produced
 // by the glossary-mode analysis task to help newcomers familiarize themselves with
-// the terminology used in an article.
+// the terminology used in an article. Type is the semantic category (see the
+// GlossaryCategory* constants); Context is a one-sentence explanation of why the term
+// matters in this specific article (per-occurrence, not global).
 type GlossaryTerm struct {
 	Term       string `json:"term"`
+	Type       string `json:"type"`
 	Definition string `json:"definition"`
+	Context    string `json:"context"`
 }
 
 // ArticleAnalysis represents an analysis result from an LLM provider for an article
@@ -45,6 +49,7 @@ type ArticleAnalysis struct {
 	Insights               []string            `gorm:"-" json:"insights"`
 	ReferencedReports      []ReferencedReport  `gorm:"-" json:"referenced_reports"`
 	Tldr                   string              `gorm:"type:text" json:"tldr"`
+	WhyItMatters           string              `gorm:"type:text" json:"why_it_matters"`
 	Justification          string              `gorm:"type:text" json:"justification"`
 	BriefOverview          string              `gorm:"type:text" json:"brief_overview"`
 	StandardSynthesis      string              `gorm:"type:text" json:"standard_synthesis"`

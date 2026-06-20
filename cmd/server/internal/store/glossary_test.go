@@ -91,6 +91,40 @@ func TestManualOverrideNeverOverwritten(t *testing.T) {
 	}
 }
 
+func TestListGlossaryEntries(t *testing.T) {
+	s := newTestStore(t)
+
+	for _, e := range []*models.GlossaryEntry{
+		{NormalizedKey: "ransomware", Term: "ransomware", Kind: models.GlossaryKindJargon, Category: "concept", Definition: "Malware that locks files for ransom."},
+		{NormalizedKey: "cobalt strike", Term: "Cobalt Strike", Kind: models.GlossaryKindEntity, Category: "tool", Definition: "A commercial hacking toolkit."},
+		{NormalizedKey: "c2", Term: "C2", Kind: models.GlossaryKindJargon, Category: "concept", Definition: "Command and control."},
+	} {
+		if err := s.UpsertGlossaryEntry(e); err != nil {
+			t.Fatalf("UpsertGlossaryEntry() error = %v", err)
+		}
+	}
+
+	all, err := s.ListGlossaryEntries(0)
+	if err != nil {
+		t.Fatalf("ListGlossaryEntries() error = %v", err)
+	}
+	if len(all) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(all))
+	}
+	// Ordered by term, case-insensitive: C2, Cobalt Strike, ransomware.
+	if all[0].Term != "C2" || all[1].Term != "Cobalt Strike" || all[2].Term != "ransomware" {
+		t.Errorf("unexpected order: %q, %q, %q", all[0].Term, all[1].Term, all[2].Term)
+	}
+
+	limited, err := s.ListGlossaryEntries(2)
+	if err != nil {
+		t.Fatalf("ListGlossaryEntries(2) error = %v", err)
+	}
+	if len(limited) != 2 {
+		t.Errorf("expected 2 entries with limit, got %d", len(limited))
+	}
+}
+
 func TestDigestGlossaryRoundTrip(t *testing.T) {
 	s := newTestStore(t)
 

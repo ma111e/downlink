@@ -3,12 +3,22 @@ package manager
 import (
 	"crypto/md5"
 	"fmt"
+	"net/url"
+
+	"golang.org/x/net/publicsuffix"
 )
 
-// generateFeedId generates a MD5 hash
-func generateFeedId(url string) string {
-	hash := md5.Sum([]byte(url))
-	return fmt.Sprintf("%x", hash)
+func generateFeedId(rawURL string) (string, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	domain, err := publicsuffix.EffectiveTLDPlusOne(u.Hostname())
+	if err != nil {
+		return "", err
+	}
+	hash := md5.Sum([]byte(domain))
+	return fmt.Sprintf("%x", hash), nil
 }
 
 // generateArticleId generates a unique Id for an article

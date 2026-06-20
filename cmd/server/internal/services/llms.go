@@ -394,6 +394,13 @@ Return ONLY the JSON object below.`,
 			requiredKeys: []string{"tldr"},
 		},
 		analysisTask{
+			name: "why_it_matters",
+			instruction: `You are explaining this article to someone outside the security field. Using ONLY information present in the article, write 1–2 plain sentences explaining why this matters in the real world: who is actually affected and what the broader stakes are. Avoid jargon, and do not assume the reader defends or operates any systems. No bullet points or markdown.
+Return ONLY the JSON object below.`,
+			schema:       `{"why_it_matters": "<1-2 sentences>"}`,
+			requiredKeys: []string{"why_it_matters"},
+		},
+		analysisTask{
 			name: "key_points",
 			instruction: `You are a cybersecurity analyst. Extract 3 to 5 key points from the article.
 Each point must be a complete, self-contained sentence grounded strictly in the article's content.
@@ -463,10 +470,15 @@ Return ONLY the JSON object below.`, countWord, strings.Join(levelLines, "\n")),
 			instruction: `You are explaining this article to someone brand new to cybersecurity. Produce two things, using ONLY information present in the article — do not infer or add outside context.
 
 explanation: 2–4 plain sentences describing what the article is about and why it matters, written for a complete beginner. Avoid jargon entirely; if a concept is unavoidable, restate it in everyday language. No markdown, no bullet points.
-terms: the technical terms, acronyms, tools, and named entities the article uses that a beginner would not know (e.g. CVE, RCE, lateral movement, named malware or threat actors). For each, give the term as written and a single plain-language sentence defining it. Include 0 to 12 entries; if the article uses no jargon, return an empty array.
+terms: extract EVERY technical term, acronym, tool, protocol, technique, malware family, named entity, and security concept the article uses — be generous and thorough. Include common-but-technical concepts a newcomer would still need explained (e.g. ransomware, RAT, C2, backdoor, relay, phishing, lateral movement), not only obscure ones, alongside named things (CVEs, threat actors, malware names, products). For each term provide:
+  - term: the term exactly as written in the article
+  - type: ONE of threat-actor, malware, tool, technique, vulnerability, protocol, concept, organization, product, other
+  - definition: a single plain-language sentence defining the term in general
+  - context: a single plain-language sentence explaining why this term matters in THIS article specifically (what role it plays in the events described)
+Include 0 to 30 entries; if the article genuinely uses no notable terms, return an empty array.
 
 Return ONLY the JSON object below.`,
-			schema:       `{"glossary": {"explanation": "<2-4 plain sentences>", "terms": [{"term": "<term>", "definition": "<one plain sentence>"}]}}`,
+			schema:       `{"glossary": {"explanation": "<2-4 plain sentences>", "terms": [{"term": "<term>", "type": "<category>", "definition": "<one plain sentence>", "context": "<one plain sentence on its role in this article>"}]}}`,
 			requiredKeys: []string{"glossary"},
 		})
 	}
@@ -1228,7 +1240,9 @@ func glossaryFromResult(value any) []models.GlossaryTerm {
 
 		term := models.GlossaryTerm{
 			Term:       stringFromObject(obj, "term"),
+			Type:       models.NormalizeGlossaryCategory(stringFromObject(obj, "type")),
 			Definition: stringFromObject(obj, "definition"),
+			Context:    stringFromObject(obj, "context"),
 		}
 		if term.Term == "" || term.Definition == "" {
 			continue
@@ -1306,6 +1320,10 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 
 	if tldr, ok := result["tldr"].(string); ok {
 		analysis.Tldr = tldr
+	}
+
+	if why, ok := result["why_it_matters"].(string); ok {
+		analysis.WhyItMatters = why
 	}
 
 	if justification, ok := result["justification"].(string); ok {

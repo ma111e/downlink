@@ -308,11 +308,16 @@ func (p *GitHubPagesPublisher) seedEmptyRepo(owner, repo, branch string) error {
 	return nil
 }
 
+// configureGitHubPagesSourceIfEnabled points the repo's Pages source at the
+// configured branch when ConfigurePages is set, and is a no-op otherwise.
 func (p *GitHubPagesPublisher) configureGitHubPagesSourceIfEnabled() error {
 	if !p.cfg.ConfigurePages {
 		return nil
 	}
-	return p.configureGitHubPagesSource()
+	if err := p.configureGitHubPagesSource(); err != nil {
+		return fmt.Errorf("github pages: configure source: %w", err)
+	}
+	return nil
 }
 
 func (p *GitHubPagesPublisher) doGitHubPagesRequest(method, apiURL string, payload any, out any) (int, string, error) {

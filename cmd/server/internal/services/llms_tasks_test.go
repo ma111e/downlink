@@ -49,6 +49,27 @@ func TestGetAnalysisTasksGlossaryMode(t *testing.T) {
 	}
 }
 
+func TestGetAnalysisTasksAlwaysIncludesWhyItMatters(t *testing.T) {
+	const contentLen = 2000
+
+	has := func(tasks []analysisTask, name string) bool {
+		for _, task := range tasks {
+			if task.name == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	// why_it_matters is a core, always-on task regardless of mode flags.
+	if !has(getAnalysisTasks(contentLen, false, false, false, false, false), "why_it_matters") {
+		t.Error("why_it_matters task should always be present (rubric mode)")
+	}
+	if !has(getAnalysisTasks(contentLen, false, true, false, false, false), "why_it_matters") {
+		t.Error("why_it_matters task should always be present (vibe mode)")
+	}
+}
+
 func TestGetAnalysisTasksSummaryLevels(t *testing.T) {
 	const contentLen = 2000 // > 1000 so the summaries task is included
 

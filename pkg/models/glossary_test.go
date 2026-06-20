@@ -26,6 +26,23 @@ func TestNormalizeGlossaryKey(t *testing.T) {
 	}
 }
 
+func TestNormalizeGlossaryCategory(t *testing.T) {
+	cases := map[string]string{
+		"threat-actor": "threat-actor",
+		"Malware":      "malware",
+		"  TOOL  ":     "tool",
+		"concept":      "concept",
+		"":             "other",
+		"made-up":      "other",
+		"ransomware":   "other", // not in the taxonomy (it's a 'concept'/'malware'), coerced
+	}
+	for in, want := range cases {
+		if got := NormalizeGlossaryCategory(in); got != want {
+			t.Errorf("NormalizeGlossaryCategory(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestEffectiveDefinition(t *testing.T) {
 	e := GlossaryEntry{Definition: "generated"}
 	if got := e.EffectiveDefinition(); got != "generated" {
