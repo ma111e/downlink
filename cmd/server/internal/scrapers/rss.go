@@ -119,6 +119,13 @@ func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.Feed
 }
 
 func (s *RSSFeedScraper) ScrapeContent(url string, params map[string]any) (string, error) {
+	return scrapeAndExtract(url, params, s.configSelectors)
+}
+
+// scrapeAndExtract fetches a single article URL (static or dynamic per the
+// "scraping" param), then extracts its body using the per-feed selectors merged
+// with configSelectors. Shared by every scraper whose articles are plain pages.
+func scrapeAndExtract(url string, params map[string]any, configSelectors *models.Selectors) (string, error) {
 	// Use the shared scraper defined in the scraper package
 	anonymizedScraper := GetSharedAnonymizedScraper()
 
@@ -170,7 +177,7 @@ func (s *RSSFeedScraper) ScrapeContent(url string, params map[string]any) (strin
 		}
 	}
 
-	extractor := NewArticleExtractor(s.configSelectors)
+	extractor := NewArticleExtractor(configSelectors)
 	extracted, err := extractor.ExtractFromDOM(dom, url, selectors)
 	if err != nil {
 		log.WithFields(log.Fields{

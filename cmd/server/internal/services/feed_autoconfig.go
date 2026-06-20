@@ -327,15 +327,17 @@ func finishAutoConfig(action agentAction, feedURL, feedType, mode string, header
 	}
 
 	cfg := models.FeedConfig{
-		URL:      feedURL,
-		Type:     feedType,
-		Enabled:  true,
-		Scraping: scrapingValue(mode),
-		Headers:  headers,
-		Selectors: &models.Selectors{
-			Article:   sel.Article,
-			Cutoff:    sel.Cutoff,
-			Blacklist: sel.Blacklist,
+		URL:     feedURL,
+		Enabled: true,
+		Scraper: models.ScraperConfig{
+			Type:     feedType,
+			Scraping: scrapingValue(mode),
+			Headers:  headers,
+			Selectors: &models.Selectors{
+				Article:   sel.Article,
+				Cutoff:    sel.Cutoff,
+				Blacklist: sel.Blacklist,
+			},
 		},
 	}
 	yamlStr, err := renderConfig(cfg)
@@ -354,11 +356,13 @@ func finishAutoConfig(action agentAction, feedURL, feedType, mode string, header
 // is the fraction of sampled entries that carried a usable body.
 func finishFeedContent(feedURL, feedType string, headers map[string]string, confidence float64) (AutoConfigResult, error) {
 	cfg := models.FeedConfig{
-		URL:      feedURL,
-		Type:     feedType,
-		Enabled:  true,
-		Scraping: "none",
-		Headers:  headers,
+		URL:     feedURL,
+		Enabled: true,
+		Scraper: models.ScraperConfig{
+			Type:     feedType,
+			Scraping: "none",
+			Headers:  headers,
+		},
 	}
 	yamlStr, err := renderConfig(cfg)
 	if err != nil {

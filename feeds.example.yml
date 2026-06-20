@@ -1,33 +1,38 @@
 # Example feeds.yml with dummy values
-# Demonstrates all supported configuration options
+# Demonstrates all supported configuration options.
+#
+# Everything scraping-related lives under the `scraper:` block. Only url, title,
+# note, and enabled stay at the top level.
 
 feeds:
     # Basic RSS feed with minimal config
     - url: https://example.com/rss.xml
       title: Example Blog
-      type: rss
       enabled: true
       scraper:
-        article: div.article-body
-        cutoff: footer
+        type: rss
+        selectors:
+            article: div.article-body
+            cutoff: footer
 
     # Feed with dynamic scraping enabled
     - url: https://technews.example.org/feed
       title: Tech News Daily
-      type: rss
       enabled: true
-      scraping: dynamic
       scraper:
-        article: .post-content
-        cutoff: .related-posts
+        type: rss
+        scraping: dynamic
+        selectors:
+            article: .post-content
+            cutoff: .related-posts
 
     # Feed with full_browser scraping (headless browser)
     - url: https://blog.example.com/rss
       title: Security Blog
-      type: rss
       enabled: true
-      scraping: full_browser
       scraper:
+        type: rss
+        scraping: full_browser
         triggers:
             failed:
                 - .cf-browser-verification
@@ -40,28 +45,50 @@ feeds:
     # Feed with blacklist selector
     - url: https://news.example.net/feed
       title: News Wire
-      type: rss
       enabled: true
       scraper:
-        article: article.post
-        blacklist: .ads
+        type: rss
+        selectors:
+            article: article.post
+            blacklist: .ads
 
     # Feed with custom HTTP headers (applied to the feed fetch and article requests).
     # Custom headers take precedence over the anonymized scraper's spoofed headers.
     - url: https://members.example.com/feed
       title: Members Only
-      type: rss
       enabled: true
-      headers:
-        Authorization: "Bearer my-secret-token"
-        X-Api-Key: "abc123"
       scraper:
-        article: .post-content
+        type: rss
+        headers:
+            Authorization: "Bearer my-secret-token"
+            X-Api-Key: "abc123"
+        selectors:
+            article: .post-content
+
+    # HTML link-list page: a blog index that lists links to posts instead of an
+    # RSS/Atom feed. links_selector picks the post anchors; url_filter (optional)
+    # drops anchors whose href does not contain the substring. Each linked article
+    # is then fetched and extracted with the selectors below.
+    #
+    # Note: a links-only page carries no dates, so every item is timestamped at
+    # fetch time. Time-window (--from/--to) and last-N ordering are no-ops for
+    # html feeds; de-duplication still works (it keys on the link).
+    - url: https://blog.example.com/posts
+      title: Linklist Blog
+      enabled: true
+      scraper:
+        type: html
+        scraping: static
+        links_selector: "ul.posts li a"
+        url_filter: "/posts/"
+        selectors:
+            article: div.post-content
 
     # Disabled feed
     - url: https://oldfeed.example.com/rss
       title: Old Feed (disabled)
-      type: rss
       enabled: false
       scraper:
-        article: div.content
+        type: rss
+        selectors:
+            article: div.content

@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/ma111e/downlink/cmd/server/internal/scrapers"
 	"github.com/ma111e/downlink/cmd/server/internal/store"
@@ -65,7 +66,7 @@ func (m *FeedManager) GetScraper(feedType string) (scrapers.Scraper, error) {
 // RegisterFeed registers a feed
 func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
 	// Check if scraper exists
-	if _, err := m.GetScraper(config.Type); err != nil {
+	if _, err := m.GetScraper(config.Scraper.Type); err != nil {
 		return err
 	}
 
@@ -75,40 +76,51 @@ func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
 		return fmt.Errorf("invalid feed URL %s: %w", config.URL, err)
 	}
 
-	// Build the scraper params map, merging structured feed config fields in.
+	// Flatten the nested scraper config into the runtime params map. The fetch path
+	// reads these keys flat off feed.Scraper, so the shape here must stay flat:
+	// scraping / selectors / headers / triggers plus any type-specific options.
 	scraperMap := make(datatypes.JSONMap)
-	for k, v := range config.Scraper {
+	sc := config.Scraper
+	for k, v := range sc.Options {
 		scraperMap[k] = v
 	}
-	if config.Scraping != "" {
-		scraperMap["scraping"] = config.Scraping
+	if sc.Scraping != "" {
+		scraperMap["scraping"] = sc.Scraping
 	}
-	if config.Selectors != nil {
+	if sc.Selectors != nil {
 		sel := map[string]any{}
-		if config.Selectors.Article != "" {
-			sel["article"] = config.Selectors.Article
+		if sc.Selectors.Article != "" {
+			sel["article"] = sc.Selectors.Article
 		}
-		if config.Selectors.Cutoff != "" {
-			sel["cutoff"] = config.Selectors.Cutoff
+		if sc.Selectors.Cutoff != "" {
+			sel["cutoff"] = sc.Selectors.Cutoff
 		}
-		if config.Selectors.Blacklist != "" {
-			sel["blacklist"] = config.Selectors.Blacklist
+		if sc.Selectors.Blacklist != "" {
+			sel["blacklist"] = sc.Selectors.Blacklist
 		}
 		scraperMap["selectors"] = sel
 	}
-	if len(config.Headers) > 0 {
+	if len(sc.Headers) > 0 {
 		headers := map[string]any{}
-		for k, v := range config.Headers {
+		for k, v := range sc.Headers {
 			headers[k] = v
 		}
 		scraperMap["headers"] = headers
+	}
+	if sc.Triggers != nil {
+		if b, merr := json.Marshal(sc.Triggers); merr == nil {
+			var t map[string]any
+			if json.Unmarshal(b, &t) == nil {
+				scraperMap["triggers"] = t
+			}
+		}
 	}
 
 	// Create feed
 	feed := models.Feed{
 		Id:      feedId,
 		URL:     config.URL,
-		Type:    config.Type,
+		Type:    config.Scraper.Type,
 		Title:   config.Title,
 		Scraper: scraperMap,
 		Enabled: &config.Enabled,
@@ -129,7 +141,7 @@ func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
 	log.WithFields(log.Fields{
 		"id":      feedId,
 		"url":     config.URL,
-		"type":    config.Type,
+		"type":    config.Scraper.Type,
 		"enabled": config.Enabled,
 	}).Info("Feed registered")
 

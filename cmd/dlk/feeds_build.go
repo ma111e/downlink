@@ -233,9 +233,11 @@ and finally paste into your feeds.yml.`,
 			cfg := models.FeedConfig{
 				URL:     args[0],
 				Title:   resp.DetectedTitle,
-				Type:    feedType,
 				Enabled: true,
-				Headers: headers,
+				Scraper: models.ScraperConfig{
+					Type:    feedType,
+					Headers: headers,
+				},
 			}
 
 			if jsonOutput {

@@ -456,17 +456,17 @@ func bakeDefaultSelectors(cfg *models.FeedConfig, defaults *models.Selectors) {
 	if defaults == nil {
 		return
 	}
-	if cfg.Selectors == nil {
-		cfg.Selectors = &models.Selectors{}
+	if cfg.Scraper.Selectors == nil {
+		cfg.Scraper.Selectors = &models.Selectors{}
 	}
-	if cfg.Selectors.Article == "" {
-		cfg.Selectors.Article = defaults.Article
+	if cfg.Scraper.Selectors.Article == "" {
+		cfg.Scraper.Selectors.Article = defaults.Article
 	}
-	if cfg.Selectors.Cutoff == "" {
-		cfg.Selectors.Cutoff = defaults.Cutoff
+	if cfg.Scraper.Selectors.Cutoff == "" {
+		cfg.Scraper.Selectors.Cutoff = defaults.Cutoff
 	}
-	if cfg.Selectors.Blacklist == "" {
-		cfg.Selectors.Blacklist = defaults.Blacklist
+	if cfg.Scraper.Selectors.Blacklist == "" {
+		cfg.Scraper.Selectors.Blacklist = defaults.Blacklist
 	}
 }
 

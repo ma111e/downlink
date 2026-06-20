@@ -288,15 +288,17 @@ func createFeedCommands() *cobra.Command {
 			}
 
 			feedConfig := models.FeedConfig{
-				URL:      feedURL,
-				Type:     feedCategory,
-				Title:    feedName,
-				Enabled:  true,
-				Scraping: feedScraping,
+				URL:     feedURL,
+				Title:   feedName,
+				Enabled: true,
+				Scraper: models.ScraperConfig{
+					Type:     feedCategory,
+					Scraping: feedScraping,
+				},
 			}
 
 			if feedArticleSelector != "" || feedCutoffSelector != "" || feedBlacklistSelector != "" {
-				feedConfig.Selectors = &models.Selectors{
+				feedConfig.Scraper.Selectors = &models.Selectors{
 					Article:   feedArticleSelector,
 					Cutoff:    feedCutoffSelector,
 					Blacklist: feedBlacklistSelector,
@@ -734,9 +736,8 @@ matching the title. Deleting a feed also removes its articles.`,
 				configs = append(configs, models.FeedConfig{
 					URL:     f.URL,
 					Title:   f.Title,
-					Type:    f.Type,
 					Enabled: enabled,
-					Scraper: map[string]any(f.Scraper),
+					Scraper: scraperConfigFromMap(f.Type, f.Scraper),
 				})
 			}
 
@@ -901,6 +902,58 @@ func truncateBytes(b []byte, n int) []byte {
 	return append(b[:n:n], []byte("\n… (truncated)")...)
 }
 
+// scraperConfigFromMap rebuilds a nested ScraperConfig from a stored feed's type
+// and its flat runtime scraper map (the inverse of manager.RegisterFeed's
+// folding). Known keys map to typed fields; everything else lands in Options.
+func scraperConfigFromMap(feedType string, m map[string]any) models.ScraperConfig {
+	sc := models.ScraperConfig{Type: feedType}
+	if len(m) == 0 {
+		return sc
+	}
+
+	if v, ok := m["scraping"].(string); ok {
+		sc.Scraping = v
+	}
+	if sel, ok := m["selectors"]; ok && sel != nil {
+		if b, err := json.Marshal(sel); err == nil {
+			s := &models.Selectors{}
+			if json.Unmarshal(b, s) == nil {
+				sc.Selectors = s
+			}
+		}
+	}
+	if h, ok := m["headers"]; ok && h != nil {
+		if b, err := json.Marshal(h); err == nil {
+			hdr := map[string]string{}
+			if json.Unmarshal(b, &hdr) == nil && len(hdr) > 0 {
+				sc.Headers = hdr
+			}
+		}
+	}
+	if t, ok := m["triggers"]; ok && t != nil {
+		if b, err := json.Marshal(t); err == nil {
+			tr := &models.HostTriggers{}
+			if json.Unmarshal(b, tr) == nil {
+				sc.Triggers = tr
+			}
+		}
+	}
+
+	// Anything that is not a known key is a type-specific option.
+	for k, v := range m {
+		switch k {
+		case "scraping", "selectors", "headers", "triggers":
+			continue
+		}
+		if sc.Options == nil {
+			sc.Options = map[string]any{}
+		}
+		sc.Options[k] = v
+	}
+
+	return sc
+}
+
 // loadFeedsFile reads and parses a feeds YAML file (same format as feeds.yml).
 func loadFeedsFile(path string) (*models.FeedsFile, error) {
 	data, err := os.ReadFile(path)
@@ -1050,11 +1103,13 @@ func runAddFeedInteractive(client *downlinkclient.DownlinkClient) {
 	}
 
 	cfg := models.FeedConfig{
-		URL:      strings.TrimSpace(url),
-		Title:    strings.TrimSpace(name),
-		Type:     feedType,
-		Enabled:  true,
-		Scraping: scraping,
+		URL:     strings.TrimSpace(url),
+		Title:   strings.TrimSpace(name),
+		Enabled: true,
+		Scraper: models.ScraperConfig{
+			Type:     feedType,
+			Scraping: scraping,
+		},
 	}
 
 	if err := client.RegisterFeed(cfg); err != nil {

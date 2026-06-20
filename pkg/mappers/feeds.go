@@ -1,6 +1,7 @@
 package mappers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -132,24 +133,43 @@ func FeedConfigToProto(config *models.FeedConfig) (*protos.FeedConfig, error) {
 		return nil, nil
 	}
 
+	sc := config.Scraper
 	protoConfig := &protos.FeedConfig{
 		Url:      config.URL,
 		Title:    config.Title,
-		Type:     config.Type,
+		Type:     sc.Type,
 		Enabled:  config.Enabled,
-		Scraping: config.Scraping,
-		Headers:  config.Headers,
+		Scraping: sc.Scraping,
+		Headers:  sc.Headers,
 	}
 
-	if config.Selectors != nil {
+	if sc.Selectors != nil {
 		protoConfig.Selectors = &protos.Selectors{
-			Article:   config.Selectors.Article,
-			Cutoff:    config.Selectors.Cutoff,
-			Blacklist: config.Selectors.Blacklist,
+			Article:   sc.Selectors.Article,
+			Cutoff:    sc.Selectors.Cutoff,
+			Blacklist: sc.Selectors.Blacklist,
 		}
 	}
 
-	scraper, err := scraperToProto(config.Scraper)
+	// Triggers and any type-specific options have no dedicated proto fields, so
+	// carry them through the opaque scraper map.
+	residual := map[string]any{}
+	for k, v := range sc.Options {
+		residual[k] = v
+	}
+	if sc.Triggers != nil {
+		b, err := json.Marshal(sc.Triggers)
+		if err != nil {
+			return nil, fmt.Errorf("marshal triggers: %w", err)
+		}
+		var t map[string]any
+		if err := json.Unmarshal(b, &t); err != nil {
+			return nil, fmt.Errorf("unmarshal triggers: %w", err)
+		}
+		residual["triggers"] = t
+	}
+
+	scraper, err := scraperToProto(residual)
 	if err != nil {
 		return nil, err
 	}
@@ -164,16 +184,18 @@ func FeedConfigToModel(config *protos.FeedConfig) (*models.FeedConfig, error) {
 	}
 
 	modelConfig := &models.FeedConfig{
-		URL:      config.Url,
-		Title:    config.Title,
-		Type:     config.Type,
-		Enabled:  config.Enabled,
-		Scraping: config.Scraping,
-		Headers:  config.Headers,
+		URL:     config.Url,
+		Title:   config.Title,
+		Enabled: config.Enabled,
+		Scraper: models.ScraperConfig{
+			Type:     config.Type,
+			Scraping: config.Scraping,
+			Headers:  config.Headers,
+		},
 	}
 
 	if config.Selectors != nil {
-		modelConfig.Selectors = &models.Selectors{
+		modelConfig.Scraper.Selectors = &models.Selectors{
 			Article:   config.Selectors.Article,
 			Cutoff:    config.Selectors.Cutoff,
 			Blacklist: config.Selectors.Blacklist,
@@ -184,7 +206,24 @@ func FeedConfigToModel(config *protos.FeedConfig) (*models.FeedConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	modelConfig.Scraper = scraper
+	// Split the opaque scraper map back into typed triggers + remaining options.
+	if len(scraper) > 0 {
+		if t, ok := scraper["triggers"]; ok && t != nil {
+			b, err := json.Marshal(t)
+			if err != nil {
+				return nil, fmt.Errorf("marshal triggers: %w", err)
+			}
+			triggers := &models.HostTriggers{}
+			if err := json.Unmarshal(b, triggers); err != nil {
+				return nil, fmt.Errorf("unmarshal triggers: %w", err)
+			}
+			modelConfig.Scraper.Triggers = triggers
+			delete(scraper, "triggers")
+		}
+		if len(scraper) > 0 {
+			modelConfig.Scraper.Options = scraper
+		}
+	}
 
 	return modelConfig, nil
 }

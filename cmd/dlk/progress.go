@@ -173,18 +173,6 @@ func (d *batchProgress) updateRow(id, label string) {
 	d.redraw()
 }
 
-func (d *batchProgress) resetRow(id string) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	if idx, ok := d.index[id]; ok {
-		r := d.rows[idx]
-		r.done = false
-		r.success = false
-		r.summary = ""
-	}
-	d.redraw()
-}
-
 func (d *batchProgress) stop() {
 	close(d.stopCh)
 	d.wg.Wait()

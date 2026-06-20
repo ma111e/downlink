@@ -20,17 +20,28 @@ type FeedsFile struct {
 	Feeds            []FeedConfig `yaml:"feeds"`
 }
 
-// FeedConfig represents the configuration for a feed
+// FeedConfig represents the configuration for a feed. Everything scraping-related
+// lives under the nested Scraper block; only identity fields stay at the top level.
 type FeedConfig struct {
-	URL       string            `json:"url" yaml:"url"`
-	Title     string            `json:"title,omitempty" yaml:"title,omitempty"`
-	Note      string            `json:"note,omitempty" yaml:"note,omitempty"`
+	URL     string        `json:"url" yaml:"url"`
+	Title   string        `json:"title,omitempty" yaml:"title,omitempty"`
+	Note    string        `json:"note,omitempty" yaml:"note,omitempty"`
+	Enabled bool          `json:"enabled" yaml:"enabled"`
+	Scraper ScraperConfig `json:"scraper" yaml:"scraper"`
+}
+
+// ScraperConfig holds all scraping configuration for a feed: the scraper type,
+// render mode, content selectors, custom headers, full_browser triggers, and any
+// type-specific options. Type-specific keys (e.g. the html scraper's
+// links_selector / url_filter) are captured by the inline Options map so adding a
+// new scraper type needs no struct change here.
+type ScraperConfig struct {
 	Type      string            `json:"type" yaml:"type"`
-	Enabled   bool              `json:"enabled" yaml:"enabled"`
-	Scraper   map[string]any    `json:"scraper,omitempty" yaml:"scraper,omitempty"`
 	Scraping  string            `json:"scraping,omitempty" yaml:"scraping,omitempty"` // "dynamic", "full_browser", "none" (use feed content, no fetch), or "" (static)
 	Selectors *Selectors        `json:"selectors,omitempty" yaml:"selectors,omitempty"`
 	Headers   map[string]string `json:"headers,omitempty" yaml:"headers,omitempty"` // custom HTTP headers applied to all requests for this feed
+	Triggers  *HostTriggers     `json:"triggers,omitempty" yaml:"triggers,omitempty"`
+	Options   map[string]any    `json:"-" yaml:",inline"` // type-specific flat keys (links_selector, url_filter, ...)
 }
 
 // Feed represents a feed with its metadata

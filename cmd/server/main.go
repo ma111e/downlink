@@ -145,6 +145,7 @@ func main() {
 
 			// Use the default selectors from the config
 			manager.Manager.RegisterScraper("rss", scrapers.NewRSSFeedScraper(config.Config.DefaultSelectors))
+			manager.Manager.RegisterScraper("html", scrapers.NewHTMLLinkScraper(config.Config.DefaultSelectors))
 			// Custom scrapers can be registered here
 			// manager.Manager.RegisterScraper("twitter", NewTwitterScraper())
 			// manager.Manager.RegisterScraper("xcancel", scrapers.NewXcancelScraper())

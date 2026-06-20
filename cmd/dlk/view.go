@@ -433,24 +433,6 @@ func printAnalysisList(analyses []models.ArticleAnalysis) {
 	fmt.Printf("\n%d analysis(es)\n", len(analyses))
 }
 
-func printModelInfoTable(mods []models.ModelInfo) {
-	tw := newTable("PROVIDER", "NAME", "DISPLAY NAME", "DESCRIPTION")
-	for _, m := range mods {
-		display := m.DisplayName
-		if display == m.Name {
-			display = ""
-		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
-			dashIfEmpty(m.ProviderType),
-			dashIfEmpty(m.Name),
-			dashIfEmpty(display),
-			truncate(m.Description, 60),
-		)
-	}
-	tw.Flush()
-	fmt.Printf("\n%d model(s)\n", len(mods))
-}
-
 func printProviderTable(providers []models.ProviderConfig) {
 	tw := newTable("NAME", "TYPE", "MODEL", "ENABLED")
 	for _, p := range providers {
@@ -783,36 +765,4 @@ func boolStr(b bool) string {
 		return "yes"
 	}
 	return "no"
-}
-
-func printQueueStatus(s downlinkclient.QueueStatus) {
-	state := "idle"
-	if s.IsProcessing {
-		state = "processing"
-	}
-	section("Queue · " + state)
-	kvBlock([][2]string{
-		{"Current", dashIfEmpty(s.CurrentTitle)},
-		{"Queued", fmt.Sprintf("%d", len(s.Queue))},
-	})
-
-	if len(s.Queue) == 0 {
-		return
-	}
-
-	fmt.Println()
-	tw := newTable("#", "TITLE", "PROFILE/PROVIDER", "MODEL")
-	for i, j := range s.Queue {
-		profile := j.ProviderName
-		if profile == "" {
-			profile = j.ProviderType
-		}
-		fmt.Fprintf(tw, "%d\t%s\t%s\t%s\n",
-			i+1,
-			truncate(j.ArticleTitle, 60),
-			dashIfEmpty(profile),
-			dashIfEmpty(j.ModelName),
-		)
-	}
-	tw.Flush()
 }

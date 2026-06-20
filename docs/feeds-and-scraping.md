@@ -1,41 +1,51 @@
 # Feeds and scraping
 
-A feed is an RSS or Atom source plus rules for turning each item into a full article. You
-describe feeds in `feeds.yml` and reconcile them into the database with `dlk feeds apply`.
+A feed is a source (RSS, Atom, or an HTML link-list page) plus rules for turning each item
+into a full article. You describe feeds in `feeds.yml` and reconcile them into the database
+with `dlk feeds apply`.
 
 ## feeds.yml
 
 The file is a list under `feeds:`, with an optional `default_selectors:` block applied to
-feeds that do not set their own.
+feeds that do not set their own. Everything scraping-related lives under the `scraper:`
+block; only `url`, `title`, `note`, and `enabled` stay at the top level.
 
 ```yaml
 feeds:
   - url: https://example.com/rss.xml
     title: Example Blog
-    type: rss
     enabled: true
     scraper:
-      article: div.article-body
-      cutoff: footer
+      type: rss
+      selectors:
+        article: div.article-body
+        cutoff: footer
 ```
 
-### Feed fields
+### Top-level fields
 
 | Field | Required | Description |
 |---|---|---|
 | `url` | yes | Feed URL. |
-| `type` | yes | `rss` or `atom`. |
 | `enabled` | yes | Whether the feed is fetched. |
 | `title` | no | Display name. Auto-detected when empty. |
 | `note` | no | Free-form note. |
+| `scraper` | yes | Scraping configuration. See below. |
+
+### `scraper:` fields
+
+| Field | Required | Description |
+|---|---|---|
+| `type` | yes | `rss`, `atom`, or `html` (link-list page). |
 | `scraping` | no | Scraping mode: empty (static), `dynamic`, `full_browser`, or `none`. See below. |
 | `selectors` | no | CSS selectors for article extraction (see below). |
-| `scraper` | no | Map carrying selectors and full-browser `triggers`. See below. |
 | `headers` | no | Custom HTTP headers applied to this feed's fetch and article requests. |
+| `triggers` | no | Full-browser load/fail selectors (see below). |
+| type-specific | no | Options for the chosen `type` (e.g. html's `links_selector` / `url_filter`). |
 
 ### Selectors
 
-Both the `selectors:` block and the `scraper:` map accept the same three CSS selectors:
+The `scraper.selectors:` block accepts three CSS selectors:
 
 | Selector | Description |
 |---|---|
@@ -43,10 +53,12 @@ Both the `selectors:` block and the `scraper:` map accept the same three CSS sel
 | `cutoff` | Content from this element onward is dropped (footers, share bars). |
 | `blacklist` | Elements removed from the extracted body (ads, promos). |
 
-The `scraper:` map additionally carries `triggers` for full-browser scraping:
+`scraper.triggers` configures full-browser scraping:
 
 ```yaml
 scraper:
+  type: rss
+  scraping: full_browser
   triggers:
     loaded:                       # wait until these selectors appear
       - article
@@ -59,6 +71,34 @@ scraper:
 
 Custom `headers` take precedence over the scraper's default spoofed headers, so they are
 the place for `Authorization` or `X-Api-Key` on gated feeds.
+
+### HTML link-list feeds (`type: html`)
+
+Some blogs publish an index page that lists links to posts instead of an RSS/Atom feed.
+The `html` type fetches that page, turns matched anchors into items, then fetches and
+extracts each linked article with `selectors`.
+
+```yaml
+- url: https://blog.example.com/posts
+  title: Linklist Blog
+  enabled: true
+  scraper:
+    type: html
+    scraping: static
+    links_selector: "ul.posts li a"   # CSS selector for the post anchors (required)
+    url_filter: "/posts/"             # keep only hrefs containing this substring (optional)
+    selectors:
+      article: div.post-content
+```
+
+| Option | Required | Description |
+|---|---|---|
+| `links_selector` | yes | CSS selector matching the post link anchors on the index page. |
+| `url_filter` | no | Drop matched anchors whose resolved href does not contain this substring. |
+
+A links-only page carries no dates, so every item is timestamped at fetch time:
+`--from`/`--to` filtering and last-N ordering are no-ops for `html` feeds. De-duplication
+still works — it keys on the link, not the date.
 
 ## Scraping modes
 
