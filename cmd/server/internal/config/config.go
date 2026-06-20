@@ -54,6 +54,10 @@ func LoadConfigFromFile(path string) (*models.ServerConfig, error) {
 		return config, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
+	if config.DbPath == "" {
+		return nil, fmt.Errorf("db_path is required in config.json")
+	}
+
 	for i, p := range config.Providers {
 		if p.Name == "" {
 			return nil, fmt.Errorf("provider at index %d is missing required field \"name\"", i)

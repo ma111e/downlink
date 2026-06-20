@@ -34,6 +34,42 @@ type Gateway struct {
 	waiting        atomic.Int64
 	totalCalls     atomic.Int64
 	totalWaitMicro atomic.Int64
+	recorder       Recorder
+}
+
+// CallRecord is one completed LLM call handed to a Recorder. The gateway fills
+// the fields it knows; provider/model come from WithModelInfo, the run id from
+// the call context (see WithRunID).
+type CallRecord struct {
+	RunID        string
+	Label        string
+	ProviderType string
+	ModelName    string
+	Prompt       string
+	Response     string
+	Usage        llmprovider.Usage
+	UsageKnown   bool
+	Duration     time.Duration
+	Err          error
+}
+
+// Recorder receives every LLM call that passes through the gateway. It lets the
+// monitoring layer persist calls without the gateway depending on the store or
+// models packages (avoiding an import cycle). Record must not block.
+type Recorder interface {
+	Record(CallRecord)
+}
+
+// SetRecorder installs r as the gateway's call recorder. Passing nil disables
+// recording. Not safe to call concurrently with in-flight calls; set once at
+// construction.
+func (g *Gateway) SetRecorder(r Recorder) { g.recorder = r }
+
+// record forwards a CallRecord to the installed recorder, if any.
+func (g *Gateway) record(rec CallRecord) {
+	if g.recorder != nil {
+		g.recorder.Record(rec)
+	}
 }
 
 // Stats is a snapshot of the gateway's counters.
@@ -73,13 +109,25 @@ func (g *Gateway) Stats() Stats {
 type CallOption func(*callConfig)
 
 type callConfig struct {
-	label string
+	label        string
+	providerType string
+	modelName    string
 }
 
 // WithLabel attaches a human-readable label to the call for log correlation
 // (e.g. "analyze:task=key_points", "digest:dedupe", "digest:summary").
 func WithLabel(label string) CallOption {
 	return func(c *callConfig) { c.label = label }
+}
+
+// WithModelInfo records the resolved provider type and model name for the call
+// so the monitoring recorder can attribute tokens to a model. The gateway only
+// sees an opaque Provider, so callers that have a resolved selection pass it here.
+func WithModelInfo(providerType, modelName string) CallOption {
+	return func(c *callConfig) {
+		c.providerType = providerType
+		c.modelName = modelName
+	}
 }
 
 func resolveConfig(opts []CallOption) callConfig {
@@ -141,10 +189,34 @@ func (g *Gateway) Generate(
 	defer g.release(cfg.label, callStart)
 
 	g.totalCalls.Add(1)
-	resp, err := p.Generate(ctx, prompt)
+
+	var (
+		resp       string
+		usage      llmprovider.Usage
+		usageKnown bool
+		err        error
+	)
+	if ug, ok := p.(llmprovider.UsageGenerator); ok {
+		resp, usage, usageKnown, err = ug.GenerateWithUsage(ctx, prompt)
+	} else {
+		resp, err = p.Generate(ctx, prompt)
+	}
+
 	if trace.Enabled() {
 		trace.LLM(cfg.label, prompt, resp, time.Since(callStart), err, nil)
 	}
+	g.record(CallRecord{
+		RunID:        RunIDFromContext(ctx),
+		Label:        cfg.label,
+		ProviderType: cfg.providerType,
+		ModelName:    cfg.modelName,
+		Prompt:       prompt,
+		Response:     resp,
+		Usage:        usage,
+		UsageKnown:   usageKnown,
+		Duration:     time.Since(callStart),
+		Err:          err,
+	})
 	return resp, err
 }
 
@@ -175,14 +247,30 @@ func (g *Gateway) Stream(
 	// Accumulated streamed content; declared before the trace defer so the
 	// closure can capture partial output on error/cancel paths too.
 	var sb []byte
+	// Usage arrives on (usually) the final chunk; keep the richest seen, mirroring
+	// Eino's ConcatMessages max-merge.
+	var usage llmprovider.Usage
+	var usageKnown bool
 	defer func() {
+		out := resp
+		if out == "" {
+			out = string(sb)
+		}
 		if trace.Enabled() {
-			out := resp
-			if out == "" {
-				out = string(sb)
-			}
 			trace.LLM(cfg.label, renderMessages(messages), out, time.Since(callStart), err, nil)
 		}
+		g.record(CallRecord{
+			RunID:        RunIDFromContext(ctx),
+			Label:        cfg.label,
+			ProviderType: cfg.providerType,
+			ModelName:    cfg.modelName,
+			Prompt:       renderMessages(messages),
+			Response:     out,
+			Usage:        usage,
+			UsageKnown:   usageKnown,
+			Duration:     time.Since(callStart),
+			Err:          err,
+		})
 	}()
 
 	reader, err := p.ChatModel().Stream(ctx, messages)
@@ -204,6 +292,17 @@ func (g *Gateway) Stream(
 		}
 		if chunk != nil && chunk.Content != "" {
 			sb = append(sb, chunk.Content...)
+		}
+		if chunk != nil && chunk.ResponseMeta != nil && chunk.ResponseMeta.Usage != nil {
+			u := chunk.ResponseMeta.Usage
+			if u.TotalTokens >= usage.TotalTokens {
+				usage = llmprovider.Usage{
+					PromptTokens:     u.PromptTokens,
+					CompletionTokens: u.CompletionTokens,
+					TotalTokens:      u.TotalTokens,
+				}
+				usageKnown = true
+			}
 		}
 		if onChunk != nil && chunk != nil {
 			if cbErr := onChunk(chunk); cbErr != nil {

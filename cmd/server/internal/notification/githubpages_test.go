@@ -67,13 +67,14 @@ func TestGitHubPagesPublisherWritesDefaultDigestFolderLayout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve output dir: %v", err)
 	}
-	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
+	digest := sampleDigest("digest-one", time.Now().UTC().Truncate(time.Minute))
+	digestFilename := DigestHTMLFilename(digest)
 
 	relPath, err := publisher.renderAndStage(wt, digest, outputDir, "default")
 	if err != nil {
 		t.Fatalf("renderAndStage() error = %v", err)
 	}
-	if relPath != filepath.Join("digests", "downlink-digest-2026-04-24_1200.html") {
+	if relPath != filepath.Join("digests", digestFilename) {
 		t.Fatalf("relPath = %q", relPath)
 	}
 	if err := publisher.writeAndStageManifest(wt, digest, outputDir); err != nil {
@@ -83,8 +84,8 @@ func TestGitHubPagesPublisherWritesDefaultDigestFolderLayout(t *testing.T) {
 		t.Fatalf("ensureIndex() error = %v", err)
 	}
 
-	assertFileExists(t, cloneDir, "digests", "downlink-digest-2026-04-24_1200.html")
-	assertManifestContains(t, cloneDir, "digests", "manifest.json", "downlink-digest-2026-04-24_1200.html")
+	assertFileExists(t, cloneDir, "digests", digestFilename)
+	assertManifestContains(t, cloneDir, "digests", "manifest.json", digestFilename)
 	assertFileExists(t, cloneDir, "digests", "index.html")
 	rootIndex := assertFileExists(t, cloneDir, "index.html")
 	if !strings.Contains(string(rootIndex), `data-manifest-url="digests/manifest.json"`) ||
@@ -93,7 +94,7 @@ func TestGitHubPagesPublisherWritesDefaultDigestFolderLayout(t *testing.T) {
 		t.Fatalf("root index is not the archive shell for digests:\n%s", string(rootIndex))
 	}
 	assertStaged(t, wt,
-		filepath.Join("digests", "downlink-digest-2026-04-24_1200.html"),
+		filepath.Join("digests", digestFilename),
 		filepath.Join("digests", "manifest.json"),
 		filepath.Join("digests", "index.html"),
 		"index.html",
@@ -119,13 +120,14 @@ func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve output dir: %v", err)
 	}
-	digest := sampleDigest("digest-two", time.Date(2026, 4, 25, 9, 30, 0, 0, time.UTC))
+	digest := sampleDigest("digest-two", time.Now().UTC().Truncate(time.Minute))
+	digestFilename := DigestHTMLFilename(digest)
 
 	relPath, err := publisher.renderAndStage(wt, digest, outputDir, "default")
 	if err != nil {
 		t.Fatalf("renderAndStage() error = %v", err)
 	}
-	if relPath != filepath.Join("archive", "digests", "downlink-digest-2026-04-25_0930.html") {
+	if relPath != filepath.Join("archive", "digests", digestFilename) {
 		t.Fatalf("relPath = %q", relPath)
 	}
 	if err := publisher.writeAndStageManifest(wt, digest, outputDir); err != nil {
@@ -135,8 +137,8 @@ func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
 		t.Fatalf("ensureIndex() error = %v", err)
 	}
 
-	assertFileExists(t, cloneDir, "archive", "digests", "downlink-digest-2026-04-25_0930.html")
-	assertManifestContains(t, cloneDir, "archive", "digests", "manifest.json", "downlink-digest-2026-04-25_0930.html")
+	assertFileExists(t, cloneDir, "archive", "digests", digestFilename)
+	assertManifestContains(t, cloneDir, "archive", "digests", "manifest.json", digestFilename)
 	assertFileExists(t, cloneDir, "archive", "digests", "index.html")
 	rootIndex := assertFileExists(t, cloneDir, "index.html")
 	if !strings.Contains(string(rootIndex), `data-manifest-url="archive/digests/manifest.json"`) ||
@@ -145,7 +147,7 @@ func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
 		t.Fatalf("root index is not the archive shell for archive/digests:\n%s", string(rootIndex))
 	}
 	assertStaged(t, wt,
-		filepath.Join("archive", "digests", "downlink-digest-2026-04-25_0930.html"),
+		filepath.Join("archive", "digests", digestFilename),
 		filepath.Join("archive", "digests", "manifest.json"),
 		filepath.Join("archive", "digests", "index.html"),
 		"index.html",

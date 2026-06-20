@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ma111e/downlink/cmd/server/internal/creds"
 	"github.com/ma111e/downlink/cmd/server/internal/config"
+	"github.com/ma111e/downlink/cmd/server/internal/adminserver"
 	"github.com/ma111e/downlink/cmd/server/internal/feedserver"
 	"github.com/ma111e/downlink/cmd/server/internal/manager"
 	"github.com/ma111e/downlink/cmd/server/internal/notification"
@@ -57,6 +58,8 @@ func main() {
 	var logLevel string
 	var traceDir string
 	var maxConcurrentLLMRequests int
+	var adminPort int
+	var llmMonitorRetention int
 
 	rootCmd := &cobra.Command{
 		Use:     "server",
@@ -91,6 +94,8 @@ func main() {
 			logLevel = viper.GetString("log-level")
 			traceDir = viper.GetString("trace-dir")
 			maxConcurrentLLMRequests = viper.GetInt("max-concurrent-llm-requests")
+			adminPort = viper.GetInt("admin-port")
+			llmMonitorRetention = viper.GetInt("llm-monitor-retention")
 
 			if lvl, err := log.ParseLevel(logLevel); err == nil {
 				log.SetLevel(lvl)
@@ -192,6 +197,16 @@ func main() {
 				}
 			}()
 
+			// LLM monitoring dashboard (localhost only). Retention bounds how
+			// many recent digest runs' conversations are kept.
+			services.LLMMonitorRetention = llmMonitorRetention
+			go func() {
+				monitor := adminserver.NewAdminServer(store.Db, adminPort)
+				if err := monitor.Start(); err != nil {
+					log.WithError(err).Error("LLM monitor server failed")
+				}
+			}()
+
 			// Start server
 			startServer(host, port, tls, certFile, keyFile, maxConcurrentLLMRequests)
 		},
@@ -210,6 +225,8 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (trace, debug, info, warn, error)")
 	rootCmd.PersistentFlags().StringVar(&traceDir, "trace-dir", "", "Directory for content-level debug traces (LLM prompt/response, raw feed/scrape bodies); only active at --log-level trace. Default: /tmp/downlink-trace-<timestamp>")
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentLLMRequests, "max-concurrent-llm-requests", 1, "Maximum number of concurrent LLM analysis requests (default: 1)")
+	rootCmd.PersistentFlags().IntVar(&adminPort, "admin-port", 65262, "Localhost port for the LLM monitoring dashboard")
+	rootCmd.PersistentFlags().IntVar(&llmMonitorRetention, "llm-monitor-retention", 100, "Number of most-recent digest runs whose LLM conversations are retained (0 disables pruning)")
 	rootCmd.PersistentFlags().Bool("auto-analyze", false, "Automatically enqueue articles for analysis after each feed refresh [overrides config]")
 	rootCmd.PersistentFlags().Bool("vibe-score", false, "Use the legacy single-number LLM importance prompt instead of the rubric scoring system [overrides config]")
 	rootCmd.PersistentFlags().Bool("glossary", false, "Generate glossary-mode content (plain-language explanation + jargon glossary) per article [overrides config]")
@@ -380,6 +397,10 @@ func startServer(host string, port int, tls bool, certFile, keyFile string, maxC
 	// queued analysis, digest dedupe/summary, digest article re-analysis.
 	// This is the only place --max-concurrent-llm-requests is actually enforced.
 	gw := llmgateway.New(maxConcurrentLLMRequests)
+
+	// Record every gateway call to the store so the LLM monitor can replay the
+	// conversations and token usage of each digest run.
+	gw.SetRecorder(services.NewLLMRecorder())
 
 	// Codex OAuth manager: wires the credential pool to config.json persistence.
 	config.CodexManager = codexauth.NewManager(

@@ -68,7 +68,7 @@ to stop at the next stage boundary; twice to force exit.
 
 ## Themes
 
-Themes style the published HTML. List them with `dlk digest --list-themes`.
+Themes style the published HTML. List them with `dlk digest list --themes`.
 
 | Theme | Description |
 |---|---|
@@ -80,8 +80,9 @@ Themes style the published HTML. List them with `dlk digest --list-themes`.
 | `pastel` | Soft pastel cream/mint/coral, dark text. |
 
 Pick a theme per run with `dlk digest generate --theme <name>`, or set a default for
-published pages with `github_pages.theme` in config. The archive can be re-rendered into a
-different theme later with `dlk publish republish-all --theme <name>`.
+published pages with `github_pages.theme` in config. The `dlk publish` commands also accept
+`--theme <name>` (a persistent flag, e.g. `republish-all`, `add`, `republish`), so the archive
+can be re-rendered into a different theme later.
 
 When a digest has glossary content, the page nav shows a **Glossary** switch next to the
 theme picker. Toggling it reveals each article's plain-language explanation and jargon

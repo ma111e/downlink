@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/ma111e/downlink/cmd/server/notification"
+	"github.com/ma111e/downlink/pkg/digestlayouts"
 	"github.com/ma111e/downlink/pkg/models"
 	"os"
 	"strconv"
@@ -22,6 +23,7 @@ func createPublishCommands() *cobra.Command {
 		cloneDir       string
 		commitAuthor   string
 		commitEmail    string
+		layout         string
 	)
 
 	cmd := &cobra.Command{
@@ -41,6 +43,7 @@ GitHub directly using the provided token.`,
 	cmd.PersistentFlags().StringVar(&cloneDir, "clone-dir", "", "Local directory for the repo clone (default: $TMPDIR/downlink-ghpages)")
 	cmd.PersistentFlags().StringVar(&commitAuthor, "commit-author", "", "Git commit author name (default: downlink-bot)")
 	cmd.PersistentFlags().StringVar(&commitEmail, "commit-email", "", "Git commit author email (default: downlink-bot@users.noreply.github.com)")
+	cmd.PersistentFlags().StringVar(&layout, "theme", "", "Layout theme for rendered pages, empty = default (see: digest list --themes)")
 
 	buildConfig := func() (models.GitHubPagesNotificationConfig, error) {
 		envBool := func(key string, current bool) (bool, error) {
@@ -67,6 +70,10 @@ GitHub directly using the provided token.`,
 		cloneDir = envString("DOWNLINK_GH_PAGES_CLONE_DIR", cloneDir)
 		commitAuthor = envString("DOWNLINK_GH_PAGES_COMMIT_AUTHOR", commitAuthor)
 		commitEmail = envString("DOWNLINK_GH_PAGES_COMMIT_EMAIL", commitEmail)
+		layout = envString("DOWNLINK_GH_PAGES_THEME", layout)
+		if layout != "" && !digestlayouts.Valid(layout) {
+			return models.GitHubPagesNotificationConfig{}, fmt.Errorf("unknown layout theme %q; run 'digest list --themes' to see available themes", layout)
+		}
 		var err error
 		configurePages, err = envBool("DOWNLINK_GH_PAGES_CONFIGURE", configurePages)
 		if err != nil {
@@ -92,6 +99,7 @@ GitHub directly using the provided token.`,
 			CloneDir:       cloneDir,
 			CommitAuthor:   commitAuthor,
 			CommitEmail:    commitEmail,
+			Layout:         layout,
 		}, nil
 	}
 
@@ -267,7 +275,6 @@ When no title is given, an interactive list is shown to pick from.`,
 	}
 	removeCmd.Flags().BoolVar(&removeNoWait, "no-wait", false, "Push and exit without waiting for the GitHub Pages deploy")
 
-	var republishLayout string
 	var republishDryRun bool
 	var republishNoWait bool
 
@@ -313,11 +320,10 @@ This command requires a running downlink server (--address / --port).`,
 					digests = append(digests, d)
 				}
 				prog.Complete("fetch", true, fmt.Sprintf("fetched %d digests", len(digests)))
-				return publisher.RepublishAll(digests, republishLayout, republishDryRun, !republishNoWait)
+				return publisher.RepublishAll(digests, cfg.Layout, republishDryRun, !republishNoWait)
 			})
 		},
 	}
-	republishAllCmd.Flags().StringVar(&republishLayout, "theme", "default", "Layout theme to use when re-rendering digest pages")
 	republishAllCmd.Flags().BoolVar(&republishDryRun, "dry-run", false, "Render and stage locally without committing or pushing")
 	republishAllCmd.Flags().BoolVar(&republishNoWait, "no-wait", false, "Push and exit without waiting for the GitHub Pages deploy")
 

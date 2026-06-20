@@ -176,6 +176,17 @@ func mergeDigestsNewestFirst(digests []models.Digest, limit int) []models.Digest
 	return out
 }
 
+// filterDigestsNewerThan returns digests whose CreatedAt is at or after cutoff.
+func filterDigestsNewerThan(digests []models.Digest, cutoff time.Time) []models.Digest {
+	out := make([]models.Digest, 0, len(digests))
+	for _, d := range digests {
+		if !d.CreatedAt.Before(cutoff) {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 // joinURL joins a base URL with path segments, trimming slashes and skipping
 // empty segments. A trailing empty segment yields the directory URL. When base
 // is empty the result is a root-relative path.

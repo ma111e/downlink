@@ -88,7 +88,7 @@ Generate and view digests. See [digests.md](digests.md).
 | `digest get [id]` | Show a digest summary and its articles. `--markdown` for styled prose. |
 | `digest generate` | Build a new digest from a time window (default: last 24h). Many flags; see [digests.md](digests.md). |
 | `digest articles [id]` | List the articles in a digest. |
-| `digest --list-themes` | List available HTML themes and exit. |
+| `digest list --themes` | List available HTML themes and exit. |
 
 ## config
 
@@ -115,8 +115,8 @@ with a token and do not need a running server, except `add`, `republish`, and
 `republish-all`, which fetch digests from the server. See [github-pages.md](github-pages.md).
 
 Persistent flags (all subcommands): `--repo`, `--branch`, `--token`, `--output-dir`,
-`--configure-pages`, `--clone-dir`, `--commit-author`, `--commit-email`. The token can
-also come from `DOWNLINK_GH_PAGES_TOKEN`.
+`--configure-pages`, `--clone-dir`, `--commit-author`, `--commit-email`, `--theme`. The token can
+also come from `DOWNLINK_GH_PAGES_TOKEN`; `--theme` from `DOWNLINK_GH_PAGES_THEME`.
 
 | Command | Description |
 |---|---|
@@ -125,5 +125,5 @@ also come from `DOWNLINK_GH_PAGES_TOKEN`.
 | `publish add [digest-id]` | Fetch a digest from the server, render it, and push it to the archive. |
 | `publish remove [title]` | Remove a digest (matched by title) from the archive and republish. |
 | `publish republish [id-or-title]` | Remove and re-add one digest with the current templates. `--no-wait`. |
-| `publish republish-all` | Re-render every published digest. `--theme`, `--dry-run`, `--no-wait`. |
+| `publish republish-all` | Re-render every published digest. `--dry-run`, `--no-wait`. |
 | `publish republish-index` | Re-render just the archive index pages. `--dry-run`, `--no-wait`. |

@@ -59,4 +59,8 @@ type Store interface {
 	GetFeedGroup(id string) (models.FeedGroup, error)
 	StoreFeedGroup(group models.FeedGroup) error
 	DeleteFeedGroup(id string) error
+
+	ListLLMRunSummaries(limit int) ([]LLMRunSummary, error)
+	GetLLMRun(id string) (models.LLMRun, error)
+	ListLLMCallsForRun(runID string) ([]LLMCallView, error)
 }

@@ -26,30 +26,28 @@ var (
 
 // Digest commands
 func createDigestCommands() *cobra.Command {
-	var listThemesFlag bool
 	cmd := &cobra.Command{
 		Use:   "digest",
 		Short: "Manage article digests",
 		Long:  `Create and view article digests.`,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			if listThemesFlag {
-				fmt.Println("Available layout themes:")
-				for _, l := range digestlayouts.All() {
-					fmt.Printf("  %-12s %s\n", l.Name, l.Description)
-				}
-				os.Exit(0)
-			}
-		},
 	}
-	cmd.PersistentFlags().BoolVar(&listThemesFlag, "list-themes", false, "List available layout themes and exit")
 
 	// List digests command
+	var listThemes bool
 	listCmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List digests",
 		Long:    `View all available digests.`,
 		Run: func(cmd *cobra.Command, args []string) {
+			if listThemes {
+				fmt.Println("Available layout themes:")
+				for _, l := range digestlayouts.All() {
+					fmt.Printf("  %-12s %s\n", l.Name, l.Description)
+				}
+				return
+			}
+
 			client := getNewDownlinkClient()
 
 			// --json dumps full digest data; the table view only needs summaries.
@@ -85,6 +83,7 @@ func createDigestCommands() *cobra.Command {
 
 	// Add flags for list command
 	listCmd.Flags().IntVar(&digestLimit, "limit", 0, "Maximum number of digests to return (0 = all)")
+	listCmd.Flags().BoolVar(&listThemes, "themes", false, "List available layout themes and exit")
 
 	// Get digest command
 	var showMarkdown bool
@@ -176,7 +175,7 @@ Examples:
 
 			if digestTest {
 				if !digestlayouts.Valid(digestLayout) {
-					fmt.Printf("Unknown layout theme %q. Run 'digest --list-themes' to see available themes.\n", digestLayout)
+					fmt.Printf("Unknown layout theme %q. Run 'digest list --themes' to see available themes.\n", digestLayout)
 					return
 				}
 
@@ -314,7 +313,7 @@ Examples:
 			}
 
 			if !digestlayouts.Valid(digestLayout) {
-				fmt.Printf("Unknown layout theme %q. Run 'digest --list-themes' to see available themes.\n", digestLayout)
+				fmt.Printf("Unknown layout theme %q. Run 'digest list --themes' to see available themes.\n", digestLayout)
 				return
 			}
 
@@ -487,7 +486,7 @@ Examples:
 	generateCmd.Flags().BoolVar(&digestExecutiveSummary, "executive-summary", false, "Generate the digest-level executive summary for this run [overrides server config; use --executive-summary=false to force off]")
 	generateCmd.Flags().Bool("one-shot", false, "Analyze missing articles with one full LLM prompt instead of the multi-step chain")
 	generateCmd.Flags().Bool("exclude-digested", false, "Exclude articles already included in a previous digest")
-	generateCmd.Flags().StringVar(&digestLayout, "theme", "default", "Layout/graphical theme for the digest (see: digest --list-themes)")
+	generateCmd.Flags().StringVar(&digestLayout, "theme", "default", "Layout/graphical theme for the digest (see: digest list --themes)")
 	generateCmd.Flags().StringVarP(&digestProvider, "provider", "p", "", "Provider override for this run (a provider type or a configured profile name, auto-detected by the server); applies to all LLM steps")
 	generateCmd.Flags().StringVarP(&digestModel, "model", "m", "", "Model override for this run. If given without --provider, the server finds the provider offering it (errors if ambiguous)")
 	generateCmd.Flags().BoolVar(&digestSelectModel, "select-model", false, "Interactively pick a model; lists every provider's models (or just --provider's when set)")

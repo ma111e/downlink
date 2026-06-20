@@ -147,6 +147,31 @@ func TestManifestEntryFromDigest(t *testing.T) {
 	}
 }
 
+func TestManifestPrune(t *testing.T) {
+	cutoff := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
+	m := Manifest{
+		SourceRepo: "downlink",
+		Digests: []ManifestEntry{
+			{Filename: "a.html", PeriodStart: "2026-05-25 12:00 UTC"}, // within window → keep
+			{Filename: "b.html", PeriodStart: "2026-05-19 23:59 UTC"}, // before cutoff → prune
+			{Filename: "c.html", PeriodStart: ""},                      // unparseable → keep
+			{Filename: "d.html", PeriodStart: "2026-05-20 00:00 UTC"}, // exactly at cutoff → keep
+		},
+	}
+	removed := m.Prune(cutoff)
+	if removed != 1 {
+		t.Fatalf("Prune() removed %d, want 1", removed)
+	}
+	if len(m.Digests) != 3 {
+		t.Fatalf("len(Digests) = %d, want 3", len(m.Digests))
+	}
+	for _, e := range m.Digests {
+		if e.Filename == "b.html" {
+			t.Fatalf("Prune() kept b.html (should be removed)")
+		}
+	}
+}
+
 func TestManifestWriteSetsGeneratedAtAndSourceRepo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, ManifestFilename)

@@ -6,6 +6,7 @@ import (
 	"github.com/ma111e/downlink/pkg/models"
 	golog "log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"gorm.io/driver/sqlite"
@@ -49,11 +50,29 @@ func New(path string) (*GormStore, error) {
 		DisableForeignKeyConstraintWhenMigrating: true,
 	}
 
+	// Resolve to an absolute path so the database is independent of the
+	// process working directory (a relative "./downlink.db" would otherwise
+	// silently become a different file when launched from another cwd).
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve database path %q: %w", path, err)
+	}
+
 	// Connect to the database
-	db, err := gorm.Open(sqlite.Open(path), storeConfig)
+	db, err := gorm.Open(sqlite.Open(absPath), storeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
+
+	// SQLite allows a single writer and each connection to an anonymous/":memory:"
+	// DSN gets its own private database. Pin the pool to one connection so every
+	// query shares the same database (the schema can never diverge across the
+	// pool) and writes are serialized, avoiding "database is locked".
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get SQL DB instance: %w", err)
+	}
+	sqlDB.SetMaxOpenConns(1)
 
 	// Enable foreign keys for SQLite
 	if err := db.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
@@ -104,6 +123,8 @@ func (s *GormStore) initSchema() error {
 		&models.GlossaryEntry{},
 		&models.DigestGlossary{},
 		&models.FeedGroup{},
+		&models.LLMRun{},
+		&models.LLMCall{},
 		// Add any new allModels here
 	}
 

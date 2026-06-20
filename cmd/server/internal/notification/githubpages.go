@@ -166,7 +166,7 @@ func (p *GitHubPagesPublisher) sendDigest(digest models.Digest) (string, error) 
 	}
 	if feedDigests, err := p.recentFeedDigests(digest, FeedDigestLimit); err != nil {
 		log.WithError(err).Warn("github pages: skipping feed update, failed to list recent digests")
-	} else if err := p.writeAndStageFeeds(wt, outputDir, feedDigests); err != nil {
+	} else if err := p.writeAndStageFeeds(wt, outputDir, filterDigestsNewerThan(feedDigests, time.Now().UTC().AddDate(0, -1, 0))); err != nil {
 		return "", err
 	}
 	if err := p.ensureIndex(wt, outputDir, p.cfg.Layout); err != nil {
@@ -507,6 +507,7 @@ func (p *GitHubPagesPublisher) writeAndStageManifest(wt *gogit.Worktree, digest 
 		return fmt.Errorf("github pages: load manifest: %w", err)
 	}
 	manifest.Upsert(ManifestEntryFromDigest(digest))
+	manifest.Prune(time.Now().UTC().AddDate(0, -1, 0))
 	if err := manifest.Write(manifestAbsPath); err != nil {
 		return fmt.Errorf("github pages: write manifest: %w", err)
 	}
@@ -788,6 +789,8 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout stri
 		manifest.Upsert(ManifestEntryFromDigest(toRender[i]))
 	}
 
+	cutoff := time.Now().UTC().AddDate(0, -1, 0)
+	manifest.Prune(cutoff)
 	if err := manifest.Write(manifestAbsPath); err != nil {
 		return fmt.Errorf("github pages: write manifest: %w", err)
 	}
@@ -795,7 +798,7 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout stri
 		return fmt.Errorf("github pages: failed to stage manifest: %w", err)
 	}
 
-	if err := p.writeAndStageFeeds(wt, outputDir, mergeDigestsNewestFirst(toRender, FeedDigestLimit)); err != nil {
+	if err := p.writeAndStageFeeds(wt, outputDir, filterDigestsNewerThan(mergeDigestsNewestFirst(toRender, FeedDigestLimit), cutoff)); err != nil {
 		p.pComplete("render", false, "feed render failed")
 		return err
 	}

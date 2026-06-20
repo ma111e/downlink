@@ -27,6 +27,24 @@ type Provider interface {
 	Generate(ctx context.Context, prompt string) (string, error)
 }
 
+// Usage mirrors the subset of Eino's TokenUsage the monitoring layer persists.
+// All fields are zero when the backend did not report usage (e.g. OAuth
+// subscription providers), in which case GenerateWithUsage returns known=false.
+type Usage struct {
+	PromptTokens     int
+	CompletionTokens int
+	TotalTokens      int
+}
+
+// UsageGenerator is the optional add-on interface implemented by providers that
+// can report token usage alongside the response. The gateway type-asserts for
+// it; providers that don't implement it fall back to plain Generate.
+type UsageGenerator interface {
+	// GenerateWithUsage behaves like Generate but also returns token usage and
+	// whether the backend actually reported it.
+	GenerateWithUsage(ctx context.Context, prompt string) (string, Usage, bool, error)
+}
+
 // ChatModelProvider extends Provider with access to the underlying Eino ChatModel
 // for use with ChatModelAgent.
 type ChatModelProvider interface {
@@ -110,14 +128,36 @@ func (p *einoProvider) ChatModel() model.BaseChatModel {
 }
 
 func (p *einoProvider) Generate(ctx context.Context, prompt string) (string, error) {
+	content, _, _, err := p.GenerateWithUsage(ctx, prompt)
+	return content, err
+}
+
+// GenerateWithUsage implements UsageGenerator: it reads Eino's response usage
+// metadata, which the plain Generate path discards.
+func (p *einoProvider) GenerateWithUsage(ctx context.Context, prompt string) (string, Usage, bool, error) {
 	msgs := []*schema.Message{
 		{Role: schema.User, Content: prompt},
 	}
 	resp, err := p.cm.Generate(ctx, msgs)
 	if err != nil {
-		return "", err
+		return "", Usage{}, false, err
 	}
-	return resp.Content, nil
+	usage, known := extractUsage(resp)
+	return resp.Content, usage, known, nil
+}
+
+// extractUsage pulls token counts off an Eino message's ResponseMeta. known is
+// false when the backend reported no usage (nil meta/usage).
+func extractUsage(m *schema.Message) (Usage, bool) {
+	if m == nil || m.ResponseMeta == nil || m.ResponseMeta.Usage == nil {
+		return Usage{}, false
+	}
+	u := m.ResponseMeta.Usage
+	return Usage{
+		PromptTokens:     u.PromptTokens,
+		CompletionTokens: u.CompletionTokens,
+		TotalTokens:      u.TotalTokens,
+	}, true
 }
 
 // ---------------------------------------------------------------------------

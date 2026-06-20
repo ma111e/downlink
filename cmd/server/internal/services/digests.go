@@ -138,6 +138,23 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 
 	log.Info("Generating digest from recent articles")
 
+	// Start a monitoring run before any LLM work: every gateway call made under
+	// this ctx is recorded against runID for the LLM monitor page. The digest id
+	// (linked below) does not exist yet, so the run has its own id.
+	runID := generateRunId(time.Now())
+	ctx = llmgateway.WithRunID(ctx, runID)
+	if err := store.Db.StartLLMRun(runID, time.Now()); err != nil {
+		log.WithError(err).Warn("failed to start LLM monitor run")
+	}
+	defer func() {
+		if err := store.Db.FinishLLMRun(runID, time.Now()); err != nil {
+			log.WithError(err).WithField("run_id", runID).Warn("failed to finish LLM monitor run")
+		}
+		if err := store.Db.PruneLLMRuns(LLMMonitorRetention); err != nil {
+			log.WithError(err).Warn("failed to prune old LLM monitor runs")
+		}
+	}()
+
 	windowStart := req.StartTime.AsTime()
 	windowEnd := time.Now()
 	if req.EndTime != nil {
@@ -297,6 +314,11 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	if err = store.Db.StoreDigest(digest); err != nil {
 		_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: fmt.Sprintf("failed to store digest: %v", err)})
 		return fmt.Errorf("failed to store digest: %w", err)
+	}
+
+	// Attribute this monitoring run to the produced digest for the monitor page.
+	if err := store.Db.LinkLLMRunToDigest(runID, digest.Id, digestTitle); err != nil {
+		log.WithError(err).WithField("run_id", runID).Warn("failed to link LLM monitor run to digest")
 	}
 
 	// Store DigestProviderResult so the HTML notification can render provider syntheses
@@ -898,7 +920,7 @@ If no duplicates are found, return: {"duplicate_groups": []}`, articleSummaries.
 	stepCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
-	rawResponse, err := s.gw.Generate(stepCtx, resolved.Provider, prompt, llmgateway.WithLabel("digest:dedupe"))
+	rawResponse, err := s.gw.Generate(stepCtx, resolved.Provider, prompt, llmgateway.WithLabel("digest:dedupe"), llmgateway.WithModelInfo(resolved.ProviderType, resolved.ModelName))
 	if err != nil {
 		return nil, "", fmt.Errorf("LLM call for duplicate identification failed: %w", err)
 	}
@@ -948,7 +970,7 @@ func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []mod
 	stepCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
-	rawResponse, err := s.gw.Generate(stepCtx, resolved.Provider, prompt, llmgateway.WithLabel("digest:summary"))
+	rawResponse, err := s.gw.Generate(stepCtx, resolved.Provider, prompt, llmgateway.WithLabel("digest:summary"), llmgateway.WithModelInfo(resolved.ProviderType, resolved.ModelName))
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("LLM call for digest summary failed: %w", err)
 	}
@@ -1163,7 +1185,7 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 		return nil, fmt.Errorf("failed to resolve LLM provider: %w", err)
 	}
 
-	rawResponse, err := s.gw.Generate(ctx, resolved.Provider, prompt, llmgateway.WithLabel("digest:glossary-entities"))
+	rawResponse, err := s.gw.Generate(ctx, resolved.Provider, prompt, llmgateway.WithLabel("digest:glossary-entities"), llmgateway.WithModelInfo(resolved.ProviderType, resolved.ModelName))
 	if err != nil {
 		return nil, fmt.Errorf("LLM call for entity definitions failed: %w", err)
 	}
@@ -1332,4 +1354,11 @@ func generateDigestId(t time.Time) string {
 	timestamp := t.Format(time.RFC3339)
 	hash := md5.Sum([]byte(timestamp))
 	return fmt.Sprintf("digest-%s", fmt.Sprintf("%x", hash)[:8])
+}
+
+// generateRunId generates a unique Id for an LLM monitoring run. Uses
+// nanosecond precision so back-to-back runs don't collide.
+func generateRunId(t time.Time) string {
+	hash := md5.Sum([]byte(t.Format(time.RFC3339Nano)))
+	return fmt.Sprintf("run-%s", fmt.Sprintf("%x", hash)[:12])
 }

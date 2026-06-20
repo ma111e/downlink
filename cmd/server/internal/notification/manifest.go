@@ -101,6 +101,22 @@ func (m *Manifest) FindByTitle(title string) (ManifestEntry, bool) {
 	return ManifestEntry{}, false
 }
 
+// Prune removes entries whose PeriodStart is before cutoff, returning the count
+// removed. Entries with a missing or unparseable PeriodStart are kept.
+func (m *Manifest) Prune(cutoff time.Time) int {
+	const layout = "2006-01-02 15:04 UTC"
+	var filtered []ManifestEntry
+	for _, e := range m.Digests {
+		t, err := time.Parse(layout, e.PeriodStart)
+		if err != nil || !t.Before(cutoff) {
+			filtered = append(filtered, e)
+		}
+	}
+	removed := len(m.Digests) - len(filtered)
+	m.Digests = filtered
+	return removed
+}
+
 // Remove removes the entry with the given filename from the manifest.
 // Returns true if an entry was found and removed.
 func (m *Manifest) Remove(filename string) bool {

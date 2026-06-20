@@ -731,6 +731,7 @@ func (s *LLMsServer) runAnalysisTaskAttempt(
 		messages,
 		onChunk,
 		llmgateway.WithLabel(fmt.Sprintf("analyze:task=%s", task.name)),
+		llmgateway.WithModelInfo(resolved.ProviderType, resolved.ModelName),
 	)
 	if err != nil {
 		return analysisTaskAttemptResult{}, fmt.Errorf("model error during task %s (%s): %w", task.name, resolved.ProviderType, err)
@@ -1070,6 +1071,7 @@ func (s *LLMsServer) AnalyzeArticleOneShot(ctx context.Context, req *protos.Anal
 			resolved.Provider,
 			prompt,
 			llmgateway.WithLabel("analyze:one_shot_analysis"),
+			llmgateway.WithModelInfo(resolved.ProviderType, resolved.ModelName),
 		)
 		attemptCancel()
 		if err != nil {
