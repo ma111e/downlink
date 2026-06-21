@@ -1,22 +1,11 @@
 package store
 
 import (
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/ma111e/downlink/pkg/models"
 )
-
-func newTestStore(t *testing.T) *GormStore {
-	t.Helper()
-	s, err := New(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatalf("New store: %v", err)
-	}
-	t.Cleanup(func() { _ = s.Close() })
-	return s
-}
 
 func boolPtr(b bool) *bool { return &b }
 
