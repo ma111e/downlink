@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/ma111e/downlink/cmd/server/internal/creds"
-	"github.com/ma111e/downlink/cmd/server/internal/config"
 	"github.com/ma111e/downlink/cmd/server/internal/adminserver"
+	"github.com/ma111e/downlink/cmd/server/internal/config"
+	"github.com/ma111e/downlink/cmd/server/internal/creds"
 	"github.com/ma111e/downlink/cmd/server/internal/feedserver"
 	"github.com/ma111e/downlink/cmd/server/internal/manager"
 	"github.com/ma111e/downlink/cmd/server/internal/notification"
@@ -60,6 +60,7 @@ func main() {
 	var maxConcurrentLLMRequests int
 	var adminPort int
 	var llmMonitorRetention int
+	var feedRefreshRetention int
 
 	rootCmd := &cobra.Command{
 		Use:     "server",
@@ -96,6 +97,7 @@ func main() {
 			maxConcurrentLLMRequests = viper.GetInt("max-concurrent-llm-requests")
 			adminPort = viper.GetInt("admin-port")
 			llmMonitorRetention = viper.GetInt("llm-monitor-retention")
+			feedRefreshRetention = viper.GetInt("feed-monitor-retention")
 
 			if lvl, err := log.ParseLevel(logLevel); err == nil {
 				log.SetLevel(lvl)
@@ -200,6 +202,7 @@ func main() {
 			// LLM monitoring dashboard (localhost only). Retention bounds how
 			// many recent digest runs' conversations are kept.
 			services.LLMMonitorRetention = llmMonitorRetention
+			manager.FeedRefreshRetention = feedRefreshRetention
 			go func() {
 				monitor := adminserver.NewAdminServer(store.Db, adminPort)
 				if err := monitor.Start(); err != nil {
@@ -227,6 +230,7 @@ func main() {
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentLLMRequests, "max-concurrent-llm-requests", 1, "Maximum number of concurrent LLM analysis requests (default: 1)")
 	rootCmd.PersistentFlags().IntVar(&adminPort, "admin-port", 65262, "Localhost port for the LLM monitoring dashboard")
 	rootCmd.PersistentFlags().IntVar(&llmMonitorRetention, "llm-monitor-retention", 100, "Number of most-recent digest runs whose LLM conversations are retained (0 disables pruning)")
+	rootCmd.PersistentFlags().IntVar(&feedRefreshRetention, "feed-monitor-retention", 100, "Number of most-recent feed refresh runs whose history is retained (0 disables pruning)")
 	rootCmd.PersistentFlags().Bool("auto-analyze", false, "Automatically enqueue articles for analysis after each feed refresh [overrides config]")
 	rootCmd.PersistentFlags().Bool("vibe-score", false, "Use the legacy single-number LLM importance prompt instead of the rubric scoring system [overrides config]")
 	rootCmd.PersistentFlags().Bool("glossary", false, "Generate glossary-mode content (plain-language explanation + jargon glossary) per article [overrides config]")
@@ -243,6 +247,7 @@ func main() {
 	rootCmd.PersistentFlags().String("gh-pages-commit-email", "", "Commit author email [overrides config]")
 	rootCmd.PersistentFlags().String("gh-pages-clone-dir", "", "Local working clone directory [overrides config]")
 	rootCmd.PersistentFlags().String("gh-pages-discord-webhook", "", "Discord webhook URL to notify when a page is published [overrides config]")
+	rootCmd.PersistentFlags().Int("gh-pages-window-days", 0, "Days of digests to retain in the manifest and feeds (0 = default 30) [overrides config]")
 
 	rootCmd.PersistentFlags().Bool("init-gh-pages", false, "Initialize the GitHub Pages repository and exit (idempotent, existing files are not overwritten; use --reinit-gh-pages to wipe first)")
 	rootCmd.PersistentFlags().Bool("reinit-gh-pages", false, "Erase and reinitialize the GitHub Pages repository from scratch (destructive, prompts for confirmation)")
@@ -368,6 +373,12 @@ func applyGHPagesFlagOverrides(cmd *cobra.Command) {
 		gh.DiscordWebhookURL, _ = cmd.Flags().GetString("gh-pages-discord-webhook")
 	} else if viper.IsSet("gh-pages-discord-webhook") {
 		gh.DiscordWebhookURL = viper.GetString("gh-pages-discord-webhook")
+	}
+	if cmd.Flags().Changed("gh-pages-window-days") {
+		v, _ := cmd.Flags().GetInt("gh-pages-window-days")
+		gh.PublishWindowDays = v
+	} else if viper.IsSet("gh-pages-window-days") {
+		gh.PublishWindowDays = viper.GetInt("gh-pages-window-days")
 	}
 }
 

@@ -154,6 +154,10 @@ type messagesResponse struct {
 		Type string `json:"type"`
 		Text string `json:"text"`
 	} `json:"content"`
+	Usage struct {
+		InputTokens  int `json:"input_tokens"`
+		OutputTokens int `json:"output_tokens"`
+	} `json:"usage"`
 }
 
 func (p *claudeCodeProvider) callAPI(ctx context.Context, lease *claudeauth.Lease, msgs []*schema.Message) (*schema.Message, error) {
@@ -234,7 +238,26 @@ func (p *claudeCodeProvider) callAPI(ctx context.Context, lease *claudeauth.Leas
 			text.WriteString(c.Text)
 		}
 	}
-	return &schema.Message{Role: schema.Assistant, Content: text.String()}, nil
+	msg := &schema.Message{Role: schema.Assistant, Content: text.String()}
+	if parsed.Usage.InputTokens > 0 || parsed.Usage.OutputTokens > 0 {
+		msg.ResponseMeta = &schema.ResponseMeta{Usage: &schema.TokenUsage{
+			PromptTokens:     parsed.Usage.InputTokens,
+			CompletionTokens: parsed.Usage.OutputTokens,
+			TotalTokens:      parsed.Usage.InputTokens + parsed.Usage.OutputTokens,
+		}}
+	}
+	return msg, nil
+}
+
+// GenerateWithUsage implements UsageGenerator so the gateway can record token
+// usage for claude-code subscription calls.
+func (p *claudeCodeProvider) GenerateWithUsage(ctx context.Context, prompt string) (string, Usage, bool, error) {
+	resp, err := p.generateMessages(ctx, []*schema.Message{{Role: schema.User, Content: prompt}})
+	if err != nil {
+		return "", Usage{}, false, err
+	}
+	u, known := extractUsage(resp)
+	return resp.Content, u, known, nil
 }
 
 // ---------------------------------------------------------------------------

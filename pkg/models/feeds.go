@@ -100,6 +100,13 @@ type FetchResult struct {
 	Skipped          int
 	Errors           []string
 	StoredArticleIDs []string // IDs of articles successfully stored in this fetch
+
+	// Raw feed response captured for the refresh monitor, so the exact bytes a
+	// refresh saw (or failed to parse) stay inspectable. RawBody is nil when
+	// nothing was fetched (e.g. a network-level error before any response).
+	RawBody        []byte
+	RawStatus      int
+	RawContentType string
 }
 
 // SelectorCandidate is a ranked guess at the CSS selector wrapping an article body,

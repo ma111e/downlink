@@ -82,12 +82,26 @@ func (s *FeedsServer) RefreshAllFeeds(req *protos.RefreshAllFeedsRequest, stream
 	total := int32(len(enabledFeeds))
 	log.WithField("total", total).Info("Refreshing enabled feeds")
 
+	// Optional filters applied to every feed, mirroring RefreshFeed.
+	var fromTime, toTime *time.Time
+	if req.From != nil {
+		t := req.From.AsTime()
+		fromTime = &t
+	}
+	if req.To != nil {
+		t := req.To.AsTime()
+		toTime = &t
+	}
+
 	type feedEvent struct {
 		feed        models.Feed
 		fetchResult models.FetchResult
 		err         error
+		dur         time.Duration
 	}
 	resultCh := make(chan feedEvent, total)
+
+	runID := manager.Manager.StartRefreshRun("manual-all")
 
 	// Send STARTED per feed then launch its goroutine.
 	// Sequential send guarantees all STARTED events reach the client
@@ -101,8 +115,9 @@ func (s *FeedsServer) RefreshAllFeeds(req *protos.RefreshAllFeedsRequest, stream
 			return err
 		}
 		go func(f models.Feed) {
-			fr, err := manager.Manager.RefreshFeedWithTimeWindow(f.Id, nil, nil, false, false, 0)
-			resultCh <- feedEvent{feed: f, fetchResult: fr, err: err}
+			start := time.Now()
+			fr, err := manager.Manager.RefreshFeedWithTimeWindow(f.Id, fromTime, toTime, req.Overwrite, req.Restore, int(req.LastN))
+			resultCh <- feedEvent{feed: f, fetchResult: fr, err: err, dur: time.Since(start)}
 		}(feed)
 	}
 
@@ -110,6 +125,7 @@ func (s *FeedsServer) RefreshAllFeeds(req *protos.RefreshAllFeedsRequest, stream
 	for range enabledFeeds {
 		ev := <-resultCh
 		completed++
+		manager.Manager.RecordRefresh(runID, ev.feed, ev.fetchResult, ev.err, ev.dur)
 		s.autoEnqueue(stream.Context(), ev.fetchResult.StoredArticleIDs)
 		resp := buildRefreshFeedResponse(ev.feed.Id, ev.feed.Title, ev.fetchResult, ev.err)
 		if sendErr := stream.Send(&protos.RefreshAllFeedsEvent{
@@ -121,6 +137,7 @@ func (s *FeedsServer) RefreshAllFeeds(req *protos.RefreshAllFeedsRequest, stream
 			return sendErr
 		}
 	}
+	manager.Manager.FinishRefreshRun(runID)
 
 	return nil
 }
@@ -165,7 +182,12 @@ func (s *FeedsServer) RefreshFeed(ctx context.Context, req *protos.RefreshFeedRe
 	}
 	log.WithFields(logFields).Info("Refreshing feed")
 
+	feed, _ := manager.Manager.GetFeed(req.FeedId)
+	runID := manager.Manager.StartRefreshRun("manual-single")
+	start := time.Now()
 	fetchResult, err := manager.Manager.RefreshFeedWithTimeWindow(req.FeedId, fromTime, toTime, req.Overwrite, req.Restore, int(req.LastN))
+	manager.Manager.RecordRefresh(runID, feed, fetchResult, err, time.Since(start))
+	manager.Manager.FinishRefreshRun(runID)
 	if err != nil {
 		log.WithError(err).WithField("feed_id", req.FeedId).Error("Failed to refresh feed")
 		return nil, err
@@ -173,7 +195,6 @@ func (s *FeedsServer) RefreshFeed(ctx context.Context, req *protos.RefreshFeedRe
 
 	s.autoEnqueue(ctx, fetchResult.StoredArticleIDs)
 
-	feed, _ := manager.Manager.GetFeed(req.FeedId)
 	return buildRefreshFeedResponse(req.FeedId, feed.Title, fetchResult, nil), nil
 }
 

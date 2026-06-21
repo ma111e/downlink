@@ -38,7 +38,7 @@ func NewRSSFeedScraper(configSelectors *models.Selectors) *RSSFeedScraper {
 }
 
 // Fetch fetches and parses an RSS feed
-func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.FeedItem, error) {
+func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.FeedItem, *RawResponse, error) {
 	log.WithField("url", url).Debug("Fetching RSS feed")
 
 	// Fetch the raw body first, then parse it. Splitting fetch from parse (rather
@@ -47,7 +47,7 @@ func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.Feed
 	// per-feed custom headers are overlaid after the anon profile (custom win).
 	raw, err := FetchRaw(url, HeadersFromParams(params))
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch feed: %w", err)
+		return nil, nil, fmt.Errorf("failed to fetch feed: %w", err)
 	}
 
 	feed, err := s.parser.Parse(bytes.NewReader(raw.Body))
@@ -56,9 +56,9 @@ func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.Feed
 		// server is not running at trace log level, and point the error at it. This
 		// is the always-on breadcrumb behind the `feeds diagnose` command.
 		if path := trace.SaveDiagnostic(hostOf(url), raw.Status, raw.ContentType, raw.Body); path != "" {
-			return nil, fmt.Errorf("failed to parse feed: %w (raw body saved to %s)", err, path)
+			return nil, &raw, fmt.Errorf("failed to parse feed: %w (raw body saved to %s)", err, path)
 		}
-		return nil, fmt.Errorf("failed to parse feed: %w", err)
+		return nil, &raw, fmt.Errorf("failed to parse feed: %w", err)
 	}
 
 	// Convert feed items to FeedItems
@@ -115,7 +115,7 @@ func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.Feed
 		"items": len(items),
 	}).Debug("RSS feed fetched successfully")
 
-	return items, nil
+	return items, &raw, nil
 }
 
 func (s *RSSFeedScraper) ScrapeContent(url string, params map[string]any) (string, error) {

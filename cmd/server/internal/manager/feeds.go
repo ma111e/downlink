@@ -64,7 +64,15 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 	log.WithFields(logFields).Info("Fetching feed")
 
 	// Fetch items
-	items, err := scraper.Fetch(feed.URL, feed.Scraper)
+	items, raw, err := scraper.Fetch(feed.URL, feed.Scraper)
+	// Capture the raw response for the refresh monitor whenever one came back,
+	// including the parse-failure path below, so the offending bytes stay
+	// inspectable.
+	if raw != nil {
+		result.RawBody = raw.Body
+		result.RawStatus = raw.Status
+		result.RawContentType = raw.ContentType
+	}
 	if err != nil {
 		return result, fmt.Errorf("failed to fetch feed: %w", err)
 	}
@@ -499,12 +507,15 @@ func (m *FeedManager) RefreshAllFeeds(wg *sync.WaitGroup) {
 		"enabled": len(enabledFeeds),
 	}).Info("Refreshing all enabled feeds")
 
+	runID := m.StartRefreshRun("startup")
 	resultCh := make(chan models.FeedResult, len(enabledFeeds))
 
 	// Create a worker pool
 	for _, feed := range enabledFeeds {
 		go func(feed models.Feed) {
+			start := time.Now()
 			fetchResult, err := m.FetchFeed(feed, nil, nil, false, false, 0)
+			m.RecordRefresh(runID, feed, fetchResult, err, time.Since(start))
 			resultCh <- models.FeedResult{
 				Feed:        feed,
 				Error:       err,
@@ -525,5 +536,6 @@ func (m *FeedManager) RefreshAllFeeds(wg *sync.WaitGroup) {
 			}
 		}
 		close(resultCh)
+		m.FinishRefreshRun(runID)
 	}()
 }

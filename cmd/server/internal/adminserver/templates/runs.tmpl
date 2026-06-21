@@ -1,47 +1,118 @@
 {{define "title"}}Runs · LLM Monitor{{end}}
 {{define "crumb"}}digest generation runs{{end}}
 {{define "content"}}
-  <div class="panel">
-    <div class="stat-row" style="margin-bottom:18px">
-      <div class="stat"><div class="n">{{len .Runs}}</div><div class="l">runs</div></div>
-      <div class="stat"><div class="n">{{comma .Chart.MaxTokens}}</div><div class="l">peak tokens / run</div></div>
+  <div class="stats">
+    <div class="stat reveal" style="animation-delay:.02s">
+      <div class="l">Runs</div><div class="n">{{.Stats.Runs}}</div>
+      <div class="sub">tracked</div>
+    </div>
+    <div class="stat up reveal" style="animation-delay:.06s">
+      <div class="l">Sent</div><div class="n">{{comma .Stats.Sent}}</div>
+      <div class="sub">prompt tokens</div>
+    </div>
+    <div class="stat down reveal" style="animation-delay:.1s">
+      <div class="l">Received</div><div class="n">{{comma .Stats.Received}}</div>
+      <div class="sub">response tokens</div>
+    </div>
+    <div class="stat reveal" style="animation-delay:.14s">
+      <div class="l">Total</div><div class="n">{{comma .Stats.Total}}</div>
+      <div class="sub">all tokens</div>
+    </div>
+    <div class="stat reveal" style="animation-delay:.18s">
+      <div class="l">Peak</div><div class="n">{{comma .Stats.PeakTotal}}</div>
+      <div class="sub">per run</div>
+    </div>
+  </div>
+
+  <div class="panel pad reveal" style="animation-delay:.22s">
+    <div class="chart-head">
+      <div class="section-label" style="margin:0">Tokens per run</div>
+      <div class="legend">
+        <span><i class="u"></i> sent</span>
+        <span><i class="d"></i> received</span>
+      </div>
     </div>
     {{if .Chart.HasData}}
-    <svg class="chart" width="100%" viewBox="0 0 {{.Chart.Width}} {{.Chart.Height}}" preserveAspectRatio="xMinYMax meet">
-      {{range .Chart.Bars}}
-      <rect x="{{.X}}" y="{{.Y}}" width="{{.W}}" height="{{.H}}" rx="2" fill="var(--bar)">
-        <title>{{.When}} — {{comma .Tokens}} tokens</title>
-      </rect>
+    <div class="chart-wrap">
+    <svg id="tokchart" class="chart" viewBox="0 0 {{.Chart.Width}} {{.Chart.Height}}" preserveAspectRatio="xMinYMax meet" role="img">
+      {{$pl := .Chart.PlotL}}{{$w := .Chart.Width}}{{$base := .Chart.Baseline}}
+      {{range .Chart.Ticks}}
+        <line class="gl" x1="{{$pl}}" y1="{{.Y}}" x2="{{$w}}" y2="{{.Y}}"></line>
+        <text class="ax" x="{{sub $pl 10}}" y="{{add .Y 3}}" text-anchor="end">{{.Label}}</text>
       {{end}}
+      {{range .Chart.Bars}}
+      <g class="barcol" style="animation-delay:{{.AnimDelay}}"
+         data-run="{{.RunID}}" data-when="{{.When}}"
+         data-sent="{{comma .Prompt}}" data-recv="{{comma .Completion}}" data-total="{{comma .Total}}">
+        <rect class="hit" x="{{sub .X 4}}" y="0" width="{{add .W 8}}" height="{{$base}}"></rect>
+        <rect class="bar-up"   x="{{.X}}" y="{{.UpY}}"   width="{{.W}}" height="{{.UpH}}"></rect>
+        <rect class="bar-down" x="{{.X}}" y="{{.DownY}}" width="{{.W}}" height="{{.DownH}}" rx="2"></rect>
+      </g>
+      {{end}}
+      <line class="gl" style="stroke-dasharray:none" x1="{{$pl}}" y1="{{$base}}" x2="{{$w}}" y2="{{$base}}"></line>
     </svg>
-    <div class="muted" style="font-size:11px;margin-top:6px">total tokens per run · oldest → newest</div>
+    <div class="charttip" id="charttip"></div>
+    </div>
+    <div class="chart-caption">oldest ──────────▶ newest</div>
+    <script>
+    (function(){
+      var tip=document.getElementById('charttip'),svg=document.getElementById('tokchart');
+      if(!tip||!svg)return;
+      var wrap=svg.closest('.chart-wrap');
+      svg.querySelectorAll('.barcol').forEach(function(g){
+        var d=g.dataset;
+        g.addEventListener('mouseenter',function(){
+          tip.innerHTML='<b>'+d.run+'</b><span>'+d.when+'</span>'+
+            '<i class="s">sent&nbsp;'+d.sent+'</i><i class="r">recv&nbsp;'+d.recv+'</i><i>total&nbsp;'+d.total+'</i>';
+          tip.style.opacity='1';
+        });
+        g.addEventListener('mousemove',function(e){
+          var r=wrap.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+          tip.style.left=Math.max(4,Math.min(x+14,r.width-tip.offsetWidth-4))+'px';
+          tip.style.top=Math.max(4,y-tip.offsetHeight-12)+'px';
+        });
+        g.addEventListener('mouseleave',function(){tip.style.opacity='0';});
+      });
+    })();
+    </script>
     {{else}}
-    <div class="muted" style="font-size:12px">No token data yet — run a digest generation.</div>
+    <div class="empty">No token data yet — run a digest generation.</div>
     {{end}}
   </div>
 
-  <div class="panel" style="padding:0">
+  <div class="panel reveal" style="animation-delay:.26s">
     <table>
       <thead>
         <tr>
           <th>Started</th>
           <th>Run</th>
           <th>Digest</th>
+          <th></th>
           <th class="num">Calls</th>
-          <th class="num">Tokens</th>
+          <th class="num">Sent</th>
+          <th class="num">Received</th>
+          <th class="num">Total</th>
+          <th class="num">Avg / Article</th>
         </tr>
       </thead>
       <tbody>
         {{range .Runs}}
         <tr>
-          <td class="muted">{{shortTime .StartedAt}}</td>
-          <td><a class="mono" href="/run/{{.Id}}">{{.Id}}</a>{{if .Title}}<div class="muted" style="font-size:12px">{{truncate 70 .Title}}</div>{{end}}</td>
-          <td class="mono muted">{{if .DigestId}}{{.DigestId}}{{else}}—{{end}}</td>
-          <td class="num">{{.CallCount}}</td>
+          <td class="muted mono" style="font-size:12px">{{shortTime .StartedAt}}</td>
+          <td>
+            <a class="runid" href="/run/{{.Id}}">{{.Id}}</a>
+            {{if .Title}}<div class="subtitle">{{truncate 64 .Title}}</div>{{end}}
+          </td>
+          <td class="mono faint" style="font-size:12px">{{if .DigestId}}{{.DigestId}}{{else}}—{{end}}</td>
+          <td>{{ratioBar .TotalPromptTokens .TotalCompletionTokens}}</td>
+          <td class="num muted">{{.CallCount}}</td>
+          <td class="num up">{{comma .TotalPromptTokens}}</td>
+          <td class="num down">{{comma .TotalCompletionTokens}}</td>
           <td class="num">{{comma .TotalTokens}}</td>
+          <td class="num muted">{{if .AvgTokensPerArticle}}{{comma .AvgTokensPerArticle}}{{if .ArticleCount}} <span class="faint" style="font-size:11px">/{{.ArticleCount}}</span>{{end}}{{else}}—{{end}}</td>
         </tr>
         {{else}}
-        <tr><td colspan="5" class="empty">No runs recorded yet.</td></tr>
+        <tr><td colspan="9" class="empty">No runs recorded yet.</td></tr>
         {{end}}
       </tbody>
     </table>

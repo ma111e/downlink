@@ -109,6 +109,73 @@ func TestPriorityKeyBoundaries(t *testing.T) {
 	}
 }
 
+func TestDefaultConfigParity(t *testing.T) {
+	// The Config methods on DefaultConfig must match the package-level wrappers
+	// across the whole score range and every dimension permutation edge.
+	cfg := DefaultConfig()
+	dimSets := []Dimensions{
+		{4, 4, 4, 4, 4, 4, false},
+		{0, 0, 0, 0, 0, 0, false},
+		{2, 2, 2, 2, 2, 2, false},
+		{4, 4, 4, 3, 4, 3, false},
+		{4, 4, 4, 4, 4, 4, true},                                   // aggregator override
+		{0, 4, 4, 4, 4, 4, false},                                  // evergreen cap
+		{1, 3, 0, 2, 4, 1, false},
+	}
+	for _, d := range dimSets {
+		if cfg.Compute(d) != Compute(d) {
+			t.Errorf("Config.Compute(%+v) = %d, package Compute = %d", d, cfg.Compute(d), Compute(d))
+		}
+	}
+	for score := 0; score <= 100; score++ {
+		if cfg.ReadTier(score) != ReadTier(score) {
+			t.Errorf("Config.ReadTier(%d) = %q, package ReadTier = %q", score, cfg.ReadTier(score), ReadTier(score))
+		}
+		if cfg.PriorityKey(score) != PriorityKey(score) {
+			t.Errorf("Config.PriorityKey(%d) = %q, package PriorityKey = %q", score, cfg.PriorityKey(score), PriorityKey(score))
+		}
+	}
+}
+
+func TestConfigCustomWeights(t *testing.T) {
+	// A profile that cares only about severity: all weight on Severity. A mid
+	// article (all 2s) then scores purely from severity = 2/4 = 50.
+	cfg := DefaultConfig()
+	cfg.Weights = DimensionWeights{Severity: 1.0}
+	if got := cfg.Compute(Dimensions{2, 2, 2, 2, 2, 2, false}); got != 50 {
+		t.Errorf("severity-only Compute = %d, want 50", got)
+	}
+	if got := cfg.Compute(Dimensions{0, 4, 0, 0, 0, 0, false}); got != 100 {
+		t.Errorf("severity-only max-severity Compute = %d, want 100", got)
+	}
+}
+
+func TestConfigCustomThresholds(t *testing.T) {
+	// A lenient profile that promotes more articles to higher tiers.
+	cfg := DefaultConfig()
+	cfg.TierMust, cfg.TierShould, cfg.TierMay = 70, 50, 30
+	cases := []struct {
+		score int
+		tier  string
+		key   string
+	}{
+		{70, "Must Read", "must"},
+		{69, "Should Read", "should"},
+		{50, "Should Read", "should"},
+		{49, "May Read", "may"},
+		{30, "May Read", "may"},
+		{29, "Optional", "opt"},
+	}
+	for _, c := range cases {
+		if got := cfg.ReadTier(c.score); got != c.tier {
+			t.Errorf("ReadTier(%d) = %q, want %q", c.score, got, c.tier)
+		}
+		if got := cfg.PriorityKey(c.score); got != c.key {
+			t.Errorf("PriorityKey(%d) = %q, want %q", c.score, got, c.key)
+		}
+	}
+}
+
 func TestWeightsSumToOne(t *testing.T) {
 	sum := Weights.Specificity + Weights.Severity + Weights.Breadth +
 		Weights.Novelty + Weights.Actionability + Weights.Credibility

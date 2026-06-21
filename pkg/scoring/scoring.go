@@ -79,23 +79,82 @@ func clampDim(v int) float64 {
 	return float64(v)
 }
 
+// DimensionWeights holds the per-dimension weights used by Config.Compute. It is
+// the named-type form of the package-level Weights var, so a profile can carry
+// its own weighting without touching package state.
+type DimensionWeights struct {
+	Specificity   float64
+	Severity      float64
+	Breadth       float64
+	Novelty       float64
+	Actionability float64
+	Credibility   float64
+}
+
+// Config is a self-contained, retunable instance of the importance model: the
+// dimension weights, the aggregator/evergreen overrides, and the read-tier
+// thresholds. Profiles each resolve their own Config; callers that want the
+// historical global behaviour use DefaultConfig (and the package-level Compute /
+// ReadTier / PriorityKey wrappers, which delegate to it).
+type Config struct {
+	Weights         DimensionWeights
+	AggregatorScore int
+	EvergreenCap    int
+	TierMust        int
+	TierShould      int
+	TierMay         int
+}
+
+// DefaultConfig returns the historical global model, sourced from the package
+// Weights var and the Aggregator/Evergreen/Tier constants so there is a single
+// source of truth for the defaults.
+func DefaultConfig() Config {
+	return Config{
+		Weights: DimensionWeights{
+			Specificity:   Weights.Specificity,
+			Severity:      Weights.Severity,
+			Breadth:       Weights.Breadth,
+			Novelty:       Weights.Novelty,
+			Actionability: Weights.Actionability,
+			Credibility:   Weights.Credibility,
+		},
+		AggregatorScore: AggregatorScore,
+		EvergreenCap:    EvergreenCap,
+		TierMust:        TierMustRead,
+		TierShould:      TierShouldRead,
+		TierMay:         TierMayRead,
+	}
+}
+
+// Compute aggregates rubric dimensions into a 0-100 importance score using the
+// default global model. See Config.Compute.
+func Compute(d Dimensions) int { return DefaultConfig().Compute(d) }
+
+// ReadTier returns the human-facing priority label for a 0-100 score using the
+// default global thresholds. See Config.ReadTier.
+func ReadTier(score int) string { return DefaultConfig().ReadTier(score) }
+
+// PriorityKey returns the short manifest bucket key for a 0-100 score using the
+// default global thresholds. See Config.PriorityKey.
+func PriorityKey(score int) string { return DefaultConfig().PriorityKey(score) }
+
 // Compute aggregates rubric dimensions into a 0-100 importance score.
 //
-// Each dimension is normalised to 0-1, combined via Weights into a weighted
+// Each dimension is normalised to 0-1, combined via c.Weights into a weighted
 // average, and scaled to 0-100. Overrides are then applied: aggregator articles
-// are forced to AggregatorScore, and pure-evergreen articles (Specificity == 0)
-// are capped at EvergreenCap.
-func Compute(d Dimensions) int {
+// are forced to c.AggregatorScore, and pure-evergreen articles (Specificity == 0)
+// are capped at c.EvergreenCap.
+func (c Config) Compute(d Dimensions) int {
 	if d.IsAggregator {
-		return AggregatorScore
+		return c.AggregatorScore
 	}
 
-	weighted := Weights.Specificity*clampDim(d.Specificity) +
-		Weights.Severity*clampDim(d.Severity) +
-		Weights.Breadth*clampDim(d.Breadth) +
-		Weights.Novelty*clampDim(d.Novelty) +
-		Weights.Actionability*clampDim(d.Actionability) +
-		Weights.Credibility*clampDim(d.Credibility)
+	weighted := c.Weights.Specificity*clampDim(d.Specificity) +
+		c.Weights.Severity*clampDim(d.Severity) +
+		c.Weights.Breadth*clampDim(d.Breadth) +
+		c.Weights.Novelty*clampDim(d.Novelty) +
+		c.Weights.Actionability*clampDim(d.Actionability) +
+		c.Weights.Credibility*clampDim(d.Credibility)
 
 	score := int(math.Round(weighted / dimMax * 100))
 
@@ -108,8 +167,8 @@ func Compute(d Dimensions) int {
 
 	// Pure-evergreen content cannot exceed the "May Read" floor regardless of how
 	// well it scores on other dimensions.
-	if d.Specificity == 0 && score > EvergreenCap {
-		score = EvergreenCap
+	if d.Specificity == 0 && score > c.EvergreenCap {
+		score = c.EvergreenCap
 	}
 
 	return score
@@ -117,13 +176,13 @@ func Compute(d Dimensions) int {
 
 // ReadTier returns the human-facing priority label for a 0-100 score, used for
 // digest table-of-contents grouping.
-func ReadTier(score int) string {
+func (c Config) ReadTier(score int) string {
 	switch {
-	case score >= TierMustRead:
+	case score >= c.TierMust:
 		return "Must Read"
-	case score >= TierShouldRead:
+	case score >= c.TierShould:
 		return "Should Read"
-	case score >= TierMayRead:
+	case score >= c.TierMay:
 		return "May Read"
 	case score > 0:
 		return "Optional"
@@ -134,14 +193,14 @@ func ReadTier(score int) string {
 
 // PriorityKey returns the short bucket key for a 0-100 score, used for digest
 // manifest priority tallies. Unlike ReadTier it has no "unscored" bucket;
-// anything below TierMayRead falls into "opt".
-func PriorityKey(score int) string {
+// anything below TierMay falls into "opt".
+func (c Config) PriorityKey(score int) string {
 	switch {
-	case score >= TierMustRead:
+	case score >= c.TierMust:
 		return "must"
-	case score >= TierShouldRead:
+	case score >= c.TierShould:
 		return "should"
-	case score >= TierMayRead:
+	case score >= c.TierMay:
 		return "may"
 	default:
 		return "opt"

@@ -24,6 +24,7 @@ func createPublishCommands() *cobra.Command {
 		commitAuthor   string
 		commitEmail    string
 		layout         string
+		windowDays     int
 	)
 
 	cmd := &cobra.Command{
@@ -44,6 +45,7 @@ GitHub directly using the provided token.`,
 	cmd.PersistentFlags().StringVar(&commitAuthor, "commit-author", "", "Git commit author name (default: downlink-bot)")
 	cmd.PersistentFlags().StringVar(&commitEmail, "commit-email", "", "Git commit author email (default: downlink-bot@users.noreply.github.com)")
 	cmd.PersistentFlags().StringVar(&layout, "theme", "", "Layout theme for rendered pages, empty = default (see: digest list --themes)")
+	cmd.PersistentFlags().IntVar(&windowDays, "window-days", 0, "Days of digests to retain in the manifest and feeds (0 = default 30; env: DOWNLINK_GH_PAGES_WINDOW_DAYS)")
 
 	buildConfig := func() (models.GitHubPagesNotificationConfig, error) {
 		envBool := func(key string, current bool) (bool, error) {
@@ -80,6 +82,12 @@ GitHub directly using the provided token.`,
 			return models.GitHubPagesNotificationConfig{}, err
 		}
 
+		if windowDays == 0 {
+			if v, err := strconv.Atoi(strings.TrimSpace(os.Getenv("DOWNLINK_GH_PAGES_WINDOW_DAYS"))); err == nil && v > 0 {
+				windowDays = v
+			}
+		}
+
 		tok := token
 		if tok == "" {
 			tok = os.Getenv("DOWNLINK_GH_PAGES_TOKEN")
@@ -91,15 +99,16 @@ GitHub directly using the provided token.`,
 			return models.GitHubPagesNotificationConfig{}, fmt.Errorf("token required: use --token or set DOWNLINK_GH_PAGES_TOKEN")
 		}
 		return models.GitHubPagesNotificationConfig{
-			RepoURL:        repo,
-			Branch:         branch,
-			Token:          tok,
-			OutputDir:      outputDir,
-			ConfigurePages: configurePages,
-			CloneDir:       cloneDir,
-			CommitAuthor:   commitAuthor,
-			CommitEmail:    commitEmail,
-			Layout:         layout,
+			RepoURL:           repo,
+			Branch:            branch,
+			Token:             tok,
+			OutputDir:         outputDir,
+			ConfigurePages:    configurePages,
+			CloneDir:          cloneDir,
+			CommitAuthor:      commitAuthor,
+			CommitEmail:       commitEmail,
+			Layout:            layout,
+			PublishWindowDays: windowDays,
 		}, nil
 	}
 

@@ -1,0 +1,47 @@
+{{define "title"}}{{.Run.Id}} · Feed Refresh{{end}}
+{{define "crumb"}}<a href="/feeds">feeds</a> / {{.Run.Id}}{{end}}
+{{define "content"}}
+  <div class="panel pad reveal" style="animation-delay:.04s">
+    <div style="font-family:var(--font-mono);font-size:13px">{{.Run.Trigger}} refresh</div>
+    <div class="mono faint" style="margin-top:6px;font-size:12px">
+      started {{shortTime .Run.StartedAt}}{{if .Run.FinishedAt}} · finished {{shortTime .Run.FinishedAt}}{{end}}
+    </div>
+  </div>
+
+  <div class="section-label reveal" style="animation-delay:.08s;margin:24px 0 14px">Feeds</div>
+
+  {{range .Results}}
+  <details class="call reveal"{{if or (not .Success) .ErrorCount}} open{{end}}>
+    <summary>
+      <span class="label">{{if .FeedTitle}}{{.FeedTitle}}{{else}}{{.FeedId}}{{end}}</span>
+      <span class="model">{{.FeedURL}}</span>
+      {{if not .Success}}<span class="chip err">fetch failed</span>
+      {{else if .ErrorCount}}<span class="chip err">{{.ErrorCount}} item error{{if gt .ErrorCount 1}}s{{end}}</span>
+      {{else}}<span class="chip u">ok</span>{{end}}
+      <span class="spacer"></span>
+      <span class="model">{{comma .TotalFetched}} fetched · {{comma .Stored}} stored · {{comma .Skipped}} skipped</span>
+      <span class="model">{{durMs .DurationMs}}</span>
+    </summary>
+    <div class="body">
+      {{if .FetchError}}<h4>Fetch error</h4><pre class="text err">{{.FetchError}}</pre>{{end}}
+      {{if .Errors}}
+      <h4>Item errors ({{.ErrorCount}})</h4>
+      <pre class="text err">{{range .Errors}}{{.}}
+{{end}}</pre>
+      {{end}}
+      {{if and (not .FetchError) (not .Errors)}}
+      <div class="muted mono" style="font-size:12px;padding:8px 0">No errors — {{comma .Stored}} stored, {{comma .Skipped}} skipped.</div>
+      {{end}}
+      {{if .RawBody}}
+      <h4>Raw body{{if .RawType}} · {{.RawType}}{{end}}{{if .RawStatus}} · HTTP {{.RawStatus}}{{end}} · {{comma (len .RawBody)}} bytes</h4>
+      <pre class="text">{{.RawBody}}</pre>
+      {{else}}
+      <h4>Raw body</h4>
+      <div class="muted mono" style="font-size:12px;padding:4px 0">No raw body captured.</div>
+      {{end}}
+    </div>
+  </details>
+  {{else}}
+  <div class="panel"><div class="empty">No feeds recorded for this run.</div></div>
+  {{end}}
+{{end}}

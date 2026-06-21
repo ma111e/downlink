@@ -37,6 +37,7 @@ func newDevDigestCommand() *cobra.Command {
 		templatesDir string
 		noOpen       bool
 		testDigestID string
+		theme        string
 		from         string
 		to           string
 		between      string
@@ -100,6 +101,7 @@ the archive index against real data).`,
 				TemplatesDir: templatesDir,
 				OpenBrowser:  !noOpen,
 				Digests:      digests,
+				Theme:        theme,
 			})
 		},
 	}
@@ -108,6 +110,7 @@ the archive index against real data).`,
 	cmd.Flags().StringVar(&templatesDir, "templates-dir", "cmd/server/internal/notification/templates", "Directory of *.tmpl files to serve and watch")
 	cmd.Flags().BoolVar(&noOpen, "no-open", false, "Do not open the browser on startup")
 	cmd.Flags().StringVar(&testDigestID, "test-digest-id", "", "Render this digest id from the local DB instead of the sample fixture")
+	cmd.Flags().StringVar(&theme, "theme", "", `Template layout to use (e.g. "emerald"; default: "default")`)
 	cmd.Flags().StringVar(&from, "from", "", "Start of the window selecting stored digests by creation time (e.g., 'now', '2025-01-01', '24h'; default: 24h)")
 	cmd.Flags().StringVar(&to, "to", "", "End of the window selecting stored digests by creation time (e.g., 'now', '2025-01-01', '1h')")
 	cmd.Flags().StringVar(&between, "between", "", "Select stored digests created between two dates/durations (e.g., '7d,1d', '2025-01-01,2025-01-07')")

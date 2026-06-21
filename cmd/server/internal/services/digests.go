@@ -1162,10 +1162,18 @@ return an empty definition for it — do not guess.
 type must be ONE of: threat-actor, malware, tool, technique, vulnerability, protocol, concept,
 organization, product, other.
 
-difficulty must be ONE of:
-  - beginner: a common, widely-known term most people have heard of (e.g. phishing, password, VPN)
-  - intermediate: a security-specific term a newcomer to the field would need explained (e.g. C2, lateral movement, RAT)
-  - advanced: a niche or obscure term even many practitioners would not know offhand (e.g. a specific malware family, an uncommon technique)
+difficulty must be ONE of — rate by how much help a reader needs with the term, not by how
+sophisticated it sounds:
+  - beginner: a common, widely-known term most general readers have already heard outside security
+    (e.g. phishing, password, VPN, malware, firewall). Test: would a non-technical reader recognise
+    it? Do not rate a term higher just because it appears in a technical article.
+  - intermediate: a security-specific term a newcomer to the field would need explained but any
+    practitioner knows cold (e.g. C2, lateral movement, RAT, privilege escalation, EDR). This is
+    the default bucket for standard tradecraft and well-known protocols, tools, and techniques.
+  - advanced: a niche or obscure term even many practitioners would not know offhand — a specific
+    named malware family, an uncommon technique, a narrow CVE, a less-known threat actor or tool
+    (e.g. a specific loader family, an unusual evasion technique). Do not rate generic tradecraft as
+    advanced just because it is technical.
 
 Echo back each term exactly as given (the key).
 

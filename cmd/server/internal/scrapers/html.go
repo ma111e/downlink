@@ -31,10 +31,10 @@ func NewHTMLLinkScraper(configSelectors *models.Selectors) *HTMLLinkScraper {
 // Fetch GETs the index page and returns one FeedItem per matched post link.
 // Required param: links_selector (CSS selector scoping the post anchors).
 // Optional param: url_filter (substring an href must contain to be kept).
-func (s *HTMLLinkScraper) Fetch(feedURL string, params map[string]any) ([]models.FeedItem, error) {
+func (s *HTMLLinkScraper) Fetch(feedURL string, params map[string]any) ([]models.FeedItem, *RawResponse, error) {
 	linksSelector, _ := params["links_selector"].(string)
 	if strings.TrimSpace(linksSelector) == "" {
-		return nil, fmt.Errorf("html scraper requires a 'links_selector' option")
+		return nil, nil, fmt.Errorf("html scraper requires a 'links_selector' option")
 	}
 	urlFilter, _ := params["url_filter"].(string)
 
@@ -42,7 +42,7 @@ func (s *HTMLLinkScraper) Fetch(feedURL string, params map[string]any) ([]models
 
 	raw, err := FetchRaw(feedURL, HeadersFromParams(params))
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch index page: %w", err)
+		return nil, nil, fmt.Errorf("failed to fetch index page: %w", err)
 	}
 
 	// Resolve relative links against the final URL (after redirects) when available.
@@ -53,7 +53,7 @@ func (s *HTMLLinkScraper) Fetch(feedURL string, params map[string]any) ([]models
 
 	items, err := parseLinkList(raw.Body, base, linksSelector, urlFilter)
 	if err != nil {
-		return nil, err
+		return nil, &raw, err
 	}
 
 	log.WithFields(log.Fields{
@@ -61,7 +61,7 @@ func (s *HTMLLinkScraper) Fetch(feedURL string, params map[string]any) ([]models
 		"items": len(items),
 	}).Debug("HTML link list fetched successfully")
 
-	return items, nil
+	return items, &raw, nil
 }
 
 // ScrapeContent fetches and extracts a single linked article, reusing the shared

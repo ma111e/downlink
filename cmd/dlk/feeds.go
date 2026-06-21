@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"charm.land/huh/v2"
@@ -143,63 +142,31 @@ func (d *progressDisplay) printErrors() {
 // returns an error only when the feed list itself cannot be fetched; per-feed
 // scrape failures are surfaced through the progress display.
 func refreshAllFeedsWithWindow(client *downlinkclient.DownlinkClient, fromTime, toTime *time.Time, overwrite, restore bool, lastN int) error {
-	all, err := client.ListFeeds()
-	if err != nil {
-		return fmt.Errorf("failed to list feeds: %w", err)
-	}
-
-	var feeds []models.Feed
-	for _, f := range all {
-		if f.Enabled != nil && *f.Enabled {
-			feeds = append(feeds, f)
-		}
-	}
-
-	if len(feeds) == 0 {
-		fmt.Println("No feeds to refresh.")
-		return nil
-	}
-
 	display := newProgressDisplay()
 	display.startSpinner()
 
-	for _, feed := range feeds {
-		display.addFeed(feed.Id, feed.Title)
-	}
-
-	var totalStored, totalSkipped, totalErrors atomic.Int32
-	sem := make(chan struct{}, 4)
-	var wg sync.WaitGroup
-
-	for _, feed := range feeds {
-		wg.Add(1)
-		feed := feed
-		sem <- struct{}{}
-		go func() {
-			defer wg.Done()
-			defer func() { <-sem }()
-			resp, err := client.RefreshFeedWithTimeWindow(feed.Id, fromTime, toTime, overwrite, restore, lastN)
-			if err != nil {
-				display.completeFeed(&protos.RefreshFeedResponse{
-					FeedId:    feed.Id,
-					FeedTitle: feed.Title,
-					Errors:    []string{err.Error()},
-				})
-			} else {
-				display.completeFeed(resp)
-				totalStored.Add(resp.Stored)
-				totalSkipped.Add(resp.Skipped)
-				totalErrors.Add(int32(len(resp.Errors)))
-			}
-		}()
-	}
-	wg.Wait()
+	var totalStored, totalSkipped, totalErrors int32
+	err := client.RefreshAllFeedsWithTimeWindow(fromTime, toTime, overwrite, restore, lastN, func(ev *protos.RefreshAllFeedsEvent) {
+		switch ev.EventType {
+		case protos.RefreshEventType_STARTED:
+			display.addFeed(ev.Result.FeedId, ev.Result.FeedTitle)
+		case protos.RefreshEventType_COMPLETED:
+			display.completeFeed(ev.Result)
+			totalStored += ev.Result.Stored
+			totalSkipped += ev.Result.Skipped
+			totalErrors += int32(len(ev.Result.Errors))
+		}
+	})
 	display.stop()
 	display.printErrors()
 
-	fmt.Printf("\nDone. %d stored, %d skipped", totalStored.Load(), totalSkipped.Load())
-	if totalErrors.Load() > 0 {
-		fmt.Printf(", %d scrape errors", totalErrors.Load())
+	if err != nil {
+		return fmt.Errorf("failed to refresh feeds: %w", err)
+	}
+
+	fmt.Printf("\nDone. %d stored, %d skipped", totalStored, totalSkipped)
+	if totalErrors > 0 {
+		fmt.Printf(", %d scrape errors", totalErrors)
 	}
 	fmt.Println()
 	return nil

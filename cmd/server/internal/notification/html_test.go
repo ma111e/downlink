@@ -357,11 +357,13 @@ func TestRenderDigestHTMLGlossaryMode(t *testing.T) {
 	html := string(htmlBytes)
 
 	for _, want := range []string{
-		// Multi-step help-level slider + persistence plumbing appear when beginner-aid content exists.
-		`id="nav-help"`,
-		`id="nav-help-slider"`,
+		// LEARNING toggle + mini-dots indicator + in-menu help-level slider appear when beginner-aid content exists.
+		`id="nav-learn-switch"`,
+		`onclick="toggleLearning()"`,
+		`id="nav-help-mini"`,
+		`id="help-slider"`,
 		`role="slider"`,
-		`class="nav-help-dot" data-level="3"`,
+		`class="help-slider-dot" data-pos="0" data-level="3"`,
 		`id="learn-card"`,
 		`id="nav-learn-caret"`,
 		// The three per-feature switches inside the card.
@@ -464,7 +466,7 @@ func TestRenderDigestHTMLGlossaryPopup(t *testing.T) {
 		// The entity name is highlighted in the prose (regex matches "Cobalt Strike" from slug).
 		`<mark class="tag-hl">Cobalt Strike</mark>`,
 		// Help-level control is rendered since the digest has beginner-aid content.
-		`id="nav-help"`,
+		`id="nav-learn-switch"`,
 		// The highlighted entity carries its help tier so the level filter can reveal/hide it.
 		`m.dataset.lvl =`,
 	} {
@@ -519,7 +521,7 @@ func TestRenderDigestHTMLPlainWords(t *testing.T) {
 		`.plain-words-block { display: none; }`,
 		`html[data-learning="on"][data-learn-plain="on"] .plain-words-block { display: block; }`,
 		// The help-level control is available even though the digest has no glossary content.
-		`id="nav-help"`,
+		`id="nav-learn-switch"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderDigestHTML() missing plain-words fragment %q:\n%s", want, html)
@@ -535,7 +537,7 @@ func TestRenderDigestHTMLNoGlossaryToggleWhenAbsent(t *testing.T) {
 	}
 	html := string(htmlBytes)
 
-	if strings.Contains(html, `id="nav-help"`) {
+	if strings.Contains(html, `id="nav-learn-switch"`) {
 		t.Fatal("RenderDigestHTML() rendered the help-level control for a digest with no beginner-aid content")
 	}
 	if strings.Contains(html, `class="panel-section glossary-block"`) {

@@ -63,4 +63,12 @@ type Store interface {
 	ListLLMRunSummaries(limit int) ([]LLMRunSummary, error)
 	GetLLMRun(id string) (models.LLMRun, error)
 	ListLLMCallsForRun(runID string) ([]LLMCallView, error)
+
+	StartFeedRefreshRun(id, trigger string, startedAt time.Time) error
+	RecordFeedRefresh(in FeedRefreshInput) error
+	FinishFeedRefreshRun(id string, finishedAt time.Time) error
+	ListFeedRefreshRunSummaries(limit int) ([]FeedRefreshRunSummary, error)
+	GetFeedRefreshRun(id string) (models.FeedRefreshRun, error)
+	ListFeedRefreshResultsForRun(runID string) ([]FeedRefreshResultView, error)
+	PruneFeedRefreshRuns(keep int) error
 }

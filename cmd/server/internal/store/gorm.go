@@ -125,6 +125,8 @@ func (s *GormStore) initSchema() error {
 		&models.FeedGroup{},
 		&models.LLMRun{},
 		&models.LLMCall{},
+		&models.FeedRefreshRun{},
+		&models.FeedRefreshResult{},
 		// Add any new allModels here
 	}
 

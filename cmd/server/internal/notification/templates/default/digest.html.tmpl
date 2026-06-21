@@ -11,12 +11,12 @@
     var valid = { {{range .Themes}}"{{.Value}}": 1, {{end}} };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    // Help level (multi-step): 1=Light, 2=Standard, 3=Full; absent=off. Higher levels explain
-    // more terms. A legacy on/off Learning preference maps to Standard. Per-feature sub-toggles
-    // default on unless explicitly turned off.
+    // Learning master on/off + help level (1=Pro, 2=Standard, 3=Novice). The level decides how
+    // much jargon shows (term shown when level >= its tier); it defaults to Novice (3) when unset.
+    // Per-feature sub-toggles default on unless explicitly turned off.
     var lvl = localStorage.getItem('downlink.help.level');
-    if (lvl !== '1' && lvl !== '2' && lvl !== '3' && localStorage.getItem('downlink.learning') === 'on') lvl = '2';
-    if (lvl === '1' || lvl === '2' || lvl === '3') {
+    if (lvl !== '1' && lvl !== '2' && lvl !== '3') lvl = '3';
+    if (localStorage.getItem('downlink.learning') === 'on') {
       var d = document.documentElement.dataset;
       d.learning = 'on';
       d.helpLevel = lvl;
@@ -34,6 +34,12 @@
 <meta property="og:title" content="{{if .DigestTitle}}{{.DigestTitle}} — DOWNLINK{{else}}DOWNLINK Intelligence Digest{{end}}">
 <meta property="og:description" content="{{.ArticleCount}} articles curated from a {{.TimeWindow}} window.">
 {{if .DigestTitle}}<title>{{.DigestTitle}} — DOWNLINK</title>{{else}}<title>DOWNLINK — {{.StartedAt}}</title>{{end}}
+<link rel="icon" type="image/x-icon" href="./favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png">
+<link rel="apple-touch-icon" sizes="128x128" href="./icon-128.png">
+<link rel="manifest" href="./site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -213,7 +219,7 @@ html[data-theme="pastel"] {
   --bg:      #faf6e6;  /* soft cream                              — */
   --surface: #fffdf4;  /* warm near-white cards                   — */
   --surface2:#f1ead2;  /* deeper cream for alt surfaces           — */
-  --surface-raised: #ffffff;  /* elevated card: pure white, lighter than --surface */
+  --surface-raised: #fffdf4;  /* elevated card: same warm near-white as --surface */
   --border:  #e6dcbf;  /* warm border                            1.2:1 on bg */
   --border2: #d2c5a2;  /* stronger warm border                   1.5:1 on bg */
   --text:    #3a3137;  /* deep warm plum                        ~10:1 on bg */
@@ -248,8 +254,9 @@ html {
   font-size: clamp(15px, 1dvw, 20px);
   line-height: 1.6;
   scroll-behavior: smooth;
+  overflow-x: clip;   /* swallow the full-bleed nav's 100vw overflow without making html a scroll container (keeps sticky) */
 }
-body { min-height: 100vh; max-width: 900px; margin: 0 auto; }
+body { min-height: 100vh; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; }
 ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -284,11 +291,20 @@ a:hover { text-decoration: underline; }
   z-index: 100;
   background: color-mix(in oklch, var(--bg) 90%, transparent);
   backdrop-filter: blur(16px);
-  margin: 0 40px;
+  border-bottom: 1px solid var(--border);
+  /* full-bleed: break out of the 900px body column to span the viewport */
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  padding: 0 24px;
   height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 .nav-logo {
   display: flex;
@@ -310,12 +326,13 @@ a:hover { text-decoration: underline; }
   padding: 1px 6px;
   border-radius: 2px;
 }
-.nav-center {
+.nav-meta {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.3;
 }
-.nav-date  { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; }
+.nav-date  { font-family: var(--mono); font-size: 11px; color: var(--text2); letter-spacing: 0.06em; }
 .nav-right {
   display: flex;
   align-items: center;
@@ -376,95 +393,99 @@ a:hover { text-decoration: underline; }
 /* Learning mode: a master switch that reveals the newcomer aids, plus a caret-opened card of
    per-feature switches. */
 .nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
-/* Multi-step "help level" control: Off | Light | Standard | Full. Higher = more jargon explained. */
-.nav-help {
-  position: relative; /* anchor for the floating level flash */
+/* Master LEARNING on/off pill. */
+.nav-learn-switch {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
+  height: 24px;
+  box-sizing: border-box;
   font-family: var(--mono);
   font-size: 10px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 0 8px;
+  cursor: pointer;
   text-transform: uppercase;
 }
-/* Transient level label: floats in just right of the slider on change, then fades out. Absolutely
-   positioned so it has no footprint and never shifts the control; may briefly overlap the caret. */
-.nav-help-flash {
-  position: absolute;
-  left: calc(100% + 6px);
-  top: 50%;
-  transform: translateY(-50%);
-  white-space: nowrap;
-  color: var(--should);
-  background: color-mix(in oklch, var(--bg) 88%, transparent);
-  padding: 2px 5px;
-  border-radius: 2px;
-  pointer-events: none;
-  z-index: 60;
-  opacity: 0;
-  transition: opacity .2s ease;
-}
-.nav-help-flash.is-show { opacity: 1; }
-/* Effort-style slider: dark pill track, evenly-spaced tick dots, a sliding knob. */
-.nav-help-slider {
+.nav-learn-switch:hover { border-color: var(--should); color: var(--text); }
+.nav-learn-switch:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.nav-learn-track {
   position: relative;
-  width: 84px;
-  height: 18px;
-  flex: none;
-  cursor: pointer;
-  touch-action: none;
+  width: 20px;
+  height: 11px;
   border-radius: 999px;
-}
-.nav-help-slider:focus-visible { outline: 1px solid var(--should); outline-offset: 2px; }
-.nav-help-track {
-  position: absolute;
-  top: 50%;
-  left: 5px;
-  right: 5px;
-  height: 4px;
-  transform: translateY(-50%);
   background: var(--border2);
-  border-radius: 999px;
+  transition: background .15s;
+  flex: none;
 }
-.nav-help-dot {
+.nav-learn-knob {
   position: absolute;
-  top: 50%;
-  width: 5px;
-  height: 5px;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--text3);
-  transform: translate(-50%, -50%);
-  transition: background .12s;
-  /* leave room for the knob: dots span from 5px to (100% - 5px). */
+  transition: transform .15s, background .15s;
 }
-.nav-help-dot[data-level="0"] { left: 5px; }
-.nav-help-dot[data-level="1"] { left: calc(5px + (100% - 10px) * 0.3333); }
-.nav-help-dot[data-level="2"] { left: calc(5px + (100% - 10px) * 0.6666); }
-.nav-help-dot[data-level="3"] { left: calc(100% - 5px); }
-.nav-help-dot.is-filled { background: color-mix(in oklch, var(--should) 70%, var(--text3)); }
-/* The max dot pops in the accent color, like the mockup's end stop. */
-.nav-help-dot[data-level="3"] { background: color-mix(in oklch, var(--should) 55%, var(--surface)); }
-.nav-help-dot[data-level="3"].is-filled { background: var(--should); }
-.nav-help-knob {
+.nav-learn-switch[aria-checked="true"] {
+  color: var(--should);
+  border-color: color-mix(in oklch, var(--should) 45%, transparent);
+  background: color-mix(in oklch, var(--should) 10%, transparent);
+}
+.nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
+.nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+/* Compact level indicator (mirrors the in-menu slider position). Visible only when learning is on,
+   but its box is always reserved so toggling never shifts the row. */
+.nav-help-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  /* Match the caret box height so the dots get a roomy, transparent square hit area. */
+  height: 24px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  visibility: hidden;
+  cursor: pointer;
+  position: relative;
+}
+html[data-learning="on"] .nav-help-mini { visibility: visible; }
+.nav-help-mini-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--text3); transition: background .12s; }
+.nav-help-mini-dot.is-active { background: var(--should); }
+/* Transient label that flashes the new help level next to the dots after a change.
+   Absolutely positioned so it never reflows the nav row. */
+.nav-help-flash {
   position: absolute;
-  top: 50%;
-  left: 0;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--text);
-  border: 1px solid var(--border);
-  transform: translate(-50%, -50%);
-  transition: left .12s;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--should);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity .2s;
   pointer-events: none;
-  box-shadow: 0 1px 3px rgba(0,0,0,.4);
 }
+.nav-help-flash.is-shown { opacity: 1; }
 .nav-learn-caret {
+  height: 24px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
   font-size: 10px;
   color: var(--text2);
   background: var(--surface);
   border: 1px solid var(--border2);
   border-radius: 2px;
-  padding: 3px 5px;
+  padding: 0 7px;
   cursor: pointer;
   line-height: 1;
   /* Always reserve the caret's box; only its visibility toggles, so the row never shifts. */
@@ -494,6 +515,65 @@ html[data-learning="on"] .nav-learn-caret { visibility: visible; pointer-events:
   text-transform: uppercase;
   color: var(--text3);
   padding: 2px 4px 6px;
+}
+/* In-menu help-level slider: track + 3 stops (left=Novice/most help, right=Pro/least) + knob. */
+.help-slider {
+  position: relative;
+  width: auto;
+  height: 20px;
+  margin: 0 4px 2px;
+  cursor: pointer;
+  touch-action: none;
+  border-radius: 999px;
+}
+.help-slider:focus-visible { outline: 1px solid var(--should); outline-offset: 2px; }
+.help-slider-track {
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  right: 5px;
+  height: 4px;
+  transform: translateY(-50%);
+  background: var(--border2);
+  border-radius: 999px;
+}
+.help-slider-dot {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text3);
+  transform: translate(-50%, -50%);
+  transition: background .12s;
+}
+.help-slider-dot[data-pos="0"] { left: 5px; }
+.help-slider-dot[data-pos="1"] { left: 50%; }
+.help-slider-dot[data-pos="2"] { left: calc(100% - 5px); }
+.help-slider-dot.is-active { background: var(--should); }
+.help-slider-knob {
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 1px solid var(--border);
+  transform: translate(-50%, -50%);
+  transition: left .12s;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+.help-slider-ends {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
 }
 .learn-feature {
   display: flex;
@@ -607,6 +687,7 @@ html[data-learning="on"] .nav-learn-caret { visibility: visible; pointer-events:
 /* ── toc ─────────────────────────────────────────── */
 #toc {
   padding: 0 40px;
+  flex: 1;
 }
 .toc-card {
   background: var(--surface);
@@ -614,11 +695,13 @@ html[data-learning="on"] .nav-learn-caret { visibility: visible; pointer-events:
   border-radius: var(--radius);
   overflow: hidden;
 }
+/* title + filters card sits flush on the page: no fill, no border */
+.toc-card-head { background: none; border: none; }
 .toc-header {
   padding: 13px 20px;
 }
 /* the filters and the reading list sit in separate cards, gapped like the title↔filters spacing */
-#toc .toc-card + .toc-card { margin-top: 20px; }
+#toc .toc-card + .toc-card { margin: 20px 0; }
 .toc-body { padding: 8px 20px 16px; }
 .toc-group { margin-bottom: 4px; }
 .toc-group-head {
@@ -730,7 +813,7 @@ html[data-learning="on"] .nav-learn-caret { visibility: visible; pointer-events:
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface-raised);   /* dedicated elevated surface, lighter than the list card in every theme */
-  box-shadow: 0 1px 2px rgba(0,0,0,0.25), 0 6px 16px rgba(0,0,0,0.18);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.10);
 }
 .toc-row-wrap::before {
   content: "";
@@ -933,7 +1016,7 @@ html[data-learning="on"] .nav-learn-caret { visibility: visible; pointer-events:
   padding: 2px 7px;
   border-radius: 3px;
   color: var(--text2);
-  background: var(--surface2);
+  background: var(--surface);
   border: 1px solid var(--border2);
   cursor: pointer;
 }
@@ -1070,7 +1153,7 @@ html[data-learning="on"] .nav-learn-caret { visibility: visible; pointer-events:
   padding: 2px 7px;
   border-radius: 3px;
   color: var(--text2);
-  background: var(--surface2);
+  background: var(--surface);
   border: 1px solid var(--border2);
 }
 .meta-tag[data-tag] { cursor: pointer; }
@@ -1221,7 +1304,7 @@ html[data-help-level="2"] mark.tag-hl[data-lvl="3"]:hover {
 .glossary-popup-close:hover { color: var(--text); }
 .glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
 .glossary-popup-type {
-  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  display: inline-block; padding: .05rem .4rem;
   border: 1px solid var(--border); border-radius: 999px;
   font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
   color: var(--text2);
@@ -1273,11 +1356,10 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
   flex-direction: column;
   background: var(--surface, var(--bg));
   border-left: 1px solid var(--border);
-  box-shadow: -8px 0 28px rgba(0,0,0,.35);
   transform: translateX(100%);
   transition: transform .2s ease;
 }
-.glossary-panel.is-open { transform: none; }
+.glossary-panel.is-open { transform: none; box-shadow: -8px 0 28px rgba(0,0,0,.35); }
 .glossary-panel-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: .9rem 1rem; border-bottom: 1px solid var(--border); flex: none;
@@ -1330,7 +1412,7 @@ html[data-help-level="2"] .glossary-panel-entry[data-lvl="3"] { display: none; }
 .report-item {
   position: relative;
   border: 1px solid var(--border);
-  background: var(--surface2);
+  background: var(--surface);
   border-radius: var(--radius);
   padding: 0.75rem 0.85rem;
 }
@@ -1446,7 +1528,7 @@ html[data-learning="on"][data-learn-plain="on"] .why-block { display: block; }
   padding: 4px 12px;
   border-radius: 3px;
   color: var(--cyan);
-  background: var(--surface2);
+  background: var(--surface);
   border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
   cursor: pointer;
   margin-top: 0.5rem;
@@ -1485,10 +1567,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 }
 /* indent so the └ lines up with the canonical row's title:
    row padding-left 12 + chevron 16 + gap 12 + toc-num 20 + gap 12 = 72px */
-.toc-cluster-members { list-style: none; padding-left: 72px; }
+/* right gutter = canonical row's chevron column (padding-right 8 + chevron 16 +
+   margin-left 8 = 32px); keeps member provider/tags aligned with the row above */
+.toc-cluster-members { list-style: none; padding-left: 72px; padding-right: 32px; padding-top: 6px; }
 .toc-cluster-member {
   display: flex; gap: 8px; align-items: flex-start;
-  padding: 4px 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+  padding: 8px 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
 }
 .toc-cluster-member:last-child { border-bottom: none; }
 
@@ -1499,6 +1583,9 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* full-bleed: break out of the 900px body column to span the viewport */
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
 }
 .footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
@@ -1542,9 +1629,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 /* ── responsive ──────────────────────────────────── */
 @media (max-width: 700px) {
-  #nav { margin: 0 16px; padding: 10px 0; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
-  .nav-center { display: none; }
-  .nav-window { display: none; }
+  #nav { margin: 0; padding: 10px 16px; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+  .nav-meta { display: none; }
   .nav-right { display: contents; }
   .nav-swipe { order: 1; margin-left: auto; }
   .nav-count { order: 2; width: 100%; white-space: normal; flex-wrap: wrap; }
@@ -1579,20 +1665,59 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 @container (min-width: 960px) {
   .overview-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* First-visit onboarding tour: a dim overlay whose spotlight cutout frames one nav control while a
+   floating card explains it. Only rendered on Learning pages; shown once (downlink.onboarded) and
+   replayable from the footer. */
+.tour-overlay { position: fixed; inset: 0; z-index: 2000; background: transparent; }
+.tour-spotlight {
+  position: fixed; z-index: 2001; pointer-events: none;
+  top: 0; left: 0; width: 0; height: 0;
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62), 0 0 0 2px var(--should);
+  transition: top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+.tour-spotlight.is-centered { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62); }
+.tour-card {
+  position: fixed; z-index: 2002; box-sizing: border-box;
+  width: min(340px, calc(100vw - 28px));
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border2); border-radius: 10px;
+  padding: 15px 17px 13px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  font-family: var(--sans);
+}
+.tour-card-step { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+.tour-card-title { font-size: 15px; font-weight: 600; line-height: 1.25; margin: 0 0 6px; color: var(--text); }
+.tour-card-body { font-size: 13px; line-height: 1.5; color: var(--text2); margin: 0; }
+.tour-card-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.tour-dots { display: inline-flex; gap: 5px; align-items: center; margin-right: auto; }
+.tour-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); }
+.tour-dots span.is-active { background: var(--should); }
+.tour-btn { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 5px 11px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; }
+.tour-btn:hover { border-color: var(--should); color: var(--text); }
+.tour-btn:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.tour-btn-primary { background: var(--should); border-color: var(--should); color: var(--bg); }
+.tour-btn-primary:hover { color: var(--bg); filter: brightness(1.06); }
+.tour-skip { border: none; color: var(--text3); padding-left: 2px; }
+.tour-skip:hover { border: none; color: var(--text2); }
+@media (prefers-reduced-motion: reduce) { .tour-spotlight { transition: none; } }
 </style>
 </head>
 <body>
 
 <!-- Nav -->
 <nav id="nav">
-  <a class="nav-logo" href="index.html">
-    <span class="nav-logo-down">DOWN</span><span class="nav-logo-link">LINK</span>
-  </a>
-  <div class="nav-center">
-    <span class="nav-date">{{.StartedAt}}</span>
+  <div class="nav-left">
+    <a class="nav-logo" href="index.html">
+      <span class="nav-logo-down">DOWN</span><span class="nav-logo-link">LINK</span>
+    </a>
+    <div class="nav-meta">
+      <span class="nav-date">{{.StartedAt}}</span>
+      <span class="nav-window">{{.TimeWindow}} window</span>
+    </div>
   </div>
   <div class="nav-right">
-    <span class="nav-window">{{.TimeWindow}} window</span>
     <a class="nav-swipe" href="{{.SwipeFilename}}">Triage</a>
     <div class="nav-count">
       <span class="nav-count-dot">■</span>
@@ -1603,21 +1728,29 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
       {{range .Themes}}<option value="{{.Value}}">{{.Label}}</option>
       {{end}}</select>
     {{if .HasLearning}}<div class="nav-learn" id="nav-learn">
-      <div class="nav-help" id="nav-help">
-        <div class="nav-help-slider" id="nav-help-slider" role="slider" tabindex="0"
-             aria-label="Help level: how much jargon is explained"
-             aria-valuemin="0" aria-valuemax="3" aria-valuenow="0" aria-valuetext="Off">
-          <span class="nav-help-track" aria-hidden="true"></span>
-          <span class="nav-help-dot" data-level="0" title="Off: no explanations"></span>
-          <span class="nav-help-dot" data-level="1" title="Light: explain only niche, advanced terms"></span>
-          <span class="nav-help-dot" data-level="2" title="Standard: explain security-specific and advanced terms"></span>
-          <span class="nav-help-dot" data-level="3" title="Full: explain every term, including common ones"></span>
-          <span class="nav-help-knob" id="nav-help-knob" aria-hidden="true"></span>
-        </div>
+      <button class="nav-learn-switch" id="nav-learn-switch" type="button" role="switch" aria-checked="false" onclick="toggleLearning()" title="Learning mode: plain-language explanations, the glossary, and click-to-define terms">
+        <span class="nav-learn-track"><span class="nav-learn-knob"></span></span>
+        <span class="nav-learn-label">Learning</span>
+      </button>
+      <button class="nav-learn-caret" id="nav-learn-caret" type="button" onclick="toggleLearnMenu()" aria-expanded="false" aria-label="Customize learning">▾</button>
+      <span class="nav-help-mini" id="nav-help-mini" aria-hidden="true" title="Current help level" onclick="advanceHelpLevel()">
+        <span class="nav-help-mini-dot" data-pos="0"></span>
+        <span class="nav-help-mini-dot" data-pos="1"></span>
+        <span class="nav-help-mini-dot" data-pos="2"></span>
         <span class="nav-help-flash" id="nav-help-flash" aria-hidden="true"></span>
-      </div>
-      <button class="nav-learn-caret" id="nav-learn-caret" type="button" onclick="toggleLearnMenu()" aria-expanded="false" aria-label="Customize learning features">▾</button>
+      </span>
       <div class="learn-card" id="learn-card" role="menu" hidden>
+        <div class="learn-card-title">Help level</div>
+        <div class="help-slider" id="help-slider" role="slider" tabindex="0"
+             aria-label="Help level: novice (most help) to pro (least)"
+             aria-valuemin="1" aria-valuemax="3" aria-valuenow="3" aria-valuetext="Novice">
+          <span class="help-slider-track" aria-hidden="true"></span>
+          <span class="help-slider-dot" data-pos="0" data-level="3" title="Novice — explain every term"></span>
+          <span class="help-slider-dot" data-pos="1" data-level="2" title="Standard — security-specific & niche"></span>
+          <span class="help-slider-dot" data-pos="2" data-level="1" title="Pro — only niche/advanced"></span>
+          <span class="help-slider-knob" id="help-slider-knob" aria-hidden="true"></span>
+        </div>
+        <div class="help-slider-ends"><span>Novice</span><span>Pro</span></div>
         <div class="learn-card-title">Learning features</div>
         <button class="learn-feature" id="learn-feat-plain" type="button" role="switch" aria-checked="true" onclick="toggleLearnFeature('plain')"><span class="learn-feature-label">Plain words</span><span class="learn-switch"><span class="learn-switch-knob"></span></span></button>
         <button class="learn-feature" id="learn-feat-glossary" type="button" role="switch" aria-checked="true" onclick="toggleLearnFeature('glossary')"><span class="learn-feature-label">Glossary</span><span class="learn-switch"><span class="learn-switch-knob"></span></span></button>
@@ -1629,7 +1762,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 <!-- Reading list / TOC -->
 <section id="toc">
-  <div class="toc-card">
+  <div class="toc-card toc-card-head">
     {{if .DigestTitle}}<div class="toc-title"><span class="digest-title-text">{{.DigestTitle}}</span></div>{{end}}
     <div class="toc-header" style="display:flex;align-items:center;justify-content:space-between">
       <div class="toc-filters">
@@ -1729,7 +1862,6 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                     </div>{{end}}
                   </div>{{end}}
                 </div>
-                {{if gt $other.ImportanceScore 0}}<span style="font-family:var(--mono);font-size:10px;color:var(--text3);flex-shrink:0">{{$other.ImportanceScore}}</span>{{end}}
               </li>{{end}}
             </ul>
           </details>
@@ -1868,9 +2000,24 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   </div>
 </aside>{{end}}{{end}}
 
+{{if .HasLearning}}<div id="tour" class="tour-overlay" role="dialog" aria-modal="true" aria-labelledby="tour-title" hidden>
+  <div id="tour-spotlight" class="tour-spotlight is-centered" aria-hidden="true"></div>
+  <div id="tour-card" class="tour-card">
+    <div id="tour-step" class="tour-card-step"></div>
+    <h2 id="tour-title" class="tour-card-title"></h2>
+    <p id="tour-body" class="tour-card-body"></p>
+    <div class="tour-card-foot">
+      <button type="button" class="tour-btn tour-skip" id="tour-skip">Skip</button>
+      <span class="tour-dots" id="tour-dots" aria-hidden="true"></span>
+      <button type="button" class="tour-btn" id="tour-back">Back</button>
+      <button type="button" class="tour-btn tour-btn-primary" id="tour-next">Next</button>
+    </div>
+  </div>
+</div>{{end}}
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · {{.StartedAt}} · {{.TimeWindow}} window</span>
-  <span class="footer-mid"><a href="sources.html">sources</a></span>
+  <span class="footer-mid"><a href="sources.html">sources</a>{{if .HasLearning}} · <a href="#" onclick="startTour();return false;">tour</a>{{end}}</span>
   <span class="footer-right">{{.ArticleCount}} articles · {{.Commit}}</span>
 </footer>
 
@@ -1884,49 +2031,73 @@ function applyTheme(t) {
 // sync the picker with the theme chosen before first paint
 (function(){ var sel = document.getElementById('nav-theme-select'); if (sel) sel.value = document.documentElement.dataset.theme || 'dark'; })();
 
-// Learning mode: a multi-step help level (Off | Light | Standard | Full) plus a caret-opened
-// card of per-feature switches. State lives on <html> as data-learning + data-help-level +
-// data-learn-{plain,glossary,define}, persisted in localStorage and applied before first paint.
-// The help level (1/2/3) decides which jargon is shown: a term appears when level >= its tier
-// (advanced=1, intermediate=2, beginner=3). Sub-features default on the first time it's enabled.
+// True while the onboarding tour owns the screen; guards handlers that would otherwise close the
+// learn card / glossary or steal Escape from under it (see the tour module at the end of this file).
+var tourActive = false;
+
+// Learning mode: a master on/off toggle plus a caret-opened card holding the help-level slider
+// (Novice → Standard → Pro) and per-feature switches. State lives on <html> as data-learning +
+// data-help-level + data-learn-{plain,glossary,define}, persisted in localStorage and applied
+// before first paint. The help level (1/2/3) decides which jargon is shown: a term appears when
+// level >= its tier (advanced=1, intermediate=2, beginner=3). Sub-features default on when enabled.
 var LEARN_FEATURES = {
   plain:    { attr: 'learnPlain',    key: 'downlink.learn.plain',    el: 'learn-feat-plain' },
   glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
   define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
 };
-var HELP_LEVELS = ['Off', 'Light', 'Standard', 'Full'];
-var HELP_MAX = HELP_LEVELS.length - 1;
+// Slider positions run left→right: Novice (most help) → Standard → Pro (least). They map to the
+// underlying help level (a term shows when level >= its tier): Novice=3, Standard=2, Pro=1.
+var POS_LEVEL = [3, 2, 1];
+var POS_MAX = POS_LEVEL.length - 1;
+var LEVEL_NAME = { 1: 'Pro', 2: 'Standard', 3: 'Novice' };
+function posToLevel(pos){ return POS_LEVEL[pos]; }
+function levelToPos(level){ var i = POS_LEVEL.indexOf(level); return i < 0 ? 0 : i; }
 function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
-// Briefly float the level name in beside the slider on each change, then fade it out.
-var helpFlashTimer = null;
-function showHelpFlash(level) {
-  var f = document.getElementById('nav-help-flash');
-  if (!f) return;
-  f.textContent = HELP_LEVELS[level] || 'Off';
-  f.classList.add('is-show');
-  if (helpFlashTimer) clearTimeout(helpFlashTimer);
-  helpFlashTimer = setTimeout(function(){ f.classList.remove('is-show'); }, 1000);
-}
-function setHelpLevel(n) {
+// Master LEARNING on/off. Off clears help; on restores the saved level (default Novice) and
+// defaults the sub-features on.
+function toggleLearning() {
   var d = document.documentElement.dataset;
-  if (n === 0) {
+  var on = d.learning === 'on';
+  if (on) {
     delete d.learning;
-    delete d.helpLevel;
     closeLearnMenu();
   } else {
     d.learning = 'on';
-    d.helpLevel = String(n);
-    // Default any unset sub-feature to on.
+    if (d.helpLevel !== '1' && d.helpLevel !== '2' && d.helpLevel !== '3') d.helpLevel = '3';
+    learnSetItem('downlink.help.level', d.helpLevel);
     Object.keys(LEARN_FEATURES).forEach(function(f){
       var cfg = LEARN_FEATURES[f];
       if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
     });
   }
-  learnSetItem('downlink.help.level', String(n));
-  // Keep the legacy key in sync so older cached pages still open with learning on/off.
-  learnSetItem('downlink.learning', n === 0 ? 'off' : 'on');
+  learnSetItem('downlink.learning', on ? 'off' : 'on');
   syncLearnUI();
-  showHelpFlash(n);
+}
+// Pick the help level (1..3) from the in-menu slider. Only reachable while learning is on.
+function setHelpLevel(level) {
+  var d = document.documentElement.dataset;
+  d.helpLevel = String(level);
+  learnSetItem('downlink.help.level', String(level));
+  syncLearnUI();
+}
+// Advance the help level one stop forward, wrapping Pro (max) back to Novice (0).
+function advanceHelpLevel() {
+  var d = document.documentElement.dataset;
+  var level = (parseInt(d.helpLevel, 10) === 1 || parseInt(d.helpLevel, 10) === 2) ? parseInt(d.helpLevel, 10) : 3;
+  var pos = levelToPos(level);
+  var next = posToLevel((pos + 1) % (POS_MAX + 1));
+  setHelpLevel(next);
+  flashHelpLevel(LEVEL_NAME[next] || '');
+}
+// Briefly show the new help-level name beside the nav dots, then fade it out.
+var helpFlashTimer;
+function flashHelpLevel(name) {
+  var el = document.getElementById('nav-help-flash');
+  if (!el) return;
+  el.textContent = name;
+  el.classList.add('is-shown');
+  clearTimeout(helpFlashTimer);
+  helpFlashTimer = setTimeout(function(){ el.classList.remove('is-shown'); }, 1100);
 }
 function toggleLearnFeature(f) {
   var cfg = LEARN_FEATURES[f];
@@ -1950,23 +2121,30 @@ function closeLearnMenu() {
   var caret = document.getElementById('nav-learn-caret');
   if (caret) caret.setAttribute('aria-expanded', 'false');
 }
-// Reflect the persisted state into the help-level slider, caret visibility, and each feature row.
+// Reflect the persisted state into the toggle, the mini-dots indicator, the in-menu slider,
+// caret visibility, and each feature row.
 function syncLearnUI() {
   var d = document.documentElement.dataset;
   var learningOn = d.learning === 'on';
-  var level = learningOn ? (parseInt(d.helpLevel, 10) || 0) : 0;
-  var name = HELP_LEVELS[level] || 'Off';
-  var slider = document.getElementById('nav-help-slider');
+  var level = (parseInt(d.helpLevel, 10) === 1 || parseInt(d.helpLevel, 10) === 2) ? parseInt(d.helpLevel, 10) : 3;
+  var pos = levelToPos(level);
+  var sw = document.getElementById('nav-learn-switch');
+  if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  // Mini-dots indicator (nav) + the in-menu slider both highlight the active stop.
+  document.querySelectorAll('.nav-help-mini-dot').forEach(function(dot){
+    dot.classList.toggle('is-active', parseInt(dot.dataset.pos, 10) === pos);
+  });
+  var slider = document.getElementById('help-slider');
   if (slider) {
     slider.setAttribute('aria-valuenow', String(level));
-    slider.setAttribute('aria-valuetext', name);
+    slider.setAttribute('aria-valuetext', LEVEL_NAME[level] || 'Novice');
   }
-  var knob = document.getElementById('nav-help-knob');
-  // Match the dots' 5px inset so the knob lands exactly on each tick.
-  if (knob) knob.style.left = 'calc(5px + (100% - 10px) * ' + (level / HELP_MAX) + ')';
-  document.querySelectorAll('.nav-help-dot').forEach(function(dot){
-    dot.classList.toggle('is-filled', parseInt(dot.dataset.level, 10) <= level);
+  document.querySelectorAll('.help-slider-dot').forEach(function(dot){
+    dot.classList.toggle('is-active', parseInt(dot.dataset.pos, 10) === pos);
   });
+  var knob = document.getElementById('help-slider-knob');
+  // Match the dots' 5px inset so the knob lands exactly on each stop.
+  if (knob) knob.style.left = 'calc(5px + (100% - 10px) * ' + (pos / POS_MAX) + ')';
   // Caret visibility is CSS-driven (html[data-learning="on"]); just reset its menu state when off.
   var caret = document.getElementById('nav-learn-caret');
   if (caret && !learningOn) caret.setAttribute('aria-expanded', 'false');
@@ -2013,60 +2191,56 @@ function closeGlossaryPanel() {
   if (btn) btn.setAttribute('aria-expanded', 'false');
 }
 syncLearnUI();
-// Help-level slider: a click steps up one level (wrapping Full → Off), a drag positions by
-// location, and the keyboard nudges. Every path funnels into setHelpLevel, which persists +
-// re-syncs the UI.
+// In-menu help-level slider: click/drag jumps to the nearest stop, the keyboard nudges. Every
+// path funnels into setHelpLevel. Positions run Novice (left) → Pro (right); see POS_LEVEL.
 (function(){
-  var slider = document.getElementById('nav-help-slider');
+  var slider = document.getElementById('help-slider');
   if (!slider) return;
-  function currentLevel(){
+  function currentPos(){
     var d = document.documentElement.dataset;
-    return d.learning === 'on' ? (parseInt(d.helpLevel, 10) || 0) : 0;
+    var level = (parseInt(d.helpLevel, 10) === 1 || parseInt(d.helpLevel, 10) === 2) ? parseInt(d.helpLevel, 10) : 3;
+    return levelToPos(level);
   }
-  function levelFromEvent(e){
+  function posFromEvent(e){
     var r = slider.getBoundingClientRect();
     var pad = 5; // matches the dots' inset
     var span = r.width - 2 * pad;
     var frac = span > 0 ? (e.clientX - r.left - pad) / span : 0;
-    return Math.max(0, Math.min(HELP_MAX, Math.round(frac * HELP_MAX)));
+    return Math.max(0, Math.min(POS_MAX, Math.round(frac * POS_MAX)));
   }
-  var dragging = false, moved = false, startX = 0;
-  var DRAG_THRESHOLD = 4; // px before a press counts as a drag rather than a click
+  var dragging = false;
   slider.addEventListener('pointerdown', function(e){
-    dragging = true; moved = false; startX = e.clientX;
+    dragging = true;
     try { slider.setPointerCapture(e.pointerId); } catch(_){}
+    var pos = posFromEvent(e);
+    if (pos === currentPos()) advanceHelpLevel(); // clicking the knob cycles forward (wrap)
+    else setHelpLevel(posToLevel(pos));           // clicking elsewhere keeps snap-to-nearest
     e.preventDefault();
   });
-  slider.addEventListener('pointermove', function(e){
-    if (!dragging) return;
-    if (!moved && Math.abs(e.clientX - startX) > DRAG_THRESHOLD) moved = true;
-    if (moved) setHelpLevel(levelFromEvent(e));
-  });
-  slider.addEventListener('pointerup', function(){
-    if (dragging && !moved) setHelpLevel((currentLevel() + 1) % (HELP_MAX + 1)); // click → cycle up
-    dragging = false;
-  });
+  slider.addEventListener('pointermove', function(e){ if (dragging) setHelpLevel(posToLevel(posFromEvent(e))); });
+  slider.addEventListener('pointerup', function(){ dragging = false; });
   slider.addEventListener('pointercancel', function(){ dragging = false; });
   slider.addEventListener('keydown', function(e){
-    var cur = currentLevel();
-    var n = cur;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') n = Math.min(HELP_MAX, cur + 1);
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') n = Math.max(0, cur - 1);
-    else if (e.key === 'Home') n = 0;
-    else if (e.key === 'End') n = HELP_MAX;
+    var cur = currentPos();
+    var p = cur;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') p = Math.min(POS_MAX, cur + 1); // toward Pro
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') p = Math.max(0, cur - 1);     // toward Novice
+    else if (e.key === 'Home') p = 0;
+    else if (e.key === 'End') p = POS_MAX;
     else return;
     e.preventDefault();
-    setHelpLevel(n);
+    setHelpLevel(posToLevel(p));
   });
 })();
 // Close the card on outside click or Escape.
 document.addEventListener('click', function(e){
+  if (tourActive) return; // the tour opens the card on purpose; don't let its clicks dismiss it
   var card = document.getElementById('learn-card');
   if (!card || card.hidden) return;
   if (e.target.closest('#nav-learn')) return;
   closeLearnMenu();
 });
-document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { closeLearnMenu(); closeGlossaryPanel(); } });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !tourActive) { closeLearnMenu(); closeGlossaryPanel(); } });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -2192,6 +2366,7 @@ document.querySelectorAll('mark.tag-hl').forEach(function(m){
   var e = GLOSSARY[glossaryKey(m.textContent)];
   m.dataset.lvl = (e && e.lvl) ? e.lvl : 2;
 });
+var currentMark = null;
 function openGlossaryPopup(term, def, type, ctx){
   document.getElementById('glossary-popup-term').textContent = term;
   document.getElementById('glossary-popup-def').textContent = def;
@@ -2208,6 +2383,7 @@ function openGlossaryPopup(term, def, type, ctx){
 function closeGlossaryPopup(){
   var p = document.getElementById('glossary-popup');
   if (p) p.hidden = true;
+  currentMark = null;
 }
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
@@ -2220,10 +2396,12 @@ document.addEventListener('click', function(e){
   if (!entry) return;
   var level = parseInt(dd.helpLevel, 10) || 0;
   if ((entry.lvl || 2) > level) return; // term hidden at the current help level
+  if (m === currentMark) { closeGlossaryPopup(); return; }
   // Per-article context: find which article body this mark sits in (summary marks have none).
   var ctx = '';
   var host = m.closest('[data-article-id]');
   if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  currentMark = m;
   openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
 document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
@@ -2283,6 +2461,145 @@ function showMoreTags(btn) {
      .forEach(function(p) { p.classList.remove('tag-hidden'); });
   btn.remove();
 }
+
+// First-visit onboarding tour. A dim overlay with a moving spotlight walks new readers through the
+// Learning toggle, the help-level slider, and the glossary, after a one-line "what this is". Shown
+// once (downlink.onboarded) and replayable from the footer. It only *previews* the learning UI by
+// flipping the <html> data-* flags while running and restores them on exit, so the reader's saved
+// preferences are never changed.
+(function(){
+  var overlay = document.getElementById('tour');
+  if (!overlay) return; // only rendered on Learning pages
+  var spot = document.getElementById('tour-spotlight');
+  var card = document.getElementById('tour-card');
+  var elStep = document.getElementById('tour-step');
+  var elTitle = document.getElementById('tour-title');
+  var elBody = document.getElementById('tour-body');
+  var elDots = document.getElementById('tour-dots');
+  var btnBack = document.getElementById('tour-back');
+  var btnNext = document.getElementById('tour-next');
+
+  // reveal: flip the learning flags on so the step's control is visible. openCard: also open the
+  // caret menu (the help slider lives inside it). A step with no sel is a centered, anchorless card.
+  var STEPS = [
+    { title: 'Welcome to DOWNLINK', body: 'DOWNLINK gives you a fast read on what shipped, broke, or matters across your feeds. Use it to scan and triage. It points you at what to read; it is not a substitute for the articles themselves.' },
+    { sel: '#nav-learn-switch', reveal: true, title: 'Learning mode', body: 'Flip this on for newcomer help: plain-language summaries, click-to-define jargon, and a glossary. Turn it back off once the terms are familiar.' },
+    { sel: '#help-slider', reveal: true, openCard: true, title: 'How much to explain', body: 'Slide between Novice and Pro to set how many terms get explained. Novice explains nearly everything; Pro only the niche stuff.' },
+    { sel: '#glossary-panel-toggle', reveal: true, title: 'Glossary', body: 'This tab opens a searchable list of every term in the digest, each written in plain words.' }
+  ];
+
+  var idx = 0, active = false, saved = null;
+
+  function snapshot(){
+    var d = document.documentElement.dataset;
+    return { learning: d.learning, helpLevel: d.helpLevel, glossary: d.learnGlossary };
+  }
+  function restore(s){
+    var d = document.documentElement.dataset;
+    if (s.learning) d.learning = s.learning; else delete d.learning;
+    if (s.helpLevel) d.helpLevel = s.helpLevel; else delete d.helpLevel;
+    if (s.glossary) d.learnGlossary = s.glossary; else delete d.learnGlossary;
+    syncLearnUI();
+  }
+  // Temporarily reveal the learning UI (no localStorage writes) so its controls can be spotlighted.
+  function preview(){
+    var d = document.documentElement.dataset;
+    d.learning = 'on';
+    if (d.helpLevel !== '1' && d.helpLevel !== '2' && d.helpLevel !== '3') d.helpLevel = '3';
+    d.learnGlossary = 'on';
+    syncLearnUI();
+  }
+
+  function targetRect(sel){
+    var t = sel && document.querySelector(sel);
+    if (!t) return null;
+    var r = t.getBoundingClientRect();
+    return (r.width === 0 && r.height === 0) ? null : r;
+  }
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+  function placeSpotlight(r){
+    var pad = 6;
+    spot.classList.remove('is-centered');
+    spot.style.top = (r.top - pad) + 'px';
+    spot.style.left = (r.left - pad) + 'px';
+    spot.style.width = (r.width + pad * 2) + 'px';
+    spot.style.height = (r.height + pad * 2) + 'px';
+  }
+  function placeCard(r){
+    var m = 14, cw = card.offsetWidth, ch = card.offsetHeight, vw = innerWidth, vh = innerHeight;
+    var top, left;
+    if (!r){ // centered welcome card
+      left = (vw - cw) / 2; top = (vh - ch) / 2;
+    } else if (r.left > vw * 0.6 && r.left - m - cw >= m){ // right-edge target → place left
+      left = r.left - m - cw; top = clamp(r.top + r.height / 2 - ch / 2, m, vh - ch - m);
+    } else if (vh - r.bottom >= ch + m){ // room below
+      top = r.bottom + m; left = clamp(r.left + r.width / 2 - cw / 2, m, vw - cw - m);
+    } else if (r.top - m - ch >= m){ // room above
+      top = r.top - m - ch; left = clamp(r.left + r.width / 2 - cw / 2, m, vw - cw - m);
+    } else { // fall back to the right
+      left = clamp(r.right + m, m, vw - cw - m); top = clamp(r.top + r.height / 2 - ch / 2, m, vh - ch - m);
+    }
+    card.style.left = Math.round(left) + 'px';
+    card.style.top = Math.round(top) + 'px';
+  }
+  function position(){
+    var step = STEPS[idx];
+    var r = step.sel ? targetRect(step.sel) : null;
+    if (r) placeSpotlight(r); else spot.classList.add('is-centered');
+    placeCard(r);
+  }
+  function render(){
+    var step = STEPS[idx];
+    elStep.textContent = 'Step ' + (idx + 1) + ' of ' + STEPS.length;
+    elTitle.textContent = step.title;
+    elBody.textContent = step.body;
+    var dots = '';
+    for (var i = 0; i < STEPS.length; i++){ dots += '<span' + (i === idx ? ' class="is-active"' : '') + '></span>'; }
+    elDots.innerHTML = dots;
+    btnBack.style.visibility = idx === 0 ? 'hidden' : 'visible';
+    btnNext.textContent = idx === STEPS.length - 1 ? 'Done' : 'Next';
+    if (step.reveal) preview();
+    if (step.openCard){ var c = document.getElementById('learn-card'); if (c){ c.hidden = false; var car = document.getElementById('nav-learn-caret'); if (car) car.setAttribute('aria-expanded', 'true'); } }
+    else closeLearnMenu();
+    position();
+  }
+  function start(){
+    if (active) return;
+    active = true; tourActive = true;
+    saved = snapshot();
+    idx = 0;
+    overlay.hidden = false;
+    render();
+    btnNext.focus();
+    addEventListener('resize', position); addEventListener('scroll', position, true);
+  }
+  function end(){
+    active = false; tourActive = false;
+    overlay.hidden = true;
+    closeLearnMenu();
+    if (saved) restore(saved);
+    saved = null;
+    removeEventListener('resize', position); removeEventListener('scroll', position, true);
+    try { localStorage.setItem('downlink.onboarded', '1'); } catch(e){}
+  }
+  function next(){ if (idx < STEPS.length - 1){ idx++; render(); } else end(); }
+  function back(){ if (idx > 0){ idx--; render(); } }
+
+  btnNext.addEventListener('click', next);
+  btnBack.addEventListener('click', back);
+  document.getElementById('tour-skip').addEventListener('click', end);
+  overlay.addEventListener('keydown', function(e){
+    if (e.key === 'Escape'){ e.preventDefault(); end(); }
+    else if (e.key === 'ArrowRight'){ e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft'){ e.preventDefault(); back(); }
+  });
+
+  // Footer "tour" link replays it on demand.
+  window.startTour = start;
+
+  // Auto-show once for first-time visitors.
+  try { if (!localStorage.getItem('downlink.onboarded')) start(); } catch(e){}
+})();
 
 </script>
 </body>

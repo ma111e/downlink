@@ -29,6 +29,7 @@ type Options struct {
 	TemplatesDir string          // directory holding *.tmpl files, watched for changes
 	OpenBrowser  bool            // open the default browser at startup
 	Digests      []models.Digest // digests listed in the archive and served individually
+	Theme        string          // template layout name (e.g. "emerald"); empty = default
 }
 
 // Run starts the preview server and blocks until the process is interrupted or
@@ -59,7 +60,7 @@ func Run(opts Options) error {
 			http.NotFound(w, r)
 			return
 		}
-		serveHTML(w, func() ([]byte, error) { return notification.RenderDigestIndex("") })
+		serveHTML(w, func() ([]byte, error) { return notification.RenderDigestIndex(opts.Theme) })
 	}
 	mux.HandleFunc("/", archiveIndex)
 	mux.HandleFunc("/index.html", archiveIndex)
@@ -71,12 +72,12 @@ func Run(opts Options) error {
 		digestFilename := notification.DigestHTMLFilename(d)
 		mux.HandleFunc("/"+digestFilename, func(w http.ResponseWriter, r *http.Request) {
 			serveHTML(w, func() ([]byte, error) {
-				return notification.RenderDigestHTML(d, "")
+				return notification.RenderDigestHTML(d, opts.Theme)
 			})
 		})
 		mux.HandleFunc("/"+notification.SwipeHTMLFilename(d), func(w http.ResponseWriter, r *http.Request) {
 			serveHTML(w, func() ([]byte, error) {
-				return notification.RenderSwipeHTML(d, digestFilename, "")
+				return notification.RenderSwipeHTML(d, digestFilename, opts.Theme)
 			})
 		})
 	}

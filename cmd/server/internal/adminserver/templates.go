@@ -2,6 +2,7 @@ package adminserver
 
 import (
 	"embed"
+	"fmt"
 	"html/template"
 	"io"
 	"strconv"
@@ -22,6 +23,23 @@ var funcs = template.FuncMap{
 	"shortTime": shortTime,
 	"durMs":     durMs,
 	"truncate":  truncate,
+	"add":       func(a, b int) int { return a + b },
+	"sub":       func(a, b int) int { return a - b },
+	"ratioBar":  ratioBar,
+}
+
+// ratioBar renders a thin two-segment bar showing the uplink:downlink split.
+// Widths are percentages so it scales to its CSS container.
+func ratioBar(up, down int) template.HTML {
+	total := up + down
+	if total <= 0 {
+		return template.HTML(`<div class="ratio"></div>`)
+	}
+	upPct := up * 100 / total
+	return template.HTML(fmt.Sprintf(
+		`<div class="ratio"><i class="u" style="width:%d%%"></i><i class="d" style="width:%d%%"></i></div>`,
+		upPct, 100-upPct,
+	))
 }
 
 // Each page is the shared layout plus one content template. Parsing them into
@@ -31,6 +49,10 @@ var (
 			ParseFS(templateFS, "templates/layout.tmpl", "templates/runs.tmpl"))
 	runTmpl = template.Must(template.New("layout.tmpl").Funcs(funcs).
 		ParseFS(templateFS, "templates/layout.tmpl", "templates/run.tmpl"))
+	refreshesTmpl = template.Must(template.New("layout.tmpl").Funcs(funcs).
+			ParseFS(templateFS, "templates/layout.tmpl", "templates/refreshes.tmpl"))
+	refreshRunTmpl = template.Must(template.New("layout.tmpl").Funcs(funcs).
+			ParseFS(templateFS, "templates/layout.tmpl", "templates/refresh.tmpl"))
 )
 
 // comma formats an integer with thousands separators (e.g. 12345 -> "12,345").

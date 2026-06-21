@@ -51,6 +51,17 @@ func (p *codexProvider) Generate(ctx context.Context, prompt string) (string, er
 	return resp.Content, nil
 }
 
+// GenerateWithUsage implements UsageGenerator so the gateway can record token
+// usage for codex subscription calls.
+func (p *codexProvider) GenerateWithUsage(ctx context.Context, prompt string) (string, Usage, bool, error) {
+	resp, err := p.generateMessages(ctx, []*schema.Message{{Role: schema.User, Content: prompt}})
+	if err != nil {
+		return "", Usage{}, false, err
+	}
+	u, known := extractUsage(resp)
+	return resp.Content, u, known, nil
+}
+
 // ChatModel implements ChatModelProvider.
 func (p *codexProvider) ChatModel() model.BaseChatModel {
 	return &codexChatModel{provider: p}
@@ -123,10 +134,18 @@ type responsesInput struct {
 }
 
 // responsesStreamEvent is one SSE data payload from the Codex Responses API.
-// We only care about output_text.delta events.
+// We care about output_text.delta events (the text) and the terminal
+// response.completed event (which carries token usage).
 type responsesStreamEvent struct {
-	Type  string `json:"type"`
-	Delta string `json:"delta"`
+	Type     string `json:"type"`
+	Delta    string `json:"delta"`
+	Response *struct {
+		Usage *struct {
+			InputTokens  int `json:"input_tokens"`
+			OutputTokens int `json:"output_tokens"`
+			TotalTokens  int `json:"total_tokens"`
+		} `json:"usage"`
+	} `json:"response"`
 }
 
 func (p *codexProvider) callAPI(ctx context.Context, lease *codexauth.Lease, msgs []*schema.Message) (*schema.Message, error) {
@@ -192,9 +211,12 @@ func (p *codexProvider) callAPI(ctx context.Context, lease *codexauth.Lease, msg
 		return nil, fmt.Errorf("codex API error: HTTP %d: %s", resp.StatusCode, string(raw))
 	}
 
-	// Parse SSE stream; accumulate output_text.delta events.
+	// Parse SSE stream; accumulate output_text.delta events and capture the
+	// usage reported on the terminal response.completed event.
 	var text strings.Builder
+	var usage *schema.TokenUsage
 	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !strings.HasPrefix(line, "data: ") {
@@ -208,15 +230,29 @@ func (p *codexProvider) callAPI(ctx context.Context, lease *codexauth.Lease, msg
 		if err := json.Unmarshal([]byte(payload), &ev); err != nil {
 			continue
 		}
-		if ev.Type == "response.output_text.delta" {
+		switch ev.Type {
+		case "response.output_text.delta":
 			text.WriteString(ev.Delta)
+		case "response.completed":
+			if ev.Response != nil && ev.Response.Usage != nil {
+				u := ev.Response.Usage
+				usage = &schema.TokenUsage{
+					PromptTokens:     u.InputTokens,
+					CompletionTokens: u.OutputTokens,
+					TotalTokens:      u.TotalTokens,
+				}
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("codex: stream read error: %w", err)
 	}
 
-	return &schema.Message{Role: schema.Assistant, Content: text.String()}, nil
+	msg := &schema.Message{Role: schema.Assistant, Content: text.String()}
+	if usage != nil {
+		msg.ResponseMeta = &schema.ResponseMeta{Usage: usage}
+	}
+	return msg, nil
 }
 
 // ---------------------------------------------------------------------------

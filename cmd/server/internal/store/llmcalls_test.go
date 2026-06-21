@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ma111e/downlink/pkg/models"
 )
 
 func TestRecordLLMCallRoundTrip(t *testing.T) {
@@ -59,14 +61,16 @@ func TestListLLMRunSummaries(t *testing.T) {
 	s := newTestStore(t)
 
 	now := time.Now()
+	ac := 6
+	_ = s.StoreDigest(models.Digest{Id: "digest-xyz", ArticleCount: &ac})
 	_ = s.StartLLMRun("run-a", now.Add(-2*time.Hour))
 	_ = s.StartLLMRun("run-b", now.Add(-1*time.Hour))
 	_ = s.LinkLLMRunToDigest("run-b", "digest-xyz", "Daily Brief")
 
 	for i := 0; i < 3; i++ {
-		_ = s.RecordLLMCall(LLMCallInput{RunID: "run-b", TotalTokens: 100, TokensKnown: true})
+		_ = s.RecordLLMCall(LLMCallInput{RunID: "run-b", PromptTokens: 80, CompletionTokens: 20, TotalTokens: 100, TokensKnown: true})
 	}
-	_ = s.RecordLLMCall(LLMCallInput{RunID: "run-a", TotalTokens: 50, TokensKnown: true})
+	_ = s.RecordLLMCall(LLMCallInput{RunID: "run-a", PromptTokens: 40, CompletionTokens: 10, TotalTokens: 50, TokensKnown: true})
 
 	summaries, err := s.ListLLMRunSummaries(10)
 	if err != nil {
@@ -82,8 +86,19 @@ func TestListLLMRunSummaries(t *testing.T) {
 	if summaries[0].CallCount != 3 || summaries[0].TotalTokens != 300 {
 		t.Errorf("run-b rollup wrong: calls=%d tokens=%d", summaries[0].CallCount, summaries[0].TotalTokens)
 	}
+	if summaries[0].TotalPromptTokens != 240 || summaries[0].TotalCompletionTokens != 60 {
+		t.Errorf("run-b sent/received rollup wrong: sent=%d received=%d", summaries[0].TotalPromptTokens, summaries[0].TotalCompletionTokens)
+	}
 	if summaries[0].Title != "Daily Brief" || summaries[0].DigestId != "digest-xyz" {
 		t.Errorf("run-b digest link not applied: title=%q digest=%q", summaries[0].Title, summaries[0].DigestId)
+	}
+	// Article count comes from the joined digest; avg = 300 tokens / 6 articles.
+	if summaries[0].ArticleCount != 6 || summaries[0].AvgTokensPerArticle() != 50 {
+		t.Errorf("run-b per-article wrong: articles=%d avg=%d", summaries[0].ArticleCount, summaries[0].AvgTokensPerArticle())
+	}
+	// run-a has no linked digest → unknown article count, avg 0.
+	if summaries[1].ArticleCount != 0 || summaries[1].AvgTokensPerArticle() != 0 {
+		t.Errorf("run-a should have no article count: articles=%d avg=%d", summaries[1].ArticleCount, summaries[1].AvgTokensPerArticle())
 	}
 	if summaries[1].CallCount != 1 || summaries[1].TotalTokens != 50 {
 		t.Errorf("run-a rollup wrong: calls=%d tokens=%d", summaries[1].CallCount, summaries[1].TotalTokens)

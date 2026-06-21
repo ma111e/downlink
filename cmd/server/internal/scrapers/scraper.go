@@ -6,7 +6,10 @@ import (
 
 // Scraper defines the interface for feed scrapers
 type Scraper interface {
-	Fetch(url string, params map[string]any) ([]models.FeedItem, error)
+	// Fetch returns the feed's items plus the raw HTTP response it parsed them
+	// from, so the bytes stay inspectable (it is non-nil even when parsing fails,
+	// and nil only when nothing was fetched, e.g. a network-level error).
+	Fetch(url string, params map[string]any) ([]models.FeedItem, *RawResponse, error)
 	ScrapeContent(url string, params map[string]any) (string, error)
 }
 

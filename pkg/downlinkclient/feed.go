@@ -62,22 +62,38 @@ func (pc *DownlinkClient) RefreshAllFeeds(onEvent func(ev *protos.RefreshAllFeed
 	return nil
 }
 
-// RefreshAllFeedsWithTimeWindow refreshes all enabled feeds within the given time window.
-// It lists all feeds and calls RefreshFeedWithTimeWindow for each enabled feed.
-// onResult is called after each feed completes (result may be nil on error).
-func (pc *DownlinkClient) RefreshAllFeedsWithTimeWindow(from, to *time.Time, lastN int, onResult func(res *protos.RefreshFeedResponse, err error)) error {
-	feeds, err := pc.ListFeeds()
+// RefreshAllFeedsWithTimeWindow refreshes all enabled feeds within the given time
+// window as a single bundled server operation (one RefreshAllFeeds RPC), so the
+// monitor records them under one run. onEvent is called for each streamed event,
+// both STARTED and COMPLETED.
+func (pc *DownlinkClient) RefreshAllFeedsWithTimeWindow(from, to *time.Time, overwrite, restore bool, lastN int, onEvent func(ev *protos.RefreshAllFeedsEvent)) error {
+	req := &protos.RefreshAllFeedsRequest{
+		Overwrite: overwrite,
+		Restore:   restore,
+		LastN:     int32(lastN),
+	}
+	if from != nil {
+		req.From = timestamppb.New(*from)
+	}
+	if to != nil {
+		req.To = timestamppb.New(*to)
+	}
+
+	stream, err := pc.feedsClient.RefreshAllFeeds(pc.ctx, req)
 	if err != nil {
 		return err
 	}
 
-	for _, feed := range feeds {
-		if feed.Enabled != nil && !*feed.Enabled {
-			continue
+	for {
+		ev, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
 		}
-		res, err := pc.RefreshFeedWithTimeWindow(feed.Id, from, to, false, false, lastN)
-		if onResult != nil {
-			onResult(res, err)
+		if onEvent != nil {
+			onEvent(ev)
 		}
 	}
 

@@ -33,8 +33,20 @@ type LLMCallInput struct {
 // LLMRunSummary is a run row plus aggregate counters for the runs list page.
 type LLMRunSummary struct {
 	models.LLMRun
-	CallCount   int
-	TotalTokens int
+	CallCount             int
+	TotalTokens           int
+	TotalPromptTokens     int // sent
+	TotalCompletionTokens int // received
+	ArticleCount          int // articles in the run's digest (0 if no digest yet)
+}
+
+// AvgTokensPerArticle is total tokens spread across the run's articles, or 0
+// when the article count is unknown (no linked digest).
+func (r LLMRunSummary) AvgTokensPerArticle() int {
+	if r.ArticleCount <= 0 {
+		return 0
+	}
+	return r.TotalTokens / r.ArticleCount
 }
 
 // LLMCallView is a decompressed LLM call for display; Prompt/Response are plain text.
@@ -89,8 +101,12 @@ func (s *GormStore) ListLLMRunSummaries(limit int) ([]LLMRunSummary, error) {
 	q := s.db.Table("llm_runs").
 		Select("llm_runs.*, "+
 			"COALESCE(COUNT(llm_calls.id), 0) AS call_count, "+
-			"COALESCE(SUM(llm_calls.total_tokens), 0) AS total_tokens").
+			"COALESCE(SUM(llm_calls.total_tokens), 0) AS total_tokens, "+
+			"COALESCE(SUM(llm_calls.prompt_tokens), 0) AS total_prompt_tokens, "+
+			"COALESCE(SUM(llm_calls.completion_tokens), 0) AS total_completion_tokens, "+
+			"COALESCE(MAX(digests.article_count), 0) AS article_count").
 		Joins("LEFT JOIN llm_calls ON llm_calls.run_id = llm_runs.id").
+		Joins("LEFT JOIN digests ON digests.id = llm_runs.digest_id").
 		Group("llm_runs.id").
 		Order("llm_runs.started_at DESC")
 	if limit > 0 {

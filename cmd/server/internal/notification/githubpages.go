@@ -51,6 +51,17 @@ type DigestLister func(limit int) ([]models.Digest, error)
 // FeedDigestLimit caps how many recent digests appear in the RSS/Atom feeds.
 const FeedDigestLimit = 7
 
+// publishCutoff returns the earliest PeriodStart a digest may have and still
+// appear in the manifest and feeds. Controlled by cfg.PublishWindowDays; 0 or
+// negative falls back to 30 days.
+func (p *GitHubPagesPublisher) publishCutoff() time.Time {
+	days := p.cfg.PublishWindowDays
+	if days <= 0 {
+		days = 30
+	}
+	return time.Now().UTC().AddDate(0, 0, -days)
+}
+
 // SetDigestLister attaches the lister used to fetch recent digests when building
 // the RSS/Atom feeds on each push. Passing nil disables feed generation.
 func (p *GitHubPagesPublisher) SetDigestLister(fn DigestLister) {
@@ -166,7 +177,7 @@ func (p *GitHubPagesPublisher) sendDigest(digest models.Digest) (string, error) 
 	}
 	if feedDigests, err := p.recentFeedDigests(digest, FeedDigestLimit); err != nil {
 		log.WithError(err).Warn("github pages: skipping feed update, failed to list recent digests")
-	} else if err := p.writeAndStageFeeds(wt, outputDir, filterDigestsNewerThan(feedDigests, time.Now().UTC().AddDate(0, -1, 0))); err != nil {
+	} else if err := p.writeAndStageFeeds(wt, outputDir, filterDigestsNewerThan(feedDigests, p.publishCutoff())); err != nil {
 		return "", err
 	}
 	if err := p.ensureIndex(wt, outputDir, p.cfg.Layout); err != nil {
@@ -452,7 +463,30 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, layout
 		}
 	}
 
+	if err := p.ensureStaticAssets(wt, outputDir); err != nil {
+		return err
+	}
 	return p.ensureSourcesPage(wt, outputDir, layout)
+}
+
+// ensureStaticAssets writes favicon and icon files to the repo root and to
+// outputDir so both the root index and per-digest pages can reference them
+// with relative paths (./favicon.ico etc.). Files are skipped when their
+// content is already up-to-date.
+func (p *GitHubPagesPublisher) ensureStaticAssets(wt *gogit.Worktree, outputDir string) error {
+	for _, name := range staticAssets {
+		for _, dir := range []string{".", outputDir} {
+			relPath := filepath.Join(dir, name)
+			absPath := filepath.Join(p.cfg.CloneDir, relPath)
+			if err := writeStaticAsset(name, absPath); err != nil {
+				return fmt.Errorf("github pages: static asset %s: %w", name, err)
+			}
+			if _, err := wt.Add(relPath); err != nil {
+				return fmt.Errorf("github pages: stage static asset %s: %w", relPath, err)
+			}
+		}
+	}
+	return nil
 }
 
 // ensureSourcesPage writes sources.html at the repo root and under outputDir,
@@ -507,7 +541,7 @@ func (p *GitHubPagesPublisher) writeAndStageManifest(wt *gogit.Worktree, digest 
 		return fmt.Errorf("github pages: load manifest: %w", err)
 	}
 	manifest.Upsert(ManifestEntryFromDigest(digest))
-	manifest.Prune(time.Now().UTC().AddDate(0, -1, 0))
+	manifest.Prune(p.publishCutoff())
 	if err := manifest.Write(manifestAbsPath); err != nil {
 		return fmt.Errorf("github pages: write manifest: %w", err)
 	}
@@ -789,7 +823,7 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout stri
 		manifest.Upsert(ManifestEntryFromDigest(toRender[i]))
 	}
 
-	cutoff := time.Now().UTC().AddDate(0, -1, 0)
+	cutoff := p.publishCutoff()
 	manifest.Prune(cutoff)
 	if err := manifest.Write(manifestAbsPath); err != nil {
 		return fmt.Errorf("github pages: write manifest: %w", err)
