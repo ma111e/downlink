@@ -344,6 +344,7 @@ func FeedDiagnosisToProto(d models.FeedDiagnosis) *protos.FeedDiagnosis {
 		HexDump:         d.HexDump,
 		RawBodyPath:     d.RawBodyPath,
 		FetchDurationMs: d.FetchDurationMs,
+		DiscoveredFeeds: d.DiscoveredFeeds,
 	}
 }
 
@@ -401,5 +402,6 @@ func FeedDiagnosisToModel(d *protos.FeedDiagnosis) *models.FeedDiagnosis {
 		HexDump:         d.HexDump,
 		RawBodyPath:     d.RawBodyPath,
 		FetchDurationMs: d.FetchDurationMs,
+		DiscoveredFeeds: d.DiscoveredFeeds,
 	}
 }

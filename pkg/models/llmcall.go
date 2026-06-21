@@ -7,6 +7,7 @@ import "time"
 // by the gateway). DigestId/Title are filled in once the digest is created.
 type LLMRun struct {
 	Id         string     `gorm:"primaryKey" json:"id"`
+	ProfileId  string     `gorm:"index" json:"profile_id,omitempty"`
 	DigestId   string     `gorm:"index" json:"digest_id,omitempty"`
 	Title      string     `json:"title,omitempty"`
 	StartedAt  time.Time  `gorm:"index" json:"started_at"`

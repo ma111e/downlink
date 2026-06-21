@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/ma111e/downlink/cmd/server/internal/config"
 	"github.com/ma111e/downlink/pkg/models"
@@ -123,6 +124,7 @@ func (s *GormStore) initSchema() error {
 		&models.GlossaryEntry{},
 		&models.DigestGlossary{},
 		&models.FeedGroup{},
+		&models.Profile{},
 		&models.LLMRun{},
 		&models.LLMCall{},
 		&models.FeedRefreshRun{},
@@ -154,6 +156,88 @@ func (s *GormStore) initSchema() error {
 
 		if err := s.db.Table("feed_groups").Create(defaultGroup).Error; err != nil {
 			return fmt.Errorf("failed to create default feed group: %w", err)
+		}
+	}
+
+	if err := s.seedDefaultProfile(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// seedDefaultProfile creates the "default" profile on first run and backfills
+// profile_id on pre-existing analyses, digests, and LLM runs. It reproduces the
+// historical single-tenant behavior: the default profile's editorial config is
+// the current global AnalysisConfig (nil rubric/categories ⇒ package defaults),
+// it owns every enabled feed, and all existing rows are attributed to it.
+// Idempotent: a no-op once a "default" profile exists.
+func (s *GormStore) seedDefaultProfile() error {
+	var count int64
+	if err := s.db.Table("profiles").Where("id = ?", "default").Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to check for default profile: %w", err)
+	}
+	if count > 0 {
+		return nil
+	}
+
+	// Build the default profile's editorial from the current global config.
+	// config.Config can be nil when the store is opened outside the server (e.g.
+	// tests via store.New); fall back to zero values in that case.
+	editorial := models.ProfileEditorial{}
+	layout := "default"
+	outputSubdir := ""
+	if config.Config != nil {
+		a := config.Config.Analysis
+		glossary, vibe := a.Glossary, a.VibeScore
+		std, comp, exec := a.StandardSynthesis, a.ComprehensiveSynthesis, a.ExecutiveSummary
+		editorial = models.ProfileEditorial{
+			Provider:               a.Provider,
+			Persona:                a.Persona,
+			WritingStyle:           a.WritingStyle,
+			Glossary:               &glossary,
+			VibeScore:              &vibe,
+			StandardSynthesis:      &std,
+			ComprehensiveSynthesis: &comp,
+			ExecutiveSummary:       &exec,
+		}
+		if l := config.Config.Notifications.GitHubPages.Layout; l != "" {
+			layout = l
+		}
+		outputSubdir = config.Config.Notifications.GitHubPages.OutputDir
+	}
+
+	editorialJSON, err := json.Marshal(&editorial)
+	if err != nil {
+		return fmt.Errorf("failed to marshal default profile editorial: %w", err)
+	}
+
+	defaultProfile := map[string]interface{}{
+		"id":            "default",
+		"name":          "Default",
+		"layout":        layout,
+		"output_subdir": outputSubdir,
+		"enabled":       true,
+		"sort_order":    0,
+		"editorial":     string(editorialJSON),
+	}
+	if err := s.db.Table("profiles").Create(defaultProfile).Error; err != nil {
+		return fmt.Errorf("failed to create default profile: %w", err)
+	}
+
+	// The default profile owns every currently-enabled feed.
+	if err := s.db.Exec(
+		"INSERT INTO profile_feeds (profile_id, feed_id) SELECT 'default', id FROM feeds WHERE enabled = 1",
+	).Error; err != nil {
+		return fmt.Errorf("failed to seed default profile feeds: %w", err)
+	}
+
+	// Backfill existing rows so every analysis/digest/run is attributed to a profile.
+	for _, table := range []string{"article_analyses", "digests", "llm_runs"} {
+		if err := s.db.Exec(
+			fmt.Sprintf("UPDATE %s SET profile_id = 'default' WHERE profile_id = '' OR profile_id IS NULL", table),
+		).Error; err != nil {
+			return fmt.Errorf("failed to backfill profile_id on %s: %w", table, err)
 		}
 	}
 

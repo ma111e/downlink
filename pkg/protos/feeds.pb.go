@@ -442,6 +442,7 @@ type FeedDiagnosis struct {
 	HexDump         string                 `protobuf:"bytes,13,opt,name=hex_dump,json=hexDump,proto3" json:"hex_dump,omitempty"`                        // bytes around invalid_utf8_at, when relevant
 	RawBodyPath     string                 `protobuf:"bytes,14,opt,name=raw_body_path,json=rawBodyPath,proto3" json:"raw_body_path,omitempty"`          // on-disk path to the saved raw body
 	FetchDurationMs int64                  `protobuf:"varint,15,opt,name=fetch_duration_ms,json=fetchDurationMs,proto3" json:"fetch_duration_ms,omitempty"`
+	DiscoveredFeeds []string               `protobuf:"bytes,16,rep,name=discovered_feeds,json=discoveredFeeds,proto3" json:"discovered_feeds,omitempty"` // validated feed URLs found on an HTML page
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -579,6 +580,13 @@ func (x *FeedDiagnosis) GetFetchDurationMs() int64 {
 		return x.FetchDurationMs
 	}
 	return 0
+}
+
+func (x *FeedDiagnosis) GetDiscoveredFeeds() []string {
+	if x != nil {
+		return x.DiscoveredFeeds
+	}
+	return nil
 }
 
 // RefreshAllFeedsEvent is streamed once per feed on start and on completion
@@ -1898,7 +1906,7 @@ const file_feeds_proto_rawDesc = "" +
 	"\x06stored\x18\x04 \x01(\x05R\x06stored\x12\x18\n" +
 	"\askipped\x18\x05 \x01(\x05R\askipped\x12\x16\n" +
 	"\x06errors\x18\x06 \x03(\tR\x06errors\x125\n" +
-	"\tdiagnosis\x18\a \x01(\v2\x17.downlink.FeedDiagnosisR\tdiagnosis\"\x8c\x04\n" +
+	"\tdiagnosis\x18\a \x01(\v2\x17.downlink.FeedDiagnosisR\tdiagnosis\"\xb7\x04\n" +
 	"\rFeedDiagnosis\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x1b\n" +
 	"\tfinal_url\x18\x02 \x01(\tR\bfinalUrl\x12\x1f\n" +
@@ -1918,7 +1926,8 @@ const file_feeds_proto_rawDesc = "" +
 	"\fbody_snippet\x18\f \x01(\tR\vbodySnippet\x12\x19\n" +
 	"\bhex_dump\x18\r \x01(\tR\ahexDump\x12\"\n" +
 	"\rraw_body_path\x18\x0e \x01(\tR\vrawBodyPath\x12*\n" +
-	"\x11fetch_duration_ms\x18\x0f \x01(\x03R\x0ffetchDurationMs\"\xbc\x01\n" +
+	"\x11fetch_duration_ms\x18\x0f \x01(\x03R\x0ffetchDurationMs\x12)\n" +
+	"\x10discovered_feeds\x18\x10 \x03(\tR\x0fdiscoveredFeeds\"\xbc\x01\n" +
 	"\x14RefreshAllFeedsEvent\x125\n" +
 	"\x06result\x18\x01 \x01(\v2\x1d.downlink.RefreshFeedResponseR\x06result\x12\x1c\n" +
 	"\tcompleted\x18\x02 \x01(\x05R\tcompleted\x12\x14\n" +

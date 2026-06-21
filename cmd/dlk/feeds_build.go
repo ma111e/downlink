@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
+	"github.com/ma111e/downlink/pkg/downlinkclient"
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/protos"
 
@@ -62,6 +64,7 @@ func newAutoConfigCmd() *cobra.Command {
 	var provider, model string
 	var maxSteps int
 	var yes, verbose bool
+	var updateFile string
 	cmd := &cobra.Command{
 		Use:   "autoconfig <rss-url>",
 		Short: "Let an LLM discover a feed's config on its own",
@@ -69,8 +72,12 @@ func newAutoConfigCmd() *cobra.Command {
 headers, then the configured LLM ranks and tests article selectors in that locked mode
 and prints a finished feed config — no interactive session required.
 
+If the URL is a web page rather than a feed, autoconfig first discovers the page's
+RSS/Atom feeds and lets you pick which one to configure.
+
 The agent streams its steps as it works. The final YAML is printed for you to paste
-into your feeds.yml (nothing is registered or written automatically).`,
+into your feeds.yml. Pass --update <file> to merge the result into an existing feeds
+file instead (showing a diff when the feed is already present).`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			headers, err := parseHeaders(headerFlags)
@@ -78,6 +85,13 @@ into your feeds.yml (nothing is registered or written automatically).`,
 				return err
 			}
 			client := getNewDownlinkClient()
+
+			// Pre-flight: if the URL is a landing page rather than a feed, discover
+			// the real feed and (interactively) pick which one to configure.
+			targetURL, err := resolveFeedURL(client, args[0], headers, yes)
+			if err != nil {
+				return err
+			}
 
 			// Resolve server-side so the confirmation shows the model the run uses.
 			// Same resolution AutoConfigFeed does, so failing here fails fast.
@@ -96,7 +110,7 @@ into your feeds.yml (nothing is registered or written automatically).`,
 					headerLabel = strings.Join(sortedKeys(headers), ", ")
 				}
 				fmt.Println(styleSection.Render("── autoconfig run ──"))
-				fmt.Printf("  %s %s\n", styleKey.Render("Feed:    "), args[0])
+				fmt.Printf("  %s %s\n", styleKey.Render("Feed:    "), targetURL)
 				fmt.Printf("  %s %s\n", styleKey.Render("Provider:"), providerType)
 				fmt.Printf("  %s %s\n", styleKey.Render("Model:   "), modelName)
 				fmt.Printf("  %s %s\n", styleKey.Render("Headers: "), styleDim.Render(headerLabel))
@@ -118,7 +132,7 @@ into your feeds.yml (nothing is registered or written automatically).`,
 			}
 
 			req := &protos.AutoConfigFeedRequest{
-				Url:      args[0],
+				Url:      targetURL,
 				Headers:  headers,
 				Provider: provider,
 				Model:    model,
@@ -172,6 +186,10 @@ into your feeds.yml (nothing is registered or written automatically).`,
 			}
 			fmt.Println(styleSection.Render("── feed config ──"))
 			fmt.Println(done.FeedConfigYaml)
+
+			if updateFile != "" {
+				return mergeAutoConfig(updateFile, done.FeedConfigYaml, yes)
+			}
 			fmt.Printf("%s paste into your feeds.yml, then `dlk feeds apply <file>`\n", styleKey.Render("Next:"))
 			return nil
 		},
@@ -182,6 +200,7 @@ into your feeds.yml (nothing is registered or written automatically).`,
 	cmd.Flags().IntVar(&maxSteps, "max-steps", 0, "Cap on agent tool calls (0 = server default)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip the confirmation prompt")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Stream the raw LLM prompt and response for each agent turn")
+	cmd.Flags().StringVar(&updateFile, "update", "", "Merge the discovered config into this feeds YAML file (shows a diff for existing feeds)")
 	return cmd
 }
 
@@ -199,6 +218,217 @@ func printLLMIO(turn int, prompt, response string) {
 	} else {
 		fmt.Println(strings.TrimSpace(response))
 	}
+}
+
+// resolveFeedURL inspects rawURL and returns the URL autoconfig should run
+// against. When rawURL is already a feed it is returned unchanged. When it is an
+// HTML landing page, the discovered feeds are presented (interactively, unless
+// yes/json forces the first) and the chosen one is returned. It errors when the
+// page yields no feeds or the body is not usable.
+func resolveFeedURL(client *downlinkclient.DownlinkClient, rawURL string, headers map[string]string, yes bool) (string, error) {
+	resp, err := client.InspectFeed(rawURL, headers, 5)
+	if err != nil {
+		return "", fmt.Errorf("inspect feed: %w", err)
+	}
+	diag := resp.GetDiagnosis()
+
+	switch diag.GetFeedTypeGuess() {
+	case "rss", "atom", "json-feed":
+		return rawURL, nil
+	case "html":
+		// fall through to discovery
+	default:
+		return "", fmt.Errorf("not a usable feed: %s", diag.GetVerdict())
+	}
+
+	discovered := diag.GetDiscoveredFeeds()
+	if len(discovered) == 0 {
+		return "", fmt.Errorf("no RSS/Atom feeds found on %s — pass a direct feed URL", rawURL)
+	}
+
+	if !jsonOutput {
+		fmt.Printf("%s %s is a web page, not a feed. Found %d feed(s):\n",
+			styleWarn.Render("!"), rawURL, len(discovered))
+	}
+
+	if yes || jsonOutput || len(discovered) == 1 {
+		chosen := discovered[0]
+		if !jsonOutput {
+			fmt.Printf("  %s %s\n", styleKey.Render("Using:"), chosen)
+		}
+		return chosen, nil
+	}
+
+	chosen := discovered[0]
+	opts := make([]huh.Option[string], 0, len(discovered))
+	for _, u := range discovered {
+		opts = append(opts, huh.NewOption(u, u))
+	}
+	flushStdin()
+	if err := huh.NewSelect[string]().
+		Title("Which feed do you want to configure?").
+		Options(opts...).
+		Value(&chosen).
+		WithTheme(dlkPromptTheme).Run(); err != nil {
+		return "", fmt.Errorf("cancelled")
+	}
+	return chosen, nil
+}
+
+// mergeAutoConfig merges the single-feed config YAML emitted by autoconfig into
+// the feeds file at path. When a feed with the same URL already exists, its
+// scraper block is replaced (identity fields kept) and a field-level diff is
+// shown; otherwise the feed is appended. With yes, the confirmation is skipped.
+func mergeAutoConfig(path, configYAML string, yes bool) error {
+	var parsed models.FeedsFile
+	if err := yaml.Unmarshal([]byte(configYAML), &parsed); err != nil {
+		return fmt.Errorf("parse generated config: %w", err)
+	}
+	if len(parsed.Feeds) == 0 {
+		return fmt.Errorf("generated config has no feed entry")
+	}
+	newFeed := parsed.Feeds[0]
+
+	ff, err := loadFeedsFile(path)
+	if err != nil {
+		return err
+	}
+
+	idx := -1
+	for i, f := range ff.Feeds {
+		if f.URL == newFeed.URL {
+			idx = i
+			break
+		}
+	}
+
+	if idx < 0 {
+		ff.Feeds = append(ff.Feeds, newFeed)
+		if !confirmMerge(fmt.Sprintf("Add new feed %s to %s?", newFeed.URL, path), yes) {
+			fmt.Println("Cancelled.")
+			return nil
+		}
+		fmt.Printf("%s adding new feed to %s\n", styleKey.Render("Update:"), path)
+		return writeFeedsFile(path, ff)
+	}
+
+	existing := ff.Feeds[idx]
+	changes := diffScraper(existing.Scraper, newFeed.Scraper)
+	if len(changes) == 0 {
+		fmt.Printf("%s %s already matches the generated config; nothing to update\n",
+			styleOK.Render("✓"), newFeed.URL)
+		return nil
+	}
+
+	fmt.Println(styleSection.Render("── changes ──"))
+	for _, c := range changes {
+		fmt.Printf("  %s\n", c)
+	}
+	if !confirmMerge(fmt.Sprintf("Apply these changes to %s in %s?", newFeed.URL, path), yes) {
+		fmt.Println("Cancelled.")
+		return nil
+	}
+
+	// Keep identity fields, replace the scraper block.
+	existing.Scraper = newFeed.Scraper
+	ff.Feeds[idx] = existing
+	fmt.Printf("%s updated %s in %s\n", styleKey.Render("Update:"), newFeed.URL, path)
+	return writeFeedsFile(path, ff)
+}
+
+// confirmMerge prompts for a yes/no confirmation, returning true to proceed.
+// It returns true immediately when yes (or jsonOutput) is set.
+func confirmMerge(title string, yes bool) bool {
+	if yes || jsonOutput {
+		return true
+	}
+	confirm := true
+	flushStdin()
+	if err := huh.NewConfirm().
+		Title(title).
+		Affirmative("Yes").
+		Negative("Cancel").
+		Value(&confirm).
+		WithTheme(dlkPromptTheme).Run(); err != nil {
+		return false
+	}
+	return confirm
+}
+
+// writeFeedsFile marshals a feeds file back to YAML and writes it to path.
+func writeFeedsFile(path string, ff *models.FeedsFile) error {
+	out, err := yaml.Marshal(ff)
+	if err != nil {
+		return fmt.Errorf("marshal feeds file: %w", err)
+	}
+	if err := os.WriteFile(path, out, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	fmt.Printf("%s %s, then `dlk feeds apply %s`\n", styleKey.Render("Next:"), "review the file", path)
+	return nil
+}
+
+// diffScraper returns human-readable "key: old → new" lines for the fields that
+// differ between two scraper configs. Empty when they are equivalent.
+func diffScraper(old, new models.ScraperConfig) []string {
+	var out []string
+	add := func(key, o, n string) {
+		if o != n {
+			out = append(out, fmt.Sprintf("%s %s → %s",
+				styleKey.Render(key+":"), styleDim.Render(quoteEmpty(o)), quoteEmpty(n)))
+		}
+	}
+	add("type", old.Type, new.Type)
+	add("scraping", old.Scraping, new.Scraping)
+	add("selectors.article", selVal(old.Selectors, "article"), selVal(new.Selectors, "article"))
+	add("selectors.cutoff", selVal(old.Selectors, "cutoff"), selVal(new.Selectors, "cutoff"))
+	add("selectors.blacklist", selVal(old.Selectors, "blacklist"), selVal(new.Selectors, "blacklist"))
+
+	for _, k := range sortedHeaderKeys(old.Headers, new.Headers) {
+		add("headers."+k, old.Headers[k], new.Headers[k])
+	}
+	return out
+}
+
+// selVal safely reads a named field from a possibly-nil Selectors.
+func selVal(s *models.Selectors, field string) string {
+	if s == nil {
+		return ""
+	}
+	switch field {
+	case "article":
+		return s.Article
+	case "cutoff":
+		return s.Cutoff
+	case "blacklist":
+		return s.Blacklist
+	}
+	return ""
+}
+
+// sortedHeaderKeys returns the union of two header maps' keys, sorted.
+func sortedHeaderKeys(a, b map[string]string) []string {
+	set := map[string]bool{}
+	for k := range a {
+		set[k] = true
+	}
+	for k := range b {
+		set[k] = true
+	}
+	keys := make([]string, 0, len(set))
+	for k := range set {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// quoteEmpty renders an empty value as "(none)" so a diff line stays readable.
+func quoteEmpty(s string) string {
+	if s == "" {
+		return "(none)"
+	}
+	return s
 }
 
 // ── inspect ───────────────────────────────────────────────────────────────────

@@ -50,11 +50,22 @@ func (s *GormStore) GetDigest(id string) (models.Digest, error) {
 	return digest, nil
 }
 
+// ListDigests returns digests across all profiles, newest first (historical
+// behavior). See listDigests for the meaning of full.
 func (s *GormStore) ListDigests(limit int, full bool) ([]models.Digest, error) {
+	return s.listDigests("", limit, full)
+}
+
+// listDigests is the shared implementation behind ListDigests and
+// ListDigestsByProfile. An empty profileId returns digests across all profiles.
+func (s *GormStore) listDigests(profileId string, limit int, full bool) ([]models.Digest, error) {
 	var digests []models.Digest
 
 	// Apply limit and order by creation date
 	query := s.db.Order("created_at DESC")
+	if profileId != "" {
+		query = query.Where("profile_id = ?", profileId)
+	}
 	if limit > 0 {
 		query = query.Limit(limit)
 	}

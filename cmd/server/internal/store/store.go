@@ -26,6 +26,7 @@ type Store interface {
 	StoreDigest(digest models.Digest) error
 	GetDigest(id string) (models.Digest, error)
 	ListDigests(limit int, full bool) ([]models.Digest, error)
+	ListDigestsByProfile(profileId string, limit int, full bool) ([]models.Digest, error)
 	StoreDigestArticle(digestId string, articleId string) error
 	StoreDigestArticlesBatch(digestId string, articleIds []string) error
 	GetDigestArticles(digestId string) ([]models.Article, error)
@@ -51,14 +52,21 @@ type Store interface {
 	GetOrCreateCategory(name string) (*models.Category, error)
 
 	SaveArticleAnalysis(analysis *models.ArticleAnalysis) error
-	GetArticleAnalysis(articleId string) (*models.ArticleAnalysis, error)
-	GetArticleAnalysesBatch(articleIds []string) (map[string]*models.ArticleAnalysis, error)
-	GetAllArticleAnalyses(articleId string) ([]models.ArticleAnalysis, error)
+	GetArticleAnalysis(articleId, profileId string) (*models.ArticleAnalysis, error)
+	GetArticleAnalysesBatch(articleIds []string, profileId string) (map[string]*models.ArticleAnalysis, error)
+	GetAllArticleAnalyses(articleId, profileId string) ([]models.ArticleAnalysis, error)
 
 	ListFeedGroups() ([]models.FeedGroup, error)
 	GetFeedGroup(id string) (models.FeedGroup, error)
 	StoreFeedGroup(group models.FeedGroup) error
 	DeleteFeedGroup(id string) error
+
+	ListProfiles() ([]models.Profile, error)
+	GetProfile(id string) (models.Profile, error)
+	StoreProfile(profile models.Profile) error
+	DeleteProfile(id string) error
+	SetProfileFeeds(profileId string, feedIds []string) error
+	ListProfileFeeds(profileId string) ([]models.Feed, error)
 
 	ListLLMRunSummaries(limit int) ([]LLMRunSummary, error)
 	GetLLMRun(id string) (models.LLMRun, error)

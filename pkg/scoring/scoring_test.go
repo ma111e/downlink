@@ -118,8 +118,8 @@ func TestDefaultConfigParity(t *testing.T) {
 		{0, 0, 0, 0, 0, 0, false},
 		{2, 2, 2, 2, 2, 2, false},
 		{4, 4, 4, 3, 4, 3, false},
-		{4, 4, 4, 4, 4, 4, true},                                   // aggregator override
-		{0, 4, 4, 4, 4, 4, false},                                  // evergreen cap
+		{4, 4, 4, 4, 4, 4, true},  // aggregator override
+		{0, 4, 4, 4, 4, 4, false}, // evergreen cap
 		{1, 3, 0, 2, 4, 1, false},
 	}
 	for _, d := range dimSets {
@@ -145,7 +145,9 @@ func TestConfigCustomWeights(t *testing.T) {
 	if got := cfg.Compute(Dimensions{2, 2, 2, 2, 2, 2, false}); got != 50 {
 		t.Errorf("severity-only Compute = %d, want 50", got)
 	}
-	if got := cfg.Compute(Dimensions{0, 4, 0, 0, 0, 0, false}); got != 100 {
+	// Specificity 4 avoids the evergreen cap; severity 4 with all weight on
+	// severity yields a full 100.
+	if got := cfg.Compute(Dimensions{4, 4, 0, 0, 0, 0, false}); got != 100 {
 		t.Errorf("severity-only max-severity Compute = %d, want 100", got)
 	}
 }

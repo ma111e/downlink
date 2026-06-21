@@ -152,4 +152,10 @@ type FeedDiagnosis struct {
 	HexDump         string `json:"hex_dump"`          // bytes around InvalidUTF8At, when relevant
 	RawBodyPath     string `json:"raw_body_path"`     // on-disk path to the saved raw body
 	FetchDurationMs int64  `json:"fetch_duration_ms"` // wall time of the fetch
+
+	// DiscoveredFeeds holds validated RSS/Atom/JSON feed URLs found on an HTML
+	// page (via <link> autodiscovery, anchor keywords, or common-path probing).
+	// Populated only when the fetched URL is itself an HTML page, so a caller can
+	// redirect autoconfig at the real feed instead of the landing page.
+	DiscoveredFeeds []string `json:"discovered_feeds,omitempty"`
 }

@@ -36,7 +36,8 @@ type GlossaryTerm struct {
 // ArticleAnalysis represents an analysis result from an LLM provider for an article
 type ArticleAnalysis struct {
 	Id                     string              `gorm:"primaryKey" json:"id"`
-	ArticleId              string              `gorm:"index" json:"article_id"`
+	ArticleId              string              `gorm:"index:idx_analysis_article_profile" json:"article_id"`
+	ProfileId              string              `gorm:"index:idx_analysis_article_profile;index" json:"profile_id"`
 	ProviderType           string              `json:"provider_type"`
 	ModelName              string              `json:"model_name"`
 	ImportanceScore        int                 `json:"importance_score"`

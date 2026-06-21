@@ -187,7 +187,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		for i, a := range articles {
 			articleIds[i] = a.Id
 		}
-		analysisMap, err := store.Db.GetArticleAnalysesBatch(articleIds)
+		analysisMap, err := store.Db.GetArticleAnalysesBatch(articleIds, "")
 		if err != nil {
 			log.WithError(err).Warn("Failed to batch fetch analyses for skip_analysis mode")
 		} else {
@@ -614,7 +614,7 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 	for i, a := range articles {
 		articleIds[i] = a.Id
 	}
-	analysisMap, err := store.Db.GetArticleAnalysesBatch(articleIds)
+	analysisMap, err := store.Db.GetArticleAnalysesBatch(articleIds, "")
 	if err != nil {
 		log.WithError(err).Warn("Failed to batch fetch article analyses, falling back to per-article lookup")
 		analysisMap = make(map[string]*models.ArticleAnalysis)
@@ -767,7 +767,7 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 				return nil
 			}
 
-			analysis, err := store.Db.GetArticleAnalysis(article.Id)
+			analysis, err := store.Db.GetArticleAnalysis(article.Id, "")
 			if err != nil || analysis == nil {
 				log.WithError(err).WithField("articleId", article.Id).Warn("Analysis completed but could not be retrieved")
 				captureErr(article.Id, fmt.Errorf("analysis result unavailable after completion"))

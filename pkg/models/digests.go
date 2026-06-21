@@ -59,6 +59,7 @@ type WorkerPoolConfig struct {
 // Digest represents a generated digest of articles
 type Digest struct {
 	Id                  string                 `gorm:"primaryKey" json:"id"`
+	ProfileId           string                 `gorm:"index" json:"profile_id"`
 	CreatedAt           time.Time              `gorm:"index" json:"created_at"`
 	Title               string                 `gorm:"type:text" json:"title,omitempty"`
 	ArticleCount        *int                   `gorm:"default:0" json:"article_count"`

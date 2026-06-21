@@ -21,7 +21,7 @@ func NewAnalysisServer() *AnalysisServer {
 
 // GetAllArticleAnalyses retrieves all analysis results for a specific article
 func (s *AnalysisServer) GetAllArticleAnalyses(ctx context.Context, req *protos.GetAllArticleAnalysesRequest) (*protos.GetAllArticleAnalysesResponse, error) {
-	analyses, err := store.Db.GetAllArticleAnalyses(req.ArticleId)
+	analyses, err := store.Db.GetAllArticleAnalyses(req.ArticleId, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve article analyses: %w", err)
 	}

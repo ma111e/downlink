@@ -66,6 +66,11 @@ type ArticleFilter struct {
 	StartDate       *time.Time `json:"start_date,omitempty"`
 	EndDate         *time.Time `json:"end_date,omitempty"`
 	FeedId          string     `json:"feed_id"`
+	// ProfileId, when set, restricts results to the feeds in that profile's pool
+	// and scopes LatestImportanceScore to that profile's analyses. Empty means no
+	// profile restriction (latest analysis across all profiles), preserving the
+	// historical single-tenant behavior.
+	ProfileId       string     `json:"profile_id,omitempty"`
 	ExcludeDigested bool       `json:"exclude_digested,omitempty"`
 	Offset          int        `json:"offset,omitempty"`
 	Limit           int        `json:"limit,omitempty"`

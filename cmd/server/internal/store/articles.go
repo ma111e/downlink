@@ -108,6 +108,10 @@ func (s *GormStore) applyArticleFilters(query *gorm.DB, filter models.ArticleFil
 		query = query.Where("feed_id = ?", filter.FeedId)
 	}
 
+	if filter.ProfileId != "" {
+		query = query.Where("feed_id IN (SELECT feed_id FROM profile_feeds WHERE profile_id = ?)", filter.ProfileId)
+	}
+
 	if filter.ExcludeDigested {
 		query = query.Where("id NOT IN (SELECT article_id FROM digest_articles)")
 	}
@@ -210,7 +214,7 @@ func (s *GormStore) ListArticles(filter models.ArticleFilter) ([]models.Article,
 		for i := range articles {
 			ids[i] = articles[i].Id
 		}
-		latestScores, err := s.latestImportanceScores(ids)
+		latestScores, err := s.latestImportanceScores(ids, filter.ProfileId)
 		if err != nil {
 			log.WithError(err).Warn("Failed to load latest importance scores; continuing without")
 		} else {
@@ -264,8 +268,10 @@ func (s *GormStore) GetArticleCounts(filter models.ArticleFilter) (models.Articl
 }
 
 // latestImportanceScores returns a map of articleId -> latest importance_score
-// for the given article ids, using a single SQL query.
-func (s *GormStore) latestImportanceScores(articleIds []string) (map[string]int32, error) {
+// for the given article ids, using a single SQL query. When profileId is set the
+// "latest" is scoped to that profile's analyses; an empty profileId considers
+// analyses across all profiles (historical single-tenant behavior).
+func (s *GormStore) latestImportanceScores(articleIds []string, profileId string) (map[string]int32, error) {
 	if len(articleIds) == 0 {
 		return map[string]int32{}, nil
 	}
@@ -274,19 +280,40 @@ func (s *GormStore) latestImportanceScores(articleIds []string) (map[string]int3
 		ImportanceScore int32
 	}
 	var rows []row
-	// Inner query selects the most recent created_at per article, then we
-	// join back to read its importance_score.
-	sql := `
-		SELECT a.article_id AS article_id, a.importance_score AS importance_score
-		FROM article_analyses a
-		INNER JOIN (
-			SELECT article_id, MAX(created_at) AS max_created
-			FROM article_analyses
-			WHERE article_id IN ?
-			GROUP BY article_id
-		) latest ON latest.article_id = a.article_id AND latest.max_created = a.created_at
-	`
-	if err := s.db.Raw(sql, articleIds).Scan(&rows).Error; err != nil {
+	// Inner query selects the most recent created_at per article, then we join
+	// back to read its importance_score.
+	var sql string
+	var args []interface{}
+	if profileId == "" {
+		// Historical single-tenant query, kept byte-identical: latest analysis
+		// across all profiles.
+		sql = `
+			SELECT a.article_id AS article_id, a.importance_score AS importance_score
+			FROM article_analyses a
+			INNER JOIN (
+				SELECT article_id, MAX(created_at) AS max_created
+				FROM article_analyses
+				WHERE article_id IN ?
+				GROUP BY article_id
+			) latest ON latest.article_id = a.article_id AND latest.max_created = a.created_at
+		`
+		args = []interface{}{articleIds}
+	} else {
+		// Profile-scoped: the "latest" is computed within the profile's analyses.
+		sql = `
+			SELECT a.article_id AS article_id, a.importance_score AS importance_score
+			FROM article_analyses a
+			INNER JOIN (
+				SELECT article_id, MAX(created_at) AS max_created
+				FROM article_analyses
+				WHERE article_id IN ? AND profile_id = ?
+				GROUP BY article_id
+			) latest ON latest.article_id = a.article_id AND latest.max_created = a.created_at
+			WHERE a.profile_id = ?
+		`
+		args = []interface{}{articleIds, profileId, profileId}
+	}
+	if err := s.db.Raw(sql, args...).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	out := make(map[string]int32, len(rows))

@@ -129,6 +129,14 @@ func InspectFeedURL(feedURL string, headers map[string]string, maxLinks int) Fee
 
 	diag := AnalyzeFeedBody(raw, parseErr, itemCount)
 	diag.RawBodyPath = trace.SaveDiagnostic(hostOf(feedURL), raw.Status, raw.ContentType, raw.Body)
+
+	// When the URL is itself an HTML page (not a feed), try to discover the real
+	// feed so autoconfig can be pointed at it instead of the landing page.
+	if diag.FeedTypeGuess == "html" {
+		cands := discoverFeedLinks(raw.Body, raw.FinalURL)
+		diag.DiscoveredFeeds = validateFeedCandidates(cands, headers, raw.FinalURL)
+	}
+
 	insp.Diagnosis = diag
 	return insp
 }
