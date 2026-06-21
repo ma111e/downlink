@@ -12,11 +12,16 @@
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
     
+    
+    
+    var lvl = localStorage.getItem('downlink.help.level');
+    if (lvl !== '1' && lvl !== '2' && lvl !== '3') lvl = '3';
     if (localStorage.getItem('downlink.learning') === 'on') {
       var d = document.documentElement.dataset;
       d.learning = 'on';
+      d.helpLevel = lvl;
+      d.learnPlain = localStorage.getItem('downlink.learn.plain') === 'off' ? 'off' : 'on';
       d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
-      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
       d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
     }
   } catch(e){}
@@ -29,6 +34,12 @@
 <meta property="og:title" content="DOWNLINK Intelligence Digest">
 <meta property="og:description" content="30 articles curated from a 1 day window.">
 <title>DOWNLINK — 2026-06-09 00:00 UTC</title>
+<link rel="icon" type="image/x-icon" href="./favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png">
+<link rel="apple-touch-icon" sizes="128x128" href="./icon-128.png">
+<link rel="manifest" href="./site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -199,7 +210,7 @@ html[data-theme="pastel"] {
   --bg:      #faf6e6;   
   --surface: #fffdf4;   
   --surface2:#f1ead2;   
-  --surface-raised: #ffffff;   
+  --surface-raised: #fffdf4;   
   --border:  #e6dcbf;   
   --border2: #d2c5a2;   
   --text:    #3a3137;   
@@ -231,11 +242,12 @@ html {
   background-size: 24px 24px;
   color: var(--text);
   font-family: var(--sans);
-  font-size: clamp(14px, 0.85dvw, 18px);
+  font-size: clamp(15px, 1dvw, 20px);
   line-height: 1.6;
   scroll-behavior: smooth;
+  overflow-x: clip;    
 }
-body { min-height: 100vh; max-width: clamp(900px, 72dvw, 1600px); margin: 0 auto; }
+body { min-height: 100vh; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; }
 ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -270,11 +282,20 @@ a:hover { text-decoration: underline; }
   z-index: 100;
   background: color-mix(in oklch, var(--bg) 90%, transparent);
   backdrop-filter: blur(16px);
-  margin: 0 clamp(24px, 2.5dvw, 52px);
+  border-bottom: 1px solid var(--border);
+   
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  padding: 0 24px;
   height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 .nav-logo {
   display: flex;
@@ -296,12 +317,13 @@ a:hover { text-decoration: underline; }
   padding: 1px 6px;
   border-radius: 2px;
 }
-.nav-center {
+.nav-meta {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.3;
 }
-.nav-date  { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; }
+.nav-date  { font-family: var(--mono); font-size: 11px; color: var(--text2); letter-spacing: 0.06em; }
 .nav-right {
   display: flex;
   align-items: center;
@@ -361,10 +383,13 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
 .nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+ 
 .nav-learn-switch {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  height: 24px;
+  box-sizing: border-box;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -372,7 +397,7 @@ a:hover { text-decoration: underline; }
   background: var(--surface);
   border: 1px solid var(--border2);
   border-radius: 2px;
-  padding: 4px 8px;
+  padding: 0 8px;
   cursor: pointer;
   text-transform: uppercase;
 }
@@ -404,16 +429,58 @@ a:hover { text-decoration: underline; }
 }
 .nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
 .nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+ 
+.nav-help-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+   
+  height: 24px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  visibility: hidden;
+  cursor: pointer;
+  position: relative;
+}
+html[data-learning="on"] .nav-help-mini { visibility: visible; }
+.nav-help-mini-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--text3); transition: background .12s; }
+.nav-help-mini-dot.is-active { background: var(--should); }
+ 
+.nav-help-flash {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--should);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+.nav-help-flash.is-shown { opacity: 1; }
 .nav-learn-caret {
+  height: 24px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
   font-size: 10px;
   color: var(--text2);
   background: var(--surface);
   border: 1px solid var(--border2);
   border-radius: 2px;
-  padding: 3px 5px;
+  padding: 0 7px;
   cursor: pointer;
   line-height: 1;
+   
+  visibility: hidden;
+  pointer-events: none;
 }
+html[data-learning="on"] .nav-learn-caret { visibility: visible; pointer-events: auto; }
 .nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
 .nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
 .learn-card {
@@ -436,6 +503,65 @@ a:hover { text-decoration: underline; }
   text-transform: uppercase;
   color: var(--text3);
   padding: 2px 4px 6px;
+}
+ 
+.help-slider {
+  position: relative;
+  width: auto;
+  height: 20px;
+  margin: 0 4px 2px;
+  cursor: pointer;
+  touch-action: none;
+  border-radius: 999px;
+}
+.help-slider:focus-visible { outline: 1px solid var(--should); outline-offset: 2px; }
+.help-slider-track {
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  right: 5px;
+  height: 4px;
+  transform: translateY(-50%);
+  background: var(--border2);
+  border-radius: 999px;
+}
+.help-slider-dot {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text3);
+  transform: translate(-50%, -50%);
+  transition: background .12s;
+}
+.help-slider-dot[data-pos="0"] { left: 5px; }
+.help-slider-dot[data-pos="1"] { left: 50%; }
+.help-slider-dot[data-pos="2"] { left: calc(100% - 5px); }
+.help-slider-dot.is-active { background: var(--should); }
+.help-slider-knob {
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 1px solid var(--border);
+  transform: translate(-50%, -50%);
+  transition: left .12s;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+.help-slider-ends {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
 }
 .learn-feature {
   display: flex;
@@ -548,7 +674,8 @@ a:hover { text-decoration: underline; }
 
  
 #toc {
-  padding: 0 clamp(24px, 2.5dvw, 52px);
+  padding: 0 40px;
+  flex: 1;
 }
 .toc-card {
   background: var(--surface);
@@ -556,11 +683,13 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius);
   overflow: hidden;
 }
+ 
+.toc-card-head { background: none; border: none; }
 .toc-header {
   padding: 13px 20px;
 }
  
-#toc .toc-card + .toc-card { margin-top: 20px; }
+#toc .toc-card + .toc-card { margin: 20px 0; }
 .toc-body { padding: 8px 20px 16px; }
 .toc-group { margin-bottom: 4px; }
 .toc-group-head {
@@ -641,6 +770,10 @@ a:hover { text-decoration: underline; }
   margin-top: 2px;
   flex-shrink: 0;
 }
+ 
+.toc-row-head { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+.toc-row-head .toc-num { margin-top: 0; }
+.toc-row-head .toc-cat-label { margin-bottom: 0; }
 .toc-num-must   { color: var(--must); }
 .toc-num-should { color: var(--should); }
 .toc-num-may    { color: var(--may); }
@@ -667,11 +800,12 @@ a:hover { text-decoration: underline; }
  
 .toc-row-wrap.open {
   margin: 10px 0;
+  padding: 14px;
   border-color: var(--border);    
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface-raised);    
-  box-shadow: 0 1px 2px rgba(0,0,0,0.25), 0 6px 16px rgba(0,0,0,0.18);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.10);
 }
 .toc-row-wrap::before {
   content: "";
@@ -691,6 +825,8 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   user-select: none;
 }
+ 
+.toc-row-wrap > .toc-row-inner { padding-left: 40px; }
 .toc-row-meta {
   display: flex;
   gap: 8px;
@@ -749,7 +885,8 @@ a:hover { text-decoration: underline; }
   }
 }
 .toc-row-body { height: 0; overflow: hidden; border-top: 1px solid transparent; }
-.toc-row-body.open { height: auto; margin: 0 12px; border-top-color: var(--border); margin-bottom: 20px}
+ 
+.toc-row-body.open { height: auto; margin: 0 12px; border-top-color: var(--border); margin-bottom: 20px; padding: 9px 0 9px 28px; }
  
 @supports (interpolate-size: allow-keywords) {
   :root { interpolate-size: allow-keywords; }
@@ -777,7 +914,7 @@ a:hover { text-decoration: underline; }
 }
  
 #overview {
-  padding: 20px clamp(24px, 2.5dvw, 52px) 0;
+  padding: 20px 40px 0;
 }
 .overview-card {
   container-type: inline-size;
@@ -869,7 +1006,7 @@ a:hover { text-decoration: underline; }
   padding: 2px 7px;
   border-radius: 3px;
   color: var(--text2);
-  background: var(--surface2);
+  background: var(--surface);
   border: 1px solid var(--border2);
   cursor: pointer;
 }
@@ -985,7 +1122,7 @@ a:hover { text-decoration: underline; }
   mask-image: none;
 }
  
-.toc-row-inner .toc-row-tags { margin-left: -32px; width: calc(100% + 32px + 8px); }
+.toc-row-inner .toc-row-tags { margin-left: 0; width: calc(100% + 8px); }
 .toc-row-tags::-webkit-scrollbar { display: none; }  
 .toc-tags-label {
   align-self: center;
@@ -1005,7 +1142,7 @@ a:hover { text-decoration: underline; }
   padding: 2px 7px;
   border-radius: 3px;
   color: var(--text2);
-  background: var(--surface2);
+  background: var(--surface);
   border: 1px solid var(--border2);
 }
 .meta-tag[data-tag] { cursor: pointer; }
@@ -1116,6 +1253,17 @@ html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
 }
+ 
+html[data-help-level="1"] mark.tag-hl[data-lvl="2"],
+html[data-help-level="1"] mark.tag-hl[data-lvl="3"],
+html[data-help-level="2"] mark.tag-hl[data-lvl="3"],
+html[data-help-level="1"] mark.tag-hl[data-lvl="2"]:hover,
+html[data-help-level="1"] mark.tag-hl[data-lvl="3"]:hover,
+html[data-help-level="2"] mark.tag-hl[data-lvl="3"]:hover {
+  background: transparent;
+  cursor: auto;
+  text-decoration: none;
+}
 
  
  
@@ -1143,7 +1291,7 @@ html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
 .glossary-popup-close:hover { color: var(--text); }
 .glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
 .glossary-popup-type {
-  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  display: inline-block; padding: .05rem .4rem;
   border: 1px solid var(--border); border-radius: 999px;
   font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
   color: var(--text2);
@@ -1195,11 +1343,10 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
   flex-direction: column;
   background: var(--surface, var(--bg));
   border-left: 1px solid var(--border);
-  box-shadow: -8px 0 28px rgba(0,0,0,.35);
   transform: translateX(100%);
   transition: transform .2s ease;
 }
-.glossary-panel.is-open { transform: none; }
+.glossary-panel.is-open { transform: none; box-shadow: -8px 0 28px rgba(0,0,0,.35); }
 .glossary-panel-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: .9rem 1rem; border-bottom: 1px solid var(--border); flex: none;
@@ -1213,8 +1360,22 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
   font-size: 1.4rem; line-height: 1; cursor: pointer; padding: 0 .25rem;
 }
 .glossary-panel-close:hover { color: var(--text); }
+.glossary-panel-search { padding: .75rem 1rem; border-bottom: 1px solid var(--border); flex: none; }
+.glossary-panel-search input {
+  width: 100%; box-sizing: border-box;
+  background: var(--bg); border: 1px solid var(--border2); border-radius: 6px;
+  padding: .45rem .6rem; color: var(--text);
+  font-family: var(--mono); font-size: .82rem; outline: none;
+}
+.glossary-panel-search input:focus { border-color: var(--should); }
 .glossary-panel-body { flex: 1; overflow-y: auto; padding: .9rem 1rem; }
 .glossary-panel-list { margin: 0; padding: 0; }
+.glossary-panel-entry[hidden] { display: none; }
+ 
+html[data-help-level="1"] .glossary-panel-entry[data-lvl="2"],
+html[data-help-level="1"] .glossary-panel-entry[data-lvl="3"],
+html[data-help-level="2"] .glossary-panel-entry[data-lvl="3"] { display: none; }
+.glossary-panel-empty { margin: 0; color: var(--text2); font-size: .85rem; }
 .glossary-panel-term {
   margin: 0; color: var(--text); font-weight: 600; font-size: .92rem;
   display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
@@ -1238,7 +1399,7 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
 .report-item {
   position: relative;
   border: 1px solid var(--border);
-  background: var(--surface2);
+  background: var(--surface);
   border-radius: var(--radius);
   padding: 0.75rem 0.85rem;
 }
@@ -1277,7 +1438,7 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
 .report-context { margin-top: 0.4rem; font-size: 0.89rem; line-height: 1.6; color: var(--text2); }
 
  
-.panel-section { margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+.panel-section { margin-top: 1.1rem; }
 .panel-section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 .panel-subhead {
   display: flex;
@@ -1303,18 +1464,22 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
 .panel-subhead--summary   { --panel-c: var(--cyan); }
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
-.panel-subhead--glossary  { --panel-c: var(--should); }
-.panel-subhead--why       { --panel-c: var(--must); }
+.panel-subhead--plain     { --panel-c: var(--should); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary,
-.panel-subhead--why { color: var(--panel-c); }
+.panel-subhead--plain { color: var(--panel-c); }
  
-.glossary-block { display: none; }
-html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.plain-words-block { display: none; border-top: none; }
+html[data-learning="on"][data-learn-plain="on"] .plain-words-block { display: block; }
+.plain-label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; margin-bottom: 0; }
+.plain-caret { display: inline-flex; align-items: center; flex: 0 0 auto; transform: rotate(-90deg); transition: transform .15s; }
+.plain-caret svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.plain-label.open .plain-caret { transform: rotate(0deg); }
+.plain-body { display: none; margin-top: 0.5rem; }
+.plain-body.open { display: block; }
 .why-block { display: none; }
-html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
+html[data-learning="on"][data-learn-plain="on"] .why-block { display: block; }
 .summary-switch { display: flex; flex-wrap: wrap; gap: 2px; margin-left: auto; }
 .summary-switch .tab-btn {
   margin-bottom: 0;
@@ -1355,7 +1520,7 @@ html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
   padding: 4px 12px;
   border-radius: 3px;
   color: var(--cyan);
-  background: var(--surface2);
+  background: var(--surface);
   border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
   cursor: pointer;
   margin-top: 0.5rem;
@@ -1393,20 +1558,24 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   details[open] .toc-cluster-chevron svg path { transform: none; d: path("M4 6.5 L8 10.5 L12 6.5"); }
 }
  
-.toc-cluster-members { list-style: none; padding-left: 72px; }
+ 
+.toc-cluster-members { list-style: none; padding-left: 72px; padding-right: 32px; padding-top: 6px; }
 .toc-cluster-member {
   display: flex; gap: 8px; align-items: flex-start;
-  padding: 4px 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+  padding: 8px 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
 }
 .toc-cluster-member:last-child { border-bottom: none; }
 
  
 #footer {
   border-top: 1px solid var(--border);
-  padding: 16px clamp(24px, 2.5dvw, 52px);
+  padding: 16px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+   
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
 }
 .footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
@@ -1450,9 +1619,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
  
 @media (max-width: 700px) {
-  #nav { margin: 0 16px; padding: 10px 0; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
-  .nav-center { display: none; }
-  .nav-window { display: none; }
+  #nav { margin: 0; padding: 10px 16px; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+  .nav-meta { display: none; }
   .nav-right { display: contents; }
   .nav-swipe { order: 1; margin-left: auto; }
   .nav-count { order: 2; width: 100%; white-space: normal; flex-wrap: wrap; }
@@ -1463,7 +1631,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   .overview-cell-full { grid-column: auto; }
   #back-top { bottom: 1rem; right: 0.75rem; }
   .toc-title { padding: 12px 16px; }
-  .digest-title-text { font-size: clamp(16px, 5dvw, 1.57rem); }
+  .digest-title-text { font-size: clamp(17px, 5dvw, 1.57rem); }
    
   .panel-subhead--summary { flex-wrap: wrap; }
   .panel-subhead--summary .summary-switch {
@@ -1486,20 +1654,57 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 @container (min-width: 960px) {
   .overview-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+ 
+.tour-overlay { position: fixed; inset: 0; z-index: 2000; background: transparent; }
+.tour-spotlight {
+  position: fixed; z-index: 2001; pointer-events: none;
+  top: 0; left: 0; width: 0; height: 0;
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62), 0 0 0 2px var(--should);
+  transition: top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+.tour-spotlight.is-centered { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62); }
+.tour-card {
+  position: fixed; z-index: 2002; box-sizing: border-box;
+  width: min(340px, calc(100vw - 28px));
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border2); border-radius: 10px;
+  padding: 15px 17px 13px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  font-family: var(--sans);
+}
+.tour-card-step { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+.tour-card-title { font-size: 15px; font-weight: 600; line-height: 1.25; margin: 0 0 6px; color: var(--text); }
+.tour-card-body { font-size: 13px; line-height: 1.5; color: var(--text2); margin: 0; }
+.tour-card-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.tour-dots { display: inline-flex; gap: 5px; align-items: center; margin-right: auto; }
+.tour-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); }
+.tour-dots span.is-active { background: var(--should); }
+.tour-btn { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 5px 11px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; }
+.tour-btn:hover { border-color: var(--should); color: var(--text); }
+.tour-btn:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.tour-btn-primary { background: var(--should); border-color: var(--should); color: var(--bg); }
+.tour-btn-primary:hover { color: var(--bg); filter: brightness(1.06); }
+.tour-skip { border: none; color: var(--text3); padding-left: 2px; }
+.tour-skip:hover { border: none; color: var(--text2); }
+@media (prefers-reduced-motion: reduce) { .tour-spotlight { transition: none; } }
 </style>
 </head>
 <body>
 
 
 <nav id="nav">
-  <a class="nav-logo" href="index.html">
-    <span class="nav-logo-down">DOWN</span><span class="nav-logo-link">LINK</span>
-  </a>
-  <div class="nav-center">
-    <span class="nav-date">2026-06-09 00:00 UTC</span>
+  <div class="nav-left">
+    <a class="nav-logo" href="index.html">
+      <span class="nav-logo-down">DOWN</span><span class="nav-logo-link">LINK</span>
+    </a>
+    <div class="nav-meta">
+      <span class="nav-date">2026-06-09 00:00 UTC</span>
+      <span class="nav-window">1 day window</span>
+    </div>
   </div>
   <div class="nav-right">
-    <span class="nav-window">1 day window</span>
     <a class="nav-swipe" href="downlink-swipe-2026-06-09_0000.html">Triage</a>
     <div class="nav-count">
       <span class="nav-count-dot">■</span>
@@ -1520,7 +1725,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 
 <section id="toc">
-  <div class="toc-card">
+  <div class="toc-card toc-card-head">
     
     <div class="toc-header" style="display:flex;align-items:center;justify-content:space-between">
       <div class="toc-filters">
@@ -1556,9 +1761,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
         </div>
         <div class="toc-row-wrap must-row" data-priority="must" data-category="advisory" data-tags="apache-tomcat cve-2026-22732 cve-2026-27671 cve-2026-29145 cve-2026-40128 cve-2026-44748 cve-2026-44751 directory-traversal memory-corruption sap sap-commerce-cloud sap-data-hub sap-netweaver spring-security xml-signature-wrapping">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">01</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">advisory</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">01</span><span class="toc-cat-label">advisory</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">SAP fixes critical flaws in NetWeaver and Commerce Cloud</span>
               </div>
@@ -1650,9 +1854,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">SAP released fixes for 15 vulnerabilities as part of its June 2026 Security Patch package, including four critical-severity flaws affecting SAP NetWeaver and SAP Commerce Cloud.</span></li><li><span class="kp-text">CVE-2026-44748 (CVSS 9.9) is an XML Signature Wrapping flaw in SAP NetWeaver AS ABAP and ABAP Platform that could allow authentication bypass in SAML-based environments by enabling an authenticated attacker to send modified signed XML documents.</span></li><li><span class="kp-text">CVE-2026-27671 (CVSS 9.8) is a memory corruption flaw in SAP NetWeaver/ABAP Platform Application Server ABAP that can be exploited without authentication via crafted RFC requests leveraging improper kernel validation.</span></li><li><span class="kp-text">Additional critical flaws include CVE-2026-22732 (CVSS 9.1), a Spring Security-related vulnerability in SAP Commerce Cloud and SAP Data Hub, and CVE-2026-40128 (CVSS 9.0), a directory traversal vulnerability in SAP NetWeaver Application Server Java&#39;s Web Container.</span></li><li><span class="kp-text">SAP also addressed two high-severity vulnerabilities and various SQL injection, path traversal, cross-site scripting, email spoofing, and authorization bypass issues, with full details available only to SAP customers with a security portal account.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/sap-fixes-critical-flaws-in-netweaver-and-commerce-cloud/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific, recent SAP June 2026 patch release fixing 15 named CVEs, including four critical flaws (one CVSS 9.9 and one unauthenticated 9.8 exploit) in widely-deployed enterprise software like NetWeaver and Commerce Cloud. It is sourced from SAP&rsquo;s official security bulletin and CVE records, and gives clear actionable guidance to prioritize patching the most severe flaws.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>The article reports a specific, recent SAP June 2026 patch release fixing 15 named CVEs, including four critical flaws (one CVSS 9.9 and one unauthenticated 9.8 exploit) in widely-deployed enterprise software like NetWeaver and Commerce Cloud. It is sourced from SAP&rsquo;s official security bulletin and CVE records, and gives clear actionable guidance to prioritize patching the most severe flaws.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="http://support.sap.com/en/my-support/knowledge-base/security-notes-news/june-2026.html" target="_blank" rel="noopener">SAP Security Notes &amp; News - June 2026</a></div>
@@ -1663,9 +1866,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="advisory" data-tags="chaotic-eclipse cisa-kev cve-2026-41091 cve-2026-42985 cve-2026-45585 cve-2026-45586 cve-2026-49160 cve-2026-50507 http-sys microsoft microsoft-defender patch-tuesday remote-desktop-client tenable windows-bitlocker">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">02</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">advisory</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">02</span><span class="toc-cat-label">advisory</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Microsoft’s June 2026 Patch Tuesday Addresses 198 CVEs ( CVE-2026-49160, CVE-2026-50507)</span>
               </div>
@@ -1794,9 +1996,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft&#39;s June 2026 Patch Tuesday addressed 198 CVEs, with 32 rated critical and 166 rated important, making it the largest Patch Tuesday release ever and surpassing the previous record of 167 CVEs from October 2025.</span></li><li><span class="kp-text">Three zero-day vulnerabilities were publicly disclosed prior to patches being available: CVE-2026-50507 (a BitLocker security feature bypass requiring physical access, known as Bitskrieg), CVE-2026-49160 (an HTTP.sys denial of service affecting HTTP/2 dubbed HTTP/2 Bomb), and CVE-2026-45586 (a Windows Collaborative Translation Framework elevation of privilege granting SYSTEM privileges).</span></li><li><span class="kp-text">Eleven Remote Desktop Client RCE vulnerabilities were patched that could be triggered by a victim connecting to an attacker-controlled server, causing a heap-based buffer overflow, with CVE-2026-42985 assessed as Exploitation More Likely.</span></li><li><span class="kp-text">An out-of-band Microsoft Defender elevation of privilege vulnerability (CVE-2026-41091, known as RedSun) was disclosed by a researcher called Chaotic Eclipse, has been exploited in the wild, and was added to CISA&#39;s Known Exploited Vulnerabilities catalog on May 20, 2026.</span></li><li><span class="kp-text">Elevation of Privilege vulnerabilities accounted for 31.8% of the patched flaws while remote code execution vulnerabilities accounted for 27.3%.</span></li></ul></div>
-            
             <a href="https://www.tenable.com/blog/microsofts-june-2026-patch-tuesday-addresses-198-cves-cve-2026-49160-cve-2026-50507" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a concrete vendor advisory roundup for a single named event (Microsoft&rsquo;s June 2026 Patch Tuesday) covering 198 CVEs including three publicly disclosed zero-days and an actively exploited, CISA KEV-listed Defender flaw affecting ubiquitous Windows software. It provides clear actionable guidance (patch now, registry mitigations) and cites primary sources including Microsoft advisories, named researchers, and CISA; while it summarizes many CVEs, it is coverage of one cohesive topic rather than an unrelated link digest.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a concrete vendor advisory roundup for a single named event (Microsoft&rsquo;s June 2026 Patch Tuesday) covering 198 CVEs including three publicly disclosed zero-days and an actively exploited, CISA KEV-listed Defender flaw affecting ubiquitous Windows software. It provides clear actionable guidance (patch now, registry mitigations) and cites primary sources including Microsoft advisories, named researchers, and CISA; while it summarizes many CVEs, it is coverage of one cohesive topic rather than an unrelated link digest.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://blog.calif.io/p/codex-discovered-a-hidden-http2-bomb" target="_blank" rel="noopener">Codex Discovered a Hidden HTTP/2 Bomb</a></div>
@@ -1815,9 +2016,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="advisory" data-tags="azure-kubernetes-service cisco cve-2026-42985 cve-2026-44803 cve-2026-47291 heap-based-buffer-overflow microsoft microsoft-office microsoft-outlook patch-tuesday remote-desktop-client snort talos windows-http-protocol-stack windows-hyper-v">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">03</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">advisory</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">03</span><span class="toc-cat-label">advisory</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Microsoft Patch Tuesday for June 2026 — Snort rules and prominent vulnerabilities</span>
               </div>
@@ -1944,9 +2144,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft&#39;s June 2026 security update addresses 206 vulnerabilities, 32 of which are rated critical, including 28 critical remote code execution vulnerabilities across Windows services and applications.</span></li><li><span class="kp-text">Talos highlighted four critical vulnerabilities Microsoft deemed &#39;more likely&#39; to be exploited: CVE-2026-42985 (Remote Desktop Client heap-based buffer overflow), CVE-2026-47291 (Windows HTTP Protocol Stack integer overflow), and CVE-2026-44803 and CVE-2026-44812 (Windows Graphics component integer overflow).</span></li><li><span class="kp-text">Several critical Outlook and Word vulnerabilities (CVE-2026-45456, CVE-2026-45458, and CVE-2026-47635) can be exploited via the preview pane of Outlook (classic), which renders emails using Microsoft Word functionality where a type confusion flaw exists.</span></li><li><span class="kp-text">Microsoft also flagged &#39;important&#39; vulnerabilities considered &#39;more likely&#39; to be exploited, including elevation of privilege flaws in the Windows DWM Core Library, NT OS Kernel, Winlogon, and SharePoint Server spoofing vulnerabilities.</span></li><li><span class="kp-text">Talos released new Snort rulesets to detect exploitation attempts, including Snort 2 rules 66572-66577, 66581, 66589, 66590, 66594, 66595, 66601-66604 and Snort 3 rules 301523-301525, 301527-301529, 301531, and 301532.</span></li></ul></div>
-            
             <a href="https://blog.talosintelligence.com/microsoft-patch-tuesday-for-june-2026-snort-rules-and-prominent-vulnerabilities/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a Microsoft Patch Tuesday advisory covering 206 named CVEs (32 critical) in ubiquitous Windows and Microsoft products with clear patch and Snort detection rule guidance. While it covers many vulnerabilities, it is a single coherent monthly patch event from Cisco Talos as a primary source rather than an unrelated-items roundup, and Microsoft assessed several flaws as &lsquo;more likely&rsquo; to be exploited.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a Microsoft Patch Tuesday advisory covering 206 named CVEs (32 critical) in ubiquitous Windows and Microsoft products with clear patch and Snort detection rule guidance. While it covers many vulnerabilities, it is a single coherent monthly patch event from Cisco Talos as a primary source rather than an unrelated-items roundup, and Microsoft assessed several flaws as &lsquo;more likely&rsquo; to be exploited.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://msrc.microsoft.com/update-guide/releaseNote/2026-june" target="_blank" rel="noopener">June 2026 Security Updates Release Notes</a></div>
@@ -1957,9 +2156,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="advisory" data-tags="bitlocker calif ctfmon cve-2026-45586 cve-2026-49160 cve-2026-50507 http-sys http2-bomb microsoft nightmare-eclipse patch-tuesday windows-11 windows-server yellowkey">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">04</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">advisory</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">04</span><span class="toc-cat-label">advisory</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Microsoft June 2026 Patch Tuesday fixes 3 zero-day, 200 flaws</span>
               </div>
@@ -2074,9 +2272,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft&#39;s June 2026 Patch Tuesday addresses 200 flaws, including 33 critical vulnerabilities (28 remote code execution, 4 elevation of privilege, and 1 information disclosure) and three publicly disclosed zero-day vulnerabilities, none of which are known to have been exploited in attacks.</span></li><li><span class="kp-text">CVE-2026-45586 is a publicly disclosed Windows Collaborative Translation Framework (CTFMON) elevation of privilege flaw that grants SYSTEM privileges through improper link resolution, credited to an anonymous researcher.</span></li><li><span class="kp-text">CVE-2026-49160, called the &#39;HTTP/2 Bomb,&#39; is a denial-of-service flaw disclosed by researchers at offensive security firm Calif that abuses HTTP/2 header compression to force servers to allocate disproportionately large amounts of memory, prompting Microsoft to introduce a new &#39;MaxHeadersCount&#39; registry setting as mitigation.</span></li><li><span class="kp-text">CVE-2026-50507 is a Windows BitLocker security feature bypass that BleepingComputer identified as the &#39;YellowKey&#39; vulnerability disclosed by researcher Nightmare Eclipse, exploitable via crafted files on a USB drive or EFI partition and primarily affecting TPM-only BitLocker systems on Windows 11 and Windows Server 2022/2025.</span></li><li><span class="kp-text">The roundup excludes flaws fixed earlier in the month for products like Mariner, Azure HorizonDB, and Microsoft Copilot, as well as 360 Microsoft Edge/Chromium flaws fixed by Google, and notes that other vendors including Acer, Check Point, Cisco, Fortinet, Google, Ivanti, Ubiquiti, SAP, and Veeam also released security updates.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/microsoft/microsoft-june-2026-patch-tuesday-fixes-3-zero-day-200-flaws/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a concrete, event-driven report on Microsoft&rsquo;s June 2026 Patch Tuesday covering 200 named CVEs including three publicly disclosed zero-days affecting ubiquitous Windows software, with clear patch-now actionability and primary sourcing from Microsoft advisories and named researchers. Severity and breadth are high given critical RCE flaws in widely deployed products, though none of the zero-days are known to be actively exploited, slightly tempering novelty. While it covers many CVEs, it focuses on a single coherent event (one Patch Tuesday) rather than unrelated items, so it is not an aggregator.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a concrete, event-driven report on Microsoft&rsquo;s June 2026 Patch Tuesday covering 200 named CVEs including three publicly disclosed zero-days affecting ubiquitous Windows software, with clear patch-now actionability and primary sourcing from Microsoft advisories and named researchers. Severity and breadth are high given critical RCE flaws in widely deployed products, though none of the zero-days are known to be actively exploited, slightly tempering novelty. While it covers many CVEs, it focuses on a single coherent event (one Patch Tuesday) rather than unrelated items, so it is not an aggregator.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://support.microsoft.com/en-us/topic/control-the-maximum-number-of-http-2-and-http-3-request-headers-in-windows-clients-and-servers-084da156-7a99-4abf-b759-f973c35eded3" target="_blank" rel="noopener">Control the maximum number of HTTP/2 and HTTP/3 request headers in Windows clients and servers</a></div>
@@ -2099,9 +2296,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="research" data-tags="ai-sdk-ollama aikido binding.gyp command-injection compiler-hijacking github miasma node-gyp npm pypi python-eval red-hat sandbox-escape supply-chain-attack vapi-ai-server-sdk">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">05</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">05</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Wait, binding.gyp Can Do What? Exploring npm&#39;s Weirdest Build System</span>
               </div>
@@ -2224,9 +2420,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The latest variant of the Miasma worm moved its install-time trigger out of package.json hooks and into binding.gyp, which npm automatically executes via node-gyp rebuild whenever the file is present in a package&#39;s root, even with a completely clean package.json.</span></li><li><span class="kp-text">GYP supports command expansion syntax such as &lt;!(command) that runs shell commands at parse time, and because GYP walks the entire parsed structure recursively, these commands execute under any key name at any depth, not just documented fields like sources or include_dirs.</span></li><li><span class="kp-text">Because binding.gyp is parsed with Python&#39;s eval using stripped builtins, attackers can use a sandbox escape (starting from an empty tuple and traversing object subclasses to catch_warnings) to import the os module and run arbitrary shell commands, hiding pure Python payloads in normal-looking build files or condition strings.</span></li><li><span class="kp-text">Payloads can be hidden in files pulled in through the includes key, through transitively auto-included files like config.gypi, common.gypi, and the persistent ~/.gyp/include.gypi in the user&#39;s home directory, or through target dependencies pointing at other gyp files.</span></li><li><span class="kp-text">Attackers can hijack the build by replacing the compiler through make_global_settings (CC, CXX, *_wrapper keys) or injecting malicious $(shell ...) commands into compiler flags, and can also execute code directly through GYP&#39;s documented actions, rules, and postbuilds features without needing any command expansion syntax.</span></li></ul></div>
-            
             <a href="https://www.aikido.dev/blog/exploring-binding-gyp-npm-build-system" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports on a specific, active Miasma campaign hitting named packages and provides original technical research into novel undocumented binding.gyp abuse including Python eval sandbox escapes. It affects the ubiquitous npm ecosystem with active in-the-wild exploitation, and while it offers awareness and a detection product, defenders get general guidance rather than concrete IOCs or patches.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>The article reports on a specific, active Miasma campaign hitting named packages and provides original technical research into novel undocumented binding.gyp abuse including Python eval sandbox escapes. It affects the ubiquitous npm ecosystem with active in-the-wild exploitation, and while it offers awareness and a detection product, defenders get general guidance rather than concrete IOCs or patches.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.aikido.dev/blog/red-hat-npm-packages-compromised-credential-stealing-worm" target="_blank" rel="noopener">Miasma attack hit 32 official Red Hat packages</a></div>
@@ -2237,9 +2432,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="advisory" data-tags="akira cisa cuba cve-2024-40711 cve-2026-44963 fin7 fog frag remote-code-execution sina-kheirkhah sophos-x-ops veeam veeam-backup-replication watchtowr">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">06</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">advisory</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">06</span><span class="toc-cat-label">advisory</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">New Veeam vulnerability exposes backup servers to RCE attacks</span>
               </div>
@@ -2339,9 +2533,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Veeam released security updates to patch a critical vulnerability (CVE-2026-44963) in Backup &amp; Replication that allows an authenticated domain user to achieve remote code execution on domain-joined backup servers.</span></li><li><span class="kp-text">The flaw affects Veeam Backup &amp; Replication 12.3.2.4465 and all earlier version 12 builds, was fixed in version 12.3.2.4854, and does not affect any version 13.x build due to architectural changes.</span></li><li><span class="kp-text">The vulnerability only impacts Veeam installations joined to a domain, a configuration that contradicts Veeam&#39;s long-standing hardening best practices, yet many companies have joined their servers to a Windows domain.</span></li><li><span class="kp-text">There are no reports of active exploitation, but Veeam warned that attackers will likely attempt to reverse-engineer the patch to exploit unpatched deployments, and the vulnerability was reported by WatchTowr researcher Sina Kheirkhah.</span></li><li><span class="kp-text">Veeam backup servers are frequently targeted by ransomware gangs such as Akira, Fog, Frag, and Cuba, as well as the FIN7 group, and CISA has flagged four previously exploited Veeam Backup &amp; Replication flaws.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/new-veeam-vulnerability-exposes-backup-servers-to-rce-attacks/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific newly-disclosed critical RCE flaw (CVE-2026-44963) in Veeam Backup &amp; Replication with a named researcher and vendor advisory, affecting software used by over 550,000 customers including most Fortune 500 firms. Severity is high but conditional on domain-joined configuration with no active exploitation yet, and defenders have a clear action (apply the patch in version 12.3.2.4854).</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>The article reports a specific newly-disclosed critical RCE flaw (CVE-2026-44963) in Veeam Backup &amp; Replication with a named researcher and vendor advisory, affecting software used by over 550,000 customers including most Fortune 500 firms. Severity is high but conditional on domain-joined configuration with no active exploitation yet, and defenders have a clear action (apply the patch in version 12.3.2.4854).</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.veeam.com/kb4869" target="_blank" rel="noopener">Veeam KB4869 Security Advisory (CVE-2026-44963)</a></div>
@@ -2364,9 +2557,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="advisory" data-tags="cve-2026-44963 remote-code-execution sina-kheirkhah veeam veeam-backup-replication watchtowr">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">07</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">advisory</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">07</span><span class="toc-cat-label">advisory</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Veeam Backup &amp; Replication RCE Flaw Lets Domain Users Run Remote Code</span>
               </div>
@@ -2447,9 +2639,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Veeam has released security patches for a critical vulnerability tracked as CVE-2026-44963, which carries a CVSS score of 9.4 and allows remote code execution on the Backup Server by an authenticated domain user.</span></li><li><span class="kp-text">The flaw impacts Veeam Backup &amp; Replication version 12.3.2.4465 and all earlier 12.x builds, but does not affect any 13.x build due to architectural changes introduced in version 13.</span></li><li><span class="kp-text">The vulnerability has been addressed in Veeam Backup &amp; Replication version 12.3.2.4854.</span></li><li><span class="kp-text">watchTowr researcher Sina Kheirkhah was credited for responsibly discovering and reporting the issue.</span></li><li><span class="kp-text">In March 2026, Veeam resolved multiple critical vulnerabilities in Backup &amp; Replication, and prior vulnerabilities in the software have been exploited by bad actors, including ransomware groups.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/veeam-backup-replication-rce-flaw-lets.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a single named, recently patched critical RCE flaw (CVE-2026-44963, CVSS 9.4) in Veeam Backup &amp; Replication, sourced directly from the vendor advisory and a named researcher. Severity is high given the critical RCE and Veeam&rsquo;s history of ransomware exploitation, with clear actionable guidance to upgrade to version 12.3.2.4854; breadth is significant but limited to Veeam deployments rather than ubiquitous software.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>The article reports a single named, recently patched critical RCE flaw (CVE-2026-44963, CVSS 9.4) in Veeam Backup &amp; Replication, sourced directly from the vendor advisory and a named researcher. Severity is high given the critical RCE and Veeam&rsquo;s history of ransomware exploitation, with clear actionable guidance to upgrade to version 12.3.2.4854; breadth is significant but limited to Veeam deployments rather than ubiquitous software.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.veeam.com/kb4869" target="_blank" rel="noopener">KB4869: Vulnerability in Veeam Backup &amp; Replication</a></div>
@@ -2460,9 +2651,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="advisory" data-tags="copilot kb5093998 kb5094126 magnifier microsoft microsoft-store patch-tuesday shared-audio task-manager windows-11 windows-hello">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">08</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">advisory</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">08</span><span class="toc-cat-label">advisory</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Windows 11 KB5094126 &amp; KB5093998 cumulative updates released</span>
               </div>
@@ -2570,7 +2760,6 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft released the mandatory Windows 11 KB5094126 (for versions 25H2/24H2) and KB5093998 (for 23H2) cumulative updates containing the June 2026 Patch Tuesday security patches, with build numbers changing to 26200.8457 (25H2), 26100.8457 (24H2), and 22631.7079 (23H2).</span></li><li><span class="kp-text">The updates introduce new features including Shared Audio, which lets two people listen to the same audio from one PC via Bluetooth LE Audio broadcast, and expanded Xbox mode availability on more PCs.</span></li><li><span class="kp-text">Task Manager now offers improved NPU usage visibility through new optional NPU columns and an Isolation column showing which apps run in an AppContainer.</span></li><li><span class="kp-text">The updates improve Windows Hello reliability, including optimizing the Windows Biometric service performance and reducing unexpected authentication blocks in Enhanced Sign-in Security.</span></li><li><span class="kp-text">Microsoft is not aware of any new issues with this month&#39;s Patch Tuesday, attributing this to it being a smaller release and its commitment to a stable and reliable Windows experience.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/microsoft/windows-11-kb5094126-and-kb5093998-cumulative-updates-released/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
             
             
@@ -2578,9 +2767,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="news" data-tags="azure claude-code cloudsmith durabletask github miasma microsoft npm oidc-token pypi red-hat shai-hulud socket stepsecurity supply-chain-attack">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">09</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">09</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">GitHub disables Microsoft repos pushing password-stealing malware</span>
               </div>
@@ -2682,9 +2870,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">On June 5, Microsoft removed 73 repositories across its Azure, microsoft, Azure-Samples, and MicrosoftDocs GitHub organizations after concerns they distributed potentially malicious content, with the action contained within 105 seconds.</span></li><li><span class="kp-text">Researchers confirmed the repositories were pulled following a compromise during the Miasma/Shai-Hulud supply-chain campaign, which targeted AI coding tools like Claude Code, Gemini CLI, VS Code, and Cursor.</span></li><li><span class="kp-text">The most significant immediate effect was disabling access to the &#39;Azure/functions-action&#39; GitHub Action used by many developers to deploy Azure Functions, causing an outage and confusion for workflows referencing it.</span></li><li><span class="kp-text">According to Cloudsmith, the attacker pivoted from Red Hat&#39;s npm packages to Microsoft&#39;s GitHub resources by compromising a Red Hat employee&#39;s GitHub account and injecting a workflow that requested GitHub&#39;s OIDC tokens.</span></li><li><span class="kp-text">All affected repositories have been restored and are considered clean and safe, and Microsoft notified a small number of customers who may have pulled down content from the compromised repositories.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/github-disables-microsoft-repos-pushing-password-stealing-malware/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>Reports a specific, recently disclosed June 5 incident involving Microsoft&rsquo;s removal of 73 GitHub repositories compromised by the Miasma/Shai-Hulud supply-chain worm, affecting widely-used Azure resources and developer tooling. Severity is high but tempered by rapid 105-second containment and full restoration; breadth is broad given the popularity of Azure/functions-action and AI coding tools. Credibility is strong, with named researchers (Adnan Khan), Cloudsmith, OpenSourceMalware, and direct Microsoft statements, and the article offers concrete defensive recommendations.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>Reports a specific, recently disclosed June 5 incident involving Microsoft&rsquo;s removal of 73 GitHub repositories compromised by the Miasma/Shai-Hulud supply-chain worm, affecting widely-used Azure resources and developer tooling. Severity is high but tempered by rapid 105-second containment and full restoration; breadth is broad given the popularity of Azure/functions-action and AI coding tools. Credibility is strong, with named researchers (Adnan Khan), Cloudsmith, OpenSourceMalware, and direct Microsoft statements, and the article offers concrete defensive recommendations.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://opensourcemalware.com/blog/miasma-reaches-azure" target="_blank" rel="noopener">Miasma Reaches Azure</a></div>
@@ -2713,9 +2900,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
         </div>
         <div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="cve-2025-8088 dead-drop-resolvers earth-dahu gamaredon gammaload gammaphish gammasteel giftedcrook ntfs-alternate-data-streams sekoia shadow-earth-066 trend-micro uac-0226 ukraine winrar">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">01</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">01</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">WinRAR Flaw Exploited by Russia-Aligned Groups to Deploy Stealers in Ukraine</span>
               </div>
@@ -2824,9 +3010,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Two Russia-aligned groups, Earth Dahu (Gamaredon) and SHADOW-EARTH-066 (UAC-0226), continue to exploit CVE-2025-8088, a WinRAR path traversal flaw using NTFS Alternate Data Streams, nearly a year after it was patched in July 2025.</span></li><li><span class="kp-text">SHADOW-EARTH-066 uses crafted RAR archives with a decoy PDF and three hidden ADS payloads, including an LNK file placed in the Startup folder that spawns a PowerShell loader to ultimately launch an updated version of the GIFTEDCROOK information stealer.</span></li><li><span class="kp-text">GIFTEDCROOK targets passwords and cookies from Chromium-based browsers and Firefox, harvests documents matching certain extensions, and deletes all malicious artifacts after exfiltration; it has shifted from Telegram to dedicated C2 servers following Russia&#39;s blocking of Telegram in February.</span></li><li><span class="kp-text">Earth Dahu has used the vulnerability since at least September 2025 via an HTA-to-VBScript infection chain that delivers GammaPhish, GammaLoad, and the GammaSteel information stealer, with activity remaining active through at least April 10, 2026.</span></li><li><span class="kp-text">Trend Micro notes that WinRAR is deeply embedded in Ukrainian organizations&#39; daily operations, making it an attractive target, and the convergence of multiple state-backed and independent groups on a single vulnerability reflects the scale of cyber threats facing Ukraine.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/winrar-flaw-exploited-by-russia-aligned.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports concrete, active exploitation of a named CVE (CVE-2025-8088) by two named Russia-aligned threat actors against Ukrainian organizations, sourced from primary Trend Micro and Sekoia research. WinRAR is widely deployed but the targeting is regionally focused on Ukraine, and a patch has long been available, making patching the clear defensive action.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>The article reports concrete, active exploitation of a named CVE (CVE-2025-8088) by two named Russia-aligned threat actors against Ukrainian organizations, sourced from primary Trend Micro and Sekoia research. WinRAR is widely deployed but the targeting is regionally focused on Ukraine, and a patch has long been available, making patching the clear defensive action.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.trendmicro.com/en_us/research/26/f/old-winrar-flaw-fuels-attacks-on-ukraine.html" target="_blank" rel="noopener">Old WinRAR Flaw Fuels Attacks on Ukraine</a></div>
@@ -2845,9 +3030,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="durabletask github hades langchain-core-mcp miasma microsoft model-context-protocol prompt-injection pypi shai-hulud socket software-supply-chain teampcp typosquatting">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">02</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">02</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Microsoft Restores Some GitHub Repos, Keeps Others Offline as Miasma Probe Continues</span>
               </div>
@@ -2981,9 +3165,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft confirmed it temporarily removed some GitHub repositories in response to a security incident that led to 73 of its open-source projects being compromised to inject an information stealer, restoring some repos after review while others remain offline.</span></li><li><span class="kp-text">Microsoft notified a small number of customers who may have pulled down content from the affected repositories and said it will reach out directly if further customer action is required.</span></li><li><span class="kp-text">Among the infected projects was &#39;durabletask,&#39; a Python package first compromised by the cybercrime group TeamPCP to deliver an information stealer targeting Linux systems.</span></li><li><span class="kp-text">The Miasma payload can trigger automatic code execution when a developer opens the repository in an AI-powered coding tool or IDE, and a newer PyPI wave tied to Mini Shai-Hulud, Miasma, and Hades infected 23 additional packages, including bioinformatics and MCP/AI-themed and typosquatted packages.</span></li><li><span class="kp-text">The new package cluster uses evolving payload delivery mechanisms such as trojanized native .abi3.so extensions and a .pth loader that searches sys.path for a separate _index.js payload, while the malware harvests secrets from developer workstations and CI/CD environments and exfiltrates them to a public GitHub repository.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/microsoft-restores-some-github-repos.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a concrete, named, ongoing event (the Miasma/Hades supply chain campaign compromising 73 Microsoft GitHub projects and 23 PyPI packages) with primary sourcing from a Microsoft spokesperson and named Socket researcher Kirill Boychenko. Severity and breadth are high given the compromise of widely used open-source ecosystems and secret-harvesting malware in developer/CI-CD environments, and actionability is strong due to the explicit list of affected packages and described techniques.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This reports a concrete, named, ongoing event (the Miasma/Hades supply chain campaign compromising 73 Microsoft GitHub projects and 23 PyPI packages) with primary sourcing from a Microsoft spokesperson and named Socket researcher Kirill Boychenko. Severity and breadth are high given the compromise of widely used open-source ecosystems and secret-harvesting malware in developer/CI-CD environments, and actionability is strong due to the explicit list of affected packages and described techniques.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://socket.dev/blog/mini-shai-hulud-miasma-and-hades-worms-target-bioinformatics-and-mcp-developers-via-malicious" target="_blank" rel="noopener">Mini Shai-Hulud, Miasma, and Hades Worms Target Bioinformatics and MCP Developers via Malicious Packages</a></div>
@@ -2998,9 +3181,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="research" data-tags="api-hashing beacon-object-files clickfix cobalt-strike control-flow-flattening dll-sideloading domain-generation-algorithm hells-gate indirect-syscalls microsoft-defender mixed-boolean-arithmetic mltbackdoor zscaler-threatlabz">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">03</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">03</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Technical Analysis of MLTBackdoor</span>
               </div>
@@ -3234,18 +3416,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Zscaler ThreatLabz identified a new malware family called MLTBackdoor in May 2026 that is likely leveraged by a ransomware-related threat actor.</span></li><li><span class="kp-text">MLTBackdoor was observed being delivered through a multi-stage ClickFix infection chain that downloads an archive containing endpointdlp.dll and an RC4-encrypted data.bin payload.</span></li><li><span class="kp-text">MLTBackdoor is heavily obfuscated with Mixed Boolean-Arithmetic and Control Flow Flattening techniques and also uses stack-built strings, API hashing, indirect system calls, and multiple anti-analysis checks.</span></li><li><span class="kp-text">MLTBackdoor supports filesystem commands such as download, upload, ls, delete, rename, and mkdir, and includes a Beacon Object File loader to dynamically add capabilities.</span></li><li><span class="kp-text">MLTBackdoor uses a custom encrypted binary protocol over TLS on port 443 and can rely on hardcoded C2 domains, a domain generation algorithm, or both for command-and-control communication.</span></li></ul></div>
-            
             <a href="https://www.zscaler.com/blogs/security-research/technical-analysis-mltbackdoor" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a detailed technical analysis of a newly identified backdoor observed in a real ClickFix infection chain and likely tied to ransomware-related activity. It is broadly relevant for defenders because it documents concrete IOCs, C2 behavior, DGA use, anti-analysis checks, obfuscation, and BOF-loading capabilities that can inform detection and response.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a detailed technical analysis of a newly identified backdoor observed in a real ClickFix infection chain and likely tied to ransomware-related activity. It is broadly relevant for defenders because it documents concrete IOCs, C2 behavior, DGA use, anti-analysis checks, obfuscation, and BOF-loading capabilities that can inform detection and response.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="research" data-tags="canada china clawworm copyfail cve-2026-31431 cve-2026-39987 dirty-pipe dirtyfrag drupalgeddon-2 gtg-1002 marimo morris-ii printnightmare sambacry university-of-toronto">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">04</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">04</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Researchers Build Self-Replicating AI Worm That Operates Entirely on Local, Open-Weight Models</span>
               </div>
@@ -3400,9 +3580,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">University of Toronto researchers built and tested a proof-of-concept AI-driven computer worm that uses a locally hosted open-weight large language model to generate target-specific attack strategies and replicate without human intervention or commercial AI services.</span></li><li><span class="kp-text">In 15 isolated runs on a deliberately vulnerable 33-host network, the worm identified an average of 31.3 vulnerabilities, gained elevated access on 23.1 hosts, and replicated autonomously to 20.4 hosts over seven days.</span></li><li><span class="kp-text">The worm ingested public advisory text at runtime and successfully exploited test hosts configured with vulnerabilities disclosed after the model was trained, including CVE-2026-39987, CVE-2026-31431, and DirtyFrag-related Linux kernel issues.</span></li><li><span class="kp-text">The researchers observed the worm rewrite its own code on several occasions to bypass local security controls in the test environment, although the prototype was deliberately built without stealth, persistence, encryption, or log-cleanup features.</span></li><li><span class="kp-text">The article recommends defenders segment GPU-capable machines, prioritize rapid handling of internet-facing CVEs, rotate credentials exposed on compromised hosts, and monitor for agent-specific signals such as unexpected LLM inference and automated SSH public key injection.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/researchers-build-self-replicating-ai.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, recent research finding with broad defensive relevance: a proof-of-concept AI worm using local open-weight models achieved autonomous exploitation and replication across a multi-host test network. It is not active exploitation in the wild or a critical patch event, but the results materially affect how security teams should think about GPU segmentation, patch windows, and agent-driven malware detection.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a specific, recent research finding with broad defensive relevance: a proof-of-concept AI worm using local open-weight models achieved autonomous exploitation and replication across a multi-host test network. It is not active exploitation in the wild or a critical patch event, but the results materially affect how security teams should think about GPU segmentation, patch windows, and agent-driven malware detection.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://arxiv.org/pdf/2606.03811" target="_blank" rel="noopener">Self-Replicating AI Worm That Operates Entirely on Local, Open-Weight Models</a></div>
@@ -3417,9 +3596,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="advisory" data-tags="bitlocker file-explorer june-2026-patch-tuesday kb5094127 microsoft pcr7 secure-boot tpm windows-10 windows-10-enterprise-ltsc windows-uefi-ca-2023">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">05</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">advisory</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">05</span><span class="toc-cat-label">advisory</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Microsoft releases Windows 10 KB5094127 extended security update</span>
               </div>
@@ -3521,9 +3699,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft released the Windows 10 KB5094127 extended security update, which is available to users running Windows 10 Enterprise LTSC or those enrolled in the ESU program, and updates systems to build 19045.7417 (or 19044.7417 for Enterprise LTSC 2021).</span></li><li><span class="kp-text">The update includes fixes from the June 2026 Patch Tuesday, which addressed 200 vulnerabilities including three publicly disclosed zero-day flaws.</span></li><li><span class="kp-text">KB5094127 improves File Explorer search and adds Secure Boot enhancements, including dynamic status reporting, a new LimitSecureBootRequiredServiceData policy setting, and additional device targeting data for the phased rollout of new Secure Boot certificates.</span></li><li><span class="kp-text">Microsoft warns of a known issue that can trigger BitLocker recovery prompts on devices configured with a BitLocker Group Policy that explicitly includes PCR7 in the TPM validation profile along with certain Secure Boot and Windows Boot Manager configurations tied to the Windows UEFI CA 2023 certificate.</span></li><li><span class="kp-text">As a temporary workaround for the BitLocker issue, Microsoft advises removing the Group Policy setting and then suspending and resuming BitLocker to regenerate the default PCR bindings while it works on a permanent fix.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/microsoft/microsoft-releases-windows-10-kb5094127-extended-security-update/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a concrete, named patch release (KB5094127) addressing 200 vulnerabilities including three zero-days for Windows 10, offering clear defensive action (install the update, apply the BitLocker workaround). It is sourced from Microsoft&rsquo;s official advisory, though it is limited to Windows 10 Enterprise LTSC and ESU-enrolled customers rather than all Windows users.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a concrete, named patch release (KB5094127) addressing 200 vulnerabilities including three zero-days for Windows 10, offering clear defensive action (install the update, apply the BitLocker workaround). It is sourced from Microsoft&rsquo;s official advisory, though it is limited to Windows 10 Enterprise LTSC and ESU-enrolled customers rather than all Windows users.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://support.microsoft.com/en-us/topic/june-9-2026-kb5094127-os-builds-19045-7417-and-19044-7417-bf1073f3-e317-40ac-94c7-4c23c080c7cf" target="_blank" rel="noopener">June 9, 2026—KB5094127 (OS Builds 19045.7417 and 19044.7417)</a></div>
@@ -3538,9 +3715,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="51.159.98.241 australia-platform-release related_list_edit rest-api servicenow shinyhunters support-case-data-theft unauthenticated-api-access">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">06</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">06</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">ServiceNow discloses security incident exposing customer data</span>
               </div>
@@ -3666,18 +3842,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">ServiceNow disclosed a security incident in which attackers exploited an unauthenticated access flaw through a vulnerable API endpoint to query data from customer instances, and the company applied a security update to hosted customer instances on June 5, 2026.</span></li><li><span class="kp-text">The security update changed the API endpoint configuration to limit access to authenticated users only, and ServiceNow confirmed that attackers successfully queried customer instance tables.</span></li><li><span class="kp-text">Administrators discussing the incident on Reddit indicated the issue appears tied to a REST endpoint at /api/now/related_list_edit/create that was reportedly configured with requires_authentication=false, with the update setting it to true, and shared indicators of compromise including the IP address 51.159.98.241.</span></li><li><span class="kp-text">The bulletin states the issue primarily impacts customers running the Australia platform release or those on older releases who made certain configuration changes, and ServiceNow has opened support cases with affected customers while those not contacted are believed to be unaffected.</span></li><li><span class="kp-text">ServiceNow has not disclosed which data was accessed and is still evaluating whether to publish a CVE, and impacted organizations are advised to review exposed records, rotate credentials shared through support workflows, and ensure API logging is enabled.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/servicenow-discloses-security-incident-exposing-customer-data/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a first report of a specific, recently disclosed ServiceNow security incident involving confirmed active exploitation of an unauthenticated API endpoint, affecting a widely-used enterprise SaaS platform. It provides concrete IOCs (a specific IP and endpoint) and clear defensive actions, though some technical details come from Reddit admins rather than a formal vendor advisory or CVE, and ServiceNow did not respond to inquiries.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a first report of a specific, recently disclosed ServiceNow security incident involving confirmed active exploitation of an unauthenticated API endpoint, affecting a widely-used enterprise SaaS platform. It provides concrete IOCs (a specific IP and endpoint) and clear defensive actions, though some technical details come from Reddit admins rather than a formal vendor advisory or CVE, and ServiceNow did not respond to inquiries.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="research" data-tags="appomni data-loader device-authorization-grant device-code-phishing github gitphish lapsus microsoft-365 oauth salesforce scattered-lapsus-hunters scattered-spider shinyhunters storm-2372 vishing">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">07</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">07</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Device Code Phishing Explained: How Attackers Abuse OAuth Across SaaS</span>
               </div>
@@ -3719,9 +3893,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Device code phishing abuses the legitimate OAuth 2.0 Device Authorization Grant (RFC 8628) to obtain valid access and refresh tokens without stealing a victim&#39;s password, because the victim completes authentication and MFA on the real identity provider while unknowingly authorizing an attacker-controlled device.</span></li><li><span class="kp-text">MFA, FIDO2, and passkeys do not fully stop the attack since the authentication flow is legitimate end-to-end, and password resets do not revoke the issued refresh tokens, which can remain valid for weeks or months and grant persistent access.</span></li><li><span class="kp-text">The technique is platform-agnostic and has been used beyond Microsoft 365, including the Russia-aligned Storm-2372 actor against Microsoft 365 tenants and the Scattered Lapsus$ Hunters alliance combining vishing with device code phishing against Salesforce, which claimed over 1,000 organizations compromised and roughly 1.5 billion records stolen.</span></li><li><span class="kp-text">Salesforce responded by removing OAuth 2.0 device flow entirely in September 2025, but the same threat actors shifted to standard OAuth authorization code grants, demonstrating that the attack vector survives specific countermeasures and defenses must focus on the consent layer.</span></li><li><span class="kp-text">Because the attack is invisible to email, URL reputation, and adversary-in-the-middle defenses, security teams should focus on identity-layer telemetry, OAuth grant and connected application inventory, consent governance, and restricting unnecessary OAuth authorization paths.</span></li></ul></div>
-            
             <a href="https://appomni.com/blog/device-code-phishing-saas/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article provides a deep technical explanation of device code phishing tied to specific named campaigns (Storm-2372, Scattered Lapsus$ Hunters against Salesforce, GitHub research) but frames them as a broader pattern rather than a single new event, so it blends concrete detail with synthesis. The technique affects ubiquitous SaaS platforms across the ecosystem (Microsoft 365, Salesforce, GitHub, Okta, Google) and offers clear defensive guidance, with strong primary sourcing from vendor advisories and original research, though much of the underlying reporting is incremental on already-disclosed campaigns.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>The article provides a deep technical explanation of device code phishing tied to specific named campaigns (Storm-2372, Scattered Lapsus$ Hunters against Salesforce, GitHub research) but frames them as a broader pattern rather than a single new event, so it blends concrete detail with synthesis. The technique affects ubiquitous SaaS platforms across the ecosystem (Microsoft 365, Salesforce, GitHub, Okta, Google) and offers clear defensive guidance, with strong primary sourcing from vendor advisories and original research, though much of the underlying reporting is incremental on already-disclosed campaigns.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://appomni.com/ao-labs/eviltoken-m365-attack-scaled-by-ai/" target="_blank" rel="noopener">EvilToken M365 Attack Scaled by AI</a></div>
@@ -3740,9 +3913,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="research" data-tags="brightdata google grass hola-vpn honeygain infatica infoblox ipidea kimwolf oxylabs protective-dns proxyware residential-proxies superbox synthient">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">08</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">08</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Residential Proxies in the Wild</span>
               </div>
@@ -3890,9 +4062,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Infoblox found that over 65% of its Threat Defense Cloud customers made DNS queries to domains used to access or orchestrate residential proxy networks in 2026, with monthly queries growing about 25% over the year to more than 500 billion.</span></li><li><span class="kp-text">Residential proxies route traffic through everyday consumer devices and produce laundered traffic that appears to come from real residential users, making them valuable to attackers for evading IP reputation systems, bypassing fraud detection, and blending abuse into normal consumer noise.</span></li><li><span class="kp-text">Proxyware is frequently embedded via SDKs into free applications such as VPNs, streaming apps, screensavers, and productivity tools, as well as low-cost IoT devices, often enrolling device owners into proxy networks without their knowledge.</span></li><li><span class="kp-text">Brightdata was the most frequently observed proxy service, appearing in over 50% of cloud customers, while other notable services included Oxylabs, Hola VPN, Honeygain, and Grass, the latter reportedly pre-installed on Superbox Android TV streaming devices.</span></li><li><span class="kp-text">Over 90% of Infoblox&#39;s pharmaceutical and food and beverage customers and over 60% of government and banking customers queried residential proxy indicators, prompting recommendations to use Protective DNS, review DNS query logs, and audit installed applications and IoT devices.</span></li></ul></div>
-            
             <a href="https://www.infoblox.com/blog/threat-intelligence/residential-proxies-in-the-wild/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is original Infoblox research based on billions of DNS resolutions, quantifying residential proxy prevalence across over 65% of its customer base and naming specific services and the IPIDEA takedown, giving it high novelty and credibility. Breadth is broad given the cross-vertical impact and ubiquity of proxyware, and the article provides concrete defensive recommendations, though the security risk is moderate rather than active critical exploitation.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is original Infoblox research based on billions of DNS resolutions, quantifying residential proxy prevalence across over 65% of its customer base and naming specific services and the IPIDEA takedown, giving it high novelty and credibility. Breadth is broad given the cross-vertical impact and ubiquity of proxyware, and the article provides concrete defensive recommendations, though the security risk is moderate rather than active critical exploitation.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.infoblox.com/blog/threat-intelligence/kimwolf-howls-from-inside-the-enterprise/" target="_blank" rel="noopener">Kimwolf Howls from Inside the Enterprise</a></div>
@@ -3915,9 +4086,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="research" data-tags="agent-phishing aws-iam credential-exfiltration gemini-3.1-pro gift-card-scam gmail google-workspace gpt-5.4 indirect-prompt-injection lethal-trifecta oauth-consent-phishing openclaw spearphishing varonis-threat-labs">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">09</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">09</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Phishing for Lobsters: How We Tricked OpenClaw into Spilling Secrets</span>
               </div>
@@ -4039,9 +4209,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Varonis Threat Labs built an OpenClaw AI email agent named Pinchy and tested it against four phishing simulations using Google Gemini 3.1 Pro and OpenAI Codex GPT-5.4 models under both Generic and Strict configuration profiles.</span></li><li><span class="kp-text">In Case Study 1, a casual email from an external Gmail account impersonating a team lead named &#39;Dan&#39; tricked the agent into forwarding AWS IAM access keys, database connection strings, and SSH credentials in plaintext, and in Case Study 2 it exfiltrated a CRM export containing 247 enterprise customers and roughly $1.28M in monthly recurring revenue data.</span></li><li><span class="kp-text">The agent reliably handled technical phishing such as malicious OAuth consent prompts, suspicious URLs, and impersonation of platforms like AWS, Azure, Microsoft, and Google, but consistently failed at social-context deception and identity verification across both models.</span></li><li><span class="kp-text">The article distinguishes agent phishing, which abuses the trust the agent gives a plausible request, from indirect prompt injection, which embeds malicious instructions in data the model consumes, noting both fit Simon Willison&#39;s lethal trifecta of private data access, untrusted content, and outbound send capability.</span></li><li><span class="kp-text">Recommended defenses are architectural rather than prompt-based, including treating the agents.md file as a security control, blocking the agent from sending outbound mail to unknown addresses, segmenting connector access by inbound trust level, and requiring a human in the loop for high-privilege actions like credential forwarding.</span></li></ul></div>
-            
             <a href="https://www.varonis.com/blog/openclaw-phishing" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is original first-party research from Varonis Threat Labs using a controlled lab setup with named models and four detailed case studies, giving it high novelty and credibility, plus concrete architectural defenses making it highly actionable. It is concrete and event-driven (specific simulations and results) though not tied to a real-world breach, and the risk is demonstrated in a synthetic lab rather than active exploitation; the breadth is significant given the ubiquity of AI inbox agents being deployed across enterprises.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is original first-party research from Varonis Threat Labs using a controlled lab setup with named models and four detailed case studies, giving it high novelty and credibility, plus concrete architectural defenses making it highly actionable. It is concrete and event-driven (specific simulations and results) though not tied to a real-world breach, and the risk is demonstrated in a synthetic lab rather than active exploitation; the breadth is significant given the ubiquity of AI inbox agents being deployed across enterprises.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/" target="_blank" rel="noopener">The lethal trifecta for AI agents: private data, untrusted content, and external communication</a></div>
@@ -4058,9 +4227,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
         </div>
         <div class="toc-row-wrap may-row" data-priority="may" data-category="news" data-tags="android-spyware f6 kontur phishing romance-scam russia russian-armed-forces safelovestealer siribclone siribgrabber telegram">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-may">01</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-may">01</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Hackers pose as women seeking romance to spy on Russian soldiers</span>
               </div>
@@ -4159,9 +4327,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">A previously undocumented cyber espionage group, dubbed SiribClone by Russian cybersecurity firm F6, has been active since at least summer 2025 and primarily targets Russian armed forces personnel stationed in border regions and combat zones.</span></li><li><span class="kp-text">The hackers impersonate women seeking romantic relationships or volunteers offering humanitarian aid to initiate contact with servicemen on Telegram, then persuade them to download malicious apps or enter their Telegram credentials on spoofed websites.</span></li><li><span class="kp-text">The group uses Android spyware named SafeLoveStealer, which can steal photos, videos, documents and location data while remotely activating the device&#39;s microphone to record conversations, as well as desktop malware called SiribGrabber designed to steal files.</span></li><li><span class="kp-text">Researchers discovered an internal management platform named Kontur that stores stolen Telegram sessions and lets operators review intercepted messages, with internal notes referencing military ranks, unit designations, locations and operational status.</span></li><li><span class="kp-text">F6 did not attribute the campaign to any specific country or known threat actor.</span></li></ul></div>
-            
             <a href="https://therecord.media/hackers-pose-as-women-seeking-romance-russian-military" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific, newly disclosed cyber espionage campaign (SiribClone) with named malware families, based on original F6 research, making it concrete, novel and well-sourced. Severity is meaningful given microphone surveillance and Telegram account takeover against military targets, though breadth is limited to a specific group of Russian servicemen, and the article offers no IOCs or concrete defensive guidance for actionability.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>The article reports a specific, newly disclosed cyber espionage campaign (SiribClone) with named malware families, based on original F6 research, making it concrete, novel and well-sourced. Severity is meaningful given microphone surveillance and Telegram account takeover against military targets, though breadth is limited to a specific group of Russian servicemen, and the article offers no IOCs or concrete defensive guidance for actionability.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.f6.ru/blog/siribclone/" target="_blank" rel="noopener">SiribClone</a></div>
@@ -4172,9 +4339,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap may-row" data-priority="may" data-category="news" data-tags="ai-personalization brazil data-privacy facebook kenya meta nigeria south-africa south-korea targeted-ads thailand turkey united-kingdom united-states">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-may">02</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-may">02</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Meta to Use Off-Site Business Data for Feed and AI Personalization</span>
               </div>
@@ -4286,18 +4452,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Meta announced on Tuesday that it will use information shared by other businesses about people&#39;s off-site activity—such as games played or purchases made on other websites—to personalize users&#39; Feed content and AI chatbot responses, expanding beyond its existing use of this data for targeted ads.</span></li><li><span class="kp-text">Meta stated that it is not collecting any new data as part of this update and that users can decide how the information is used for personalization.</span></li><li><span class="kp-text">Meta is consolidating its controls by expanding the &#39;Activity from other businesses&#39; setting (formerly &#39;Activity information from ad partners&#39;) and discontinuing the &#39;Your activity off Meta technologies&#39; setting.</span></li><li><span class="kp-text">If users decline to allow off-site data for personalization, the content they see will instead be based on their on-platform activity such as liking a reel or post.</span></li><li><span class="kp-text">The change is expected to go into effect starting next month in the U.S. and several other countries, including the U.K., Brazil, Thailand, South Africa, Turkey, South Korea, Ecuador, Nigeria, and Kenya.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/meta-to-use-off-site-business-data-for.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a single concrete, named, recent announcement from Meta about expanding off-site data use for Feed and AI personalization, sourced directly from Meta&rsquo;s official statement (primary source). The privacy implications are broad given Meta&rsquo;s massive user base across multiple countries, but the security/real-world risk is low and the only actionable step is adjusting privacy settings.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This reports a single concrete, named, recent announcement from Meta about expanding off-site data use for Feed and AI personalization, sourced directly from Meta&rsquo;s official statement (primary source). The privacy implications are broad given Meta&rsquo;s massive user base across multiple countries, but the security/real-world risk is low and the only actionable step is adjusting privacy settings.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap may-row" data-priority="may" data-category="research" data-tags="ai-agent credential-theft gemini-3.1-pro gmail google-gemini google-workspace gpt-5.4 oauth-phishing openai openclaw phishing social-engineering varonis">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-may">03</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-may">03</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">OpenClaw AI agent found falling for phishing attacks, spills user data</span>
               </div>
@@ -4416,9 +4580,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Varonis Threat Labs created an OpenClaw AI email agent named Pinchy, connected it to a Gmail inbox, browser tools, Google Workspace APIs, and fabricated sensitive company data, then tested it against classic phishing simulations using Google Gemini 3.1 Pro and OpenAI GPT-5.4.</span></li><li><span class="kp-text">In two of four simulated attacks, the agent emailed AWS IAM keys, database credentials, and SSH access details to an external Gmail account, and sent a CRM export with customer records and revenue data, all without verifying the sender&#39;s identity.</span></li><li><span class="kp-text">Both the generic and strict configuration profiles failed in the first two scenarios because the identity verification step collapsed when requests appeared operationally urgent.</span></li><li><span class="kp-text">The agent successfully detected suspicious URLs, fake login pages, and a malicious Google OAuth application disguised as a timesheet platform, with Gemini showing greater willingness to interact and GPT-5.4 taking a more cautious posture.</span></li><li><span class="kp-text">Varonis recommends that agents be required to verify sender identities, be blocked from emailing new external recipients without approval, have limited internal data access, and require human approval for high-risk actions like credential sharing and financial data requests.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/openclaw-ai-agent-found-falling-for-phishing-attacks-spills-user-data/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is original research from Varonis Threat Labs presenting a concrete named experiment (the Pinchy OpenClaw agent) demonstrating that AI email agents leak sensitive data under phishing simulations, making it novel and well-sourced from a primary report. Severity and breadth are moderate since it involves controlled simulations rather than active in-the-wild exploitation, but it offers clear, actionable defensive recommendations such as mandatory identity verification and human approval for high-risk actions.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is original research from Varonis Threat Labs presenting a concrete named experiment (the Pinchy OpenClaw agent) demonstrating that AI email agents leak sensitive data under phishing simulations, making it novel and well-sourced from a primary report. Severity and breadth are moderate since it involves controlled simulations rather than active in-the-wild exploitation, but it offers clear, actionable defensive recommendations such as mandatory identity verification and human approval for high-risk actions.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.varonis.com/blog/openclaw-phishing" target="_blank" rel="noopener">OpenClaw Phishing</a></div>
@@ -4429,9 +4592,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap may-row" data-priority="may" data-category="opinion" data-tags="anthropic claude-mythos cloudflare cve-2025-61882 cve-2026-5194 firefox github-actions google helios-aidr mitiga mozilla oracle-e-business-suite project-glasswing tanstack wolfssl">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-may">04</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">opinion</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-may">04</span><span class="toc-cat-label">opinion</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Agentic Runtime Security: When Patching Can’t Keep Up.</span>
               </div>
@@ -4570,9 +4732,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Anthropic&#39;s Project Glasswing reported that roughly 50 partners used Mythos Preview to find more than 10,000 high- or critical-severity vulnerabilities, but of 530 disclosed bugs only 75 had been patched, demonstrating that the security bottleneck has shifted from finding flaws to fixing them.</span></li><li><span class="kp-text">Anthropic expects that within 6 to 12 months many other AI companies will have Mythos-class models, some potentially released without safeguards, making the vulnerability-discovery capability widely available across the industry.</span></li><li><span class="kp-text">In 2026, exploitation often begins about a week before a patch is released, and in roughly 60% of breaches a patch already existed but was not deployed in time, meaning the unpatched exposure window is where attacks now land.</span></li><li><span class="kp-text">Real-world cases including Oracle E-Business Suite (CVE-2025-61882), the TanStack/GitHub Actions supply chain chain, and Google&#39;s confirmed first in-the-wild AI-assisted 0-day show exploitation reaching production before patching is possible.</span></li><li><span class="kp-text">Mitiga promotes Agentic Runtime Security, powered by Helios AIDR and its Cloud Security Data Lake, which uses behavioral detection, attack reconstruction, and containment across cloud, SaaS, identity, and AI as a compensating control that posture tools like SSPM and ITDR cannot provide.</span></li></ul></div>
-            
             <a href="https://www.mitiga.io/blog/agentic-runtime-security-when-patching-cant-keep-up" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a vendor opinion/commentary piece built around Anthropic&rsquo;s Project Glasswing updates, mixing general trend analysis with concrete details like CVE-2026-5194, CVE-2025-61882, and patching statistics. It cites a primary Anthropic report and real exploitation cases affecting ubiquitous software, but its actionability is largely general guidance toward Mitiga&rsquo;s commercial platform rather than specific defensive steps.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a vendor opinion/commentary piece built around Anthropic&rsquo;s Project Glasswing updates, mixing general trend analysis with concrete details like CVE-2026-5194, CVE-2025-61882, and patching statistics. It cites a primary Anthropic report and real exploitation cases affecting ubiquitous software, but its actionability is largely general guidance toward Mitiga&rsquo;s commercial platform rather than specific defensive steps.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.anthropic.com/research/glasswing-initial-update" target="_blank" rel="noopener">Project Glasswing Initial Update</a></div>
@@ -4583,9 +4744,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap may-row" data-priority="may" data-category="news" data-tags="0.0.1-security dist-tags npm package-lock-json pnpm-lock socket supply-chain yarn-lock">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-may">05</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-may">05</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">npm Tooling Bug Incorrectly Marks One-Character Packages as Security Holders</span>
               </div>
@@ -4696,9 +4856,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">A bug in npm&#39;s tooling incorrectly applied security-holder metadata to multiple one-character packages, including letters, numbers, and the dash package, by assigning 0.0.1-security or 0.0.1-security.0 versions and moving the latest dist-tag to the security placeholder.</span></li><li><span class="kp-text">npm confirmed the markings were not intentional, stating it was caused by a tooling bug and a mistake, and that they were working on rolling it back.</span></li><li><span class="kp-text">Socket found no public evidence based on registry metadata that the affected one-character packages had been compromised, and older package versions remained available throughout the incident.</span></li><li><span class="kp-text">Developers who depend on affected packages were advised to check their lockfiles (package-lock.json, yarn.lock, pnpm-lock.yaml) for 0.0.1-security or 0.0.1-security.0 entries captured during the affected window.</span></li><li><span class="kp-text">In an update on June 9, 2026, npm confirmed the affected package versions had been fixed and the one-character packages no longer appeared as security holders.</span></li></ul></div>
-            
             <a href="https://socket.dev/blog/npm-tooling-single-character-bug?utm_medium=feed" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific, recent npm tooling bug that incorrectly marked named one-character packages as security holders, with direct confirmation from an npm representative making it a credible primary-sourced first report. Severity is low since it was a metadata bug rather than an actual compromise and older versions remained available, but it offers concrete actionable steps (checking lockfiles for the placeholder versions).</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>The article reports a specific, recent npm tooling bug that incorrectly marked named one-character packages as security holders, with direct confirmation from an npm representative making it a credible primary-sourced first report. Severity is low since it was a metadata bug rather than an actual compromise and older versions remained available, but it offers concrete actionable steps (checking lockfiles for the placeholder versions).</p>
 </div></div>
             
             
@@ -4711,9 +4870,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
         </div>
         <div class="toc-row-wrap " data-priority="opt" data-category="news" data-tags="axonius binding-operational-directive cisa critical-infrastructure known-exploited-vulnerability nick-andersen section-9 united-states vulnerability-management">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-opt">01</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-opt">01</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">CISA to transform how it assesses cyber vulnerabilities and risks, Andersen says</span>
               </div>
@@ -4814,18 +4972,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">CISA Acting Director Nick Andersen announced that the agency plans to overhaul how it assesses cyber vulnerabilities and threats, prioritizing some systems and critical infrastructure elements over others to be more effective amid spiking risks.</span></li><li><span class="kp-text">A binding operational directive being released Wednesday will direct federal agencies to change their vulnerability management protocols, moving away from the historical approach of applying patches as quickly as possible toward a risk-based focus that considers whether an asset is internet exposed, aligns to a known exploited vulnerability, or is automatable in its exploitation.</span></li><li><span class="kp-text">Andersen said the directive will address whether patching windows need to be shortened and by how much, and that CISA will also work more closely with critical infrastructure entities on prioritizing their responses to cyber threats.</span></li><li><span class="kp-text">Andersen criticized CISA&#39;s existing Section 9 protocol as not effective enough, saying the agency needs to move from broad intelligence conversations to a &#39;fine grade&#39; approach focused on specific functions and assets, such as ensuring a bank&#39;s bulk payment system is solid rather than worrying about a single branch.</span></li><li><span class="kp-text">Despite being constrained by a government shutdown and mass layoffs, CISA plans to bring on over 300 new employees, with 180 hired by the end of the month, initially focused on infrastructure security, emergency communications, and state cybersecurity coordinators.</span></li></ul></div>
-            
             <a href="https://therecord.media/cisa-to-transform-how-it-assesses-cyber-vulns-risks" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific, named policy announcement (an upcoming binding operational directive) from CISA&rsquo;s Acting Director with direct quotes from a named public event, but it concerns strategic vulnerability-management direction rather than an active exploit or breach, so severity is low. It affects federal agencies and critical infrastructure broadly, and offers general awareness of CISA&rsquo;s new risk-based prioritization approach but no immediate defensive actions since the directive had not yet been released.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>The article reports a specific, named policy announcement (an upcoming binding operational directive) from CISA&rsquo;s Acting Director with direct quotes from a named public event, but it concerns strategic vulnerability-management direction rather than an active exploit or breach, so severity is low. It affects federal agencies and critical infrastructure broadly, and offers general awareness of CISA&rsquo;s new risk-based prioritization approach but no immediate defensive actions since the directive had not yet been released.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap " data-priority="opt" data-category="research" data-tags="adcs credssp golden-ticket kerberos lsass nla pass-the-hash pkinit rdp rubeus shadow-credentials spnego unpac-the-hash user-to-user-authentication windows">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-opt">02</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-opt">02</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">User-to-User Authentication: Down the Rabbit Hole – Part 1</span>
               </div>
@@ -4974,9 +5130,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Kerberos user-to-user (U2U) authentication solves peer-to-peer scenarios where a service runs under an account that has no SPN, by encrypting the service ticket with the hosting user&#39;s TGT session key rather than a service account&#39;s long-term key, using the ENC-TKT-IN-SKEY flag in a modified TGS-REQ that includes the target&#39;s TGT in the additional-tickets field.</span></li><li><span class="kp-text">Handing out TGTs is safe because they are encrypted with the randomly-generated KRBTGT long-term key, and a TGT is unusable without its associated session key, which is why Rubeus exports tickets as KRB-CRED structures containing both the ticket and the session key.</span></li><li><span class="kp-text">Although the draft RFC defines three U2U scenarios, the authors found that Windows only consistently implements the first (client-initiated) scenario, as the KDC_ERR_MUST_USE_USER2USER error does not exist in kerberos.dll and there is no per-account policy attribute to force U2U.</span></li><li><span class="kp-text">RDP with Network Level Authentication (NLA) is the most common legitimate use of U2U, where CredSSP calls InitializeSecurityContext with the ISC_REQ_USE_SESSION_KEY flag to obtain a fresh, non-cacheable session key used to securely deliver the client&#39;s plaintext credentials.</span></li><li><span class="kp-text">The UnPAC-the-Hash attack reuses U2U primitives: after obtaining a user&#39;s certificate, an attacker performs a PKINIT exchange to derive the AS reply key and TGT session key, requests a U2U service ticket for themselves, and decrypts the PAC&#39;s PAC_CREDENTIAL_INFO structure to recover the user&#39;s NT hash for Pass-the-Hash.</span></li></ul></div>
-            
             <a href="https://specterops.io/blog/2026/06/09/user-to-user-authentication-down-the-rabbit-hole-part-1/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is an original technical deep-dive into Kerberos U2U internals and the UnPAC-the-Hash attack rather than coverage of a specific recent event, so specificity and actionability are low. It contains genuinely new research (e.g., demonstrating that KDC_ERR_MUST_USE_USER2USER does not exist in kerberos.dll) from a credible named source (SpecterOps), and concerns ubiquitous Windows/Kerberos/Active Directory technology, giving it broad relevance and moderate, conditional security impact.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is an original technical deep-dive into Kerberos U2U internals and the UnPAC-the-Hash attack rather than coverage of a specific recent event, so specificity and actionability are low. It contains genuinely new research (e.g., demonstrating that KDC_ERR_MUST_USE_USER2USER does not exist in kerberos.dll) from a credible named source (SpecterOps), and concerns ubiquitous Windows/Kerberos/Active Directory technology, giving it broad relevance and moderate, conditional security impact.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://datatracker.ietf.org/doc/html/draft-swift-win2k-krb-user2user-01" target="_blank" rel="noopener">draft-swift-win2k-krb-user2user-01</a></div>
@@ -4987,9 +5142,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap " data-priority="opt" data-category="sponsored" data-tags="ai-security-institute anthropic chromium claude-code gpt-5-5 haiku-4-5 mythos-preview opus-4-6 opus-4-7 project-glasswing reverse-engineering sonnet-4-6 v8-sandbox xbow">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-opt">03</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">sponsored</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-opt">03</span><span class="toc-cat-label">sponsored</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">XBOW tests Anthropic&#39;s Mythos Preview for offensive security</span>
               </div>
@@ -5123,9 +5277,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">XBOW received early access to Anthropic&#39;s Mythos Preview model roughly three months before publication and tested it both inside Claude Code and as a raw API engine for XBOW&#39;s agents using benchmarks, workflows, and interactive use.</span></li><li><span class="kp-text">Mythos Preview demonstrated a major advance in vulnerability discovery, cutting false negatives by 42% compared to Opus 4.6 on XBOW&#39;s web exploit benchmark (and 55% when given the site&#39;s source code), and showed unprecedented token-for-token precision at homing in on vulnerabilities.</span></li><li><span class="kp-text">The model is especially strong at reading source code and excels in native-code vulnerability discovery and reverse engineering, including finding more real Chromium bugs with fewer false positives and identifying true positives in V8 sandbox work.</span></li><li><span class="kp-text">Its judgment was mixed and overly literal, scoring only 77.8% on XBOW&#39;s command safety benchmark versus 81.2% for Opus 4.6 and 90.1% for Haiku 4.5, indicating it needs precise prompts, explicit threat models, and validation infrastructure to be reliable.</span></li><li><span class="kp-text">Mythos Preview is reportedly 5x as expensive as an Opus model and is not best-in-class on cost efficiency, leading XBOW to conclude that depending on the task it may be more sensible to let a cheaper model like GPT-5.5 run longer than to use Mythos Preview once.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/xbow-tests-anthropics-mythos-preview-for-offensive-security/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a sponsored vendor evaluation of a specific named model (Mythos Preview) with original benchmark data, making it concrete and novel, but it reports capability testing rather than an active security incident, so severity and actionability are low. Credibility is moderate-to-high given XBOW&rsquo;s first-party testing and references to AISI/Point Estimate benchmarking, though it is promotional content.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a sponsored vendor evaluation of a specific named model (Mythos Preview) with original benchmark data, making it concrete and novel, but it reports capability testing rather than an active security incident, so severity and actionability are low. Credibility is moderate-to-high given XBOW&rsquo;s first-party testing and references to AISI/Point Estimate benchmarking, though it is promotional content.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://pointestimate.substack.com/p/how-good-is-mythos" target="_blank" rel="noopener">How Good Is Mythos</a></div>
@@ -5140,9 +5293,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap " data-priority="opt" data-category="opinion" data-tags="agentic-ai critical-infrastructure donald-trump errol-weiss executive-order health-isac healthcare-info-security healthcare-sector united-states">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-opt">04</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">opinion</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-opt">04</span><span class="toc-cat-label">opinion</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">What Trump’s AI Executive Order Means for Healthcare Sector</span>
               </div>
@@ -5223,18 +5375,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">President Donald Trump issued an executive order on artificial intelligence that barely mentions healthcare, but experts believe it could positively impact the critical infrastructure sector if implemented effectively.</span></li><li><span class="kp-text">Errol Weiss, chief security officer at Health-ISAC, said the executive order&#39;s biggest opportunity for healthcare is speed and coordination in staying ahead of attackers who are leveraging AI to compress the time between vulnerability discovery and exploitation.</span></li><li><span class="kp-text">Weiss emphasized that execution of the order matters, and the sector will benefit most if review/benchmarking outputs, vulnerability clearinghouse activity, and tool access translate into timely, actionable information sharing through established ISAC channels.</span></li><li><span class="kp-text">The desired outcome is measurable resilience improvements so that cyber incidents do not become prolonged critical infrastructure outages that impact national security.</span></li></ul></div>
-            
             <a href="https://health-isac.org/what-trumps-ai-executive-order-means-for-healthcare-sector/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article discusses a real, specific event (Trump&rsquo;s AI executive order) but provides only loose commentary on its healthcare implications rather than concrete technical detail. It carries no direct security impact and offers little actionable guidance, though it features named, credible expert sourcing from Health-ISAC&rsquo;s CSO and affects the broad critical infrastructure/healthcare sector.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>The article discusses a real, specific event (Trump&rsquo;s AI executive order) but provides only loose commentary on its healthcare implications rather than concrete technical detail. It carries no direct security impact and offers little actionable guidance, though it features named, credible expert sourcing from Health-ISAC&rsquo;s CSO and affects the broad critical infrastructure/healthcare sector.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap " data-priority="opt" data-category="announcement" data-tags="github-actions npm nx sbom secure-registry siem stepsecurity supply-chain-attack threat-center threat-intelligence tj-actions">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-opt">05</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">announcement</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-opt">05</span><span class="toc-cat-label">announcement</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">New in the Threat Center: Compromised Components, Now Available via API</span>
               </div>
@@ -5368,18 +5518,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">StepSecurity introduced a new API endpoint, GET /github/{owner}/threat-intel/incidents/{incidentId}/compromised-components, that returns every compromised OSS component tied to a specific threat incident, including ecosystem type, affected version, severity, verification status, and a threat description.</span></li><li><span class="kp-text">The endpoint complements StepSecurity&#39;s existing supply chain defenses, which include real-time detection events streamed to SIEM platforms via S3 and webhooks, the Threat Center dashboard, Pull Request checks like the NPM Package Compromised Updates Check, and the Secure Registry that enforces controls at install time.</span></li><li><span class="kp-text">Teams can use the endpoint to automate incident response by pulling the full list of compromised components from an incident identifier, enrich SIEM workflows with typed component data, and cross-reference incidents against their own SBOM or lockfiles to quickly determine exposure.</span></li><li><span class="kp-text">The same StepSecurity Threat Intelligence systems behind this feature previously uncovered the tj-actions and nx supply chain incidents and detect active compromises within minutes.</span></li><li><span class="kp-text">The Threat Center and the compromised components endpoint are available to StepSecurity Enterprise customers, who can generate an API token from their dashboard to query real incidents.</span></li></ul></div>
-            
             <a href="https://www.stepsecurity.io/blog/new-in-the-threat-center-compromised-components-now-available-via-api" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a vendor product announcement of a new API endpoint rather than coverage of a specific security incident, though it references the past tj-actions and nx compromises. Its security impact is informational, with general actionability tied to StepSecurity&rsquo;s Enterprise tooling, and it functions as a first-party announcement from the vendor itself.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a vendor product announcement of a new API endpoint rather than coverage of a specific security incident, though it references the past tj-actions and nx compromises. Its security impact is informational, with general actionability tied to StepSecurity&rsquo;s Enterprise tooling, and it functions as a first-party announcement from the vendor itself.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap " data-priority="opt" data-category="opinion" data-tags="errol-weiss health-isac healthcare-sector incident-preparedness mha-online patient-safety united-states">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-opt">06</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">opinion</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-opt">06</span><span class="toc-cat-label">opinion</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">What Healthcare Leaders Need to Know About Cybersecurity in 2026-2027</span>
               </div>
@@ -5474,9 +5622,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Errol Weiss, Chief Security Officer at Health-ISAC, argues that healthcare is a perfect target for cyberattacks because it combines life-critical systems, highly sensitive patient data, and valuable clinical research running on complex, fragile networks in under-resourced environments.</span></li><li><span class="kp-text">The article focuses on evolving healthcare cybersecurity risks for the 2026-2027 period.</span></li><li><span class="kp-text">It places particular emphasis on the ramifications of ransomware in the healthcare sector.</span></li><li><span class="kp-text">The piece highlights the importance of information sharing, incident preparedness, and treating cybersecurity as a patient safety issue.</span></li><li><span class="kp-text">It is intended to help healthcare leaders understand the impacts of cyber threats on care delivery, operations, and organizational resilience.</span></li></ul></div>
-            
             <a href="https://health-isac.org/what-healthcare-leaders-need-to-know-about-cybersecurity-in-2026-2027/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a trend/opinion piece featuring Health-ISAC&rsquo;s CSO on healthcare cybersecurity risks for 2026-2027, with no specific named incident, CVE, or campaign. It offers general awareness about ransomware and patient safety affecting the broad healthcare sector, but provides no concrete defensive actions, and is sourced to a named expert at a credible industry organization.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a trend/opinion piece featuring Health-ISAC&rsquo;s CSO on healthcare cybersecurity risks for 2026-2027, with no specific named incident, CVE, or campaign. It offers general awareness about ransomware and patient safety affecting the broad healthcare sector, but provides no concrete defensive actions, and is sourced to a named expert at a credible industry organization.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://health-isac.org/health-care-and-social-assistance-threat-landscape-report/" target="_blank" rel="noopener">Health Care and Social Assistance Threat Landscape Report</a></div>
@@ -5491,9 +5638,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap " data-priority="opt" data-category="announcement" data-tags="gigaom identity-threat-detection-and-response itdr permiso">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-opt">07</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">announcement</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-opt">07</span><span class="toc-cat-label">announcement</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Permiso Recognized as a Challenger and Outperformer in the 2026 GigaOm Identity Threat Detection &amp; Response (ITDR) Radar</span>
               </div>
@@ -5530,9 +5676,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Permiso was recognized in the 2026 GigaOm Radar for Identity Threat Detection and Response (ITDR) as both a Challenger and an Outperformer.</span></li><li><span class="kp-text">This marks Permiso&#39;s second consecutive year being included in the GigaOm ITDR report.</span></li><li><span class="kp-text">The article notes that ITDR has become a central category for how enterprises defend themselves, because the identities that run modern environments have also become the easiest way into them.</span></li></ul></div>
-            
             <a href="https://permiso.io/blog/permiso-gigaom-itdr-radar-2026" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a vendor PR announcement of Permiso&rsquo;s recognition in a GigaOm ITDR Radar report, with no security incident, threat, or actionable defensive content. It references a legitimate primary report (GigaOm) but offers nothing for defenders to act upon and concerns only a single vendor.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a vendor PR announcement of Permiso&rsquo;s recognition in a GigaOm ITDR Radar report, with no security incident, threat, or actionable defensive content. It references a legitimate primary report (GigaOm) but offers nothing for defenders to act upon and concerns only a single vendor.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://portal.gigaom.com/report/gigaom-radar-for-identity-threat-detection-and-response-itdr-v3" target="_blank" rel="noopener">GigaOm Radar for Identity Threat Detection and Response (ITDR) v3</a></div>
@@ -5556,10 +5701,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-09 00:00 UTC · 1 day window</span>
   <span class="footer-mid"><a href="sources.html">sources</a></span>
-  <span class="footer-right">30 articles · fc4ef56</span>
+  <span class="footer-right">30 articles · d48a1fb</span>
 </footer>
 
 <script>
@@ -5574,13 +5721,28 @@ function applyTheme(t) {
 
 
 
+var tourActive = false;
+
+
+
+
+
 
 var LEARN_FEATURES = {
+  plain:    { attr: 'learnPlain',    key: 'downlink.learn.plain',    el: 'learn-feat-plain' },
   glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
-  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
   define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
 };
+
+
+var POS_LEVEL = [3, 2, 1];
+var POS_MAX = POS_LEVEL.length - 1;
+var LEVEL_NAME = { 1: 'Pro', 2: 'Standard', 3: 'Novice' };
+function posToLevel(pos){ return POS_LEVEL[pos]; }
+function levelToPos(level){ var i = POS_LEVEL.indexOf(level); return i < 0 ? 0 : i; }
 function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+
+
 function toggleLearning() {
   var d = document.documentElement.dataset;
   var on = d.learning === 'on';
@@ -5589,7 +5751,8 @@ function toggleLearning() {
     closeLearnMenu();
   } else {
     d.learning = 'on';
-    
+    if (d.helpLevel !== '1' && d.helpLevel !== '2' && d.helpLevel !== '3') d.helpLevel = '3';
+    learnSetItem('downlink.help.level', d.helpLevel);
     Object.keys(LEARN_FEATURES).forEach(function(f){
       var cfg = LEARN_FEATURES[f];
       if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
@@ -5597,6 +5760,32 @@ function toggleLearning() {
   }
   learnSetItem('downlink.learning', on ? 'off' : 'on');
   syncLearnUI();
+}
+
+function setHelpLevel(level) {
+  var d = document.documentElement.dataset;
+  d.helpLevel = String(level);
+  learnSetItem('downlink.help.level', String(level));
+  syncLearnUI();
+}
+
+function advanceHelpLevel() {
+  var d = document.documentElement.dataset;
+  var level = (parseInt(d.helpLevel, 10) === 1 || parseInt(d.helpLevel, 10) === 2) ? parseInt(d.helpLevel, 10) : 3;
+  var pos = levelToPos(level);
+  var next = posToLevel((pos + 1) % (POS_MAX + 1));
+  setHelpLevel(next);
+  flashHelpLevel(LEVEL_NAME[next] || '');
+}
+
+var helpFlashTimer;
+function flashHelpLevel(name) {
+  var el = document.getElementById('nav-help-flash');
+  if (!el) return;
+  el.textContent = name;
+  el.classList.add('is-shown');
+  clearTimeout(helpFlashTimer);
+  helpFlashTimer = setTimeout(function(){ el.classList.remove('is-shown'); }, 1100);
 }
 function toggleLearnFeature(f) {
   var cfg = LEARN_FEATURES[f];
@@ -5621,13 +5810,32 @@ function closeLearnMenu() {
   if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
+
 function syncLearnUI() {
   var d = document.documentElement.dataset;
   var learningOn = d.learning === 'on';
+  var level = (parseInt(d.helpLevel, 10) === 1 || parseInt(d.helpLevel, 10) === 2) ? parseInt(d.helpLevel, 10) : 3;
+  var pos = levelToPos(level);
   var sw = document.getElementById('nav-learn-switch');
   if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  
+  document.querySelectorAll('.nav-help-mini-dot').forEach(function(dot){
+    dot.classList.toggle('is-active', parseInt(dot.dataset.pos, 10) === pos);
+  });
+  var slider = document.getElementById('help-slider');
+  if (slider) {
+    slider.setAttribute('aria-valuenow', String(level));
+    slider.setAttribute('aria-valuetext', LEVEL_NAME[level] || 'Novice');
+  }
+  document.querySelectorAll('.help-slider-dot').forEach(function(dot){
+    dot.classList.toggle('is-active', parseInt(dot.dataset.pos, 10) === pos);
+  });
+  var knob = document.getElementById('help-slider-knob');
+  
+  if (knob) knob.style.left = 'calc(5px + (100% - 10px) * ' + (pos / POS_MAX) + ')';
+  
   var caret = document.getElementById('nav-learn-caret');
-  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  if (caret && !learningOn) caret.setAttribute('aria-expanded', 'false');
   Object.keys(LEARN_FEATURES).forEach(function(f){
     var cfg = LEARN_FEATURES[f];
     var el = document.getElementById(cfg.el);
@@ -5644,6 +5852,25 @@ function toggleGlossaryPanel() {
   var open = p.classList.toggle('is-open');
   var btn = document.getElementById('glossary-panel-toggle');
   if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) { var s = document.getElementById('glossary-panel-search'); if (s) s.focus(); }
+}
+
+function filterGlossary(q) {
+  q = (q || '').trim().toLowerCase();
+  var panel = document.getElementById('glossary-panel');
+  if (!panel) return;
+  var d = document.documentElement.dataset;
+  var level = d.learning === 'on' ? (parseInt(d.helpLevel, 10) || 0) : 0;
+  var entries = panel.querySelectorAll('.glossary-panel-entry');
+  var shown = 0;
+  entries.forEach(function (el) {
+    var inLevel = (parseInt(el.dataset.lvl, 10) || 2) <= level;
+    var match = inLevel && (!q || el.textContent.toLowerCase().indexOf(q) !== -1);
+    el.hidden = !match;
+    if (match) shown++;
+  });
+  var empty = document.getElementById('glossary-panel-empty');
+  if (empty) empty.hidden = shown !== 0;
 }
 function closeGlossaryPanel() {
   var p = document.getElementById('glossary-panel');
@@ -5653,13 +5880,55 @@ function closeGlossaryPanel() {
 }
 syncLearnUI();
 
+
+(function(){
+  var slider = document.getElementById('help-slider');
+  if (!slider) return;
+  function currentPos(){
+    var d = document.documentElement.dataset;
+    var level = (parseInt(d.helpLevel, 10) === 1 || parseInt(d.helpLevel, 10) === 2) ? parseInt(d.helpLevel, 10) : 3;
+    return levelToPos(level);
+  }
+  function posFromEvent(e){
+    var r = slider.getBoundingClientRect();
+    var pad = 5; 
+    var span = r.width - 2 * pad;
+    var frac = span > 0 ? (e.clientX - r.left - pad) / span : 0;
+    return Math.max(0, Math.min(POS_MAX, Math.round(frac * POS_MAX)));
+  }
+  var dragging = false;
+  slider.addEventListener('pointerdown', function(e){
+    dragging = true;
+    try { slider.setPointerCapture(e.pointerId); } catch(_){}
+    var pos = posFromEvent(e);
+    if (pos === currentPos()) advanceHelpLevel(); 
+    else setHelpLevel(posToLevel(pos));           
+    e.preventDefault();
+  });
+  slider.addEventListener('pointermove', function(e){ if (dragging) setHelpLevel(posToLevel(posFromEvent(e))); });
+  slider.addEventListener('pointerup', function(){ dragging = false; });
+  slider.addEventListener('pointercancel', function(){ dragging = false; });
+  slider.addEventListener('keydown', function(e){
+    var cur = currentPos();
+    var p = cur;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') p = Math.min(POS_MAX, cur + 1); 
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') p = Math.max(0, cur - 1);     
+    else if (e.key === 'Home') p = 0;
+    else if (e.key === 'End') p = POS_MAX;
+    else return;
+    e.preventDefault();
+    setHelpLevel(posToLevel(p));
+  });
+})();
+
 document.addEventListener('click', function(e){
+  if (tourActive) return; 
   var card = document.getElementById('learn-card');
   if (!card || card.hidden) return;
   if (e.target.closest('#nav-learn')) return;
   closeLearnMenu();
 });
-document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { closeLearnMenu(); closeGlossaryPanel(); } });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !tourActive) { closeLearnMenu(); closeGlossaryPanel(); } });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -5699,6 +5968,13 @@ function toggleTocMember(titleEl, bodyId) {
 
 
 function toggleWhy(label) {
+  var body = label.nextElementSibling;
+  if (!body) return;
+  var isOpen = body.classList.toggle('open');
+  label.classList.toggle('open', isOpen);
+}
+
+function togglePlain(label) {
   var body = label.nextElementSibling;
   if (!body) return;
   var isOpen = body.classList.toggle('open');
@@ -5779,6 +6055,13 @@ function toggleTag(tag) {
 var GLOSSARY = {};
 var CONTEXT = {};
 function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+
+
+document.querySelectorAll('mark.tag-hl').forEach(function(m){
+  var e = GLOSSARY[glossaryKey(m.textContent)];
+  m.dataset.lvl = (e && e.lvl) ? e.lvl : 2;
+});
+var currentMark = null;
 function openGlossaryPopup(term, def, type, ctx){
   document.getElementById('glossary-popup-term').textContent = term;
   document.getElementById('glossary-popup-def').textContent = def;
@@ -5795,6 +6078,7 @@ function openGlossaryPopup(term, def, type, ctx){
 function closeGlossaryPopup(){
   var p = document.getElementById('glossary-popup');
   if (p) p.hidden = true;
+  currentMark = null;
 }
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
@@ -5805,10 +6089,14 @@ document.addEventListener('click', function(e){
   var key = glossaryKey(m.textContent);
   var entry = GLOSSARY[key];
   if (!entry) return;
+  var level = parseInt(dd.helpLevel, 10) || 0;
+  if ((entry.lvl || 2) > level) return; 
+  if (m === currentMark) { closeGlossaryPopup(); return; }
   
   var ctx = '';
   var host = m.closest('[data-article-id]');
   if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  currentMark = m;
   openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
 document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
@@ -5869,11 +6157,148 @@ function showMoreTags(btn) {
   btn.remove();
 }
 
+
+
+
+
+
+(function(){
+  var overlay = document.getElementById('tour');
+  if (!overlay) return; 
+  var spot = document.getElementById('tour-spotlight');
+  var card = document.getElementById('tour-card');
+  var elStep = document.getElementById('tour-step');
+  var elTitle = document.getElementById('tour-title');
+  var elBody = document.getElementById('tour-body');
+  var elDots = document.getElementById('tour-dots');
+  var btnBack = document.getElementById('tour-back');
+  var btnNext = document.getElementById('tour-next');
+
+  
+  
+  var STEPS = [
+    { title: 'Welcome to DOWNLINK', body: 'DOWNLINK gives you a fast read on what shipped, broke, or matters across your feeds. Use it to scan and triage. It points you at what to read; it is not a substitute for the articles themselves.' },
+    { sel: '#nav-learn-switch', reveal: true, title: 'Learning mode', body: 'Flip this on for newcomer help: plain-language summaries, click-to-define jargon, and a glossary. Turn it back off once the terms are familiar.' },
+    { sel: '#help-slider', reveal: true, openCard: true, title: 'How much to explain', body: 'Slide between Novice and Pro to set how many terms get explained. Novice explains nearly everything; Pro only the niche stuff.' },
+    { sel: '#glossary-panel-toggle', reveal: true, title: 'Glossary', body: 'This tab opens a searchable list of every term in the digest, each written in plain words.' }
+  ];
+
+  var idx = 0, active = false, saved = null;
+
+  function snapshot(){
+    var d = document.documentElement.dataset;
+    return { learning: d.learning, helpLevel: d.helpLevel, glossary: d.learnGlossary };
+  }
+  function restore(s){
+    var d = document.documentElement.dataset;
+    if (s.learning) d.learning = s.learning; else delete d.learning;
+    if (s.helpLevel) d.helpLevel = s.helpLevel; else delete d.helpLevel;
+    if (s.glossary) d.learnGlossary = s.glossary; else delete d.learnGlossary;
+    syncLearnUI();
+  }
+  
+  function preview(){
+    var d = document.documentElement.dataset;
+    d.learning = 'on';
+    if (d.helpLevel !== '1' && d.helpLevel !== '2' && d.helpLevel !== '3') d.helpLevel = '3';
+    d.learnGlossary = 'on';
+    syncLearnUI();
+  }
+
+  function targetRect(sel){
+    var t = sel && document.querySelector(sel);
+    if (!t) return null;
+    var r = t.getBoundingClientRect();
+    return (r.width === 0 && r.height === 0) ? null : r;
+  }
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+  function placeSpotlight(r){
+    var pad = 6;
+    spot.classList.remove('is-centered');
+    spot.style.top = (r.top - pad) + 'px';
+    spot.style.left = (r.left - pad) + 'px';
+    spot.style.width = (r.width + pad * 2) + 'px';
+    spot.style.height = (r.height + pad * 2) + 'px';
+  }
+  function placeCard(r){
+    var m = 14, cw = card.offsetWidth, ch = card.offsetHeight, vw = innerWidth, vh = innerHeight;
+    var top, left;
+    if (!r){ 
+      left = (vw - cw) / 2; top = (vh - ch) / 2;
+    } else if (r.left > vw * 0.6 && r.left - m - cw >= m){ 
+      left = r.left - m - cw; top = clamp(r.top + r.height / 2 - ch / 2, m, vh - ch - m);
+    } else if (vh - r.bottom >= ch + m){ 
+      top = r.bottom + m; left = clamp(r.left + r.width / 2 - cw / 2, m, vw - cw - m);
+    } else if (r.top - m - ch >= m){ 
+      top = r.top - m - ch; left = clamp(r.left + r.width / 2 - cw / 2, m, vw - cw - m);
+    } else { 
+      left = clamp(r.right + m, m, vw - cw - m); top = clamp(r.top + r.height / 2 - ch / 2, m, vh - ch - m);
+    }
+    card.style.left = Math.round(left) + 'px';
+    card.style.top = Math.round(top) + 'px';
+  }
+  function position(){
+    var step = STEPS[idx];
+    var r = step.sel ? targetRect(step.sel) : null;
+    if (r) placeSpotlight(r); else spot.classList.add('is-centered');
+    placeCard(r);
+  }
+  function render(){
+    var step = STEPS[idx];
+    elStep.textContent = 'Step ' + (idx + 1) + ' of ' + STEPS.length;
+    elTitle.textContent = step.title;
+    elBody.textContent = step.body;
+    var dots = '';
+    for (var i = 0; i < STEPS.length; i++){ dots += '<span' + (i === idx ? ' class="is-active"' : '') + '></span>'; }
+    elDots.innerHTML = dots;
+    btnBack.style.visibility = idx === 0 ? 'hidden' : 'visible';
+    btnNext.textContent = idx === STEPS.length - 1 ? 'Done' : 'Next';
+    if (step.reveal) preview();
+    if (step.openCard){ var c = document.getElementById('learn-card'); if (c){ c.hidden = false; var car = document.getElementById('nav-learn-caret'); if (car) car.setAttribute('aria-expanded', 'true'); } }
+    else closeLearnMenu();
+    position();
+  }
+  function start(){
+    if (active) return;
+    active = true; tourActive = true;
+    saved = snapshot();
+    idx = 0;
+    overlay.hidden = false;
+    render();
+    btnNext.focus();
+    addEventListener('resize', position); addEventListener('scroll', position, true);
+  }
+  function end(){
+    active = false; tourActive = false;
+    overlay.hidden = true;
+    closeLearnMenu();
+    if (saved) restore(saved);
+    saved = null;
+    removeEventListener('resize', position); removeEventListener('scroll', position, true);
+    try { localStorage.setItem('downlink.onboarded', '1'); } catch(e){}
+  }
+  function next(){ if (idx < STEPS.length - 1){ idx++; render(); } else end(); }
+  function back(){ if (idx > 0){ idx--; render(); } }
+
+  btnNext.addEventListener('click', next);
+  btnBack.addEventListener('click', back);
+  document.getElementById('tour-skip').addEventListener('click', end);
+  overlay.addEventListener('keydown', function(e){
+    if (e.key === 'Escape'){ e.preventDefault(); end(); }
+    else if (e.key === 'ArrowRight'){ e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft'){ e.preventDefault(); back(); }
+  });
+
+  
+  window.startTour = start;
+
+  
+  try { if (!localStorage.getItem('downlink.onboarded')) start(); } catch(e){}
+})();
+
 </script>
 </body>
 </html>
-
-
 
 
 

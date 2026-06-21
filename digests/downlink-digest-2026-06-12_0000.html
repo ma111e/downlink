@@ -12,11 +12,16 @@
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
     
+    
+    
+    var lvl = localStorage.getItem('downlink.help.level');
+    if (lvl !== '1' && lvl !== '2' && lvl !== '3') lvl = '3';
     if (localStorage.getItem('downlink.learning') === 'on') {
       var d = document.documentElement.dataset;
       d.learning = 'on';
+      d.helpLevel = lvl;
+      d.learnPlain = localStorage.getItem('downlink.learn.plain') === 'off' ? 'off' : 'on';
       d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
-      d.learnWhy = localStorage.getItem('downlink.learn.why') === 'off' ? 'off' : 'on';
       d.learnDefine = localStorage.getItem('downlink.learn.define') === 'off' ? 'off' : 'on';
     }
   } catch(e){}
@@ -29,6 +34,12 @@
 <meta property="og:title" content="Shai-Hulud, AUR Hijacks, Ivanti Sentry, Splunk CVE-2026-20253, and AI Agent RCE — DOWNLINK">
 <meta property="og:description" content="29 articles curated from a 1 day window.">
 <title>Shai-Hulud, AUR Hijacks, Ivanti Sentry, Splunk CVE-2026-20253, and AI Agent RCE — DOWNLINK</title>
+<link rel="icon" type="image/x-icon" href="./favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png">
+<link rel="apple-touch-icon" sizes="128x128" href="./icon-128.png">
+<link rel="manifest" href="./site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -199,7 +210,7 @@ html[data-theme="pastel"] {
   --bg:      #faf6e6;   
   --surface: #fffdf4;   
   --surface2:#f1ead2;   
-  --surface-raised: #ffffff;   
+  --surface-raised: #fffdf4;   
   --border:  #e6dcbf;   
   --border2: #d2c5a2;   
   --text:    #3a3137;   
@@ -231,11 +242,12 @@ html {
   background-size: 24px 24px;
   color: var(--text);
   font-family: var(--sans);
-  font-size: clamp(14px, 0.85dvw, 18px);
+  font-size: clamp(15px, 1dvw, 20px);
   line-height: 1.6;
   scroll-behavior: smooth;
+  overflow-x: clip;    
 }
-body { min-height: 100vh; max-width: clamp(900px, 72dvw, 1600px); margin: 0 auto; }
+body { min-height: 100vh; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; }
 ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -270,11 +282,20 @@ a:hover { text-decoration: underline; }
   z-index: 100;
   background: color-mix(in oklch, var(--bg) 90%, transparent);
   backdrop-filter: blur(16px);
-  margin: 0 clamp(24px, 2.5dvw, 52px);
+  border-bottom: 1px solid var(--border);
+   
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  padding: 0 24px;
   height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 .nav-logo {
   display: flex;
@@ -296,12 +317,13 @@ a:hover { text-decoration: underline; }
   padding: 1px 6px;
   border-radius: 2px;
 }
-.nav-center {
+.nav-meta {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.3;
 }
-.nav-date  { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; }
+.nav-date  { font-family: var(--mono); font-size: 11px; color: var(--text2); letter-spacing: 0.06em; }
 .nav-right {
   display: flex;
   align-items: center;
@@ -361,10 +383,13 @@ a:hover { text-decoration: underline; }
 .nav-theme-select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
  
 .nav-learn { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+ 
 .nav-learn-switch {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  height: 24px;
+  box-sizing: border-box;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -372,7 +397,7 @@ a:hover { text-decoration: underline; }
   background: var(--surface);
   border: 1px solid var(--border2);
   border-radius: 2px;
-  padding: 4px 8px;
+  padding: 0 8px;
   cursor: pointer;
   text-transform: uppercase;
 }
@@ -404,16 +429,58 @@ a:hover { text-decoration: underline; }
 }
 .nav-learn-switch[aria-checked="true"] .nav-learn-track { background: color-mix(in oklch, var(--should) 60%, transparent); }
 .nav-learn-switch[aria-checked="true"] .nav-learn-knob { transform: translateX(9px); background: var(--should); }
+ 
+.nav-help-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+   
+  height: 24px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  visibility: hidden;
+  cursor: pointer;
+  position: relative;
+}
+html[data-learning="on"] .nav-help-mini { visibility: visible; }
+.nav-help-mini-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--text3); transition: background .12s; }
+.nav-help-mini-dot.is-active { background: var(--should); }
+ 
+.nav-help-flash {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--should);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+.nav-help-flash.is-shown { opacity: 1; }
 .nav-learn-caret {
+  height: 24px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
   font-size: 10px;
   color: var(--text2);
   background: var(--surface);
   border: 1px solid var(--border2);
   border-radius: 2px;
-  padding: 3px 5px;
+  padding: 0 7px;
   cursor: pointer;
   line-height: 1;
+   
+  visibility: hidden;
+  pointer-events: none;
 }
+html[data-learning="on"] .nav-learn-caret { visibility: visible; pointer-events: auto; }
 .nav-learn-caret:hover { border-color: var(--should); color: var(--text); }
 .nav-learn-caret[aria-expanded="true"] { color: var(--should); border-color: color-mix(in oklch, var(--should) 45%, transparent); }
 .learn-card {
@@ -436,6 +503,65 @@ a:hover { text-decoration: underline; }
   text-transform: uppercase;
   color: var(--text3);
   padding: 2px 4px 6px;
+}
+ 
+.help-slider {
+  position: relative;
+  width: auto;
+  height: 20px;
+  margin: 0 4px 2px;
+  cursor: pointer;
+  touch-action: none;
+  border-radius: 999px;
+}
+.help-slider:focus-visible { outline: 1px solid var(--should); outline-offset: 2px; }
+.help-slider-track {
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  right: 5px;
+  height: 4px;
+  transform: translateY(-50%);
+  background: var(--border2);
+  border-radius: 999px;
+}
+.help-slider-dot {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text3);
+  transform: translate(-50%, -50%);
+  transition: background .12s;
+}
+.help-slider-dot[data-pos="0"] { left: 5px; }
+.help-slider-dot[data-pos="1"] { left: 50%; }
+.help-slider-dot[data-pos="2"] { left: calc(100% - 5px); }
+.help-slider-dot.is-active { background: var(--should); }
+.help-slider-knob {
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 1px solid var(--border);
+  transform: translate(-50%, -50%);
+  transition: left .12s;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+.help-slider-ends {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
 }
 .learn-feature {
   display: flex;
@@ -548,7 +674,8 @@ a:hover { text-decoration: underline; }
 
  
 #toc {
-  padding: 0 clamp(24px, 2.5dvw, 52px);
+  padding: 0 40px;
+  flex: 1;
 }
 .toc-card {
   background: var(--surface);
@@ -556,11 +683,13 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius);
   overflow: hidden;
 }
+ 
+.toc-card-head { background: none; border: none; }
 .toc-header {
   padding: 13px 20px;
 }
  
-#toc .toc-card + .toc-card { margin-top: 20px; }
+#toc .toc-card + .toc-card { margin: 20px 0; }
 .toc-body { padding: 8px 20px 16px; }
 .toc-group { margin-bottom: 4px; }
 .toc-group-head {
@@ -641,6 +770,10 @@ a:hover { text-decoration: underline; }
   margin-top: 2px;
   flex-shrink: 0;
 }
+ 
+.toc-row-head { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+.toc-row-head .toc-num { margin-top: 0; }
+.toc-row-head .toc-cat-label { margin-bottom: 0; }
 .toc-num-must   { color: var(--must); }
 .toc-num-should { color: var(--should); }
 .toc-num-may    { color: var(--may); }
@@ -667,11 +800,12 @@ a:hover { text-decoration: underline; }
  
 .toc-row-wrap.open {
   margin: 10px 0;
+  padding: 14px;
   border-color: var(--border);    
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface-raised);    
-  box-shadow: 0 1px 2px rgba(0,0,0,0.25), 0 6px 16px rgba(0,0,0,0.18);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.10);
 }
 .toc-row-wrap::before {
   content: "";
@@ -691,6 +825,8 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   user-select: none;
 }
+ 
+.toc-row-wrap > .toc-row-inner { padding-left: 40px; }
 .toc-row-meta {
   display: flex;
   gap: 8px;
@@ -749,7 +885,8 @@ a:hover { text-decoration: underline; }
   }
 }
 .toc-row-body { height: 0; overflow: hidden; border-top: 1px solid transparent; }
-.toc-row-body.open { height: auto; margin: 0 12px; border-top-color: var(--border); margin-bottom: 20px}
+ 
+.toc-row-body.open { height: auto; margin: 0 12px; border-top-color: var(--border); margin-bottom: 20px; padding: 9px 0 9px 28px; }
  
 @supports (interpolate-size: allow-keywords) {
   :root { interpolate-size: allow-keywords; }
@@ -777,7 +914,7 @@ a:hover { text-decoration: underline; }
 }
  
 #overview {
-  padding: 20px clamp(24px, 2.5dvw, 52px) 0;
+  padding: 20px 40px 0;
 }
 .overview-card {
   container-type: inline-size;
@@ -869,7 +1006,7 @@ a:hover { text-decoration: underline; }
   padding: 2px 7px;
   border-radius: 3px;
   color: var(--text2);
-  background: var(--surface2);
+  background: var(--surface);
   border: 1px solid var(--border2);
   cursor: pointer;
 }
@@ -985,7 +1122,7 @@ a:hover { text-decoration: underline; }
   mask-image: none;
 }
  
-.toc-row-inner .toc-row-tags { margin-left: -32px; width: calc(100% + 32px + 8px); }
+.toc-row-inner .toc-row-tags { margin-left: 0; width: calc(100% + 8px); }
 .toc-row-tags::-webkit-scrollbar { display: none; }  
 .toc-tags-label {
   align-self: center;
@@ -1005,7 +1142,7 @@ a:hover { text-decoration: underline; }
   padding: 2px 7px;
   border-radius: 3px;
   color: var(--text2);
-  background: var(--surface2);
+  background: var(--surface);
   border: 1px solid var(--border2);
 }
 .meta-tag[data-tag] { cursor: pointer; }
@@ -1116,6 +1253,17 @@ html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
   background: color-mix(in oklch, var(--cyan) 28%, transparent);
   text-decoration: underline dotted color-mix(in oklch, var(--cyan) 55%, transparent);
 }
+ 
+html[data-help-level="1"] mark.tag-hl[data-lvl="2"],
+html[data-help-level="1"] mark.tag-hl[data-lvl="3"],
+html[data-help-level="2"] mark.tag-hl[data-lvl="3"],
+html[data-help-level="1"] mark.tag-hl[data-lvl="2"]:hover,
+html[data-help-level="1"] mark.tag-hl[data-lvl="3"]:hover,
+html[data-help-level="2"] mark.tag-hl[data-lvl="3"]:hover {
+  background: transparent;
+  cursor: auto;
+  text-decoration: none;
+}
 
  
  
@@ -1143,7 +1291,7 @@ html[data-learning="on"][data-learn-define="on"] mark.tag-hl:hover {
 .glossary-popup-close:hover { color: var(--text); }
 .glossary-popup-term { margin: 0 1.4rem .35rem 0; color: var(--cyan); font-size: 1rem; }
 .glossary-popup-type {
-  display: inline-block; margin: 0 0 .5rem; padding: .05rem .4rem;
+  display: inline-block; padding: .05rem .4rem;
   border: 1px solid var(--border); border-radius: 999px;
   font-size: .68rem; letter-spacing: .03em; text-transform: uppercase;
   color: var(--text2);
@@ -1195,11 +1343,10 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
   flex-direction: column;
   background: var(--surface, var(--bg));
   border-left: 1px solid var(--border);
-  box-shadow: -8px 0 28px rgba(0,0,0,.35);
   transform: translateX(100%);
   transition: transform .2s ease;
 }
-.glossary-panel.is-open { transform: none; }
+.glossary-panel.is-open { transform: none; box-shadow: -8px 0 28px rgba(0,0,0,.35); }
 .glossary-panel-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: .9rem 1rem; border-bottom: 1px solid var(--border); flex: none;
@@ -1213,8 +1360,22 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
   font-size: 1.4rem; line-height: 1; cursor: pointer; padding: 0 .25rem;
 }
 .glossary-panel-close:hover { color: var(--text); }
+.glossary-panel-search { padding: .75rem 1rem; border-bottom: 1px solid var(--border); flex: none; }
+.glossary-panel-search input {
+  width: 100%; box-sizing: border-box;
+  background: var(--bg); border: 1px solid var(--border2); border-radius: 6px;
+  padding: .45rem .6rem; color: var(--text);
+  font-family: var(--mono); font-size: .82rem; outline: none;
+}
+.glossary-panel-search input:focus { border-color: var(--should); }
 .glossary-panel-body { flex: 1; overflow-y: auto; padding: .9rem 1rem; }
 .glossary-panel-list { margin: 0; padding: 0; }
+.glossary-panel-entry[hidden] { display: none; }
+ 
+html[data-help-level="1"] .glossary-panel-entry[data-lvl="2"],
+html[data-help-level="1"] .glossary-panel-entry[data-lvl="3"],
+html[data-help-level="2"] .glossary-panel-entry[data-lvl="3"] { display: none; }
+.glossary-panel-empty { margin: 0; color: var(--text2); font-size: .85rem; }
 .glossary-panel-term {
   margin: 0; color: var(--text); font-weight: 600; font-size: .92rem;
   display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
@@ -1238,7 +1399,7 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
 .report-item {
   position: relative;
   border: 1px solid var(--border);
-  background: var(--surface2);
+  background: var(--surface);
   border-radius: var(--radius);
   padding: 0.75rem 0.85rem;
 }
@@ -1277,7 +1438,7 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
 .report-context { margin-top: 0.4rem; font-size: 0.89rem; line-height: 1.6; color: var(--text2); }
 
  
-.panel-section { margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+.panel-section { margin-top: 1.1rem; }
 .panel-section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 .panel-subhead {
   display: flex;
@@ -1303,18 +1464,22 @@ html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: fl
 .panel-subhead--summary   { --panel-c: var(--cyan); }
 .panel-subhead--keypoints { --panel-c: var(--green); }
 .panel-subhead--reports   { --panel-c: var(--violet); }
-.panel-subhead--glossary  { --panel-c: var(--should); }
-.panel-subhead--why       { --panel-c: var(--must); }
+.panel-subhead--plain     { --panel-c: var(--should); }
 .panel-subhead--summary,
 .panel-subhead--keypoints,
 .panel-subhead--reports,
-.panel-subhead--glossary,
-.panel-subhead--why { color: var(--panel-c); }
+.panel-subhead--plain { color: var(--panel-c); }
  
-.glossary-block { display: none; }
-html[data-learning="on"][data-learn-glossary="on"] .glossary-block { display: block; }
+.plain-words-block { display: none; border-top: none; }
+html[data-learning="on"][data-learn-plain="on"] .plain-words-block { display: block; }
+.plain-label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; margin-bottom: 0; }
+.plain-caret { display: inline-flex; align-items: center; flex: 0 0 auto; transform: rotate(-90deg); transition: transform .15s; }
+.plain-caret svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.plain-label.open .plain-caret { transform: rotate(0deg); }
+.plain-body { display: none; margin-top: 0.5rem; }
+.plain-body.open { display: block; }
 .why-block { display: none; }
-html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
+html[data-learning="on"][data-learn-plain="on"] .why-block { display: block; }
 .summary-switch { display: flex; flex-wrap: wrap; gap: 2px; margin-left: auto; }
 .summary-switch .tab-btn {
   margin-bottom: 0;
@@ -1355,7 +1520,7 @@ html[data-learning="on"][data-learn-why="on"] .why-block { display: block; }
   padding: 4px 12px;
   border-radius: 3px;
   color: var(--cyan);
-  background: var(--surface2);
+  background: var(--surface);
   border: 1px solid color-mix(in oklch, var(--cyan) 35%, transparent);
   cursor: pointer;
   margin-top: 0.5rem;
@@ -1393,20 +1558,24 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   details[open] .toc-cluster-chevron svg path { transform: none; d: path("M4 6.5 L8 10.5 L12 6.5"); }
 }
  
-.toc-cluster-members { list-style: none; padding-left: 72px; }
+ 
+.toc-cluster-members { list-style: none; padding-left: 72px; padding-right: 32px; padding-top: 6px; }
 .toc-cluster-member {
   display: flex; gap: 8px; align-items: flex-start;
-  padding: 4px 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+  padding: 8px 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
 }
 .toc-cluster-member:last-child { border-bottom: none; }
 
  
 #footer {
   border-top: 1px solid var(--border);
-  padding: 16px clamp(24px, 2.5dvw, 52px);
+  padding: 16px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+   
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
 }
 .footer-left, .footer-right, .footer-mid {
   font-family: var(--mono);
@@ -1450,9 +1619,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
  
 @media (max-width: 700px) {
-  #nav { margin: 0 16px; padding: 10px 0; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
-  .nav-center { display: none; }
-  .nav-window { display: none; }
+  #nav { margin: 0; padding: 10px 16px; height: auto; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+  .nav-meta { display: none; }
   .nav-right { display: contents; }
   .nav-swipe { order: 1; margin-left: auto; }
   .nav-count { order: 2; width: 100%; white-space: normal; flex-wrap: wrap; }
@@ -1463,7 +1631,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   .overview-cell-full { grid-column: auto; }
   #back-top { bottom: 1rem; right: 0.75rem; }
   .toc-title { padding: 12px 16px; }
-  .digest-title-text { font-size: clamp(16px, 5dvw, 1.57rem); }
+  .digest-title-text { font-size: clamp(17px, 5dvw, 1.57rem); }
    
   .panel-subhead--summary { flex-wrap: wrap; }
   .panel-subhead--summary .summary-switch {
@@ -1486,20 +1654,57 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 @container (min-width: 960px) {
   .overview-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+ 
+.tour-overlay { position: fixed; inset: 0; z-index: 2000; background: transparent; }
+.tour-spotlight {
+  position: fixed; z-index: 2001; pointer-events: none;
+  top: 0; left: 0; width: 0; height: 0;
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62), 0 0 0 2px var(--should);
+  transition: top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+.tour-spotlight.is-centered { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62); }
+.tour-card {
+  position: fixed; z-index: 2002; box-sizing: border-box;
+  width: min(340px, calc(100vw - 28px));
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border2); border-radius: 10px;
+  padding: 15px 17px 13px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  font-family: var(--sans);
+}
+.tour-card-step { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+.tour-card-title { font-size: 15px; font-weight: 600; line-height: 1.25; margin: 0 0 6px; color: var(--text); }
+.tour-card-body { font-size: 13px; line-height: 1.5; color: var(--text2); margin: 0; }
+.tour-card-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.tour-dots { display: inline-flex; gap: 5px; align-items: center; margin-right: auto; }
+.tour-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); }
+.tour-dots span.is-active { background: var(--should); }
+.tour-btn { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 5px 11px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; }
+.tour-btn:hover { border-color: var(--should); color: var(--text); }
+.tour-btn:focus-visible { outline: 1px solid var(--should); outline-offset: 1px; }
+.tour-btn-primary { background: var(--should); border-color: var(--should); color: var(--bg); }
+.tour-btn-primary:hover { color: var(--bg); filter: brightness(1.06); }
+.tour-skip { border: none; color: var(--text3); padding-left: 2px; }
+.tour-skip:hover { border: none; color: var(--text2); }
+@media (prefers-reduced-motion: reduce) { .tour-spotlight { transition: none; } }
 </style>
 </head>
 <body>
 
 
 <nav id="nav">
-  <a class="nav-logo" href="index.html">
-    <span class="nav-logo-down">DOWN</span><span class="nav-logo-link">LINK</span>
-  </a>
-  <div class="nav-center">
-    <span class="nav-date">2026-06-12 00:00 UTC</span>
+  <div class="nav-left">
+    <a class="nav-logo" href="index.html">
+      <span class="nav-logo-down">DOWN</span><span class="nav-logo-link">LINK</span>
+    </a>
+    <div class="nav-meta">
+      <span class="nav-date">2026-06-12 00:00 UTC</span>
+      <span class="nav-window">1 day window</span>
+    </div>
   </div>
   <div class="nav-right">
-    <span class="nav-window">1 day window</span>
     <a class="nav-swipe" href="downlink-swipe-2026-06-12_0000.html">Triage</a>
     <div class="nav-count">
       <span class="nav-count-dot">■</span>
@@ -1520,7 +1725,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 
 <section id="toc">
-  <div class="toc-card">
+  <div class="toc-card toc-card-head">
     <div class="toc-title"><span class="digest-title-text">Shai-Hulud, AUR Hijacks, Ivanti Sentry, Splunk CVE-2026-20253, and AI Agent RCE</span></div>
     <div class="toc-header" style="display:flex;align-items:center;justify-content:space-between">
       <div class="toc-filters">
@@ -1556,9 +1761,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
         </div>
         <div class="toc-row-wrap must-row" data-priority="must" data-category="research" data-tags="check-point check-point-gaia check-point-mobile-access check-point-remote-access-vpn check-point-spark-firewall cisa-kev cve-2026-50751 ikev1-certificate-authentication-bypass qilin sk185033 ssl-network-extender tcpt visitor-mode watchtowr-labs">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">01</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">01</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Marking Your Own Homework (Check Point Remote Access VPN IKEv1 Authentication Bypass CVE-2026-50751)</span>
               </div>
@@ -1750,9 +1954,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Check Point released hotfixes on June 8, 2026 for CVE-2026-50751, a 9.3 CVSS authentication bypass affecting Mobile Access/SSL VPN, Remote Access VPN, and Spark Firewall products in deprecated IKEv1 VPN code.</span></li><li><span class="kp-text">watchTowr Labs found that the vulnerable IKEv1 implementation allowed a client-supplied VPNExtFeatures Vendor ID payload to write authentication flags that could cause certificate signature checks to be skipped.</span></li><li><span class="kp-text">The researchers demonstrated that a vulnerable gateway accepted a random HASH_I and created a phase-1 IKE SA, while a patched gateway rejected the same attempt with an authentication failure.</span></li><li><span class="kp-text">The article states that an attacker could authenticate as a provisioned Remote Access user by presenting a matching subject distinguished name, a self-signed X.509 certificate, and an invalid signature, because the gateway did not verify the signature or certificate trust chain.</span></li><li><span class="kp-text">watchTowr Labs reported that the bypass worked over both UDP 500 and TCP 443 Visitor Mode, and across the Certificate, Certificate with enrollment, and Mixed user authentication modes.</span></li></ul></div>
-            
             <a href="https://labs.watchtowr.com/marking-your-own-homework-check-point-remote-access-vpn-ikev1-authentication-bypass-cve-2026-50751/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read technical analysis of a critical Check Point Remote Access VPN authentication bypass that the article says was exploited in the wild before patches were released. It affects widely deployed perimeter VPN products, includes concrete exploitation details over UDP 500 and TCP 443, and ties the issue to targeted organizations and at least one Qilin ransomware-linked incident.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a must-read technical analysis of a critical Check Point Remote Access VPN authentication bypass that the article says was exploited in the wild before patches were released. It affects widely deployed perimeter VPN products, includes concrete exploitation details over UDP 500 and TCP 443, and ties the issue to targeted organizations and at least one Qilin ransomware-linked incident.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://support.checkpoint.com/results/sk/sk185033?_gl=1%2A5pnkru%2A_gcl_au%2AMjEzOTk1NjU4Ni4xNzgwOTI0NTY5&amp;ref=labs.watchtowr.com" target="_blank" rel="noopener">sk185033</a></div>
@@ -1763,9 +1966,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="news" data-tags="bod-26-04 cisa cve-2026-10520 federal-civilian-executive-branch ivanti ivanti-sentry known-exploited-vulnerabilities-catalog mobileiron-sentry os-command-injection public-poc shadowserver united-states">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">02</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">02</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">CISA orders feds to patch actively exploited Ivanti flaw by Sunday</span>
               </div>
@@ -1866,9 +2068,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">CISA ordered Federal Civilian Executive Branch agencies to patch the actively exploited Ivanti Sentry vulnerability CVE-2026-10520 within three days under Binding Operational Directive 26-04.</span></li><li><span class="kp-text">CVE-2026-10520 is a maximum-severity OS command injection vulnerability in Ivanti Sentry, formerly known as MobileIron Sentry.</span></li><li><span class="kp-text">Shadowserver reported that attackers had already backdoored many internet-exposed Ivanti Sentry gateways and observed widespread exploitation attempts based on a public proof-of-concept.</span></li><li><span class="kp-text">Shadowserver warned that organizations that had not patched their Ivanti Sentry instances were most likely compromised, although its detection was limited because some instances were not reachable in its scans.</span></li><li><span class="kp-text">CISA added CVE-2026-10520 to its Known Exploited Vulnerabilities Catalog and said this type of vulnerability poses significant risks to the federal enterprise.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/cisa-gives-feds-3-days-to-patch-ivanti-flaw-exploited-in-attacks/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports active in-the-wild exploitation of a maximum-severity Ivanti Sentry OS command injection flaw, with CISA ordering federal agencies to patch within three days. Shadowserver also warns that unpatched exposed systems are likely compromised, making the article immediately actionable for defenders.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a must-read because it reports active in-the-wild exploitation of a maximum-severity Ivanti Sentry OS command injection flaw, with CISA ordering federal agencies to patch within three days. Shadowserver also warns that unpatched exposed systems are likely compromised, making the article immediately actionable for defenders.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://hub.ivanti.com/s/article/Security-Advisory-Ivanti-Sentry-CVE-2026-10520-CVE-2026-10523?language=en_US" target="_blank" rel="noopener">Security Advisory Ivanti Sentry CVE-2026-10520 CVE-2026-10523</a></div>
@@ -1889,9 +2090,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           <details class="toc-cluster" style="border:none">
             <summary class="toc-row-inner" onclick="handleClusterClick(event,this)">
               <span class="toc-cluster-chevron"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 4 L10.5 8 L6.5 12"/></svg></span>
-              <span class="toc-num toc-num-must">03</span>
               <div style="flex:1;min-width:0">
-                <div class="toc-cat-label">news</div>
+                <div class="toc-row-head"><span class="toc-num toc-num-must">03</span><span class="toc-cat-label">news</span></div>
                 <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                   <span class="toc-title-link">Over 400 Arch Linux AUR Packages Hijacked to Deploy Infostealer and eBPF Rootkit</span>
                 </div>
@@ -2010,9 +2210,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                       </div>
                     </div>
                     <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">More than 400 packages in the Arch User Repository are distributing a Linux rootkit and infostealer malware targeting credentials and access tokens.</span></li><li><span class="kp-text">The compromised packages were modified with preinstall or post-install scripts that download and execute a malicious npm package called atomic-lockfile.</span></li><li><span class="kp-text">Independent researcher Whanos reported that one atomic-lockfile sample included a Linux ELF payload named deps, described as a credential stealer with optional root-only eBPF rootkit capabilities.</span></li><li><span class="kp-text">Sonatype said the attacker hijacked at least 20 orphaned AUR packages and modified their PKGBUILD files to invoke npm and install atomic-lockfile during package installation.</span></li><li><span class="kp-text">Arch users are advised to review affected packages and indicators of compromise, check for atomic-lockfile, rotate credentials if compromised, and consider reinstalling Arch from scratch because a rootkit may survive normal cleaning efforts.</span></li></ul></div>
-                    
                     <a href="https://www.bleepingcomputer.com/news/security/over-400-arch-linux-packages-compromised-to-push-rootkit-infostealer/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-                    <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a high-impact, specific supply-chain compromise affecting more than 400 Arch User Repository packages and delivering an infostealer with possible eBPF rootkit capabilities. It is urgent for security professionals because it targets developer workstations and build environments, with guidance to check for compromise, rotate credentials, and potentially reinstall affected systems.</p>
+                    <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a high-impact, specific supply-chain compromise affecting more than 400 Arch User Repository packages and delivering an infostealer with possible eBPF rootkit capabilities. It is urgent for security professionals because it targets developer workstations and build environments, with guidance to check for compromise, rotate credentials, and potentially reinstall affected systems.</p>
 </div></div>
                     <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://discourse.ifin.network/t/400-aur-packages-compromised-with-infostealer-and-rootkit/577" target="_blank" rel="noopener">400&#43; AUR Packages Compromised with Infostealer and Rootkit</a></div>
@@ -2030,7 +2229,6 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
                     
                   </div>
                 </div>
-                <span style="font-family:var(--mono);font-size:10px;color:var(--text3);flex-shrink:0">92</span>
               </li>
             </ul>
           </details>
@@ -2145,9 +2343,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Attackers took over more than 400 Arch User Repository packages and changed their build scripts to install a credential-stealing Rust binary on machines that built them.</span></li><li><span class="kp-text">The malicious build changes used npm install atomic-lockfile and, in a second wave, bun install js-digest to pull payloads during the AUR build process.</span></li><li><span class="kp-text">The stealer targets developer secrets including browser data, Electron app sessions, GitHub and npm tokens, Vault tokens, SSH keys, shell histories, Docker and Podman credentials, and VPN profiles.</span></li><li><span class="kp-text">When run with root privileges and the required capability, the malware can load an optional eBPF rootkit that hides its processes, names, and socket inodes from standard tools.</span></li><li><span class="kp-text">The article advises users who installed or updated AUR packages on or after June 11 to check affected-package lists, hunt for persistence, rotate exposed credentials, and reinstall from trusted media if the payload ran as root.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/over-400-arch-linux-aur-packages.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read because it reports a specific, active supply-chain compromise affecting hundreds of Arch AUR packages and deploying a credential stealer with optional eBPF rootkit capability. It has immediate operational relevance for security professionals managing Linux developer workstations, build systems, credentials, and package supply-chain risk.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a must-read because it reports a specific, active supply-chain compromise affecting hundreds of Arch AUR packages and deploying a credential stealer with optional eBPF rootkit capability. It has immediate operational relevance for security professionals managing Linux developer workstations, build systems, credentials, and package supply-chain risk.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.sonatype.com/blog/atomic-arch-npm-campaign-adds-malicious-dependency" target="_blank" rel="noopener">Atomic Arch npm Campaign Adds Malicious Dependency</a></div>
@@ -2162,9 +2359,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="research" data-tags="arbitrary-file-write aws cve-2026-20253 libpq path-traversal pg-dump pg-restore pgpass postgresql postgresql-sidecar-service pre-auth-rce splunk splunk-enterprise watchtowr-labs">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">04</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">04</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Why Use App-Level Auth When Every Database Has Auth? (Splunk Enterprise CVE-2026-20253 Pre-Auth RCE)</span>
               </div>
@@ -2420,9 +2616,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Splunk’s advisory for CVE-2026-20253 describes an unauthenticated vulnerability in the PostgreSQL Sidecar Service endpoint affecting Splunk Enterprise versions 10 and above.</span></li><li><span class="kp-text">The article states that Splunk Enterprise on AWS has the PostgreSQL Sidecar Service installed and enabled by default, while manually installed on-premise deployments differ in whether the service is installed or enabled by default.</span></li><li><span class="kp-text">The researchers found that the PostgreSQL Sidecar Service listens on localhost but can be reached through the main Splunk web application via the /en-US/splunkd/__raw/v1/postgres/recovery/backup and /restore paths.</span></li><li><span class="kp-text">The backup endpoint allows arbitrary file creation and truncation through the backupFile parameter, and the database parameter can be abused as a PostgreSQL connection string to make Splunk connect to an attacker-controlled database.</span></li><li><span class="kp-text">By combining the backup and restore endpoints with PostgreSQL features including passfile and lo_export, the researchers demonstrated a controlled arbitrary file write as the splunk user and then achieved remote code execution by overwriting a Splunk Python script.</span></li></ul></div>
-            
             <a href="https://labs.watchtowr.com/why-use-app-level-auth-when-every-database-has-auth-splunk-enterprise-cve-2026-20253-pre-auth-rce/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a must-read technical analysis of a critical unauthenticated Splunk Enterprise vulnerability with a demonstrated path to pre-auth remote code execution, and the article states Splunk Enterprise on AWS is vulnerable by default. Splunk is widely used for security and operations monitoring, and the research provides concrete exploit mechanics and detection guidance tied to a specific CVE.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a must-read technical analysis of a critical unauthenticated Splunk Enterprise vulnerability with a demonstrated path to pre-auth remote code execution, and the article states Splunk Enterprise on AWS is vulnerable by default. Splunk is widely used for security and operations monitoring, and the research provides concrete exploit mechanics and detection guidance tied to a specific CVE.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://advisory.splunk.com/advisories/SVD-2026-0603" target="_blank" rel="noopener">CVE-2026-20253 advisory</a></div>
@@ -2433,9 +2628,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="research" data-tags="github-actions-cache-poisoning hades miasma npm oidc-token-scraping oidc-trusted-publishing prompt-injection pth-persistence pull-request-target pypi shai-hulud slsa-provenance teampcp trivy unc6780">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">05</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">05</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Shai-Hulud Campaign Evolution: Miasma, Hades, and AI Scanner Evasion</span>
               </div>
@@ -2581,18 +2775,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The Shai-Hulud campaign expanded beyond npm into PyPI, shifted from maintainer-focused compromise to CI/CD abuse, and introduced execution through IDE configuration files and prompt injection against AI-based security scanners.</span></li><li><span class="kp-text">In March 2026, the Miasma wave compromised Aqua Security&#39;s Trivy scanner through GitHub Actions cache poisoning and used Python .pth files for persistence in site-packages.</span></li><li><span class="kp-text">In May 2026, the Hades/TanStack wave abused a pull_request_target misconfiguration to scrape OIDC tokens from GitHub Actions runner memory and publish malicious packages with valid SLSA provenance.</span></li><li><span class="kp-text">On May 12, 2026, the complete worm source code was publicly released under an MIT license, making later attribution less certain because the toolkit became publicly reusable.</span></li><li><span class="kp-text">The June 8, 2026 Hades PyPI wave embedded prompt injection in an _index.js bundle to mislead LLM-based security scanners into producing false-clean verdicts or no usable verdict.</span></li></ul></div>
-            
             <a href="https://www.zscaler.com/blogs/security-research/shai-hulud-campaign-evolution-miasma-hades-and-ai-scanner-evasion" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a high-impact technical report on a named software supply chain campaign linked to TeamPCP/UNC6780, covering concrete compromises across npm, PyPI, GitHub Actions OIDC publishing, IDE configs, and LLM scanner evasion. It is especially important because it shows valid provenance and trusted CI/CD workflows being abused rather than cryptographically broken, which has broad implications for modern software security programs.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a high-impact technical report on a named software supply chain campaign linked to TeamPCP/UNC6780, covering concrete compromises across npm, PyPI, GitHub Actions OIDC publishing, IDE configs, and LLM scanner evasion. It is especially important because it shows valid provenance and trusted CI/CD workflows being abused rather than cryptographically broken, which has broad implications for modern software security programs.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="news" data-tags="account-enumeration china coupang coupang-fulfillment-services coupang-partners ernst-young evidence-destruction hijack-ads mandiant palo-alto-networks personal-information-protection-commission sk-telecom south-korea stolen-signing-key united-states">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">06</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">06</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">South Korea hits Coupang with record $409 million fine over data breach</span>
               </div>
@@ -2748,18 +2940,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">South Korea’s Personal Information Protection Commission fined Coupang and Coupang Fulfillment Services 624.7 billion won, or $409 million, after finding that a data breach resulted from deficiencies in basic safety management.</span></li><li><span class="kp-text">The investigation confirmed that 33,222,472 registered Coupang members were affected and identified at least 4,338,368 non-members whose names, phone numbers, and addresses had been stored as delivery recipients.</span></li><li><span class="kp-text">The regulator said a former Coupang employee used a stolen signing key for an alternative authentication system to access customer data over a seven-month period without being detected by the company.</span></li><li><span class="kp-text">The commission referred Coupang for criminal prosecution over destruction of evidence after the company manually deleted about six months of web access logs and allowed additional records to be automatically wiped.</span></li><li><span class="kp-text">The investigation also found that Coupang covertly collected third-party browsing activity from about 11.2 million users through its Coupang Partners affiliate marketing program without consent.</span></li></ul></div>
-            
             <a href="https://therecord.media/south-korea-data-breach-record-fine-coupang" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a high-impact, specific incident involving a record privacy fine, tens of millions of affected people, alleged insider misuse of a stolen signing key, major detection failures, and evidence-preservation issues. Security professionals should read it for its concrete lessons on key management, anomaly detection, logging, breach notification, and regulatory exposure.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a high-impact, specific incident involving a record privacy fine, tens of millions of affected people, alleged insider misuse of a stolen signing key, major detection failures, and evidence-preservation issues. Security professionals should read it for its concrete lessons on key management, anomaly detection, logging, breach notification, and regulatory exposure.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap must-row" data-priority="must" data-category="news" data-tags="china cisa cisco-nx-os cve-2024-20399 f5-big-ip linux openssh operation-highland pam sygnia velvet-ant">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-must">07</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-must">07</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">China-Linked Hackers Backdoored Linux Login Software to Hide for Nearly a Decade</span>
               </div>
@@ -2875,9 +3065,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Sygnia says the China-nexus group Velvet Ant backdoored Linux PAM and OpenSSH components that control user logins.</span></li><li><span class="kp-text">The earliest traces of the activity go back to 2016, and the attacker modified trusted login programs instead of dropping new malware.</span></li><li><span class="kp-text">The backdoored PAM and OpenSSH components enabled secret-password access, credential logging, command logging, and a hidden switch to disable logging when needed.</span></li><li><span class="kp-text">The targeted network had no direct internet access, so the attacker used internet-facing systems, including a web server, as a bridge into the isolated segment.</span></li><li><span class="kp-text">The article says normal containment measures such as password resets and killed sessions were ineffective while the compromised login system remained in place.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/china-linked-hackers-backdoored-linux.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a named threat actor operation involving China-linked Velvet Ant backdooring Linux PAM and OpenSSH components for long-term persistence and credential theft. It is high-impact for defenders because it shows compromise of trusted authentication infrastructure where normal containment steps like password resets may fail.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a named threat actor operation involving China-linked Velvet Ant backdooring Linux PAM and OpenSSH components for long-term persistence and credential theft. It is high-impact for defenders because it shows compromise of trusted authentication infrastructure where normal containment steps like password resets may fail.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.sygnia.co/blog/operation-highland-velvet-ant/" target="_blank" rel="noopener">Operation Highland</a></div>
@@ -2898,9 +3087,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
         </div>
         <div class="toc-row-wrap should-row" data-priority="should" data-category="advisory" data-tags="aikido authentication-bypass hackerone oauth phpbb phpbb-3.3.16 phpbb-3.3.17 phpbb-4.0.0-a2">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">01</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">advisory</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">01</span><span class="toc-cat-label">advisory</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">phpBB forum fixes auth bypass bug lurking for a decade</span>
               </div>
@@ -3010,9 +3198,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">A 10-year-old authentication bypass vulnerability in phpBB allows an attacker to log in as any user, including administrators, with a single HTTP request.</span></li><li><span class="kp-text">The flaw impacts phpBB versions 3.3.16 and below and 4.0.0-a2, with phpBB fixing the issue in version 3.3.17 for the 3.x branch.</span></li><li><span class="kp-text">Aikido discovered the bug on June 2 and reported it through phpBB’s HackerOne Vulnerability Disclosure Program, and phpBB addressed it on June 6.</span></li><li><span class="kp-text">Aikido said the vulnerability is exploitable in the default configuration and requires no special knowledge.</span></li><li><span class="kp-text">Aikido withheld technical details to give forum administrators time to update and said full details will be published in a future report.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/phpbb-forum-fixes-auth-bypass-bug-lurking-for-a-decade/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific recent critical patch for phpBB, a widely deployed forum platform, fixing a decade-old authentication bypass that can let attackers log in as any user including administrators. It is highly actionable for administrators because affected 3.x versions need immediate upgrade to 3.3.17 and there is no safe 4.x release yet.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This reports a specific recent critical patch for phpBB, a widely deployed forum platform, fixing a decade-old authentication bypass that can let attackers log in as any user including administrators. It is highly actionable for administrators because affected 3.x versions need immediate upgrade to 3.3.17 and there is no safe 4.x release yet.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.aikido.dev/blog/phpbb-authentication-bypass-rce" target="_blank" rel="noopener">phpBB Authentication Bypass RCE</a></div>
@@ -3027,9 +3214,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="research" data-tags="azure-dns-zone-takeover china digitalocean digitalocean-dns-zone-takeover dns-delegation-takeover hong-kong india lets-encrypt microsoft-azure next-js ovh seo-poisoning thailand united-states verizon">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">02</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">02</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Borrowed Trust – Systematic Exploitation of Abandoned Cloud DNS Delegations to serve Thai Gambling SEO Content</span>
               </div>
@@ -3286,18 +3472,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Cyble Research &amp; Intelligence Labs identified an active SEO poisoning campaign that exploited abandoned cloud DNS zone delegations to serve Thai-language gambling content under the domain authority of 163 organizations across more than 30 countries.</span></li><li><span class="kp-text">The primary mechanism was Azure DNS zone takeover, where the actor claimed orphaned Azure DNS zones still delegated from victim parent domains, added wildcard A records, and obtained valid Let&#39;s Encrypt wildcard TLS certificates.</span></li><li><span class="kp-text">The campaign also used DigitalOcean DNS zone takeovers, direct wildcard DNS misconfigurations, and individually created A records, including more than 1,000 gambling-keyword subdomains under cardsforheroes.verizon.com.</span></li><li><span class="kp-text">Cyble linked the campaign to three OVH delivery IPs and a separate 103-node backend fleet in Hong Kong within AS398478, with shared fingerprints including a broker-xm.com certificate, a common JARM fingerprint, and an identical HTTP body MD5 hash.</span></li><li><span class="kp-text">The gambling kit used Thai-language Next.js pages, affiliate redirect codes such as ibiza99vip1, bigwinv1, link99, and seven77vip1, and server-side geographic filtering that verified Thai referrers before redirecting users.</span></li></ul></div>
-            
             <a href="https://cyble.com/blog/borrowed-trust-cloud-dns-takeover-thai-gambling-seo-poisoning/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, active campaign affecting 163 organizations across more than 30 countries, with 161 reportedly still compromised, and it documents concrete infrastructure, techniques, IOCs, and remediation steps. It is broadly relevant because the root cause—abandoned cloud DNS delegations, especially Azure DNS zones—is a common enterprise hygiene issue that can silently enable trusted-domain abuse without malware or perimeter compromise.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a specific, active campaign affecting 163 organizations across more than 30 countries, with 161 reportedly still compromised, and it documents concrete infrastructure, techniques, IOCs, and remediation steps. It is broadly relevant because the root cause—abandoned cloud DNS delegations, especially Azure DNS zones—is a common enterprise hygiene issue that can silently enable trusted-domain abuse without malware or perimeter compromise.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="research" data-tags="brazil caddy china goframe jsonp lighthouse singapore smishing smishing-triad spring-boot tencent-cloud united-states ups usps websocket">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">03</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">03</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">The Package That Never Shipped: Following a USPS Smishing Kit Through Censys DNS Data</span>
               </div>
@@ -3475,9 +3659,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">A USPS-themed smishing campaign used a link at usps.xupqnqz[.]one that resolved to Tencent Cloud IP 43.157.174.200 and displayed a fake Cloudflare verification page before loading the phishing content.</span></li><li><span class="kp-text">Censys passive DNS data expanded the investigation from one hostname to a cluster with 682 unique lookalike hostnames as of the 2026-05-20 snapshot, many of which no longer resolved in live DNS.</span></li><li><span class="kp-text">The USPS phishing kit served USPS production HTML, CSS, fonts, and images under the /us_post_usps/ path and included USPS’s live Google Analytics 4 property G-CSLL4ZEK4L.</span></li><li><span class="kp-text">The kit opened a WebSocket to its origin and streamed victim payment-card input keystroke by keystroke, performed a server-side BIN lookup, and could push routing decisions such as retry, PIN prompt, OTP prompt, or kill-switch back to the victim’s browser.</span></li><li><span class="kp-text">Pivoting on an HTTP banner hash identified five related UPS-themed hosts using a Spring Boot backend, and those hosts exposed cookies containing the internal theme name us_post_ups.</span></li></ul></div>
-            
             <a href="https://censys.com/blog/following-a-usps-smishing-kit-through-censys-dns-data/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a concrete technical investigation of an active USPS/UPS smishing operation with live real-time card skimming, hundreds of disposable domains, and actionable detection pivots. It is broadly relevant to defenders because it provides durable indicators such as paths, cookies, token formats, banner hashes, and Censys DNS techniques, though it is not a critical patch or major breach.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a concrete technical investigation of an active USPS/UPS smishing operation with live real-time card skimming, hundreds of disposable domains, and actionable detection pivots. It is broadly relevant to defenders because it provides durable indicators such as paths, cookies, token formats, banner hashes, and Censys DNS techniques, though it is not a critical patch or major breach.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://www.resecurity.com/blog/article/smishing-triad-targeted-usps-and-us-citizens-for-data-theft" target="_blank" rel="noopener">‘Smishing Triad’ Targeted USPS and US Citizens for Data Theft</a></div>
@@ -3496,9 +3679,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="account-hijacking anssi ants cnil dinum france french-public-sector matrix social-engineering tchap">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">04</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">04</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Over 73,000 French govt employees affected in Tchap messenger breach</span>
               </div>
@@ -3606,18 +3788,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The French government said a breach of its Tchap encrypted messaging platform affected 73,467 public sector employees, representing less than 9% of registered users.</span></li><li><span class="kp-text">DINUM said the attacker used a compromised user account to access Tchap and that the account behind the malicious requests was identified and blocked.</span></li><li><span class="kp-text">DINUM said private conversations on Tchap remain encrypted, but public chat rooms are not encrypted and may have exposed users’ names, email addresses, avatar images, and public sector organizations.</span></li><li><span class="kp-text">A threat actor claimed responsibility for the breach and said they gained access through a social engineering attack.</span></li><li><span class="kp-text">The threat actor claimed to have scraped nearly 650,000 messages and information from more than 73,000 accounts, as well as over 13.5GB of documents and media files shared on Tchap.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/french-govt-says-tchap-breach-affected-over-73-000-accounts/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific breach affecting a government messaging platform used by the French public sector, with over 73,000 employees impacted and claims of scraped messages, files, metadata, and exposed credentials. It is broadly relevant for security professionals because it highlights risks around compromised accounts, social engineering, and unencrypted public collaboration spaces even within an encrypted messaging service.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a specific breach affecting a government messaging platform used by the French public sector, with over 73,000 employees impacted and claims of scraped messages, files, metadata, and exposed credentials. It is broadly relevant for security professionals because it highlights risks around compromised accounts, social engineering, and unencrypted public collaboration spaces even within an encrypted messaging service.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="research" data-tags="agentjacking claude-code cursor indirect-prompt-injection markdown-injection model-context-protocol sentry sentry-dsn sentry-mcp-server tenet-security">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">05</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">05</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Agentjacking Attack Tricks AI Coding Agents Into Running Malicious Code</span>
               </div>
@@ -3724,9 +3904,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Tenet Security researchers described Agentjacking as a new class of attack that can trick AI coding agents into running arbitrary code on developer machines.</span></li><li><span class="kp-text">The attack uses a fake Sentry error report containing crafted markdown that is returned through the Sentry MCP server and interpreted by AI agents as trusted diagnostic guidance.</span></li><li><span class="kp-text">The attack chain begins with an attacker finding a target’s public Sentry DSN and sending a malicious error event to Sentry’s ingest endpoint.</span></li><li><span class="kp-text">When a developer asks an AI coding agent such as Claude Code or Cursor to fix unresolved Sentry issues, the agent can query Sentry via MCP and execute the attacker-controlled code with the developer’s privileges.</span></li><li><span class="kp-text">Tenet Security said it found at least 2,388 organizations exposed with valid injectable DSNs and achieved an 85% exploitation success rate in controlled testing against injected errors across widely used AI coding assistants.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/agentjacking-attack-tricks-ai-coding.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, concrete research finding with broad relevance to organizations adopting AI coding agents and MCP integrations. It describes a practical attack path affecting Sentry-connected workflows, reports thousands of exposed organizations, and includes claimed controlled exploitation results, though it does not report active exploitation in the wild.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a specific, concrete research finding with broad relevance to organizations adopting AI coding agents and MCP integrations. It describes a practical attack path affecting Sentry-connected workflows, reports thousands of exposed organizations, and includes claimed controlled exploitation results, though it does not report active exploitation in the wild.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://tenetsecurity.ai/blog/agentjacking-coding-agents-with-fake-sentry-errors/" target="_blank" rel="noopener">Agentjacking: Coding Agents with Fake Sentry Errors</a></div>
@@ -3737,9 +3916,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="algeria algerian-national-police carrier-billing-fraud credential-theft group-ib guedz interpol joker-dz middle-east-and-north-africa operation-ramz phishing-as-a-service premium-sms sniper-dz spam-dz storm-dz">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">06</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">06</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">INTERPOL Operation Takes Down Sniper Dz Phishing Platform, Arrests Administrator</span>
               </div>
@@ -3835,9 +4013,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">INTERPOL-led Operation Ramz disrupted the Sniper Dz phishing-as-a-service platform between October 2025 and February 2026.</span></li><li><span class="kp-text">Authorities from 13 countries in the Middle East and North Africa region made 201 arrests, including Guedz, the primary developer and administrator of Sniper Dz.</span></li><li><span class="kp-text">Authorities took down the website used to offer Sniper Dz’s phishing-as-a-service capabilities and seized hardware containing phishing software and scripts.</span></li><li><span class="kp-text">Group-IB said Sniper Dz had collected more than 45,000 victim records and was associated with more than 20,000 unique domains.</span></li><li><span class="kp-text">Sniper Dz offered ready-made phishing kits, hosting infrastructure, and operational support, targeting major organizations such as PayPal, Facebook, Instagram, Yahoo, Netflix, and Steam.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/interpol-takes-down-sniper-dz-phishing.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific, high-impact law enforcement operation that disrupted a long-running phishing-as-a-service platform tied to more than 20,000 domains, 45,000 victim records, and 201 arrests. It is broadly relevant for security professionals tracking phishing infrastructure, credential theft, and cybercrime service ecosystems, though it is not an urgent patch or active exploitation alert.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This reports a specific, high-impact law enforcement operation that disrupted a long-running phishing-as-a-service platform tied to more than 20,000 domains, 45,000 victim records, and 201 arrests. It is broadly relevant for security professionals tracking phishing infrastructure, credential theft, and cybercrime service ecosystems, though it is not an urgent patch or active exploitation alert.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://thehackernews.com/2024/10/free-sniper-dz-phishing-tools-fuel.html" target="_blank" rel="noopener">Free Sniper Dz Phishing Tools Fuel Phishing Attacks</a></div>
@@ -3848,9 +4025,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="android at-t china fbi gemini google outsider outsider-enterprise phishing-as-a-service real-time-keystroke-logging smishing t-mobile telegram united-states verizon">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">07</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">07</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Google Sues Chinese Smishing Network Accused of Using Gemini AI in Phishing</span>
               </div>
@@ -3974,18 +4150,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Google is pursuing legal action against a Chinese cybercrime network accused of using its Gemini AI agent to send phishing text messages targeting Americans.</span></li><li><span class="kp-text">The network allegedly developed and managed the Outsider phishing-as-a-service kit, which enables criminals to create fraudulent websites, launch phishing campaigns, and steal credit card numbers, bank credentials, and personal data.</span></li><li><span class="kp-text">Google said Outsider operations are coordinated through Telegram and have victimized more than 100,000 people, causing millions of dollars in losses.</span></li><li><span class="kp-text">Between November 14, 2025, and April 14, 2026, Google identified 9,000 fake websites and more than 1.59 million fraudulent URLs tied to the phishing service.</span></li><li><span class="kp-text">Google said it is partnering with AT&amp;T, T-Mobile, and Verizon to block Outsider-related smishing messages from reaching customers.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/google-sues-chinese-smishing-network.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, high-impact event involving Google legal action against a named phishing-as-a-service operation accused of using Gemini to support large-scale smishing campaigns. The reported scale—more than 100,000 victims, millions in losses, 9,000 fake sites, and 1.59 million fraudulent URLs—makes it broadly relevant for security professionals tracking phishing, abuse of AI tools, and telecom fraud.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a specific, high-impact event involving Google legal action against a named phishing-as-a-service operation accused of using Gemini to support large-scale smishing campaigns. The reported scale—more than 100,000 victims, millions in losses, 9,000 fake sites, and 1.59 million fraudulent URLs—makes it broadly relevant for security professionals tracking phishing, abuse of AI tools, and telecom fraud.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="audia6 chain-hopping cryptex cryptocurrency-mixing dark2web europol georgia irs-criminal-investigation mixer-as-a-service poland russia ukraine united-states us-department-of-justice us-secret-service">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">08</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">08</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Europol Disrupts AudiA6 Crypto Laundering Service Used by Ransomware Gangs</span>
               </div>
@@ -4121,9 +4295,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Europol said authorities disrupted AudiA6, a cryptocurrency laundering service used by ransomware gangs and cybercriminal networks to launder more than €336 million since 2021.</span></li><li><span class="kp-text">The June 10, 2026 operation included the arrest of two alleged administrators in Georgia, searches, takedowns of 25 domains, seizure of more than 30 servers, and blocking of Telegram accounts used by the network.</span></li><li><span class="kp-text">The U.S. Department of Justice charged Ruslan Igorevich Tkachuk and Alexander Vladimirovich Ledenev with conspiracy to launder monetary instruments and sting money laundering, each carrying a maximum possible sentence of 20 years in prison if convicted.</span></li><li><span class="kp-text">Europol said AudiA6 used thousands of fraudulent exchange accounts opened with stolen or purchased identities and identified more than 6,000 KYC records linked to money mule accounts.</span></li><li><span class="kp-text">AudiA6 allegedly operated as a cryptocurrency mixing service that returned “cleaned” funds within an hour through complex transaction chains while charging commissions between 3 percent and 10 percent.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/europol-disrupts-audia6-crypto.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, high-impact international law enforcement action disrupting a cryptocurrency laundering service allegedly used by ransomware gangs and linked to hundreds of millions of euros in illicit funds. It is broadly relevant to security professionals tracking ransomware ecosystems, cybercrime infrastructure, and cryptocurrency cash-out mechanisms, though it is not an active exploitation or urgent patch event.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a specific, high-impact international law enforcement action disrupting a cryptocurrency laundering service allegedly used by ransomware gangs and linked to hundreds of millions of euros in illicit funds. It is broadly relevant to security professionals tracking ransomware ecosystems, cybercrime infrastructure, and cryptocurrency cash-out mechanisms, though it is not an active exploitation or urgent patch event.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://thehackernews.com/2022/05/us-sanctions-cryptocurrency-mixer.html" target="_blank" rel="noopener">Intel 471 November 2021 report on AudiA6</a></div>
@@ -4138,9 +4311,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="business-email-compromise compromise-accounts-email-accounts fedex-freight impersonation invoice-phishing ironscales salesforce salesforce-crm salesforce-quick-action securence spearphishing-link t1566.002 t1586.002 t1656 themis">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">09</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">09</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">The FedEx Freight Invoice That Came From Inside the CRM</span>
               </div>
@@ -4290,18 +4462,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">An attacker used FedEx Freight&#39;s Salesforce CRM to send an invoice rebill request to a logistics and distribution company.</span></li><li><span class="kp-text">The email was dispatched via Salesforce Quick Action, producing a valid DKIM signature for fedexfreight.com and passing DMARC with compauth=100.</span></li><li><span class="kp-text">The message contained no malicious links or attachments, and the payload was a text request to change the bill-to entity on FedEx Freight invoice #0584162950.</span></li><li><span class="kp-text">The email was relayed through a Securence gateway, which caused an SPF softfail because the relay IP was not in the original sender&#39;s SPF record.</span></li><li><span class="kp-text">Themis scored the message at 83% confidence as invoice phishing and quarantined four mailboxes.</span></li></ul></div>
-            
             <a href="https://ironscales.com/threat-intelligence/fedex-freight-invoice-rebill-salesforce-securence-relay" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>The article reports a specific invoice-fraud BEC attempt that abused legitimate FedEx Freight Salesforce CRM infrastructure and passed DKIM/DMARC, making it broadly relevant for email security and fraud teams. It is not a major breach or critical exploitation event, but it highlights an actionable detection gap where authentication and infrastructure trust were insufficient.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>The article reports a specific invoice-fraud BEC attempt that abused legitimate FedEx Freight Salesforce CRM infrastructure and passed DKIM/DMARC, making it broadly relevant for email security and fraud teams. It is not a major breach or critical exploitation event, but it highlights an actionable detection gap where authentication and infrastructure trust were insufficient.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="clinical-trial-participants denmark healthcare-professionals novo-nordisk ozempic wegovy whatsapp">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">10</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">10</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Pharma giant Novo Nordisk discloses breach of clinical trials data</span>
               </div>
@@ -4406,18 +4576,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Novo Nordisk disclosed that attackers accessed internal IT systems and copied non-public data related to patients participating in some clinical trials.</span></li><li><span class="kp-text">The exposed clinical trial data included patient IDs, trial participation information, sex, year of birth, biomarkers, health and immunogenicity data, and lifestyle factors such as smoking, alcohol use, and BMI.</span></li><li><span class="kp-text">Novo Nordisk said the clinical trial data was pseudonymized and not directly linked to patients by name or other direct identifiers.</span></li><li><span class="kp-text">The breach also exposed data for an undisclosed number of healthcare professionals, including names, registration numbers, email addresses, phone numbers, WhatsApp details, and office locations.</span></li><li><span class="kp-text">Novo Nordisk took the compromised internal IT systems offline and said its core business operations were not impacted.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/pharmaceutical-giant-novo-nordisk-discloses-security-breach/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific breach at a major global pharmaceutical company involving clinical trial data and healthcare professional contact details, making it broadly relevant to security and privacy teams in healthcare and life sciences. Urgency is moderated because the patient data was described as pseudonymized, no threat actor or exploitation method was disclosed, and the number of affected individuals remains unknown.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a specific breach at a major global pharmaceutical company involving clinical trial data and healthcare professional contact details, making it broadly relevant to security and privacy teams in healthcare and life sciences. Urgency is moderated because the patient data was described as pseudonymized, no threat actor or exploitation method was disclosed, and the number of affected individuals remains unknown.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="research" data-tags="check-point cve-2025-67644 cve-2026-27022 cve-2026-28277 langchain langgraph langgraph-checkpoint-redis langgraph-checkpoint-sqlite msgpack redis redisearch-query-injection remote-code-execution sql-injection sqlite unsafe-deserialization">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">11</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">11</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">LangGraph Flaw Chain Exposes Self-Hosted AI Agents to Remote Code Execution</span>
               </div>
@@ -4531,9 +4699,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Cybersecurity researchers disclosed three now-patched vulnerabilities affecting LangGraph, including a critical chain that could lead to remote code execution.</span></li><li><span class="kp-text">CVE-2025-67644 is a SQL injection flaw in LangGraph&#39;s SQLite checkpoint implementation that affects langgraph-checkpoint-sqlite versions before 3.0.1.</span></li><li><span class="kp-text">CVE-2026-28277 is an unsafe msgpack deserialization flaw in LangGraph that affects langgraph versions before 1.0.10.</span></li><li><span class="kp-text">CVE-2025-67644 and CVE-2026-28277 can be chained in self-hosted deployments using the SQLite checkpointer with user-controlled filter input to execute attacker-controlled code.</span></li><li><span class="kp-text">Check Point said LangChain&#39;s managed LangSmith Deployment platform is not affected by the vulnerability chain.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/langgraph-flaw-chain-exposes-self.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, concrete vulnerability disclosure affecting LangGraph, including a demonstrated chain from SQL injection to remote code execution in self-hosted deployments. It is broadly relevant to security professionals working with AI agent frameworks, though the flaws are patched and the article does not report active exploitation in the wild.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a specific, concrete vulnerability disclosure affecting LangGraph, including a demonstrated chain from SQL injection to remote code execution in self-hosted deployments. It is broadly relevant to security professionals working with AI agent frameworks, though the flaws are patched and the article does not report active exploitation in the wild.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://blog.checkpoint.com/research/when-your-ai-agents-memory-becomes-a-security-liability/" target="_blank" rel="noopener">When Your AI Agent&#39;s Memory Becomes a Security Liability</a></div>
@@ -4560,9 +4727,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="bill-pulte china congress donald-trump foreign-intelligence-surveillance-act foreign-intelligence-surveillance-court iran jay-clayton national-security-agency office-of-the-director-of-national-intelligence russia section-702 united-states white-house yahoo">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">12</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">12</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Major US surveillance program poised to lapse after legislative deadlock</span>
               </div>
@@ -4680,18 +4846,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Section 702 of the Foreign Intelligence Surveillance Act is set to expire at midnight for the first time since it became law in 2008.</span></li><li><span class="kp-text">Congressional efforts to renew Section 702 stalled after President Donald Trump announced Bill Pulte as acting director of national intelligence, angering Democrats and surprising Republicans.</span></li><li><span class="kp-text">The House and Senate both failed to advance short-term or fast-tracked renewals of Section 702 before the deadline.</span></li><li><span class="kp-text">A March intelligence court approval may allow existing Section 702 orders to continue for another year, but the government likely cannot seek new orders if the law lapses.</span></li><li><span class="kp-text">A key unresolved issue is whether major U.S. communications providers will continue complying with Section 702 court orders if the program expires.</span></li></ul></div>
-            
             <a href="https://therecord.media/major-us-surveillance-program-set-to-lapse-702-fisa" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific, high-impact government surveillance and intelligence event with broad relevance to national security, telecom compliance, and legal authorities affecting intelligence collection. It is not an active cyberattack, breach, or critical patch, but the potential lapse of Section 702 and uncertainty around provider compliance make it important for security professionals to understand.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This reports a specific, high-impact government surveillance and intelligence event with broad relevance to national security, telecom compliance, and legal authorities affecting intelligence collection. It is not an active cyberattack, breach, or critical patch, but the potential lapse of Section 702 and uncertainty around provider compliance make it important for security professionals to understand.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="research" data-tags="baby-step-giant-step badkeys certificate-transparency completeftp dsa enterprisedt general-number-field-sieve ilspy keychecker netapp polynomial-factorization rsa trail-of-bits verizon yahoo">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">13</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">research</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">13</span><span class="toc-cat-label">research</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Factoring &#34;short-sleeve&#34; RSA keys with polynomials</span>
               </div>
@@ -4853,9 +5017,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Researchers working with Hanno Böck of the badkeys project found hundreds of RSA public keys with heavily zero-biased, structured bit patterns that could be quickly factored.</span></li><li><span class="kp-text">The researchers traced one short-sleeve key pattern to a type mismatch in big-integer code in old versions of EnterpriseDT CompleteFTP, where 8-bit RNG output was copied into 32-bit big-integer limbs.</span></li><li><span class="kp-text">The CompleteFTP issue affected RSA keys generated with versions 10.0.0 through 12.0.0 from December 2016 to March 2019 and DSA keys generated with versions 10.0.0 through 23.0.4 from December 2016 to December 2023.</span></li><li><span class="kp-text">The researchers recovered private keys for 603 unique RSA public keys and 74 DSA keys generated by vulnerable CompleteFTP versions, plus 26 RSA keys with an unidentified short-sleeve pattern.</span></li><li><span class="kp-text">EnterpriseDT released CompleteFTP v26.1.0 and a standalone KeyChecker tool to detect vulnerable RSA or DSA keys and alert users when regeneration is needed.</span></li></ul></div>
-            
             <a href="https://blog.trailofbits.com/2026/06/12/factoring-short-sleeve-rsa-keys-with-polynomials/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a concrete research finding tied to real-world recoverable RSA and DSA private keys, a named affected product, and released detection/remediation tooling. It is broadly relevant to security professionals responsible for key management and cryptographic implementation review, though it is not described as active exploitation or a critical patch for widely deployed software.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a concrete research finding tied to real-world recoverable RSA and DSA private keys, a named affected product, and released detection/remediation tooling. It is broadly relevant to security professionals responsible for key management and cryptographic implementation review, though it is not described as active exploitation or a critical patch for widely deployed software.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://members.loria.fr/PZimmermann/talks/rsa250-prace.pdf" target="_blank" rel="noopener">RSA-250 factorization presentation</a></div>
@@ -4878,9 +5041,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap should-row" data-priority="should" data-category="news" data-tags="black-basta blackbyte blackcat conti hive ireland karakurt quantum russia ryuk trickbot ukraine united-kingdom united-states zeon">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-should">14</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-should">14</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Ukrainian national pleads guilty to role in Conti ransomware operation</span>
               </div>
@@ -4990,9 +5152,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Ukrainian national Oleksii Oleksiyovych Lytvynenko pleaded guilty in the United States to conspiracy to commit wire fraud for his role in Conti ransomware attacks conducted between 2021 and 2022.</span></li><li><span class="kp-text">Prosecutors said Lytvynenko and co-conspirators deployed Conti ransomware on victim networks in the United States and abroad, stealing data and encrypting devices to extort Bitcoin ransom payments.</span></li><li><span class="kp-text">Lytvynenko admitted to joining the Conti conspiracy around September 2021, possessing data stolen from eight U.S. victims and four overseas victims, and working on a malware loader for the operation.</span></li><li><span class="kp-text">Court documents state that the Conti ransomware operation targeted more than 1,000 victims worldwide and collected over $150 million in ransom payments.</span></li><li><span class="kp-text">Lytvynenko was extradited from Ireland to the United States after his July 2023 arrest and now faces a maximum sentence of 20 years in prison.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/ukrainian-national-pleads-guilty-to-role-in-conti-ransomware-operation/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific law enforcement development involving a major named ransomware operation, Conti, with broad relevance to security professionals tracking ransomware ecosystems and prosecutions. It is not an active exploitation or urgent defensive advisory, but it provides important context on Conti’s scale, tooling roles, and links to successor groups.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a specific law enforcement development involving a major named ransomware operation, Conti, with broad relevance to security professionals tracking ransomware ecosystems and prosecutions. It is not an active exploitation or urgent defensive advisory, but it provides important context on Conti’s scale, tooling roles, and links to successor groups.</p>
 </div></div>
             
             
@@ -5005,9 +5166,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
         </div>
         <div class="toc-row-wrap may-row" data-priority="may" data-category="advisory" data-tags="kb5058499 kb5062660 kb5079391 kb5094125 microsoft windows windows-11-24h2 windows-11-25h2 windows-server-2025 windows-server-update-services windows-update-standalone-installer wusa">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-may">01</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">advisory</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-may">01</span><span class="toc-cat-label">advisory</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Microsoft fixes Windows update failures linked to WUSA installer</span>
               </div>
@@ -5111,9 +5271,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Microsoft fixed a known issue that caused Windows updates released since May 2025 to fail when installed via the Windows Update Standalone Installer from a network share.</span></li><li><span class="kp-text">The issue affects Windows 11 24H2/25H2 and Windows Server 2025 devices on enterprise networks, and it does not occur with a single .msu file or when the files are stored locally.</span></li><li><span class="kp-text">Microsoft said the failures could occur with ERROR_BAD_PATHNAME when WUSA or double-clicking a .msu file is used from a network share containing multiple .msu files.</span></li><li><span class="kp-text">Microsoft addressed the issue for all affected systems in the June 2026 cumulative updates KB5079391 for Windows 11 and KB5094125 for Windows Server 2025.</span></li><li><span class="kp-text">Microsoft advised users of older updates to work around the issue by saving the .msu files locally on the device and installing the update from that location.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/microsoft/microsoft-fixes-windows-update-failures-linked-to-wusa-installer/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific Microsoft patch/update reliability issue affecting Windows 11 24H2/25H2 and Windows Server 2025 enterprise environments using WUSA from network shares. It is actionable for administrators managing offline or network-share .msu deployments, but it is narrow in scope and not tied to exploitation, a breach, or a critical security vulnerability.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a specific Microsoft patch/update reliability issue affecting Windows 11 24H2/25H2 and Windows Server 2025 enterprise environments using WUSA from network shares. It is actionable for administrators managing offline or network-share .msu deployments, but it is narrow in scope and not tied to exploitation, a breach, or a critical security vulnerability.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://support.microsoft.com/help/5079391" target="_blank" rel="noopener">KB5079391</a></div>
@@ -5128,9 +5287,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap may-row" data-priority="may" data-category="news" data-tags="23andme anne-wojcicki chrome-holding-co dna-relatives family-tree kroll missouri united-states">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-may">02</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-may">02</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Bankruptcy admin approves settlement fund of $47 million for 23andMe data breach victims</span>
               </div>
@@ -5237,18 +5395,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">A Missouri bankruptcy court administrator approved a $46.8 million settlement fund for victims of a 2023 data breach at 23andMe.</span></li><li><span class="kp-text">About 7 million 23andMe customers had data stolen by hackers starting in April 2023, and many had their information posted on the dark web.</span></li><li><span class="kp-text">Victims will receive $32.5 million from the settlement fund, while more than $14 million will be used to pay Kroll, the settlement and claims administrator.</span></li><li><span class="kp-text">Nearly 256,000 claims have been resolved, with class members eligible for awards ranging from $50 for minor claims to up to $10,000 for the most serious claims.</span></li><li><span class="kp-text">23andMe, now named Chrome Holding Co., filed for bankruptcy in March 2025 and liquidated most of its assets before founder Anne Wojcicki bought it back.</span></li></ul></div>
-            
             <a href="https://therecord.media/bankruptcy-admin-approves-settlement-for-23andme-breach-victims" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a specific, concrete follow-up to a major 23andMe data breach, covering the bankruptcy-driven settlement and victim compensation rather than new technical details or active risk. It is relevant for security professionals tracking breach impact, legal exposure, and data privacy consequences, but it is not urgent operational intelligence.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a specific, concrete follow-up to a major 23andMe data breach, covering the bankruptcy-driven settlement and victim compensation rather than new technical details or active risk. It is relevant for security professionals tracking breach impact, legal exposure, and data privacy consequences, but it is not urgent operational intelligence.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap may-row" data-priority="may" data-category="news" data-tags="bleepingcomputer discord maine maine-attorney-generals-office maine-data-breach-notification-portal united-states vrchat">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-may">03</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">news</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-may">03</span><span class="toc-cat-label">news</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Maine disables data breach notification portal after fake disclosures</span>
               </div>
@@ -5350,9 +5506,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Maine temporarily disabled public access to its data breach notification database after fraudulent breach disclosures were submitted and published on the state&#39;s website.</span></li><li><span class="kp-text">The fake disclosures impersonated Discord and VRChat, and VRChat confirmed that its filing was fraudulent and submitted using the name of a fictitious employee.</span></li><li><span class="kp-text">The Maine Attorney General&#39;s Office said the false reports were removed and that it had no knowledge of recent legitimate data breach reports from either VRChat or Discord.</span></li><li><span class="kp-text">Before the shutdown, submitted breach notices were automatically published to the public database without independent verification by the Attorney General&#39;s Office.</span></li><li><span class="kp-text">Companies can still submit breach notifications through the reporting service, but members of the public must contact the Attorney General&#39;s Office directly to obtain copies of disclosures.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/maine-disables-data-breach-notification-portal-after-fake-disclosures/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This reports a specific incident involving abuse of an official breach notification portal, with relevance for security teams that monitor public disclosures or manage breach reporting. It is not an active compromise, major breach, critical vulnerability, or named threat actor operation, so the urgency is moderate rather than high.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This reports a specific incident involving abuse of an official breach notification portal, with relevance for security teams that monitor public disclosures or manage breach reporting. It is not an active compromise, major breach, critical vulnerability, or named threat actor operation, so the urgency is moderate rather than high.</p>
 </div></div>
             
             
@@ -5365,9 +5520,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
         </div>
         <div class="toc-row-wrap " data-priority="opt" data-category="sponsored" data-tags="flare github gitlab kafka litellm mistral-ai npm oauth pypi shai-hulud sportradar teampcp trivy vercel visual-studio-code">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-opt">01</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">sponsored</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-opt">01</span><span class="toc-cat-label">sponsored</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Early Warning Signs of Supply-Chain Attacks Live in the Dark Web</span>
               </div>
@@ -5519,9 +5673,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">Flare researchers found that underground forums and marketplaces can contain early warning signs of software supply-chain attacks before they are publicly reported as incidents.</span></li><li><span class="kp-text">Posts advertising GitHub access, private repositories, source code, API keys, OAuth tokens, cloud credentials, or CI/CD data may be supply-chain relevant depending on the trust relationships that access touches.</span></li><li><span class="kp-text">The article says source-code exposure can reveal credentials, build logic, deployment workflows, internal service names, API documentation, and integrations, making it more than an intellectual-property issue.</span></li><li><span class="kp-text">Publicly reported incidents involving Vercel, Sportradar, Mistral AI, Shai-Hulud, LiteLLM, and malicious VS Code extensions illustrate how trusted tools, vendor systems, package publishing, and developer environments can create supply-chain risk.</span></li><li><span class="kp-text">The article recommends that defenders monitor exposed developer credentials, GitHub and GitLab access, package registry tokens, leaked repositories, CI/CD secrets, cloud keys, OAuth grants, and claims involving important vendors or software providers.</span></li></ul></div>
-            
             <a href="https://www.bleepingcomputer.com/news/security/early-warning-signs-of-supply-chain-attacks-live-in-the-dark-web/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a sponsored trend and best-practice piece about monitoring dark web signals for supply-chain risk, rather than reporting a specific breaking incident, active exploitation, or new technical finding. It cites concrete cases such as Vercel, Sportradar, Shai-Hulud, and LiteLLM, but uses them mainly as examples to support general guidance.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a sponsored trend and best-practice piece about monitoring dark web signals for supply-chain risk, rather than reporting a specific breaking incident, active exploitation, or new technical finding. It cites concrete cases such as Vercel, Sportradar, Shai-Hulud, and LiteLLM, but uses them mainly as examples to support general guidance.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://vercel.com/kb/bulletin/vercel-april-2026-security-incident" target="_blank" rel="noopener">Vercel April 2026 Security Incident</a></div>
@@ -5540,9 +5693,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap " data-priority="opt" data-category="sponsored" data-tags="agent-tesla claude intezer lummac2 mitre-attack">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-opt">02</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">sponsored</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-opt">02</span><span class="toc-cat-label">sponsored</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">Rethinking MDR as Attackers and Defenders Embrace AI</span>
               </div>
@@ -5696,18 +5848,16 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The article argues that traditional MDR services cannot keep up with AI-assisted attackers because human analysts still triage alerts in queues and often prioritize only higher-severity alerts.</span></li><li><span class="kp-text">The article states that approximately 60% of alerts go unreviewed across the industry, and Intezer’s analysis of 25 million alerts found that real threats can originate in low-severity and informational alerts.</span></li><li><span class="kp-text">The article says MDR investigation quality can vary based on the analyst on duty, queue depth, staffing, and time of day, which can lead to shallow investigations and missed attacker activity.</span></li><li><span class="kp-text">The article describes most MDR services as a black box in which customers receive escalations and summaries but cannot fully inspect investigation logic, evidence trails, or analyst reasoning.</span></li><li><span class="kp-text">The article claims an AI SOC can automatically investigate 100% of endpoint, identity, cloud, network, phishing, and SIEM alerts with forensic depth, sub-minute median triage time, and less than 2% requiring human escalation.</span></li></ul></div>
-            
             <a href="https://thehackernews.com/2026/06/rethinking-mdr-as-attackers-and.html" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a broad trend and vendor-promotional argument about MDR limitations and AI SOC models rather than reporting a specific incident, vulnerability, breach, or active threat operation. It may be useful for strategic thinking, but under the scoring criteria generic or evergreen articles must remain low priority.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a broad trend and vendor-promotional argument about MDR limitations and AI SOC models rather than reporting a specific incident, vulnerability, breach, or active threat operation. It may be useful for strategic thinking, but under the scoring criteria generic or evergreen articles must remain low priority.</p>
 </div></div>
             
             
           </div>
         </div><div class="toc-row-wrap " data-priority="opt" data-category="announcement" data-tags="agentguard appomni askomni crn fortune-cyber60 frost-sullivan gigaom great-place-to-work intellyx marlin-ai omdia united-kingdom united-states">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-opt">03</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">announcement</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-opt">03</span><span class="toc-cat-label">announcement</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">AppOmni Wins 2026 Intellyx Digital Innovator Award for Second Consecutive Year</span>
               </div>
@@ -5836,9 +5986,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">AppOmni received the 2026 Intellyx Digital Innovator Award, marking its second consecutive year and third overall time earning the recognition.</span></li><li><span class="kp-text">AppOmni CEO Neill Occhiogrosso said the award validates the company’s innovation and leadership in SaaS and AI security as AI becomes increasingly integrated into SaaS platforms.</span></li><li><span class="kp-text">The article states that AI expands the SaaS attack surface because AI-enabled services interact with customer data, inherit user permissions, and can operate autonomously without security posture guardrails.</span></li><li><span class="kp-text">The AppOmni platform provides 24/7 visibility and guided response for securing AI in SaaS environments, including Marlin AI, AskOmni, and AgentGuard capabilities.</span></li><li><span class="kp-text">AppOmni says it protects more than 101 million SaaS user accounts, secures over 260 million exposed data records, and analyzes 2 billion security events per day.</span></li></ul></div>
-            
             <a href="https://appomni.com/in-the-news/appomni-intellyx-digital-innovator-award-2026/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is a company award announcement and product-positioning piece rather than coverage of a specific incident, vulnerability, active exploitation, or technical finding. While it touches on SaaS and AI security themes, the content is primarily promotional and low urgency for security professionals.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is a company award announcement and product-positioning piece rather than coverage of a specific incident, vulnerability, active exploitation, or technical finding. While it touches on SaaS and AI security themes, the content is primarily promotional and low urgency for security professionals.</p>
 </div></div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--reports">Reports</div><ul class="report-list"><li class="report-item">
   <div class="report-title"><a class="report-link" href="https://appomni.com/reports/appomni-2025-frost-sullivan-sspm-growth-leader/" target="_blank" rel="noopener">2025 Frost Radar™ for SaaS Security Posture Management (SSPM)</a></div>
@@ -5857,9 +6006,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
           </div>
         </div><div class="toc-row-wrap " data-priority="opt" data-category="announcement" data-tags="apple jamf jamf-nation-user-conference kansas-city">
           <div class="toc-row-inner" onclick="toggleTocRow(this)">
-            <span class="toc-num toc-num-opt">04</span>
             <div style="flex:1;min-width:0">
-              <div class="toc-cat-label">announcement</div>
+              <div class="toc-row-head"><span class="toc-num toc-num-opt">04</span><span class="toc-cat-label">announcement</span></div>
               <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
                 <span class="toc-title-link">The JNUC 2026 session catalog is live — and the clock is ticking</span>
               </div>
@@ -5951,9 +6099,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
               </div>
             </div>
             <div class="panel-section"><div class="panel-subhead panel-subhead--keypoints">Key Points</div><ul class="kp-list"><li><span class="kp-text">The JNUC 2026 session catalog is now live for attendees to browse and use to plan their agendas.</span></li><li><span class="kp-text">The theme of JNUC 2026 is the Apple platform for enterprise AI.</span></li><li><span class="kp-text">The program includes topics such as Mac workflows, mobility workflows, Mac and mobile compliance, reporting and risk reduction, integrations and APIs, end-user experience, and community, career and culture.</span></li><li><span class="kp-text">Just in Time pricing for JNUC 2026 is available only through July 1 before standard rates begin.</span></li><li><span class="kp-text">JNUC 2026 is scheduled for September 23–25, 2026, in Kansas City.</span></li></ul></div>
-            
             <a href="https://www.jamf.com/blog/jnuc-2026-session-catalog/" target="_blank" rel="noopener" class="open-source-btn">OPEN SOURCE ↗</a>
-            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>WHY</div><div class="why-body"><p>This is an event promotion announcing that the JNUC 2026 session catalog is live and that a pricing deadline is approaching. It does not report a security incident, vulnerability, threat actor activity, technical finding, or advisory, so it is low priority for security professionals.</p>
+            <div class="why-block"><div class="why-label" onclick="toggleWhy(this)"><span class="why-caret"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 L8 10.5 L12 6.5"/></svg></span>JUSTIFICATION</div><div class="why-body"><p>This is an event promotion announcing that the JNUC 2026 session catalog is live and that a pricing deadline is approaching. It does not report a security incident, vulnerability, threat actor activity, technical finding, or advisory, so it is low priority for security professionals.</p>
 </div></div>
             
             
@@ -6043,10 +6190,12 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
 
 
 
+
+
 <footer id="footer">
   <span class="footer-left">DOWNLINK · 2026-06-12 00:00 UTC · 1 day window</span>
   <span class="footer-mid"><a href="sources.html">sources</a></span>
-  <span class="footer-right">29 articles · fc4ef56</span>
+  <span class="footer-right">29 articles · d48a1fb</span>
 </footer>
 
 <script>
@@ -6061,13 +6210,28 @@ function applyTheme(t) {
 
 
 
+var tourActive = false;
+
+
+
+
+
 
 var LEARN_FEATURES = {
+  plain:    { attr: 'learnPlain',    key: 'downlink.learn.plain',    el: 'learn-feat-plain' },
   glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
-  why:      { attr: 'learnWhy',      key: 'downlink.learn.why',      el: 'learn-feat-why' },
   define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
 };
+
+
+var POS_LEVEL = [3, 2, 1];
+var POS_MAX = POS_LEVEL.length - 1;
+var LEVEL_NAME = { 1: 'Pro', 2: 'Standard', 3: 'Novice' };
+function posToLevel(pos){ return POS_LEVEL[pos]; }
+function levelToPos(level){ var i = POS_LEVEL.indexOf(level); return i < 0 ? 0 : i; }
 function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+
+
 function toggleLearning() {
   var d = document.documentElement.dataset;
   var on = d.learning === 'on';
@@ -6076,7 +6240,8 @@ function toggleLearning() {
     closeLearnMenu();
   } else {
     d.learning = 'on';
-    
+    if (d.helpLevel !== '1' && d.helpLevel !== '2' && d.helpLevel !== '3') d.helpLevel = '3';
+    learnSetItem('downlink.help.level', d.helpLevel);
     Object.keys(LEARN_FEATURES).forEach(function(f){
       var cfg = LEARN_FEATURES[f];
       if (d[cfg.attr] !== 'off') d[cfg.attr] = 'on';
@@ -6084,6 +6249,32 @@ function toggleLearning() {
   }
   learnSetItem('downlink.learning', on ? 'off' : 'on');
   syncLearnUI();
+}
+
+function setHelpLevel(level) {
+  var d = document.documentElement.dataset;
+  d.helpLevel = String(level);
+  learnSetItem('downlink.help.level', String(level));
+  syncLearnUI();
+}
+
+function advanceHelpLevel() {
+  var d = document.documentElement.dataset;
+  var level = (parseInt(d.helpLevel, 10) === 1 || parseInt(d.helpLevel, 10) === 2) ? parseInt(d.helpLevel, 10) : 3;
+  var pos = levelToPos(level);
+  var next = posToLevel((pos + 1) % (POS_MAX + 1));
+  setHelpLevel(next);
+  flashHelpLevel(LEVEL_NAME[next] || '');
+}
+
+var helpFlashTimer;
+function flashHelpLevel(name) {
+  var el = document.getElementById('nav-help-flash');
+  if (!el) return;
+  el.textContent = name;
+  el.classList.add('is-shown');
+  clearTimeout(helpFlashTimer);
+  helpFlashTimer = setTimeout(function(){ el.classList.remove('is-shown'); }, 1100);
 }
 function toggleLearnFeature(f) {
   var cfg = LEARN_FEATURES[f];
@@ -6108,13 +6299,32 @@ function closeLearnMenu() {
   if (caret) caret.setAttribute('aria-expanded', 'false');
 }
 
+
 function syncLearnUI() {
   var d = document.documentElement.dataset;
   var learningOn = d.learning === 'on';
+  var level = (parseInt(d.helpLevel, 10) === 1 || parseInt(d.helpLevel, 10) === 2) ? parseInt(d.helpLevel, 10) : 3;
+  var pos = levelToPos(level);
   var sw = document.getElementById('nav-learn-switch');
   if (sw) sw.setAttribute('aria-checked', learningOn ? 'true' : 'false');
+  
+  document.querySelectorAll('.nav-help-mini-dot').forEach(function(dot){
+    dot.classList.toggle('is-active', parseInt(dot.dataset.pos, 10) === pos);
+  });
+  var slider = document.getElementById('help-slider');
+  if (slider) {
+    slider.setAttribute('aria-valuenow', String(level));
+    slider.setAttribute('aria-valuetext', LEVEL_NAME[level] || 'Novice');
+  }
+  document.querySelectorAll('.help-slider-dot').forEach(function(dot){
+    dot.classList.toggle('is-active', parseInt(dot.dataset.pos, 10) === pos);
+  });
+  var knob = document.getElementById('help-slider-knob');
+  
+  if (knob) knob.style.left = 'calc(5px + (100% - 10px) * ' + (pos / POS_MAX) + ')';
+  
   var caret = document.getElementById('nav-learn-caret');
-  if (caret) { caret.hidden = !learningOn; if (!learningOn) caret.setAttribute('aria-expanded', 'false'); }
+  if (caret && !learningOn) caret.setAttribute('aria-expanded', 'false');
   Object.keys(LEARN_FEATURES).forEach(function(f){
     var cfg = LEARN_FEATURES[f];
     var el = document.getElementById(cfg.el);
@@ -6131,6 +6341,25 @@ function toggleGlossaryPanel() {
   var open = p.classList.toggle('is-open');
   var btn = document.getElementById('glossary-panel-toggle');
   if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) { var s = document.getElementById('glossary-panel-search'); if (s) s.focus(); }
+}
+
+function filterGlossary(q) {
+  q = (q || '').trim().toLowerCase();
+  var panel = document.getElementById('glossary-panel');
+  if (!panel) return;
+  var d = document.documentElement.dataset;
+  var level = d.learning === 'on' ? (parseInt(d.helpLevel, 10) || 0) : 0;
+  var entries = panel.querySelectorAll('.glossary-panel-entry');
+  var shown = 0;
+  entries.forEach(function (el) {
+    var inLevel = (parseInt(el.dataset.lvl, 10) || 2) <= level;
+    var match = inLevel && (!q || el.textContent.toLowerCase().indexOf(q) !== -1);
+    el.hidden = !match;
+    if (match) shown++;
+  });
+  var empty = document.getElementById('glossary-panel-empty');
+  if (empty) empty.hidden = shown !== 0;
 }
 function closeGlossaryPanel() {
   var p = document.getElementById('glossary-panel');
@@ -6140,13 +6369,55 @@ function closeGlossaryPanel() {
 }
 syncLearnUI();
 
+
+(function(){
+  var slider = document.getElementById('help-slider');
+  if (!slider) return;
+  function currentPos(){
+    var d = document.documentElement.dataset;
+    var level = (parseInt(d.helpLevel, 10) === 1 || parseInt(d.helpLevel, 10) === 2) ? parseInt(d.helpLevel, 10) : 3;
+    return levelToPos(level);
+  }
+  function posFromEvent(e){
+    var r = slider.getBoundingClientRect();
+    var pad = 5; 
+    var span = r.width - 2 * pad;
+    var frac = span > 0 ? (e.clientX - r.left - pad) / span : 0;
+    return Math.max(0, Math.min(POS_MAX, Math.round(frac * POS_MAX)));
+  }
+  var dragging = false;
+  slider.addEventListener('pointerdown', function(e){
+    dragging = true;
+    try { slider.setPointerCapture(e.pointerId); } catch(_){}
+    var pos = posFromEvent(e);
+    if (pos === currentPos()) advanceHelpLevel(); 
+    else setHelpLevel(posToLevel(pos));           
+    e.preventDefault();
+  });
+  slider.addEventListener('pointermove', function(e){ if (dragging) setHelpLevel(posToLevel(posFromEvent(e))); });
+  slider.addEventListener('pointerup', function(){ dragging = false; });
+  slider.addEventListener('pointercancel', function(){ dragging = false; });
+  slider.addEventListener('keydown', function(e){
+    var cur = currentPos();
+    var p = cur;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') p = Math.min(POS_MAX, cur + 1); 
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') p = Math.max(0, cur - 1);     
+    else if (e.key === 'Home') p = 0;
+    else if (e.key === 'End') p = POS_MAX;
+    else return;
+    e.preventDefault();
+    setHelpLevel(posToLevel(p));
+  });
+})();
+
 document.addEventListener('click', function(e){
+  if (tourActive) return; 
   var card = document.getElementById('learn-card');
   if (!card || card.hidden) return;
   if (e.target.closest('#nav-learn')) return;
   closeLearnMenu();
 });
-document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { closeLearnMenu(); closeGlossaryPanel(); } });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !tourActive) { closeLearnMenu(); closeGlossaryPanel(); } });
 
 function toggleTocRow(inner) {
   var row = inner.closest('.toc-row-wrap');
@@ -6186,6 +6457,13 @@ function toggleTocMember(titleEl, bodyId) {
 
 
 function toggleWhy(label) {
+  var body = label.nextElementSibling;
+  if (!body) return;
+  var isOpen = body.classList.toggle('open');
+  label.classList.toggle('open', isOpen);
+}
+
+function togglePlain(label) {
   var body = label.nextElementSibling;
   if (!body) return;
   var isOpen = body.classList.toggle('open');
@@ -6266,6 +6544,13 @@ function toggleTag(tag) {
 var GLOSSARY = {};
 var CONTEXT = {};
 function glossaryKey(s){ return s.trim().toLowerCase().replace(/^#/,'').replace(/[\s-]+/g,' ').trim(); }
+
+
+document.querySelectorAll('mark.tag-hl').forEach(function(m){
+  var e = GLOSSARY[glossaryKey(m.textContent)];
+  m.dataset.lvl = (e && e.lvl) ? e.lvl : 2;
+});
+var currentMark = null;
 function openGlossaryPopup(term, def, type, ctx){
   document.getElementById('glossary-popup-term').textContent = term;
   document.getElementById('glossary-popup-def').textContent = def;
@@ -6282,6 +6567,7 @@ function openGlossaryPopup(term, def, type, ctx){
 function closeGlossaryPopup(){
   var p = document.getElementById('glossary-popup');
   if (p) p.hidden = true;
+  currentMark = null;
 }
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
@@ -6292,10 +6578,14 @@ document.addEventListener('click', function(e){
   var key = glossaryKey(m.textContent);
   var entry = GLOSSARY[key];
   if (!entry) return;
+  var level = parseInt(dd.helpLevel, 10) || 0;
+  if ((entry.lvl || 2) > level) return; 
+  if (m === currentMark) { closeGlossaryPopup(); return; }
   
   var ctx = '';
   var host = m.closest('[data-article-id]');
   if (host) { var byArt = CONTEXT[host.dataset.articleId]; if (byArt) ctx = byArt[key] || ''; }
+  currentMark = m;
   openGlossaryPopup(m.textContent.trim(), entry.def, entry.type || '', ctx);
 });
 document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeGlossaryPopup(); });
@@ -6356,11 +6646,148 @@ function showMoreTags(btn) {
   btn.remove();
 }
 
+
+
+
+
+
+(function(){
+  var overlay = document.getElementById('tour');
+  if (!overlay) return; 
+  var spot = document.getElementById('tour-spotlight');
+  var card = document.getElementById('tour-card');
+  var elStep = document.getElementById('tour-step');
+  var elTitle = document.getElementById('tour-title');
+  var elBody = document.getElementById('tour-body');
+  var elDots = document.getElementById('tour-dots');
+  var btnBack = document.getElementById('tour-back');
+  var btnNext = document.getElementById('tour-next');
+
+  
+  
+  var STEPS = [
+    { title: 'Welcome to DOWNLINK', body: 'DOWNLINK gives you a fast read on what shipped, broke, or matters across your feeds. Use it to scan and triage. It points you at what to read; it is not a substitute for the articles themselves.' },
+    { sel: '#nav-learn-switch', reveal: true, title: 'Learning mode', body: 'Flip this on for newcomer help: plain-language summaries, click-to-define jargon, and a glossary. Turn it back off once the terms are familiar.' },
+    { sel: '#help-slider', reveal: true, openCard: true, title: 'How much to explain', body: 'Slide between Novice and Pro to set how many terms get explained. Novice explains nearly everything; Pro only the niche stuff.' },
+    { sel: '#glossary-panel-toggle', reveal: true, title: 'Glossary', body: 'This tab opens a searchable list of every term in the digest, each written in plain words.' }
+  ];
+
+  var idx = 0, active = false, saved = null;
+
+  function snapshot(){
+    var d = document.documentElement.dataset;
+    return { learning: d.learning, helpLevel: d.helpLevel, glossary: d.learnGlossary };
+  }
+  function restore(s){
+    var d = document.documentElement.dataset;
+    if (s.learning) d.learning = s.learning; else delete d.learning;
+    if (s.helpLevel) d.helpLevel = s.helpLevel; else delete d.helpLevel;
+    if (s.glossary) d.learnGlossary = s.glossary; else delete d.learnGlossary;
+    syncLearnUI();
+  }
+  
+  function preview(){
+    var d = document.documentElement.dataset;
+    d.learning = 'on';
+    if (d.helpLevel !== '1' && d.helpLevel !== '2' && d.helpLevel !== '3') d.helpLevel = '3';
+    d.learnGlossary = 'on';
+    syncLearnUI();
+  }
+
+  function targetRect(sel){
+    var t = sel && document.querySelector(sel);
+    if (!t) return null;
+    var r = t.getBoundingClientRect();
+    return (r.width === 0 && r.height === 0) ? null : r;
+  }
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+  function placeSpotlight(r){
+    var pad = 6;
+    spot.classList.remove('is-centered');
+    spot.style.top = (r.top - pad) + 'px';
+    spot.style.left = (r.left - pad) + 'px';
+    spot.style.width = (r.width + pad * 2) + 'px';
+    spot.style.height = (r.height + pad * 2) + 'px';
+  }
+  function placeCard(r){
+    var m = 14, cw = card.offsetWidth, ch = card.offsetHeight, vw = innerWidth, vh = innerHeight;
+    var top, left;
+    if (!r){ 
+      left = (vw - cw) / 2; top = (vh - ch) / 2;
+    } else if (r.left > vw * 0.6 && r.left - m - cw >= m){ 
+      left = r.left - m - cw; top = clamp(r.top + r.height / 2 - ch / 2, m, vh - ch - m);
+    } else if (vh - r.bottom >= ch + m){ 
+      top = r.bottom + m; left = clamp(r.left + r.width / 2 - cw / 2, m, vw - cw - m);
+    } else if (r.top - m - ch >= m){ 
+      top = r.top - m - ch; left = clamp(r.left + r.width / 2 - cw / 2, m, vw - cw - m);
+    } else { 
+      left = clamp(r.right + m, m, vw - cw - m); top = clamp(r.top + r.height / 2 - ch / 2, m, vh - ch - m);
+    }
+    card.style.left = Math.round(left) + 'px';
+    card.style.top = Math.round(top) + 'px';
+  }
+  function position(){
+    var step = STEPS[idx];
+    var r = step.sel ? targetRect(step.sel) : null;
+    if (r) placeSpotlight(r); else spot.classList.add('is-centered');
+    placeCard(r);
+  }
+  function render(){
+    var step = STEPS[idx];
+    elStep.textContent = 'Step ' + (idx + 1) + ' of ' + STEPS.length;
+    elTitle.textContent = step.title;
+    elBody.textContent = step.body;
+    var dots = '';
+    for (var i = 0; i < STEPS.length; i++){ dots += '<span' + (i === idx ? ' class="is-active"' : '') + '></span>'; }
+    elDots.innerHTML = dots;
+    btnBack.style.visibility = idx === 0 ? 'hidden' : 'visible';
+    btnNext.textContent = idx === STEPS.length - 1 ? 'Done' : 'Next';
+    if (step.reveal) preview();
+    if (step.openCard){ var c = document.getElementById('learn-card'); if (c){ c.hidden = false; var car = document.getElementById('nav-learn-caret'); if (car) car.setAttribute('aria-expanded', 'true'); } }
+    else closeLearnMenu();
+    position();
+  }
+  function start(){
+    if (active) return;
+    active = true; tourActive = true;
+    saved = snapshot();
+    idx = 0;
+    overlay.hidden = false;
+    render();
+    btnNext.focus();
+    addEventListener('resize', position); addEventListener('scroll', position, true);
+  }
+  function end(){
+    active = false; tourActive = false;
+    overlay.hidden = true;
+    closeLearnMenu();
+    if (saved) restore(saved);
+    saved = null;
+    removeEventListener('resize', position); removeEventListener('scroll', position, true);
+    try { localStorage.setItem('downlink.onboarded', '1'); } catch(e){}
+  }
+  function next(){ if (idx < STEPS.length - 1){ idx++; render(); } else end(); }
+  function back(){ if (idx > 0){ idx--; render(); } }
+
+  btnNext.addEventListener('click', next);
+  btnBack.addEventListener('click', back);
+  document.getElementById('tour-skip').addEventListener('click', end);
+  overlay.addEventListener('keydown', function(e){
+    if (e.key === 'Escape'){ e.preventDefault(); end(); }
+    else if (e.key === 'ArrowRight'){ e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft'){ e.preventDefault(); back(); }
+  });
+
+  
+  window.startTour = start;
+
+  
+  try { if (!localStorage.getItem('downlink.onboarded')) start(); } catch(e){}
+})();
+
 </script>
 </body>
 </html>
-
-
 
 
 
