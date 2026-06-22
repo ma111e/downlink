@@ -473,16 +473,17 @@ actionability — what a defender can do with it:
   2: general guidance or awareness
   4: clear, immediate defensive action (patch now, specific IOCs, detection rules)
 
-credibility — the strength of sourcing:
-  0: unsourced, rumor, or low-quality blogspam
-  2: ordinary news reporting citing secondary sources
-  4: primary source — vendor/CERT advisory, named researcher, or original technical writeup
+credibility — the strength of the sourcing the article rests on, NOT whether the article is itself the original source. A news write-up that accurately relays a vendor/CERT advisory, named researcher, or original research is as credible as that underlying source; do not dock it for being a report or summary rather than the source itself.
+  0: unsourced, rumor, or low-quality blogspam with no traceable origin
+  2: claims trace only to vague or second-hand sources, with no identifiable primary source behind them
+  4: rests on a strong primary source — a vendor/CERT advisory, named researcher, or original technical writeup — whether the article is that source or a faithful report of it
 
 is_aggregator — true ONLY if the article is itself a roundup, recap, link digest, or weekly/monthly summary of multiple unrelated items rather than coverage of a single topic; otherwise false.
 
 Calibration examples (ratings only, for reference):
 - "Active exploitation of a critical RCE in a widely-used VPN, CISA adds it to KEV, patch available": specificity 4, severity 4, breadth 4, novelty 3, actionability 4, credibility 4, is_aggregator false.
 - "Vendor advisory: medium-severity privilege-escalation bug in a niche admin tool, fix released": specificity 4, severity 2, breadth 1, novelty 3, actionability 3, credibility 4, is_aggregator false.
+- "News write-up of a Wordfence advisory on a critical WordPress plugin supply-chain attack, with CVSS, IOCs, and fix steps": specificity 4, severity 4, breadth 2, novelty 3, actionability 4, credibility 4, is_aggregator false.
 - "Opinion: why zero-trust matters for modern enterprises" (no specific event): specificity 0, severity 0, breadth 2, novelty 1, actionability 1, credibility 2, is_aggregator false.
 - "This week in security: 12 stories you may have missed": specificity 1, severity 1, breadth 2, novelty 1, actionability 1, credibility 2, is_aggregator true.
 

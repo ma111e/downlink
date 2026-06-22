@@ -68,11 +68,13 @@ Add a `github_pages` block inside `notifications`:
 | `configure_pages` | no | `false` | Configure the GitHub Pages source to `branch` at `/` before publishing. Requires extra token permissions. |
 | `token` | no* | / | GitHub PAT. Prefer `DOWNLINK_GH_PAGES_TOKEN` env var instead. |
 | `output_dir` | no | `digests` | Safe relative subdirectory inside the repo where digest files are written. Absolute paths, `.`, `..`, and parent traversal are rejected. |
+| `layout` | no | `default` | Layout (template set) for the published pages when a profile sets none. See [digests.md](digests.md#layouts-and-themes). |
 | `base_url` | no | / | Public URL of the site (e.g. `https://your-username.github.io`). Used to build links in Discord notifications. |
 | `commit_author` | no | `downlink-bot` | Git commit author name. |
 | `commit_email` | no | `downlink-bot@users.noreply.github.com` | Git commit author email. |
 | `clone_dir` | no | `$TMPDIR/downlink-ghpages` | Local path where the repo is cloned. Persists across runs to avoid full re-clones. |
 | `discord_webhook_url` | no | / | A **separate** Discord webhook to notify when a page is published. Distinct from the main digest webhook. |
+| `publish_window_days` | no | `30` | Days of digests to keep in the manifest and feeds; older entries are pruned on publish. `0` uses the default. |
 
 *\* `token` must be provided via config or environment variable for publishing to work.*
 
@@ -107,7 +109,21 @@ Every config field has a corresponding flag on the `server` command. Flags overr
 --gh-pages-commit-email <email> Commit author email
 --gh-pages-clone-dir <path>     Local clone directory
 --gh-pages-discord-webhook <url> Discord webhook for publish notifications
+--gh-pages-window-days <n>      Days of digests to retain in the manifest (0 = 30)
 ```
+
+Two more flags set up or reset the Pages structure, then exit without starting the
+server:
+
+```
+--init-gh-pages    Create the branch if absent and seed the manifest and index
+                   pages. Idempotent; existing files are kept.
+--reinit-gh-pages  Erase the branch and local clone, then recreate from scratch.
+                   Destructive; prompts for confirmation.
+```
+
+These mirror the `dlk publish init` / `dlk publish reinit` commands; use them when
+the server holds the only configured token.
 
 Example - enable for one run without touching `config.json`:
 

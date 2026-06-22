@@ -134,20 +134,20 @@ them too (requires Docker):
 ./server --auto-start-lightpanda --auto-start-solimen
 ```
 
-**5. Apply the feeds.** `dlk feed apply` reconciles the database to match the file. Feeds in the file are created or updated, and feeds no longer listed are disabled
+**5. Apply the feeds.** `dlk feeds apply` reconciles the database to match the file. Feeds in the file are created or updated, and feeds no longer listed are disabled
 (their articles are kept). Preview first with `--dry-run`:
 
 ```sh
-./dlk feed apply -f feeds.yml --dry-run # show what would change
-./dlk feed apply -f feeds.yml # apply it
+./dlk feeds apply -f feeds.yml --dry-run # show what would change
+./dlk feeds apply -f feeds.yml # apply it
 ```
 
 **6. Fetch and generate a digest.** `digest generate` analyzes any not-yet-scored
 articles with your LLM provider, then assembles the ranked digest:
 
 ```sh
-./dlk feed refresh all # pull the latest articles
-./dlk digest generate  # analyze + assemble the ranked digest
+./dlk feeds refresh all # pull the latest articles
+./dlk digest generate   # analyze + assemble the ranked digest
 ```
 
 **7. View the result:**
@@ -157,7 +157,7 @@ articles with your LLM provider, then assembles the ranked digest:
 ./dlk digest get  # pick one and view it (add --markdown for prose)
 ```
 
-`./dlk feed export -f feeds.yml` does the reverse of step 5: it writes the feeds
+`./dlk feeds export -o feeds.yml` does the reverse of step 5: it writes the feeds
 currently in the database back out to a YAML file.
 
 ## Documentation

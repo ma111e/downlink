@@ -80,6 +80,7 @@ See [llm-providers.md](llm-providers.md) for which fields each provider type nee
 | `executive_summary` | bool | `false` | Generate the digest-level executive summary (a title plus a thematic overview shown under "Executive Overview" and in the Discord embed). Override per run with `dlk digest generate --executive-summary` (or `=false` to force off). |
 | `persona` | string | / | Prompt prefix injected before every analysis request. |
 | `writing_style` | string | / | Style guide injected into the digest summary prompt. |
+| `worker_pool.max_workers` | int | `3` | Analysis worker pool size. Bounds how many articles are analyzed in parallel; actual LLM concurrency is still capped by `--max-concurrent-llm-requests`. |
 
 ### notifications.discord
 
@@ -115,6 +116,11 @@ These override `config.json` and are themselves overridden by an explicit CLI fl
 | `DOWNLINK_LAYOUTS_DIR` | `--layouts-dir` | `layouts` | Directory of on-disk custom layouts; used if it exists. |
 | `DOWNLINK_MAX_CONCURRENT_LLM_REQUESTS` | `--max-concurrent-llm-requests` | `1` | Cap on concurrent LLM calls across all paths. |
 | `DOWNLINK_AUTO_ANALYZE` | `--auto-analyze` | `false` | Same as `analysis.auto_analyze`. |
+| `DOWNLINK_VIBE_SCORE` | `--vibe-score` | `false` | Same as `analysis.vibe_score`; overrides config. |
+| `DOWNLINK_GLOSSARY` | `--glossary` | `false` | Same as `analysis.glossary`; overrides config. |
+| `DOWNLINK_ADMIN_PORT` | `--admin-port` | `65262` | Localhost port for the LLM monitoring dashboard. See [deployment.md](deployment.md). |
+| `DOWNLINK_LLM_MONITOR_RETENTION` | `--llm-monitor-retention` | `100` | Most-recent digest runs whose LLM conversations are kept (`0` disables pruning). |
+| `DOWNLINK_FEED_MONITOR_RETENTION` | `--feed-monitor-retention` | `100` | Most-recent feed-refresh runs whose history is kept (`0` disables pruning). |
 
 The `DOWNLINK_GH_PAGES_*` variables map to the `--gh-pages-*` flags and the
 `github_pages` config block; they are documented in [github-pages.md](github-pages.md).
