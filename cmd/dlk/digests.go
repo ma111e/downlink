@@ -174,7 +174,7 @@ Examples:
 			client := getNewDownlinkClient()
 
 			if digestTest {
-				if !digestlayouts.Valid(digestLayout) {
+				if digestLayout != "" && !digestlayouts.Valid(digestLayout) {
 					fmt.Printf("Unknown layout theme %q. Run 'digest list --themes' to see available themes.\n", digestLayout)
 					return
 				}
@@ -312,7 +312,7 @@ Examples:
 				return
 			}
 
-			if !digestlayouts.Valid(digestLayout) {
+			if digestLayout != "" && !digestlayouts.Valid(digestLayout) {
 				fmt.Printf("Unknown layout theme %q. Run 'digest list --themes' to see available themes.\n", digestLayout)
 				return
 			}

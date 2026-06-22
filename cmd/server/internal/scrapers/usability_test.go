@@ -32,7 +32,7 @@ func TestContentCoverage(t *testing.T) {
 }
 
 func TestUsable(t *testing.T) {
-	long := strings.Repeat("real article words ", 100) // well over the threshold
+	long := strings.Repeat("real article words ", 200) // well over the threshold
 
 	tests := []struct {
 		name     string
