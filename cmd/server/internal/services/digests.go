@@ -11,6 +11,7 @@ import (
 	"github.com/ma111e/downlink/cmd/server/internal/notification"
 	"github.com/ma111e/downlink/cmd/server/internal/store"
 	"github.com/ma111e/downlink/pkg/llmgateway"
+	"github.com/ma111e/downlink/pkg/llmprovider"
 	"github.com/ma111e/downlink/pkg/llmutil"
 	"github.com/ma111e/downlink/pkg/mappers"
 	"github.com/ma111e/downlink/pkg/models"
@@ -876,11 +877,26 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 			err := analyze(stepCtx)
 			cancel()
 
+			// A subscription usage-limit response is terminal. Record the reason
+			// and abort the whole run (returning a non-nil error cancels the
+			// errgroup) instead of retrying or moving to the next article, so we
+			// stop hitting an already-flagged account.
+			if errors.Is(err, llmprovider.ErrUsageLimitReached) {
+				log.WithError(err).WithField("articleId", article.Id).Warn("Provider usage limit reached, aborting analysis run")
+				captureErr(article.Id, err)
+				return err
+			}
+
 			if err != nil {
 				log.WithError(err).WithField("articleId", article.Id).Warn("Article analysis failed, retrying once")
 				retryCtx, retryCancel := context.WithTimeout(gctx, 60*time.Minute)
 				err = analyze(retryCtx)
 				retryCancel()
+				if errors.Is(err, llmprovider.ErrUsageLimitReached) {
+					log.WithError(err).WithField("articleId", article.Id).Warn("Provider usage limit reached, aborting analysis run")
+					captureErr(article.Id, err)
+					return err
+				}
 			}
 
 			completed.Add(1)
@@ -971,6 +987,8 @@ func classifyAnalysisError(err error) string {
 		return "Analysis timed out"
 	case errors.Is(err, context.Canceled) || strings.Contains(lower, "context canceled"):
 		return "Analysis cancelled"
+	case errors.Is(err, llmprovider.ErrUsageLimitReached):
+		return "Model provider usage limit reached"
 	case strings.Contains(lower, "429") || strings.Contains(lower, "rate limit") || strings.Contains(lower, "too many requests"):
 		return "Rate limited by model provider"
 	case strings.Contains(lower, "401") || strings.Contains(lower, "unauthorized") || strings.Contains(lower, "invalid api key"):

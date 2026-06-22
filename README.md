@@ -90,41 +90,42 @@ $EDITOR config.json # enable a provider + fill in its api_key
 feeds:
   - url: https://cert.gov.ua/api/articles/rss
     title: Cert-UA
-    type: rss
     enabled: true
-    scraping: dynamic # "dynamic" (Lightpanda) or "full_browser" (Solimen); omit for static RSS
     scraper:
-      article: div.article-item__content # CSS selector for the article body
+      type: rss
+      scraping: dynamic # "dynamic" (Lightpanda) or "full_browser" (Solimen); omit for static RSS
+      selectors:
+        article: div.article-item__content # CSS selector for the article body
   - url: https://www.bleepingcomputer.com/feed/
     title: Bleeping Computer
-    type: rss
     enabled: true
     scraper:
+      type: rss
+      scraping: full_browser
       triggers:
-          loaded:
-              - article .article_section
-    scraping: full_browser
-    selectors:
-      article: div.articleBody
+        loaded:
+          - article .article_section
+      selectors:
+        article: div.articleBody
   - url: https://feeds.feedburner.com/TheHackersNews
     title: The Hacker News
-    type: rss
     enabled: true
     scraper:
+      type: rss
+      scraping: full_browser
       triggers:
-          loaded:
-              - div.main-box
-    scraping: full_browser
-    selectors:
-      article: '#articlebody'
-      cutoff: .stophere
-
+        loaded:
+          - div.main-box
+      selectors:
+        article: '#articlebody'
+        cutoff: .stophere
 ```
 
 > The quickstart mixes scraping modes: `scraping: dynamic` needs **Lightpanda** and
 > `scraping: full_browser` needs **Solimen**. The `--auto-start-*` flags in step 4
-> launch both in Docker. For a no-dependencies first run, drop the
-> `scraping`/`scraper`/`selectors` keys to use plain RSS.
+> launch both in Docker. For a no-dependencies first run, keep only
+> `scraper: { type: rss }` and drop the `scraping`, `triggers`, and `selectors`
+> keys to use plain RSS.
 
 **4. Start the server** (in one terminal). The quickstart feeds use both scrapers, so start
 them too (requires Docker):

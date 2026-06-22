@@ -825,6 +825,11 @@ func (s *LLMsServer) runAnalysisTaskWithRetry(
 		}
 
 		lastErr = err
+		// A subscription usage-limit response is terminal: do not retry, so we
+		// stop hitting an already-flagged account.
+		if errors.Is(err, llmprovider.ErrUsageLimitReached) {
+			return analysisTaskAttemptResult{}, err
+		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return analysisTaskAttemptResult{}, ctxErr
 		}
@@ -1117,6 +1122,13 @@ func (s *LLMsServer) AnalyzeArticleOneShot(ctx context.Context, req *protos.Anal
 			lastErr = buildErr
 		}
 
+		// A subscription usage-limit response is terminal: stop retrying.
+		if errors.Is(lastErr, llmprovider.ErrUsageLimitReached) {
+			if onTask != nil {
+				onTask("one_shot_analysis", "error", 1, 1, lastErr)
+			}
+			return nil, lastErr
+		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			if onTask != nil {
 				onTask("one_shot_analysis", "error", 1, 1, ctxErr)
