@@ -585,7 +585,7 @@ func TestRenderDigestHTMLPlainWords(t *testing.T) {
 		`In plain words`,
 		`Millions of ordinary customers could see their personal details misused.`,
 		// Consent gate: hidden by default, revealed only under Learning mode + the Plain words feature.
-		`.plain-words-block { display: none; }`,
+		`.plain-words-block { display: none;`,
 		`html[data-learning="on"][data-learn-plain="on"] .plain-words-block { display: block; }`,
 		// The help-level control is available even though the digest has no glossary content.
 		`id="nav-learn-switch"`,
