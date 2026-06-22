@@ -14,10 +14,9 @@ const defaultLayout = "default"
 
 var layouts = map[string]Layout{
 	"default": {Name: "default", Description: "Default digest layout"},
-	"emerald": {Name: "emerald", Description: "Default layout with a green accent (demo)"},
 }
 
-var order = []string{"default", "emerald"}
+var order = []string{"default"}
 
 // All returns all available layouts in display order.
 func All() []Layout {

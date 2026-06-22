@@ -71,8 +71,8 @@ to stop at the next stage boundary; twice to force exit.
 
 Two independent axes style the published HTML.
 
-**Layout** is the template set (page structure). Built-in layouts are `default` and
-`emerald`; list them with `dlk digest list --themes`. The `--theme` flag takes a layout
+**Layout** is the template set (page structure). The built-in layout is `default`;
+list available layouts with `dlk digest list --themes`. The `--theme` flag takes a layout
 name despite its name. Set it per run with `dlk digest generate --theme <layout>`, a server
 default with `github_pages.layout`, or per profile with `layout` in `profiles.yml`. Ship
 your own layout under the layouts dir (`--layouts-dir`); a custom layout may override only
