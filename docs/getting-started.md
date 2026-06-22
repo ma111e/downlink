@@ -35,7 +35,7 @@ Edit `feeds.yml` to point at the feeds you want. A feed needs at least `url`, `t
 ./server
 ```
 
-It listens for gRPC on `:50051` and serves an Atom export on `:65261`. If your feeds use
+It listens for gRPC on `:50051`. If your feeds use
 `scraping: dynamic` or `full_browser`, start the scrapers too (needs Docker):
 
 ```sh
@@ -65,6 +65,10 @@ updated, and feeds no longer listed are disabled (their articles are kept). Prev
 `digest generate` covers the last 24 hours by default. See [digests.md](digests.md) for
 windows and options.
 
+Out of the box everything runs as a single default profile. To run several curated views
+over the same feeds, each with its own selection, editorial config, and look, see
+[profiles.md](profiles.md).
+
 ## 5. View
 
 ```sh
@@ -79,5 +83,6 @@ stored feeds, articles, and digests.
 
 - [configuration.md](configuration.md) full config reference.
 - [cli-reference.md](cli-reference.md) every `dlk` command.
+- [profiles.md](profiles.md) run multiple curated profiles over one feed pool.
 - [github-pages.md](github-pages.md) publish digests to a website.
-- [deployment.md](deployment.md) run it as a service, and read articles via the Atom export on `:65261`.
+- [deployment.md](deployment.md) run it as a service.

@@ -21,6 +21,12 @@ func generateFeedId(rawURL string) (string, error) {
 	return fmt.Sprintf("%x", hash), nil
 }
 
+// FeedIDForURL returns the catalog feed id for a URL (the same id RegisterFeed and
+// ApplyFeeds use), so callers outside this package can map a feed URL to its row.
+func FeedIDForURL(rawURL string) (string, error) {
+	return generateFeedId(rawURL)
+}
+
 // generateArticleId generates a unique Id for an article
 func generateArticleId(feedId, itemId, itemTitle string) string {
 	var hash [16]byte

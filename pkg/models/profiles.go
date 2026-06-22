@@ -29,7 +29,24 @@ type Profile struct {
 	EditorialJson string            `gorm:"column:editorial;type:text" json:"-"`
 	Editorial     *ProfileEditorial `gorm:"-" json:"editorial,omitempty"`
 
+	// Selection is the feed-membership rule (topics + explicit overrides),
+	// persisted so feed-catalog changes can re-resolve profile_feeds without
+	// re-reading profiles.yml. The resolved membership lives in profile_feeds.
+	SelectionJson string            `gorm:"column:selection;type:text" json:"-"`
+	Selection     *ProfileSelection `gorm:"-" json:"selection,omitempty"`
+
 	Feeds []Feed `gorm:"many2many:profile_feeds;" json:"-"`
+}
+
+// ProfileSelection is how a profile chooses its feeds. Membership is the feeds
+// whose topics intersect Topics, plus IncludeFeedIds, minus ExcludeFeedIds,
+// restricted to enabled feeds. An empty selection (no topics, no includes) means
+// "all enabled feeds". Include/exclude are stored as feed ids (resolved at apply
+// time) so re-resolution does not need the original URLs.
+type ProfileSelection struct {
+	Topics         []string `json:"topics,omitempty"`
+	IncludeFeedIds []string `json:"include_feed_ids,omitempty"`
+	ExcludeFeedIds []string `json:"exclude_feed_ids,omitempty"`
 }
 
 // TableName specifies the table name for Profile.
@@ -40,45 +57,45 @@ func (Profile) TableName() string { return "profiles" }
 // (resolved in services.ResolveEditorial). It mirrors AnalysisConfig and adds
 // per-profile taxonomy, rubric, and raw prompt overrides.
 type ProfileEditorial struct {
-	Provider     string `json:"provider,omitempty"`      // configured provider name
-	Model        string `json:"model,omitempty"`         // optional model override
-	Persona      string `json:"persona,omitempty"`       // analysis system-message prefix
-	WritingStyle string `json:"writing_style,omitempty"` // digest-summary style guide
-	Audience     string `json:"audience,omitempty"`      // target reader, injected into prompts
+	Provider     string `json:"provider,omitempty" yaml:"provider,omitempty"`           // configured provider name
+	Model        string `json:"model,omitempty" yaml:"model,omitempty"`                 // optional model override
+	Persona      string `json:"persona,omitempty" yaml:"persona,omitempty"`             // analysis system-message prefix
+	WritingStyle string `json:"writing_style,omitempty" yaml:"writing_style,omitempty"` // digest-summary style guide
+	Audience     string `json:"audience,omitempty" yaml:"audience,omitempty"`          // target reader, injected into prompts
 
-	Glossary               *bool `json:"glossary,omitempty"`
-	VibeScore              *bool `json:"vibe_score,omitempty"` // legacy single-number scoring instead of the rubric
-	StandardSynthesis      *bool `json:"standard_synthesis,omitempty"`
-	ComprehensiveSynthesis *bool `json:"comprehensive_synthesis,omitempty"`
-	ExecutiveSummary       *bool `json:"executive_summary,omitempty"`
+	Glossary               *bool `json:"glossary,omitempty" yaml:"glossary,omitempty"`
+	VibeScore              *bool `json:"vibe_score,omitempty" yaml:"vibe_score,omitempty"` // legacy single-number scoring instead of the rubric
+	StandardSynthesis      *bool `json:"standard_synthesis,omitempty" yaml:"standard_synthesis,omitempty"`
+	ComprehensiveSynthesis *bool `json:"comprehensive_synthesis,omitempty" yaml:"comprehensive_synthesis,omitempty"`
+	ExecutiveSummary       *bool `json:"executive_summary,omitempty" yaml:"executive_summary,omitempty"`
 
-	Categories []CategoryDef    `json:"categories,omitempty"` // nil/empty = default category set
-	Rubric     *RubricConfig    `json:"rubric,omitempty"`     // nil = default weights/thresholds
-	Prompts    *PromptOverrides `json:"prompts,omitempty"`    // nil = built-in task instructions
+	Categories []CategoryDef    `json:"categories,omitempty" yaml:"categories,omitempty"` // nil/empty = default category set
+	Rubric     *RubricConfig    `json:"rubric,omitempty" yaml:"rubric,omitempty"`         // nil = default weights/thresholds
+	Prompts    *PromptOverrides `json:"prompts,omitempty" yaml:"prompts,omitempty"`       // nil = built-in task instructions
 }
 
 // CategoryDef is one allowed category for a profile, with a short description the
 // LLM is shown when classifying.
 type CategoryDef struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
+	Name        string `json:"name" yaml:"name"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 }
 
 // RubricConfig overrides the importance model for a profile. Weights keys are the
 // six rubric dimensions (specificity, severity, breadth, novelty, actionability,
 // credibility); nil sub-fields fall back to scoring.DefaultConfig().
 type RubricConfig struct {
-	Weights         map[string]float64 `json:"weights,omitempty"`
-	Tiers           *TierThresholds    `json:"tiers,omitempty"`
-	AggregatorScore *int               `json:"aggregator_score,omitempty"`
-	EvergreenCap    *int               `json:"evergreen_cap,omitempty"`
+	Weights         map[string]float64 `json:"weights,omitempty" yaml:"weights,omitempty"`
+	Tiers           *TierThresholds    `json:"tiers,omitempty" yaml:"tiers,omitempty"`
+	AggregatorScore *int               `json:"aggregator_score,omitempty" yaml:"aggregator_score,omitempty"`
+	EvergreenCap    *int               `json:"evergreen_cap,omitempty" yaml:"evergreen_cap,omitempty"`
 }
 
 // TierThresholds are the inclusive lower bounds for the read tiers on a 0-100 score.
 type TierThresholds struct {
-	Must   int `json:"must"`
-	Should int `json:"should"`
-	May    int `json:"may"`
+	Must   int `json:"must" yaml:"must"`
+	Should int `json:"should" yaml:"should"`
+	May    int `json:"may" yaml:"may"`
 }
 
 // PromptOverrides lets a profile replace task instructions verbatim. Tasks is
@@ -86,12 +103,38 @@ type TierThresholds struct {
 // insights, referenced_reports, summaries, glossary, importance). Output schema
 // and required keys are NOT overridable, so validation still applies.
 type PromptOverrides struct {
-	Tasks         map[string]string `json:"tasks,omitempty"`
-	DigestSummary string            `json:"digest_summary,omitempty"`
-	Dedupe        string            `json:"dedupe,omitempty"`
+	Tasks         map[string]string `json:"tasks,omitempty" yaml:"tasks,omitempty"`
+	DigestSummary string            `json:"digest_summary,omitempty" yaml:"digest_summary,omitempty"`
+	Dedupe        string            `json:"dedupe,omitempty" yaml:"dedupe,omitempty"`
 }
 
-// BeforeSave serializes Editorial into EditorialJson before persisting.
+// ProfilesFile is the YAML catalog of profiles (profiles.yml), mirroring
+// FeedsFile. It is applied to the database at server startup: each entry is
+// upserted and its feed pool (referenced by URL) is reconciled.
+type ProfilesFile struct {
+	Profiles []ProfileConfig `yaml:"profiles"`
+}
+
+// ProfileConfig is one profile definition in profiles.yml. Feeds are referenced
+// by URL and resolved to feed ids at apply time.
+type ProfileConfig struct {
+	Slug         string            `yaml:"slug"`
+	Name         string            `yaml:"name"`
+	Description  string            `yaml:"description,omitempty"`
+	Icon         string            `yaml:"icon,omitempty"`
+	Layout       string            `yaml:"layout,omitempty"`
+	Theme        string            `yaml:"theme,omitempty"`
+	Enabled      *bool             `yaml:"enabled,omitempty"`
+	SortOrder    *int              `yaml:"sort_order,omitempty"`
+	OutputSubdir string            `yaml:"output_subdir,omitempty"`
+	Topics       []string          `yaml:"topics,omitempty"`        // feeds with ANY of these topics
+	Feeds        []string          `yaml:"feeds,omitempty"`         // explicit include feed URLs
+	ExcludeFeeds []string          `yaml:"exclude_feeds,omitempty"` // explicit exclude feed URLs
+	Editorial    *ProfileEditorial `yaml:"editorial,omitempty"`
+}
+
+// BeforeSave serializes Editorial and Selection into their JSON columns before
+// persisting.
 func (p *Profile) BeforeSave(_ *gorm.DB) error {
 	if p.Editorial != nil {
 		b, err := json.Marshal(p.Editorial)
@@ -100,10 +143,17 @@ func (p *Profile) BeforeSave(_ *gorm.DB) error {
 		}
 		p.EditorialJson = string(b)
 	}
+	if p.Selection != nil {
+		b, err := json.Marshal(p.Selection)
+		if err != nil {
+			return err
+		}
+		p.SelectionJson = string(b)
+	}
 	return nil
 }
 
-// AfterFind hydrates Editorial from EditorialJson after a query.
+// AfterFind hydrates Editorial and Selection from their JSON columns after a query.
 func (p *Profile) AfterFind(_ *gorm.DB) error {
 	if p.EditorialJson != "" {
 		var ed ProfileEditorial
@@ -111,6 +161,13 @@ func (p *Profile) AfterFind(_ *gorm.DB) error {
 			return err
 		}
 		p.Editorial = &ed
+	}
+	if p.SelectionJson != "" {
+		var sel ProfileSelection
+		if err := json.Unmarshal([]byte(p.SelectionJson), &sel); err != nil {
+			return err
+		}
+		p.Selection = &sel
 	}
 	return nil
 }

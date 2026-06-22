@@ -20,23 +20,23 @@ that it can publish to GitHub Pages and Discord.
 - **Flexible scraping** plain RSS, dynamic scraping (Lightpanda), and full-browser
   scraping ([Solimen](https://github.com/ma111e/solimen)) with per-feed CSS selectors, triggers, blacklists, and headers.
 - **Digest generation** categorized, importance-ranked digests with deduplication.
+- **Profiles** run several curated views over one feed pool, each with its own feed
+  selection, editorial config, digests, layout, and theme. See [docs/profiles.md](docs/profiles.md).
 - **Glossary mode** optional plain-language explanations and a jargon glossary per article,
   toggled on the digest page.
 - **Publishing** push static digests to GitHub Pages and notify a Discord webhook.
-- **Interfaces** gRPC API (default `:50051`), an Atom feed export (`:65261`), and the
-  `dlk` command-line client.
+- **Interfaces** gRPC API (default `:50051`) and the `dlk` command-line client.
 
 ## Architecture
 
 | Component         | Path          | Description                                                         |
 | ----------------- | ------------- | ------------------------------------------------------------------- |
-| Server            | `cmd/server`  | gRPC services + feed manager + Atom feed export.   |
+| Server            | `cmd/server`  | gRPC services + feed manager.   |
 | CLI (`dlk`)       | `cmd/dlk`     | gRPC client for articles, feeds, analysis, digests, config, queue management.  |
 | Shared packages   | `pkg/`        | Scoring, LLM gateway/providers, codex auth, models, protobufs.      |
 
 The server exposes gRPC services for articles, analysis, feeds, digests, queue management,
-config, and auth. The Atom feed server publishes analyzed articles at
-`http://localhost:65261`.
+config, and auth.
 
 ## Install
 
@@ -59,7 +59,7 @@ Or with Docker:
 
 ```sh
 docker build -t downlink .
-docker run --rm -p 50051:50051 -p 65261:65261 \
+docker run --rm -p 50051:50051 \
   -v "$PWD/config.json:/app/config.json" \
   -v "$PWD/feeds.yml:/app/feeds.yml" \
   downlink
@@ -162,17 +162,18 @@ currently in the database back out to a YAML file.
 ## Documentation
 
 Full guides live in [docs/](docs/README.md): getting started, the configuration and CLI
-references, feeds and scraping, analysis and scoring, LLM providers, digests, publishing,
-and deployment.
+references, feeds and scraping, analysis and scoring, profiles, LLM providers, digests,
+publishing, and deployment.
 
 ## Configuration
 
-Downlink reads configuration from three sources. Copy the bundled examples and
+Downlink reads configuration from these sources. Copy the bundled examples and
 fill in your values:
 
 ```sh
 cp config.example.json config.json # LLM providers, analysis, notifications
 cp feeds.example.yml feeds.yml # feed sources and per-feed scraping rules
+cp profiles.example.yml profiles.yml # optional: multiple editorial profiles
 cp .env.example .env # runtime/env overrides
 ```
 
@@ -182,6 +183,8 @@ cp .env.example .env # runtime/env overrides
   [config.example.json](config.example.json).
 - **`feeds.yml`** the list of feeds with per-feed scraping strategy, CSS selectors,
   triggers, blacklists, and custom HTTP headers. See [feeds.example.yml](feeds.example.yml).
+- **`profiles.yml`** optional editorial profiles, each with its own feed subset, editorial
+  config, and presentation. Applied at startup. See [docs/profiles.md](docs/profiles.md).
 - **`.env`** every server flag has a `DOWNLINK_*` env var equivalent
   (loaded automatically via Viper). See [.env.example](.env.example). Precedence: CLI flag -> env variables/`.env`
   -> `config.json` -> default.

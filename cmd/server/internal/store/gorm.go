@@ -115,6 +115,7 @@ func (s *GormStore) initSchema() error {
 		&models.Category{},
 		&models.Tag{},
 		&models.Feed{},
+		&models.FeedTopic{},
 		&models.Article{},
 		&models.RelatedArticle{},
 		&models.Digest{},
@@ -181,33 +182,22 @@ func (s *GormStore) seedDefaultProfile() error {
 		return nil
 	}
 
-	// Build the default profile's editorial from the current global config.
+	// The default profile stores an EMPTY editorial on purpose: an empty editorial
+	// inherits the live global AnalysisConfig at resolve time (see
+	// services.ResolveEditorial), so the default profile keeps tracking config.json
+	// changes instead of freezing a snapshot taken at migration time.
 	// config.Config can be nil when the store is opened outside the server (e.g.
-	// tests via store.New); fall back to zero values in that case.
-	editorial := models.ProfileEditorial{}
+	// tests via store.New); fall back to zero values for the presentation fields.
 	layout := "default"
 	outputSubdir := ""
 	if config.Config != nil {
-		a := config.Config.Analysis
-		glossary, vibe := a.Glossary, a.VibeScore
-		std, comp, exec := a.StandardSynthesis, a.ComprehensiveSynthesis, a.ExecutiveSummary
-		editorial = models.ProfileEditorial{
-			Provider:               a.Provider,
-			Persona:                a.Persona,
-			WritingStyle:           a.WritingStyle,
-			Glossary:               &glossary,
-			VibeScore:              &vibe,
-			StandardSynthesis:      &std,
-			ComprehensiveSynthesis: &comp,
-			ExecutiveSummary:       &exec,
-		}
 		if l := config.Config.Notifications.GitHubPages.Layout; l != "" {
 			layout = l
 		}
 		outputSubdir = config.Config.Notifications.GitHubPages.OutputDir
 	}
 
-	editorialJSON, err := json.Marshal(&editorial)
+	editorialJSON, err := json.Marshal(&models.ProfileEditorial{})
 	if err != nil {
 		return fmt.Errorf("failed to marshal default profile editorial: %w", err)
 	}

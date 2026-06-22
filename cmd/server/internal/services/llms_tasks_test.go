@@ -3,6 +3,8 @@ package services
 import (
 	"strings"
 	"testing"
+
+	"github.com/ma111e/downlink/pkg/models"
 )
 
 // lastTaskName returns the name of the final task in the pipeline, which is the
@@ -14,14 +16,24 @@ func lastTaskName(tasks []analysisTask) string {
 	return tasks[len(tasks)-1].name
 }
 
+// edFlags builds an EffectiveEditorial exercising only the task-gating flags.
+func edFlags(vibe, glossary, standard, comprehensive bool) EffectiveEditorial {
+	return EffectiveEditorial{
+		VibeScore:              vibe,
+		Glossary:               glossary,
+		StandardSynthesis:      standard,
+		ComprehensiveSynthesis: comprehensive,
+	}
+}
+
 func TestGetAnalysisTasksScoringMode(t *testing.T) {
 	const contentLen = 2000 // > 1000 so summaries task is included too
 
-	if got := lastTaskName(getAnalysisTasks(contentLen, false, false, false, false, false)); got != "rubric" {
+	if got := lastTaskName(getAnalysisTasks(contentLen, false, edFlags(false, false, false, false))); got != "rubric" {
 		t.Errorf("rubric mode: last task = %q, want \"rubric\"", got)
 	}
 
-	if got := lastTaskName(getAnalysisTasks(contentLen, false, true, false, false, false)); got != "importance" {
+	if got := lastTaskName(getAnalysisTasks(contentLen, false, edFlags(true, false, false, false))); got != "importance" {
 		t.Errorf("vibe mode: last task = %q, want \"importance\"", got)
 	}
 }
@@ -37,14 +49,14 @@ func TestGetAnalysisTasksGlossaryMode(t *testing.T) {
 		return m
 	}
 
-	if names(getAnalysisTasks(contentLen, false, false, false, false, false))["glossary"] {
+	if names(getAnalysisTasks(contentLen, false, edFlags(false, false, false, false)))["glossary"] {
 		t.Error("glossary disabled: glossary task should not be present")
 	}
-	if !names(getAnalysisTasks(contentLen, false, false, true, false, false))["glossary"] {
+	if !names(getAnalysisTasks(contentLen, false, edFlags(false, true, false, false)))["glossary"] {
 		t.Error("glossary enabled: glossary task should be present")
 	}
 	// The scoring task must still come last regardless of glossary mode.
-	if got := lastTaskName(getAnalysisTasks(contentLen, false, false, true, false, false)); got != "rubric" {
+	if got := lastTaskName(getAnalysisTasks(contentLen, false, edFlags(false, true, false, false))); got != "rubric" {
 		t.Errorf("glossary enabled: last task = %q, want \"rubric\"", got)
 	}
 }
@@ -62,10 +74,10 @@ func TestGetAnalysisTasksAlwaysIncludesPlainWords(t *testing.T) {
 	}
 
 	// plain_words is a core, always-on task regardless of mode flags.
-	if !has(getAnalysisTasks(contentLen, false, false, false, false, false), "plain_words") {
+	if !has(getAnalysisTasks(contentLen, false, edFlags(false, false, false, false)), "plain_words") {
 		t.Error("plain_words task should always be present (rubric mode)")
 	}
-	if !has(getAnalysisTasks(contentLen, false, true, false, false, false), "plain_words") {
+	if !has(getAnalysisTasks(contentLen, false, edFlags(true, false, false, false)), "plain_words") {
 		t.Error("plain_words task should always be present (vibe mode)")
 	}
 }
@@ -74,7 +86,7 @@ func TestGetAnalysisTasksSummaryLevels(t *testing.T) {
 	const contentLen = 2000 // > 1000 so the summaries task is included
 
 	summariesSchema := func(standard, comprehensive bool) string {
-		for _, task := range getAnalysisTasks(contentLen, false, false, false, standard, comprehensive) {
+		for _, task := range getAnalysisTasks(contentLen, false, edFlags(false, false, standard, comprehensive)) {
 			if task.name == "summaries" {
 				return task.schema
 			}
@@ -109,9 +121,26 @@ func TestGetAnalysisTasksSummaryLevels(t *testing.T) {
 func TestGetAnalysisTasksFastModeUnaffectedByVibe(t *testing.T) {
 	// Fast mode only extracts key_points and has no scoring task regardless of vibe.
 	for _, vibe := range []bool{false, true} {
-		tasks := getAnalysisTasks(2000, true, vibe, true, false, false)
+		tasks := getAnalysisTasks(2000, true, edFlags(vibe, true, false, false))
 		if len(tasks) != 1 || tasks[0].name != "key_points" {
 			t.Errorf("fast mode (vibe=%v): got %d tasks, want single key_points task", vibe, len(tasks))
 		}
+	}
+}
+
+// TestCategorizeTaskCustomCategories verifies a profile's category set drives
+// the categorize prompt + schema, while no categories keeps the default task.
+func TestCategorizeTaskCustomCategories(t *testing.T) {
+	def := categorizeTask(nil)
+	if !strings.Contains(def.schema, "news|research|advisory") {
+		t.Errorf("default categorize schema lost its enum: %s", def.schema)
+	}
+
+	custom := categorizeTask([]models.CategoryDef{{Name: "alert"}, {Name: "briefing", Description: "longer reads"}})
+	if !strings.Contains(custom.schema, "alert|briefing") {
+		t.Errorf("custom categorize schema = %s, want alert|briefing enum", custom.schema)
+	}
+	if !strings.Contains(custom.instruction, "- briefing: longer reads") {
+		t.Errorf("custom categorize instruction missing described category: %s", custom.instruction)
 	}
 }

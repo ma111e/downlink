@@ -78,6 +78,7 @@ type GenerateDigestOptions struct {
 	ExecutiveSummary       *bool  // When non-nil, overrides the server's executive_summary config for this run
 	Provider               string // Provider override (type or profile name, auto-detected by the server)
 	Model                  string // Model override; with empty Provider the server resolves the matching provider
+	ProfileSlug            string // Editorial profile to generate for; empty = "default"
 	OnEvent                func(*protos.DigestProgressEvent)
 }
 
@@ -117,6 +118,7 @@ func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options
 		ExecutiveSummary:       options.ExecutiveSummary,
 		Provider:               options.Provider,
 		Model:                  options.Model,
+		ProfileSlug:            options.ProfileSlug,
 	})
 	if err != nil {
 		return models.Digest{}, err

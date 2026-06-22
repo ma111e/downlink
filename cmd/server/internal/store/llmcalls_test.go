@@ -11,7 +11,7 @@ import (
 func TestRecordLLMCallRoundTrip(t *testing.T) {
 	s := newTestStore(t)
 
-	if err := s.StartLLMRun("run-1", time.Now()); err != nil {
+	if err := s.StartLLMRun("run-1", "default", time.Now()); err != nil {
 		t.Fatalf("StartLLMRun() error = %v", err)
 	}
 
@@ -63,8 +63,8 @@ func TestListLLMRunSummaries(t *testing.T) {
 	now := time.Now()
 	ac := 6
 	_ = s.StoreDigest(models.Digest{Id: "digest-xyz", ArticleCount: &ac})
-	_ = s.StartLLMRun("run-a", now.Add(-2*time.Hour))
-	_ = s.StartLLMRun("run-b", now.Add(-1*time.Hour))
+	_ = s.StartLLMRun("run-a", "default", now.Add(-2*time.Hour))
+	_ = s.StartLLMRun("run-b", "default", now.Add(-1*time.Hour))
 	_ = s.LinkLLMRunToDigest("run-b", "digest-xyz", "Daily Brief")
 
 	for i := 0; i < 3; i++ {
@@ -72,7 +72,7 @@ func TestListLLMRunSummaries(t *testing.T) {
 	}
 	_ = s.RecordLLMCall(LLMCallInput{RunID: "run-a", PromptTokens: 40, CompletionTokens: 10, TotalTokens: 50, TokensKnown: true})
 
-	summaries, err := s.ListLLMRunSummaries(10)
+	summaries, err := s.ListLLMRunSummaries(10, "")
 	if err != nil {
 		t.Fatalf("ListLLMRunSummaries() error = %v", err)
 	}
@@ -111,7 +111,7 @@ func TestPruneLLMRuns(t *testing.T) {
 	base := time.Now().Add(-10 * time.Hour)
 	for i := 0; i < 5; i++ {
 		id := string(rune('a' + i))
-		_ = s.StartLLMRun("run-"+id, base.Add(time.Duration(i)*time.Hour))
+		_ = s.StartLLMRun("run-"+id, "default", base.Add(time.Duration(i)*time.Hour))
 		_ = s.RecordLLMCall(LLMCallInput{RunID: "run-" + id, TotalTokens: 10})
 	}
 
@@ -119,7 +119,7 @@ func TestPruneLLMRuns(t *testing.T) {
 		t.Fatalf("PruneLLMRuns() error = %v", err)
 	}
 
-	summaries, err := s.ListLLMRunSummaries(10)
+	summaries, err := s.ListLLMRunSummaries(10, "")
 	if err != nil {
 		t.Fatalf("ListLLMRunSummaries() error = %v", err)
 	}

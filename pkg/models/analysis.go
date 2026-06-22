@@ -25,12 +25,15 @@ type ReferencedReport struct {
 // by the glossary-mode analysis task to help newcomers familiarize themselves with
 // the terminology used in an article. Type is the semantic category (see the
 // GlossaryCategory* constants); Context is a one-sentence explanation of why the term
-// matters in this specific article (per-occurrence, not global).
+// matters in this specific article (per-occurrence, not global). Aliases are other
+// surface forms the article uses for the same thing (variant phrasings, abbreviations,
+// expansions) so each resolves to the one definition when highlighted.
 type GlossaryTerm struct {
-	Term       string `json:"term"`
-	Type       string `json:"type"`
-	Definition string `json:"definition"`
-	Context    string `json:"context"`
+	Term       string   `json:"term"`
+	Aliases    []string `json:"aliases,omitempty"`
+	Type       string   `json:"type"`
+	Definition string   `json:"definition"`
+	Context    string   `json:"context"`
 }
 
 // ArticleAnalysis represents an analysis result from an LLM provider for an article
@@ -107,7 +110,7 @@ func (a *ArticleAnalysis) BeforeCreate(tx *gorm.DB) error {
 		a.ScoreDimensionsJson = string(scoreDimensionsBytes)
 	}
 
-	if len(a.GlossaryTerms) > 0 {
+	if a.GlossaryTerms != nil {
 		glossaryTermsBytes, err := json.Marshal(a.GlossaryTerms)
 		if err != nil {
 			return err

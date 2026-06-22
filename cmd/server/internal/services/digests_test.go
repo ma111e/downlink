@@ -26,7 +26,7 @@ func TestBuildDigestSummaryPromptIncludesWindowAndArticles(t *testing.T) {
 		},
 	}
 
-	prompt := buildDigestSummaryPrompt(analyses, articleMap, windowStart, windowEnd, true)
+	prompt := buildDigestSummaryPrompt(analyses, articleMap, windowStart, windowEnd, true, EffectiveEditorial{})
 
 	wantSubstrings := []string{
 		"Digest coverage window",

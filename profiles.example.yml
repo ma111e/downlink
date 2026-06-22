@@ -1,0 +1,78 @@
+# profiles.example.yml — copy to profiles.yml to define editorial profiles.
+#
+# A profile is a curated, public view of the shared article pool: it selects a
+# subset of feeds, analyzes them with its own editorial config, produces its own
+# digests, and renders with its own layout/theme. Feeds and articles stay global
+# (fetched once); a profile only changes selection, analysis, and presentation.
+#
+# This file is applied to the database when the server starts (path configurable
+# via --profiles-file). The store always seeds a "default" profile that inherits
+# the live global `analysis` config from config.json, so the system works with
+# no profiles.yml at all; that default IS your current single-tenant setup.
+#
+# A profile selects feeds by topic: tag feeds with `topics:` in feeds.yml, then
+# list those topics here. Membership is (feeds with ANY of `topics`) plus the
+# explicit `feeds:` URLs, minus `exclude_feeds:`. A profile with no topics and no
+# `feeds:` gets every enabled feed.
+#
+# Every editorial field is OPTIONAL: anything you omit inherits the global
+# config.json `analysis` settings (and the built-in rubric/categories/prompts).
+
+profiles:
+  # A sysadmin/network engineer profile: operational focus, patch-first mindset.
+  - slug: neteng              # URL-safe id; also the default output subdir
+    name: "Network Engineer Brief"
+    description: "Infrastructure security news for network engineers."
+    icon: "🖥️"
+    layout: default           # template set under templates/<layout>/
+    theme: light              # default color palette (digestthemes)
+    enabled: true
+    sort_order: 0
+    topics: [news, threat-intel]   # every feed tagged with ANY of these
+    editorial:
+      persona: "You are a senior sysadmin writing for infrastructure and network engineers."
+      writing_style: "Direct and operational. Lead with impact and remediation steps."
+      audience: "network engineers responsible for patching and hardening"
+      standard_synthesis: true       # include the medium-length summary
+      executive_summary: true        # include the digest-level overview
+
+  # A red-team profile: terse, technical, weights novelty/actionability higher,
+  # uses its own category set and overrides one task prompt.
+  - slug: red-team
+    name: "Offensive Brief"
+    description: "Exploitation, tooling, and TTPs for operators."
+    icon: "🎯"
+    layout: default
+    theme: dark
+    enabled: true
+    sort_order: 1
+    topics: [threat-intel, exploit]   # feeds tagged threat-intel OR exploit
+    feeds:                            # explicit include: always in this pool
+      - https://specific.example/feed
+    exclude_feeds:                    # explicit exclude: always dropped
+      - https://noisy.example/feed
+    editorial:
+      persona: "You are a red-team operator. Be terse and technical."
+      audience: "penetration testers and red teamers"
+      # Custom importance rubric: emphasize novelty + actionability, and a more
+      # lenient must/should/may banding. Omitted weights keep their defaults.
+      rubric:
+        weights:
+          novelty: 0.20
+          actionability: 0.25
+          severity: 0.20
+          specificity: 0.15
+          breadth: 0.10
+          credibility: 0.10
+        tiers: { must: 80, should: 60, may: 40 }
+      # Custom category taxonomy (replaces the default news/research/... set).
+      categories:
+        - { name: exploit, description: "working exploit, PoC, or active exploitation" }
+        - { name: tooling, description: "offensive tools and frameworks" }
+        - { name: technique, description: "TTPs, tradecraft, evasion" }
+        - { name: intel, description: "everything else worth knowing" }
+      # Raw per-task prompt override. The output JSON schema and required keys are
+      # NOT overridable, so result validation and corrective re-prompts still apply.
+      prompts:
+        tasks:
+          tldr: "In one blunt sentence: what can an operator do with this?"

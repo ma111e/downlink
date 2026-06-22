@@ -8,7 +8,7 @@ it over gRPC.
 | Port | Purpose |
 |---|---|
 | `50051` | gRPC API (the `dlk` client connects here). |
-| `65261` | Atom feed export of analyzed articles. |
+| `127.0.0.1:65262` | LLM monitoring dashboard (`--admin-port`); localhost only, no auth. |
 
 ## Docker
 
@@ -45,31 +45,14 @@ Prefer environment variables for secrets and host-specific values; they override
 come from `DOWNLINK_GH_PAGES_TOKEN`. See [configuration.md](configuration.md) for the full
 variable list and precedence.
 
-## Atom feed export
+If you run [profiles](profiles.md), ship `profiles.yml` next to the binary (and a `layouts/`
+directory for any custom layout packs); both are read at startup, so restart after editing.
 
-Alongside the gRPC API, the server exposes analyzed articles as Atom feeds over HTTP on
-`:65261`, so you can read them in any feed reader:
+## Monitoring
 
-| Path | Returns |
-|---|---|
-| `/` | HTML index linking every feed. |
-| `/feeds/<feed-name>` | Atom XML of that feed's articles. The name is the normalized feed title (lowercase, spaces to hyphens). |
-
-```sh
-curl http://localhost:65261/                       # list feeds
-curl http://localhost:65261/feeds/the-hacker-news  # one feed as Atom
-```
-
-The port is fixed. Expose it (or put it behind a reverse proxy) only if you want the
-feeds reachable beyond the host.
-
-By default the index links and each feed's self-link are root-relative (`/feeds/<name>`),
-and article links pass through from the source feed. When the export sits behind a reverse
-proxy or public host, set `feed_base_url` (config.json) or `DOWNLINK_FEED_BASE_URL` /
-`--feed-base-url` to that public base, e.g. `https://feeds.example.com`. The server then
-emits absolute links and resolves relative article links against it. When `feed_base_url`
-is unset it falls back to `notifications.github_pages.base_url`. See
-[configuration.md](configuration.md) for precedence.
+The server serves a read-only LLM monitoring dashboard on `127.0.0.1:<--admin-port>`
+(default `65262`): recent generation runs with token totals and per-run prompt/response
+detail. Filter to one profile's runs with `?profile=<slug>`.
 
 ## Scheduling digests
 

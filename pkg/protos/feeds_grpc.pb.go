@@ -20,16 +20,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FeedsService_ListFeeds_FullMethodName       = "/downlink.FeedsService/ListFeeds"
-	FeedsService_RegisterFeed_FullMethodName    = "/downlink.FeedsService/RegisterFeed"
-	FeedsService_RefreshAllFeeds_FullMethodName = "/downlink.FeedsService/RefreshAllFeeds"
-	FeedsService_RefreshFeed_FullMethodName     = "/downlink.FeedsService/RefreshFeed"
-	FeedsService_InspectFeed_FullMethodName     = "/downlink.FeedsService/InspectFeed"
-	FeedsService_InspectArticle_FullMethodName  = "/downlink.FeedsService/InspectArticle"
-	FeedsService_AutoConfigFeed_FullMethodName  = "/downlink.FeedsService/AutoConfigFeed"
-	FeedsService_DeleteFeed_FullMethodName      = "/downlink.FeedsService/DeleteFeed"
-	FeedsService_ApplyFeeds_FullMethodName      = "/downlink.FeedsService/ApplyFeeds"
-	FeedsService_DeleteFeeds_FullMethodName     = "/downlink.FeedsService/DeleteFeeds"
+	FeedsService_ListFeeds_FullMethodName          = "/downlink.FeedsService/ListFeeds"
+	FeedsService_RegisterFeed_FullMethodName       = "/downlink.FeedsService/RegisterFeed"
+	FeedsService_RefreshAllFeeds_FullMethodName    = "/downlink.FeedsService/RefreshAllFeeds"
+	FeedsService_RefreshFeed_FullMethodName        = "/downlink.FeedsService/RefreshFeed"
+	FeedsService_InspectFeed_FullMethodName        = "/downlink.FeedsService/InspectFeed"
+	FeedsService_InspectArticle_FullMethodName     = "/downlink.FeedsService/InspectArticle"
+	FeedsService_AutoConfigFeed_FullMethodName     = "/downlink.FeedsService/AutoConfigFeed"
+	FeedsService_DeleteFeed_FullMethodName         = "/downlink.FeedsService/DeleteFeed"
+	FeedsService_ApplyFeeds_FullMethodName         = "/downlink.FeedsService/ApplyFeeds"
+	FeedsService_DeleteFeeds_FullMethodName        = "/downlink.FeedsService/DeleteFeeds"
+	FeedsService_BackfillFeedTopics_FullMethodName = "/downlink.FeedsService/BackfillFeedTopics"
 )
 
 // FeedsServiceClient is the client API for FeedsService service.
@@ -62,6 +63,10 @@ type FeedsServiceClient interface {
 	ApplyFeeds(ctx context.Context, in *ApplyFeedsRequest, opts ...grpc.CallOption) (*ApplyFeedsResponse, error)
 	// DeleteFeeds removes the given feeds (by id) from the database
 	DeleteFeeds(ctx context.Context, in *DeleteFeedsRequest, opts ...grpc.CallOption) (*DeleteFeedsResponse, error)
+	// BackfillFeedTopics derives topic labels for the given feeds via the LLM,
+	// streaming one event per feed. Read-only: it returns suggestions, the caller
+	// writes them back to feeds.yml.
+	BackfillFeedTopics(ctx context.Context, in *BackfillFeedTopicsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[BackfillFeedTopicsEvent], error)
 }
 
 type feedsServiceClient struct {
@@ -190,6 +195,25 @@ func (c *feedsServiceClient) DeleteFeeds(ctx context.Context, in *DeleteFeedsReq
 	return out, nil
 }
 
+func (c *feedsServiceClient) BackfillFeedTopics(ctx context.Context, in *BackfillFeedTopicsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[BackfillFeedTopicsEvent], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &FeedsService_ServiceDesc.Streams[2], FeedsService_BackfillFeedTopics_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[BackfillFeedTopicsRequest, BackfillFeedTopicsEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type FeedsService_BackfillFeedTopicsClient = grpc.ServerStreamingClient[BackfillFeedTopicsEvent]
+
 // FeedsServiceServer is the server API for FeedsService service.
 // All implementations must embed UnimplementedFeedsServiceServer
 // for forward compatibility.
@@ -220,6 +244,10 @@ type FeedsServiceServer interface {
 	ApplyFeeds(context.Context, *ApplyFeedsRequest) (*ApplyFeedsResponse, error)
 	// DeleteFeeds removes the given feeds (by id) from the database
 	DeleteFeeds(context.Context, *DeleteFeedsRequest) (*DeleteFeedsResponse, error)
+	// BackfillFeedTopics derives topic labels for the given feeds via the LLM,
+	// streaming one event per feed. Read-only: it returns suggestions, the caller
+	// writes them back to feeds.yml.
+	BackfillFeedTopics(*BackfillFeedTopicsRequest, grpc.ServerStreamingServer[BackfillFeedTopicsEvent]) error
 	mustEmbedUnimplementedFeedsServiceServer()
 }
 
@@ -259,6 +287,9 @@ func (UnimplementedFeedsServiceServer) ApplyFeeds(context.Context, *ApplyFeedsRe
 }
 func (UnimplementedFeedsServiceServer) DeleteFeeds(context.Context, *DeleteFeedsRequest) (*DeleteFeedsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteFeeds not implemented")
+}
+func (UnimplementedFeedsServiceServer) BackfillFeedTopics(*BackfillFeedTopicsRequest, grpc.ServerStreamingServer[BackfillFeedTopicsEvent]) error {
+	return status.Error(codes.Unimplemented, "method BackfillFeedTopics not implemented")
 }
 func (UnimplementedFeedsServiceServer) mustEmbedUnimplementedFeedsServiceServer() {}
 func (UnimplementedFeedsServiceServer) testEmbeddedByValue()                      {}
@@ -447,6 +478,17 @@ func _FeedsService_DeleteFeeds_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FeedsService_BackfillFeedTopics_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(BackfillFeedTopicsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(FeedsServiceServer).BackfillFeedTopics(m, &grpc.GenericServerStream[BackfillFeedTopicsRequest, BackfillFeedTopicsEvent]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type FeedsService_BackfillFeedTopicsServer = grpc.ServerStreamingServer[BackfillFeedTopicsEvent]
+
 // FeedsService_ServiceDesc is the grpc.ServiceDesc for FeedsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -496,6 +538,11 @@ var FeedsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "AutoConfigFeed",
 			Handler:       _FeedsService_AutoConfigFeed_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "BackfillFeedTopics",
+			Handler:       _FeedsService_BackfillFeedTopics_Handler,
 			ServerStreams: true,
 		},
 	},

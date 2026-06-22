@@ -93,6 +93,18 @@ func (m *FeedManager) SuggestSelectors(rawURL, mode string, headers map[string]s
 	return out, nil
 }
 
+// ArticleMainText scrapes a page in the given mode and returns the plain text of its
+// most likely article-body element (the top SuggestSelectors candidate). It backs the
+// feed-content check, which matches a feed entry against the real page to decide
+// whether the body is already fully in the feed. Read-only; stores nothing.
+func (m *FeedManager) ArticleMainText(rawURL, mode string, headers map[string]string) (string, error) {
+	dom, err := m.scrapeArticleDOM(rawURL, mode, headers)
+	if err != nil {
+		return "", err
+	}
+	return scrapers.MainContentText(dom), nil
+}
+
 // scrapeArticleDOM fetches an article page in the given mode and returns its DOM.
 // It centralizes the static/dynamic/full_browser dispatch so both FetchFeed-style
 // scraping and the inspect path share one definition of each mode.

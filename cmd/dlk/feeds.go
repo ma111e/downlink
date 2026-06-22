@@ -196,6 +196,14 @@ var (
 	exportOutput      string
 	exportEnabledOnly bool
 
+	// backfill-topics flags
+	backfillFile      string
+	backfillOverwrite bool
+	backfillDryRun    bool
+	backfillYes       bool
+	backfillProvider  string
+	backfillModel     string
+
 	// diagnose flags
 	diagnoseRaw bool
 )
@@ -704,6 +712,7 @@ matching the title. Deleting a feed also removes its articles.`,
 					URL:     f.URL,
 					Title:   f.Title,
 					Enabled: enabled,
+					Topics:  f.Topics,
 					Scraper: scraperConfigFromMap(f.Type, f.Scraper),
 				})
 			}
@@ -786,7 +795,113 @@ Examples:
 	}
 	diagnoseCmd.Flags().BoolVar(&diagnoseRaw, "raw", false, "Also print the saved raw body path and a preview")
 
-	cmd.AddCommand(listCmd, addCmd, refreshCmd, applyCmd, deleteCmd, exportCmd, diagnoseCmd)
+	backfillTopicsCmd := &cobra.Command{
+		Use:   "backfill-topics",
+		Short: "Fill in feed topics with the LLM",
+		Long: `Derive topic labels for the feeds in a feeds YAML file via the LLM and write
+them back. By default only feeds without topics are labelled; pass --overwrite to redo all.
+Topics prefer the vocabulary already in use so they stay consistent (profiles select feeds
+by topic). The file is updated in place unless --dry-run.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			ff, err := loadFeedsFile(backfillFile)
+			if err != nil {
+				fmt.Printf("%s %v\n", styleErr.Render("✗"), err)
+				return
+			}
+
+			// Targets: feeds missing topics (or all with --overwrite). Seed the
+			// known vocabulary from every topic already in the file.
+			var targets []*protos.FeedTopicTarget
+			known := map[string]struct{}{}
+			for _, f := range ff.Feeds {
+				for _, t := range f.Topics {
+					known[t] = struct{}{}
+				}
+				if backfillOverwrite || len(f.Topics) == 0 {
+					targets = append(targets, &protos.FeedTopicTarget{Url: f.URL, Title: f.Title})
+				}
+			}
+			if len(targets) == 0 {
+				fmt.Println(styleDim.Render("Every feed already has topics; nothing to backfill (use --overwrite to redo)."))
+				return
+			}
+			knownTopics := make([]string, 0, len(known))
+			for t := range known {
+				knownTopics = append(knownTopics, t)
+			}
+
+			client := getNewDownlinkClient()
+			results := map[string][]string{}
+			fmt.Println(styleSection.Render(fmt.Sprintf("── backfilling topics for %d feed(s) ──", len(targets))))
+			err = client.BackfillFeedTopics(&protos.BackfillFeedTopicsRequest{
+				Feeds:       targets,
+				KnownTopics: knownTopics,
+				Provider:    backfillProvider,
+				Model:       backfillModel,
+			}, func(ev *protos.BackfillFeedTopicsEvent) {
+				prefix := styleDim.Render(fmt.Sprintf("%d/%d", ev.Index, ev.Total))
+				if ev.Error != "" {
+					fmt.Printf("  %s %s %s\n", prefix, ev.Url, styleWarn.Render(ev.Error))
+					return
+				}
+				results[ev.Url] = ev.Topics
+				fmt.Printf("  %s %s %s %s\n", prefix, ev.Url, styleKey.Render("→"), strings.Join(ev.Topics, ", "))
+			})
+			if err != nil {
+				fmt.Printf("Failed to backfill topics: %v\n", err)
+				return
+			}
+			if len(results) == 0 {
+				fmt.Println(styleWarn.Render("No topics were derived."))
+				return
+			}
+
+			// Merge results into the file (never blank a feed; never touch existing
+			// topics unless --overwrite).
+			changed := 0
+			for i := range ff.Feeds {
+				topics, ok := results[ff.Feeds[i].URL]
+				if !ok || len(topics) == 0 {
+					continue
+				}
+				if !backfillOverwrite && len(ff.Feeds[i].Topics) > 0 {
+					continue
+				}
+				if equalStringSlices(ff.Feeds[i].Topics, topics) {
+					continue
+				}
+				ff.Feeds[i].Topics = topics
+				changed++
+			}
+
+			if backfillDryRun {
+				fmt.Printf("%s would update topics on %d feed(s) in %s\n", styleWarn.Render("DRY RUN:"), changed, backfillFile)
+				return
+			}
+			if changed == 0 {
+				fmt.Println(styleDim.Render("No changes to write."))
+				return
+			}
+			if !confirmMerge(fmt.Sprintf("Write topics for %d feed(s) to %s?", changed, backfillFile), backfillYes) {
+				fmt.Println("Cancelled.")
+				return
+			}
+			if err := writeFeedsFile(backfillFile, ff); err != nil {
+				fmt.Printf("%s %v\n", styleErr.Render("✗"), err)
+				return
+			}
+			fmt.Printf("%s updated topics on %d feed(s) in %s\n", styleOK.Render("✓"), changed, backfillFile)
+		},
+	}
+	backfillTopicsCmd.Flags().StringVarP(&backfillFile, "file", "f", "", "Path to feeds YAML file (required)")
+	backfillTopicsCmd.Flags().BoolVar(&backfillOverwrite, "overwrite", false, "Re-derive topics for every feed, not just those without any")
+	backfillTopicsCmd.Flags().BoolVar(&backfillDryRun, "dry-run", false, "Show proposed topics without writing the file")
+	backfillTopicsCmd.Flags().BoolVarP(&backfillYes, "yes", "y", false, "Skip the confirmation prompt")
+	backfillTopicsCmd.Flags().StringVarP(&backfillProvider, "provider", "p", "", "LLM provider (type or configured provider name)")
+	backfillTopicsCmd.Flags().StringVarP(&backfillModel, "model", "m", "", "LLM model override")
+	_ = backfillTopicsCmd.MarkFlagRequired("file")
+
+	cmd.AddCommand(listCmd, addCmd, refreshCmd, applyCmd, deleteCmd, exportCmd, diagnoseCmd, backfillTopicsCmd)
 	cmd.AddCommand(createFeedBuildCommands()...)
 	return cmd
 }

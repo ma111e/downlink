@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/ma111e/downlink/cmd/server/internal/config"
 	"github.com/ma111e/downlink/cmd/server/internal/notification"
 	"github.com/ma111e/downlink/cmd/server/internal/store"
@@ -136,14 +137,35 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		return s.sendNotificationTestDigest(req, stream)
 	}
 
-	log.Info("Generating digest from recent articles")
+	// Resolve the editorial profile this digest is generated for. An empty slug
+	// means the "default" profile (which inherits the live global config). Every
+	// downstream step — article selection, analysis, dedupe, summary, storage —
+	// is scoped to this profile.
+	profileSlug := req.GetProfileSlug()
+	if profileSlug == "" {
+		profileSlug = defaultProfileId
+	}
+	profile, err := store.Db.GetProfile(profileSlug)
+	if err != nil {
+		_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: fmt.Sprintf("unknown profile %q: %v", profileSlug, err)})
+		return fmt.Errorf("failed to load profile %q: %w", profileSlug, err)
+	}
+	ded := resolveDigestEditorial(req, profile)
+	// The effective provider/model: an explicit run override wins, otherwise the
+	// profile's (or global) configured provider drives all LLM steps of this run.
+	effProvider, effModel := req.Provider, req.Model
+	if effProvider == "" {
+		effProvider, effModel = ded.Provider, ded.Model
+	}
+
+	log.WithField("profile", profile.Id).Info("Generating digest from recent articles")
 
 	// Start a monitoring run before any LLM work: every gateway call made under
 	// this ctx is recorded against runID for the LLM monitor page. The digest id
 	// (linked below) does not exist yet, so the run has its own id.
 	runID := generateRunId(time.Now())
 	ctx = llmgateway.WithRunID(ctx, runID)
-	if err := store.Db.StartLLMRun(runID, time.Now()); err != nil {
+	if err := store.Db.StartLLMRun(runID, profile.Id, time.Now()); err != nil {
 		log.WithError(err).Warn("failed to start LLM monitor run")
 	}
 	defer func() {
@@ -164,7 +186,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 
 	// Fetch articles
 	sendProgress(stream, "fetch", "fetching articles...", 0, 0)
-	articles, err := s.getRecentArticles(windowStart, &windowEnd, req.ExcludeDigested)
+	articles, err := s.getRecentArticles(windowStart, &windowEnd, req.ExcludeDigested, profile.Id)
 	if err != nil {
 		_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: fmt.Sprintf("failed to get recent articles: %v", err)})
 		return fmt.Errorf("failed to get recent articles: %w", err)
@@ -187,7 +209,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		for i, a := range articles {
 			articleIds[i] = a.Id
 		}
-		analysisMap, err := store.Db.GetArticleAnalysesBatch(articleIds, "")
+		analysisMap, err := store.Db.GetArticleAnalysesBatch(articleIds, profile.Id)
 		if err != nil {
 			log.WithError(err).Warn("Failed to batch fetch analyses for skip_analysis mode")
 		} else {
@@ -227,7 +249,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 				_ = stream.Send(ev)
 			}
 		}
-		analyses, analysisErrors, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, req.ReanalyzeOnModelChange, req.Reanalyze, req.VibeScore, req.Glossary, req.StandardSynthesis, req.ComprehensiveSynthesis, req.Provider, req.Model, onAnalysisStart, onTaskProgress)
+		analyses, analysisErrors, err = s.ensureArticlesAnalyzed(ctx, articles, req.OneShotAnalysis, req.ReanalyzeOnModelChange, req.Reanalyze, req.VibeScore, req.Glossary, req.StandardSynthesis, req.ComprehensiveSynthesis, effProvider, effModel, profile.Id, onAnalysisStart, onTaskProgress)
 		if err != nil {
 			if cancelled(stream) {
 				return ctx.Err()
@@ -271,7 +293,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		groupingResult = &duplicateGroupingResult{}
 	} else {
 		sendProgress(stream, "dedupe", "identifying duplicate articles...", 0, 0)
-		groupingResult, rawResponse, err = s.identifyDuplicates(ctx, analyses, articleMap, req.Provider, req.Model)
+		groupingResult, rawResponse, err = s.identifyDuplicates(ctx, analyses, articleMap, effProvider, effModel, ded)
 		if err != nil {
 			_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: fmt.Sprintf("failed to identify duplicates: %v", err)})
 			return fmt.Errorf("failed to identify duplicates: %w", err)
@@ -282,9 +304,9 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	// Step 3: Generate digest title (always) and optional executive summary
 	var digestTitle, digestSummary string
 	var summaryProviderType, summaryModelName string
-	withSummary := executiveSummaryEnabled(req.ExecutiveSummary)
+	withSummary := ded.ExecutiveSummary
 	sendProgress(stream, "summarize", "generating digest title...", 0, 0)
-	digestTitle, digestSummary, summaryProviderType, summaryModelName, err = s.generateDigestSummary(ctx, analyses, articleMap, windowStart, windowEnd, req.Provider, req.Model, withSummary)
+	digestTitle, digestSummary, summaryProviderType, summaryModelName, err = s.generateDigestSummary(ctx, analyses, articleMap, windowStart, windowEnd, effProvider, effModel, withSummary, ded)
 	if err != nil {
 		log.WithError(err).Warn("Failed to generate digest title/summary, continuing without it")
 	} else {
@@ -302,6 +324,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	zero := 0
 	digest := models.Digest{
 		Id:                  generateDigestId(now),
+		ProfileId:           profile.Id,
 		CreatedAt:           windowStart,
 		ArticleCount:        &zero, // StoreDigestArticlesBatch will increment to the real count
 		TimeWindow:          windowDuration,
@@ -325,7 +348,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	providerType := summaryProviderType
 	modelName := summaryModelName
 	if providerType == "" {
-		if ap, apErr := findEnabledProviderByName(config.Config.Analysis.Provider); apErr == nil {
+		if ap, apErr := findEnabledProviderByName(ded.Provider); apErr == nil {
 			providerType = ap.ProviderType
 			modelName = ap.ModelName
 		}
@@ -363,9 +386,9 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	// Step 6: Populate the persistent global glossary from this digest (opt-in). Failures
 	// here must never fail digest generation, so errors are logged as warnings only.
 	glossaryEntries := 0
-	if glossaryEnabled(req.Glossary) {
+	if ded.Glossary {
 		sendProgress(stream, "glossary", "building glossary...", 0, 0)
-		n, err := s.populateGlossary(ctx, digest.Id, analyses, articleMap, req.Provider, req.Model)
+		n, err := s.populateGlossary(ctx, digest.Id, analyses, articleMap, effProvider, effModel)
 		if err != nil {
 			log.WithError(err).WithField("digestId", digest.Id).Warn("Failed to populate glossary")
 		}
@@ -388,7 +411,13 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		log.WithError(err).Warn("Failed to reload digest for notifications, skipping all")
 	} else {
 		fullDigest.AnalysisErrors = analysisErrors
-		if _, err := sendConfiguredDigestNotifications(stream, fullDigest, req.GetTheme(), false, req.GhPagesEnabled); err != nil {
+		// Layout precedence: explicit per-run --theme override, else the profile's
+		// layout (the server/global default applies when both are empty).
+		effLayout := req.GetTheme()
+		if effLayout == "" {
+			effLayout = profile.Layout
+		}
+		if _, err := sendConfiguredDigestNotifications(stream, fullDigest, effLayout, false, req.GhPagesEnabled, profile); err != nil {
 			log.WithError(err).Warn("Failed to send one or more digest notifications")
 		}
 	}
@@ -421,7 +450,21 @@ func (s *DigestServer) sendNotificationTestDigest(req *protos.GenerateDigestRequ
 		return err
 	}
 
-	attempts, err := sendConfiguredDigestNotifications(stream, digest, req.GetTheme(), true, req.GhPagesEnabled)
+	// Resolve the digest's profile (fall back to default) so the test publishes
+	// under the right profile section and layout.
+	testProfileSlug := digest.ProfileId
+	if testProfileSlug == "" {
+		testProfileSlug = defaultProfileId
+	}
+	testProfile, perr := store.Db.GetProfile(testProfileSlug)
+	if perr != nil {
+		testProfile = models.Profile{Id: defaultProfileId}
+	}
+	testLayout := req.GetTheme()
+	if testLayout == "" {
+		testLayout = testProfile.Layout
+	}
+	attempts, err := sendConfiguredDigestNotifications(stream, digest, testLayout, true, req.GhPagesEnabled, testProfile)
 	if err != nil {
 		_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: err.Error()})
 		return err
@@ -500,7 +543,50 @@ func notificationTestDigestScore(digest models.Digest) int {
 	return score
 }
 
-func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest, layout string, failOnError bool, ghPagesOverride *bool) (int, error) {
+// profileSubdir resolves the concrete GitHub Pages output subdirectory for a
+// profile: its explicit OutputSubdir, else the global output dir for the default
+// profile, else the slug. Empty resolves to "digests" to match
+// resolveGitHubPagesOutputDir's default.
+func profileSubdir(profile models.Profile) string {
+	sub := profile.OutputSubdir
+	if sub == "" {
+		if profile.Id == defaultProfileId {
+			sub = config.Config.Notifications.GitHubPages.OutputDir
+		} else {
+			sub = profile.Id
+		}
+	}
+	if sub == "" {
+		sub = "digests"
+	}
+	return sub
+}
+
+// buildLandingProfiles returns the enabled profiles as landing entries (for the
+// root landing page + profiles.json), each with its resolved output subdir.
+func buildLandingProfiles() []notification.LandingProfile {
+	profiles, err := store.Db.ListProfiles()
+	if err != nil {
+		log.WithError(err).Warn("Failed to list profiles for landing page")
+		return nil
+	}
+	var entries []notification.LandingProfile
+	for _, p := range profiles {
+		if p.Enabled != nil && !*p.Enabled {
+			continue
+		}
+		entries = append(entries, notification.LandingProfile{
+			Slug:        p.Id,
+			Name:        p.Name,
+			Description: p.Description,
+			Icon:        p.Icon,
+			Subdir:      profileSubdir(p),
+		})
+	}
+	return entries
+}
+
+func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest, layout string, failOnError bool, ghPagesOverride *bool, profile models.Profile) (int, error) {
 	var errs []error
 	attempts := 0
 
@@ -514,7 +600,7 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 			errs = append(errs, fmt.Errorf("discord digest: %w", err))
 		}
 
-		htmlBytes, err := notification.RenderDigestHTML(digest, layout)
+		htmlBytes, err := notification.RenderDigestHTML(digest, layout, profile.Theme)
 		if err != nil {
 			log.WithError(err).Warn("Failed to render digest HTML")
 			errs = append(errs, fmt.Errorf("discord html render: %w", err))
@@ -536,6 +622,10 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 		attempts++
 		sendProgress(stream, "notify", "publishing digest to GitHub Pages...", 0, 0)
 		ghCfg := config.Config.Notifications.GitHubPages
+		// Per-profile publishing: this profile gets its own output subdirectory and
+		// layout, and its archive/feeds/sources are scoped to its digests + feeds.
+		ghCfg.OutputDir = profileSubdir(profile)
+		ghCfg.Layout = layout
 		if ghCfg.Token == "" {
 			ghCfg.Token = os.Getenv("DOWNLINK_GH_PAGES_TOKEN")
 		}
@@ -544,13 +634,18 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 			log.Warn(err)
 			errs = append(errs, err)
 		} else {
+			profileID := profile.Id
 			publisher := notification.NewGitHubPagesPublisher(ghCfg)
+			publisher.SetProfileContext(profile.Id, profile.Theme)
 			publisher.SetDigestLister(func(n int) ([]models.Digest, error) {
-				return store.Db.ListDigests(n, true)
+				return store.Db.ListDigestsByProfile(profileID, n, true)
 			})
 			publisher.SetSourceLister(func() ([]models.Feed, error) {
-				return store.Db.ListFeeds()
+				return store.Db.ListProfileFeeds(profileID)
 			})
+			// When more than one profile exists, the repo root becomes a landing
+			// page linking into each profile's section.
+			publisher.SetLanding(buildLandingProfiles())
 			if err := publisher.SendDigest(digest); err != nil {
 				log.WithError(err).Warn("Failed to publish digest to GitHub Pages")
 				errs = append(errs, fmt.Errorf("github pages: %w", err))
@@ -566,11 +661,14 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 
 // getRecentArticles retrieves articles published within the given time range.
 // If excludeDigested is true, articles already included in a previous digest are excluded.
-func (s *DigestServer) getRecentArticles(after time.Time, before *time.Time, excludeDigested bool) ([]models.Article, error) {
+func (s *DigestServer) getRecentArticles(after time.Time, before *time.Time, excludeDigested bool, profileId string) ([]models.Article, error) {
 	filter := models.ArticleFilter{
 		StartDate:       &after,
 		EndDate:         before,
 		ExcludeDigested: excludeDigested,
+		// Restrict to the profile's feed pool: a digest only ever covers articles
+		// from feeds the profile subscribes to.
+		ProfileId: profileId,
 		// The digest covers every article in the window, not a UI page, so
 		// bypass the default page cap that ListArticles otherwise applies.
 		Unbounded: true,
@@ -606,15 +704,18 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 	comprehensiveSynthesis *bool,
 	provider string,
 	model string,
+	profileId string,
 	onStart func(articleId, articleTitle string, current, total uint32),
 	onTaskFactory func(articleId, articleTitle string) func(taskName, status string, taskIndex, totalTasks int, err error),
 ) ([]models.ArticleAnalysis, map[string]string, error) {
-	// Batch-fetch existing analyses for all articles in one query
+	// Batch-fetch existing analyses for this profile in one query. Scoping to the
+	// profile means an article analyzed under another profile is treated as
+	// un-analyzed here, so each profile gets its own editorial pass.
 	articleIds := make([]string, len(articles))
 	for i, a := range articles {
 		articleIds[i] = a.Id
 	}
-	analysisMap, err := store.Db.GetArticleAnalysesBatch(articleIds, "")
+	analysisMap, err := store.Db.GetArticleAnalysesBatch(articleIds, profileId)
 	if err != nil {
 		log.WithError(err).Warn("Failed to batch fetch article analyses, falling back to per-article lookup")
 		analysisMap = make(map[string]*models.ArticleAnalysis)
@@ -631,7 +732,12 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 		}
 	}
 
+	type glossaryBackfillJob struct {
+		article  models.Article
+		analysis *models.ArticleAnalysis
+	}
 	var needsAnalysis []models.Article
+	var needsGlossary []glossaryBackfillJob
 	for _, article := range articles {
 		if reanalyze {
 			needsAnalysis = append(needsAnalysis, article)
@@ -655,12 +761,20 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 					"currentModel":     currentModelName,
 				}).Info("Re-analyzing article: analysis model differs from current model")
 				needsAnalysis = append(needsAnalysis, article)
+				continue
 			}
+		}
+		if glossary != nil && *glossary && existing.GlossaryTermsJson == "" {
+			log.WithField("articleId", article.Id).Info("Queuing glossary backfill: analysis exists but has no glossary terms")
+			needsGlossary = append(needsGlossary, glossaryBackfillJob{article: article, analysis: existing})
 		}
 	}
 
 	if len(needsAnalysis) > 0 {
 		log.WithField("count", len(needsAnalysis)).Info("Triggering analysis for unanalyzed articles")
+	}
+	if len(needsGlossary) > 0 {
+		log.WithField("count", len(needsGlossary)).Info("Triggering glossary backfill for analyses without glossary terms")
 	}
 
 	// Worker pool matches the gateway's LLM cap exactly. With the cap as the
@@ -731,6 +845,7 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 
 			analysisReq := &protos.AnalyzeArticleWithProviderModelRequest{
 				ArticleId:              article.Id,
+				ProfileSlug:            profileId,
 				VibeScore:              vibeScore,
 				Glossary:               glossary,
 				StandardSynthesis:      standardSynthesis,
@@ -767,7 +882,7 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 				return nil
 			}
 
-			analysis, err := store.Db.GetArticleAnalysis(article.Id, "")
+			analysis, err := store.Db.GetArticleAnalysis(article.Id, profileId)
 			if err != nil || analysis == nil {
 				log.WithError(err).WithField("articleId", article.Id).Warn("Analysis completed but could not be retrieved")
 				captureErr(article.Id, fmt.Errorf("analysis result unavailable after completion"))
@@ -784,6 +899,36 @@ func (s *DigestServer) ensureArticlesAnalyzed(
 	if err := g.Wait(); err != nil {
 		log.WithError(err).WithField("articlesProcessed", completed.Load()).WithField("articlesTotal", total).Info("Article analysis loop cancelled")
 		return nil, nil, err
+	}
+
+	// Glossary backfill: run the glossary task only for analyses that pre-date glossary being
+	// enabled. Failures are non-fatal — the article is still included in the digest, just
+	// without jargon terms for the glossary panel.
+	if len(needsGlossary) > 0 {
+		gg, gctxG := errgroup.WithContext(ctx)
+		gg.SetLimit(workerLimit)
+		for _, job := range needsGlossary {
+			job := job
+			gg.Go(func() error {
+				err := s.llms.BackfillGlossaryTerms(gctxG, job.article.Id, job.analysis.Id, provider, model, nil)
+				if err != nil {
+					log.WithError(err).WithField("articleId", job.article.Id).Warn("Glossary backfill failed, skipping")
+					return nil
+				}
+				updated, fetchErr := store.Db.GetArticleAnalysis(job.article.Id, profileId)
+				if fetchErr != nil || updated == nil {
+					log.WithError(fetchErr).WithField("articleId", job.article.Id).Warn("Failed to reload analysis after glossary backfill")
+					return nil
+				}
+				analysisMu.Lock()
+				analysisMap[job.article.Id] = updated
+				analysisMu.Unlock()
+				return nil
+			})
+		}
+		if err := gg.Wait(); err != nil {
+			log.WithError(err).Warn("Glossary backfill loop error")
+		}
 	}
 
 	// Collect all analyses in article order
@@ -846,7 +991,7 @@ type duplicateGroup struct {
 
 // identifyDuplicates sends article key points to the LLM and asks it to identify
 // duplicate/overlapping articles. Returns the parsed grouping result and raw response.
-func (s *DigestServer) identifyDuplicates(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, provider, model string) (*duplicateGroupingResult, string, error) {
+func (s *DigestServer) identifyDuplicates(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, provider, model string, ded EffectiveEditorial) (*duplicateGroupingResult, string, error) {
 	// Build the article summaries for the prompt
 	var articleSummaries strings.Builder
 	for _, analysis := range analyses {
@@ -906,6 +1051,12 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 
 If no duplicates are found, return: {"duplicate_groups": []}`, articleSummaries.String())
 
+	// A profile may inject extra dedupe guidance; appended so the JSON output
+	// contract above is always preserved.
+	if extra := strings.TrimSpace(ded.Prompts.Dedupe); extra != "" {
+		prompt += "\n\nAdditional grouping guidance:\n" + extra
+	}
+
 	resolved, err := ResolveLLM(LLMRequest{Provider: provider, ModelName: model})
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to resolve LLM provider: %w", err)
@@ -951,8 +1102,8 @@ type digestSummaryResponse struct {
 
 // generateDigestSummary creates a title (always) and optional executive summary for the digest.
 // Returns (title, summary, providerType, modelName, error).
-func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time, provider, model string, withSummary bool) (string, string, string, string, error) {
-	prompt := buildDigestSummaryPrompt(analyses, articleMap, windowStart, windowEnd, withSummary)
+func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time, provider, model string, withSummary bool, ded EffectiveEditorial) (string, string, string, string, error) {
+	prompt := buildDigestSummaryPrompt(analyses, articleMap, windowStart, windowEnd, withSummary, ded)
 
 	summaryTemp := 0.5
 	resolved, err := ResolveLLM(LLMRequest{Provider: provider, ModelName: model, Temperature: &summaryTemp})
@@ -1057,6 +1208,9 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 
 	// entryIds collects the canonical glossary entry ids this digest references (deduped).
 	entryIds := make(map[string]struct{})
+	// entityMeta records display term + category for entity-kind entry keys, so per-article
+	// context can be generated and attached for tag-derived terms (which bypass extraction).
+	entityMeta := make(map[string]glossaryTermCtx)
 
 	keys := make([]string, 0, len(candidates))
 	for key := range candidates {
@@ -1072,6 +1226,9 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 	for key, c := range candidates {
 		if e, ok := existing[key]; ok && e.EffectiveDefinition() != "" {
 			entryIds[e.Id] = struct{}{}
+			if e.Kind == models.GlossaryKindEntity {
+				entityMeta[key] = glossaryTermCtx{Term: e.Term, Category: e.Category}
+			}
 			continue
 		}
 		undefined = append(undefined, c.displayTerm)
@@ -1112,6 +1269,9 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 				continue
 			}
 			entryIds[entry.Id] = struct{}{}
+			if c.kind == models.GlossaryKindEntity {
+				entityMeta[key] = glossaryTermCtx{Term: c.displayTerm, Category: category}
+			}
 		}
 	}
 
@@ -1126,8 +1286,117 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 		return 0, fmt.Errorf("failed to store digest glossary links: %w", err)
 	}
 
+	// Backfill per-article "in this article" context for matched entity terms (which bypass
+	// the extraction task), even when their global definition is cached. Warn-only — never
+	// fails digest generation.
+	s.populateArticleContexts(stepCtx, analyses, articleMap, entityMeta, provider, model)
+
 	log.WithFields(log.Fields{"digestId": digestId, "entries": len(rows)}).Info("Glossary populated")
 	return len(rows), nil
+}
+
+// populateArticleContexts generates and persists a per-article "in this article" context
+// sentence for each tag-derived entity term that is part of the digest glossary but does not
+// already carry context for that article. Entity terms come from tags and never pass through
+// the per-article extraction task, so without this they show only a global definition. One
+// batched LLM call per article (bounded by the gateway's concurrency cap); all failures are
+// logged and swallowed so digest generation is never affected.
+func (s *DigestServer) populateArticleContexts(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, entityMeta map[string]glossaryTermCtx, provider, model string) {
+	if len(entityMeta) == 0 {
+		return
+	}
+
+	idxByArticle := make(map[string]int, len(analyses))
+	for i := range analyses {
+		idxByArticle[analyses[i].ArticleId] = i
+	}
+
+	type job struct {
+		analysisIdx int
+		content     string
+		terms       []string
+	}
+	var jobs []job
+	for artId, art := range articleMap {
+		ai, ok := idxByArticle[artId]
+		if !ok {
+			continue
+		}
+		existingCtx := make(map[string]bool)
+		for _, t := range analyses[ai].GlossaryTerms {
+			if strings.TrimSpace(t.Context) != "" {
+				existingCtx[models.NormalizeGlossaryKey(t.Term)] = true
+			}
+		}
+		var terms []string
+		for _, tag := range art.Tags {
+			key := models.NormalizeGlossaryKey(tag.Name)
+			if key == "" || existingCtx[key] {
+				continue
+			}
+			if _, isEntry := entityMeta[key]; !isEntry {
+				continue
+			}
+			terms = append(terms, strings.TrimSpace(tag.Name))
+		}
+		if len(terms) > 0 {
+			jobs = append(jobs, job{analysisIdx: ai, content: art.Content, terms: terms})
+		}
+	}
+	if len(jobs) == 0 {
+		return
+	}
+
+	limit := s.gw.MaxConcurrent()
+	if limit < 1 {
+		limit = 1
+	}
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(limit)
+	var mu sync.Mutex
+	results := make(map[int]map[string]string, len(jobs))
+	for _, j := range jobs {
+		j := j
+		g.Go(func() error {
+			m, err := s.articleTermContexts(gctx, j.content, j.terms, provider, model)
+			if err != nil {
+				log.WithError(err).Warn("Failed to generate article term contexts")
+				return nil
+			}
+			if len(m) == 0 {
+				return nil
+			}
+			mu.Lock()
+			results[j.analysisIdx] = m
+			mu.Unlock()
+			return nil
+		})
+	}
+	_ = g.Wait()
+
+	for ai, ctxByKey := range results {
+		add := make(map[string]glossaryTermCtx, len(ctxByKey))
+		for key, c := range ctxByKey {
+			meta := entityMeta[key]
+			add[key] = glossaryTermCtx{Term: meta.Term, Category: meta.Category, Context: c}
+		}
+		merged := mergeArticleContexts(analyses[ai].GlossaryTerms, add)
+		if len(merged) == len(analyses[ai].GlossaryTerms) {
+			continue // nothing new
+		}
+		analyses[ai].GlossaryTerms = merged
+		if analyses[ai].Id == "" {
+			continue
+		}
+		b, err := json.Marshal(merged)
+		if err != nil {
+			log.WithError(err).Warn("Failed to marshal merged glossary terms")
+			continue
+		}
+		if err := store.Db.UpdateArticleAnalysisGlossaryTerms(analyses[ai].Id, string(b)); err != nil {
+			log.WithError(err).WithField("analysisId", analyses[ai].Id).Warn("Failed to persist article term contexts")
+		}
+	}
 }
 
 // entityDefinition is a generated definition plus its semantic type and difficulty for a
@@ -1236,7 +1505,131 @@ func entityDefinitionsFromResult(raw map[string]entityDefinition) map[string]ent
 	return out
 }
 
-func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time, withSummary bool) string {
+// articleTermContexts asks the model for a one-sentence "why this term matters in THIS
+// article" explanation for each given term, grounded only in the article text. Returned
+// keyed by NormalizeGlossaryKey; terms the article does not actually discuss (empty answers)
+// are dropped. Used to give tag-derived entity terms — which never pass through the
+// per-article extraction task — the same contextual line jargon terms already get.
+func (s *DigestServer) articleTermContexts(ctx context.Context, articleContent string, terms []string, provider, model string) (map[string]string, error) {
+	if len(terms) == 0 {
+		return map[string]string{}, nil
+	}
+
+	// Reuse the analysis pipeline's HTML→markdown conversion for prompt parity.
+	stripped := dataImageRe.ReplaceAllString(articleContent, "")
+	content := stripped
+	if md, err := htmltomarkdown.ConvertString(stripped); err == nil {
+		content = md
+	}
+
+	var list strings.Builder
+	for _, t := range terms {
+		list.WriteString(t)
+		list.WriteString("\n")
+	}
+
+	prompt := fmt.Sprintf(`You are explaining a cybersecurity article to someone brand new to the field. Below is the
+article text, followed by a list of terms that appear in it (threat actors, malware, tools,
+CVEs, vendors, techniques, or concepts). For EACH term, write a single plain-language sentence
+explaining why that term matters in THIS article specifically — what role it plays in the
+events described. Use ONLY information present in the article; do not infer or add outside
+context. If a term is not actually discussed in the article, or you cannot say what role it
+plays from the text alone, return an empty string for it — do not guess.
+
+Echo back each term exactly as given (the key).
+
+<start_of_article>
+%s
+<end_of_article>
+
+<start_of_terms>
+%s<end_of_terms>
+
+Respond with valid JSON only — no explanations, markdown, or text outside the JSON structure:
+
+{
+  "contexts": {
+    "<term>": "<one plain sentence on its role in this article, or empty string if not discussed>"
+  }
+}`, content, list.String())
+
+	resolved, err := ResolveLLM(LLMRequest{Provider: provider, ModelName: model})
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve LLM provider: %w", err)
+	}
+
+	rawResponse, err := s.gw.Generate(ctx, resolved.Provider, prompt, llmgateway.WithLabel("digest:glossary-context"), llmgateway.WithModelInfo(resolved.ProviderType, resolved.ModelName))
+	if err != nil {
+		return nil, fmt.Errorf("LLM call for article term contexts failed: %w", err)
+	}
+
+	cleaned := llmutil.CleanLLMResponse(rawResponse)
+	var parsed struct {
+		Contexts map[string]string `json:"contexts"`
+	}
+	if err := json.Unmarshal([]byte(cleaned), &parsed); err != nil {
+		if err := json.Unmarshal([]byte(llmutil.ExtractJSON(cleaned)), &parsed); err != nil {
+			return nil, fmt.Errorf("failed to parse article term contexts: %w", err)
+		}
+	}
+
+	return articleTermContextsFromResult(parsed.Contexts), nil
+}
+
+// articleTermContextsFromResult normalizes term keys and drops empty contexts.
+func articleTermContextsFromResult(raw map[string]string) map[string]string {
+	out := make(map[string]string)
+	for term, v := range raw {
+		ctx := strings.TrimSpace(v)
+		if ctx == "" {
+			continue
+		}
+		key := models.NormalizeGlossaryKey(term)
+		if key == "" {
+			continue
+		}
+		out[key] = ctx
+	}
+	return out
+}
+
+// glossaryTermCtx carries the display term, category, and context for a generated
+// per-article entity context, ready to be merged into ArticleAnalysis.GlossaryTerms.
+type glossaryTermCtx struct {
+	Term     string
+	Category string
+	Context  string
+}
+
+// mergeArticleContexts appends new per-article entity contexts to an article's existing
+// glossary terms, skipping any term whose normalized key is already present so repeated
+// digests over the same article never accumulate duplicate rows. The add map is keyed by
+// NormalizeGlossaryKey. Returns the merged slice (input is not mutated).
+func mergeArticleContexts(existing []models.GlossaryTerm, add map[string]glossaryTermCtx) []models.GlossaryTerm {
+	seen := make(map[string]bool, len(existing))
+	for _, t := range existing {
+		seen[models.NormalizeGlossaryKey(t.Term)] = true
+	}
+	merged := existing
+	for key, v := range add {
+		if key == "" || seen[key] {
+			continue
+		}
+		ctx := strings.TrimSpace(v.Context)
+		if ctx == "" {
+			continue
+		}
+		seen[key] = true
+		merged = append(merged, models.GlossaryTerm{
+			Term:    v.Term,
+			Type:    models.NormalizeGlossaryCategory(v.Category),
+			Context: ctx,
+		})
+	}
+	return merged
+}
+
+func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[string]models.Article, windowStart, windowEnd time.Time, withSummary bool, ded EffectiveEditorial) string {
 	var articlesList strings.Builder
 	for i, analysis := range analyses {
 		article, ok := articleMap[analysis.ArticleId]
@@ -1258,11 +1651,18 @@ func buildDigestSummaryPrompt(analyses []models.ArticleAnalysis, articleMap map[
 
 	windowDuration := windowEnd.Sub(windowStart)
 
+	// Editorial guidance injected from the profile (writing style / audience /
+	// optional extra summary guidance). Each part is only emitted when set, so a
+	// profile that customizes nothing produces the historical prompt verbatim.
 	var styleBlock string
-	if config.Config != nil {
-		if ws := config.Config.Analysis.WritingStyle; ws != "" {
-			styleBlock = fmt.Sprintf("\nWriting style:\n%s\n", ws)
-		}
+	if ws := ded.WritingStyle; ws != "" {
+		styleBlock += fmt.Sprintf("\nWriting style:\n%s\n", ws)
+	}
+	if aud := ded.Audience; aud != "" {
+		styleBlock += fmt.Sprintf("\nTarget audience:\n%s\n", aud)
+	}
+	if extra := ded.Prompts.DigestSummary; strings.TrimSpace(extra) != "" {
+		styleBlock += fmt.Sprintf("\nAdditional guidance:\n%s\n", extra)
 	}
 
 	titleInstruction := `<concise title of 5-20 words that captures the dominant theme of this digest. Be factual and specific so a reader immediately knows what's inside: name the actual CVEs, products, threat actors, campaigns, or incidents driving the digest. Avoid vague, abstract framing like 'AI-Accelerated Vulnerability Discovery and Advanced Espionage Campaigns Define Current Threat Landscape' when the underlying articles cover concrete, nameable items>`

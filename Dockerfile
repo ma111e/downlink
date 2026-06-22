@@ -35,7 +35,7 @@ COPY --from=builder /out/dlk /usr/local/bin/dlk
 # Mount config.json / feeds.yml / .env into /app at runtime.
 USER downlink
 
-# gRPC API + Atom feed export.
-EXPOSE 50051 65261
+# gRPC API.
+EXPOSE 50051
 
 ENTRYPOINT ["server"]

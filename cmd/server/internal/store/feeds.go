@@ -43,6 +43,22 @@ func (s *GormStore) ListFeeds() ([]models.Feed, error) {
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to list feeds: %w", result.Error)
 	}
+
+	// Populate each feed's topics in one batch query (one extra round-trip rather
+	// than one per feed).
+	if len(feeds) > 0 {
+		var rows []models.FeedTopic
+		if err := s.db.Order("topic ASC").Find(&rows).Error; err != nil {
+			return nil, fmt.Errorf("failed to load feed topics: %w", err)
+		}
+		byFeed := make(map[string][]string, len(feeds))
+		for _, r := range rows {
+			byFeed[r.FeedId] = append(byFeed[r.FeedId], r.Topic)
+		}
+		for i := range feeds {
+			feeds[i].Topics = byFeed[feeds[i].Id]
+		}
+	}
 	return feeds, nil
 }
 
@@ -61,7 +77,14 @@ func (s *GormStore) DeleteFeed(id string) error {
 	}
 
 	// Articles associated with this feed will be deleted automatically
-	// due to ON DELETE CASCADE specified in the model relationships
+	// due to ON DELETE CASCADE specified in the model relationships.
+	// Topic and profile-membership rows have no FK cascade, so clear them here.
+	if err := s.db.Where("feed_id = ?", id).Delete(&models.FeedTopic{}).Error; err != nil {
+		return fmt.Errorf("failed to delete feed topics: %w", err)
+	}
+	if err := s.db.Exec("DELETE FROM profile_feeds WHERE feed_id = ?", id).Error; err != nil {
+		return fmt.Errorf("failed to delete feed profile memberships: %w", err)
+	}
 
 	return nil
 }

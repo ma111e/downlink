@@ -69,69 +69,59 @@ func sampleFeedDigests() []models.Digest {
 }
 
 func TestBuildDigestFeedsContent(t *testing.T) {
-	rss, atom, err := BuildDigestFeeds(sampleFeedDigests(), "digests", "https://user.github.io")
+	rss, err := BuildDigestFeeds(sampleFeedDigests(), "digests", "https://user.github.io")
 	if err != nil {
 		t.Fatalf("BuildDigestFeeds() error = %v", err)
 	}
 
-	// Both feeds must be well-formed XML.
+	// The feed must be well-formed XML.
 	if err := xml.Unmarshal(rss, new(struct{ XMLName xml.Name })); err != nil {
 		t.Fatalf("rss is not valid XML: %v", err)
 	}
-	if err := xml.Unmarshal(atom, new(struct{ XMLName xml.Name })); err != nil {
-		t.Fatalf("atom is not valid XML: %v", err)
-	}
 
-	for _, feed := range []struct {
-		name string
-		body string
-	}{{"rss", string(rss)}, {"atom", string(atom)}} {
-		// Both digest titles present.
-		for _, want := range []string{"Newer Digest", "Older Digest"} {
-			if !strings.Contains(feed.body, want) {
-				t.Errorf("%s feed missing digest title %q", feed.name, want)
-			}
+	body := string(rss)
+	// Both digest titles present.
+	for _, want := range []string{"Newer Digest", "Older Digest"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("rss feed missing digest title %q", want)
 		}
-		// Per-article TLDR + key points present.
-		for _, want := range []string{
-			"A severe vulnerability was disclosed today.",
-			"Affects all versions",
-			"Patch available now",
-			"An older but relevant development.",
-		} {
-			if !strings.Contains(feed.body, want) {
-				t.Errorf("%s feed missing article content %q", feed.name, want)
-			}
+	}
+	// Per-article TLDR + key points present.
+	for _, want := range []string{
+		"A severe vulnerability was disclosed today.",
+		"Affects all versions",
+		"Patch available now",
+		"An older but relevant development.",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("rss feed missing article content %q", want)
 		}
-		// Absolute link to the newer digest page.
-		if want := "https://user.github.io/digests/downlink-digest-2026-04-24_1200.html"; !strings.Contains(feed.body, want) {
-			t.Errorf("%s feed missing absolute digest link %q", feed.name, want)
-		}
-		// Duplicate non-canonical article is omitted.
-		if strings.Contains(feed.body, "Should not appear") {
-			t.Errorf("%s feed included a duplicate non-canonical article", feed.name)
-		}
+	}
+	// Absolute link to the newer digest page.
+	if want := "https://user.github.io/digests/downlink-digest-2026-04-24_1200.html"; !strings.Contains(body, want) {
+		t.Errorf("rss feed missing absolute digest link %q", want)
+	}
+	// Duplicate non-canonical article is omitted.
+	if strings.Contains(body, "Should not appear") {
+		t.Errorf("rss feed included a duplicate non-canonical article")
 	}
 }
 
 func TestBuildDigestFeedsEmpty(t *testing.T) {
-	rss, atom, err := BuildDigestFeeds(nil, "digests", "https://user.github.io")
+	rss, err := BuildDigestFeeds(nil, "digests", "https://user.github.io")
 	if err != nil {
 		t.Fatalf("BuildDigestFeeds() error = %v", err)
 	}
-	if len(rss) == 0 || len(atom) == 0 {
-		t.Fatal("expected non-empty feeds for empty digest list")
+	if len(rss) == 0 {
+		t.Fatal("expected non-empty feed for empty digest list")
 	}
 	if err := xml.Unmarshal(rss, new(struct{ XMLName xml.Name })); err != nil {
 		t.Fatalf("empty rss is not valid XML: %v", err)
 	}
-	if err := xml.Unmarshal(atom, new(struct{ XMLName xml.Name })); err != nil {
-		t.Fatalf("empty atom is not valid XML: %v", err)
-	}
 }
 
 func TestBuildDigestFeedsRelativeLinksWhenNoBaseURL(t *testing.T) {
-	rss, _, err := BuildDigestFeeds(sampleFeedDigests(), "digests", "")
+	rss, err := BuildDigestFeeds(sampleFeedDigests(), "digests", "")
 	if err != nil {
 		t.Fatalf("BuildDigestFeeds() error = %v", err)
 	}

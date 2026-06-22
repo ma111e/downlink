@@ -9,7 +9,6 @@ type ServerConfig struct {
 	Notifications    NotificationsConfig `json:"notifications"`
 	DefaultSelectors *Selectors          `json:"-" yaml:"-"` // Loaded from feeds.yml, not config.json
 	SolimenAddr      string              `json:"solimen_addr"`
-	FeedBaseURL      string              `json:"feed_base_url"` // base URL for served Atom feed links, e.g. https://feeds.example.com
 }
 
 // NotificationsConfig holds notification platform configurations

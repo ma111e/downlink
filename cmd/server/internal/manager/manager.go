@@ -138,12 +138,23 @@ func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
 		return err
 	}
 
+	// Replace the feed's topics (the labels profiles select feeds by).
+	if err := m.store.SetFeedTopics(feedId, config.Topics); err != nil {
+		return fmt.Errorf("failed to set feed topics for %s: %w", config.URL, err)
+	}
+
 	log.WithFields(log.Fields{
 		"id":      feedId,
 		"url":     config.URL,
 		"type":    config.Scraper.Type,
 		"enabled": config.Enabled,
+		"topics":  config.Topics,
 	}).Info("Feed registered")
 
 	return nil
+}
+
+// AllTopics returns the distinct topics in use across all configured feeds.
+func (m *FeedManager) AllTopics() ([]string, error) {
+	return m.store.ListAllTopics()
 }

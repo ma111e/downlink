@@ -8,6 +8,86 @@ import (
 
 var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
+// lineSpinner is a persistent single-line spinner that can commit permanent log
+// lines above itself. It occupies the bottom terminal line; printLine clears that
+// line, writes the (possibly multi-line) committed text, then redraws the spinner
+// beneath. Used to show live activity during otherwise-silent waits.
+type lineSpinner struct {
+	label  string
+	frame  int
+	active bool
+	mu     sync.Mutex
+	stopCh chan struct{}
+	wg     sync.WaitGroup
+}
+
+func newLineSpinner(label string) *lineSpinner {
+	return &lineSpinner{label: label, stopCh: make(chan struct{})}
+}
+
+func (s *lineSpinner) start() {
+	s.mu.Lock()
+	s.active = true
+	s.draw()
+	s.mu.Unlock()
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		defer ticker.Stop()
+		for {
+			select {
+			case <-s.stopCh:
+				return
+			case <-ticker.C:
+				s.mu.Lock()
+				s.frame = (s.frame + 1) % len(spinnerFrames)
+				s.draw()
+				s.mu.Unlock()
+			}
+		}
+	}()
+}
+
+func (s *lineSpinner) setLabel(label string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.label = label
+	s.draw()
+}
+
+// printLine clears the spinner line, prints text permanently, then redraws the
+// spinner below it. text may span multiple lines.
+func (s *lineSpinner) printLine(text string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	fmt.Print("\r\033[K")
+	fmt.Println(text)
+	s.draw()
+}
+
+func (s *lineSpinner) stop() {
+	s.mu.Lock()
+	wasActive := s.active
+	s.active = false
+	s.mu.Unlock()
+	if !wasActive {
+		return
+	}
+	close(s.stopCh)
+	s.wg.Wait()
+	fmt.Print("\r\033[K")
+}
+
+// draw renders the spinner on the current line. Caller must hold s.mu.
+func (s *lineSpinner) draw() {
+	if !s.active {
+		return
+	}
+	fmt.Printf("\r\033[K%s %s", styleActive.Render(spinnerFrames[s.frame]), styleDim.Render(s.label))
+}
+
 type batchRow struct {
 	label   string
 	done    bool

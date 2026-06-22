@@ -1244,7 +1244,7 @@ html[data-learning="on"] .nav-learn-caret { visibility: visible; pointer-events:
 .tab-panel.active { display: block; }
 
 /* ── prose ───────────────────────────────────────── */
-.prose { line-height: 1.8; color: var(--text2); font-size: 0.96rem; }
+.prose { line-height: 1.8; color: var(--text2); font-size: 0.96rem; text-align: justify; }
 .prose p { margin-bottom: 0.75rem; }
 .prose p:last-child { margin-bottom: 0; }
 .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1.1rem 0 0.4rem; font-size: 0.9rem; letter-spacing: 0.02em; }
@@ -1406,6 +1406,10 @@ html[data-help-level="2"] .glossary-panel-entry[data-lvl="3"] { display: none; }
 .glossary-panel-def {
   margin: .2rem 0 1rem; padding: 0; color: var(--text2);
   font-size: .86rem; line-height: 1.5;
+}
+.glossary-panel-aliases {
+  margin-top: .3rem; color: var(--text2);
+  font-size: .8rem; line-height: 1.4; opacity: .85;
 }
 .glossary-panel-foot { padding: .75rem 1rem; border-top: 1px solid var(--border); flex: none; }
 .glossary-panel-suggest {
@@ -1800,7 +1804,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
         </div>
         {{if .Tags}}<div class="filter-row">
           <span class="filter-label">TAGS</span>
-          <div class="toc-tag-cloud">{{if gt (len .Tags) 25}}{{range slice .Tags 0 25}}<button class="tag-pill" data-tag="{{.Name}}" onclick="toggleTag(this.dataset.tag)">{{.Name}} <span class="filter-count">{{.Count}}</span></button>{{end}}{{range slice .Tags 25}}<button class="tag-pill tag-hidden" data-tag="{{.Name}}" onclick="toggleTag(this.dataset.tag)">{{.Name}} <span class="filter-count">{{.Count}}</span></button>{{end}}<button class="tag-pill tag-show-more" onclick="showMoreTags(this)">+{{add (len .Tags) -25}} more</button>{{else}}{{range .Tags}}<button class="tag-pill" data-tag="{{.Name}}" onclick="toggleTag(this.dataset.tag)">{{.Name}} <span class="filter-count">{{.Count}}</span></button>{{end}}{{end}}</div>
+          <div class="toc-tag-cloud">{{if gt (len .Tags) 5}}{{range slice .Tags 0 5}}<button class="tag-pill" data-tag="{{.Name}}" onclick="toggleTag(this.dataset.tag)">{{.Name}} <span class="filter-count">{{.Count}}</span></button>{{end}}{{range slice .Tags 5}}<button class="tag-pill tag-hidden" data-tag="{{.Name}}" onclick="toggleTag(this.dataset.tag)">{{.Name}} <span class="filter-count">{{.Count}}</span></button>{{end}}<button class="tag-pill tag-show-more" onclick="showMoreTags(this)">+{{add (len .Tags) -5}} more</button>{{else}}{{range .Tags}}<button class="tag-pill" data-tag="{{.Name}}" onclick="toggleTag(this.dataset.tag)">{{.Name}} <span class="filter-count">{{.Count}}</span></button>{{end}}{{end}}</div>
         </div>{{end}}
       </div>
     </div>
@@ -2005,7 +2009,7 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   </div>
   <div class="glossary-panel-body">
     <dl class="glossary-panel-list">
-      {{range .GlossaryPanel}}<div class="glossary-panel-entry" data-lvl="{{.Lvl}}"><dt class="glossary-panel-term">{{.Term}}{{if .Type}} <span class="glossary-popup-type">{{.Type}}</span>{{end}}</dt><dd class="glossary-panel-def">{{.Definition}}</dd></div>{{end}}
+      {{range .GlossaryPanel}}<div class="glossary-panel-entry" data-lvl="{{.Lvl}}"><dt class="glossary-panel-term">{{.Term}}{{if .Type}} <span class="glossary-popup-type">{{.Type}}</span>{{end}}</dt><dd class="glossary-panel-def">{{.Definition}}{{if .Aliases}}<div class="glossary-panel-aliases">also: {{range $i, $a := .Aliases}}{{if $i}}, {{end}}{{$a}}{{end}}</div>{{end}}</dd></div>{{end}}
     </dl>
     <p id="glossary-panel-empty" class="glossary-panel-empty" hidden>No matching terms.</p>
   </div>
@@ -2408,7 +2412,14 @@ function closeGlossaryPopup(){
 }
 document.addEventListener('click', function(e){
   var m = e.target.closest('mark.tag-hl');
-  if (!m) return;
+  if (!m) {
+    var popup = document.getElementById('glossary-popup');
+    if (popup && !popup.hidden && !popup.contains(e.target)) closeGlossaryPopup();
+    var panel = document.getElementById('glossary-panel');
+    var ptoggle = document.getElementById('glossary-panel-toggle');
+    if (panel && panel.classList.contains('is-open') && !panel.contains(e.target) && !(ptoggle && ptoggle.contains(e.target))) closeGlossaryPanel();
+    return;
+  }
   e.stopPropagation(); // don't bubble into row/tab handlers
   var dd = document.documentElement.dataset;
   if (dd.learning !== 'on' || dd.learnDefine !== 'on') return; // definitions disabled by Learning toggle

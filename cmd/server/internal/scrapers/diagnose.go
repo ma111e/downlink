@@ -81,7 +81,11 @@ type FeedInspection struct {
 	// content (content:encoded, falling back to description), aligned 1:1 with
 	// SampleLinks. It lets a caller tell whether the feed already ships full bodies.
 	SampleContentChars []int
-	Title              string
+	// SampleContent holds the plain text of each sampled entry's feed content, aligned
+	// 1:1 with SampleLinks. A caller can match it against the real article page to
+	// confirm the body is fully in the feed, not merely long (a teaser can be long too).
+	SampleContent []string
+	Title         string
 }
 
 // defaultSampleLinks is the number of article links InspectFeedURL returns when
@@ -119,8 +123,10 @@ func InspectFeedURL(feedURL string, headers map[string]string, maxLinks int) Fee
 			if it.Link == "" {
 				continue
 			}
+			text := feedItemText(it)
 			insp.SampleLinks = append(insp.SampleLinks, it.Link)
-			insp.SampleContentChars = append(insp.SampleContentChars, feedItemTextLen(it))
+			insp.SampleContent = append(insp.SampleContent, text)
+			insp.SampleContentChars = append(insp.SampleContentChars, len([]rune(text)))
 			if len(insp.SampleLinks) >= maxLinks {
 				break
 			}
@@ -141,22 +147,22 @@ func InspectFeedURL(feedURL string, headers map[string]string, maxLinks int) Fee
 	return insp
 }
 
-// feedItemTextLen returns the plain-text rune length of an item's feed content,
-// preferring content:encoded over description (the same precedence the real fetch
-// uses). HTML is stripped so tag soup doesn't inflate a short stub past the bar.
-func feedItemTextLen(item *gofeed.Item) int {
+// feedItemText returns the plain text of an item's feed content, preferring
+// content:encoded over description (the same precedence the real fetch uses). HTML is
+// stripped so tag soup doesn't inflate a short stub past the bar.
+func feedItemText(item *gofeed.Item) string {
 	html := item.Content
 	if html == "" {
 		html = item.Description
 	}
 	if html == "" {
-		return 0
+		return ""
 	}
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
-		return len([]rune(html))
+		return strings.TrimSpace(html)
 	}
-	return len([]rune(strings.TrimSpace(doc.Text())))
+	return strings.TrimSpace(doc.Text())
 }
 
 // DiagnoseFeedURL fetches a feed URL and returns a structured diagnosis. It is a

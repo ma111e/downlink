@@ -3,7 +3,7 @@
 // per-run view of every prompt/response that passed through the gateway.
 //
 // It binds to localhost only and has no authentication, matching the project's
-// other local HTTP servers (feedserver, devserver).
+// other local HTTP servers (devserver).
 package adminserver
 
 import (
@@ -49,9 +49,11 @@ func (a *AdminServer) Start() error {
 // runsListLimit caps how many runs the list page renders.
 const runsListLimit = 200
 
-// handleRuns renders the runs list plus a token-per-run bar chart.
-func (a *AdminServer) handleRuns(w http.ResponseWriter, _ *http.Request) {
-	runs, err := a.store.ListLLMRunSummaries(runsListLimit)
+// handleRuns renders the runs list plus a token-per-run bar chart. An optional
+// ?profile=<slug> query restricts the list to one profile's runs.
+func (a *AdminServer) handleRuns(w http.ResponseWriter, r *http.Request) {
+	profileFilter := r.URL.Query().Get("profile")
+	runs, err := a.store.ListLLMRunSummaries(runsListLimit, profileFilter)
 	if err != nil {
 		log.WithError(err).Error("failed to list LLM runs")
 		http.Error(w, "failed to list runs", http.StatusInternalServerError)
@@ -59,9 +61,10 @@ func (a *AdminServer) handleRuns(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	data := runsPageData{
-		Runs:  runs,
-		Chart: buildChart(runs),
-		Stats: buildStats(runs),
+		Runs:          runs,
+		Chart:         buildChart(runs),
+		Stats:         buildStats(runs),
+		ProfileFilter: profileFilter,
 	}
 	render(w, runsTmpl, data)
 }
@@ -325,9 +328,10 @@ func shortTokens(n int) string {
 }
 
 type runsPageData struct {
-	Runs  []store.LLMRunSummary
-	Chart chartData
-	Stats dashStats
+	Runs          []store.LLMRunSummary
+	Chart         chartData
+	Stats         dashStats
+	ProfileFilter string // active ?profile= filter, empty = all profiles
 }
 
 type runPageData struct {

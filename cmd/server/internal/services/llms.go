@@ -276,6 +276,23 @@ func normalizeCategory(category string) string {
 	return "news"
 }
 
+// normalizeCategoryFor coerces a model-produced category into a profile's
+// allowed set. With no profile categories it falls back to the global default
+// set (normalizeCategory). With custom categories, an unknown value falls back
+// to the profile's first category.
+func normalizeCategoryFor(category string, cats []models.CategoryDef) string {
+	if len(cats) == 0 {
+		return normalizeCategory(category)
+	}
+	c := strings.ToLower(strings.TrimSpace(category))
+	for _, def := range cats {
+		if strings.ToLower(strings.TrimSpace(def.Name)) == c {
+			return c
+		}
+	}
+	return cats[0].Name
+}
+
 // normalizeReportCategory coerces a referenced-report category into the allowed
 // set, returning "" for any unexpected value (so no pill is shown rather than a
 // fabricated one).
@@ -287,59 +304,9 @@ func normalizeReportCategory(category string) string {
 	return ""
 }
 
-// vibeScoreEnabled resolves whether the legacy single-number importance prompt
-// should be used. A per-request override (non-nil) wins; otherwise the server's
-// analysis config default applies.
-func vibeScoreEnabled(reqVibe *bool) bool {
-	if reqVibe != nil {
-		return *reqVibe
-	}
-	return config.Config.Analysis.VibeScore
-}
-
-// glossaryEnabled resolves whether the glossary-mode analysis task should run.
-// A per-request override (non-nil) wins; otherwise the server's analysis config
-// default applies.
-func glossaryEnabled(reqGlossary *bool) bool {
-	if reqGlossary != nil {
-		return *reqGlossary
-	}
-	return config.Config.Analysis.Glossary
-}
-
-// standardSynthesisEnabled resolves whether the Standard article summary should be
-// generated. A per-request override (non-nil) wins; otherwise the server's analysis
-// config default applies.
-func standardSynthesisEnabled(req *bool) bool {
-	if req != nil {
-		return *req
-	}
-	return config.Config.Analysis.StandardSynthesis
-}
-
-// comprehensiveSynthesisEnabled resolves whether the Full (comprehensive) article
-// summary should be generated. A per-request override (non-nil) wins; otherwise the
-// server's analysis config default applies.
-func comprehensiveSynthesisEnabled(req *bool) bool {
-	if req != nil {
-		return *req
-	}
-	return config.Config.Analysis.ComprehensiveSynthesis
-}
-
-// executiveSummaryEnabled resolves whether the digest-level executive summary should
-// be generated. A per-request override (non-nil) wins; otherwise the server's
-// analysis config default applies.
-func executiveSummaryEnabled(req *bool) bool {
-	if req != nil {
-		return *req
-	}
-	return config.Config.Analysis.ExecutiveSummary
-}
-
-func getAnalysisTasks(contentLen int, fastMode bool, vibeScore bool, glossary bool, standardSynthesis bool, comprehensiveSynthesis bool) []analysisTask {
+func getAnalysisTasks(contentLen int, fastMode bool, ed EffectiveEditorial) []analysisTask {
 	if fastMode {
-		return []analysisTask{
+		return applyPromptOverrides([]analysisTask{
 			{
 				name: "key_points",
 				instruction: `You are a cybersecurity analyst. Extract 3 to 5 key points from the article.
@@ -349,41 +316,11 @@ Return ONLY the JSON object below.`,
 				schema:       `{"key_points": ["<point 1>", "<point 2>"]}`,
 				requiredKeys: []string{"key_points"},
 			},
-		}
+		}, ed.Prompts)
 	}
 
 	var tasks []analysisTask
-	tasks = append(tasks, analysisTask{
-		name: "categorize",
-		instruction: `You are a cybersecurity analyst. Assign exactly one category and between 3 and 15 tags to the article.
-
-Category — choose exactly ONE of these values (lowercase, no other value allowed):
-- news: reporting on a specific incident or event
-- research: technical deep-dive, whitepaper, or vulnerability analysis
-- advisory: vendor/CERT advisory, patch, or coordinated disclosure
-- opinion: commentary, trend piece, or best-practice perspective
-- guide: tutorial, how-to, or educational material
-- commercial: product marketing or vendor promotion of a commercial offering (use only when the article's primary purpose is promotion; ignore trailing self-promotional sections in otherwise substantive articles)
-- sponsored: sponsored, promoted, advertorial, or paid-placement content
-- announcement: company/product release, launch, or PR announcement, or notice of an organized or upcoming event (conference, webinar, CTF, etc.)
-If unsure, use "news".
-
-Tags identify the ecosystem of the event. Extract them in this priority order (high to low):
-1. Named threat actors / groups
-2. Tools and named malware families
-3. Notable techniques (exploitation methods, sandbox escape, etc.)
-4. Country / geography involved
-5. All stakeholders of the event (victim organizations, vendors, government agencies, other affected parties)
-6. Other relevant named entities (CVEs, affected products) as relevant
-
-Tags must be SPECIFIC named entities. Do NOT use broad or generic umbrella terms such as vpn, exploitation, vulnerability, attack, malware, ransomware, breach, or cybersecurity — always prefer the concrete entity (e.g. globalprotect not vpn, cve-2026-0257 not vulnerability, spearphishing not attack or exploitation).
-Always add the country/geography as a tag when the article mentions one (e.g. north-korea, ukraine, united-states).
-If covering all entities would exceed 15 tags, drop the lowest-priority ones first.
-Tags must be lowercase kebab-case with no leading # or other prefix (e.g. lazarus, cobalt-strike, spearphishing, north-korea, defense-sector).
-Return ONLY the JSON object.`,
-		schema:       `{"category": "<news|research|advisory|opinion|guide|commercial|sponsored|announcement>", "tags": ["tag1", "tag2"]}`,
-		requiredKeys: []string{"category", "tags"},
-	})
+	tasks = append(tasks, categorizeTask(ed.Categories))
 
 	tasks = append(tasks,
 		analysisTask{
@@ -443,11 +380,11 @@ Return ONLY the JSON object below.`,
 			"brief_overview: 2–3 markdown paragraphs (blank line between each), 3–4 sentences per paragraph. Cover the core event, its significance, and any key technical detail or impact.",
 		}
 		schemaParts := []string{`"brief_overview": "<text>"`}
-		if standardSynthesis {
+		if ed.StandardSynthesis {
 			levelLines = append(levelLines, "standard_synthesis: 4–6 markdown paragraphs (blank line between each), 3–5 sentences per paragraph. Cover the full picture: context, technical details, affected parties, known or suspected actors, and any disclosed impact or response.")
 			schemaParts = append(schemaParts, `"standard_synthesis": "<text>"`)
 		}
-		if comprehensiveSynthesis {
+		if ed.ComprehensiveSynthesis {
 			levelLines = append(levelLines, "comprehensive_synthesis: Unlimited length. A thorough, structured analysis using markdown headings, paragraphs, and bullet points where helpful.")
 			schemaParts = append(schemaParts, `"comprehensive_synthesis": "<text>"`)
 		}
@@ -464,22 +401,23 @@ Return ONLY the JSON object below.`, countWord, strings.Join(levelLines, "\n")),
 		})
 	}
 
-	if glossary {
+	if ed.Glossary {
 		tasks = append(tasks, analysisTask{
 			name: "glossary",
 			instruction: `You are explaining this article to someone brand new to cybersecurity. Using ONLY information present in the article — do not infer or add outside context — extract EVERY technical term, acronym, tool, protocol, technique, malware family, named entity, and security concept the article uses — be generous and thorough. Include common-but-technical concepts a newcomer would still need explained (e.g. ransomware, RAT, C2, backdoor, relay, phishing, lateral movement), not only obscure ones, alongside named things (CVEs, threat actors, malware names, products). Do NOT write a general definition for any term — definitions are generated separately. For each term provide only:
-  - term: the term exactly as written in the article
+  - term: the single most representative form of the term as written in the article
+  - aliases: other surface forms the SAME article uses for the same thing — variant noun phrases, abbreviations, or expansions (e.g. term "QNAP NAS" with aliases "QNAP NAS boxes", "QNAP NAS devices"). Each alias MUST appear verbatim somewhere in the article so it can be matched. Up to 4 entries; use an empty array when the article uses only one form.
   - type: ONE of threat-actor, malware, tool, technique, vulnerability, protocol, concept, organization, product, other
   - context: a single plain-language sentence explaining why this term matters in THIS article specifically (what role it plays in the events described)
 Include 0 to 30 entries; if the article genuinely uses no notable terms, return an empty array.
 
 Return ONLY the JSON object below.`,
-			schema:       `{"glossary": {"terms": [{"term": "<term>", "type": "<category>", "context": "<one plain sentence on its role in this article>"}]}}`,
+			schema:       `{"glossary": {"terms": [{"term": "<term>", "aliases": ["<other surface form used in the article>"], "type": "<category>", "context": "<one plain sentence on its role in this article>"}]}}`,
 			requiredKeys: []string{"glossary"},
 		})
 	}
 
-	if vibeScore {
+	if ed.VibeScore {
 		// Legacy scoring: the LLM picks a single holistic 1-100 importance score.
 		// Kept behind --vibe-score / DOWNLINK_VIBE_SCORE / config.vibe_score as a
 		// fallback to the rubric-based dimensions below.
@@ -501,7 +439,7 @@ Return ONLY the JSON object below.`,
 			requiredKeys: []string{"importance_score"},
 		})
 
-		return tasks
+		return applyPromptOverrides(tasks, ed.Prompts)
 	}
 
 	tasks = append(tasks, analysisTask{
@@ -554,6 +492,88 @@ Return ONLY the JSON object below.`,
 		requiredKeys: []string{"specificity", "severity", "breadth", "novelty", "actionability", "credibility", "is_aggregator"},
 	})
 
+	return applyPromptOverrides(tasks, ed.Prompts)
+}
+
+// categorizeTask builds the categorize task. With no profile categories it
+// returns the default task verbatim (byte-identical to the historical prompt);
+// with custom categories it renders the profile's category list and enum while
+// keeping the shared tag-extraction guidance.
+func categorizeTask(cats []models.CategoryDef) analysisTask {
+	if len(cats) == 0 {
+		return analysisTask{
+			name: "categorize",
+			instruction: `You are a cybersecurity analyst. Assign exactly one category and between 3 and 15 tags to the article.
+
+Category — choose exactly ONE of these values (lowercase, no other value allowed):
+- news: reporting on a specific incident or event
+- research: technical deep-dive, whitepaper, or vulnerability analysis
+- advisory: vendor/CERT advisory, patch, or coordinated disclosure
+- opinion: commentary, trend piece, or best-practice perspective
+- guide: tutorial, how-to, or educational material
+- commercial: product marketing or vendor promotion of a commercial offering (use only when the article's primary purpose is promotion; ignore trailing self-promotional sections in otherwise substantive articles)
+- sponsored: sponsored, promoted, advertorial, or paid-placement content
+- announcement: company/product release, launch, or PR announcement, or notice of an organized or upcoming event (conference, webinar, CTF, etc.)
+If unsure, use "news".
+
+` + categorizeTagsGuidance,
+			schema:       `{"category": "<news|research|advisory|opinion|guide|commercial|sponsored|announcement>", "tags": ["tag1", "tag2"]}`,
+			requiredKeys: []string{"category", "tags"},
+		}
+	}
+
+	var bullets strings.Builder
+	names := make([]string, len(cats))
+	for i, c := range cats {
+		names[i] = c.Name
+		if strings.TrimSpace(c.Description) != "" {
+			fmt.Fprintf(&bullets, "- %s: %s\n", c.Name, c.Description)
+		} else {
+			fmt.Fprintf(&bullets, "- %s\n", c.Name)
+		}
+	}
+	instruction := fmt.Sprintf(`You are a cybersecurity analyst. Assign exactly one category and between 3 and 15 tags to the article.
+
+Category — choose exactly ONE of these values (lowercase, no other value allowed):
+%sIf unsure, use %q.
+
+%s`, bullets.String(), names[0], categorizeTagsGuidance)
+	return analysisTask{
+		name:         "categorize",
+		instruction:  instruction,
+		schema:       fmt.Sprintf(`{"category": "<%s>", "tags": ["tag1", "tag2"]}`, strings.Join(names, "|")),
+		requiredKeys: []string{"category", "tags"},
+	}
+}
+
+// categorizeTagsGuidance is the tag-extraction half of the categorize prompt,
+// shared by the default and custom-category variants.
+const categorizeTagsGuidance = `Tags identify the ecosystem of the event. Extract them in this priority order (high to low):
+1. Named threat actors / groups
+2. Tools and named malware families
+3. Notable techniques (exploitation methods, sandbox escape, etc.)
+4. Country / geography involved
+5. All stakeholders of the event (victim organizations, vendors, government agencies, other affected parties)
+6. Other relevant named entities (CVEs, affected products) as relevant
+
+Tags must be SPECIFIC named entities. Do NOT use broad or generic umbrella terms such as vpn, exploitation, vulnerability, attack, malware, ransomware, breach, or cybersecurity — always prefer the concrete entity (e.g. globalprotect not vpn, cve-2026-0257 not vulnerability, spearphishing not attack or exploitation).
+Always add the country/geography as a tag when the article mentions one (e.g. north-korea, ukraine, united-states).
+If covering all entities would exceed 15 tags, drop the lowest-priority ones first.
+Tags must be lowercase kebab-case with no leading # or other prefix (e.g. lazarus, cobalt-strike, spearphishing, north-korea, defense-sector).
+Return ONLY the JSON object.`
+
+// applyPromptOverrides replaces task instructions with profile-supplied prompt
+// overrides keyed by task name. The output schema and required keys are never
+// overridden, so result validation and corrective re-prompts still apply.
+func applyPromptOverrides(tasks []analysisTask, p models.PromptOverrides) []analysisTask {
+	if len(p.Tasks) == 0 {
+		return tasks
+	}
+	for i := range tasks {
+		if instr, ok := p.Tasks[tasks[i].name]; ok && strings.TrimSpace(instr) != "" {
+			tasks[i].instruction = instr
+		}
+	}
 	return tasks
 }
 
@@ -578,7 +598,8 @@ func (s *LLMsServer) buildAnalysisPromptForRequest(req *protos.AnalyzeArticleWit
 		return "", err
 	}
 
-	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), glossaryEnabled(req.Glossary), standardSynthesisEnabled(req.StandardSynthesis), comprehensiveSynthesisEnabled(req.ComprehensiveSynthesis))
+	ed := s.editorialForRequest(req)
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, ed)
 	var allInstructions, allSchemas []string
 	for i, t := range tasks {
 		allInstructions = append(allInstructions, fmt.Sprintf("%d. %s", i+1, t.instruction))
@@ -600,7 +621,7 @@ func (s *LLMsServer) buildAnalysisPromptForRequest(req *protos.AnalyzeArticleWit
 <start_of_output_format>:
 Return ONLY a single JSON object combining these output shapes:
 %s
-<end_of_output_format>`, actx.articleJSON, config.Config.Analysis.Persona, strings.Join(allInstructions, "\n\n"), strings.Join(allSchemas, "\n")), nil
+<end_of_output_format>`, actx.articleJSON, ed.Persona, strings.Join(allInstructions, "\n\n"), strings.Join(allSchemas, "\n")), nil
 }
 
 // buildAnalysisPrompt constructs the full monolithic analysis prompt for an article.
@@ -868,7 +889,8 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 
 	// Run analysis tasks sequentially using a single ChatModel conversation.
 	// The article is sent once in the first message; subsequent tasks only send the instruction.
-	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, vibeScoreEnabled(req.VibeScore), glossaryEnabled(req.Glossary), standardSynthesisEnabled(req.StandardSynthesis), comprehensiveSynthesisEnabled(req.ComprehensiveSynthesis))
+	ed := s.editorialForRequest(req)
+	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, ed)
 	totalTasks := len(tasks)
 	assembled := make(map[string]interface{})
 	assembled["id"] = actx.articleId
@@ -878,7 +900,7 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 
 	// Build conversation history: persona as system message, then article + tasks
 	var conversationHistory []*schema.Message
-	if persona := config.Config.Analysis.Persona; persona != "" {
+	if persona := ed.Persona; persona != "" {
 		conversationHistory = append(conversationHistory, &schema.Message{
 			Role:    schema.System,
 			Content: persona,
@@ -1169,6 +1191,75 @@ func (s *LLMsServer) StreamAnalyzeArticle(req *protos.AnalyzeArticleWithProvider
 	return nil
 }
 
+// BackfillGlossaryTerms runs only the glossary extraction task for an article that already has
+// an analysis and writes the result back via UpdateArticleAnalysisGlossaryTerms. It is called
+// when a digest requests glossary but the cached analysis pre-dates glossary being enabled.
+// An empty result is stored as "[]" (the sentinel meaning "ran, found nothing") so the article
+// is not re-processed on subsequent digest runs.
+func (s *LLMsServer) BackfillGlossaryTerms(ctx context.Context, articleId, analysisId, provider, model string, onTask func(taskName, status string, taskIndex, totalTasks int, err error)) error {
+	actx, err := s.prepareArticleContext(articleId)
+	if err != nil {
+		return fmt.Errorf("backfill glossary: prepare article: %w", err)
+	}
+
+	resolved, err := ResolveLLM(LLMRequest{Provider: provider, ModelName: model, MaxTokens: defaultMaxTokensLarge})
+	if err != nil {
+		return fmt.Errorf("backfill glossary: resolve LLM: %w", err)
+	}
+
+	tasks := getAnalysisTasks(actx.contentLen, false, EffectiveEditorial{Glossary: true})
+	if len(tasks) == 0 {
+		return fmt.Errorf("backfill glossary: no glossary task generated")
+	}
+	task := tasks[0]
+
+	var cb func(taskName, status string, taskIndex, totalTasks int, err error)
+	if onTask != nil {
+		cb = onTask
+	}
+	var onProgress progressCallback
+	if cb != nil {
+		onProgress = func(taskName, status string, taskIndex, totalTasks int, _ string, err error) {
+			if status != "token" {
+				cb(taskName, status, taskIndex, totalTasks, err)
+			}
+		}
+	}
+
+	if onProgress != nil {
+		onProgress(task.name, "started", 1, 1, "", nil)
+	}
+
+	attempt, err := s.runAnalysisTaskWithRetry(ctx, actx, resolved, task, 1, 1, nil, buildTaskPrompt(actx, task), nil)
+	if err != nil {
+		if onProgress != nil {
+			onProgress(task.name, "error", 1, 1, "", err)
+		}
+		return fmt.Errorf("backfill glossary: task failed: %w", err)
+	}
+
+	if onProgress != nil {
+		onProgress(task.name, "completed", 1, 1, "", nil)
+	}
+
+	var terms []models.GlossaryTerm
+	if glossary, ok := attempt.taskResult["glossary"].(map[string]interface{}); ok {
+		terms = glossaryFromResult(glossary["terms"])
+	}
+	if terms == nil {
+		terms = []models.GlossaryTerm{}
+	}
+
+	b, err := json.Marshal(terms)
+	if err != nil {
+		return fmt.Errorf("backfill glossary: marshal terms: %w", err)
+	}
+	if err := store.Db.UpdateArticleAnalysisGlossaryTerms(analysisId, string(b)); err != nil {
+		return fmt.Errorf("backfill glossary: persist: %w", err)
+	}
+	return nil
+}
+
 // buildAndStoreAnalysis parses a monolithic LLM response and stores the analysis.
 // Used by the direct-generate fallback path (llamacpp).
 func (s *LLMsServer) buildAndStoreAnalysis(req *protos.AnalyzeArticleWithProviderModelRequest, response string) (*protos.AnalyzeArticleWithProviderModelResponse, error) {
@@ -1282,8 +1373,10 @@ func intFromObject(obj map[string]interface{}, key string) int {
 
 // storeAnalysisFromResult takes an assembled result map and persists it as an ArticleAnalysis.
 func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProviderModelRequest, result map[string]interface{}, rawResponse string, thinkingProcess string) (*protos.AnalyzeArticleWithProviderModelResponse, error) {
+	ed := s.editorialForRequest(req)
 	analysis := &models.ArticleAnalysis{
 		ArticleId:       req.ArticleId,
+		ProfileId:       ed.ProfileId,
 		ProviderType:    req.ProviderType,
 		ModelName:       req.ModelName,
 		ThinkingProcess: thinkingProcess,
@@ -1315,7 +1408,7 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 			IsAggregator:  boolFromObject(result, "is_aggregator"),
 		}
 		analysis.ScoreDimensions = dims
-		analysis.ImportanceScore = scoring.Compute(*dims)
+		analysis.ImportanceScore = ed.Scoring.Compute(*dims)
 	}
 
 	if tldr, ok := result["tldr"].(string); ok {
@@ -1363,9 +1456,11 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 	}
 
 	if glossary, ok := result["glossary"].(map[string]interface{}); ok {
-		if terms := glossaryFromResult(glossary["terms"]); len(terms) > 0 {
-			analysis.GlossaryTerms = terms
+		terms := glossaryFromResult(glossary["terms"])
+		if terms == nil {
+			terms = []models.GlossaryTerm{}
 		}
+		analysis.GlossaryTerms = terms
 	}
 
 	if err := store.Db.SaveArticleAnalysis(analysis); err != nil {
@@ -1385,7 +1480,7 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 
 	var categoryName *string
 	if category, ok := result["category"].(string); ok && category != "" {
-		cat, err := store.Db.GetOrCreateCategory(normalizeCategory(category))
+		cat, err := store.Db.GetOrCreateCategory(normalizeCategoryFor(category, ed.Categories))
 		if err == nil {
 			categoryName = &cat.Name
 		}

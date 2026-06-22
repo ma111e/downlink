@@ -1,11 +1,14 @@
 # Configuration
 
-Downlink reads configuration from three files plus environment variables:
+Downlink reads configuration from these files plus environment variables:
 
 - **`config.json`** server-side configuration: LLM providers, the active analysis
   provider, and notification settings. Loaded by the server at startup.
 - **`feeds.yml`** the list of feeds and their per-feed scraping rules. Applied to the
   database with `dlk feeds apply`. See [feeds-and-scraping.md](feeds-and-scraping.md).
+- **`profiles.yml`** optional editorial profiles. Applied at server startup; restart to
+  apply. Without it the server runs as a single default profile. See
+  [profiles.md](profiles.md).
 - **`.env`** runtime overrides via `DOWNLINK_*` variables, loaded automatically.
 
 Copy the bundled examples to start:
@@ -13,6 +16,7 @@ Copy the bundled examples to start:
 ```sh
 cp config.example.json config.json
 cp feeds.example.yml feeds.yml
+cp profiles.example.yml profiles.yml   # optional, only for multiple profiles
 cp .env.example .env
 ```
 
@@ -37,7 +41,6 @@ Top-level fields:
 |---|---|---|---|
 | `db_path` | string | `./downlink.db` | SQLite database file path. |
 | `solimen_addr` | string | `http://localhost:5011` | Address of the Solimen full-browser scraper. |
-| `feed_base_url` | string | / | Base URL for the served Atom feed links (e.g. `https://feeds.example.com`). Falls back to `notifications.github_pages.base_url` when unset; empty keeps links relative. |
 | `providers` | array | / | LLM provider entries. See [llm-providers.md](llm-providers.md). |
 | `analysis` | object | / | Analysis settings (active provider, persona, scoring). |
 | `notifications` | object | / | Discord and GitHub Pages settings. |
@@ -108,7 +111,8 @@ These override `config.json` and are themselves overridden by an explicit CLI fl
 | `DOWNLINK_AUTO_START_LIGHTPANDA` | `--auto-start-lightpanda` | `false` | Start the Lightpanda container if absent. |
 | `DOWNLINK_AUTO_START_SOLIMEN` | `--auto-start-solimen` | `false` | Start the Solimen container if absent. |
 | `DOWNLINK_SOLIMEN_ADDR` | `--solimen-addr` | `http://localhost:5011` | Solimen address for `full_browser` scraping. |
-| `DOWNLINK_FEED_BASE_URL` | `--feed-base-url` | / | Same as `feed_base_url`; base URL for served Atom feed links. Falls back to the GitHub Pages base URL when unset. |
+| `DOWNLINK_PROFILES_FILE` | `--profiles-file` | `profiles.yml` | Profiles catalog applied at startup; skipped if absent. See [profiles.md](profiles.md). |
+| `DOWNLINK_LAYOUTS_DIR` | `--layouts-dir` | `layouts` | Directory of on-disk custom layouts; used if it exists. |
 | `DOWNLINK_MAX_CONCURRENT_LLM_REQUESTS` | `--max-concurrent-llm-requests` | `1` | Cap on concurrent LLM calls across all paths. |
 | `DOWNLINK_AUTO_ANALYZE` | `--auto-analyze` | `false` | Same as `analysis.auto_analyze`. |
 

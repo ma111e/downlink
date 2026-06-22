@@ -16,7 +16,21 @@ type fakeTools struct {
 	usableModes map[string]bool
 	blocked     bool // when true, inspectFeed only parses once a Referer header is supplied
 	fullContent bool // when true, every sampled entry already carries a full body
+
+	feedText string // per-entry feed content returned by inspectFeed (when set)
+	pageText string // page main text returned by articleText (when set)
+
+	existing []string // vocabulary returned by existingTopics
 }
+
+func (f *fakeTools) existingTopics() []string {
+	f.calls = append(f.calls, "existing_topics")
+	return f.existing
+}
+
+// longText is comfortably over feedContentFullChars and rich enough to form many
+// distinct trigrams, so coverage matching is meaningful.
+var longText = strings.Repeat("the quick brown fox jumps over the lazy dog and then ", 120)
 
 func (f *fakeTools) inspectFeed(url string, headers map[string]string) feedObs {
 	f.calls = append(f.calls, "inspect_feed")
@@ -31,9 +45,24 @@ func (f *fakeTools) inspectFeed(url string, headers map[string]string) feedObs {
 		SampleLinks: []string{"https://e.com/a", "https://e.com/b", "https://e.com/c"},
 	}
 	if f.fullContent {
-		obs.SampleContentChars = []int{4200, 3800, 5100}
+		obs.SampleContent = []string{longText, longText, longText}
+	}
+	if f.feedText != "" {
+		obs.SampleContent = []string{f.feedText, f.feedText, f.feedText}
+	}
+	for _, c := range obs.SampleContent {
+		obs.SampleContentChars = append(obs.SampleContentChars, len([]rune(c)))
 	}
 	return obs
+}
+
+func (f *fakeTools) articleText(url, mode string, headers map[string]string) (string, error) {
+	f.calls = append(f.calls, "article_text")
+	if f.pageText != "" {
+		return f.pageText, nil
+	}
+	// Default: the page body equals the feed text, so a full feed entry matches.
+	return longText, nil
 }
 
 func (f *fakeTools) suggestSelectors(url, mode string, headers map[string]string) suggestObs {
@@ -75,7 +104,7 @@ func TestRunAutoConfig_ProbesLocksThenDiscovers(t *testing.T) {
 		"```json\n{\"thought\":\"article.post scored 1.0\",\"action\":\"finish\",\"config\":{\"selectors\":{\"article\":\"article.post\"}}}\n```",
 	}
 	var steps []autoconfigStep
-	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10,
+	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, false,
 		func(st autoconfigStep) { steps = append(steps, st) }, nil)
 	if err != nil {
 		t.Fatalf("runAutoConfig: %v", err)
@@ -106,7 +135,7 @@ func TestRunAutoConfig_DetectsFullContentInDescription(t *testing.T) {
 		return "", nil
 	}
 	var steps []autoconfigStep
-	res, err := runAutoConfig(context.Background(), gen, tools, "https://e.com/feed", "rss", nil, 10,
+	res, err := runAutoConfig(context.Background(), gen, tools, "https://e.com/feed", "rss", nil, 10, false,
 		func(st autoconfigStep) { steps = append(steps, st) }, nil)
 	if err != nil {
 		t.Fatalf("runAutoConfig: %v", err)
@@ -126,6 +155,32 @@ func TestRunAutoConfig_DetectsFullContentInDescription(t *testing.T) {
 	}
 }
 
+func TestRunAutoConfig_LongTeaserIsNotFullContent(t *testing.T) {
+	// Entries clear the char bar but the page holds far more text than the feed, so
+	// the entry is a long teaser, not a full body. Autoconfig must NOT short-circuit:
+	// it should probe a mode and run selector discovery.
+	feed := strings.Repeat("alpha beta gamma delta ", 200)            // long, but a teaser
+	page := feed + strings.Repeat("one two three four five six ", 400) // page has much more
+	tools := &fakeTools{
+		feedText:    feed,
+		pageText:    page,
+		usableModes: map[string]bool{"static": true},
+	}
+	replies := []string{
+		`{"action":"finish","config":{"selectors":{"article":"article.post"}}}`,
+	}
+	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, false, nil, nil)
+	if err != nil {
+		t.Fatalf("runAutoConfig: %v", err)
+	}
+	if strings.Contains(res.ConfigYAML, "scraping: none") {
+		t.Errorf("long teaser must not short-circuit to scraping: none:\n%s", res.ConfigYAML)
+	}
+	if len(tools.modeCalls) == 0 {
+		t.Errorf("expected mode probing for a teaser feed, got none")
+	}
+}
+
 func TestRunAutoConfig_EscalatesModeWhenStaticFails(t *testing.T) {
 	// Only full_browser yields content → probe must escalate static→dynamic→full_browser.
 	tools := &fakeTools{usableModes: map[string]bool{"full_browser": true}}
@@ -133,7 +188,7 @@ func TestRunAutoConfig_EscalatesModeWhenStaticFails(t *testing.T) {
 		`{"action":"test_selector","args":{"article":"article.post"}}`,
 		`{"action":"finish","config":{"selectors":{"article":"article.post"}}}`,
 	}
-	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, nil, nil)
+	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, false, nil, nil)
 	if err != nil {
 		t.Fatalf("runAutoConfig: %v", err)
 	}
@@ -151,7 +206,7 @@ func TestRunAutoConfig_ProbesHeadersWhenBlocked(t *testing.T) {
 	replies := []string{
 		`{"action":"finish","config":{"selectors":{"article":"article.post"}}}`,
 	}
-	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, nil, nil)
+	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, false, nil, nil)
 	if err != nil {
 		t.Fatalf("runAutoConfig: %v", err)
 	}
@@ -169,7 +224,7 @@ func TestRunAutoConfig_DuplicateCallGuard(t *testing.T) {
 		`{"action":"test_selector","args":{"article":"div.x"}}`,
 		`{"action":"finish","config":{"selectors":{"article":"article.post"}}}`,
 	}
-	_, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, nil, nil)
+	_, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, false, nil, nil)
 	if err != nil {
 		t.Fatalf("runAutoConfig: %v", err)
 	}
@@ -201,7 +256,7 @@ func TestRunAutoConfig_EmitsLLMIO(t *testing.T) {
 	onLLM := func(turn int, prompt, response string) {
 		ios = append(ios, io{turn, prompt, response})
 	}
-	_, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, nil, onLLM)
+	_, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, false, nil, onLLM)
 	if err != nil {
 		t.Fatalf("runAutoConfig: %v", err)
 	}
@@ -225,9 +280,77 @@ func TestRunAutoConfig_BudgetExhausted(t *testing.T) {
 	gen := func(ctx context.Context, prompt string) (string, error) {
 		return `{"action":"suggest_selectors","args":{"article_url":"https://e.com/a"}}`, nil
 	}
-	_, err := runAutoConfig(context.Background(), gen, tools, "https://e.com/feed", "rss", nil, 3, nil, nil)
+	_, err := runAutoConfig(context.Background(), gen, tools, "https://e.com/feed", "rss", nil, 3, false, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "did not converge") {
 		t.Fatalf("expected non-convergence error, got %v", err)
+	}
+}
+
+func TestExtractTopics(t *testing.T) {
+	t.Run("parses, cleans, and normalizes", func(t *testing.T) {
+		gen := func(ctx context.Context, prompt string) (string, error) {
+			// Noise the cleaner must strip, plus mixed case / dupes / blanks to normalize.
+			return "<think>hmm</think>\n```json\n{\"topics\":[\"Threat Intelligence\",\" malware \",\"\",\"malware\"]}\n```", nil
+		}
+		got := extractTopics(context.Background(), gen, "Example Blog", nil, nil)
+		want := []string{"threat intelligence", "malware"}
+		if strings.Join(got, "|") != strings.Join(want, "|") {
+			t.Errorf("extractTopics = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("existing vocabulary reaches the prompt", func(t *testing.T) {
+		var seenPrompt string
+		gen := func(ctx context.Context, prompt string) (string, error) {
+			seenPrompt = prompt
+			return `{"topics":["vulnerabilities"]}`, nil
+		}
+		extractTopics(context.Background(), gen, "Blog", []string{"entry body text"}, []string{"vulnerabilities", "privacy"})
+		if !strings.Contains(seenPrompt, "vulnerabilities") || !strings.Contains(seenPrompt, "entry body text") {
+			t.Errorf("prompt missing existing vocab or sample content:\n%s", seenPrompt)
+		}
+	})
+
+	t.Run("garbage yields nil", func(t *testing.T) {
+		gen := func(ctx context.Context, prompt string) (string, error) { return "not json at all", nil }
+		if got := extractTopics(context.Background(), gen, "Blog", nil, nil); got != nil {
+			t.Errorf("expected nil for unparseable reply, got %v", got)
+		}
+	})
+}
+
+func TestRunAutoConfig_ExtractsTopics(t *testing.T) {
+	tools := &fakeTools{usableModes: map[string]bool{"static": true}, existing: []string{"malware"}}
+	// First reply is the topic-extraction call, then the selector-discovery turns.
+	replies := []string{
+		`{"topics":["malware","threat-intelligence"]}`,
+		`{"action":"finish","config":{"selectors":{"article":"article.post"}}}`,
+	}
+	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, true, nil, nil)
+	if err != nil {
+		t.Fatalf("runAutoConfig: %v", err)
+	}
+	if !strings.Contains(res.ConfigYAML, "topics:") || !strings.Contains(res.ConfigYAML, "threat-intelligence") {
+		t.Errorf("expected topics in YAML:\n%s", res.ConfigYAML)
+	}
+}
+
+func TestRunAutoConfig_NoTopicsSkipsExtraction(t *testing.T) {
+	tools := &fakeTools{usableModes: map[string]bool{"static": true}, existing: []string{"malware"}}
+	replies := []string{
+		`{"action":"finish","config":{"selectors":{"article":"article.post"}}}`,
+	}
+	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/feed", "rss", nil, 10, false, nil, nil)
+	if err != nil {
+		t.Fatalf("runAutoConfig: %v", err)
+	}
+	if strings.Contains(res.ConfigYAML, "topics:") {
+		t.Errorf("topics must be absent when extraction is disabled:\n%s", res.ConfigYAML)
+	}
+	for _, c := range tools.calls {
+		if c == "existing_topics" {
+			t.Errorf("existingTopics must not be called when topics are disabled")
+		}
 	}
 }
 

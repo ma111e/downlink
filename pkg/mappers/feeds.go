@@ -65,6 +65,7 @@ func FeedToProto(feed *models.Feed) (*protos.Feed, error) {
 		Type:      feed.Type,
 		Title:     feed.Title,
 		LastFetch: timestamppb.New(feed.LastFetch),
+		Topics:    feed.Topics,
 	}
 
 	// Handle pointer fields that might be nil
@@ -98,6 +99,7 @@ func FeedToModel(feed *protos.Feed) (*models.Feed, error) {
 		Type:      feed.Type,
 		Title:     feed.Title,
 		LastFetch: feed.LastFetch.AsTime(),
+		Topics:    feed.Topics,
 	}
 
 	// Handle pointer fields - using pointer values for GORM

@@ -56,9 +56,10 @@ type LLMCallView struct {
 	Response string
 }
 
-// StartLLMRun inserts a new run row at the start of digest generation.
-func (s *GormStore) StartLLMRun(id string, startedAt time.Time) error {
-	run := models.LLMRun{Id: id, StartedAt: startedAt}
+// StartLLMRun inserts a new run row at the start of digest generation, tagged
+// with the profile the digest is being generated for.
+func (s *GormStore) StartLLMRun(id, profileId string, startedAt time.Time) error {
+	run := models.LLMRun{Id: id, ProfileId: profileId, StartedAt: startedAt}
 	return s.db.Create(&run).Error
 }
 
@@ -96,8 +97,9 @@ func (s *GormStore) RecordLLMCall(in LLMCallInput) error {
 }
 
 // ListLLMRunSummaries returns the most recent runs with per-run call counts and
-// token totals, newest first. limit <= 0 means no limit.
-func (s *GormStore) ListLLMRunSummaries(limit int) ([]LLMRunSummary, error) {
+// token totals, newest first. limit <= 0 means no limit. A non-empty profileID
+// restricts results to that profile's runs.
+func (s *GormStore) ListLLMRunSummaries(limit int, profileID string) ([]LLMRunSummary, error) {
 	q := s.db.Table("llm_runs").
 		Select("llm_runs.*, "+
 			"COALESCE(COUNT(llm_calls.id), 0) AS call_count, "+
@@ -109,6 +111,9 @@ func (s *GormStore) ListLLMRunSummaries(limit int) ([]LLMRunSummary, error) {
 		Joins("LEFT JOIN digests ON digests.id = llm_runs.digest_id").
 		Group("llm_runs.id").
 		Order("llm_runs.started_at DESC")
+	if profileID != "" {
+		q = q.Where("llm_runs.profile_id = ?", profileID)
+	}
 	if limit > 0 {
 		q = q.Limit(limit)
 	}

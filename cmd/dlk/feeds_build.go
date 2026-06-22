@@ -19,7 +19,7 @@ import (
 
 // usableChars mirrors the server's minUsableChars threshold (scrapers.Usable):
 // extracted content shorter than this is treated as a stub/teaser, not an article.
-const usableChars = 500
+const usableChars = 2000
 
 // scrapeModes is the escalation order the builder follows: cheapest first,
 // full_browser last (resource-heavy, but the reliable fallback).
@@ -63,7 +63,7 @@ func newAutoConfigCmd() *cobra.Command {
 	var headerFlags []string
 	var provider, model string
 	var maxSteps int
-	var yes, verbose bool
+	var yes, verbose, noTopics bool
 	var updateFile string
 	cmd := &cobra.Command{
 		Use:   "autoconfig <rss-url>",
@@ -132,32 +132,44 @@ file instead (showing a diff when the feed is already present).`,
 			}
 
 			req := &protos.AutoConfigFeedRequest{
-				Url:      targetURL,
-				Headers:  headers,
-				Provider: provider,
-				Model:    model,
-				MaxSteps: int32(maxSteps),
-				Verbose:  verbose,
+				Url:        targetURL,
+				Headers:    headers,
+				Provider:   provider,
+				Model:      model,
+				MaxSteps:   int32(maxSteps),
+				Verbose:    verbose,
+				SkipTopics: noTopics,
 			}
 
+			var sp *lineSpinner
+			if !jsonOutput {
+				sp = newLineSpinner("working…")
+				sp.start()
+			}
 			var done *protos.AutoConfigFeedEvent
 			err = client.AutoConfigFeed(req, func(ev *protos.AutoConfigFeedEvent) {
 				switch ev.Kind {
 				case protos.AutoConfigEventKind_STEP:
-					if !jsonOutput {
-						fmt.Printf("  %s %s %s\n", styleDim.Render(fmt.Sprintf("%2d", ev.Step)),
-							styleKey.Render(ev.Tool), styleDim.Render(ev.Detail))
+					if sp != nil {
+						sp.printLine(fmt.Sprintf("  %s %s %s", styleDim.Render(fmt.Sprintf("%2d", ev.Step)),
+							styleKey.Render(ev.Tool), styleDim.Render(ev.Detail)))
+						sp.setLabel("working…")
 					}
 				case protos.AutoConfigEventKind_LLM_IO:
-					if !jsonOutput {
-						printLLMIO(int(ev.Step), ev.LlmPrompt, ev.LlmResponse)
+					if sp != nil {
+						sp.printLine(renderLLMIO(int(ev.Step), ev.LlmPrompt, ev.LlmResponse))
 					}
 				case protos.AutoConfigEventKind_DONE:
 					done = ev
 				case protos.AutoConfigEventKind_ERROR:
-					fmt.Printf("%s %s\n", styleErr.Render("✗"), ev.Detail)
+					if sp != nil {
+						sp.printLine(fmt.Sprintf("%s %s", styleErr.Render("✗"), ev.Detail))
+					}
 				}
 			})
+			if sp != nil {
+				sp.stop()
+			}
 			if err != nil {
 				return fmt.Errorf("autoconfig: %w", err)
 			}
@@ -195,29 +207,32 @@ file instead (showing a diff when the feed is already present).`,
 		},
 	}
 	cmd.Flags().StringArrayVarP(&headerFlags, "header", "H", nil, "Seed HTTP header \"Key: Value\" (repeatable)")
-	cmd.Flags().StringVarP(&provider, "provider", "p", "", "LLM provider (type or configured profile name)")
+	cmd.Flags().StringVarP(&provider, "provider", "p", "", "LLM provider (type or configured provider name)")
 	cmd.Flags().StringVarP(&model, "model", "m", "", "LLM model override")
 	cmd.Flags().IntVar(&maxSteps, "max-steps", 0, "Cap on agent tool calls (0 = server default)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip the confirmation prompt")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Stream the raw LLM prompt and response for each agent turn")
+	cmd.Flags().BoolVar(&noTopics, "no-topics", false, "Skip topic extraction (don't propose feed topics)")
 	cmd.Flags().StringVar(&updateFile, "update", "", "Merge the discovered config into this feeds YAML file (shows a diff for existing feeds)")
 	return cmd
 }
 
-// printLLMIO renders one agent turn's raw LLM prompt and response. The response is
-// pretty-printed as JSON when it parses (the model replies with a JSON action),
-// otherwise shown raw.
-func printLLMIO(turn int, prompt, response string) {
-	fmt.Printf("\n%s\n", styleSection.Render(fmt.Sprintf("── LLM turn %d ──", turn)))
-	fmt.Println(styleKey.Render("input:"))
-	fmt.Println(styleDim.Render(strings.TrimSpace(prompt)))
-	fmt.Println(styleKey.Render("output:"))
+// renderLLMIO renders one agent turn's raw LLM prompt and response as a block of
+// text. The response is pretty-printed as JSON when it parses (the model replies
+// with a JSON action), otherwise shown raw.
+func renderLLMIO(turn int, prompt, response string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n%s\n", styleSection.Render(fmt.Sprintf("── LLM turn %d ──", turn)))
+	fmt.Fprintln(&b, styleKey.Render("input:"))
+	fmt.Fprintln(&b, styleDim.Render(strings.TrimSpace(prompt)))
+	fmt.Fprintln(&b, styleKey.Render("output:"))
 	var buf bytes.Buffer
 	if json.Indent(&buf, []byte(strings.TrimSpace(response)), "", "  ") == nil {
-		fmt.Println(buf.String())
+		b.WriteString(buf.String())
 	} else {
-		fmt.Println(strings.TrimSpace(response))
+		b.WriteString(strings.TrimSpace(response))
 	}
+	return b.String()
 }
 
 // resolveFeedURL inspects rawURL and returns the URL autoconfig should run
@@ -226,7 +241,15 @@ func printLLMIO(turn int, prompt, response string) {
 // yes/json forces the first) and the chosen one is returned. It errors when the
 // page yields no feeds or the body is not usable.
 func resolveFeedURL(client *downlinkclient.DownlinkClient, rawURL string, headers map[string]string, yes bool) (string, error) {
+	var sp *lineSpinner
+	if !jsonOutput {
+		sp = newLineSpinner(fmt.Sprintf("Discovering feeds on %s…", rawURL))
+		sp.start()
+	}
 	resp, err := client.InspectFeed(rawURL, headers, 5)
+	if sp != nil {
+		sp.stop()
+	}
 	if err != nil {
 		return "", fmt.Errorf("inspect feed: %w", err)
 	}
@@ -314,6 +337,14 @@ func mergeAutoConfig(path, configYAML string, yes bool) error {
 
 	existing := ff.Feeds[idx]
 	changes := diffScraper(existing.Scraper, newFeed.Scraper)
+	// Surface a topics change only when autoconfig produced topics, so --no-topics
+	// (or an extraction failure) never wipes an operator's existing topics.
+	topicsChanged := len(newFeed.Topics) > 0 && !equalStringSlices(existing.Topics, newFeed.Topics)
+	if topicsChanged {
+		changes = append(changes, fmt.Sprintf("%s %s → %s",
+			styleKey.Render("topics:"), styleDim.Render(quoteEmpty(strings.Join(existing.Topics, ", "))),
+			quoteEmpty(strings.Join(newFeed.Topics, ", "))))
+	}
 	if len(changes) == 0 {
 		fmt.Printf("%s %s already matches the generated config; nothing to update\n",
 			styleOK.Render("✓"), newFeed.URL)
@@ -329,8 +360,11 @@ func mergeAutoConfig(path, configYAML string, yes bool) error {
 		return nil
 	}
 
-	// Keep identity fields, replace the scraper block.
+	// Keep identity fields, replace the scraper block; apply topics only when present.
 	existing.Scraper = newFeed.Scraper
+	if topicsChanged {
+		existing.Topics = newFeed.Topics
+	}
 	ff.Feeds[idx] = existing
 	fmt.Printf("%s updated %s in %s\n", styleKey.Render("Update:"), newFeed.URL, path)
 	return writeFeedsFile(path, ff)
@@ -421,6 +455,19 @@ func sortedHeaderKeys(a, b map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// equalStringSlices reports whether two string slices have the same elements in order.
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // quoteEmpty renders an empty value as "(none)" so a diff line stays readable.

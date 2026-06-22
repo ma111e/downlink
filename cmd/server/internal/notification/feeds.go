@@ -17,19 +17,16 @@ import (
 	gogit "gopkg.in/src-d/go-git.v4"
 )
 
-// RSSFilename and AtomFilename are the basenames of the subscription feeds
-// written at the root of the Pages branch on every push.
-const (
-	RSSFilename  = "rss.xml"
-	AtomFilename = "atom.xml"
-)
+// RSSFilename is the basename of the subscription feed written at the root of
+// the Pages branch on every push.
+const RSSFilename = "rss.xml"
 
-// BuildDigestFeeds renders RSS and Atom feeds for the given digests (expected
+// BuildDigestFeeds renders an RSS feed for the given digests (expected
 // newest-first). Each digest becomes one feed entry whose HTML body lists, for
 // every article in the digest, its TLDR and key points. Links point at the
 // published digest HTML page under baseURL/outputDir; when baseURL is empty the
 // links are relative to the site root.
-func BuildDigestFeeds(digests []models.Digest, outputDir, baseURL string) (rss, atom []byte, err error) {
+func BuildDigestFeeds(digests []models.Digest, outputDir, baseURL string) (rss []byte, err error) {
 	now := time.Now()
 	updated := now
 	if len(digests) > 0 {
@@ -67,13 +64,9 @@ func BuildDigestFeeds(digests []models.Digest, outputDir, baseURL string) (rss, 
 
 	rssStr, err := feed.ToRss()
 	if err != nil {
-		return nil, nil, fmt.Errorf("render rss feed: %w", err)
+		return nil, fmt.Errorf("render rss feed: %w", err)
 	}
-	atomStr, err := feed.ToAtom()
-	if err != nil {
-		return nil, nil, fmt.Errorf("render atom feed: %w", err)
-	}
-	return []byte(rssStr), []byte(atomStr), nil
+	return []byte(rssStr), nil
 }
 
 // digestFeedContent builds the HTML body for a digest feed entry: one section per
@@ -194,22 +187,20 @@ func joinURL(base string, segments ...string) string {
 	return utils.JoinURL(base, segments...)
 }
 
-// writeAndStageFeeds builds the RSS and Atom feeds from digests and writes them
-// at the root of the Pages clone, staging both in the worktree.
+// writeAndStageFeeds builds the RSS feed from digests and writes it at the root
+// of the Pages clone, staging it in the worktree.
 func (p *GitHubPagesPublisher) writeAndStageFeeds(wt *gogit.Worktree, outputDir string, digests []models.Digest) error {
-	rss, atom, err := BuildDigestFeeds(digests, outputDir, p.cfg.BaseURL)
+	rss, err := BuildDigestFeeds(digests, outputDir, p.cfg.BaseURL)
 	if err != nil {
 		return fmt.Errorf("github pages: build feeds: %w", err)
 	}
 
-	for name, data := range map[string][]byte{RSSFilename: rss, AtomFilename: atom} {
-		absPath := filepath.Join(p.cfg.CloneDir, name)
-		if err := os.WriteFile(absPath, data, 0644); err != nil {
-			return fmt.Errorf("github pages: write %s: %w", name, err)
-		}
-		if _, err := wt.Add(name); err != nil {
-			return fmt.Errorf("github pages: stage %s: %w", name, err)
-		}
+	absPath := filepath.Join(p.cfg.CloneDir, RSSFilename)
+	if err := os.WriteFile(absPath, rss, 0644); err != nil {
+		return fmt.Errorf("github pages: write %s: %w", RSSFilename, err)
+	}
+	if _, err := wt.Add(RSSFilename); err != nil {
+		return fmt.Errorf("github pages: stage %s: %w", RSSFilename, err)
 	}
 	return nil
 }

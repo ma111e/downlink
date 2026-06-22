@@ -20,7 +20,7 @@ Flags:
 | Flag | Meaning |
 |------|---------|
 | `-H, --header "Key: Value"` | Seed header, repeatable. Starting point for header probing. |
-| `-p, --provider` | LLM provider (type or configured profile name). |
+| `-p, --provider` | LLM provider (type or configured provider name). |
 | `-m, --model` | Model override. |
 | `--max-steps` | Cap on agent turns. `0` uses the server default (16). |
 
@@ -50,13 +50,13 @@ Tried cheapest first: `static -> dynamic -> full_browser`. For each, get
 selector candidates for the first sample article and check the top candidate's
 char count:
 
-- Top candidate ≥ 500 chars (`autoconfigUsableChars`): that mode wins, and its
+- Top candidate ≥ 2000 chars (`autoconfigUsableChars`): that mode wins, and its
   candidates seed the loop.
 - Otherwise keep the best-by-length mode and continue.
-- If none clears 500, use the best-by-length mode anyway (likely low final
+- If none clears 2000, use the best-by-length mode anyway (likely low final
   confidence).
 
-500 is the shared `minUsableChars` threshold
+2000 is the shared `minUsableChars` threshold
 ([scrapers/usability.go:11](../cmd/server/internal/scrapers/usability.go#L11)):
 shorter content is a stub, paywall teaser, or unrendered JS shell.
 

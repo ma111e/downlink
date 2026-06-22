@@ -218,6 +218,28 @@ func (pc *DownlinkClient) AutoConfigFeed(req *protos.AutoConfigFeedRequest, onEv
 	return nil
 }
 
+// BackfillFeedTopics asks the server to derive topics for the given feeds via the
+// LLM, invoking onEvent once per feed as results stream in.
+func (pc *DownlinkClient) BackfillFeedTopics(req *protos.BackfillFeedTopicsRequest, onEvent func(ev *protos.BackfillFeedTopicsEvent)) error {
+	stream, err := pc.feedsClient.BackfillFeedTopics(pc.ctx, req)
+	if err != nil {
+		return err
+	}
+	for {
+		ev, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		if onEvent != nil {
+			onEvent(ev)
+		}
+	}
+	return nil
+}
+
 // DiagnoseFeed runs a read-only diagnosis of a single feed: the server fetches and
 // parses the feed but stores nothing, returning a structured report of what came
 // back over the wire (HTTP status, content type, feed-type guess, parse error,

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ma111e/downlink/cmd/server/internal/manager"
 	"github.com/ma111e/downlink/cmd/server/internal/scrapers"
+	"github.com/ma111e/downlink/pkg/llmutil"
 	"github.com/ma111e/downlink/pkg/models"
 
 	"gopkg.in/yaml.v3"
@@ -24,13 +25,27 @@ const (
 	defaultAutoconfigSteps = 16
 	// autoconfigUsableChars mirrors scrapers' usable-content threshold: a candidate
 	// shorter than this is treated as a stub, not an article body.
-	autoconfigUsableChars = 500
+	autoconfigUsableChars = 1500
+	// feedContentFullChars is the length above which a feed entry is long enough to
+	// *possibly* be a full body. At or below it, the entry is a stub and rejected
+	// without a fetch; above it, a char count alone can't tell a full body from a long
+	// teaser, so the page is fetched and the text matched (see feedContentScore).
+	feedContentFullChars = 3000
+	// feedContentCoverageRatio is the fraction of the article page's main text that
+	// must appear in the feed entry for the body to count as fully in the feed.
+	feedContentCoverageRatio = 0.8
 	// feedContentModeThreshold is the fraction of sampled entries that must already
 	// carry a full body before autoconfig short-circuits to scraping: none. Mirrors
 	// SelectorScore.Reliable so "good enough" means the same thing across the agent.
 	feedContentModeThreshold = 0.8
 	// desktopUA is the User-Agent tried during header probing.
 	desktopUA = "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0"
+	// topicSampleEntries / topicSnippetChars bound how much feed text the topic
+	// extraction prompt carries: a few entries, each truncated to a snippet.
+	topicSampleEntries = 3
+	topicSnippetChars  = 600
+	// topicMax caps how many topic labels extraction keeps.
+	topicMax = 5
 )
 
 // scrapeModeOrder is the escalation order the mode probe follows: cheapest first,
@@ -45,6 +60,12 @@ type autoconfigTools interface {
 	inspectFeed(url string, headers map[string]string) feedObs
 	suggestSelectors(url, mode string, headers map[string]string) suggestObs
 	testSelector(urls []string, mode, article, cutoff, blacklist string, headers map[string]string) testObs
+	// articleText scrapes a page and returns the plain text of its main content, so the
+	// feed-content check can match a long entry against the real article body.
+	articleText(url, mode string, headers map[string]string) (string, error)
+	// existingTopics returns the distinct topics already in use across configured
+	// feeds, so topic extraction can prefer the established vocabulary.
+	existingTopics() []string
 }
 
 type feedObs struct {
@@ -54,6 +75,7 @@ type feedObs struct {
 	Verdict            string   `json:"verdict"`
 	SampleLinks        []string `json:"sample_links"`
 	SampleContentChars []int    `json:"sample_content_chars,omitempty"`
+	SampleContent      []string `json:"-"` // per-entry feed text, for content matching
 }
 
 type suggestObs struct {
@@ -117,6 +139,7 @@ func runAutoConfig(
 	feedURL, feedType string,
 	seedHeaders map[string]string,
 	maxSteps int,
+	enableTopics bool,
 	onStep func(autoconfigStep),
 	onLLM func(turn int, prompt, response string),
 ) (AutoConfigResult, error) {
@@ -138,12 +161,23 @@ func runAutoConfig(
 		return AutoConfigResult{}, fmt.Errorf("feed has no sample article links to inspect")
 	}
 
+	// ── Pre-step 1a: topic extraction ──
+	// One LLM call deriving the feed's broad topic labels from its title + sample
+	// entries, preferring the vocabulary already in use. Failures are non-fatal.
+	var topics []string
+	if enableTopics {
+		topics = extractTopics(ctx, gen, feed.Title, feed.SampleContent, tools.existingTopics())
+		if len(topics) > 0 {
+			emitStep(onStep, next(), "topics", strings.Join(topics, ", "))
+		}
+	}
+
 	// ── Pre-step 1b: feed-content short-circuit ──
 	// If the entries already carry full article bodies, no page scraping or LLM
 	// selector discovery is needed — emit a scraping: none config and stop.
-	if score := feedContentScore(feed.SampleContentChars); score >= feedContentModeThreshold {
+	if score := feedContentScore(tools, feed, lockedHeaders); score >= feedContentModeThreshold {
 		emitStep(onStep, next(), "feed_content", fmt.Sprintf("entries carry full content (score %.2f)", score))
-		res, ferr := finishFeedContent(feedURL, feedType, lockedHeaders, score)
+		res, ferr := finishFeedContent(feedURL, feedType, lockedHeaders, topics, score)
 		if ferr != nil {
 			return AutoConfigResult{}, ferr
 		}
@@ -190,7 +224,7 @@ func runAutoConfig(
 
 		switch action.Action {
 		case "finish":
-			res, ferr := finishAutoConfig(action, feedURL, feedType, lockedMode, lockedHeaders, samples, tools)
+			res, ferr := finishAutoConfig(action, feedURL, feedType, lockedMode, lockedHeaders, samples, topics, tools)
 			if ferr != nil {
 				fmt.Fprintf(&transcript, "OBSERVATION: {\"error\":%q}\n", ferr.Error())
 				continue
@@ -310,7 +344,7 @@ func writeSeed(b *strings.Builder, feedURL, feedType, mode string, headers map[s
 
 // finishAutoConfig validates the proposed selectors, scores them for confidence, and
 // renders the final config YAML using the LOCKED mode and headers.
-func finishAutoConfig(action agentAction, feedURL, feedType, mode string, headers map[string]string, samples []string, tools autoconfigTools) (AutoConfigResult, error) {
+func finishAutoConfig(action agentAction, feedURL, feedType, mode string, headers map[string]string, samples, topics []string, tools autoconfigTools) (AutoConfigResult, error) {
 	if action.Config == nil || strings.TrimSpace(action.Config.Selectors.Article) == "" {
 		return AutoConfigResult{}, fmt.Errorf("finish requires config.selectors.article")
 	}
@@ -329,6 +363,7 @@ func finishAutoConfig(action agentAction, feedURL, feedType, mode string, header
 	cfg := models.FeedConfig{
 		URL:     feedURL,
 		Enabled: true,
+		Topics:  topics,
 		Scraper: models.ScraperConfig{
 			Type:     feedType,
 			Scraping: scrapingValue(mode),
@@ -354,10 +389,11 @@ func finishAutoConfig(action agentAction, feedURL, feedType, mode string, header
 // finishFeedContent renders a scraping: none config for feeds that already ship
 // full article bodies in their entries — no selectors, no page fetch. confidence
 // is the fraction of sampled entries that carried a usable body.
-func finishFeedContent(feedURL, feedType string, headers map[string]string, confidence float64) (AutoConfigResult, error) {
+func finishFeedContent(feedURL, feedType string, headers map[string]string, topics []string, confidence float64) (AutoConfigResult, error) {
 	cfg := models.FeedConfig{
 		URL:     feedURL,
 		Enabled: true,
+		Topics:  topics,
 		Scraper: models.ScraperConfig{
 			Type:     feedType,
 			Scraping: "none",
@@ -375,6 +411,94 @@ func finishFeedContent(feedURL, feedType string, headers map[string]string, conf
 	}, nil
 }
 
+// extractTopics derives 1..topicMax broad topic labels for the feed from its title
+// and a few sample entries, in one LLM call. existing is the vocabulary already in
+// use across configured feeds; the model is asked to prefer it so topics stay
+// consistent (profiles select feeds by topic). It is best-effort: any error, empty
+// reply, or unparseable output yields nil and autoconfig proceeds without topics.
+func extractTopics(ctx context.Context, gen autoconfigGenerate, feedTitle string, sampleContent, existing []string) []string {
+	raw, err := gen(ctx, buildTopicPrompt(feedTitle, sampleContent, existing))
+	if err != nil {
+		return nil
+	}
+	cleaned := llmutil.CleanLLMResponse(raw)
+	var parsed struct {
+		Topics []string `json:"topics"`
+	}
+	if json.Unmarshal([]byte(cleaned), &parsed) != nil {
+		if json.Unmarshal([]byte(llmutil.ExtractJSON(cleaned)), &parsed) != nil {
+			return nil
+		}
+	}
+	return normalizeTopics(parsed.Topics)
+}
+
+// buildTopicPrompt renders the topic-extraction prompt: a librarian persona, the
+// feed's identifying text, the established vocabulary, and a JSON output contract.
+func buildTopicPrompt(feedTitle string, sampleContent, existing []string) string {
+	var b strings.Builder
+	b.WriteString(`You are a cybersecurity content librarian. Assign between 1 and 5 broad topic labels to this FEED as a whole (its subject area), not to any single article, so editors can group and select feeds by topic.
+
+Rules:
+- Topics are broad subject areas (e.g. "threat-intelligence", "vulnerabilities", "malware", "cloud-security", "privacy"), not article tags or specific entity names.
+- Prefer labels from the existing topics below verbatim when one fits; only invent a new label when none of them describe the feed.
+- Use lowercase; keep each label short (1-3 words).
+
+`)
+	if t := strings.TrimSpace(feedTitle); t != "" {
+		fmt.Fprintf(&b, "Feed title: %s\n\n", t)
+	}
+	if len(existing) > 0 {
+		data, _ := json.Marshal(existing)
+		fmt.Fprintf(&b, "Existing topics (prefer these): %s\n\n", string(data))
+	}
+	snippets := make([]string, 0, topicSampleEntries)
+	for _, s := range sampleContent {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if r := []rune(s); len(r) > topicSnippetChars {
+			s = string(r[:topicSnippetChars])
+		}
+		snippets = append(snippets, s)
+		if len(snippets) >= topicSampleEntries {
+			break
+		}
+	}
+	for i, s := range snippets {
+		fmt.Fprintf(&b, "Sample entry %d:\n%s\n\n", i+1, s)
+	}
+	b.WriteString(`Respond with ONLY a single JSON object, no markdown or other text:
+{"topics": ["topic-1", "topic-2"]}`)
+	return b.String()
+}
+
+// normalizeTopics lowercases, trims, drops empties, and de-duplicates topic labels,
+// matching how SetFeedTopics stores them, and caps the count at topicMax.
+func normalizeTopics(in []string) []string {
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, t := range in {
+		t = strings.ToLower(strings.TrimSpace(t))
+		if t == "" {
+			continue
+		}
+		if _, dup := seen[t]; dup {
+			continue
+		}
+		seen[t] = struct{}{}
+		out = append(out, t)
+		if len(out) >= topicMax {
+			break
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // renderConfig marshals a single feed config to the feeds-file YAML shape.
 func renderConfig(cfg models.FeedConfig) (string, error) {
 	out, err := yaml.Marshal(models.FeedsFile{Feeds: []models.FeedConfig{cfg}})
@@ -384,20 +508,34 @@ func renderConfig(cfg models.FeedConfig) (string, error) {
 	return string(out), nil
 }
 
-// feedContentScore is the fraction of sampled entries whose feed content is
-// already a usable full body (>= autoconfigUsableChars), mirroring the selector
-// "usable" bar so "good enough" means the same thing across the agent.
-func feedContentScore(chars []int) float64 {
-	if len(chars) == 0 {
+// feedContentScore is the fraction of sampled entries that already carry the full
+// article body. An entry at or below feedContentFullChars is too short to be a full
+// body and is rejected outright (no fetch). A longer entry might still be only a long
+// teaser, so a char count can't decide it: the article page is fetched and the entry
+// counts as full only when it covers feedContentCoverageRatio of the page's main text.
+func feedContentScore(tools autoconfigTools, feed feedObs, headers map[string]string) float64 {
+	n := len(feed.SampleLinks)
+	if n == 0 {
 		return 0
 	}
-	usable := 0
-	for _, c := range chars {
-		if c >= autoconfigUsableChars {
-			usable++
+	full := 0
+	for i, link := range feed.SampleLinks {
+		var text string
+		if i < len(feed.SampleContent) {
+			text = feed.SampleContent[i]
+		}
+		if len([]rune(text)) <= feedContentFullChars {
+			continue // stub: too short to be a full body, no need to fetch the page
+		}
+		page, err := tools.articleText(link, "static", headers)
+		if err != nil || page == "" {
+			continue // can't fetch the page to compare: don't assume the feed is full
+		}
+		if scrapers.ContentCoverage(text, page) >= feedContentCoverageRatio {
+			full++
 		}
 	}
-	return float64(usable) / float64(len(chars))
+	return float64(full) / float64(n)
 }
 
 // scrapingValue maps an internal mode name to the FeedConfig.Scraping value
@@ -543,7 +681,20 @@ func (managerTools) inspectFeed(url string, headers map[string]string) feedObs {
 		Verdict:            insp.Diagnosis.Verdict,
 		SampleLinks:        insp.SampleLinks,
 		SampleContentChars: insp.SampleContentChars,
+		SampleContent:      insp.SampleContent,
 	}
+}
+
+func (managerTools) articleText(url, mode string, headers map[string]string) (string, error) {
+	return manager.Manager.ArticleMainText(url, mode, headers)
+}
+
+func (managerTools) existingTopics() []string {
+	topics, err := manager.Manager.AllTopics()
+	if err != nil {
+		return nil // extraction degrades to free-form when the vocabulary can't be read
+	}
+	return topics
 }
 
 func (managerTools) suggestSelectors(url, mode string, headers map[string]string) suggestObs {

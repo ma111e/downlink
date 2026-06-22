@@ -9,6 +9,28 @@ import (
 	"github.com/ma111e/downlink/pkg/models"
 )
 
+func TestRunsTemplateShowsProfile(t *testing.T) {
+	runs := []store.LLMRunSummary{
+		{LLMRun: models.LLMRun{Id: "run-x", ProfileId: "infosec", StartedAt: time.Now()}, CallCount: 1},
+	}
+	data := runsPageData{Runs: runs, Chart: buildChart(runs), Stats: buildStats(runs), ProfileFilter: "infosec"}
+
+	var sb strings.Builder
+	if err := runsTmpl.Execute(&sb, data); err != nil {
+		t.Fatalf("runsTmpl.Execute() error = %v", err)
+	}
+	out := sb.String()
+	for _, want := range []string{
+		`href="/?profile=infosec"`, // per-row profile link
+		"Filtered to profile",      // active-filter banner
+		`href="/"`,                 // show-all link
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("runs template missing %q", want)
+		}
+	}
+}
+
 func TestRunsTemplateExecutes(t *testing.T) {
 	runs := []store.LLMRunSummary{
 		{LLMRun: models.LLMRun{Id: "run-abc", Title: "Daily Brief", DigestId: "digest-1", StartedAt: time.Now()}, CallCount: 3, TotalTokens: 12345, TotalPromptTokens: 9000, TotalCompletionTokens: 3345, ArticleCount: 5},

@@ -104,6 +104,35 @@ func TestSeedDefaultProfileBackfill(t *testing.T) {
 	}
 }
 
+// TestListLLMRunSummariesProfileFilter confirms monitoring runs can be filtered
+// by the profile they were generated for.
+func TestListLLMRunSummariesProfileFilter(t *testing.T) {
+	s := newTestStore(t)
+	now := time.Now()
+	if err := s.StartLLMRun("run-a", "alpha", now.Add(-2*time.Hour)); err != nil {
+		t.Fatalf("StartLLMRun a: %v", err)
+	}
+	if err := s.StartLLMRun("run-b", "beta", now.Add(-1*time.Hour)); err != nil {
+		t.Fatalf("StartLLMRun b: %v", err)
+	}
+
+	all, err := s.ListLLMRunSummaries(10, "")
+	if err != nil {
+		t.Fatalf("ListLLMRunSummaries(all): %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("expected 2 runs unfiltered, got %d", len(all))
+	}
+
+	alpha, err := s.ListLLMRunSummaries(10, "alpha")
+	if err != nil {
+		t.Fatalf("ListLLMRunSummaries(alpha): %v", err)
+	}
+	if len(alpha) != 1 || alpha[0].Id != "run-a" || alpha[0].ProfileId != "alpha" {
+		t.Errorf("expected only alpha's run, got %+v", alpha)
+	}
+}
+
 // TestProfileScopedAnalyses is the core of the shared-pool/per-lens model: the
 // same article carries distinct analyses per profile, and the scoped getters
 // return the right one.

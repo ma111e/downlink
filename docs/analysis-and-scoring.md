@@ -79,3 +79,17 @@ Two `analysis` config fields shape LLM output:
   tense, attribution rules).
 
 Both are set in `config.json`; see [configuration.md](configuration.md).
+
+## Per-profile overrides
+
+Everything on this page is the global default. A [profile](profiles.md) can override any of
+it for its own digests, and re-analyzes its articles with its own settings. Per profile you
+can set the persona, writing style, audience, scoring mode, glossary, and which summaries to
+generate, and additionally:
+
+- a **custom category set** that replaces the default `news`/`research`/... taxonomy;
+- a **custom rubric**: per-dimension weights and the Must/Should/May tier thresholds;
+- **raw task-prompt overrides**: replace a task's instruction text. The output schema and
+  required keys stay fixed, so validation and corrective re-prompts still apply.
+
+An omitted field inherits the global value. See [profiles.md](profiles.md).

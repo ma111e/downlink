@@ -81,6 +81,18 @@ func candScore(c SelectorCandidate) float64 {
 	return float64(c.Chars) * (1.0 - c.LinkDensity)
 }
 
+// MainContentText returns the plain text of the element most likely to hold the
+// article body — the top-ranked SuggestSelectors candidate. It is the page-side
+// counterpart to a feed entry's text, so a caller can check whether the feed already
+// carries the whole article. Returns "" when no candidate clears the minimum size.
+func MainContentText(dom *goquery.Selection) string {
+	cands := SuggestSelectors(dom, 1)
+	if len(cands) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(dom.Find(cands[0].Selector).First().Text())
+}
+
 // elementSelector builds a stable, valid CSS selector for an element: "#id" when it
 // has a usable id, else "tag.class1.class2" from up to two simple classes, else the
 // bare tag for the semantic containers article/main. Returns "" for elements that

@@ -8,7 +8,7 @@ import (
 
 // minUsableChars is the extracted-content length below which a scrape is treated
 // as unusable (a stub, a paywall teaser, or a JS shell that never rendered).
-const minUsableChars = 500
+const minUsableChars = 2000
 
 // Usable reports whether extracted article text looks like real content, with a
 // short reason when it does not. It is the shared yardstick behind probe-modes and
@@ -25,6 +25,35 @@ func Usable(text string) (bool, string) {
 		return false, fmt.Sprintf("too short (%d chars)", n)
 	}
 	return true, ""
+}
+
+// ContentCoverage reports the fraction of want's word trigrams that also appear in
+// have (0..1). It answers "is want's text essentially contained in have?" while
+// tolerating whitespace and minor formatting differences that defeat a raw substring
+// or length comparison. Returns 0 when want is too short to form a trigram.
+func ContentCoverage(have, want string) float64 {
+	wantTris := trigrams(want)
+	if len(wantTris) == 0 {
+		return 0
+	}
+	haveTris := trigrams(have)
+	matched := 0
+	for t := range wantTris {
+		if haveTris[t] {
+			matched++
+		}
+	}
+	return float64(matched) / float64(len(wantTris))
+}
+
+// trigrams returns the set of lowercased, whitespace-normalized word trigrams in s.
+func trigrams(s string) map[string]bool {
+	words := strings.Fields(strings.ToLower(s))
+	set := make(map[string]bool, len(words))
+	for i := 0; i+2 < len(words); i++ {
+		set[words[i]+" "+words[i+1]+" "+words[i+2]] = true
+	}
+	return set
 }
 
 // ExtractResult is one selector test against one article URL.

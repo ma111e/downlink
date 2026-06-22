@@ -14,6 +14,19 @@ func (s *GormStore) SaveArticleAnalysis(analysis *models.ArticleAnalysis) error 
 	return nil
 }
 
+// UpdateArticleAnalysisGlossaryTerms writes only the serialized glossary_terms column for
+// one analysis. ArticleAnalysis has no BeforeUpdate hook, so a full Save would not
+// re-serialize the slice; this scoped update sidesteps that and touches a single column.
+func (s *GormStore) UpdateArticleAnalysisGlossaryTerms(id, glossaryTermsJson string) error {
+	if id == "" {
+		return fmt.Errorf("UpdateArticleAnalysisGlossaryTerms: empty id")
+	}
+	if err := s.db.Model(&models.ArticleAnalysis{}).Where("id = ?", id).Update("glossary_terms", glossaryTermsJson).Error; err != nil {
+		return fmt.Errorf("failed to update article analysis glossary terms: %w", err)
+	}
+	return nil
+}
+
 // GetArticleAnalysis returns the most recent analysis for an article. When
 // profileId is set it returns the most recent analysis produced for that
 // profile; an empty profileId returns the latest across all profiles,

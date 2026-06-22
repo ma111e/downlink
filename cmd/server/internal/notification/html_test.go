@@ -44,7 +44,7 @@ func TestHighlightTagsInSectionText(t *testing.T) {
 }
 
 func TestRenderDigestIndexUsesManifest(t *testing.T) {
-	htmlBytes, err := RenderDigestIndex("default")
+	htmlBytes, err := RenderDigestIndex("default", "")
 	if err != nil {
 		t.Fatalf("RenderDigestIndex() error = %v", err)
 	}
@@ -87,7 +87,7 @@ func TestRenderSourcesPageListsEnabledFeeds(t *testing.T) {
 		{Title: "No Flag Feed", URL: "https://noflag.example.org/atom"}, // nil Enabled => treated as enabled
 	}
 
-	htmlBytes, err := RenderSourcesPage(feeds, "default")
+	htmlBytes, err := RenderSourcesPage(feeds, "default", "")
 	if err != nil {
 		t.Fatalf("RenderSourcesPage() error = %v", err)
 	}
@@ -119,7 +119,7 @@ func TestRenderSourcesPageListsEnabledFeeds(t *testing.T) {
 
 func TestRenderDigestHTMLDoesNotIncludeManifestSwitcher(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	htmlBytes, err := RenderDigestHTML(digest, "default")
+	htmlBytes, err := RenderDigestHTML(digest, "default", "")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -148,7 +148,7 @@ func TestRenderDigestHTMLLayoutSelection(t *testing.T) {
 	// Color selection is client-side now: the server always bakes the fixed dark
 	// first-paint theme regardless of the layout chosen.
 	for _, layout := range []string{"", "default"} {
-		htmlBytes, err := RenderDigestHTML(digest, layout)
+		htmlBytes, err := RenderDigestHTML(digest, layout, "")
 		if err != nil {
 			t.Fatalf("RenderDigestHTML(%q) error = %v", layout, err)
 		}
@@ -158,7 +158,7 @@ func TestRenderDigestHTMLLayoutSelection(t *testing.T) {
 	}
 
 	// An unknown layout is rejected so typos surface instead of silently falling back.
-	if _, err := RenderDigestHTML(digest, "bogus"); err == nil {
+	if _, err := RenderDigestHTML(digest, "bogus", ""); err == nil {
 		t.Fatal("RenderDigestHTML(\"bogus\") expected an error for an unknown layout")
 	}
 }
@@ -169,7 +169,7 @@ func TestRenderDigestHTMLLayoutSelection(t *testing.T) {
 func TestEveryRegisteredLayoutRenders(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 	for _, l := range digestlayouts.All() {
-		if _, err := RenderDigestHTML(digest, l.Name); err != nil {
+		if _, err := RenderDigestHTML(digest, l.Name, ""); err != nil {
 			t.Fatalf("RenderDigestHTML(layout=%q) error = %v", l.Name, err)
 		}
 	}
@@ -181,7 +181,7 @@ func TestEmeraldLayoutDiffersFromDefault(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 	const emeraldAccent = "oklch(72% 0.17 150)"
 
-	emerald, err := RenderDigestHTML(digest, "emerald")
+	emerald, err := RenderDigestHTML(digest, "emerald", "")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML(emerald) error = %v", err)
 	}
@@ -189,7 +189,7 @@ func TestEmeraldLayoutDiffersFromDefault(t *testing.T) {
 		t.Fatalf("emerald layout missing its green accent %q", emeraldAccent)
 	}
 
-	def, err := RenderDigestHTML(digest, "default")
+	def, err := RenderDigestHTML(digest, "default", "")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML(default) error = %v", err)
 	}
@@ -200,7 +200,7 @@ func TestEmeraldLayoutDiffersFromDefault(t *testing.T) {
 
 func TestRenderDigestHTMLShowsScoreTooltip(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	htmlBytes, err := RenderDigestHTML(digest, "default")
+	htmlBytes, err := RenderDigestHTML(digest, "default", "")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -223,7 +223,7 @@ func TestRenderDigestHTMLBakesFilterCountsAtBuildTime(t *testing.T) {
 	// sampleDigest: article-b score 95 (Must Read), article-a score 80 (Should Read),
 	// no categories. The counts must be baked into the spans, not filled by JS on load.
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	htmlBytes, err := RenderDigestHTML(digest, "default")
+	htmlBytes, err := RenderDigestHTML(digest, "default", "")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -281,7 +281,7 @@ func TestRenderDigestHTMLPreCollapsesReportsAtBuildTime(t *testing.T) {
 		},
 	}
 
-	htmlBytes, err := RenderDigestHTML(digest, "default")
+	htmlBytes, err := RenderDigestHTML(digest, "default", "")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -350,7 +350,7 @@ func TestRenderDigestHTMLGlossaryMode(t *testing.T) {
 		},
 	}
 
-	htmlBytes, err := RenderDigestHTML(digest, "default")
+	htmlBytes, err := RenderDigestHTML(digest, "default", "")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -440,7 +440,7 @@ func TestRenderDigestHTMLGlossaryPopup(t *testing.T) {
 		},
 	}
 
-	htmlBytes, err := RenderDigestHTML(digest, "default")
+	htmlBytes, err := RenderDigestHTML(digest, "default", "")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -481,6 +481,73 @@ func TestRenderDigestHTMLGlossaryPopup(t *testing.T) {
 	}
 }
 
+func TestRenderDigestHTMLGlossaryAliasesResolve(t *testing.T) {
+	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+	category := "news"
+	digest := models.Digest{
+		Id:         "digest-alias",
+		CreatedAt:  createdAt,
+		TimeWindow: 24 * time.Hour,
+		Articles: []models.Article{
+			{Id: "article-a", Title: "Alias Article", Link: "https://example.com/a", PublishedAt: createdAt, CategoryName: &category},
+		},
+		DigestAnalyses: []models.DigestAnalysis{
+			{
+				ArticleId: "article-a",
+				Analysis: &models.ArticleAnalysis{
+					ArticleId:     "article-a",
+					ProviderType:  "openai",
+					ModelName:     "gpt-test",
+					BriefOverview: "Attackers hit QNAP NAS appliances; many QNAP NAS devices stayed online.",
+					GlossaryTerms: []models.GlossaryTerm{
+						{Term: "QNAP NAS", Aliases: []string{"QNAP NAS devices"}, Type: "product", Context: "The targeted storage boxes in this story."},
+					},
+				},
+			},
+		},
+		DigestGlossary: []models.DigestGlossary{
+			{
+				DigestId: "digest-alias",
+				EntryId:  "entry-q",
+				Entry: &models.GlossaryEntry{
+					Id:            "entry-q",
+					NormalizedKey: models.NormalizeGlossaryKey("QNAP NAS"),
+					Term:          "QNAP NAS",
+					Kind:          models.GlossaryKindJargon,
+					Category:      "product",
+					Definition:    "A line of network-attached storage devices made by QNAP.",
+				},
+			},
+		},
+	}
+
+	htmlBytes, err := RenderDigestHTML(digest, "default", "")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML() error = %v", err)
+	}
+	html := string(htmlBytes)
+
+	for _, want := range []string{
+		// The alias key resolves to the canonical term's definition in the popup map.
+		`"qnap nas devices":`,
+		`A line of network-attached storage devices made by QNAP.`,
+		// Both the canonical form and the alias are highlighted in the prose.
+		`<mark class="tag-hl">QNAP NAS</mark> appliances`,
+		`<mark class="tag-hl">QNAP NAS devices</mark>`,
+		// The drawer groups the similar term under its canonical row.
+		`<div class="glossary-panel-aliases">also: QNAP NAS devices</div>`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("RenderDigestHTML() missing alias fragment %q:\n%s", want, html)
+		}
+	}
+
+	// The similar term must not create a second standalone drawer row.
+	if n := strings.Count(html, `class="glossary-panel-entry"`); n != 1 {
+		t.Fatalf("expected one glossary panel row, got %d:\n%s", n, html)
+	}
+}
+
 func TestRenderDigestHTMLPlainWords(t *testing.T) {
 	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
 	category := "news"
@@ -506,7 +573,7 @@ func TestRenderDigestHTMLPlainWords(t *testing.T) {
 		},
 	}
 
-	htmlBytes, err := RenderDigestHTML(digest, "default")
+	htmlBytes, err := RenderDigestHTML(digest, "default", "")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -531,7 +598,7 @@ func TestRenderDigestHTMLPlainWords(t *testing.T) {
 
 func TestRenderDigestHTMLNoGlossaryToggleWhenAbsent(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	htmlBytes, err := RenderDigestHTML(digest, "default")
+	htmlBytes, err := RenderDigestHTML(digest, "default", "")
 	if err != nil {
 		t.Fatalf("RenderDigestHTML() error = %v", err)
 	}
@@ -547,7 +614,7 @@ func TestRenderDigestHTMLNoGlossaryToggleWhenAbsent(t *testing.T) {
 
 func TestRenderSwipeHTMLInjectsDigestAndArticles(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	htmlBytes, err := RenderSwipeHTML(digest, "downlink-digest-2026-04-24_1200.html", "default")
+	htmlBytes, err := RenderSwipeHTML(digest, "downlink-digest-2026-04-24_1200.html", "default", "")
 	if err != nil {
 		t.Fatalf("RenderSwipeHTML() error = %v", err)
 	}

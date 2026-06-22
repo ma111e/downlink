@@ -51,7 +51,8 @@ Output and publishing:
 
 | Flag | Description |
 |---|---|
-| `--theme` | HTML theme (default `dark`). See themes below. |
+| `--profile <slug>` | Generate for a [profile](profiles.md): its feed pool, editorial config, layout, and theme. Omitted uses the default profile. |
+| `--theme <layout>` | Layout (template set) for this run. Empty uses the profile's, then the server default. See [Layouts and themes](#layouts-and-themes). |
 | `--gh-pages` / `--no-gh-pages` | Force GitHub Pages publishing on or off for this run, overriding server config. |
 | `--test` / `--test-digest-id <id>` | Send a stored digest to the notification channels without generating a new one. |
 
@@ -66,11 +67,22 @@ to stop at the next stage boundary; twice to force exit.
 | `dlk digest get [id]` | Show the summary and articles. `--markdown` renders styled prose. Omit the id to pick interactively. |
 | `dlk digest articles [id]` | List just the articles in a digest. |
 
-## Themes
+## Layouts and themes
 
-Themes style the published HTML. List them with `dlk digest list --themes`.
+Two independent axes style the published HTML.
 
-| Theme | Description |
+**Layout** is the template set (page structure). Built-in layouts are `default` and
+`emerald`; list them with `dlk digest list --themes`. The `--theme` flag takes a layout
+name despite its name. Set it per run with `dlk digest generate --theme <layout>`, a server
+default with `github_pages.layout`, or per profile with `layout` in `profiles.yml`. Ship
+your own layout under the layouts dir (`--layouts-dir`); a custom layout may override only
+some pages and inherits the rest from `default`. The `dlk publish` commands also accept
+`--theme <layout>` (a persistent flag, e.g. `republish-all`, `add`, `republish`).
+
+**Theme** is the color palette. It is the first-paint default baked into the page; readers
+switch it with the in-page picker. Set a profile's default with `theme` in `profiles.yml`.
+
+| Palette | Description |
 |---|---|
 | `dark` | Dark navy/charcoal (default). |
 | `light` | Warm cream background, dark text. |
@@ -78,11 +90,6 @@ Themes style the published HTML. List them with `dlk digest list --themes`.
 | `mono` | Grayscale, no chroma. |
 | `colorblind` | Light, colorblind-safe (Okabe-Ito). |
 | `pastel` | Soft pastel cream/mint/coral, dark text. |
-
-Pick a theme per run with `dlk digest generate --theme <name>`, or set a default for
-published pages with `github_pages.theme` in config. The `dlk publish` commands also accept
-`--theme <name>` (a persistent flag, e.g. `republish-all`, `add`, `republish`), so the archive
-can be re-rendered into a different theme later.
 
 When a digest has glossary content, the page nav shows a **Glossary** switch next to the
 theme picker. Toggling it reveals each article's plain-language explanation and jargon

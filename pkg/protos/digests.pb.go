@@ -307,6 +307,7 @@ type GenerateDigestRequest struct {
 	StandardSynthesis      *bool                  `protobuf:"varint,18,opt,name=standard_synthesis,json=standardSynthesis,proto3,oneof" json:"standard_synthesis,omitempty"`                // When set, overrides the server's standard_synthesis config (generate the Standard article summary)
 	ComprehensiveSynthesis *bool                  `protobuf:"varint,19,opt,name=comprehensive_synthesis,json=comprehensiveSynthesis,proto3,oneof" json:"comprehensive_synthesis,omitempty"` // When set, overrides the server's comprehensive_synthesis config (generate the Full article summary)
 	ExecutiveSummary       *bool                  `protobuf:"varint,20,opt,name=executive_summary,json=executiveSummary,proto3,oneof" json:"executive_summary,omitempty"`                   // When set, overrides the server's executive_summary config (generate the digest-level executive summary)
+	ProfileSlug            string                 `protobuf:"bytes,21,opt,name=profile_slug,json=profileSlug,proto3" json:"profile_slug,omitempty"`                                         // Editorial profile this digest is generated for; empty = "default"
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -472,6 +473,13 @@ func (x *GenerateDigestRequest) GetExecutiveSummary() bool {
 		return *x.ExecutiveSummary
 	}
 	return false
+}
+
+func (x *GenerateDigestRequest) GetProfileSlug() string {
+	if x != nil {
+		return x.ProfileSlug
+	}
+	return ""
 }
 
 // GenerateDigestResponse represents the response with the generated digest
@@ -1210,7 +1218,7 @@ const file_digests_proto_rawDesc = "" +
 	"\barticles\x18\x01 \x03(\v2\x11.downlink.ArticleR\barticles\"%\n" +
 	"\x13DeleteDigestRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x19\n" +
-	"\x17DeleteAllDigestsRequest\"\xa1\a\n" +
+	"\x17DeleteAllDigestsRequest\"\xc4\a\n" +
 	"\x15GenerateDigestRequest\x129\n" +
 	"\n" +
 	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
@@ -1233,7 +1241,8 @@ const file_digests_proto_rawDesc = "" +
 	"\bglossary\x18\x11 \x01(\bH\x02R\bglossary\x88\x01\x01\x122\n" +
 	"\x12standard_synthesis\x18\x12 \x01(\bH\x03R\x11standardSynthesis\x88\x01\x01\x12<\n" +
 	"\x17comprehensive_synthesis\x18\x13 \x01(\bH\x04R\x16comprehensiveSynthesis\x88\x01\x01\x120\n" +
-	"\x11executive_summary\x18\x14 \x01(\bH\x05R\x10executiveSummary\x88\x01\x01B\x13\n" +
+	"\x11executive_summary\x18\x14 \x01(\bH\x05R\x10executiveSummary\x88\x01\x01\x12!\n" +
+	"\fprofile_slug\x18\x15 \x01(\tR\vprofileSlugB\x13\n" +
 	"\x11_gh_pages_enabledB\r\n" +
 	"\v_vibe_scoreB\v\n" +
 	"\t_glossaryB\x15\n" +

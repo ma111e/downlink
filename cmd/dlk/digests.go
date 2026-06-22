@@ -142,7 +142,7 @@ func createDigestCommands() *cobra.Command {
 
 	// Generate digest command
 	var digestFrom, digestTo, digestBetween, digestDay, digestLayout, digestTestID string
-	var digestProvider, digestModel string
+	var digestProvider, digestModel, digestProfile string
 	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages, digestReanalyzeOnModelChange, digestReanalyze, digestVibeScore, digestGlossary, digestSelectModel bool
 	var digestStandardSynthesis, digestComprehensiveSynthesis, digestExecutiveSummary bool
 	generateCmd := &cobra.Command{
@@ -449,6 +449,7 @@ Examples:
 				ExecutiveSummary:       executiveSummary,
 				Provider:               digestProvider,
 				Model:                  digestModel,
+				ProfileSlug:            digestProfile,
 				OnEvent:                handler,
 			})
 
@@ -486,8 +487,9 @@ Examples:
 	generateCmd.Flags().BoolVar(&digestExecutiveSummary, "executive-summary", false, "Generate the digest-level executive summary for this run [overrides server config; use --executive-summary=false to force off]")
 	generateCmd.Flags().Bool("one-shot", false, "Analyze missing articles with one full LLM prompt instead of the multi-step chain")
 	generateCmd.Flags().Bool("exclude-digested", false, "Exclude articles already included in a previous digest")
-	generateCmd.Flags().StringVar(&digestLayout, "theme", "default", "Layout/graphical theme for the digest (see: digest list --themes)")
-	generateCmd.Flags().StringVarP(&digestProvider, "provider", "p", "", "Provider override for this run (a provider type or a configured profile name, auto-detected by the server); applies to all LLM steps")
+	generateCmd.Flags().StringVar(&digestLayout, "theme", "", "Layout/graphical theme for the digest (empty = profile/server default; see: digest list --themes)")
+	generateCmd.Flags().StringVar(&digestProfile, "profile", "", "Editorial profile to generate the digest for (empty = default profile)")
+	generateCmd.Flags().StringVarP(&digestProvider, "provider", "p", "", "Provider override for this run (a provider type or a configured provider name, auto-detected by the server); applies to all LLM steps")
 	generateCmd.Flags().StringVarP(&digestModel, "model", "m", "", "Model override for this run. If given without --provider, the server finds the provider offering it (errors if ambiguous)")
 	generateCmd.Flags().BoolVar(&digestSelectModel, "select-model", false, "Interactively pick a model; lists every provider's models (or just --provider's when set)")
 	generateCmd.Flags().BoolVar(&digestTest, "test", false, "Send a stored test digest to configured notification channels without generating a new digest")

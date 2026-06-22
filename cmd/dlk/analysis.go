@@ -85,17 +85,17 @@ Batch Analysis by Feed/Time:
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getNewDownlinkClient()
 
-			// Validate: --profile cannot be combined with --provider/--model/--select-model
+			// Validate: --provider-profile cannot be combined with --provider/--model/--select-model
 			if len(profileNames) > 0 && (providerType != "" || modelName != "" || runSelectModel) {
-				fmt.Println("Error: --profile cannot be combined with --provider, --model, or --select-model")
+				fmt.Println("Error: --provider-profile cannot be combined with --provider, --model, or --select-model")
 				return
 			}
 
-			// Validate profile names against server-known providers
+			// Validate provider-profile names against server-known providers
 			if len(profileNames) > 0 {
 				providers, err := client.GetLLMProviders()
 				if err != nil {
-					fmt.Printf("Failed to list profiles: %v\n", err)
+					fmt.Printf("Failed to list providers: %v\n", err)
 					return
 				}
 				nameSet := make(map[string]bool, len(providers))
@@ -109,8 +109,8 @@ Batch Analysis by Feed/Time:
 					}
 				}
 				if len(unknowns) > 0 {
-					fmt.Printf("Error: unknown profile(s): %s\n", strings.Join(unknowns, ", "))
-					fmt.Println("Available profiles:")
+					fmt.Printf("Error: unknown provider profile(s): %s\n", strings.Join(unknowns, ", "))
+					fmt.Println("Available providers:")
 					for _, p := range providers {
 						enabled := ""
 						if !p.Enabled {
@@ -164,7 +164,7 @@ Batch Analysis by Feed/Time:
 
 				analyzeWithProfile := func(profile string) bool {
 					if profile != "" {
-						fmt.Printf("\n=== profile: %s ===\n", profile)
+						fmt.Printf("\n=== provider profile: %s ===\n", profile)
 					}
 					var analysis models.ArticleAnalysis
 					var err error
@@ -311,12 +311,12 @@ Batch Analysis by Feed/Time:
 						ProviderName: pn,
 						FastMode:     runKeyPointsOnly,
 					}); err != nil {
-						fmt.Printf("Failed to enqueue articles for profile %s: %v\n", pn, err)
+						fmt.Printf("Failed to enqueue articles for provider profile %s: %v\n", pn, err)
 						return
 					}
 				}
 				total := len(allArticles) * len(profileNames)
-				fmt.Printf("Enqueued %d articles × %d profiles = %d jobs\n", len(allArticles), len(profileNames), total)
+				fmt.Printf("Enqueued %d articles × %d provider profiles = %d jobs\n", len(allArticles), len(profileNames), total)
 			} else {
 				var enqueueErr error
 				if providerType != "" || modelName != "" {
@@ -344,9 +344,9 @@ Batch Analysis by Feed/Time:
 	}
 
 	// Add flags for analyze command
-	analyzeCmd.Flags().StringVarP(&providerType, "provider", "p", "", "Override provider: a provider type (openai, anthropic, ...) or a configured profile name, auto-detected by the server")
+	analyzeCmd.Flags().StringVarP(&providerType, "provider", "p", "", "Override provider: a provider type (openai, anthropic, ...) or a configured provider name, auto-detected by the server")
 	analyzeCmd.Flags().StringVarP(&modelName, "model", "m", "", "Override model name. If given without --provider, the server finds the provider offering it (errors if ambiguous)")
-	analyzeCmd.Flags().StringSliceVar(&profileNames, "profile", nil, "LLM profile name(s) to use (comma-separated or repeated). Cannot be combined with --provider/--model.")
+	analyzeCmd.Flags().StringSliceVar(&profileNames, "provider-profile", nil, "Configured provider name(s) to analyze with (comma-separated or repeated). Cannot be combined with --provider/--model.")
 	analyzeCmd.Flags().BoolVar(&runSelectModel, "select-model", false, "Interactively pick a model; lists every provider's models (or just --provider's when set)")
 	analyzeCmd.Flags().StringVar(&runFrom, "from", "", "Start of time window (e.g., 'now', '2025-01-01', '7d')")
 	analyzeCmd.Flags().StringVar(&runTo, "to", "", "End of time window (e.g., 'now', '2025-01-01', '1h')")

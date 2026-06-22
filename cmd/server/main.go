@@ -5,7 +5,6 @@ import (
 	"github.com/ma111e/downlink/cmd/server/internal/adminserver"
 	"github.com/ma111e/downlink/cmd/server/internal/config"
 	"github.com/ma111e/downlink/cmd/server/internal/creds"
-	"github.com/ma111e/downlink/cmd/server/internal/feedserver"
 	"github.com/ma111e/downlink/cmd/server/internal/manager"
 	"github.com/ma111e/downlink/cmd/server/internal/notification"
 	"github.com/ma111e/downlink/cmd/server/internal/scrapers"
@@ -54,7 +53,8 @@ func main() {
 	var autoStartLightpanda bool
 	var autoStartSolimen bool
 	var solimenAddr string
-	var feedBaseURL string
+	var profilesFile string
+	var layoutsDir string
 	var logLevel string
 	var traceDir string
 	var maxConcurrentLLMRequests int
@@ -91,7 +91,6 @@ func main() {
 			autoStartLightpanda = viper.GetBool("auto-start-lightpanda")
 			autoStartSolimen = viper.GetBool("auto-start-solimen")
 			solimenAddr = viper.GetString("solimen-addr")
-			feedBaseURL = viper.GetString("feed-base-url")
 			logLevel = viper.GetString("log-level")
 			traceDir = viper.GetString("trace-dir")
 			maxConcurrentLLMRequests = viper.GetInt("max-concurrent-llm-requests")
@@ -134,6 +133,30 @@ func main() {
 			}
 
 			manager.InitFeedManager(store.Db)
+
+			// Register an on-disk layouts directory (custom template packs) when it
+			// exists; profiles can then select a layout served from there.
+			if layoutsDir != "" {
+				if info, statErr := os.Stat(layoutsDir); statErr == nil && info.IsDir() {
+					notification.SetLayoutsDir(layoutsDir)
+					log.WithField("dir", layoutsDir).Info("Custom layouts directory registered")
+				}
+			}
+
+			// Apply the profiles catalog (profiles.yml) if present, mirroring how
+			// feeds.yml drives the feed catalog. The store always seeds a "default"
+			// profile, so the system works even without this file.
+			if _, statErr := os.Stat(profilesFile); statErr == nil {
+				pf, loadErr := manager.LoadProfilesFile(profilesFile)
+				if loadErr != nil {
+					log.WithError(loadErr).Fatalf("Failed to load profiles file %s", profilesFile)
+				}
+				res, applyErr := manager.Manager.ApplyProfiles(pf)
+				if applyErr != nil {
+					log.WithError(applyErr).Fatalln("Failed to apply profiles")
+				}
+				log.WithField("profiles", res.Upserted).Info("Applied profiles from profiles.yml")
+			}
 
 			return nil
 		},
@@ -184,21 +207,6 @@ func main() {
 				}()
 			}
 
-			// Start Atom feed server. Resolve the base URL for served feed links:
-			// explicit flag/env > feed_base_url > github_pages.base_url.
-			if feedBaseURL == "" {
-				feedBaseURL = config.Config.FeedBaseURL
-			}
-			if feedBaseURL == "" {
-				feedBaseURL = config.Config.Notifications.GitHubPages.BaseURL
-			}
-			go func() {
-				atomServer := feedserver.NewFeedServer(store.Db, 65261, feedBaseURL)
-				if err := atomServer.Start(); err != nil {
-					log.WithError(err).Error("Atom feed server failed")
-				}
-			}()
-
 			// LLM monitoring dashboard (localhost only). Retention bounds how
 			// many recent digest runs' conversations are kept.
 			services.LLMMonitorRetention = llmMonitorRetention
@@ -224,7 +232,8 @@ func main() {
 	rootCmd.PersistentFlags().BoolVar(&autoStartLightpanda, "auto-start-lightpanda", false, "Automatically start the Lightpanda Docker container if not running (skip interactive prompt)")
 	rootCmd.PersistentFlags().BoolVar(&autoStartSolimen, "auto-start-solimen", false, "Automatically start the Solimen Docker container if not running (skip interactive prompt)")
 	rootCmd.PersistentFlags().StringVar(&solimenAddr, "solimen-addr", "http://localhost:5011", "Solimen service address for full_browser scraping (e.g. http://localhost:5011)")
-	rootCmd.PersistentFlags().StringVar(&feedBaseURL, "feed-base-url", "", "Base URL for served Atom feed links (e.g. https://feeds.example.com)")
+	rootCmd.PersistentFlags().StringVar(&profilesFile, "profiles-file", "profiles.yml", "Path to the profiles catalog applied at startup (skipped if absent)")
+	rootCmd.PersistentFlags().StringVar(&layoutsDir, "layouts-dir", "layouts", "Directory of on-disk custom layouts (one subdir per layout); used if it exists")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (trace, debug, info, warn, error)")
 	rootCmd.PersistentFlags().StringVar(&traceDir, "trace-dir", "", "Directory for content-level debug traces (LLM prompt/response, raw feed/scrape bodies); only active at --log-level trace. Default: /tmp/downlink-trace-<timestamp>")
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentLLMRequests, "max-concurrent-llm-requests", 1, "Maximum number of concurrent LLM analysis requests (default: 1)")

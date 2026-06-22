@@ -27,8 +27,20 @@ type FeedConfig struct {
 	Title   string        `json:"title,omitempty" yaml:"title,omitempty"`
 	Note    string        `json:"note,omitempty" yaml:"note,omitempty"`
 	Enabled bool          `json:"enabled" yaml:"enabled"`
+	Topics  []string      `json:"topics,omitempty" yaml:"topics,omitempty"` // labels profiles select feeds by
 	Scraper ScraperConfig `json:"scraper" yaml:"scraper"`
 }
+
+// FeedTopic is one (feed, topic) membership row. Topics are operator-assigned
+// labels; a profile selects feeds by topic (see ProfileSelection). Distinct from
+// the LLM-generated article entity tags (see Tag).
+type FeedTopic struct {
+	FeedId string `gorm:"primaryKey" json:"feed_id"`
+	Topic  string `gorm:"primaryKey;index" json:"topic"`
+}
+
+// TableName specifies the table name for FeedTopic.
+func (FeedTopic) TableName() string { return "feed_topics" }
 
 // ScraperConfig holds all scraping configuration for a feed: the scraper type,
 // render mode, content selectors, custom headers, full_browser triggers, and any
@@ -56,6 +68,9 @@ type Feed struct {
 	Enabled  *bool             `gorm:"default:true" json:"enabled"`
 	GroupId  *string           `gorm:"default:'default'" json:"group_id"`
 	Articles []Article         `gorm:"foreignKey:FeedId" json:"-"` // One-to-many relationship with articles
+	// Topics are the feed's labels (profiles select feeds by topic). Stored in the
+	// feed_topics table, not on this row; populated by ListFeeds for read paths.
+	Topics []string `gorm:"-" json:"topics,omitempty"`
 }
 
 // TableName specifies the table name for Feed

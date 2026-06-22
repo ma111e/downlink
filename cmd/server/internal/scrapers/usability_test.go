@@ -5,6 +5,32 @@ import (
 	"testing"
 )
 
+func TestContentCoverage(t *testing.T) {
+	article := "the quick brown fox jumps over the lazy dog every single morning"
+
+	tests := []struct {
+		name     string
+		have     string
+		want     string
+		min, max float64
+	}{
+		{"identical is full", article, article, 1.0, 1.0},
+		{"want contained in have", article + " and more trailing text here", article, 1.0, 1.0},
+		{"whitespace differences ignored", strings.ReplaceAll(article, " ", "   "), article, 1.0, 1.0},
+		{"disjoint text is zero", "completely different words with nothing shared at all", article, 0.0, 0.0},
+		{"partial overlap is partial", "the quick brown fox went somewhere else entirely today", article, 0.05, 0.6},
+		{"too short to judge", article, "two words", 0.0, 0.0},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ContentCoverage(tc.have, tc.want)
+			if got < tc.min || got > tc.max {
+				t.Errorf("ContentCoverage = %.3f, want in [%.3f, %.3f]", got, tc.min, tc.max)
+			}
+		})
+	}
+}
+
 func TestUsable(t *testing.T) {
 	long := strings.Repeat("real article words ", 100) // well over the threshold
 

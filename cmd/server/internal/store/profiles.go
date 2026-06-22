@@ -18,10 +18,12 @@ func (s *GormStore) ListProfiles() ([]models.Profile, error) {
 	return profiles, nil
 }
 
-// GetProfile returns a single profile by id (slug), with its feeds preloaded.
+// GetProfile returns a single profile by id (slug). Feeds are not preloaded
+// (resolving editorial config does not need them); use ListProfileFeeds for the
+// pool.
 func (s *GormStore) GetProfile(id string) (models.Profile, error) {
 	var profile models.Profile
-	if err := s.db.Preload("Feeds").First(&profile, "id = ?", id).Error; err != nil {
+	if err := s.db.First(&profile, "id = ?", id).Error; err != nil {
 		return profile, fmt.Errorf("failed to get profile %q: %w", id, err)
 	}
 	return profile, nil

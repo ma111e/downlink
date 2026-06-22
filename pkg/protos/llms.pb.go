@@ -473,6 +473,7 @@ type AnalyzeArticleWithProviderModelRequest struct {
 	Glossary               *bool                  `protobuf:"varint,10,opt,name=glossary,proto3,oneof" json:"glossary,omitempty"`                                                           // When set, overrides the server's glossary config (plain-language explanation + jargon glossary)
 	StandardSynthesis      *bool                  `protobuf:"varint,11,opt,name=standard_synthesis,json=standardSynthesis,proto3,oneof" json:"standard_synthesis,omitempty"`                // When set, overrides the server's standard_synthesis config (generate the Standard article summary)
 	ComprehensiveSynthesis *bool                  `protobuf:"varint,12,opt,name=comprehensive_synthesis,json=comprehensiveSynthesis,proto3,oneof" json:"comprehensive_synthesis,omitempty"` // When set, overrides the server's comprehensive_synthesis config (generate the Full article summary)
+	ProfileSlug            string                 `protobuf:"bytes,13,opt,name=profile_slug,json=profileSlug,proto3" json:"profile_slug,omitempty"`                                         // Editorial profile whose config drives this analysis; empty = "default"
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -582,6 +583,13 @@ func (x *AnalyzeArticleWithProviderModelRequest) GetComprehensiveSynthesis() boo
 		return *x.ComprehensiveSynthesis
 	}
 	return false
+}
+
+func (x *AnalyzeArticleWithProviderModelRequest) GetProfileSlug() string {
+	if x != nil {
+		return x.ProfileSlug
+	}
+	return ""
 }
 
 // AnalyzeArticleWithProviderModelResponse is the response for the AnalyzeArticleWithProviderModel method
@@ -2148,7 +2156,7 @@ const file_llms_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12#\n" +
-	"\rprovider_type\x18\x05 \x01(\tR\fproviderType\"\x9e\x04\n" +
+	"\rprovider_type\x18\x05 \x01(\tR\fproviderType\"\xc1\x04\n" +
 	"&AnalyzeArticleWithProviderModelRequest\x12\x1d\n" +
 	"\n" +
 	"article_id\x18\x01 \x01(\tR\tarticleId\x12#\n" +
@@ -2164,7 +2172,8 @@ const file_llms_proto_rawDesc = "" +
 	"\bglossary\x18\n" +
 	" \x01(\bH\x01R\bglossary\x88\x01\x01\x122\n" +
 	"\x12standard_synthesis\x18\v \x01(\bH\x02R\x11standardSynthesis\x88\x01\x01\x12<\n" +
-	"\x17comprehensive_synthesis\x18\f \x01(\bH\x03R\x16comprehensiveSynthesis\x88\x01\x01B\r\n" +
+	"\x17comprehensive_synthesis\x18\f \x01(\bH\x03R\x16comprehensiveSynthesis\x88\x01\x01\x12!\n" +
+	"\fprofile_slug\x18\r \x01(\tR\vprofileSlugB\r\n" +
 	"\v_vibe_scoreB\v\n" +
 	"\t_glossaryB\x15\n" +
 	"\x13_standard_synthesisB\x1a\n" +

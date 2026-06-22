@@ -40,15 +40,18 @@ type GitHubPagesPublisher struct {
 	progress    PublishProgress
 	listDigests DigestLister
 	listSources SourceLister
+	landing     []LandingProfile
+	profileSlug string // current profile being published (switcher active state)
+	theme       string // current profile's first-paint theme ("" = default)
 }
 
 // DigestLister returns up to limit newest digests with full payload (provider
-// results + analyses). It lets the publisher build the RSS/Atom feeds without
+// results + analyses). It lets the publisher build the RSS feed without
 // depending on the store: callers that have DB or client access supply it via
 // SetDigestLister. A nil lister disables feed generation.
 type DigestLister func(limit int) ([]models.Digest, error)
 
-// FeedDigestLimit caps how many recent digests appear in the RSS/Atom feeds.
+// FeedDigestLimit caps how many recent digests appear in the RSS feed.
 const FeedDigestLimit = 7
 
 // publishCutoff returns the earliest PeriodStart a digest may have and still
@@ -63,7 +66,7 @@ func (p *GitHubPagesPublisher) publishCutoff() time.Time {
 }
 
 // SetDigestLister attaches the lister used to fetch recent digests when building
-// the RSS/Atom feeds on each push. Passing nil disables feed generation.
+// the RSS feed on each push. Passing nil disables feed generation.
 func (p *GitHubPagesPublisher) SetDigestLister(fn DigestLister) {
 	p.listDigests = fn
 }
@@ -77,6 +80,41 @@ type SourceLister func() ([]models.Feed, error)
 // the sources page on each push. Passing nil disables sources page generation.
 func (p *GitHubPagesPublisher) SetSourceLister(fn SourceLister) {
 	p.listSources = fn
+}
+
+// SetLanding supplies the public profile list. When more than one profile is
+// given, the repo-root index.html becomes a landing page that links into each
+// profile's section (plus a profiles.json), instead of mirroring a single
+// profile's archive. With zero or one profile the historical single-site root
+// index is kept.
+func (p *GitHubPagesPublisher) SetLanding(profiles []LandingProfile) {
+	p.landing = profiles
+}
+
+// SetProfileContext records which profile is being published: its slug (for the
+// switcher's active state) and its first-paint theme. Empty values keep today's
+// defaults (no active highlight, dark theme).
+func (p *GitHubPagesPublisher) SetProfileContext(slug, theme string) {
+	p.profileSlug = slug
+	p.theme = theme
+}
+
+// rootPrefix is the relative path from a published page back to the repo root.
+// Per-profile pages live under outputDir (one or more segments deep), so the
+// switcher and any root-relative reference walk up that many levels.
+func (p *GitHubPagesPublisher) rootPrefix(outputDir string) string {
+	depth := strings.Count(filepath.ToSlash(strings.Trim(outputDir, "/")), "/") + 1
+	return strings.Repeat("../", depth)
+}
+
+// maybeInjectSwitcher adds the floating profile switcher to a rendered page when
+// the site has more than one profile. Single-profile sites are returned
+// unchanged, matching today's output.
+func (p *GitHubPagesPublisher) maybeInjectSwitcher(html []byte, outputDir string) []byte {
+	if len(p.landing) <= 1 {
+		return html
+	}
+	return injectProfileSwitcher(html, p.profileSlug, p.rootPrefix(outputDir))
 }
 
 // SetProgress attaches a PublishProgress sink so callers can render live step
@@ -425,10 +463,11 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, layout
 	indexRelPath := filepath.Join(outputDir, "index.html")
 	indexAbsPath := filepath.Join(p.cfg.CloneDir, indexRelPath)
 
-	indexBytes, err := RenderDigestIndex(layout)
+	indexBytes, err := RenderDigestIndex(layout, p.theme)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to build index: %w", err)
 	}
+	indexBytes = p.maybeInjectSwitcher(indexBytes, outputDir)
 
 	existing, readErr := os.ReadFile(indexAbsPath)
 	if readErr != nil || !bytes.Equal(existing, indexBytes) {
@@ -443,16 +482,33 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, layout
 		}
 	}
 
+	// Root index: a multi-profile site gets a landing page (+ profiles.json) that
+	// links into each profile's section; a single-profile site keeps the historical
+	// root index that mirrors that profile's archive.
+	var rootIndexBytes []byte
+	if len(p.landing) > 1 {
+		rootIndexBytes, err = renderRootLanding(p.landing)
+		if err != nil {
+			return fmt.Errorf("github pages: failed to build root landing: %w", err)
+		}
+		if err := p.writeAndStageRootFile(wt, "profiles.json", func() ([]byte, error) {
+			return ProfilesJSON(p.landing)
+		}); err != nil {
+			return err
+		}
+	} else {
+		rootIndexBytes, err = renderDigestIndexWithPaths(
+			filepath.ToSlash(filepath.Join(outputDir, ManifestFilename)),
+			filepath.ToSlash(outputDir),
+			layout,
+			p.theme,
+		)
+		if err != nil {
+			return fmt.Errorf("github pages: failed to build root index: %w", err)
+		}
+	}
 	rootIndexRelPath := "index.html"
 	rootIndexAbsPath := filepath.Join(p.cfg.CloneDir, rootIndexRelPath)
-	rootIndexBytes, err := renderDigestIndexWithPaths(
-		filepath.ToSlash(filepath.Join(outputDir, ManifestFilename)),
-		filepath.ToSlash(outputDir),
-		layout,
-	)
-	if err != nil {
-		return fmt.Errorf("github pages: failed to build root index: %w", err)
-	}
 	existingRoot, readRootErr := os.ReadFile(rootIndexAbsPath)
 	if readRootErr != nil || !bytes.Equal(existingRoot, rootIndexBytes) {
 		if err := os.WriteFile(rootIndexAbsPath, rootIndexBytes, 0644); err != nil {
@@ -467,6 +523,26 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, layout
 		return err
 	}
 	return p.ensureSourcesPage(wt, outputDir, layout)
+}
+
+// writeAndStageRootFile writes a generated file at the repo root (idempotently)
+// and stages it.
+func (p *GitHubPagesPublisher) writeAndStageRootFile(wt *gogit.Worktree, name string, build func() ([]byte, error)) error {
+	data, err := build()
+	if err != nil {
+		return fmt.Errorf("github pages: build %s: %w", name, err)
+	}
+	abs := filepath.Join(p.cfg.CloneDir, name)
+	existing, readErr := os.ReadFile(abs)
+	if readErr != nil || !bytes.Equal(existing, data) {
+		if err := os.WriteFile(abs, data, 0644); err != nil {
+			return fmt.Errorf("github pages: write %s: %w", name, err)
+		}
+		if _, err := wt.Add(name); err != nil {
+			return fmt.Errorf("github pages: stage %s: %w", name, err)
+		}
+	}
+	return nil
 }
 
 // ensureStaticAssets writes favicon and icon files to the repo root and to
@@ -504,21 +580,29 @@ func (p *GitHubPagesPublisher) ensureSourcesPage(wt *gogit.Worktree, outputDir, 
 		return fmt.Errorf("github pages: failed to list sources: %w", err)
 	}
 
-	sourcesBytes, err := RenderSourcesPage(feeds, layout)
+	sourcesBytes, err := RenderSourcesPage(feeds, layout, p.theme)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to build sources page: %w", err)
 	}
 
-	for _, relPath := range []string{"sources.html", filepath.Join(outputDir, "sources.html")} {
+	// Single-profile: write at the repo root and under outputDir (today's
+	// behavior). Multi-profile: the root is the landing page, so only the
+	// per-profile copy is written, and it carries the switcher.
+	locations := []string{filepath.Join(outputDir, "sources.html")}
+	if len(p.landing) <= 1 {
+		locations = append([]string{"sources.html"}, locations...)
+	}
+	out := p.maybeInjectSwitcher(sourcesBytes, outputDir)
+	for _, relPath := range locations {
 		absPath := filepath.Join(p.cfg.CloneDir, relPath)
 		existing, readErr := os.ReadFile(absPath)
-		if readErr == nil && bytes.Equal(existing, sourcesBytes) {
+		if readErr == nil && bytes.Equal(existing, out) {
 			continue
 		}
 		if err := os.MkdirAll(filepath.Dir(absPath), 0755); err != nil {
 			return fmt.Errorf("github pages: failed to create sources dir: %w", err)
 		}
-		if err := os.WriteFile(absPath, sourcesBytes, 0644); err != nil {
+		if err := os.WriteFile(absPath, out, 0644); err != nil {
 			return fmt.Errorf("github pages: failed to write sources HTML: %w", err)
 		}
 		if _, err := wt.Add(relPath); err != nil {
@@ -782,10 +866,11 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout stri
 			digestRelPath := filepath.Join(outputDir, digestFilename)
 			digestAbsPath := filepath.Join(p.cfg.CloneDir, digestRelPath)
 
-			htmlBytes, err := RenderDigestHTML(digest, layout)
+			htmlBytes, err := RenderDigestHTML(digest, layout, p.theme)
 			if err != nil {
 				return fmt.Errorf("github pages: render digest %s: %w", digest.Id, err)
 			}
+			htmlBytes = p.maybeInjectSwitcher(htmlBytes, outputDir)
 			if err := os.MkdirAll(filepath.Dir(digestAbsPath), 0755); err != nil {
 				return fmt.Errorf("github pages: create output dir: %w", err)
 			}
@@ -793,10 +878,11 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout stri
 				return fmt.Errorf("github pages: write digest HTML %s: %w", digest.Id, err)
 			}
 
-			swipeBytes, err := RenderSwipeHTML(digest, digestFilename, layout)
+			swipeBytes, err := RenderSwipeHTML(digest, digestFilename, layout, p.theme)
 			if err != nil {
 				return fmt.Errorf("github pages: render swipe %s: %w", digest.Id, err)
 			}
+			swipeBytes = p.maybeInjectSwitcher(swipeBytes, outputDir)
 			swipeRelPath := filepath.Join(outputDir, SwipeHTMLFilename(digest))
 			swipeAbsPath := filepath.Join(p.cfg.CloneDir, swipeRelPath)
 			if err := os.WriteFile(swipeAbsPath, swipeBytes, 0644); err != nil {
@@ -990,10 +1076,11 @@ func (p *GitHubPagesPublisher) pushWithRetry(repo *gogit.Repository, wt *gogit.W
 // digest HTML, and stages it in the worktree.
 func (p *GitHubPagesPublisher) renderAndStageSwipe(wt *gogit.Worktree, digest models.Digest, outputDir string) error {
 	digestFilename := DigestHTMLFilename(digest)
-	swipeBytes, err := RenderSwipeHTML(digest, digestFilename, p.cfg.Layout)
+	swipeBytes, err := RenderSwipeHTML(digest, digestFilename, p.cfg.Layout, p.theme)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to render swipe HTML: %w", err)
 	}
+	swipeBytes = p.maybeInjectSwitcher(swipeBytes, outputDir)
 
 	swipeFilename := SwipeHTMLFilename(digest)
 	swipeRelPath := filepath.Join(outputDir, swipeFilename)
@@ -1013,10 +1100,11 @@ func (p *GitHubPagesPublisher) renderAndStageSwipe(wt *gogit.Worktree, digest mo
 // and stages it in the worktree. It returns the staged file's repo-relative
 // path.
 func (p *GitHubPagesPublisher) renderAndStage(wt *gogit.Worktree, digest models.Digest, outputDir string, layout string) (string, error) {
-	htmlBytes, err := RenderDigestHTML(digest, layout)
+	htmlBytes, err := RenderDigestHTML(digest, layout, p.theme)
 	if err != nil {
 		return "", fmt.Errorf("github pages: failed to render digest HTML: %w", err)
 	}
+	htmlBytes = p.maybeInjectSwitcher(htmlBytes, outputDir)
 
 	digestFilename := DigestHTMLFilename(digest)
 	digestRelPath := filepath.Join(outputDir, digestFilename)

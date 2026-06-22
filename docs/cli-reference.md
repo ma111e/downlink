@@ -38,6 +38,7 @@ schema and the selector-building subcommands.
 | `feeds refresh [feed\|all]` | Pull new articles. Accepts a feed id, a normalized name, or `all`. Flags: `--from`, `--to`, `--between`, `--last-n`, `--overwrite`, `--restore`, `--dry-run`, `--debug`. |
 | `feeds apply -f <file>` | Reconcile the database to a feeds YAML file: create/update listed feeds, disable the rest (articles kept). `--dry-run` previews. |
 | `feeds export` | Write the database's feeds back to YAML. `-o <file>` (default stdout), `--enabled-only`. |
+| `feeds backfill-topics -f <file>` | LLM-fill `topics:` in a feeds YAML file and write it back (for [profile](profiles.md) selection). Labels feeds without topics by default; `--overwrite` redoes all. `--dry-run`, `-y`, `-p`/`-m`. |
 | `feeds delete` | Delete feeds by `-f <file>`, `-t <title>`, `-i <id>`, or interactively. `--dry-run` previews. Deleting a feed removes its articles. |
 | `feeds diagnose <feed>` | Probe one feed and report the raw HTTP response, parse errors, and UTF-8 issues. `--raw` also prints the saved body. |
 
@@ -52,7 +53,7 @@ Run and inspect LLM analysis of articles. See
 
 | Command | Description |
 |---|---|
-| `analysis run [article\|feed\|all]` | Analyze a single article (streams progress) or enqueue a batch by feed/time window. Flags: `--provider/-p`, `--model/-m`, `--profile`, `--select-model`, `--from`, `--to`, `--between`, `--all-time`, `--key-points-only`, `--dry-run`. |
+| `analysis run [article\|feed\|all]` | Analyze a single article (streams progress) or enqueue a batch by feed/time window. Flags: `--provider/-p`, `--model/-m`, `--provider-profile`, `--select-model`, `--from`, `--to`, `--between`, `--all-time`, `--key-points-only`, `--dry-run`. |
 | `analysis list [article-id]` | List all analyses for an article. |
 | `analysis get <analysis-id>` | Show one analysis. `--markdown` for styled prose. |
 | `analysis config show` | Show the analysis configuration. |
@@ -86,9 +87,12 @@ Generate and view digests. See [digests.md](digests.md).
 |---|---|
 | `digest list` | List digests. `--limit <n>`. |
 | `digest get [id]` | Show a digest summary and its articles. `--markdown` for styled prose. |
-| `digest generate` | Build a new digest from a time window (default: last 24h). Many flags; see [digests.md](digests.md). |
+| `digest generate` | Build a new digest from a time window (default: last 24h). `--profile <slug>` generates for one [profile](profiles.md); many other flags, see [digests.md](digests.md). |
 | `digest articles [id]` | List the articles in a digest. |
-| `digest list --themes` | List available HTML themes and exit. |
+| `digest list --themes` | List available layouts and exit. |
+
+Profiles are defined in `profiles.yml` and applied at server startup (no `dlk` command);
+see [profiles.md](profiles.md).
 
 ## config
 

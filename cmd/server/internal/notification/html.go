@@ -279,7 +279,8 @@ type GlossaryPanelEntry struct {
 	Term       string
 	Type       string
 	Definition string
-	Lvl        int // help tier: 1=advanced, 2=intermediate, 3=beginner
+	Aliases    []string // similar surface forms grouped under this term, shown as "also: …"
+	Lvl        int      // help tier: 1=advanced, 2=intermediate, 3=beginner
 }
 
 // TagCount is a tag and the number of TOC rows that carry it (matching the row-level
@@ -310,7 +311,7 @@ func init() {
 // The provider/model switcher in the rendered page is populated client-side
 // from manifest.json - the page itself only embeds the digest id and a hash
 // of its article set used to filter siblings.
-func RenderDigestHTML(digest models.Digest, layout string) ([]byte, error) {
+func RenderDigestHTML(digest models.Digest, layout, theme string) ([]byte, error) {
 	layout, err := resolveLayout(layout)
 	if err != nil {
 		return nil, err
@@ -330,6 +331,7 @@ func RenderDigestHTML(digest models.Digest, layout string) ([]byte, error) {
 	glossaryByKey := make(map[string]glossaryJSEntry, len(digest.DigestGlossary))
 	glossaryTerms := make([]string, 0, len(digest.DigestGlossary))
 	glossaryPanel := make([]GlossaryPanelEntry, 0, len(digest.DigestGlossary))
+	panelIdxByKey := make(map[string]int, len(digest.DigestGlossary))
 	for _, dg := range digest.DigestGlossary {
 		if dg.Entry == nil {
 			continue
@@ -345,7 +347,43 @@ func RenderDigestHTML(digest models.Digest, layout string) ([]byte, error) {
 		tier := models.GlossaryDifficultyTier(dg.Entry.Difficulty)
 		glossaryByKey[key] = glossaryJSEntry{Term: dg.Entry.Term, Def: def, Type: dg.Entry.Category, Tag: dg.Entry.TagId, Lvl: tier}
 		glossaryTerms = append(glossaryTerms, dg.Entry.Term)
+		panelIdxByKey[key] = len(glossaryPanel)
 		glossaryPanel = append(glossaryPanel, GlossaryPanelEntry{Term: dg.Entry.Term, Type: dg.Entry.Category, Definition: def, Lvl: tier})
+	}
+	// Layer in alias surface forms: other phrasings the articles use for a defined term
+	// (e.g. "QNAP NAS boxes" / "QNAP NAS devices" for "QNAP NAS"). Each alias highlights in
+	// prose and resolves, via the popup map, to its canonical term's definition, and is
+	// listed under that term in the drawer. Aliases never shadow a real canonical term.
+	for _, da := range digest.DigestAnalyses {
+		if da.Analysis == nil {
+			continue
+		}
+		for _, gt := range da.Analysis.GlossaryTerms {
+			if len(gt.Aliases) == 0 {
+				continue
+			}
+			canonKey := models.NormalizeGlossaryKey(gt.Term)
+			canon, ok := glossaryByKey[canonKey]
+			if !ok {
+				continue
+			}
+			for _, alias := range gt.Aliases {
+				aliasKey := models.NormalizeGlossaryKey(alias)
+				if aliasKey == "" || aliasKey == canonKey {
+					continue
+				}
+				if _, seen := glossaryByKey[aliasKey]; seen {
+					continue
+				}
+				display := strings.TrimSpace(alias)
+				glossaryByKey[aliasKey] = canon
+				glossaryTerms = append(glossaryTerms, display)
+				// Group the similar term under its canonical row in the drawer.
+				if idx, ok := panelIdxByKey[canonKey]; ok {
+					glossaryPanel[idx].Aliases = append(glossaryPanel[idx].Aliases, display)
+				}
+			}
+		}
 	}
 	glossaryActive := len(glossaryByKey) > 0
 	glossaryRe := compileTagRegexp(glossaryTerms) // nil when no glossary → highlighting is a no-op
@@ -587,7 +625,7 @@ func RenderDigestHTML(digest models.Digest, layout string) ([]byte, error) {
 		CategoryCounts:      categoryCounts,
 		PriorityCounts:      priorityCounts,
 		Tags:                tags,
-		Theme:               firstPaintTheme,
+		Theme:               resolveTheme(theme),
 		Themes:              themeOptions(),
 		PaletteCSS:          paletteCSS(),
 		HasLearning:         hasLearning,
@@ -962,6 +1000,16 @@ func themeOptions() []themeOption {
 // (the in-page dropdown + localStorage override this immediately).
 const firstPaintTheme = "dark"
 
+// resolveTheme returns a profile's first-paint theme: the requested theme when it
+// is a known palette, otherwise the default. An empty/invalid theme keeps today's
+// behavior (firstPaintTheme).
+func resolveTheme(theme string) string {
+	if digestthemes.Valid(theme) {
+		return theme
+	}
+	return firstPaintTheme
+}
+
 // resolveLayout returns the layout to render: the default when layout is empty, or an
 // error when a non-empty layout is not a known one (so typos surface instead of
 // silently falling back).
@@ -969,7 +1017,9 @@ func resolveLayout(layout string) (string, error) {
 	if layout == "" {
 		return digestlayouts.Default(), nil
 	}
-	if !digestlayouts.Valid(layout) {
+	// A layout is valid if it's compiled in OR supplied on disk under the
+	// configured layouts directory (an operator/profile template pack).
+	if !digestlayouts.Valid(layout) && !OnDiskLayoutExists(layout) {
 		return "", fmt.Errorf("unknown layout %q", layout)
 	}
 	return layout, nil
@@ -1215,11 +1265,11 @@ type digestIndexTemplateData struct {
 // RenderDigestIndex generates the index HTML shell. The digest list is
 // populated client-side by fetching manifest.json, so the rendered bytes are
 // constant for a given template.
-func RenderDigestIndex(layout string) ([]byte, error) {
-	return renderDigestIndexWithPaths("manifest.json", "", layout)
+func RenderDigestIndex(layout, theme string) ([]byte, error) {
+	return renderDigestIndexWithPaths("manifest.json", "", layout, theme)
 }
 
-func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout string) ([]byte, error) {
+func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout, theme string) ([]byte, error) {
 	layout, err := resolveLayout(layout)
 	if err != nil {
 		return nil, err
@@ -1238,7 +1288,7 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout string) ([]by
 		ManifestURL:   manifestURL,
 		DigestBaseURL: digestBaseURL,
 		Commit:        version.Commit,
-		Theme:         firstPaintTheme,
+		Theme:         resolveTheme(theme),
 		Themes:        themeOptions(),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render digest index: %w", err)
@@ -1263,7 +1313,7 @@ type sourcesTemplateData struct {
 // RenderSourcesPage generates the standalone "sources" page listing every
 // enabled feed. The feeds are embedded server-side, so the rendered bytes are
 // self-contained and need no client-side fetch. Disabled feeds are omitted.
-func RenderSourcesPage(feeds []models.Feed, layout string) ([]byte, error) {
+func RenderSourcesPage(feeds []models.Feed, layout, theme string) ([]byte, error) {
 	layout, err := resolveLayout(layout)
 	if err != nil {
 		return nil, err
@@ -1299,7 +1349,7 @@ func RenderSourcesPage(feeds []models.Feed, layout string) ([]byte, error) {
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, sourcesTemplateData{
-		Theme:   firstPaintTheme,
+		Theme:   resolveTheme(theme),
 		Themes:  themeOptions(),
 		Commit:  version.Commit,
 		Sources: entries,

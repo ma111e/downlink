@@ -14,6 +14,12 @@ type Store interface {
 	UpdateFeedLastFetch(id string, lastFetch time.Time) error
 	DeleteFeed(id string) error // Method for deleting a feed
 
+	SetFeedTopics(feedId string, topics []string) error
+	ListFeedTopics(feedId string) ([]string, error)
+	ListAllTopics() ([]string, error)
+	FeedIDsByTopics(topics []string) ([]string, error)
+	ListEnabledFeedIDs() ([]string, error)
+
 	StoreArticle(article models.Article) error
 	GetArticle(id string) (models.Article, error)
 	GetArticlesBatch(ids []string) ([]models.Article, error)
@@ -52,6 +58,7 @@ type Store interface {
 	GetOrCreateCategory(name string) (*models.Category, error)
 
 	SaveArticleAnalysis(analysis *models.ArticleAnalysis) error
+	UpdateArticleAnalysisGlossaryTerms(id, glossaryTermsJson string) error
 	GetArticleAnalysis(articleId, profileId string) (*models.ArticleAnalysis, error)
 	GetArticleAnalysesBatch(articleIds []string, profileId string) (map[string]*models.ArticleAnalysis, error)
 	GetAllArticleAnalyses(articleId, profileId string) ([]models.ArticleAnalysis, error)
@@ -68,7 +75,7 @@ type Store interface {
 	SetProfileFeeds(profileId string, feedIds []string) error
 	ListProfileFeeds(profileId string) ([]models.Feed, error)
 
-	ListLLMRunSummaries(limit int) ([]LLMRunSummary, error)
+	ListLLMRunSummaries(limit int, profileID string) ([]LLMRunSummary, error)
 	GetLLMRun(id string) (models.LLMRun, error)
 	ListLLMCallsForRun(runID string) ([]LLMCallView, error)
 

@@ -4,6 +4,9 @@ A feed is a source (RSS, Atom, or an HTML link-list page) plus rules for turning
 into a full article. You describe feeds in `feeds.yml` and reconcile them into the database
 with `dlk feeds apply`.
 
+Feeds are global: every feed is fetched once and its articles are shared. A
+[profile](profiles.md) selects a subset of feeds for its own digests.
+
 ## feeds.yml
 
 The file is a list under `feeds:`, with an optional `default_selectors:` block applied to
@@ -30,6 +33,7 @@ feeds:
 | `enabled` | yes | Whether the feed is fetched. |
 | `title` | no | Display name. Auto-detected when empty. |
 | `note` | no | Free-form note. |
+| `topics` | no | Labels a [profile](profiles.md) selects feeds by, e.g. `[news, threat-intel]`. Many per feed. Fill them in bulk with `dlk feeds backfill-topics -f feeds.yml` (LLM, writes the file back). |
 | `scraper` | yes | Scraping configuration. See below. |
 
 ### `scraper:` fields

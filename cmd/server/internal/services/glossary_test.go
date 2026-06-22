@@ -1,6 +1,10 @@
 package services
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ma111e/downlink/pkg/models"
+)
 
 func TestGlossaryFromResult(t *testing.T) {
 	// The per-article task extracts term/type/context only — definitions are generated
@@ -70,5 +74,64 @@ func TestEntityDefinitionsFromResult(t *testing.T) {
 	}
 	if len(got) != 2 {
 		t.Errorf("expected two entries after dedup/drop, got %d: %v", len(got), got)
+	}
+}
+
+func TestArticleTermContextsFromResult(t *testing.T) {
+	raw := map[string]string{
+		"Lazarus Group": "  Runs the intrusion described in the article.  ", // trimmed
+		"lazarus-group": "duplicate normalizing to the same key",            // collapses onto the key
+		"QNAP NAS":      "",                                                 // empty: dropped
+		"   ":           "key empties after normalization",                  // dropped
+	}
+
+	got := articleTermContextsFromResult(raw)
+
+	if _, ok := got["qnap nas"]; ok {
+		t.Error("empty context should be dropped")
+	}
+	v, ok := got["lazarus group"]
+	if !ok {
+		t.Fatalf("expected normalized key 'lazarus group', got %v", got)
+	}
+	if v == "" || v[0] == ' ' {
+		t.Errorf("context should be trimmed and non-empty, got %q", v)
+	}
+	if len(got) != 1 {
+		t.Errorf("expected one entry after dedup/drop, got %d: %v", len(got), got)
+	}
+}
+
+func TestMergeArticleContexts(t *testing.T) {
+	existing := []models.GlossaryTerm{
+		{Term: "C2", Type: "concept", Context: "already has context"},
+	}
+	add := map[string]glossaryTermCtx{
+		"lazarus group": {Term: "Lazarus Group", Category: "threat-actor", Context: "Runs the intrusion."},
+		"c2":            {Term: "C2", Category: "concept", Context: "should NOT overwrite existing"},
+		"empty":         {Term: "Empty", Category: "tool", Context: "  "}, // blank context: skipped
+	}
+
+	merged := mergeArticleContexts(existing, add)
+
+	if len(merged) != 2 {
+		t.Fatalf("expected 2 terms (1 existing + 1 new), got %d: %+v", len(merged), merged)
+	}
+	byKey := map[string]models.GlossaryTerm{}
+	for _, t := range merged {
+		byKey[models.NormalizeGlossaryKey(t.Term)] = t
+	}
+	if byKey["c2"].Context != "already has context" {
+		t.Errorf("existing context must be preserved, got %q", byKey["c2"].Context)
+	}
+	laz, ok := byKey["lazarus group"]
+	if !ok || laz.Context != "Runs the intrusion." || laz.Type != "threat-actor" {
+		t.Errorf("new entity term not merged correctly: %+v", laz)
+	}
+
+	// Re-merging the same additions must not duplicate rows (idempotent across repeat digests).
+	again := mergeArticleContexts(merged, add)
+	if len(again) != len(merged) {
+		t.Errorf("re-merge added duplicates: %d vs %d", len(again), len(merged))
 	}
 }

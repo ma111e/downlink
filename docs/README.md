@@ -11,7 +11,7 @@ Start with [getting-started.md](getting-started.md). The project
 
 - **[Getting started](getting-started.md)** install, configure, and produce a first digest.
 - **[Configuration](configuration.md)** the `config.json` and environment-variable
-  reference, and how the three config sources combine.
+  reference, and how the config sources combine.
 - **[CLI reference](cli-reference.md)** every `dlk` command and flag.
 
 ## Feeds and analysis
@@ -22,6 +22,8 @@ Start with [getting-started.md](getting-started.md). The project
   scraping mode, headers, and selectors on its own.
 - **[Analysis and scoring](analysis-and-scoring.md)** the six-dimension rubric, tiers, and
   the persona/writing-style knobs.
+- **[Profiles](profiles.md)** run several curated views over one feed pool, each with its
+  own feed selection, editorial config, digests, and presentation.
 - **[LLM providers](llm-providers.md)** supported provider types, setup, OAuth, and
   concurrency.
 

@@ -428,6 +428,14 @@ func (m *FeedManager) ApplyFeeds(configs []models.FeedConfig, defaults *models.S
 		}
 	}
 
+	// Feed topics and the enabled set just changed; re-resolve every profile's
+	// membership so new/removed feeds flow into the profiles that select them.
+	if !dryRun {
+		if err := m.RecomputeProfileFeeds(); err != nil {
+			return result, fmt.Errorf("failed to recompute profile feeds: %w", err)
+		}
+	}
+
 	return result, nil
 }
 
