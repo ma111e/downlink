@@ -121,6 +121,23 @@ func TestRunAnalysisTaskWithRetryReturnsFinalFailure(t *testing.T) {
 	}
 }
 
+func TestRunAnalysisTaskWithRetryStopsOnUsageLimit(t *testing.T) {
+	withNoRetryBackoff(t)
+	gw := &fakeLLMGateway{
+		streamErrs:      []error{llmprovider.ErrUsageLimitReached},
+		streamResponses: []string{"", `{"key_points":["unused"]}`},
+	}
+	server := &LLMsServer{gw: gw}
+
+	_, err := server.runAnalysisTaskWithRetry(context.Background(), testArticleContext(), testResolvedLLM(3), testAnalysisTask(), 1, 1, nil, "prompt", nil)
+	if !errors.Is(err, llmprovider.ErrUsageLimitReached) {
+		t.Fatalf("error = %v, want ErrUsageLimitReached", err)
+	}
+	if gw.calls != 1 {
+		t.Fatalf("calls = %d, want 1 (no retry on usage limit)", gw.calls)
+	}
+}
+
 func TestRunAnalysisTaskWithRetryRetriesTimeout(t *testing.T) {
 	withNoRetryBackoff(t)
 	gw := &fakeLLMGateway{

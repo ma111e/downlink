@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ma111e/downlink/pkg/codexauth"
 	"io"
@@ -79,6 +80,17 @@ func (p *codexProvider) generateMessages(ctx context.Context, msgs []*schema.Mes
 	if err == nil {
 		lease.MarkOK()
 		return resp, nil
+	}
+
+	// On usage-limit (quota exhausted): mark this credential rate-limited until
+	// the reported reset and propagate immediately. No rotation, no retry — the
+	// caller aborts the whole run rather than hammering flagged accounts.
+	if errors.Is(err, ErrUsageLimitReached) {
+		var ule *usageLimitError
+		if errors.As(err, &ule) {
+			lease.MarkRateLimited(ule.resetAt)
+		}
+		return nil, err
 	}
 
 	// On 401/403: force-refresh once and retry.
@@ -202,12 +214,18 @@ func (p *codexProvider) callAPI(ctx context.Context, lease *codexauth.Lease, msg
 		return nil, &codexAPIError{statusCode: resp.StatusCode, body: string(raw)}
 	}
 	if resp.StatusCode == http.StatusTooManyRequests {
-		ra := parseRetryAfter(resp.Header.Get("Retry-After"))
 		raw, _ := io.ReadAll(resp.Body)
+		if ule, ok := parseUsageLimit("codex", string(raw)); ok {
+			return nil, ule
+		}
+		ra := parseRetryAfter(resp.Header.Get("Retry-After"))
 		return nil, &codexRateLimitError{resetAt: ra, body: string(raw)}
 	}
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(resp.Body)
+		if ule, ok := parseUsageLimit("codex", string(raw)); ok {
+			return nil, ule
+		}
 		return nil, fmt.Errorf("codex API error: HTTP %d: %s", resp.StatusCode, string(raw))
 	}
 

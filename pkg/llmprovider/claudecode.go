@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -89,6 +90,17 @@ func (p *claudeCodeProvider) generateMessages(ctx context.Context, msgs []*schem
 	if err == nil {
 		lease.MarkOK()
 		return resp, nil
+	}
+
+	// On usage-limit (quota exhausted): mark this credential rate-limited until
+	// the reported reset and propagate immediately. No rotation, no retry — the
+	// caller aborts the whole run rather than hammering flagged accounts.
+	if errors.Is(err, ErrUsageLimitReached) {
+		var ule *usageLimitError
+		if errors.As(err, &ule) {
+			lease.MarkRateLimited(ule.resetAt)
+		}
+		return nil, err
 	}
 
 	if isClaudeAuthError(err) {
@@ -215,12 +227,18 @@ func (p *claudeCodeProvider) callAPI(ctx context.Context, lease *claudeauth.Leas
 		return nil, &claudeAPIError{statusCode: resp.StatusCode, body: string(raw)}
 	}
 	if resp.StatusCode == http.StatusTooManyRequests {
-		ra := parseClaudeRetryAfter(resp.Header.Get("Retry-After"))
 		raw, _ := io.ReadAll(resp.Body)
+		if ule, ok := parseUsageLimit("claude-code", string(raw)); ok {
+			return nil, ule
+		}
+		ra := parseClaudeRetryAfter(resp.Header.Get("Retry-After"))
 		return nil, &claudeRateLimitError{resetAt: ra, body: string(raw)}
 	}
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(resp.Body)
+		if ule, ok := parseUsageLimit("claude-code", string(raw)); ok {
+			return nil, ule
+		}
 		return nil, fmt.Errorf("claude-code API error: HTTP %d: %s", resp.StatusCode, string(raw))
 	}
 
