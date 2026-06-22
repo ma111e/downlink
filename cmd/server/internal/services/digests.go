@@ -126,6 +126,18 @@ func cancelled(stream *safeStream) bool {
 	return false
 }
 
+// resolveRunProviderModel picks the effective provider/model for a digest run:
+// an explicit per-run override (either field) wins; otherwise the profile/global
+// editorial defaults apply. A model given without a provider is honored as-is so
+// ResolveLLM can find the provider offering it; only when neither is set do we
+// fall back to the configured defaults.
+func resolveRunProviderModel(req *protos.GenerateDigestRequest, ded EffectiveEditorial) (provider, model string) {
+	if req.Provider != "" || req.Model != "" {
+		return req.Provider, req.Model
+	}
+	return ded.Provider, ded.Model
+}
+
 // GenerateDigest generates a new digest, streaming progress events throughout the process
 func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStream protos.DigestService_GenerateDigestServer) error {
 	// Parallel analysis workers race on stream.Send; serialize through safeStream.
@@ -153,10 +165,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	ded := resolveDigestEditorial(req, profile)
 	// The effective provider/model: an explicit run override wins, otherwise the
 	// profile's (or global) configured provider drives all LLM steps of this run.
-	effProvider, effModel := req.Provider, req.Model
-	if effProvider == "" {
-		effProvider, effModel = ded.Provider, ded.Model
-	}
+	effProvider, effModel := resolveRunProviderModel(req, ded)
 
 	log.WithField("profile", profile.Id).Info("Generating digest from recent articles")
 
