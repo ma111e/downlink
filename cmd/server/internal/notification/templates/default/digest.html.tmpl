@@ -11,8 +11,8 @@
     var valid = { {{range .Themes}}"{{.Value}}": 1, {{end}} };
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
-    // Learning master on/off + help level (1=Pro, 2=Standard, 3=Novice). The level decides how
-    // much jargon shows (term shown when level >= its tier); it defaults to Novice (3) when unset.
+    // Learning master on/off + help level (1=Minimal, 2=Partial, 3=Full). The level decides how
+    // much jargon shows (term shown when level >= its tier); it defaults to Full (3) when unset.
     // Per-feature sub-toggles default on unless explicitly turned off.
     var lvl = localStorage.getItem('downlink.help.level');
     if (lvl !== '1' && lvl !== '2' && lvl !== '3') lvl = '3';
@@ -516,7 +516,7 @@ html[data-learning="on"] .nav-learn-caret { visibility: visible; pointer-events:
   color: var(--text3);
   padding: 2px 4px 6px;
 }
-/* In-menu help-level slider: track + 3 stops (left=Novice/most help, right=Pro/least) + knob. */
+/* In-menu help-level slider: track + 3 stops (left=Full/most help, right=Minimal/least) + knob. */
 .help-slider {
   position: relative;
   width: auto;
@@ -1661,6 +1661,8 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
   .overview-cell-full { grid-column: auto; }
   #back-top { bottom: 1rem; right: 0.75rem; }
   .toc-title { padding: 12px 16px; }
+  .toc-row-inner { padding: 6px 6px 6px 8px; }
+  .toc-row-wrap > .toc-row-inner { padding-left: 36px; }
   .digest-title-text { font-size: clamp(17px, 5dvw, 1.57rem); }
   /* summary picker: label on its own line, picker wraps full-width beneath it */
   .panel-subhead--summary { flex-wrap: wrap; }
@@ -1762,15 +1764,15 @@ details[open] .toc-cluster-chevron svg path { transform: rotate(90deg); }
       <div class="learn-card" id="learn-card" role="menu" hidden>
         <div class="learn-card-title">Help level</div>
         <div class="help-slider" id="help-slider" role="slider" tabindex="0"
-             aria-label="Help level: novice (most help) to pro (least)"
-             aria-valuemin="1" aria-valuemax="3" aria-valuenow="3" aria-valuetext="Novice">
+             aria-label="Help level: full (most help) to minimal (least)"
+             aria-valuemin="1" aria-valuemax="3" aria-valuenow="3" aria-valuetext="Full">
           <span class="help-slider-track" aria-hidden="true"></span>
-          <span class="help-slider-dot" data-pos="0" data-level="3" title="Novice — explain every term"></span>
-          <span class="help-slider-dot" data-pos="1" data-level="2" title="Standard — security-specific & niche"></span>
-          <span class="help-slider-dot" data-pos="2" data-level="1" title="Pro — only niche/advanced"></span>
+          <span class="help-slider-dot" data-pos="0" data-level="3" title="Full — explain every term"></span>
+          <span class="help-slider-dot" data-pos="1" data-level="2" title="Partial — security-specific & niche"></span>
+          <span class="help-slider-dot" data-pos="2" data-level="1" title="Minimal — only rare/advanced"></span>
           <span class="help-slider-knob" id="help-slider-knob" aria-hidden="true"></span>
         </div>
-        <div class="help-slider-ends"><span>Novice</span><span>Pro</span></div>
+        <div class="help-slider-ends"><span>Full</span><span>Minimal</span></div>
         <div class="learn-card-title">Learning features</div>
         <button class="learn-feature" id="learn-feat-plain" type="button" role="switch" aria-checked="true" onclick="toggleLearnFeature('plain')"><span class="learn-feature-label">Plain words</span><span class="learn-switch"><span class="learn-switch-knob"></span></span></button>
         <button class="learn-feature" id="learn-feat-glossary" type="button" role="switch" aria-checked="true" onclick="toggleLearnFeature('glossary')"><span class="learn-feature-label">Glossary</span><span class="learn-switch"><span class="learn-switch-knob"></span></span></button>
@@ -2054,7 +2056,7 @@ function applyTheme(t) {
 var tourActive = false;
 
 // Learning mode: a master on/off toggle plus a caret-opened card holding the help-level slider
-// (Novice → Standard → Pro) and per-feature switches. State lives on <html> as data-learning +
+// (Full → Partial → Minimal) and per-feature switches. State lives on <html> as data-learning +
 // data-help-level + data-learn-{plain,glossary,define}, persisted in localStorage and applied
 // before first paint. The help level (1/2/3) decides which jargon is shown: a term appears when
 // level >= its tier (advanced=1, intermediate=2, beginner=3). Sub-features default on when enabled.
@@ -2063,15 +2065,15 @@ var LEARN_FEATURES = {
   glossary: { attr: 'learnGlossary', key: 'downlink.learn.glossary', el: 'learn-feat-glossary' },
   define:   { attr: 'learnDefine',   key: 'downlink.learn.define',   el: 'learn-feat-define' }
 };
-// Slider positions run left→right: Novice (most help) → Standard → Pro (least). They map to the
-// underlying help level (a term shows when level >= its tier): Novice=3, Standard=2, Pro=1.
+// Slider positions run left→right: Full (most help) → Partial → Minimal (least). They map to the
+// underlying help level (a term shows when level >= its tier): Full=3, Partial=2, Minimal=1.
 var POS_LEVEL = [3, 2, 1];
 var POS_MAX = POS_LEVEL.length - 1;
-var LEVEL_NAME = { 1: 'Pro', 2: 'Standard', 3: 'Novice' };
+var LEVEL_NAME = { 1: 'Minimal', 2: 'Partial', 3: 'Full' };
 function posToLevel(pos){ return POS_LEVEL[pos]; }
 function levelToPos(level){ var i = POS_LEVEL.indexOf(level); return i < 0 ? 0 : i; }
 function learnSetItem(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
-// Master LEARNING on/off. Off clears help; on restores the saved level (default Novice) and
+// Master LEARNING on/off. Off clears help; on restores the saved level (default Full) and
 // defaults the sub-features on.
 function toggleLearning() {
   var d = document.documentElement.dataset;
@@ -2098,7 +2100,7 @@ function setHelpLevel(level) {
   learnSetItem('downlink.help.level', String(level));
   syncLearnUI();
 }
-// Advance the help level one stop forward, wrapping Pro (max) back to Novice (0).
+// Advance the help level one stop forward, wrapping Minimal (max) back to Full (0).
 function advanceHelpLevel() {
   var d = document.documentElement.dataset;
   var level = (parseInt(d.helpLevel, 10) === 1 || parseInt(d.helpLevel, 10) === 2) ? parseInt(d.helpLevel, 10) : 3;
@@ -2155,7 +2157,7 @@ function syncLearnUI() {
   var slider = document.getElementById('help-slider');
   if (slider) {
     slider.setAttribute('aria-valuenow', String(level));
-    slider.setAttribute('aria-valuetext', LEVEL_NAME[level] || 'Novice');
+    slider.setAttribute('aria-valuetext', LEVEL_NAME[level] || 'Full');
   }
   document.querySelectorAll('.help-slider-dot').forEach(function(dot){
     dot.classList.toggle('is-active', parseInt(dot.dataset.pos, 10) === pos);
@@ -2210,7 +2212,7 @@ function closeGlossaryPanel() {
 }
 syncLearnUI();
 // In-menu help-level slider: click/drag jumps to the nearest stop, the keyboard nudges. Every
-// path funnels into setHelpLevel. Positions run Novice (left) → Pro (right); see POS_LEVEL.
+// path funnels into setHelpLevel. Positions run Full (left) → Minimal (right); see POS_LEVEL.
 (function(){
   var slider = document.getElementById('help-slider');
   if (!slider) return;
@@ -2241,8 +2243,8 @@ syncLearnUI();
   slider.addEventListener('keydown', function(e){
     var cur = currentPos();
     var p = cur;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') p = Math.min(POS_MAX, cur + 1); // toward Pro
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') p = Math.max(0, cur - 1);     // toward Novice
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') p = Math.min(POS_MAX, cur + 1); // toward Minimal
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') p = Math.max(0, cur - 1);     // toward Full
     else if (e.key === 'Home') p = 0;
     else if (e.key === 'End') p = POS_MAX;
     else return;
@@ -2516,7 +2518,7 @@ function showMoreTags(btn) {
   var STEPS = [
     { title: 'Welcome to DOWNLINK', body: 'DOWNLINK gives you a fast read on what shipped, broke, or matters across your feeds. Use it to scan and triage. It points you at what to read; it is not a substitute for the articles themselves.' },
     { sel: '#nav-learn-switch', reveal: true, title: 'Learning mode', body: 'Flip this on for newcomer help: plain-language summaries, click-to-define jargon, and a glossary. Turn it back off once the terms are familiar.' },
-    { sel: '#help-slider', reveal: true, openCard: true, title: 'How much to explain', body: 'Slide between Novice and Pro to set how many terms get explained. Novice explains nearly everything; Pro only the niche stuff.' },
+    { sel: '#help-slider', reveal: true, openCard: true, title: 'How much to explain', body: 'Slide between Full and Minimal to set how many terms get explained. Full explains nearly everything; Minimal only the rare stuff.' },
     { sel: '#glossary-panel-toggle', reveal: true, title: 'Glossary', body: 'This tab opens a searchable list of every term in the digest, each written in plain words.' }
   ];
 
