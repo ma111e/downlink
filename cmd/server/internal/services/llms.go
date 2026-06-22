@@ -480,17 +480,20 @@ credibility — the strength of the sourcing the article rests on, NOT whether t
 
 is_aggregator — true ONLY if the article is itself a roundup, recap, link digest, or weekly/monthly summary of multiple unrelated items rather than coverage of a single topic; otherwise false.
 
+is_promotional — true if the article is primarily a product/feature announcement, marketing or promotional piece, press release, sponsored content, or vendor commercial pitch rather than independent reporting, research, or a security advisory; otherwise false.
+
 Calibration examples (ratings only, for reference):
 - "Active exploitation of a critical RCE in a widely-used VPN, CISA adds it to KEV, patch available": specificity 4, severity 4, breadth 4, novelty 3, actionability 4, credibility 4, is_aggregator false.
 - "Vendor advisory: medium-severity privilege-escalation bug in a niche admin tool, fix released": specificity 4, severity 2, breadth 1, novelty 3, actionability 3, credibility 4, is_aggregator false.
 - "News write-up of a Wordfence advisory on a critical WordPress plugin supply-chain attack, with CVSS, IOCs, and fix steps": specificity 4, severity 4, breadth 2, novelty 3, actionability 4, credibility 4, is_aggregator false.
 - "Opinion: why zero-trust matters for modern enterprises" (no specific event): specificity 0, severity 0, breadth 2, novelty 1, actionability 1, credibility 2, is_aggregator false.
 - "This week in security: 12 stories you may have missed": specificity 1, severity 1, breadth 2, novelty 1, actionability 1, credibility 2, is_aggregator true.
+- "Vendor blog: announcing our new AI-powered EDR platform, now generally available": specificity 2, severity 0, breadth 2, novelty 1, actionability 1, credibility 2, is_aggregator false, is_promotional true.
 
 Also provide a concise justification of 1–3 sentences explaining the ratings.
 Return ONLY the JSON object below.`,
-		schema:       `{"specificity": <0-4>, "severity": <0-4>, "breadth": <0-4>, "novelty": <0-4>, "actionability": <0-4>, "credibility": <0-4>, "is_aggregator": <true|false>, "justification": "<1-3 sentences>"}`,
-		requiredKeys: []string{"specificity", "severity", "breadth", "novelty", "actionability", "credibility", "is_aggregator"},
+		schema:       `{"specificity": <0-4>, "severity": <0-4>, "breadth": <0-4>, "novelty": <0-4>, "actionability": <0-4>, "credibility": <0-4>, "is_aggregator": <true|false>, "is_promotional": <true|false>, "justification": "<1-3 sentences>"}`,
+		requiredKeys: []string{"specificity", "severity", "breadth", "novelty", "actionability", "credibility", "is_aggregator", "is_promotional"},
 	})
 
 	return applyPromptOverrides(tasks, ed.Prompts)
@@ -1419,6 +1422,7 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 			Actionability: intFromObject(result, "actionability"),
 			Credibility:   intFromObject(result, "credibility"),
 			IsAggregator:  boolFromObject(result, "is_aggregator"),
+			IsPromotional: boolFromObject(result, "is_promotional"),
 		}
 		analysis.ScoreDimensions = dims
 		analysis.ImportanceScore = ed.Scoring.Compute(*dims)

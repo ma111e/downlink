@@ -30,11 +30,14 @@ with the article, scores can be recomputed later without re-running the LLM.
 | Actionability | nothing to do | clear defensive action, patch, IOCs | 15% |
 | Credibility | unsourced blogspam | primary source, vendor advisory, named researcher | 10% |
 
-The weighted average of the six dimensions is scaled to a 0 to 100 score, then two
+The weighted average of the six dimensions is scaled to a 0 to 100 score, then three
 overrides apply:
 
 - **Aggregators** (roundups, weekly recaps, link digests) are forced to **40**, whatever
   the dimensions say.
+- **Promotional** articles (product announcements, marketing, press releases, sponsored
+  content, vendor commercials) are capped at **74**, the top of the May Read tier, so an
+  ad can never rank as Should Read or Must Read.
 - **Pure-evergreen** articles (Specificity 0) are capped at **60**.
 
 ## Tiers

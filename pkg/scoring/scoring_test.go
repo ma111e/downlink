@@ -10,17 +10,17 @@ func TestComputeRange(t *testing.T) {
 	}{
 		{
 			name: "all max",
-			dims: Dimensions{4, 4, 4, 4, 4, 4, false},
+			dims: Dimensions{4, 4, 4, 4, 4, 4, false, false},
 			want: 100,
 		},
 		{
 			name: "all zero",
-			dims: Dimensions{0, 0, 0, 0, 0, 0, false},
+			dims: Dimensions{0, 0, 0, 0, 0, 0, false, false},
 			want: 0,
 		},
 		{
 			name: "all mid",
-			dims: Dimensions{2, 2, 2, 2, 2, 2, false},
+			dims: Dimensions{2, 2, 2, 2, 2, 2, false, false},
 			want: 50,
 		},
 		{
@@ -40,7 +40,7 @@ func TestComputeRange(t *testing.T) {
 
 func TestComputeAggregatorOverride(t *testing.T) {
 	// High dimensions but flagged as aggregator must collapse to AggregatorScore.
-	d := Dimensions{4, 4, 4, 4, 4, 4, true}
+	d := Dimensions{4, 4, 4, 4, 4, 4, true, false}
 	if got := Compute(d); got != AggregatorScore {
 		t.Errorf("aggregator Compute() = %d, want %d", got, AggregatorScore)
 	}
@@ -52,6 +52,23 @@ func TestComputeEvergreenCap(t *testing.T) {
 	d := Dimensions{Specificity: 0, Severity: 4, Breadth: 4, Novelty: 4, Actionability: 4, Credibility: 4}
 	if got := Compute(d); got != EvergreenCap {
 		t.Errorf("evergreen Compute() = %d, want %d", got, EvergreenCap)
+	}
+}
+
+func TestComputePromoCap(t *testing.T) {
+	// A promotional article that otherwise scores in the Must Read range must be
+	// capped at PromoCap (the top of the May Read tier).
+	d := Dimensions{Specificity: 4, Severity: 4, Breadth: 4, Novelty: 4, Actionability: 4, Credibility: 4, IsPromotional: true}
+	if got := Compute(d); got != PromoCap {
+		t.Errorf("promotional Compute() = %d, want %d", got, PromoCap)
+	}
+	if ReadTier(PromoCap) != "May Read" {
+		t.Errorf("PromoCap %d is not in the May Read tier", PromoCap)
+	}
+	// A promotional article that already scores below the cap is left untouched.
+	low := Dimensions{Specificity: 1, Severity: 0, Breadth: 1, Novelty: 0, Actionability: 0, Credibility: 1, IsPromotional: true}
+	if got := Compute(low); got != Compute(Dimensions{Specificity: 1, Severity: 0, Breadth: 1, Novelty: 0, Actionability: 0, Credibility: 1}) {
+		t.Errorf("below-cap promotional article should be unchanged, got %d", got)
 	}
 }
 
@@ -114,13 +131,14 @@ func TestDefaultConfigParity(t *testing.T) {
 	// across the whole score range and every dimension permutation edge.
 	cfg := DefaultConfig()
 	dimSets := []Dimensions{
-		{4, 4, 4, 4, 4, 4, false},
-		{0, 0, 0, 0, 0, 0, false},
-		{2, 2, 2, 2, 2, 2, false},
-		{4, 4, 4, 3, 4, 3, false},
-		{4, 4, 4, 4, 4, 4, true},  // aggregator override
-		{0, 4, 4, 4, 4, 4, false}, // evergreen cap
-		{1, 3, 0, 2, 4, 1, false},
+		{4, 4, 4, 4, 4, 4, false, false},
+		{0, 0, 0, 0, 0, 0, false, false},
+		{2, 2, 2, 2, 2, 2, false, false},
+		{4, 4, 4, 3, 4, 3, false, false},
+		{4, 4, 4, 4, 4, 4, true, false},  // aggregator override
+		{0, 4, 4, 4, 4, 4, false, false}, // evergreen cap
+		{4, 4, 4, 4, 4, 4, false, true},  // promotional cap
+		{1, 3, 0, 2, 4, 1, false, false},
 	}
 	for _, d := range dimSets {
 		if cfg.Compute(d) != Compute(d) {
@@ -142,12 +160,12 @@ func TestConfigCustomWeights(t *testing.T) {
 	// article (all 2s) then scores purely from severity = 2/4 = 50.
 	cfg := DefaultConfig()
 	cfg.Weights = DimensionWeights{Severity: 1.0}
-	if got := cfg.Compute(Dimensions{2, 2, 2, 2, 2, 2, false}); got != 50 {
+	if got := cfg.Compute(Dimensions{2, 2, 2, 2, 2, 2, false, false}); got != 50 {
 		t.Errorf("severity-only Compute = %d, want 50", got)
 	}
 	// Specificity 4 avoids the evergreen cap; severity 4 with all weight on
 	// severity yields a full 100.
-	if got := cfg.Compute(Dimensions{4, 4, 0, 0, 0, 0, false}); got != 100 {
+	if got := cfg.Compute(Dimensions{4, 4, 0, 0, 0, 0, false, false}); got != 100 {
 		t.Errorf("severity-only max-severity Compute = %d, want 100", got)
 	}
 }

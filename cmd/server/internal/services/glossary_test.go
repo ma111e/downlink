@@ -77,6 +77,44 @@ func TestEntityDefinitionsFromResult(t *testing.T) {
 	}
 }
 
+func TestRemapEntityDefsByID(t *testing.T) {
+	// defineEntities addresses terms by synthetic id; the model may reword/expand the term
+	// text but must key its answer by the id. Remapping recovers the original input term so
+	// the downstream normalized key matches the tag candidate (the bug this guards against).
+	idToTerm := map[string]string{
+		"t1": "mitre-attack",
+		"t2": "mcp",
+		"t3": "lazarus",
+	}
+	byID := map[string]entityDefinition{
+		"t1":  {Def: "An adversary tactics knowledge base.", Type: "concept"}, // model reworded term as "MITRE ATT&CK"
+		" T2": {Def: "A protocol for tool/model integration.", Type: "protocol"}, // id whitespace/case tolerated
+		"t9":  {Def: "hallucinated id, no such term", Type: "tool"},              // unknown id: dropped
+	}
+
+	got := remapEntityDefsByID(byID, idToTerm)
+
+	if _, ok := got["t9"]; ok {
+		t.Error("unknown id should be dropped")
+	}
+	if d, ok := got["mitre-attack"]; !ok || d.Def == "" {
+		t.Errorf("t1 should map back to 'mitre-attack', got %+v", got)
+	}
+	if _, ok := got["mcp"]; !ok {
+		t.Errorf("' T2' should map back to 'mcp' (id trimmed/lowercased), got %+v", got)
+	}
+	if len(got) != 2 {
+		t.Errorf("expected 2 entries (t1, t2), got %d: %+v", len(got), got)
+	}
+
+	// End-to-end through entityDefinitionsFromResult: the recovered original term must
+	// normalize to the candidate key, not to whatever the model echoed.
+	defs := entityDefinitionsFromResult(got)
+	if _, ok := defs[models.NormalizeGlossaryKey("mitre-attack")]; !ok {
+		t.Errorf("definition should be keyed by normalized 'mitre-attack', got %v", defs)
+	}
+}
+
 func TestArticleTermContextsFromResult(t *testing.T) {
 	raw := map[string]string{
 		"Lazarus Group": "  Runs the intrusion described in the article.  ", // trimmed

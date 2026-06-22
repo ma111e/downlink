@@ -411,6 +411,7 @@ type ScoreDimensions struct {
 	Actionability int32                  `protobuf:"varint,5,opt,name=actionability,proto3" json:"actionability,omitempty"`
 	Credibility   int32                  `protobuf:"varint,6,opt,name=credibility,proto3" json:"credibility,omitempty"`
 	IsAggregator  bool                   `protobuf:"varint,7,opt,name=is_aggregator,json=isAggregator,proto3" json:"is_aggregator,omitempty"`
+	IsPromotional bool                   `protobuf:"varint,8,opt,name=is_promotional,json=isPromotional,proto3" json:"is_promotional,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -490,6 +491,13 @@ func (x *ScoreDimensions) GetCredibility() int32 {
 func (x *ScoreDimensions) GetIsAggregator() bool {
 	if x != nil {
 		return x.IsAggregator
+	}
+	return false
+}
+
+func (x *ScoreDimensions) GetIsPromotional() bool {
+	if x != nil {
+		return x.IsPromotional
 	}
 	return false
 }
@@ -954,7 +962,7 @@ const file_analysis_proto_rawDesc = "" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x1c\n" +
 	"\tpublisher\x18\x03 \x01(\tR\tpublisher\x12\x18\n" +
-	"\acontext\x18\x04 \x01(\tR\acontext\"\xf0\x01\n" +
+	"\acontext\x18\x04 \x01(\tR\acontext\"\x97\x02\n" +
 	"\x0fScoreDimensions\x12 \n" +
 	"\vspecificity\x18\x01 \x01(\x05R\vspecificity\x12\x1a\n" +
 	"\bseverity\x18\x02 \x01(\x05R\bseverity\x12\x18\n" +
@@ -962,7 +970,8 @@ const file_analysis_proto_rawDesc = "" +
 	"\anovelty\x18\x04 \x01(\x05R\anovelty\x12$\n" +
 	"\ractionability\x18\x05 \x01(\x05R\ractionability\x12 \n" +
 	"\vcredibility\x18\x06 \x01(\x05R\vcredibility\x12#\n" +
-	"\ris_aggregator\x18\a \x01(\bR\fisAggregator\"\xb6\b\n" +
+	"\ris_aggregator\x18\a \x01(\bR\fisAggregator\x12%\n" +
+	"\x0eis_promotional\x18\b \x01(\bR\risPromotional\"\xb6\b\n" +
 	"\x0fArticleAnalysis\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +

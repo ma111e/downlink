@@ -1225,6 +1225,9 @@ func scoreTooltip(d *scoring.Dimensions) string {
 	if d.IsAggregator {
 		tip += " · Aggregator (score capped)"
 	}
+	if d.IsPromotional {
+		tip += " · Promotional (score capped)"
+	}
 	return tip
 }
 

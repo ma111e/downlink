@@ -934,11 +934,19 @@ func (x *ProviderConfig) GetCredentials() []*CodexCredentialProto {
 
 // AnalysisConfig represents the configuration for the analysis process
 type AnalysisConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Provider      string                 `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
-	Persona       string                 `protobuf:"bytes,3,opt,name=persona,proto3" json:"persona,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Provider               string                 `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
+	Persona                string                 `protobuf:"bytes,3,opt,name=persona,proto3" json:"persona,omitempty"`
+	WritingStyle           string                 `protobuf:"bytes,5,opt,name=writing_style,json=writingStyle,proto3" json:"writing_style,omitempty"`
+	WorkerPool             *WorkerPoolConfig      `protobuf:"bytes,6,opt,name=worker_pool,json=workerPool,proto3" json:"worker_pool,omitempty"`
+	AutoAnalyze            bool                   `protobuf:"varint,7,opt,name=auto_analyze,json=autoAnalyze,proto3" json:"auto_analyze,omitempty"`
+	VibeScore              bool                   `protobuf:"varint,8,opt,name=vibe_score,json=vibeScore,proto3" json:"vibe_score,omitempty"`
+	Glossary               bool                   `protobuf:"varint,9,opt,name=glossary,proto3" json:"glossary,omitempty"`
+	StandardSynthesis      bool                   `protobuf:"varint,10,opt,name=standard_synthesis,json=standardSynthesis,proto3" json:"standard_synthesis,omitempty"`
+	ComprehensiveSynthesis bool                   `protobuf:"varint,11,opt,name=comprehensive_synthesis,json=comprehensiveSynthesis,proto3" json:"comprehensive_synthesis,omitempty"`
+	ExecutiveSummary       bool                   `protobuf:"varint,12,opt,name=executive_summary,json=executiveSummary,proto3" json:"executive_summary,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *AnalysisConfig) Reset() {
@@ -983,6 +991,107 @@ func (x *AnalysisConfig) GetPersona() string {
 		return x.Persona
 	}
 	return ""
+}
+
+func (x *AnalysisConfig) GetWritingStyle() string {
+	if x != nil {
+		return x.WritingStyle
+	}
+	return ""
+}
+
+func (x *AnalysisConfig) GetWorkerPool() *WorkerPoolConfig {
+	if x != nil {
+		return x.WorkerPool
+	}
+	return nil
+}
+
+func (x *AnalysisConfig) GetAutoAnalyze() bool {
+	if x != nil {
+		return x.AutoAnalyze
+	}
+	return false
+}
+
+func (x *AnalysisConfig) GetVibeScore() bool {
+	if x != nil {
+		return x.VibeScore
+	}
+	return false
+}
+
+func (x *AnalysisConfig) GetGlossary() bool {
+	if x != nil {
+		return x.Glossary
+	}
+	return false
+}
+
+func (x *AnalysisConfig) GetStandardSynthesis() bool {
+	if x != nil {
+		return x.StandardSynthesis
+	}
+	return false
+}
+
+func (x *AnalysisConfig) GetComprehensiveSynthesis() bool {
+	if x != nil {
+		return x.ComprehensiveSynthesis
+	}
+	return false
+}
+
+func (x *AnalysisConfig) GetExecutiveSummary() bool {
+	if x != nil {
+		return x.ExecutiveSummary
+	}
+	return false
+}
+
+// WorkerPoolConfig represents the configuration for the analysis worker pool
+type WorkerPoolConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MaxWorkers    *int32                 `protobuf:"varint,1,opt,name=max_workers,json=maxWorkers,proto3,oneof" json:"max_workers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkerPoolConfig) Reset() {
+	*x = WorkerPoolConfig{}
+	mi := &file_config_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkerPoolConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkerPoolConfig) ProtoMessage() {}
+
+func (x *WorkerPoolConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkerPoolConfig.ProtoReflect.Descriptor instead.
+func (*WorkerPoolConfig) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *WorkerPoolConfig) GetMaxWorkers() int32 {
+	if x != nil && x.MaxWorkers != nil {
+		return *x.MaxWorkers
+	}
+	return 0
 }
 
 var File_config_proto protoreflect.FileDescriptor
@@ -1081,10 +1190,25 @@ const file_config_proto_rawDesc = "" +
 	" \x03(\v2\x1e.downlink.CodexCredentialProtoR\vcredentialsB\x0e\n" +
 	"\f_temperatureB\x0e\n" +
 	"\f_max_retriesB\x12\n" +
-	"\x10_timeout_minutes\"F\n" +
+	"\x10_timeout_minutes\"\x9b\x03\n" +
 	"\x0eAnalysisConfig\x12\x1a\n" +
 	"\bprovider\x18\x04 \x01(\tR\bprovider\x12\x18\n" +
-	"\apersona\x18\x03 \x01(\tR\apersona2\xfb\x01\n" +
+	"\apersona\x18\x03 \x01(\tR\apersona\x12#\n" +
+	"\rwriting_style\x18\x05 \x01(\tR\fwritingStyle\x12;\n" +
+	"\vworker_pool\x18\x06 \x01(\v2\x1a.downlink.WorkerPoolConfigR\n" +
+	"workerPool\x12!\n" +
+	"\fauto_analyze\x18\a \x01(\bR\vautoAnalyze\x12\x1d\n" +
+	"\n" +
+	"vibe_score\x18\b \x01(\bR\tvibeScore\x12\x1a\n" +
+	"\bglossary\x18\t \x01(\bR\bglossary\x12-\n" +
+	"\x12standard_synthesis\x18\n" +
+	" \x01(\bR\x11standardSynthesis\x127\n" +
+	"\x17comprehensive_synthesis\x18\v \x01(\bR\x16comprehensiveSynthesis\x12+\n" +
+	"\x11executive_summary\x18\f \x01(\bR\x10executiveSummary\"H\n" +
+	"\x10WorkerPoolConfig\x12$\n" +
+	"\vmax_workers\x18\x01 \x01(\x05H\x00R\n" +
+	"maxWorkers\x88\x01\x01B\x0e\n" +
+	"\f_max_workers2\xfb\x01\n" +
 	"\x13ServerConfigService\x12F\n" +
 	"\tGetConfig\x12\x1a.downlink.GetConfigRequest\x1a\x1b.downlink.GetConfigResponse\"\x00\x12C\n" +
 	"\n" +
@@ -1103,7 +1227,7 @@ func file_config_proto_rawDescGZIP() []byte {
 	return file_config_proto_rawDescData
 }
 
-var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_config_proto_goTypes = []any{
 	(*GetConfigRequest)(nil),              // 0: downlink.GetConfigRequest
 	(*GetConfigResponse)(nil),             // 1: downlink.GetConfigResponse
@@ -1118,11 +1242,12 @@ var file_config_proto_goTypes = []any{
 	(*CodexCredentialProto)(nil),          // 10: downlink.CodexCredentialProto
 	(*ProviderConfig)(nil),                // 11: downlink.ProviderConfig
 	(*AnalysisConfig)(nil),                // 12: downlink.AnalysisConfig
-	nil,                                   // 13: downlink.FeedConfig.ParamsEntry
-	nil,                                   // 14: downlink.FeedConfig.ScraperEntry
-	nil,                                   // 15: downlink.FeedConfig.HeadersEntry
-	(*anypb.Any)(nil),                     // 16: google.protobuf.Any
-	(*emptypb.Empty)(nil),                 // 17: google.protobuf.Empty
+	(*WorkerPoolConfig)(nil),              // 13: downlink.WorkerPoolConfig
+	nil,                                   // 14: downlink.FeedConfig.ParamsEntry
+	nil,                                   // 15: downlink.FeedConfig.ScraperEntry
+	nil,                                   // 16: downlink.FeedConfig.HeadersEntry
+	(*anypb.Any)(nil),                     // 17: google.protobuf.Any
+	(*emptypb.Empty)(nil),                 // 18: google.protobuf.Empty
 }
 var file_config_proto_depIdxs = []int32{
 	4,  // 0: downlink.GetConfigResponse.config:type_name -> downlink.ServerConfig
@@ -1135,23 +1260,24 @@ var file_config_proto_depIdxs = []int32{
 	5,  // 7: downlink.ServerConfig.notifications:type_name -> downlink.NotificationsConfig
 	6,  // 8: downlink.NotificationsConfig.discord:type_name -> downlink.DiscordNotificationConfig
 	7,  // 9: downlink.NotificationsConfig.github_pages:type_name -> downlink.GitHubPagesNotificationConfig
-	13, // 10: downlink.FeedConfig.params:type_name -> downlink.FeedConfig.ParamsEntry
-	14, // 11: downlink.FeedConfig.scraper:type_name -> downlink.FeedConfig.ScraperEntry
+	14, // 10: downlink.FeedConfig.params:type_name -> downlink.FeedConfig.ParamsEntry
+	15, // 11: downlink.FeedConfig.scraper:type_name -> downlink.FeedConfig.ScraperEntry
 	8,  // 12: downlink.FeedConfig.selectors:type_name -> downlink.Selectors
-	15, // 13: downlink.FeedConfig.headers:type_name -> downlink.FeedConfig.HeadersEntry
+	16, // 13: downlink.FeedConfig.headers:type_name -> downlink.FeedConfig.HeadersEntry
 	10, // 14: downlink.ProviderConfig.credentials:type_name -> downlink.CodexCredentialProto
-	16, // 15: downlink.FeedConfig.ScraperEntry.value:type_name -> google.protobuf.Any
-	0,  // 16: downlink.ServerConfigService.GetConfig:input_type -> downlink.GetConfigRequest
-	2,  // 17: downlink.ServerConfigService.SaveConfig:input_type -> downlink.SaveConfigRequest
-	3,  // 18: downlink.ServerConfigService.UpdateAnalysisConfig:input_type -> downlink.UpdateAnalysisConfigRequest
-	1,  // 19: downlink.ServerConfigService.GetConfig:output_type -> downlink.GetConfigResponse
-	17, // 20: downlink.ServerConfigService.SaveConfig:output_type -> google.protobuf.Empty
-	17, // 21: downlink.ServerConfigService.UpdateAnalysisConfig:output_type -> google.protobuf.Empty
-	19, // [19:22] is the sub-list for method output_type
-	16, // [16:19] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	13, // 15: downlink.AnalysisConfig.worker_pool:type_name -> downlink.WorkerPoolConfig
+	17, // 16: downlink.FeedConfig.ScraperEntry.value:type_name -> google.protobuf.Any
+	0,  // 17: downlink.ServerConfigService.GetConfig:input_type -> downlink.GetConfigRequest
+	2,  // 18: downlink.ServerConfigService.SaveConfig:input_type -> downlink.SaveConfigRequest
+	3,  // 19: downlink.ServerConfigService.UpdateAnalysisConfig:input_type -> downlink.UpdateAnalysisConfigRequest
+	1,  // 20: downlink.ServerConfigService.GetConfig:output_type -> downlink.GetConfigResponse
+	18, // 21: downlink.ServerConfigService.SaveConfig:output_type -> google.protobuf.Empty
+	18, // 22: downlink.ServerConfigService.UpdateAnalysisConfig:output_type -> google.protobuf.Empty
+	20, // [20:23] is the sub-list for method output_type
+	17, // [17:20] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_config_proto_init() }
@@ -1160,13 +1286,14 @@ func file_config_proto_init() {
 		return
 	}
 	file_config_proto_msgTypes[11].OneofWrappers = []any{}
+	file_config_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_config_proto_rawDesc), len(file_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

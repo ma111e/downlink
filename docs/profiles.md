@@ -108,6 +108,7 @@ profile leaves `editorial` empty, so it tracks `config.json` live. See
 | `weights` | map | Per-dimension weights, keyed `specificity`, `severity`, `breadth`, `novelty`, `actionability`, `credibility`. |
 | `tiers` | object | Read-tier lower bounds: `{must, should, may}` on the 0-100 score. |
 | `aggregator_score` | int | Fixed score forced for roundup/recap articles. |
+| `promo_cap` | int | Cap for promotional articles (announcements, marketing, commercials). |
 | `evergreen_cap` | int | Cap for pure-evergreen articles (specificity 0). |
 
 `prompts` replaces task instructions verbatim. The output JSON schema and required keys are
@@ -134,7 +135,7 @@ uses the default profile. To generate every profile, run the command once per sl
 
 Two independent axes:
 
-- **Layout** (`layout`): a full template set. Built-in layouts are `default` and `emerald`.
+- **Layout** (`layout`): a full template set. The built-in layout is `default`.
   Ship your own by placing a template directory under the layouts dir (`--layouts-dir`,
   default `layouts/`); a custom layout may override only some pages and inherits the rest
   from `default`.

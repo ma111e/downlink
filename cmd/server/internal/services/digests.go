@@ -1442,8 +1442,18 @@ func (s *DigestServer) defineEntities(ctx context.Context, entities []string, pr
 		return map[string]entityDefinition{}, nil
 	}
 
+	// Address each term by a stable synthetic id (t1, t2, …) so matching the response
+	// back to the candidate does not depend on the model echoing a normalization-stable
+	// string. Models routinely reword or expand a term (e.g. "mcp" → "Model Context
+	// Protocol", "mitre-attack" → "MITRE ATT&CK"), which would otherwise break the key
+	// match and silently discard a perfectly good definition.
+	idToTerm := make(map[string]string, len(entities))
 	var list strings.Builder
-	for _, e := range entities {
+	for i, e := range entities {
+		id := fmt.Sprintf("t%d", i+1)
+		idToTerm[id] = e
+		list.WriteString(id)
+		list.WriteString("\t")
 		list.WriteString(e)
 		list.WriteString("\n")
 	}
@@ -1471,7 +1481,8 @@ sophisticated it sounds:
     (e.g. a specific loader family, an unusual evasion technique). Do not rate generic tradecraft as
     advanced just because it is technical.
 
-Echo back each term exactly as given (the key).
+Each line below is "<id>\t<term>". Use the id (e.g. t1) as the JSON key for that term's
+definition — do not use the term text as the key.
 
 <start_of_entities>
 %s<end_of_entities>
@@ -1480,7 +1491,7 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 
 {
   "definitions": {
-    "<entity>": {"definition": "<one plain-language sentence, or empty string if unknown>", "type": "<category>", "difficulty": "<difficulty>"}
+    "<id>": {"definition": "<one plain-language sentence, or empty string if unknown>", "type": "<category>", "difficulty": "<difficulty>"}
   }
 }`, list.String())
 
@@ -1509,10 +1520,26 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 	}
 
 	raw := make(map[string]entityDefinition, len(parsed.Definitions))
-	for entity, v := range parsed.Definitions {
-		raw[entity] = entityDefinition{Def: v.Definition, Type: v.Type, Difficulty: v.Difficulty}
+	for id, v := range parsed.Definitions {
+		raw[id] = entityDefinition{Def: v.Definition, Type: v.Type, Difficulty: v.Difficulty}
 	}
-	return entityDefinitionsFromResult(raw), nil
+	return entityDefinitionsFromResult(remapEntityDefsByID(raw, idToTerm)), nil
+}
+
+// remapEntityDefsByID translates a model response keyed by synthetic ids (t1, t2, …) back
+// to the original input terms those ids were assigned to. This keeps the round-trip
+// echo-independent: the model may reword or expand a term freely without breaking the link
+// to its tag candidate. Ids the model invents or returns unknown are dropped.
+func remapEntityDefsByID(byID map[string]entityDefinition, idToTerm map[string]string) map[string]entityDefinition {
+	out := make(map[string]entityDefinition, len(byID))
+	for id, v := range byID {
+		term, ok := idToTerm[strings.ToLower(strings.TrimSpace(id))]
+		if !ok {
+			continue
+		}
+		out[term] = v
+	}
+	return out
 }
 
 // entityDefinitionsFromResult normalizes entity keys, coerces types, and drops empty definitions.

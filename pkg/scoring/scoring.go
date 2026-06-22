@@ -29,6 +29,10 @@ type Dimensions struct {
 	// IsAggregator marks roundups / weekly recaps / link digests, which are forced
 	// to AggregatorScore regardless of the other dimensions.
 	IsAggregator bool `json:"is_aggregator"`
+	// IsPromotional marks product announcements, marketing pieces, press releases,
+	// sponsored content, and vendor commercials, which are capped at PromoCap (the
+	// top of the "May Read" tier) regardless of the other dimensions.
+	IsPromotional bool `json:"is_promotional"`
 }
 
 // Per-dimension weights, summing to 1.0. This is the single place to retune the
@@ -60,6 +64,11 @@ const (
 	// EvergreenCap caps the score of pure-evergreen articles (Specificity == 0),
 	// preserving the previous prompt's "generic/evergreen must score ≤60" rule.
 	EvergreenCap = 60
+
+	// PromoCap caps the score of promotional articles (announcements, marketing,
+	// commercials) at the top of the "May Read" tier, so an ad can never be ranked
+	// as "Should Read" or "Must Read" however well it scores on other dimensions.
+	PromoCap = TierShouldRead - 1
 )
 
 // Read-tier thresholds (inclusive lower bounds) on the 0-100 score.
@@ -100,6 +109,7 @@ type Config struct {
 	Weights         DimensionWeights
 	AggregatorScore int
 	EvergreenCap    int
+	PromoCap        int
 	TierMust        int
 	TierShould      int
 	TierMay         int
@@ -120,6 +130,7 @@ func DefaultConfig() Config {
 		},
 		AggregatorScore: AggregatorScore,
 		EvergreenCap:    EvergreenCap,
+		PromoCap:        PromoCap,
 		TierMust:        TierMustRead,
 		TierShould:      TierShouldRead,
 		TierMay:         TierMayRead,
@@ -142,8 +153,8 @@ func PriorityKey(score int) string { return DefaultConfig().PriorityKey(score) }
 //
 // Each dimension is normalised to 0-1, combined via c.Weights into a weighted
 // average, and scaled to 0-100. Overrides are then applied: aggregator articles
-// are forced to c.AggregatorScore, and pure-evergreen articles (Specificity == 0)
-// are capped at c.EvergreenCap.
+// are forced to c.AggregatorScore, promotional articles are capped at c.PromoCap,
+// and pure-evergreen articles (Specificity == 0) are capped at c.EvergreenCap.
 func (c Config) Compute(d Dimensions) int {
 	if d.IsAggregator {
 		return c.AggregatorScore
@@ -163,6 +174,12 @@ func (c Config) Compute(d Dimensions) int {
 	}
 	if score > 100 {
 		score = 100
+	}
+
+	// Promotional content (announcements, marketing, commercials) cannot exceed the
+	// top of the "May Read" tier regardless of how well it scores on other dimensions.
+	if d.IsPromotional && score > c.PromoCap {
+		score = c.PromoCap
 	}
 
 	// Pure-evergreen content cannot exceed the "May Read" floor regardless of how
