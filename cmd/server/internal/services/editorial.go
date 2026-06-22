@@ -137,6 +137,9 @@ func applyRubric(c scoring.Config, r *models.RubricConfig) scoring.Config {
 	if r.EvergreenCap != nil {
 		c.EvergreenCap = *r.EvergreenCap
 	}
+	if r.PromoCap != nil {
+		c.PromoCap = *r.PromoCap
+	}
 	return c
 }
 

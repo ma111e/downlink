@@ -82,3 +82,43 @@ func TestDigestRoundTripsGlossaryAndLearning(t *testing.T) {
 		t.Errorf("glossary term fields lost: %+v", gt)
 	}
 }
+
+// TestAnalysisConfigRoundTrip guards against the `dlk model` data-loss bug: the
+// proto round-trip the CLI uses to load and save the analysis config must
+// preserve every setting, not just Provider/Persona. Otherwise switching the
+// provider silently resets vibe scoring, glossary, synthesis flags, etc.
+func TestAnalysisConfigRoundTrip(t *testing.T) {
+	maxWorkers := 7
+	input := &models.AnalysisConfig{
+		Provider:               "openai-main",
+		Persona:                "terse analyst",
+		WritingStyle:           "plain and direct",
+		WorkerPool:             &models.WorkerPoolConfig{MaxWorkers: &maxWorkers},
+		AutoAnalyze:            true,
+		VibeScore:              true,
+		Glossary:               true,
+		StandardSynthesis:      true,
+		ComprehensiveSynthesis: true,
+		ExecutiveSummary:       true,
+	}
+
+	out := AnalysisConfigToModel(AnalysisConfigToProto(input))
+	if out == nil {
+		t.Fatal("AnalysisConfig round-trip returned nil")
+	}
+
+	if out.Provider != input.Provider || out.Persona != input.Persona ||
+		out.WritingStyle != input.WritingStyle || out.AutoAnalyze != input.AutoAnalyze ||
+		out.VibeScore != input.VibeScore || out.Glossary != input.Glossary ||
+		out.StandardSynthesis != input.StandardSynthesis ||
+		out.ComprehensiveSynthesis != input.ComprehensiveSynthesis ||
+		out.ExecutiveSummary != input.ExecutiveSummary {
+		t.Errorf("scalar analysis fields lost: %+v", out)
+	}
+	if out.WorkerPool == nil || out.WorkerPool.MaxWorkers == nil {
+		t.Fatalf("worker pool dropped: %+v", out.WorkerPool)
+	}
+	if *out.WorkerPool.MaxWorkers != maxWorkers {
+		t.Errorf("MaxWorkers lost: got %d, want %d", *out.WorkerPool.MaxWorkers, maxWorkers)
+	}
+}

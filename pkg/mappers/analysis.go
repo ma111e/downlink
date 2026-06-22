@@ -20,6 +20,7 @@ func ScoreDimensionsToProto(d *scoring.Dimensions) *protos.ScoreDimensions {
 		Actionability: int32(d.Actionability),
 		Credibility:   int32(d.Credibility),
 		IsAggregator:  d.IsAggregator,
+		IsPromotional: d.IsPromotional,
 	}
 }
 
@@ -35,6 +36,7 @@ func ScoreDimensionsToModel(d *protos.ScoreDimensions) *scoring.Dimensions {
 		Actionability: int(d.Actionability),
 		Credibility:   int(d.Credibility),
 		IsAggregator:  d.IsAggregator,
+		IsPromotional: d.IsPromotional,
 	}
 }
 

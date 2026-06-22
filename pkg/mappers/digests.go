@@ -327,8 +327,16 @@ func AnalysisConfigToProto(config *models.AnalysisConfig) *protos.AnalysisConfig
 	}
 
 	return &protos.AnalysisConfig{
-		Provider: config.Provider,
-		Persona:  config.Persona,
+		Provider:               config.Provider,
+		Persona:                config.Persona,
+		WritingStyle:           config.WritingStyle,
+		WorkerPool:             workerPoolConfigToProto(config.WorkerPool),
+		AutoAnalyze:            config.AutoAnalyze,
+		VibeScore:              config.VibeScore,
+		Glossary:               config.Glossary,
+		StandardSynthesis:      config.StandardSynthesis,
+		ComprehensiveSynthesis: config.ComprehensiveSynthesis,
+		ExecutiveSummary:       config.ExecutiveSummary,
 	}
 }
 
@@ -338,9 +346,43 @@ func AnalysisConfigToModel(config *protos.AnalysisConfig) *models.AnalysisConfig
 	}
 
 	return &models.AnalysisConfig{
-		Provider: config.Provider,
-		Persona:  config.Persona,
+		Provider:               config.Provider,
+		Persona:                config.Persona,
+		WritingStyle:           config.WritingStyle,
+		WorkerPool:             workerPoolConfigToModel(config.WorkerPool),
+		AutoAnalyze:            config.AutoAnalyze,
+		VibeScore:              config.VibeScore,
+		Glossary:               config.Glossary,
+		StandardSynthesis:      config.StandardSynthesis,
+		ComprehensiveSynthesis: config.ComprehensiveSynthesis,
+		ExecutiveSummary:       config.ExecutiveSummary,
 	}
+}
+
+func workerPoolConfigToProto(config *models.WorkerPoolConfig) *protos.WorkerPoolConfig {
+	if config == nil {
+		return nil
+	}
+
+	out := &protos.WorkerPoolConfig{}
+	if config.MaxWorkers != nil {
+		v := int32(*config.MaxWorkers)
+		out.MaxWorkers = &v
+	}
+	return out
+}
+
+func workerPoolConfigToModel(config *protos.WorkerPoolConfig) *models.WorkerPoolConfig {
+	if config == nil {
+		return nil
+	}
+
+	out := &models.WorkerPoolConfig{}
+	if config.MaxWorkers != nil {
+		v := int(*config.MaxWorkers)
+		out.MaxWorkers = &v
+	}
+	return out
 }
 
 func DigestArticleToProto(article *models.DigestArticle) *protos.DigestArticle {

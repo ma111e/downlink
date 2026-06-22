@@ -89,6 +89,7 @@ type RubricConfig struct {
 	Tiers           *TierThresholds    `json:"tiers,omitempty" yaml:"tiers,omitempty"`
 	AggregatorScore *int               `json:"aggregator_score,omitempty" yaml:"aggregator_score,omitempty"`
 	EvergreenCap    *int               `json:"evergreen_cap,omitempty" yaml:"evergreen_cap,omitempty"`
+	PromoCap        *int               `json:"promo_cap,omitempty" yaml:"promo_cap,omitempty"`
 }
 
 // TierThresholds are the inclusive lower bounds for the read tiers on a 0-100 score.
