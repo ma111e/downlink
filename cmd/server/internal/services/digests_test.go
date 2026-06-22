@@ -2,10 +2,57 @@ package services
 
 import (
 	"github.com/ma111e/downlink/pkg/models"
+	"github.com/ma111e/downlink/pkg/protos"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestResolveRunProviderModel(t *testing.T) {
+	ded := EffectiveEditorial{Provider: "default-provider", Model: "default-model"}
+
+	tests := []struct {
+		name         string
+		req          *protos.GenerateDigestRequest
+		wantProvider string
+		wantModel    string
+	}{
+		{
+			name:         "model only honors override without provider",
+			req:          &protos.GenerateDigestRequest{Model: "gpt-x"},
+			wantProvider: "",
+			wantModel:    "gpt-x",
+		},
+		{
+			name:         "provider only",
+			req:          &protos.GenerateDigestRequest{Provider: "openai"},
+			wantProvider: "openai",
+			wantModel:    "",
+		},
+		{
+			name:         "both set",
+			req:          &protos.GenerateDigestRequest{Provider: "openai", Model: "gpt-x"},
+			wantProvider: "openai",
+			wantModel:    "gpt-x",
+		},
+		{
+			name:         "neither set falls back to defaults",
+			req:          &protos.GenerateDigestRequest{},
+			wantProvider: "default-provider",
+			wantModel:    "default-model",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotProvider, gotModel := resolveRunProviderModel(tt.req, ded)
+			if gotProvider != tt.wantProvider || gotModel != tt.wantModel {
+				t.Errorf("resolveRunProviderModel() = (%q, %q), want (%q, %q)",
+					gotProvider, gotModel, tt.wantProvider, tt.wantModel)
+			}
+		})
+	}
+}
 
 func TestBuildDigestSummaryPromptIncludesWindowAndArticles(t *testing.T) {
 	windowStart := time.Date(2026, 4, 29, 8, 30, 0, 0, time.FixedZone("CEST", 2*60*60))
