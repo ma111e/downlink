@@ -29,7 +29,7 @@ type Options struct {
 	TemplatesDir string          // directory holding *.tmpl files, watched for changes
 	OpenBrowser  bool            // open the default browser at startup
 	Digests      []models.Digest // digests listed in the archive and served individually
-	Theme        string          // template layout name (e.g. "emerald"); empty = default
+	Theme        string          // template layout name; empty = default
 }
 
 // Run starts the preview server and blocks until the process is interrupted or

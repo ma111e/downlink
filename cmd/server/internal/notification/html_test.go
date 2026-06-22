@@ -175,29 +175,6 @@ func TestEveryRegisteredLayoutRenders(t *testing.T) {
 	}
 }
 
-// TestEmeraldLayoutDiffersFromDefault proves the selected layout actually changes the
-// rendered output: emerald carries its green primary accent and default does not.
-func TestEmeraldLayoutDiffersFromDefault(t *testing.T) {
-	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
-	const emeraldAccent = "oklch(72% 0.17 150)"
-
-	emerald, err := RenderDigestHTML(digest, "emerald", "")
-	if err != nil {
-		t.Fatalf("RenderDigestHTML(emerald) error = %v", err)
-	}
-	if !strings.Contains(string(emerald), emeraldAccent) {
-		t.Fatalf("emerald layout missing its green accent %q", emeraldAccent)
-	}
-
-	def, err := RenderDigestHTML(digest, "default", "")
-	if err != nil {
-		t.Fatalf("RenderDigestHTML(default) error = %v", err)
-	}
-	if strings.Contains(string(def), emeraldAccent) {
-		t.Fatalf("default layout unexpectedly contains the emerald accent %q", emeraldAccent)
-	}
-}
-
 func TestRenderDigestHTMLShowsScoreTooltip(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 	htmlBytes, err := RenderDigestHTML(digest, "default", "")
