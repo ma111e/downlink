@@ -101,6 +101,16 @@ see [profiles.md](profiles.md).
 | `config show` | Print the server's live configuration. |
 | `config edit` | Open the configuration in `$EDITOR` (default `vi`) and save changes back. |
 
+## glossary
+
+Inspect and curate the global jargon glossary. The glossary is built during
+`digest generate --glossary`; see [analysis-and-scoring.md](analysis-and-scoring.md#glossary-mode).
+
+| Command | Description |
+|---|---|
+| `glossary list` | List glossary entries. `--limit <n>` (0 = all). |
+| `glossary override <term> <definition>` | Set a curated definition that wins over the generated one and survives regeneration. Terms match case-insensitively and ignore spaces/hyphens (`cobalt strike` == `cobalt-strike`). |
+
 ## queue
 
 Control the analysis queue.
@@ -119,8 +129,10 @@ with a token and do not need a running server, except `add`, `republish`, and
 `republish-all`, which fetch digests from the server. See [github-pages.md](github-pages.md).
 
 Persistent flags (all subcommands): `--repo`, `--branch`, `--token`, `--output-dir`,
-`--configure-pages`, `--clone-dir`, `--commit-author`, `--commit-email`, `--theme`. The token can
-also come from `DOWNLINK_GH_PAGES_TOKEN`; `--theme` from `DOWNLINK_GH_PAGES_THEME`.
+`--configure-pages`, `--clone-dir`, `--commit-author`, `--commit-email`, `--theme`,
+`--window-days` (days of digests to retain in the manifest and feeds; `0` uses the default
+of 30). The token can also come from `DOWNLINK_GH_PAGES_TOKEN`; `--theme` from
+`DOWNLINK_GH_PAGES_THEME`; `--window-days` from `DOWNLINK_GH_PAGES_WINDOW_DAYS`.
 
 | Command | Description |
 |---|---|
