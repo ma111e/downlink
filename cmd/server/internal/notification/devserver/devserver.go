@@ -82,6 +82,14 @@ func Run(opts Options) error {
 		})
 	}
 
+	// The reports page aggregates the referenced reports across every preview
+	// digest. Footer links on the digest/archive/swipe pages point here.
+	mux.HandleFunc("/reports.html", func(w http.ResponseWriter, r *http.Request) {
+		serveHTML(w, func() ([]byte, error) {
+			return notification.RenderReportsPageForDigests(digests, opts.Theme, "")
+		})
+	})
+
 	// Stub manifest listing every preview digest so the archive shell renders.
 	mux.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
 		m := notification.Manifest{

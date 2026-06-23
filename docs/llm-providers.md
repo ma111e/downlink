@@ -64,3 +64,23 @@ The server runs at most `--max-concurrent-llm-requests` LLM calls at once (defau
 enforced across every path: direct analysis, queued analysis, digest deduplication, and
 digest summaries. Raise it to parallelize analysis when your provider and rate limits
 allow. Set it with the flag or `DOWNLINK_MAX_CONCURRENT_LLM_REQUESTS`.
+
+## Prompt caching
+
+Article analysis runs each task as one growing conversation, so the article text is
+re-sent on every task. To avoid paying for that repeatedly, prompt caching is enabled
+automatically — no configuration:
+
+- `anthropic`: cache breakpoints are placed automatically on each turn, so the article is
+  billed once and read from cache (~0.1×) on later tasks.
+- `claude-code`: the same `cache_control` markers are sent on the system prefix, the
+  article turn, and the latest turn. Look for the `prompt cache active` debug log to
+  confirm hits.
+- `openai` / `mistral`: OpenAI-compatible backends cache identical prefixes server-side
+  on their own — the stable conversation already benefits, nothing to enable.
+- `ollama` / `llamacpp`: local, no token cost; prefix KV-cache reuse is handled by the
+  backend.
+
+Caching changes only how repeated input is billed, never the prompt content, so analysis
+output is identical. Very short articles (below the provider's minimum cacheable prefix)
+simply won't cache — no error, no behavior change.

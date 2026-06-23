@@ -40,6 +40,7 @@ type GitHubPagesPublisher struct {
 	progress    PublishProgress
 	listDigests DigestLister
 	listSources SourceLister
+	listReports ReportLister
 	landing     []LandingProfile
 	profileSlug string // current profile being published (switcher active state)
 	theme       string // current profile's first-paint theme ("" = default)
@@ -80,6 +81,18 @@ type SourceLister func() ([]models.Feed, error)
 // the sources page on each push. Passing nil disables sources page generation.
 func (p *GitHubPagesPublisher) SetSourceLister(fn SourceLister) {
 	p.listSources = fn
+}
+
+// ReportLister returns every digest created on/after since, newest first, with
+// its Articles (incl. Tags) and DigestAnalyses (incl. Analysis) populated — the
+// raw material the reports page aggregates. It lets the publisher build the
+// reports page without depending on the store. A nil lister disables the page.
+type ReportLister func(since time.Time) ([]models.Digest, error)
+
+// SetReportLister attaches the lister used to gather referenced reports when
+// building the reports page on each push. Passing nil disables the reports page.
+func (p *GitHubPagesPublisher) SetReportLister(fn ReportLister) {
+	p.listReports = fn
 }
 
 // SetLanding supplies the public profile list. When more than one profile is
@@ -522,7 +535,10 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, layout
 	if err := p.ensureStaticAssets(wt, outputDir); err != nil {
 		return err
 	}
-	return p.ensureSourcesPage(wt, outputDir, layout)
+	if err := p.ensureSourcesPage(wt, outputDir, layout); err != nil {
+		return err
+	}
+	return p.ensureReportsPage(wt, outputDir, layout)
 }
 
 // writeAndStageRootFile writes a generated file at the repo root (idempotently)
@@ -607,6 +623,50 @@ func (p *GitHubPagesPublisher) ensureSourcesPage(wt *gogit.Worktree, outputDir, 
 		}
 		if _, err := wt.Add(relPath); err != nil {
 			return fmt.Errorf("github pages: failed to stage sources file: %w", err)
+		}
+	}
+	return nil
+}
+
+// ensureReportsPage writes reports.html at the repo root and under outputDir,
+// listing every referenced report aggregated across the digests still inside the
+// publish window. Mirrors ensureSourcesPage: both copies are identical (reports
+// are embedded at render time), so footer links can use a relative sibling path.
+// When no report lister is configured the page is left untouched.
+func (p *GitHubPagesPublisher) ensureReportsPage(wt *gogit.Worktree, outputDir, layout string) error {
+	if p.listReports == nil {
+		return nil
+	}
+
+	digests, err := p.listReports(p.publishCutoff())
+	if err != nil {
+		return fmt.Errorf("github pages: failed to list reports: %w", err)
+	}
+
+	reportsBytes, err := RenderReportsPage(aggregateReports(digests), layout, p.theme)
+	if err != nil {
+		return fmt.Errorf("github pages: failed to build reports page: %w", err)
+	}
+
+	locations := []string{filepath.Join(outputDir, "reports.html")}
+	if len(p.landing) <= 1 {
+		locations = append([]string{"reports.html"}, locations...)
+	}
+	out := p.maybeInjectSwitcher(reportsBytes, outputDir)
+	for _, relPath := range locations {
+		absPath := filepath.Join(p.cfg.CloneDir, relPath)
+		existing, readErr := os.ReadFile(absPath)
+		if readErr == nil && bytes.Equal(existing, out) {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(absPath), 0755); err != nil {
+			return fmt.Errorf("github pages: failed to create reports dir: %w", err)
+		}
+		if err := os.WriteFile(absPath, out, 0644); err != nil {
+			return fmt.Errorf("github pages: failed to write reports HTML: %w", err)
+		}
+		if _, err := wt.Add(relPath); err != nil {
+			return fmt.Errorf("github pages: failed to stage reports file: %w", err)
 		}
 	}
 	return nil
