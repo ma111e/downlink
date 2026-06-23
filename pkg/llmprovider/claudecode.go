@@ -16,6 +16,7 @@ import (
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
+	log "github.com/sirupsen/logrus"
 )
 
 // defaultClaudeMaxTokens is used when the caller does not set a max_tokens.
@@ -150,14 +151,30 @@ type messagesRequest struct {
 	Messages  []claudeMessage `json:"messages"`
 }
 
+// cacheControl marks a prompt prefix as cacheable. Omitting TTL uses the API
+// default (5 minutes), which is ample for the analysis pipeline since all tasks
+// for one article run within seconds.
+type cacheControl struct {
+	Type string `json:"type"` // always "ephemeral"
+}
+
 type systemBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Type         string        `json:"type"`
+	Text         string        `json:"text"`
+	CacheControl *cacheControl `json:"cache_control,omitempty"`
+}
+
+// contentBlock is a single content block of a message. Block form (rather than a
+// bare string) is required to attach cache_control to a prefix.
+type contentBlock struct {
+	Type         string        `json:"type"` // always "text"
+	Text         string        `json:"text"`
+	CacheControl *cacheControl `json:"cache_control,omitempty"`
 }
 
 type claudeMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string         `json:"role"`
+	Content []contentBlock `json:"content"`
 }
 
 // messagesResponse is the (non-streaming) Anthropic Messages API response.
@@ -167,8 +184,10 @@ type messagesResponse struct {
 		Text string `json:"text"`
 	} `json:"content"`
 	Usage struct {
-		InputTokens  int `json:"input_tokens"`
-		OutputTokens int `json:"output_tokens"`
+		InputTokens              int `json:"input_tokens"`
+		OutputTokens             int `json:"output_tokens"`
+		CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+		CacheReadInputTokens     int `json:"cache_read_input_tokens"`
 	} `json:"usage"`
 }
 
@@ -184,10 +203,25 @@ func (p *claudeCodeProvider) callAPI(ctx context.Context, lease *claudeauth.Leas
 				system = append(system, systemBlock{Type: "text", Text: m.Content})
 			}
 		case schema.Assistant:
-			turns = append(turns, claudeMessage{Role: "assistant", Content: m.Content})
+			turns = append(turns, claudeMessage{Role: "assistant", Content: []contentBlock{{Type: "text", Text: m.Content}}})
 		default:
-			turns = append(turns, claudeMessage{Role: "user", Content: m.Content})
+			turns = append(turns, claudeMessage{Role: "user", Content: []contentBlock{{Type: "text", Text: m.Content}}})
 		}
+	}
+
+	// Prompt caching: mark the stable prefixes so re-sent content is billed once
+	// and read from cache (~0.1x) on subsequent tasks. The analysis pipeline
+	// re-sends the whole growing conversation per task; the article lives in the
+	// first user turn, so caching it (plus the system prefix and the latest turn)
+	// covers the dominant repeated input. Breakpoints stay within the API's
+	// 4-breakpoint limit and the 20-block lookback. Content is unchanged.
+	ephemeral := func() *cacheControl { return &cacheControl{Type: "ephemeral"} }
+	system[len(system)-1].CacheControl = ephemeral()
+	if len(turns) > 0 {
+		first := &turns[0]
+		first.Content[len(first.Content)-1].CacheControl = ephemeral()
+		last := &turns[len(turns)-1]
+		last.Content[len(last.Content)-1].CacheControl = ephemeral()
 	}
 
 	body, err := json.Marshal(messagesRequest{
@@ -257,12 +291,25 @@ func (p *claudeCodeProvider) callAPI(ctx context.Context, lease *claudeauth.Leas
 		}
 	}
 	msg := &schema.Message{Role: schema.Assistant, Content: text.String()}
-	if parsed.Usage.InputTokens > 0 || parsed.Usage.OutputTokens > 0 {
+	// Anthropic reports input_tokens excluding cached tokens; add the cache
+	// read/write counts back so the recorded prompt total reflects the full
+	// processed input. The win shows up as cache_read_input_tokens: those tokens
+	// were re-sent (the article on every task) but served from cache, not
+	// reprocessed.
+	promptTokens := parsed.Usage.InputTokens + parsed.Usage.CacheCreationInputTokens + parsed.Usage.CacheReadInputTokens
+	if promptTokens > 0 || parsed.Usage.OutputTokens > 0 {
 		msg.ResponseMeta = &schema.ResponseMeta{Usage: &schema.TokenUsage{
-			PromptTokens:     parsed.Usage.InputTokens,
+			PromptTokens:     promptTokens,
 			CompletionTokens: parsed.Usage.OutputTokens,
-			TotalTokens:      parsed.Usage.InputTokens + parsed.Usage.OutputTokens,
+			TotalTokens:      promptTokens + parsed.Usage.OutputTokens,
 		}}
+	}
+	if parsed.Usage.CacheReadInputTokens > 0 || parsed.Usage.CacheCreationInputTokens > 0 {
+		log.WithFields(log.Fields{
+			"cache_read":     parsed.Usage.CacheReadInputTokens,
+			"cache_creation": parsed.Usage.CacheCreationInputTokens,
+			"fresh_input":    parsed.Usage.InputTokens,
+		}).Debug("claude-code: prompt cache active")
 	}
 	return msg, nil
 }

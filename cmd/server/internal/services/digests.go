@@ -653,6 +653,29 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 			publisher.SetSourceLister(func() ([]models.Feed, error) {
 				return store.Db.ListProfileFeeds(profileID)
 			})
+			// Reports page: the profile's digests within the publish window, with
+			// each digest's articles (+ tags) loaded so referenced reports can be
+			// aggregated with the tags they were referenced from.
+			publisher.SetReportLister(func(since time.Time) ([]models.Digest, error) {
+				digests, err := store.Db.ListDigestsByProfile(profileID, 0, true)
+				if err != nil {
+					return nil, err
+				}
+				out := make([]models.Digest, 0, len(digests))
+				for i := range digests {
+					if digests[i].CreatedAt.Before(since) {
+						continue
+					}
+					arts, err := store.Db.GetDigestArticles(digests[i].Id)
+					if err != nil {
+						log.WithError(err).Warn("reports: failed to load digest articles")
+						continue
+					}
+					digests[i].Articles = arts
+					out = append(out, digests[i])
+				}
+				return out, nil
+			})
 			// When more than one profile exists, the repo root becomes a landing
 			// page linking into each profile's section.
 			publisher.SetLanding(buildLandingProfiles())

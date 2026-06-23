@@ -229,6 +229,26 @@ func newEinoOpenAICompat(cfg Config, defaultBaseURL string) (*einoProvider, erro
 // Eino Claude (Anthropic) backend
 // ---------------------------------------------------------------------------
 
+// cachingClaudeModel wraps the Eino Claude ChatModel to always enable Anthropic
+// prompt caching. Eino places a cache breakpoint on the last input message of
+// each turn, so the analysis pipeline's growing conversation (the article is
+// sent once in the first turn, then re-sent on every subsequent task) is billed
+// for the article once and read from cache at ~0.1x thereafter. This changes
+// only cache_control markers, never request content, so analysis output is
+// identical. Default (5-minute) TTL is ample: all tasks for one article run
+// within seconds of each other.
+type cachingClaudeModel struct {
+	model.BaseChatModel
+}
+
+func (m cachingClaudeModel) Generate(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+	return m.BaseChatModel.Generate(ctx, in, append(opts, einoclaude.WithAutoCacheControl(&einoclaude.CacheControl{}))...)
+}
+
+func (m cachingClaudeModel) Stream(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	return m.BaseChatModel.Stream(ctx, in, append(opts, einoclaude.WithAutoCacheControl(&einoclaude.CacheControl{}))...)
+}
+
 func newEinoClaude(cfg Config) (*einoProvider, error) {
 	ccfg := &einoclaude.Config{
 		APIKey:    cfg.APIKey,
@@ -250,7 +270,7 @@ func newEinoClaude(cfg Config) (*einoProvider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("eino claude: %w", err)
 	}
-	return &einoProvider{cm: cm}, nil
+	return &einoProvider{cm: cachingClaudeModel{cm}}, nil
 }
 
 // ---------------------------------------------------------------------------
