@@ -65,3 +65,66 @@ feeds:
 		}
 	}
 }
+
+// TestFeedConfig_Validate covers the hard requirements: every feed needs a title,
+// and html feeds additionally need a date_selector.
+func TestFeedConfig_Validate(t *testing.T) {
+	htmlOpts := func(dateSelector any) map[string]any {
+		opts := map[string]any{}
+		if dateSelector != nil {
+			opts["date_selector"] = dateSelector
+		}
+		return opts
+	}
+
+	cases := []struct {
+		name    string
+		cfg     FeedConfig
+		wantErr bool
+	}{
+		{
+			name: "rss with title",
+			cfg:  FeedConfig{URL: "https://x.com/feed", Title: "X", Scraper: ScraperConfig{Type: "rss"}},
+		},
+		{
+			name:    "empty title",
+			cfg:     FeedConfig{URL: "https://x.com/feed", Title: "", Scraper: ScraperConfig{Type: "rss"}},
+			wantErr: true,
+		},
+		{
+			name:    "whitespace title",
+			cfg:     FeedConfig{URL: "https://x.com/feed", Title: "   ", Scraper: ScraperConfig{Type: "rss"}},
+			wantErr: true,
+		},
+		{
+			name: "html with date_selector",
+			cfg:  FeedConfig{URL: "https://x.com/blog", Title: "Blog", Scraper: ScraperConfig{Type: "html", Options: htmlOpts("time")}},
+		},
+		{
+			name:    "html missing date_selector",
+			cfg:     FeedConfig{URL: "https://x.com/blog", Title: "Blog", Scraper: ScraperConfig{Type: "html", Options: htmlOpts(nil)}},
+			wantErr: true,
+		},
+		{
+			name:    "html whitespace date_selector",
+			cfg:     FeedConfig{URL: "https://x.com/blog", Title: "Blog", Scraper: ScraperConfig{Type: "html", Options: htmlOpts("  ")}},
+			wantErr: true,
+		},
+		{
+			name: "non-html without date_selector",
+			cfg:  FeedConfig{URL: "https://x.com/feed", Title: "X", Scraper: ScraperConfig{Type: "atom"}},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.Validate()
+			if tc.wantErr && err == nil {
+				t.Errorf("Validate() = nil, want error")
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("Validate() = %v, want nil", err)
+			}
+		})
+	}
+}

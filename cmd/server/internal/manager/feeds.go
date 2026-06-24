@@ -376,6 +376,9 @@ func (m *FeedManager) ApplyFeeds(configs []models.FeedConfig, defaults *models.S
 	for i := range configs {
 		cfg := configs[i]
 		bakeDefaultSelectors(&cfg, defaults)
+		if err := cfg.Validate(); err != nil {
+			return result, err
+		}
 		id, err := generateFeedId(cfg.URL)
 		if err != nil {
 			return result, fmt.Errorf("invalid feed URL %s: %w", cfg.URL, err)

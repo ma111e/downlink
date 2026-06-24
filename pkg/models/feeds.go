@@ -1,6 +1,8 @@
 package models
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/datatypes"
@@ -29,6 +31,22 @@ type FeedConfig struct {
 	Enabled bool          `json:"enabled" yaml:"enabled"`
 	Topics  []string      `json:"topics,omitempty" yaml:"topics,omitempty"` // labels profiles select feeds by
 	Scraper ScraperConfig `json:"scraper" yaml:"scraper"`
+}
+
+// Validate enforces the hard requirements every feed config must meet before it
+// can be registered: a non-empty title, and — for the html scraper — a
+// date_selector.
+func (fc FeedConfig) Validate() error {
+	if strings.TrimSpace(fc.Title) == "" {
+		return fmt.Errorf("feed %s: title is required", fc.URL)
+	}
+	if fc.Scraper.Type == "html" {
+		ds, _ := fc.Scraper.Options["date_selector"].(string)
+		if strings.TrimSpace(ds) == "" {
+			return fmt.Errorf("feed %s: html scraper requires a 'date_selector'", fc.URL)
+		}
+	}
+	return nil
 }
 
 // FeedTopic is one (feed, topic) membership row. Topics are operator-assigned

@@ -65,6 +65,10 @@ func (m *FeedManager) GetScraper(feedType string) (scrapers.Scraper, error) {
 
 // RegisterFeed registers a feed
 func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
+	if err := config.Validate(); err != nil {
+		return err
+	}
+
 	// Check if scraper exists
 	if _, err := m.GetScraper(config.Scraper.Type); err != nil {
 		return err
