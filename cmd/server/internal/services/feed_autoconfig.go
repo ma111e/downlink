@@ -46,6 +46,9 @@ const (
 	topicSnippetChars  = 600
 	// topicMax caps how many topic labels extraction keeps.
 	topicMax = 5
+	// autoconfigMinLinks is the smallest repeating post-link count an index mode must
+	// yield for the html path to treat it as a usable list (mirrors scrapers.minLinkGroup).
+	autoconfigMinLinks = 3
 )
 
 // scrapeModeOrder is the escalation order the mode probe follows: cheapest first,
@@ -66,6 +69,13 @@ type autoconfigTools interface {
 	// existingTopics returns the distinct topics already in use across configured
 	// feeds, so topic extraction can prefer the established vocabulary.
 	existingTopics() []string
+	// inspectIndex fetches an HTML index page (no RSS parse) and reports whether it
+	// came back usable, so the html path can probe headers against the raw page.
+	inspectIndex(url string, headers map[string]string) indexObs
+	// suggestLinkSelectors ranks the repeating post-link structures on an HTML index
+	// page (links_selector + inferred date_selector / url_filter), for the html path's
+	// deterministic link-list discovery.
+	suggestLinkSelectors(url, mode string, headers map[string]string) linkListObs
 }
 
 type feedObs struct {
@@ -81,6 +91,27 @@ type feedObs struct {
 type suggestObs struct {
 	Candidates []models.SelectorCandidate `json:"candidates,omitempty"`
 	Error      string                     `json:"error,omitempty"`
+}
+
+// indexObs is the result of probing an HTML index page (for header locking).
+type indexObs struct {
+	OK      bool   `json:"ok"`
+	Verdict string `json:"verdict"`
+}
+
+// linkListObs holds the ranked link-list candidates for an index page in one mode.
+type linkListObs struct {
+	Candidates []models.LinkListCandidate `json:"candidates,omitempty"`
+	Error      string                     `json:"error,omitempty"`
+}
+
+// htmlLinkOptions are the html-scraper-specific config keys discovered by the html
+// path: the post-link selector, an optional url_filter, and an optional per-block
+// date_selector. They are written into ScraperConfig.Options at finish time.
+type htmlLinkOptions struct {
+	LinksSelector string
+	URLFilter     string
+	DateSelector  string
 }
 
 type perURLResult struct {
@@ -149,6 +180,13 @@ func runAutoConfig(
 	step := 0
 	next := func() int { step++; return step }
 
+	// HTML index pages have no feed to parse, so they take a separate pre-phase that
+	// discovers the post-link list (and its date selector) before the shared
+	// article-selector loop.
+	if feedType == "html" {
+		return runHTMLAutoConfig(ctx, gen, tools, feedURL, seedHeaders, &step, maxSteps, enableTopics, next, onStep, onLLM)
+	}
+
 	// ── Pre-step 1: lock headers (probe only if the feed is blocked) ──
 	lockedHeaders, feed, err := lockHeaders(tools, feedURL, seedHeaders, func(tool, detail string) {
 		emitStep(onStep, next(), tool, detail)
@@ -191,19 +229,41 @@ func runAutoConfig(
 	})
 
 	// ── Selector discovery loop (mode + headers frozen) ──
+	return discoverArticleSelectors(ctx, gen, tools, feedURL, feedType, lockedMode, lockedHeaders, samples, topics, nil, probed, &step, maxSteps, onStep, onLLM)
+}
+
+// discoverArticleSelectors runs the bounded LLM loop that picks the article-content
+// selectors for samples, with the scraping mode and headers frozen. It is shared by
+// the rss/atom and html paths; htmlOpts is non-nil only for html and carries the
+// link-list options written into the final config. step is shared with the caller's
+// pre-steps so the budget and step numbering stay continuous.
+func discoverArticleSelectors(
+	ctx context.Context,
+	gen autoconfigGenerate,
+	tools autoconfigTools,
+	feedURL, feedType, mode string,
+	headers map[string]string,
+	samples, topics []string,
+	htmlOpts *htmlLinkOptions,
+	probed []models.SelectorCandidate,
+	step *int,
+	maxSteps int,
+	onStep func(autoconfigStep),
+	onLLM func(turn int, prompt, response string),
+) (AutoConfigResult, error) {
 	var transcript strings.Builder
-	writeSeed(&transcript, feedURL, feedType, lockedMode, lockedHeaders, samples, probed)
+	writeSeed(&transcript, feedURL, feedType, mode, headers, samples, probed)
 
 	seen := map[string]bool{}
-	for step < maxSteps {
+	for *step < maxSteps {
 		if err := ctx.Err(); err != nil {
 			return AutoConfigResult{}, err
 		}
-		step++
+		*step++
 
 		prompt := autoconfigSystemPrompt + "\n\n" + transcript.String() + "\nRespond with the next single JSON action."
 		raw, err := gen(ctx, prompt)
-		emitLLM(onLLM, step, prompt, raw)
+		emitLLM(onLLM, *step, prompt, raw)
 		if err != nil {
 			return AutoConfigResult{}, fmt.Errorf("llm call: %w", err)
 		}
@@ -224,12 +284,12 @@ func runAutoConfig(
 
 		switch action.Action {
 		case "finish":
-			res, ferr := finishAutoConfig(action, feedURL, feedType, lockedMode, lockedHeaders, samples, topics, tools)
+			res, ferr := finishAutoConfig(action, feedURL, feedType, mode, headers, samples, topics, htmlOpts, tools)
 			if ferr != nil {
 				fmt.Fprintf(&transcript, "OBSERVATION: {\"error\":%q}\n", ferr.Error())
 				continue
 			}
-			emitStep(onStep, step, "finish", fmt.Sprintf("confidence %.2f", res.Confidence))
+			emitStep(onStep, *step, "finish", fmt.Sprintf("confidence %.2f", res.Confidence))
 			return res, nil
 
 		case "suggest_selectors":
@@ -241,12 +301,12 @@ func runAutoConfig(
 			if url == "" {
 				url = samples[0]
 			}
-			obs := tools.suggestSelectors(url, lockedMode, lockedHeaders)
+			obs := tools.suggestSelectors(url, mode, headers)
 			detail := fmt.Sprintf("%d candidates", len(obs.Candidates))
 			if obs.Error != "" {
 				detail = obs.Error
 			}
-			emitStep(onStep, step, "suggest_selectors", detail)
+			emitStep(onStep, *step, "suggest_selectors", detail)
 			appendObs(&transcript, obs)
 
 		case "test_selector":
@@ -256,12 +316,12 @@ func runAutoConfig(
 				Blacklist string `json:"blacklist"`
 			}
 			_ = json.Unmarshal(action.Args, &a)
-			obs := tools.testSelector(samples, lockedMode, a.Article, a.Cutoff, a.Blacklist, lockedHeaders)
+			obs := tools.testSelector(samples, mode, a.Article, a.Cutoff, a.Blacklist, headers)
 			detail := fmt.Sprintf("%q score %.2f (%d/%d)", a.Article, obs.Score, obs.Usable, obs.Samples)
 			if obs.Error != "" {
 				detail = obs.Error
 			}
-			emitStep(onStep, step, "test_selector", detail)
+			emitStep(onStep, *step, "test_selector", detail)
 			appendObs(&transcript, obs)
 
 		default:
@@ -270,6 +330,141 @@ func runAutoConfig(
 	}
 
 	return AutoConfigResult{}, fmt.Errorf("agent did not converge within %d steps", maxSteps)
+}
+
+// runHTMLAutoConfig is the html path: it locks headers and the index mode, then
+// deterministically picks the repeating post-link list (links_selector +
+// date_selector + url_filter) and feeds the discovered sample links into the shared
+// article-selector loop. The link-list step is deterministic (no LLM), mirroring how
+// mode/headers are probed-then-locked.
+func runHTMLAutoConfig(
+	ctx context.Context,
+	gen autoconfigGenerate,
+	tools autoconfigTools,
+	feedURL string,
+	seedHeaders map[string]string,
+	step *int,
+	maxSteps int,
+	enableTopics bool,
+	next func() int,
+	onStep func(autoconfigStep),
+	onLLM func(turn int, prompt, response string),
+) (AutoConfigResult, error) {
+	// ── lock headers against the raw page (probe only if blocked) ──
+	headers, err := lockIndexHeaders(tools, feedURL, seedHeaders, func(tool, detail string) {
+		emitStep(onStep, next(), tool, detail)
+	})
+	if err != nil {
+		return AutoConfigResult{}, err
+	}
+
+	// ── lock the index mode and get its link-list candidates ──
+	indexMode, cands := lockIndexMode(tools, feedURL, headers, func(detail string) {
+		emitStep(onStep, next(), "probe_index_mode", detail)
+	})
+	if len(cands) == 0 {
+		return AutoConfigResult{}, fmt.Errorf("no repeating post-link list found on %s", feedURL)
+	}
+
+	// ── lock the link list (deterministic: highest-ranked candidate) ──
+	top := cands[0]
+	samples := top.SampleHrefs
+	if len(samples) == 0 {
+		return AutoConfigResult{}, fmt.Errorf("link list %q matched no post URLs", top.LinksSelector)
+	}
+	opts := &htmlLinkOptions{LinksSelector: top.LinksSelector, URLFilter: top.URLFilter, DateSelector: top.DateSelector}
+	emitStep(onStep, next(), "link_list", fmt.Sprintf("%s (%d links)", top.LinksSelector, top.Count))
+
+	// ── lock the article mode (escalate from the index mode if posts need more) ──
+	articleMode, probed := lockMode(tools, samples[0], headers, func(detail string) {
+		emitStep(onStep, next(), "probe_mode", detail)
+	})
+	mode := heavierMode(indexMode, articleMode)
+	if mode != articleMode {
+		probed = tools.suggestSelectors(samples[0], mode, headers).Candidates
+	}
+
+	// ── topics (best-effort, from the first article's text) ──
+	var topics []string
+	if enableTopics {
+		text, _ := tools.articleText(samples[0], mode, headers)
+		topics = extractTopics(ctx, gen, "", []string{text}, tools.existingTopics())
+		if len(topics) > 0 {
+			emitStep(onStep, next(), "topics", strings.Join(topics, ", "))
+		}
+	}
+
+	return discoverArticleSelectors(ctx, gen, tools, feedURL, "html", mode, headers, samples, topics, opts, probed, step, maxSteps, onStep, onLLM)
+}
+
+// lockIndexHeaders mirrors lockHeaders for the html path: it probes the raw index
+// page (no RSS parse) and returns the header set that gets a usable response.
+func lockIndexHeaders(tools autoconfigTools, indexURL string, seed map[string]string, emit func(tool, detail string)) (map[string]string, error) {
+	if tools.inspectIndex(indexURL, seed).OK {
+		return seed, nil
+	}
+	origin := originOf(indexURL)
+	combos := []map[string]string{
+		{"Referer": origin},
+		{"Referer": origin, "User-Agent": desktopUA},
+	}
+	for _, c := range combos {
+		h := mergeHeaders(seed, c)
+		emit("probe_headers", strings.Join(sortedKeys(c), "+"))
+		if tools.inspectIndex(indexURL, h).OK {
+			return h, nil
+		}
+	}
+	return nil, fmt.Errorf("index page is blocked and no tried header set unblocked it")
+}
+
+// lockIndexMode probes the scraping modes in priority order against the index page
+// and returns the first that yields a usable repeating link list (>= autoconfigMinLinks
+// posts). If none clears the bar it returns the best by link count, so discovery can
+// still proceed against a best-effort guess.
+func lockIndexMode(tools autoconfigTools, indexURL string, headers map[string]string, emit func(detail string)) (string, []models.LinkListCandidate) {
+	bestMode := "static"
+	var bestCands []models.LinkListCandidate
+	bestCount := -1
+
+	for _, mode := range scrapeModeOrder {
+		obs := tools.suggestLinkSelectors(indexURL, mode, headers)
+		top := 0
+		if len(obs.Candidates) > 0 {
+			top = obs.Candidates[0].Count
+		}
+		detail := fmt.Sprintf("%s: top %d links", mode, top)
+		if obs.Error != "" {
+			detail = fmt.Sprintf("%s: %s", mode, obs.Error)
+		}
+		emit(detail)
+
+		if obs.Error == "" && top >= autoconfigMinLinks {
+			return mode, obs.Candidates // first usable mode wins
+		}
+		if top > bestCount {
+			bestCount, bestMode, bestCands = top, mode, obs.Candidates
+		}
+	}
+	return bestMode, bestCands
+}
+
+// heavierMode returns whichever of two modes is more expensive in scrapeModeOrder,
+// so one config mode can satisfy both the index fetch and the article fetch (a
+// heavier mode renders at least as much as a lighter one).
+func heavierMode(a, b string) string {
+	rank := func(m string) int {
+		for i, v := range scrapeModeOrder {
+			if v == m {
+				return i
+			}
+		}
+		return 0
+	}
+	if rank(a) >= rank(b) {
+		return a
+	}
+	return b
 }
 
 // lockHeaders inspects the feed and, if it is blocked, probes a small fixed set of
@@ -343,8 +538,9 @@ func writeSeed(b *strings.Builder, feedURL, feedType, mode string, headers map[s
 }
 
 // finishAutoConfig validates the proposed selectors, scores them for confidence, and
-// renders the final config YAML using the LOCKED mode and headers.
-func finishAutoConfig(action agentAction, feedURL, feedType, mode string, headers map[string]string, samples, topics []string, tools autoconfigTools) (AutoConfigResult, error) {
+// renders the final config YAML using the LOCKED mode and headers. htmlOpts is non-nil
+// only for the html path, where its link-list keys are written into Scraper.Options.
+func finishAutoConfig(action agentAction, feedURL, feedType, mode string, headers map[string]string, samples, topics []string, htmlOpts *htmlLinkOptions, tools autoconfigTools) (AutoConfigResult, error) {
 	if action.Config == nil || strings.TrimSpace(action.Config.Selectors.Article) == "" {
 		return AutoConfigResult{}, fmt.Errorf("finish requires config.selectors.article")
 	}
@@ -373,6 +569,7 @@ func finishAutoConfig(action agentAction, feedURL, feedType, mode string, header
 				Cutoff:    sel.Cutoff,
 				Blacklist: sel.Blacklist,
 			},
+			Options: htmlOptionsMap(htmlOpts),
 		},
 	}
 	yamlStr, err := renderConfig(cfg)
@@ -409,6 +606,23 @@ func finishFeedContent(feedURL, feedType string, headers map[string]string, topi
 		Summary:    "feed entries already contain full article content; using scraping: none (no page fetch)",
 		Confidence: confidence,
 	}, nil
+}
+
+// htmlOptionsMap turns the discovered html link-list options into the flat
+// Scraper.Options map (links_selector / url_filter / date_selector), omitting empty
+// keys. Returns nil for non-html feeds so their config carries no extra options.
+func htmlOptionsMap(o *htmlLinkOptions) map[string]any {
+	if o == nil || o.LinksSelector == "" {
+		return nil
+	}
+	opts := map[string]any{"links_selector": o.LinksSelector}
+	if o.URLFilter != "" {
+		opts["url_filter"] = o.URLFilter
+	}
+	if o.DateSelector != "" {
+		opts["date_selector"] = o.DateSelector
+	}
+	return opts
 }
 
 // extractTopics derives 1..topicMax broad topic labels for the feed from its title
@@ -687,6 +901,22 @@ func (managerTools) inspectFeed(url string, headers map[string]string) feedObs {
 
 func (managerTools) articleText(url, mode string, headers map[string]string) (string, error) {
 	return manager.Manager.ArticleMainText(url, mode, headers)
+}
+
+func (managerTools) inspectIndex(url string, headers map[string]string) indexObs {
+	diag := manager.Manager.InspectFeedURL(url, headers, 0).Diagnosis
+	// A 2xx/3xx response means the page came back; a 4xx/5xx (or a never-completed
+	// request, status 0) means it is blocked or unreachable, so headers must be probed.
+	ok := diag.HTTPStatus >= 200 && diag.HTTPStatus < 400
+	return indexObs{OK: ok, Verdict: diag.Verdict}
+}
+
+func (managerTools) suggestLinkSelectors(url, mode string, headers map[string]string) linkListObs {
+	cands, err := manager.Manager.SuggestLinkSelectors(url, mode, headers, 5)
+	if err != nil {
+		return linkListObs{Error: err.Error()}
+	}
+	return linkListObs{Candidates: cands}
 }
 
 func (managerTools) existingTopics() []string {

@@ -37,6 +37,7 @@ func (s *HTMLLinkScraper) Fetch(feedURL string, params map[string]any) ([]models
 		return nil, nil, fmt.Errorf("html scraper requires a 'links_selector' option")
 	}
 	urlFilter, _ := params["url_filter"].(string)
+	dateSelector, _ := params["date_selector"].(string)
 
 	log.WithField("url", feedURL).Debug("Fetching HTML link list")
 
@@ -51,7 +52,7 @@ func (s *HTMLLinkScraper) Fetch(feedURL string, params map[string]any) ([]models
 		base = feedURL
 	}
 
-	items, err := parseLinkList(raw.Body, base, linksSelector, urlFilter)
+	items, err := parseLinkList(raw.Body, base, linksSelector, urlFilter, dateSelector)
 	if err != nil {
 		return nil, &raw, err
 	}
@@ -74,7 +75,10 @@ func (s *HTMLLinkScraper) ScrapeContent(articleURL string, params map[string]any
 // by linksSelector. Relative hrefs are resolved against baseURL; when urlFilter is
 // non-empty, only hrefs containing it are kept. Empty and duplicate hrefs are
 // dropped. Item ids are md5(resolved href) so re-fetches dedupe deterministically.
-func parseLinkList(body []byte, baseURL, linksSelector, urlFilter string) ([]models.FeedItem, error) {
+// When dateSelector is non-empty, each item's PublishedAt is read from the date
+// element in its own block (see blockDate); items without a parseable date fall
+// back to time.Now(), matching the dateless behavior.
+func parseLinkList(body []byte, baseURL, linksSelector, urlFilter, dateSelector string) ([]models.FeedItem, error) {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse index page HTML: %w", err)
@@ -116,6 +120,13 @@ func parseLinkList(body []byte, baseURL, linksSelector, urlFilter string) ([]mod
 			title = resolved
 		}
 
+		published := time.Now()
+		if dateSelector != "" {
+			if d, ok := blockDate(a, dateSelector); ok {
+				published = d
+			}
+		}
+
 		hash := md5.Sum([]byte(resolved))
 		items = append(items, models.FeedItem{
 			Id:          fmt.Sprintf("%x", hash),
@@ -123,9 +134,35 @@ func parseLinkList(body []byte, baseURL, linksSelector, urlFilter string) ([]mod
 			Link:        resolved,
 			Content:     "", // empty content forces the manager to scrape the article page
 			Tags:        []string{},
-			PublishedAt: time.Now(),
+			PublishedAt: published,
 		})
 	})
 
 	return items, nil
+}
+
+// blockDateMaxDepth bounds how far up from a post anchor blockDate walks looking
+// for the date in that post's block, so a page-level date far above the list
+// can't be mistaken for a per-item date.
+const blockDateMaxDepth = 6
+
+// blockDate finds the publish date for a single post by scoping dateSelector to
+// the anchor's own block. It walks up from the anchor (bounded by
+// blockDateMaxDepth) and returns the first ancestor in which dateSelector matches
+// a parseable date, so each item gets the date inside its own repeating block
+// rather than a shared one elsewhere on the page.
+func blockDate(a *goquery.Selection, dateSelector string) (time.Time, bool) {
+	node := a
+	for depth := 0; depth < blockDateMaxDepth; depth++ {
+		if node == nil || len(node.Nodes) == 0 {
+			break
+		}
+		if match := node.Find(dateSelector).First(); match.Length() > 0 {
+			if d, ok := parseItemDate(match); ok {
+				return d, true
+			}
+		}
+		node = node.Parent()
+	}
+	return time.Time{}, false
 }

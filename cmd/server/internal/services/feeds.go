@@ -245,8 +245,13 @@ func (s *FeedsServer) AutoConfigFeed(req *protos.AutoConfigFeedRequest, stream p
 	}
 
 	feedType := "rss"
-	if seed := manager.Manager.InspectFeedURL(req.Url, req.Headers, 1); seed.Diagnosis.FeedTypeGuess == "atom" {
+	switch manager.Manager.InspectFeedURL(req.Url, req.Headers, 1).Diagnosis.FeedTypeGuess {
+	case "atom":
 		feedType = "atom"
+	case "html":
+		// The URL is an HTML index page, not a feed: autoconfig discovers the
+		// post-link list and scrapes each linked article (html scraper path).
+		feedType = "html"
 	}
 
 	onStep := func(st autoconfigStep) {

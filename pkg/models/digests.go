@@ -35,6 +35,12 @@ type ProviderConfig struct {
 	Credentials    []CodexCredential `json:"credentials,omitempty"`     // openai-codex OAuth credential pool
 }
 
+// StepProviderOverride specifies a provider and/or model override for a single pipeline step
+type StepProviderOverride struct {
+	Provider string `json:"provider,omitempty"` // Name of configured provider to use for this step
+	Model    string `json:"model,omitempty"`    // Model name override for this step (uses provider's model if empty)
+}
+
 // AnalysisConfig represents the configuration for the analysis features
 type AnalysisConfig struct {
 	Provider     string            `json:"provider,omitempty"`      // Name of the configured provider to use for analysis
@@ -49,6 +55,8 @@ type AnalysisConfig struct {
 	ComprehensiveSynthesis bool `json:"comprehensive_synthesis,omitempty"` // Generate the Full (comprehensive) article summary
 
 	ExecutiveSummary bool `json:"executive_summary,omitempty"` // Generate the digest-level executive summary (title + thematic overview)
+
+	StepProviders map[string]StepProviderOverride `json:"step_providers,omitempty"` // Per-step provider/model overrides (step name -> override config)
 }
 
 // WorkerPoolConfig contains the configuration for the worker pool

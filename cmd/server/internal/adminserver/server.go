@@ -129,8 +129,10 @@ func refreshResultRank(r store.FeedRefreshResultView) int {
 		return 0
 	case r.ErrorCount > 0:
 		return 1
-	default:
+	case r.WarningCount > 0:
 		return 2
+	default:
+		return 3
 	}
 }
 
@@ -349,6 +351,7 @@ type refreshStats struct {
 	Fetched int // total items fetched
 	Stored  int // total articles stored
 	Failed  int // per-feed refreshes that hit a top-level fetch error
+	Warned  int // item-level non-fatal notices (e.g. content sanitized)
 }
 
 func buildRefreshStats(runs []store.FeedRefreshRunSummary) refreshStats {
@@ -358,6 +361,7 @@ func buildRefreshStats(runs []store.FeedRefreshRunSummary) refreshStats {
 		s.Fetched += r.TotalFetched
 		s.Stored += r.TotalStored
 		s.Failed += r.FailCount
+		s.Warned += r.WarningCount
 	}
 	return s
 }

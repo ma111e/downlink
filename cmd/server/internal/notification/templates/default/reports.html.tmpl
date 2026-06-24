@@ -167,10 +167,16 @@ button, input, select { font: inherit; color: inherit; }
 .badge.cat { border-color: var(--accent); color: var(--accent); }
 .rep-meta { margin-top: 6px; color: var(--ink-faint); font: 11px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .04em; display: flex; gap: 12px; flex-wrap: wrap; }
 .rep-meta .pub { color: var(--ink-dim); }
+.rep-meta .dates { color: var(--ink-dim); }
 .rep-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 .tag { font: 10px "IBM Plex Mono", ui-monospace, monospace; color: var(--ink-dim); border: 1px solid var(--line); background: var(--bg-2); padding: 2px 7px; border-radius: 999px; cursor: pointer; }
 .tag:hover { border-color: var(--accent); color: var(--ink); }
 .tag.on { border-color: var(--accent); color: var(--accent); }
+.tag.tag-hidden { display: none; }
+.tag-show-more { color: var(--accent); border-color: var(--accent); cursor: pointer; }
+.tag-show-more:hover { background: color-mix(in oklch, var(--accent) 10%, transparent); }
+.rep-tags.tags-expanded .tag.tag-hidden { display: inline-flex; }
+.rep-tags.tags-expanded .tag-show-more { display: none; }
 .srctoggle { margin-top: 10px; background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink-faint); font: 11px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .04em; }
 .srctoggle:hover { color: var(--accent); }
 .sources { margin: 8px 0 0; padding: 10px 0 0; border-top: 1px dashed var(--line); list-style: none; display: none; flex-direction: column; gap: 10px; }
@@ -259,6 +265,16 @@ window.__DL_REPORTS = {{.ReportsJSON}};
   }
   function hostOf(u) { try { return new URL(u).host.replace(/^www\./, ''); } catch (e) { return ''; } }
 
+  // The dates a report was referenced are the publish dates of its source
+  // articles (YYYY-MM-DD, lexically sortable). Returns a single date or a
+  // first–last range, or '' when no source has a date.
+  function refDateRange(sources) {
+    var dates = (sources || []).map(function(s) { return s.publishedAt; }).filter(Boolean).sort();
+    if (!dates.length) return '';
+    var first = dates[0], last = dates[dates.length - 1];
+    return first === last ? first : first + ' – ' + last;
+  }
+
   // Build category + tag filter chips from the data.
   function tally(key) {
     var counts = {};
@@ -321,6 +337,18 @@ window.__DL_REPORTS = {{.ReportsJSON}};
     render();
   }
 
+  function toggleMoreTags(btn) {
+    var tagContainer = btn.parentElement;
+    tagContainer.classList.toggle('tags-expanded');
+    if (tagContainer.classList.contains('tags-expanded')) {
+      btn.textContent = '- fewer';
+    } else {
+      var n = 0;
+      tagContainer.querySelectorAll('.tag-hidden').forEach(function() { n++; });
+      btn.textContent = '+' + n + ' more';
+    }
+  }
+
   function matches(r) {
     if (state.cat && (r.category || '') !== state.cat) return false;
     var active = Object.keys(state.tags);
@@ -350,9 +378,17 @@ window.__DL_REPORTS = {{.ReportsJSON}};
   function repHTML(r) {
     var host = hostOf(r.url);
     var cat = (r.category || '').trim();
-    var tags = (r.tags || []).map(function(t) {
+    var allTags = r.tags || [];
+    var visibleTags = allTags.slice(0, 5);
+    var hiddenTags = allTags.slice(5);
+    var tags = visibleTags.map(function(t) {
       return '<button class="tag' + (state.tags[t] ? ' on' : '') + '" data-tag="' + esc(t) + '" type="button">' + esc(t) + '</button>';
-    }).join('');
+    }).concat(hiddenTags.map(function(t) {
+      return '<button class="tag tag-hidden' + (state.tags[t] ? ' on' : '') + '" data-tag="' + esc(t) + '" type="button">' + esc(t) + '</button>';
+    })).join('');
+    if (hiddenTags.length > 0) {
+      tags += '<button class="tag tag-show-more" type="button" onclick="toggleMoreTags(this)">+' + hiddenTags.length + ' more</button>';
+    }
     var srcCount = (r.sources || []).length;
     var sources = (r.sources || []).map(function(s) {
       var date = s.publishedAt ? '<span class="srcdate">' + esc(s.publishedAt) + '</span>' : '';
@@ -365,6 +401,7 @@ window.__DL_REPORTS = {{.ReportsJSON}};
     }).join('');
 
     var refLabel = (r.refCount || 0) + '× referenced';
+    var refDates = refDateRange(r.sources);
     return ''
       + '<li class="rep">'
       + '<div class="rep-top">'
@@ -376,6 +413,7 @@ window.__DL_REPORTS = {{.ReportsJSON}};
       +   (r.publisher ? '<span class="pub">' + esc(r.publisher) + '</span>' : '')
       +   (host ? '<span>' + esc(host) + '</span>' : '')
       +   '<span>' + refLabel + '</span>'
+      +   (refDates ? '<span class="dates">' + esc(refDates) + '</span>' : '')
       + '</div>'
       + (tags ? '<div class="rep-tags">' + tags + '</div>' : '')
       + '<button class="srctoggle" type="button">show ' + srcCount + ' source' + (srcCount === 1 ? '' : 's') + ' ▾</button>'

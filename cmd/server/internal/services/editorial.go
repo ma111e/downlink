@@ -30,6 +30,7 @@ type EffectiveEditorial struct {
 	Categories             []models.CategoryDef // empty = default allowedCategories
 	Scoring                scoring.Config
 	Prompts                models.PromptOverrides
+	StepProviders          map[string]models.StepProviderOverride // per-step provider/model overrides
 }
 
 // ResolveEditorial layers a profile's editorial over the LIVE global
@@ -53,6 +54,7 @@ func ResolveEditorial(profileId string, ed *models.ProfileEditorial) EffectiveEd
 		ComprehensiveSynthesis: base.ComprehensiveSynthesis,
 		ExecutiveSummary:       base.ExecutiveSummary,
 		Scoring:                scoring.DefaultConfig(),
+		StepProviders:          base.StepProviders,
 	}
 
 	if ed == nil {

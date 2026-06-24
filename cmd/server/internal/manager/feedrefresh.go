@@ -51,6 +51,7 @@ func (m *FeedManager) RecordRefresh(runID string, feed models.Feed, fr models.Fe
 		Stored:       fr.Stored,
 		Skipped:      fr.Skipped,
 		Errors:       fr.Errors,
+		Warnings:     fr.Warnings,
 		RawBody:      fr.RawBody,
 		RawStatus:    fr.RawStatus,
 		RawType:      fr.RawContentType,

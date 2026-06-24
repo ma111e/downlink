@@ -65,6 +65,29 @@ func (f *fakeTools) articleText(url, mode string, headers map[string]string) (st
 	return longText, nil
 }
 
+func (f *fakeTools) inspectIndex(url string, headers map[string]string) indexObs {
+	f.calls = append(f.calls, "inspect_index")
+	if f.blocked && headers["Referer"] == "" {
+		return indexObs{OK: false, Verdict: "HTTP 403"}
+	}
+	return indexObs{OK: true, Verdict: "HTTP 200 — html body"}
+}
+
+func (f *fakeTools) suggestLinkSelectors(url, mode string, headers map[string]string) linkListObs {
+	f.calls = append(f.calls, "suggest_link_selectors")
+	f.modeCalls = append(f.modeCalls, mode)
+	if f.usableModes != nil && !f.usableModes[mode] {
+		return linkListObs{Error: "no repeating list in " + mode}
+	}
+	return linkListObs{Candidates: []models.LinkListCandidate{{
+		LinksSelector: "article.card a",
+		Count:         4,
+		SampleHrefs:   []string{"https://e.com/blog/a", "https://e.com/blog/b", "https://e.com/blog/c"},
+		DateSelector:  "time",
+		URLFilter:     "/blog/",
+	}}}
+}
+
 func (f *fakeTools) suggestSelectors(url, mode string, headers map[string]string) suggestObs {
 	f.calls = append(f.calls, "suggest_selectors")
 	f.modeCalls = append(f.modeCalls, mode)
@@ -126,6 +149,45 @@ func TestRunAutoConfig_ProbesLocksThenDiscovers(t *testing.T) {
 	}
 }
 
+func TestRunAutoConfig_HTMLDiscoversLinkListThenSelectors(t *testing.T) {
+	// An html index page: the deterministic pre-phase locks the link list (and its
+	// date selector), then the LLM loop picks the article-body selector for the posts.
+	tools := &fakeTools{usableModes: map[string]bool{"static": true}}
+	replies := []string{
+		`{"action":"finish","config":{"selectors":{"article":"article.post"}}}`,
+	}
+	res, err := runAutoConfig(context.Background(), scriptedGen(replies), tools, "https://e.com/blog/", "html", nil, 10, false, nil, nil)
+	if err != nil {
+		t.Fatalf("runAutoConfig: %v", err)
+	}
+
+	yaml := res.ConfigYAML
+	for _, want := range []string{
+		"type: html",
+		"links_selector: article.card a",
+		"date_selector: time",
+		"url_filter: /blog/",
+		"article: article.post",
+	} {
+		if !strings.Contains(yaml, want) {
+			t.Errorf("config YAML missing %q:\n%s", want, yaml)
+		}
+	}
+	if res.Confidence != 1.0 {
+		t.Errorf("confidence = %.2f, want 1.0", res.Confidence)
+	}
+}
+
+func TestRunAutoConfig_HTMLNoListErrors(t *testing.T) {
+	// No mode yields a repeating link list → the html path reports it rather than
+	// emitting a bogus config.
+	tools := &fakeTools{usableModes: map[string]bool{}} // every mode returns an error
+	_, err := runAutoConfig(context.Background(), scriptedGen([]string{`{}`}), tools, "https://e.com/blog/", "html", nil, 10, false, nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "no repeating post-link list") {
+		t.Fatalf("expected no-list error, got %v", err)
+	}
+}
+
 func TestRunAutoConfig_DetectsFullContentInDescription(t *testing.T) {
 	// Every entry already carries a full body → short-circuit to scraping: none,
 	// with no mode probing and no LLM call.
@@ -159,7 +221,7 @@ func TestRunAutoConfig_LongTeaserIsNotFullContent(t *testing.T) {
 	// Entries clear the char bar but the page holds far more text than the feed, so
 	// the entry is a long teaser, not a full body. Autoconfig must NOT short-circuit:
 	// it should probe a mode and run selector discovery.
-	feed := strings.Repeat("alpha beta gamma delta ", 200)            // long, but a teaser
+	feed := strings.Repeat("alpha beta gamma delta ", 200)             // long, but a teaser
 	page := feed + strings.Repeat("one two three four five six ", 400) // page has much more
 	tools := &fakeTools{
 		feedText:    feed,

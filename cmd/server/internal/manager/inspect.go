@@ -2,6 +2,7 @@ package manager
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -88,6 +89,31 @@ func (m *FeedManager) SuggestSelectors(rawURL, mode string, headers map[string]s
 			Chars:       c.Chars,
 			LinkDensity: c.LinkDensity,
 			Snippet:     c.Snippet,
+		}
+	}
+	return out, nil
+}
+
+// SuggestLinkSelectors scrapes an HTML index page in the given mode and returns
+// ranked guesses at the selector scoping its repeating post links, plus the
+// date_selector and url_filter implied by the repeating block. Relative hrefs are
+// resolved against the index URL. Read-only; backs the html autoconfig pre-phase.
+func (m *FeedManager) SuggestLinkSelectors(indexURL, mode string, headers map[string]string, max int) ([]models.LinkListCandidate, error) {
+	dom, err := m.scrapeArticleDOM(indexURL, mode, headers)
+	if err != nil {
+		return nil, err
+	}
+	base, _ := url.Parse(indexURL)
+	ranked := scrapers.SuggestLinkSelectors(dom, base, max)
+	out := make([]models.LinkListCandidate, len(ranked))
+	for i, c := range ranked {
+		out[i] = models.LinkListCandidate{
+			LinksSelector: c.LinksSelector,
+			Count:         c.Count,
+			SampleHrefs:   c.SampleHrefs,
+			DateSelector:  c.DateSelector,
+			DateSample:    c.DateSample,
+			URLFilter:     c.URLFilter,
 		}
 	}
 	return out, nil
