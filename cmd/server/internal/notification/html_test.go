@@ -458,6 +458,81 @@ func TestRenderDigestHTMLGlossaryPopup(t *testing.T) {
 	}
 }
 
+func TestRenderDigestHTMLGlossaryPunctuationTerms(t *testing.T) {
+	// Tag-derived entity terms are stored with their real written form (incl. punctuation).
+	// Highlighting and popup resolution must still work when the slug-derived key differs from
+	// that form only by punctuation (e.g. "wscript.exe" ↔ key "wscript exe", "HTTP/3" ↔ "http 3").
+	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+	category := "news"
+	digest := models.Digest{
+		Id:         "digest-punct",
+		CreatedAt:  createdAt,
+		TimeWindow: 24 * time.Hour,
+		Articles: []models.Article{
+			{Id: "article-p", Title: "Punct Article", Link: "https://example.com/p", PublishedAt: createdAt, CategoryName: &category},
+		},
+		DigestAnalyses: []models.DigestAnalysis{
+			{
+				ArticleId: "article-p",
+				Analysis: &models.ArticleAnalysis{
+					ArticleId:     "article-p",
+					ProviderType:  "openai",
+					ModelName:     "gpt-test",
+					BriefOverview: "The loader spawned wscript.exe to fetch a payload over HTTP/3.",
+				},
+			},
+		},
+		DigestGlossary: []models.DigestGlossary{
+			{
+				DigestId: "digest-punct",
+				EntryId:  "entry-wscript",
+				Entry: &models.GlossaryEntry{
+					Id:            "entry-wscript",
+					NormalizedKey: models.NormalizeGlossaryKey("wscript-exe"), // slug-derived key
+					Term:          "wscript.exe",                              // real written form
+					Kind:          models.GlossaryKindEntity,
+					Category:      "tool",
+					Definition:    "A Windows scripting host binary often abused to run scripts.",
+					TagId:         "wscript-exe",
+				},
+			},
+			{
+				DigestId: "digest-punct",
+				EntryId:  "entry-http3",
+				Entry: &models.GlossaryEntry{
+					Id:            "entry-http3",
+					NormalizedKey: models.NormalizeGlossaryKey("http-3"),
+					Term:          "HTTP/3",
+					Kind:          models.GlossaryKindEntity,
+					Category:      "protocol",
+					Definition:    "The third major version of the HTTP protocol.",
+					TagId:         "http-3",
+				},
+			},
+		},
+	}
+
+	htmlBytes, err := RenderDigestHTML(digest, "default", "")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML() error = %v", err)
+	}
+	html := string(htmlBytes)
+
+	for _, want := range []string{
+		// Both punctuation-bearing terms are highlighted in their real prose form.
+		`<mark class="tag-hl">wscript.exe</mark>`,
+		`<mark class="tag-hl">HTTP/3</mark>`,
+		// Their baked popup keys are the slug/punctuation-collapsed keys, which the JS
+		// glossaryKey() of the highlighted text must reproduce.
+		`"wscript exe":`,
+		`"http 3":`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("RenderDigestHTML() missing punctuation fragment %q:\n%s", want, html)
+		}
+	}
+}
+
 func TestRenderDigestHTMLGlossaryAliasesResolve(t *testing.T) {
 	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
 	category := "news"

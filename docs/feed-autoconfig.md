@@ -13,7 +13,7 @@ selectors.
 
 The CLI opens the stream, prints each step, and prints the final YAML. It
 registers and writes nothing. Paste the output into `feeds.yml` and run
-`dlk feeds apply`.
+`dlk feeds apply -f feeds.yml `.
 
 Flags:
 

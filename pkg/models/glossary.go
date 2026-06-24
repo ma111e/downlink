@@ -30,11 +30,20 @@ var glossaryCategories = map[string]bool{
 	"concept":       true,
 	"organization":  true,
 	"product":       true,
+	"country":       true, // classified so it can be excluded; never stored as an entry
+	"cve":           true, // classified so it can be excluded; never stored as an entry
 	"other":         true,
 }
 
 // GlossaryCategoryOther is the fallback category for unknown/empty values.
 const GlossaryCategoryOther = "other"
+
+// GlossaryCategoryCountry and GlossaryCategoryCVE mark candidates that are deliberately excluded
+// from the glossary (countries and CVE identifiers are not glossary-worthy named entities).
+const (
+	GlossaryCategoryCountry = "country"
+	GlossaryCategoryCVE     = "cve"
+)
 
 // NormalizeGlossaryCategory lowercases/trims the value and returns it if it is in the
 // fixed taxonomy, otherwise "other".
@@ -124,17 +133,16 @@ func (e *GlossaryEntry) EffectiveDefinition() string {
 	return e.Definition
 }
 
-// glossaryKeySep collapses runs of whitespace/hyphens to a single space so that
-// "Cobalt Strike", "cobalt-strike" and "cobalt   strike" all map to one key. This
-// equivalence MUST agree with compileTagRegexp (notification/html.go) and the JS
-// glossaryKey() normalizer in the digest template, otherwise a highlighted term in
-// the prose will not resolve to its definition.
-var glossaryKeySep = regexp.MustCompile(`[\s-]+`)
+// glossaryKeySep collapses runs of any non-alphanumeric character to a single space so that
+// "Cobalt Strike", "cobalt-strike", "cobalt   strike", "wscript.exe"/"wscript-exe", and
+// "HTTP/3"/"HTTP 3" each map to one key. This equivalence MUST agree with compileTagRegexp
+// (notification/html.go) and the JS glossaryKey() normalizer in the digest template, otherwise a
+// highlighted term in the prose will not resolve to its definition.
+var glossaryKeySep = regexp.MustCompile(`[^a-z0-9]+`)
 
 // NormalizeGlossaryKey produces the dedup/lookup identity for a term.
 func NormalizeGlossaryKey(term string) string {
 	s := strings.ToLower(strings.TrimSpace(term))
-	s = strings.TrimPrefix(s, "#")
 	s = glossaryKeySep.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
 }

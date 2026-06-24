@@ -3,11 +3,76 @@ package store
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ma111e/downlink/pkg/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+// backfillGlossaryKeys re-normalizes every glossary entry's normalized_key under the current
+// NormalizeGlossaryKey rules (which collapse all punctuation, not just whitespace/hyphens),
+// merging entries that now collapse to the same key. The oldest entry wins; digest references on
+// the merged-away entries are repointed to it. Idempotent: a no-op once all keys are normalized.
+func (s *GormStore) backfillGlossaryKeys() error {
+	type row struct {
+		Id            string
+		NormalizedKey string
+		CreatedAt     time.Time
+	}
+	var rows []row
+	if err := s.db.Model(&models.GlossaryEntry{}).Order("created_at asc, id asc").Find(&rows).Error; err != nil {
+		return fmt.Errorf("failed to load glossary entries for key backfill: %w", err)
+	}
+
+	groups := make(map[string][]row, len(rows))
+	var order []string
+	for _, r := range rows {
+		nk := models.NormalizeGlossaryKey(r.NormalizedKey)
+		if _, ok := groups[nk]; !ok {
+			order = append(order, nk)
+		}
+		groups[nk] = append(groups[nk], r)
+	}
+
+	// Fast no-op path: skip the transaction once everything is already normalized and unique.
+	work := false
+	for nk, g := range groups {
+		if len(g) > 1 || g[0].NormalizedKey != nk {
+			work = true
+			break
+		}
+	}
+	if !work {
+		return nil
+	}
+
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		for _, nk := range order {
+			g := groups[nk]
+			keeper := g[0] // oldest, thanks to the created_at/id ordering above
+			for _, loser := range g[1:] {
+				// Repoint digest references to the keeper, skipping (digest_id, entry_id) pairs the
+				// keeper already has (composite PK), then drop any rows the merge couldn't move.
+				if err := tx.Exec("UPDATE OR IGNORE digest_glossary SET entry_id = ? WHERE entry_id = ?", keeper.Id, loser.Id).Error; err != nil {
+					return fmt.Errorf("failed to repoint digest glossary rows: %w", err)
+				}
+				if err := tx.Exec("DELETE FROM digest_glossary WHERE entry_id = ?", loser.Id).Error; err != nil {
+					return fmt.Errorf("failed to delete merged digest glossary rows: %w", err)
+				}
+				if err := tx.Delete(&models.GlossaryEntry{}, "id = ?", loser.Id).Error; err != nil {
+					return fmt.Errorf("failed to delete merged glossary entry: %w", err)
+				}
+			}
+			if keeper.NormalizedKey != nk {
+				if err := tx.Model(&models.GlossaryEntry{}).Where("id = ?", keeper.Id).Update("normalized_key", nk).Error; err != nil {
+					return fmt.Errorf("failed to update glossary entry key: %w", err)
+				}
+			}
+		}
+		return nil
+	})
+}
 
 // UpsertGlossaryEntry inserts a new glossary entry or, when an entry with the same
 // NormalizedKey already exists, fills in a missing generated definition without ever

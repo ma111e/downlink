@@ -406,7 +406,7 @@ Return ONLY the JSON object below.`, countWord, strings.Join(levelLines, "\n")),
 			name: "glossary",
 			instruction: `You are explaining this article to someone brand new to cybersecurity. Using ONLY information present in the article — do not infer or add outside context — extract EVERY technical term, acronym, tool, protocol, technique, malware family, named entity, and security concept the article uses — be generous and thorough. Include common-but-technical concepts a newcomer would still need explained (e.g. ransomware, RAT, C2, backdoor, relay, phishing, lateral movement), not only obscure ones, alongside named things (CVEs, threat actors, malware names, products). Do NOT write a general definition for any term — definitions are generated separately. For each term provide only:
   - term: the single most representative form of the term as written in the article
-  - aliases: other surface forms the SAME article uses for the same thing — variant noun phrases, abbreviations, or expansions (e.g. term "QNAP NAS" with aliases "QNAP NAS boxes", "QNAP NAS devices"). Each alias MUST appear verbatim somewhere in the article so it can be matched. Up to 4 entries; use an empty array when the article uses only one form.
+  - aliases: other surface forms the SAME article uses for the same thing — variant noun phrases, acronyms, initialisms, shortened forms, AND full expansions (e.g. term "Cisco Unified Communications Manager" with aliases "Unified CM", "Unified Communications Manager"; term "HuiOne Group" with alias "HuiOne"; term "QNAP NAS" with aliases "QNAP NAS boxes", "QNAP NAS devices"). Include both the long and short forms whenever the article uses more than one. Each alias MUST appear verbatim somewhere in the article so it can be matched. Up to 4 entries; use an empty array when the article uses only one form.
   - type: ONE of threat-actor, malware, tool, technique, vulnerability, protocol, concept, organization, product, other
   - context: a single plain-language sentence explaining why this term matters in THIS article specifically (what role it plays in the events described)
 Include 0 to 30 entries; if the article genuinely uses no notable terms, return an empty array.
@@ -1386,10 +1386,50 @@ func glossaryFromResult(value any) []models.GlossaryTerm {
 		if term.Term == "" {
 			continue
 		}
+		term.Aliases = aliasesFromObject(obj, term.Term)
 		terms = append(terms, term)
 	}
 
 	return terms
+}
+
+// maxGlossaryAliases bounds how many alias surface forms are kept per term, matching
+// the cap stated in the glossary task prompt.
+const maxGlossaryAliases = 4
+
+// aliasesFromObject extracts the cleaned alias surface forms for a glossary term. It
+// trims and de-dups entries by normalized key, drops empties and any alias that
+// collapses to the term's own key (a self-alias), and caps the result. The render-side
+// layering (notification/html.go) still guards against shadowing real terms, but doing
+// the hygiene here keeps malformed LLM output out of the stored analysis.
+func aliasesFromObject(obj map[string]interface{}, term string) []string {
+	raw, ok := obj["aliases"].([]interface{})
+	if !ok {
+		return nil
+	}
+	termKey := models.NormalizeGlossaryKey(term)
+	var aliases []string
+	seen := map[string]bool{}
+	for _, item := range raw {
+		alias, ok := item.(string)
+		if !ok {
+			continue
+		}
+		alias = strings.TrimSpace(alias)
+		if alias == "" {
+			continue
+		}
+		key := models.NormalizeGlossaryKey(alias)
+		if key == "" || key == termKey || seen[key] {
+			continue
+		}
+		seen[key] = true
+		aliases = append(aliases, alias)
+		if len(aliases) >= maxGlossaryAliases {
+			break
+		}
+	}
+	return aliases
 }
 
 func stringFromObject(obj map[string]interface{}, key string) string {

@@ -17,6 +17,7 @@ import (
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/protos"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1196,6 +1197,10 @@ func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []mod
 	return strings.TrimSpace(parsed.Title), strings.TrimSpace(parsed.Summary), resolved.ProviderType, resolved.ModelName, nil
 }
 
+// cveTagPattern matches CVE-identifier tag slugs (e.g. "cve-2026-20230"). These are excluded
+// from the glossary: they are not glossary-worthy named entities and are linked elsewhere.
+var cveTagPattern = regexp.MustCompile(`(?i)^cve[\s-]\d{4}[\s-]\d+$`)
+
 // populateGlossary feeds this digest's extracted terms (jargon/concepts from the analyses
 // plus named entities from tags) into the persistent global glossary and records which
 // entries the digest references. Terms already defined in the glossary are linked without
@@ -1234,10 +1239,15 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 	}
 
 	// Named entities from tags take precedence — they carry a TagId for highlighting/linkage.
+	// CVE identifiers are skipped deterministically: they are not glossary-worthy (the digest
+	// links them elsewhere) and would otherwise burn tokens on the definition call.
 	for _, article := range articleMap {
 		for _, tag := range article.Tags {
 			slug := strings.TrimSpace(tag.Name)
 			if slug == "" {
+				continue
+			}
+			if cveTagPattern.MatchString(slug) {
 				continue
 			}
 			key := models.NormalizeGlossaryKey(slug)
@@ -1302,13 +1312,24 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 			if category == models.GlossaryCategoryOther && c.category != "" {
 				category = c.category
 			}
+			// Countries and CVE identifiers are not glossary-worthy; drop them once the model
+			// has classified them (CVE slugs are already skipped earlier, this catches the rest).
+			if category == models.GlossaryCategoryCountry || category == models.GlossaryCategoryCVE {
+				continue
+			}
 			source := "tag"
 			if c.kind == models.GlossaryKindJargon {
 				source = "analysis"
 			}
+			// Prefer the model's canonical, properly-cased display name (e.g. "HTTP/3",
+			// "DarkForums") over the kebab tag slug; fall back to the candidate's display term.
+			term := c.displayTerm
+			if name := strings.TrimSpace(ed.Name); name != "" {
+				term = name
+			}
 			entry := &models.GlossaryEntry{
 				NormalizedKey:   key,
-				Term:            c.displayTerm,
+				Term:            term,
 				Kind:            c.kind,
 				Category:        category,
 				Difficulty:      models.NormalizeGlossaryDifficulty(ed.Difficulty),
@@ -1318,12 +1339,12 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 				Source:          source,
 			}
 			if err := store.Db.UpsertGlossaryEntry(entry); err != nil {
-				log.WithError(err).WithField("term", c.displayTerm).Warn("Failed to upsert glossary entry")
+				log.WithError(err).WithField("term", term).Warn("Failed to upsert glossary entry")
 				continue
 			}
 			entryIds[entry.Id] = struct{}{}
 			if c.kind == models.GlossaryKindEntity {
-				entityMeta[key] = glossaryTermCtx{Term: c.displayTerm, Category: category}
+				entityMeta[key] = glossaryTermCtx{Term: term, Category: category}
 			}
 		}
 	}
@@ -1453,17 +1474,21 @@ func (s *DigestServer) populateArticleContexts(ctx context.Context, analyses []m
 	}
 }
 
-// entityDefinition is a generated definition plus its semantic type and difficulty for a
-// named entity.
+// entityDefinition is a generated definition plus its canonical display name, semantic type,
+// and difficulty for a named entity.
 type entityDefinition struct {
+	Name       string // canonical, properly-cased display form (e.g. "HTTP/3", "DarkForums")
 	Def        string
 	Type       string
 	Difficulty string
 }
 
-// defineEntities asks the model for a one-line plain-language definition and a type for each
-// term — a named entity or a security concept — returned keyed by NormalizedGlossaryKey.
-// Unknown terms (empty definitions) are dropped so they can be retried on a future digest.
+// defineEntities asks the model for a canonical display name, a one-line plain-language
+// definition, a type, and a difficulty for each term — a named entity or a security concept —
+// returned keyed by NormalizedGlossaryKey. Named entities always get at least a categorical
+// definition (so important but obscure actors/malware are kept); only genuinely unclassifiable
+// terms come back empty and are dropped so they can be retried on a future digest. Countries and
+// CVEs are classified honestly (type "country"/"cve") and filtered out by the caller.
 func (s *DigestServer) defineEntities(ctx context.Context, entities []string, provider, model string) (map[string]entityDefinition, error) {
 	if len(entities) == 0 {
 		return map[string]entityDefinition{}, nil
@@ -1488,12 +1513,23 @@ func (s *DigestServer) defineEntities(ctx context.Context, entities []string, pr
 	prompt := fmt.Sprintf(`You are explaining cybersecurity terms to a complete beginner. For each term
 below — a named entity (threat actor, malware family, tool, CVE, vendor, organization, or
 country) or a security concept/technique/protocol relevant to a security story — give one
-plain-language sentence a newcomer can understand, classify its type, and rate how much help
-a reader needs with it. If you do not recognize a term, or cannot define it confidently,
-return an empty definition for it — do not guess.
+plain-language sentence a newcomer can understand, give its canonical display name, classify
+its type, and rate how much help a reader needs with it.
+
+For a NAMED ENTITY (threat-actor, malware, tool, vulnerability, protocol, technique,
+organization, product), always provide a useful definition even if you have no specific prior
+knowledge of it: fall back to a brief categorical sentence based on its type (e.g. "A
+threat-actor group referenced in security reporting" or "A malware family referenced in
+security reporting"). Only return an empty definition for a term you genuinely cannot classify
+at all.
+
+name must be the canonical, properly-cased written form of the term as it appears in prose,
+preserving real punctuation and capitalization (e.g. "HTTP/3", "wscript.exe", "DarkForums",
+"MITRE ATT&CK", "Model Context Protocol"). Do not return a kebab-case slug.
 
 type must be ONE of: threat-actor, malware, tool, technique, vulnerability, protocol, concept,
-organization, product, other.
+organization, product, country, cve, other. Use "country" for nations/geographies and "cve" for
+CVE identifiers — these will be filtered out, but classify them honestly.
 
 difficulty must be ONE of — rate by how much help a reader needs with the term, not by how
 sophisticated it sounds:
@@ -1518,7 +1554,7 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 
 {
   "definitions": {
-    "<id>": {"definition": "<one plain-language sentence, or empty string if unknown>", "type": "<category>", "difficulty": "<difficulty>"}
+    "<id>": {"name": "<canonical display name>", "definition": "<one plain-language sentence, or empty string if unclassifiable>", "type": "<category>", "difficulty": "<difficulty>"}
   }
 }`, list.String())
 
@@ -1535,6 +1571,7 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 	cleaned := llmutil.CleanLLMResponse(rawResponse)
 	var parsed struct {
 		Definitions map[string]struct {
+			Name       string `json:"name"`
 			Definition string `json:"definition"`
 			Type       string `json:"type"`
 			Difficulty string `json:"difficulty"`
@@ -1548,7 +1585,7 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
 
 	raw := make(map[string]entityDefinition, len(parsed.Definitions))
 	for id, v := range parsed.Definitions {
-		raw[id] = entityDefinition{Def: v.Definition, Type: v.Type, Difficulty: v.Difficulty}
+		raw[id] = entityDefinition{Name: v.Name, Def: v.Definition, Type: v.Type, Difficulty: v.Difficulty}
 	}
 	return entityDefinitionsFromResult(remapEntityDefsByID(raw, idToTerm)), nil
 }
@@ -1581,7 +1618,7 @@ func entityDefinitionsFromResult(raw map[string]entityDefinition) map[string]ent
 		if key == "" {
 			continue
 		}
-		out[key] = entityDefinition{Def: def, Type: models.NormalizeGlossaryCategory(v.Type), Difficulty: models.NormalizeGlossaryDifficulty(v.Difficulty)}
+		out[key] = entityDefinition{Name: strings.TrimSpace(v.Name), Def: def, Type: models.NormalizeGlossaryCategory(v.Type), Difficulty: models.NormalizeGlossaryDifficulty(v.Difficulty)}
 	}
 	return out
 }

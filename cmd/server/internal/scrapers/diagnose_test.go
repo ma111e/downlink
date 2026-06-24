@@ -101,3 +101,22 @@ func TestFirstInvalidUTF8_Valid(t *testing.T) {
 		t.Errorf("firstInvalidUTF8 = %d, want -1 for valid UTF-8", got)
 	}
 }
+
+func TestExtractHTMLTitle(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"title", `<html><head><title>  Acme Blog  </title></head><body>x</body></html>`, "Acme Blog"},
+		{"no title", `<html><head></head><body>x</body></html>`, ""},
+		{"empty body", ``, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := extractHTMLTitle([]byte(tc.body)); got != tc.want {
+				t.Errorf("extractHTMLTitle = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
