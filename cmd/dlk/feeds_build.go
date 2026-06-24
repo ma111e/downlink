@@ -202,7 +202,7 @@ file instead (showing a diff when the feed is already present).`,
 			if updateFile != "" {
 				return mergeAutoConfig(updateFile, done.FeedConfigYaml, yes)
 			}
-			fmt.Printf("%s paste into your feeds.yml, then `dlk feeds apply <file>`\n", styleKey.Render("Next:"))
+			fmt.Printf("%s paste into your feeds.yml, then `dlk feeds apply -f <file>`\n", styleKey.Render("Next:"))
 			return nil
 		},
 	}
@@ -404,7 +404,7 @@ func writeFeedsFile(path string, ff *models.FeedsFile) error {
 	if err := os.WriteFile(path, out, 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
-	fmt.Printf("%s %s, then `dlk feeds apply %s`\n", styleKey.Render("Next:"), "review the file", path)
+	fmt.Printf("%s %s, then `dlk feeds apply -f %s`\n", styleKey.Render("Next:"), "review the file", path)
 	return nil
 }
 

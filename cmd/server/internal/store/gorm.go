@@ -140,6 +140,12 @@ func (s *GormStore) initSchema() error {
 		}
 	}
 
+	// Re-normalize glossary keys under the current (punctuation-collapsing) rules and merge
+	// any entries that now collapse to the same key. Idempotent.
+	if err := s.backfillGlossaryKeys(); err != nil {
+		return fmt.Errorf("failed to backfill glossary keys: %w", err)
+	}
+
 	// Insert default feed group if it doesn't exist
 	var count int64
 

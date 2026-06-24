@@ -134,7 +134,7 @@ them too (requires Docker):
 ./server --auto-start-lightpanda --auto-start-solimen
 ```
 
-**5. Apply the feeds.** `dlk feeds apply` reconciles the database to match the file. Feeds in the file are created or updated, and feeds no longer listed are disabled
+**5. Apply the feeds.** `dlk feeds apply -f feeds.yml` reconciles the database to match the file. Feeds in the file are created or updated, and feeds no longer listed are disabled
 (their articles are kept). Preview first with `--dry-run`:
 
 ```sh

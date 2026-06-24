@@ -5,7 +5,7 @@ Downlink reads configuration from these files plus environment variables:
 - **`config.json`** server-side configuration: LLM providers, the active analysis
   provider, and notification settings. Loaded by the server at startup.
 - **`feeds.yml`** the list of feeds and their per-feed scraping rules. Applied to the
-  database with `dlk feeds apply`. See [feeds-and-scraping.md](feeds-and-scraping.md).
+  database with `dlk feeds apply -f feeds.yml`. See [feeds-and-scraping.md](feeds-and-scraping.md).
 - **`profiles.yml`** optional editorial profiles. Applied at server startup; restart to
   apply. Without it the server runs as a single default profile. See
   [profiles.md](profiles.md).

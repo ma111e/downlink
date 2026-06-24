@@ -97,6 +97,7 @@ type suggestObs struct {
 type indexObs struct {
 	OK      bool   `json:"ok"`
 	Verdict string `json:"verdict"`
+	Title   string `json:"title,omitempty"`
 }
 
 // linkListObs holds the ranked link-list candidates for an index page in one mode.
@@ -215,7 +216,7 @@ func runAutoConfig(
 	// selector discovery is needed — emit a scraping: none config and stop.
 	if score := feedContentScore(tools, feed, lockedHeaders); score >= feedContentModeThreshold {
 		emitStep(onStep, next(), "feed_content", fmt.Sprintf("entries carry full content (score %.2f)", score))
-		res, ferr := finishFeedContent(feedURL, feedType, lockedHeaders, topics, score)
+		res, ferr := finishFeedContent(feedURL, feedType, lockedHeaders, topics, feed.Title, score)
 		if ferr != nil {
 			return AutoConfigResult{}, ferr
 		}
@@ -229,7 +230,7 @@ func runAutoConfig(
 	})
 
 	// ── Selector discovery loop (mode + headers frozen) ──
-	return discoverArticleSelectors(ctx, gen, tools, feedURL, feedType, lockedMode, lockedHeaders, samples, topics, nil, probed, &step, maxSteps, onStep, onLLM)
+	return discoverArticleSelectors(ctx, gen, tools, feedURL, feedType, lockedMode, lockedHeaders, samples, topics, feed.Title, nil, probed, &step, maxSteps, onStep, onLLM)
 }
 
 // discoverArticleSelectors runs the bounded LLM loop that picks the article-content
@@ -244,6 +245,7 @@ func discoverArticleSelectors(
 	feedURL, feedType, mode string,
 	headers map[string]string,
 	samples, topics []string,
+	title string,
 	htmlOpts *htmlLinkOptions,
 	probed []models.SelectorCandidate,
 	step *int,
@@ -284,7 +286,7 @@ func discoverArticleSelectors(
 
 		switch action.Action {
 		case "finish":
-			res, ferr := finishAutoConfig(action, feedURL, feedType, mode, headers, samples, topics, htmlOpts, tools)
+			res, ferr := finishAutoConfig(action, feedURL, feedType, mode, headers, samples, topics, title, htmlOpts, tools)
 			if ferr != nil {
 				fmt.Fprintf(&transcript, "OBSERVATION: {\"error\":%q}\n", ferr.Error())
 				continue
@@ -351,7 +353,7 @@ func runHTMLAutoConfig(
 	onLLM func(turn int, prompt, response string),
 ) (AutoConfigResult, error) {
 	// ── lock headers against the raw page (probe only if blocked) ──
-	headers, err := lockIndexHeaders(tools, feedURL, seedHeaders, func(tool, detail string) {
+	headers, title, err := lockIndexHeaders(tools, feedURL, seedHeaders, func(tool, detail string) {
 		emitStep(onStep, next(), tool, detail)
 	})
 	if err != nil {
@@ -374,6 +376,9 @@ func runHTMLAutoConfig(
 	}
 	opts := &htmlLinkOptions{LinksSelector: top.LinksSelector, URLFilter: top.URLFilter, DateSelector: top.DateSelector}
 	emitStep(onStep, next(), "link_list", fmt.Sprintf("%s (%d links)", top.LinksSelector, top.Count))
+	if top.DateSelector == "" {
+		emitStep(onStep, next(), "warning", "no per-post date selector found; entries may lack publish dates")
+	}
 
 	// ── lock the article mode (escalate from the index mode if posts need more) ──
 	articleMode, probed := lockMode(tools, samples[0], headers, func(detail string) {
@@ -394,14 +399,15 @@ func runHTMLAutoConfig(
 		}
 	}
 
-	return discoverArticleSelectors(ctx, gen, tools, feedURL, "html", mode, headers, samples, topics, opts, probed, step, maxSteps, onStep, onLLM)
+	return discoverArticleSelectors(ctx, gen, tools, feedURL, "html", mode, headers, samples, topics, title, opts, probed, step, maxSteps, onStep, onLLM)
 }
 
 // lockIndexHeaders mirrors lockHeaders for the html path: it probes the raw index
-// page (no RSS parse) and returns the header set that gets a usable response.
-func lockIndexHeaders(tools autoconfigTools, indexURL string, seed map[string]string, emit func(tool, detail string)) (map[string]string, error) {
-	if tools.inspectIndex(indexURL, seed).OK {
-		return seed, nil
+// page (no RSS parse) and returns the header set that gets a usable response, plus
+// the page's <title> from the probe that succeeded (for the generated config name).
+func lockIndexHeaders(tools autoconfigTools, indexURL string, seed map[string]string, emit func(tool, detail string)) (map[string]string, string, error) {
+	if obs := tools.inspectIndex(indexURL, seed); obs.OK {
+		return seed, obs.Title, nil
 	}
 	origin := originOf(indexURL)
 	combos := []map[string]string{
@@ -411,11 +417,11 @@ func lockIndexHeaders(tools autoconfigTools, indexURL string, seed map[string]st
 	for _, c := range combos {
 		h := mergeHeaders(seed, c)
 		emit("probe_headers", strings.Join(sortedKeys(c), "+"))
-		if tools.inspectIndex(indexURL, h).OK {
-			return h, nil
+		if obs := tools.inspectIndex(indexURL, h); obs.OK {
+			return h, obs.Title, nil
 		}
 	}
-	return nil, fmt.Errorf("index page is blocked and no tried header set unblocked it")
+	return nil, "", fmt.Errorf("index page is blocked and no tried header set unblocked it")
 }
 
 // lockIndexMode probes the scraping modes in priority order against the index page
@@ -540,7 +546,7 @@ func writeSeed(b *strings.Builder, feedURL, feedType, mode string, headers map[s
 // finishAutoConfig validates the proposed selectors, scores them for confidence, and
 // renders the final config YAML using the LOCKED mode and headers. htmlOpts is non-nil
 // only for the html path, where its link-list keys are written into Scraper.Options.
-func finishAutoConfig(action agentAction, feedURL, feedType, mode string, headers map[string]string, samples, topics []string, htmlOpts *htmlLinkOptions, tools autoconfigTools) (AutoConfigResult, error) {
+func finishAutoConfig(action agentAction, feedURL, feedType, mode string, headers map[string]string, samples, topics []string, title string, htmlOpts *htmlLinkOptions, tools autoconfigTools) (AutoConfigResult, error) {
 	if action.Config == nil || strings.TrimSpace(action.Config.Selectors.Article) == "" {
 		return AutoConfigResult{}, fmt.Errorf("finish requires config.selectors.article")
 	}
@@ -558,6 +564,7 @@ func finishAutoConfig(action agentAction, feedURL, feedType, mode string, header
 
 	cfg := models.FeedConfig{
 		URL:     feedURL,
+		Title:   strings.TrimSpace(title),
 		Enabled: true,
 		Topics:  topics,
 		Scraper: models.ScraperConfig{
@@ -586,9 +593,10 @@ func finishAutoConfig(action agentAction, feedURL, feedType, mode string, header
 // finishFeedContent renders a scraping: none config for feeds that already ship
 // full article bodies in their entries — no selectors, no page fetch. confidence
 // is the fraction of sampled entries that carried a usable body.
-func finishFeedContent(feedURL, feedType string, headers map[string]string, topics []string, confidence float64) (AutoConfigResult, error) {
+func finishFeedContent(feedURL, feedType string, headers map[string]string, topics []string, title string, confidence float64) (AutoConfigResult, error) {
 	cfg := models.FeedConfig{
 		URL:     feedURL,
+		Title:   strings.TrimSpace(title),
 		Enabled: true,
 		Topics:  topics,
 		Scraper: models.ScraperConfig{
@@ -904,11 +912,12 @@ func (managerTools) articleText(url, mode string, headers map[string]string) (st
 }
 
 func (managerTools) inspectIndex(url string, headers map[string]string) indexObs {
-	diag := manager.Manager.InspectFeedURL(url, headers, 0).Diagnosis
+	insp := manager.Manager.InspectFeedURL(url, headers, 0)
+	diag := insp.Diagnosis
 	// A 2xx/3xx response means the page came back; a 4xx/5xx (or a never-completed
 	// request, status 0) means it is blocked or unreachable, so headers must be probed.
 	ok := diag.HTTPStatus >= 200 && diag.HTTPStatus < 400
-	return indexObs{OK: ok, Verdict: diag.Verdict}
+	return indexObs{OK: ok, Verdict: diag.Verdict, Title: insp.Title}
 }
 
 func (managerTools) suggestLinkSelectors(url, mode string, headers map[string]string) linkListObs {

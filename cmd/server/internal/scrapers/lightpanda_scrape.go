@@ -12,7 +12,6 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/chromedp/cdproto/emulation"
-	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 	log "github.com/sirupsen/logrus"
 )
@@ -39,26 +38,26 @@ func (s *AnonymizedScraper) ScrapeContentDynamic(url string, customHeaders map[s
 	ctx, cancelTimeout := context.WithTimeout(browserCtx, dynamicScrapeTimeout)
 	defer cancelTimeout()
 
-	// Anon profile headers, with caller-supplied headers overlaid last.
-	headers := network.Headers{
-		"Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-		"Accept-Language":           "en-US,en;q=0.5",
-		"DNT":                       "1",
-		"Upgrade-Insecure-Requests": "1",
-	}
-	for k, v := range customHeaders {
-		headers[k] = v
-	}
 	ua := s.userAgents[rand.Intn(len(s.userAgents))]
 
-	// Setup actions are best-effort: Lightpanda implements a CDP subset, so a missing
-	// command here must not abort the scrape. The render/read below is what matters.
-	if err := chromedp.Run(ctx,
-		network.Enable(),
-		emulation.SetUserAgentOverride(ua),
-		network.SetExtraHTTPHeaders(headers),
-	); err != nil {
-		log.WithError(err).Debug("dynamic scrape: header/UA setup not fully supported by Lightpanda; continuing")
+	// Setup is deliberately minimal. Lightpanda implements only a CDP subset and, crucially,
+	// enabling the Network domain together with Network.setExtraHTTPHeaders makes it emit a
+	// request event whose headers JSON carries a duplicate key. cdproto's strict decoder
+	// rejects that event, tears down the CDP connection, and every command after it — the
+	// Navigate below included — fails with a bare "context canceled". So we only override the
+	// user agent (safe without Network.enable) and do not inject extra headers here. Custom
+	// headers are not deliverable on the Lightpanda dynamic path.
+	if len(customHeaders) > 0 {
+		log.WithField("count", len(customHeaders)).Debug("dynamic scrape: custom headers are not applied on the Lightpanda path")
+	}
+	if err := chromedp.Run(ctx, emulation.SetUserAgentOverride(ua)); err != nil {
+		log.WithError(err).Debug("dynamic scrape: user-agent override not supported by Lightpanda; continuing")
+	}
+
+	// If setup tore down the browser connection, surface that directly instead of letting
+	// the Navigate below report an opaque "context canceled".
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("dynamic scrape via Lightpanda failed during setup: %w", err)
 	}
 
 	var html string

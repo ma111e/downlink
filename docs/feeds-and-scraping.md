@@ -2,7 +2,7 @@
 
 A feed is a source (RSS, Atom, or an HTML link-list page) plus rules for turning each item
 into a full article. You describe feeds in `feeds.yml` and reconcile them into the database
-with `dlk feeds apply`.
+with `dlk feeds apply -f feeds.yml`.
 
 Feeds are global: every feed is fetched once and its articles are shared. A
 [profile](profiles.md) selects a subset of feeds for its own digests.

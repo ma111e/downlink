@@ -141,6 +141,9 @@ func InspectFeedURL(feedURL string, headers map[string]string, maxLinks int) Fee
 	if diag.FeedTypeGuess == "html" {
 		cands := discoverFeedLinks(raw.Body, raw.FinalURL)
 		diag.DiscoveredFeeds = validateFeedCandidates(cands, headers, raw.FinalURL)
+		// An HTML index page has no feed title, so fall back to its <title> so the
+		// generated config can still carry a human-readable name.
+		insp.Title = extractHTMLTitle(raw.Body)
 	}
 
 	insp.Diagnosis = diag
@@ -163,6 +166,16 @@ func feedItemText(item *gofeed.Item) string {
 		return strings.TrimSpace(html)
 	}
 	return strings.TrimSpace(doc.Text())
+}
+
+// extractHTMLTitle returns the trimmed text of an HTML page's <title> element, or
+// "" when the body can't be parsed or has no title.
+func extractHTMLTitle(body []byte) string {
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(doc.Find("head title").First().Text())
 }
 
 // DiagnoseFeedURL fetches a feed URL and returns a structured diagnosis. It is a

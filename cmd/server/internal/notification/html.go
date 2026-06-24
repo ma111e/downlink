@@ -796,22 +796,22 @@ func marshalGlossaryContextJS(m map[string]map[string]string) template.JS {
 	return template.JS(b) //nolint:gosec // values are JSON-encoded; encoding/json escapes HTML-significant runes
 }
 
-// compileTagRegexp builds a single case-insensitive, word-bounded alternation that
-// matches any of the given kebab-case tags in prose, treating '-' as interchangeable
-// with whitespace/hyphens (e.g. "cobalt-strike" matches "Cobalt Strike"). Returns nil
-// when there are no usable tags.
+// nonAlphanumRun matches a maximal run of non-alphanumeric characters.
+var nonAlphanumRun = regexp.MustCompile(`[^a-zA-Z0-9]+`)
+
+// compileTagRegexp builds a single case-insensitive, word-bounded alternation that matches any
+// of the given terms in prose, treating any internal run of non-alphanumeric characters as
+// interchangeable with any other separator/punctuation (e.g. "cobalt-strike" matches
+// "Cobalt Strike", "wscript.exe" matches "wscript-exe", "HTTP/3" matches "HTTP 3"). This
+// separator equivalence MUST agree with NormalizeGlossaryKey (pkg/models/glossary.go) and the JS
+// glossaryKey() normalizer in the digest template. Returns nil when there are no usable terms.
 func compileTagRegexp(tags []string) *regexp.Regexp {
 	terms := make([]string, 0, len(tags))
 	for _, t := range tags {
 		t = strings.TrimSpace(t)
-		if t == "" {
-			continue
+		if p := termPattern(t); p != "" {
+			terms = append(terms, p)
 		}
-		// Escape regex metachars, then let '-' match runs of spaces/hyphens.
-		// (QuoteMeta leaves '-' unescaped, so replace the literal character.)
-		quoted := regexp.QuoteMeta(t)
-		quoted = strings.ReplaceAll(quoted, "-", `[\s-]+`)
-		terms = append(terms, quoted)
 	}
 	if len(terms) == 0 {
 		return nil
@@ -819,6 +819,24 @@ func compileTagRegexp(tags []string) *regexp.Regexp {
 	// Longest terms first so multi-word tags win over any shorter overlap.
 	sort.Slice(terms, func(i, j int) bool { return len(terms[i]) > len(terms[j]) })
 	return regexp.MustCompile(`(?i)\b(?:` + strings.Join(terms, "|") + `)\b`)
+}
+
+// termPattern turns a single term into a word-bounded regex fragment whose alphanumeric chunks
+// are matched literally and whose internal punctuation/whitespace runs match any separator run.
+// Leading/trailing non-alphanumeric runs are dropped so the \b anchors land on word characters.
+// Returns "" for a term with no alphanumeric content.
+func termPattern(t string) string {
+	chunks := nonAlphanumRun.Split(t, -1)
+	parts := make([]string, 0, len(chunks))
+	for _, c := range chunks {
+		if c != "" {
+			parts = append(parts, regexp.QuoteMeta(c))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, `[^a-zA-Z0-9]+`)
 }
 
 // highlightSegments wraps tag matches in <mark class="tag-hl"> within the text portions

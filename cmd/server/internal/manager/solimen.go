@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/trace"
@@ -36,6 +38,11 @@ func solimenScrape(articleID, addr, rawURL string, triggers models.HostTriggers)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		// Solimen returns its real failure reason in the response body
+		// ({"error": "chromium scraper: ..."}). Surface it instead of a bare status.
+		if msg := readSolimenError(resp.Body); msg != "" {
+			return solimenResp{}, fmt.Errorf("solimen returned status %d: %s", resp.StatusCode, msg)
+		}
 		return solimenResp{}, fmt.Errorf("solimen returned status %d", resp.StatusCode)
 	}
 
@@ -44,4 +51,21 @@ func solimenScrape(articleID, addr, rawURL string, triggers models.HostTriggers)
 		return solimenResp{}, fmt.Errorf("solimen response decode failed: %w", err)
 	}
 	return result, nil
+}
+
+// readSolimenError extracts a human-readable reason from a Solimen error response body.
+// It prefers the JSON {"error": ...} field and falls back to the trimmed raw body. The
+// read is bounded since this runs on the failure path.
+func readSolimenError(r io.Reader) string {
+	raw, err := io.ReadAll(io.LimitReader(r, 8<<10))
+	if err != nil || len(raw) == 0 {
+		return ""
+	}
+	var payload struct {
+		Error string `json:"error"`
+	}
+	if json.Unmarshal(raw, &payload) == nil && payload.Error != "" {
+		return payload.Error
+	}
+	return strings.TrimSpace(string(raw))
 }

@@ -5,11 +5,18 @@ import "testing"
 func TestNormalizeGlossaryKey(t *testing.T) {
 	// All these forms must collapse to the same key so a highlighted prose word
 	// resolves to exactly one glossary entry.
-	same := []string{"Cobalt Strike", "cobalt-strike", "cobalt   strike", "#cobalt strike", "  Cobalt-Strike  "}
-	want := "cobalt strike"
-	for _, in := range same {
-		if got := NormalizeGlossaryKey(in); got != want {
-			t.Errorf("NormalizeGlossaryKey(%q) = %q, want %q", in, got, want)
+	groups := map[string][]string{
+		"cobalt strike": {"Cobalt Strike", "cobalt-strike", "cobalt   strike", "#cobalt strike", "  Cobalt-Strike  "},
+		// Punctuation collapses too, so a tag slug and its real written form share one key.
+		"wscript exe": {"wscript.exe", "wscript-exe", "WScript exe"},
+		"http 3":      {"HTTP/3", "http-3", "HTTP 3"},
+		"mitre att ck": {"MITRE ATT&CK", "mitre-att-ck"},
+	}
+	for want, forms := range groups {
+		for _, in := range forms {
+			if got := NormalizeGlossaryKey(in); got != want {
+				t.Errorf("NormalizeGlossaryKey(%q) = %q, want %q", in, got, want)
+			}
 		}
 	}
 

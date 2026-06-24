@@ -39,6 +39,47 @@ func TestGlossaryFromResult(t *testing.T) {
 	}
 }
 
+func TestGlossaryFromResultAliases(t *testing.T) {
+	raw := []interface{}{
+		map[string]interface{}{
+			"term": "Cisco Unified Communications Manager",
+			"type": "product",
+			"aliases": []interface{}{
+				"  Unified CM  ",                       // trimmed
+				"Unified Communications Manager",       // kept
+				"unified-cm",                           // dup of "Unified CM" by normalized key → dropped
+				"Cisco Unified Communications Manager", // self-alias → dropped
+				"",                                     // empty → dropped
+				42,                                     // non-string → dropped
+				"Call Manager",                         // kept
+				"CUCM",                                 // would be 4th distinct, but cap already reached? no: this is #4
+				"extra alias",                          // beyond cap of 4 → dropped
+			},
+		},
+		map[string]interface{}{"term": "HuiOne Group", "type": "organization"}, // no aliases key → nil
+	}
+
+	terms := glossaryFromResult(raw)
+	if len(terms) != 2 {
+		t.Fatalf("expected 2 terms, got %d: %+v", len(terms), terms)
+	}
+
+	cucm := terms[0]
+	want := []string{"Unified CM", "Unified Communications Manager", "Call Manager", "CUCM"}
+	if len(cucm.Aliases) != len(want) {
+		t.Fatalf("CUCM aliases = %v, want %v", cucm.Aliases, want)
+	}
+	for i, w := range want {
+		if cucm.Aliases[i] != w {
+			t.Errorf("alias[%d] = %q, want %q (full=%v)", i, cucm.Aliases[i], w, cucm.Aliases)
+		}
+	}
+
+	if terms[1].Aliases != nil {
+		t.Errorf("HuiOne Group aliases = %v, want nil (no aliases key)", terms[1].Aliases)
+	}
+}
+
 func TestEntityDefinitionsFromResult(t *testing.T) {
 	raw := map[string]entityDefinition{
 		"Cobalt Strike": {Def: "  A commercial pentest tool often abused by attackers.  ", Type: "tool", Difficulty: "ADVANCED"},
@@ -46,6 +87,7 @@ func TestEntityDefinitionsFromResult(t *testing.T) {
 		"unknown-thing": {Def: "", Type: "malware"},                                           // empty def: dropped (LLM didn't recognize it)
 		"   ":           {Def: "x", Type: "concept"},                                          // empty key after normalization: dropped
 		"DragonForce":   {Def: "A ransomware crew.", Type: "made-up-type", Difficulty: "huh"}, // unknown type/difficulty coerced
+		"wscript-exe":   {Name: "  wscript.exe  ", Def: "A Windows scripting host binary.", Type: "tool"}, // display name carried + trimmed
 	}
 
 	got := entityDefinitionsFromResult(raw)
@@ -72,8 +114,26 @@ func TestEntityDefinitionsFromResult(t *testing.T) {
 	if df := got["dragonforce"]; df.Type != "other" {
 		t.Errorf("unknown type = %q, want other", df.Type)
 	}
-	if len(got) != 2 {
-		t.Errorf("expected two entries after dedup/drop, got %d: %v", len(got), got)
+	if w := got["wscript exe"]; w.Name != "wscript.exe" {
+		t.Errorf("display name = %q, want %q (trimmed, real written form preserved)", w.Name, "wscript.exe")
+	}
+	if len(got) != 3 {
+		t.Errorf("expected three entries after dedup/drop, got %d: %v", len(got), got)
+	}
+}
+
+func TestCVETagPattern(t *testing.T) {
+	match := []string{"cve-2026-20230", "CVE-2026-0257", "cve-2024-1", "cve 2026 20230"}
+	for _, s := range match {
+		if !cveTagPattern.MatchString(s) {
+			t.Errorf("cveTagPattern should match %q", s)
+		}
+	}
+	noMatch := []string{"cve", "cobalt-strike", "cve-2026", "microsoft-cve-thing", "cvelist", "cve-abc-123"}
+	for _, s := range noMatch {
+		if cveTagPattern.MatchString(s) {
+			t.Errorf("cveTagPattern should not match %q", s)
+		}
 	}
 }
 
