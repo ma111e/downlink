@@ -109,7 +109,7 @@ Inspect and curate the global jargon glossary. The glossary is built during
 | Command | Description |
 |---|---|
 | `glossary list` | List glossary entries. `--limit <n>` (0 = all). |
-| `glossary override <term> <definition>` | Set a curated definition that wins over the generated one and survives regeneration. Terms match case-insensitively and ignore spaces/hyphens (`cobalt strike` == `cobalt-strike`). |
+| `glossary override <term> <definition>` | Set a curated definition that wins over the generated one and survives regeneration. Terms match case-insensitively and ignore all punctuation and spacing (`cobalt strike` == `cobalt-strike`, `wscript.exe` == `wscript-exe`). |
 
 ## queue
 
@@ -138,8 +138,8 @@ of 30). The token can also come from `DOWNLINK_GH_PAGES_TOKEN`; `--theme` from
 |---|---|
 | `publish init` | Create the branch if absent and seed the manifest and index pages. Idempotent; existing files are kept. |
 | `publish reinit` | Erase the branch and local clone, then recreate from scratch. Destructive; prompts for confirmation. |
-| `publish add [digest-id]` | Fetch a digest from the server, render it, and push it to the archive. |
-| `publish remove [title]` | Remove a digest (matched by title) from the archive and republish. |
+| `publish add [digest-id]` | Fetch a digest from the server, render it, and push it to the archive. `--no-wait`. |
+| `publish remove [title]` | Remove a digest (matched by title) from the archive and republish. `--no-wait`. |
 | `publish republish [id-or-title]` | Remove and re-add one digest with the current templates. `--no-wait`. |
 | `publish republish-all` | Re-render every published digest. `--dry-run`, `--no-wait`. |
 | `publish republish-index` | Re-render just the archive index pages. `--dry-run`, `--no-wait`. |

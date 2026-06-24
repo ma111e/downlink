@@ -29,7 +29,7 @@ Pipeline control:
 | `--dry-run` | List the articles that would be included, generate nothing. |
 | `--skip-analysis` | Skip LLM article analysis. |
 | `--skip-duplicates` | Skip LLM duplicate detection. |
-| `--skip-llm` | Skip the LLM analysis and duplicate-detection steps. |
+| `--skip-llm` | Skip all LLM usage for this run: article analysis, duplicate detection, and the digest summary. |
 | `--one-shot` | Analyze missing articles with one combined prompt instead of the multi-step chain. |
 | `--exclude-digested` | Exclude articles already in a previous digest. |
 | `--reanalyze` | Re-analyze every article in the window. |
@@ -91,6 +91,7 @@ switch it with the in-page picker. Set a profile's default with `theme` in `prof
 | `colorblind` | Light, colorblind-safe (Okabe-Ito). |
 | `pastel` | Soft pastel cream/mint/coral, dark text. |
 
-When a digest has glossary content, the page nav shows a **Glossary** switch next to the
-theme picker. Toggling it reveals each article's plain-language explanation and jargon
-glossary. See [analysis-and-scoring.md](analysis-and-scoring.md#glossary-mode).
+When a digest has glossary content, the page nav shows a **Learning mode** switch next to
+the theme picker, with a help-level slider (Full/Partial/Minimal) and toggles for the
+plain-language explanation, the glossary, and in-prose definitions. See
+[analysis-and-scoring.md](analysis-and-scoring.md#glossary-mode).
