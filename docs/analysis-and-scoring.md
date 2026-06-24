@@ -62,10 +62,13 @@ recommended; vibe scores cannot be recomputed without re-running the LLM.
 ## Glossary mode
 
 An optional extra analysis task writes a plain-language explanation and a short jargon
-glossary for each article, aimed at readers new to cybersecurity. On the digest page they
-sit behind a **Glossary** switch in the nav, next to the theme picker. The switch is off by
-default, remembers its state in the browser, and only appears when the digest has glossary
-content.
+glossary for each article, aimed at readers new to cybersecurity. On the digest page this
+content sits behind **Learning mode**, a master switch in the nav next to the theme picker.
+Its menu carries a help-level slider with three stops, **Full**, **Partial**, and
+**Minimal**, that sets how much jargon is annotated (a term shows when the level meets its
+tier), plus per-feature toggles for **Plain words**, **Glossary**, and in-prose
+**Definitions**. Learning mode is off by default, remembers its state in the browser, and
+only appears when the digest has this content.
 
 Enable it with `analysis.glossary` in config, the server's `--glossary` flag, or per run
 with `dlk digest generate --glossary` (use `--glossary=false` to force it off). It adds one

@@ -31,7 +31,7 @@ feeds:
 |---|---|---|
 | `url` | yes | Feed URL. |
 | `enabled` | yes | Whether the feed is fetched. |
-| `title` | no | Display name. Auto-detected when empty. |
+| `title` | yes | Display name. `feeds apply` and `feeds add` reject a feed with no title. |
 | `note` | no | Free-form note. |
 | `topics` | no | Labels a [profile](profiles.md) selects feeds by, e.g. `[news, threat-intel]`. Many per feed. Fill them in bulk with `dlk feeds backfill-topics -f feeds.yml` (LLM, writes the file back). |
 | `scraper` | yes | Scraping configuration. See below. |
@@ -90,6 +90,7 @@ extracts each linked article with `selectors`.
     type: html
     scraping: static
     links_selector: "ul.posts li a"   # CSS selector for the post anchors (required)
+    date_selector: "time"             # CSS selector for each post's date element (required)
     url_filter: "/posts/"             # keep only hrefs containing this substring (optional)
     selectors:
       article: div.post-content
@@ -98,11 +99,13 @@ extracts each linked article with `selectors`.
 | Option | Required | Description |
 |---|---|---|
 | `links_selector` | yes | CSS selector matching the post link anchors on the index page. |
+| `date_selector` | yes | CSS selector for each post's date element, scoped to that post's own block on the index page. Reads a `<time datetime>` or a date string. |
 | `url_filter` | no | Drop matched anchors whose resolved href does not contain this substring. |
 
-A links-only page carries no dates, so every item is timestamped at fetch time:
-`--from`/`--to` filtering and last-N ordering are no-ops for `html` feeds. De-duplication
-still works — it keys on the link, not the date.
+Each post's publish date is read with `date_selector` from its block on the index page, so
+`--from`/`--to` windows and last-N ordering work as they do for any other feed. A post whose
+date element is missing or unparseable falls back to fetch time. De-duplication keys on the
+link, not the date.
 
 ## Scraping modes
 
@@ -127,17 +130,20 @@ two paths, both under `dlk feeds`.
 
 ### Automatic
 
-`dlk feeds autoconfig <rss-url>` runs an autonomous LLM agent: it probes and locks the
-scraping mode and headers, then ranks and tests article selectors and prints a finished
-feed config to paste into `feeds.yml`. Nothing is registered automatically.
+`dlk feeds autoconfig <url>` probes and locks the scraping mode and headers
+deterministically, proposes topic labels, then uses an LLM only to rank and test article
+selectors, and prints a finished feed config. The argument can be an RSS/Atom feed, an HTML
+index page, or a plain web page (it discovers the page's feeds and lets you pick). Nothing is
+registered: paste the output into `feeds.yml`, or pass `--update <file>` to merge it into an
+existing feeds file (with a diff for feeds already present).
 
 ```sh
 dlk feeds autoconfig https://example.com/rss.xml
 ```
 
 Flags: `--header/-H` (seed a header, repeatable), `--provider/-p`, `--model/-m`,
-`--max-steps`, `--yes/-y`, `--verbose/-v`. The full agent design is documented in
-[feed-autoconfig.md](feed-autoconfig.md).
+`--max-steps`, `--no-topics`, `--update <file>`, `--yes/-y`, `--verbose/-v`. The full agent
+design is documented in [feed-autoconfig.md](feed-autoconfig.md).
 
 ### Manual
 

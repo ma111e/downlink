@@ -149,6 +149,7 @@ their `output_subdir`, the slug by default. On each digest generation:
 - **`<subdir>/manifest.json`** - machine-readable archive data for the profile's digest index, newest first. See [Manifest schema](#manifest-schema) below for every field.
 - **`<subdir>/index.html`** - the profile's archive UI with latest-digest hero, search, filters, sort controls, log/grid/timeline layouts, keyboard navigation, and pinned digests in browser local storage.
 - **`<subdir>/sources.html`** - the profile's feed list.
+- **`<subdir>/reports.html`** - referenced reports aggregated across the profile's digests in the publish window. Linked from the digest, archive, and swipe page footers. Skipped when no report data is available.
 
 The repo root depends on how many profiles are enabled:
 

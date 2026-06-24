@@ -80,7 +80,32 @@ See [llm-providers.md](llm-providers.md) for which fields each provider type nee
 | `executive_summary` | bool | `false` | Generate the digest-level executive summary (a title plus a thematic overview shown under "Executive Overview" and in the Discord embed). Override per run with `dlk digest generate --executive-summary` (or `=false` to force off). |
 | `persona` | string | / | Prompt prefix injected before every analysis request. |
 | `writing_style` | string | / | Style guide injected into the digest summary prompt. |
+| `step_providers` | object | / | Per-step provider/model overrides. See [Per-step providers](#per-step-providers). |
 | `worker_pool.max_workers` | int | `3` | Analysis worker pool size. Bounds how many articles are analyzed in parallel; actual LLM concurrency is still capped by `--max-concurrent-llm-requests`. |
+
+#### Per-step providers
+
+`step_providers` routes individual pipeline steps to a different provider or model than
+`analysis.provider`, to trade cost against quality per step. Each key is a step name; each
+value is `{provider, model}` (both optional). A `provider`-only entry keeps that step's
+model from the named provider; a `model`-only entry keeps `analysis.provider` and swaps the
+model. Steps with no entry use `analysis.provider`. This is global config only; profiles
+inherit it but cannot override it.
+
+```json
+"analysis": {
+  "provider": "vllm",
+  "step_providers": {
+    "importance": { "provider": "Claude", "model": "claude-sonnet-4-6" },
+    "digest_summary": { "model": "claude-opus-4-8" }
+  }
+}
+```
+
+Per-article task steps: `categorize`, `tldr`, `plain_words`, `key_points`, `insights`,
+`referenced_reports`, `summaries`, `glossary`, `importance`. Digest-level steps: `dedupe`,
+`digest_summary`, `glossary_entities`, `glossary_context`. Switching provider mid-article
+resets the conversation and re-sends the article text on the next step.
 
 ### notifications.discord
 

@@ -25,8 +25,8 @@ Enable at least one LLM provider in `config.json` and fill in its key. Analysis 
 provider; fetching feeds does not, so you can defer this if you only want to pull
 articles. See [llm-providers.md](llm-providers.md) and [configuration.md](configuration.md).
 
-Edit `feeds.yml` to point at the feeds you want. A feed needs at least `url`, `type`,
-`enabled`, and (for non-RSS-complete sources) a way to scrape the body. See
+Edit `feeds.yml` to point at the feeds you want. A feed needs at least `url`, `title`,
+`type`, `enabled`, and (for non-RSS-complete sources) a way to scrape the body. See
 [feeds-and-scraping.md](feeds-and-scraping.md).
 
 ## 2. Start the server
