@@ -896,8 +896,9 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 		return nil, err
 	}
 
-	// Run analysis tasks sequentially using a single ChatModel conversation.
-	// The article is sent once in the first message; subsequent tasks only send the instruction.
+	// Run analysis tasks sequentially, potentially with different providers per task.
+	// The article is sent once in the first message of each provider; subsequent tasks
+	// in the same provider's conversation only send the instruction.
 	ed := s.editorialForRequest(req)
 	tasks := getAnalysisTasks(actx.contentLen, req.FastMode, ed)
 	totalTasks := len(tasks)
@@ -907,22 +908,53 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 	var allThinking []string
 	succeededTasks := 0
 
-	// Build conversation history: persona as system message, then article + tasks
+	// Get the effective provider/model for article analysis tasks (used as defaults).
+	// These come from the editorial config (profile or global default).
+	defaultProvider := ed.Provider
+	defaultModel := ed.Model
+
+	// Track the current provider session so we can detect switches and reset conversation.
 	var conversationHistory []*schema.Message
-	if persona := ed.Persona; persona != "" {
-		conversationHistory = append(conversationHistory, &schema.Message{
-			Role:    schema.System,
-			Content: persona,
-		})
-	}
+	var currentResolved *ResolvedLLM
+	var currentKey string // providerType:modelName
+	isFirstMessageForProvider := true
 
 	for i, task := range tasks {
 		taskIdx := i + 1
 
-		// First task includes the article; subsequent tasks only send the instruction
+		// Resolve the provider/model for this task, applying any step-specific override.
+		stepProvider, stepModel := resolveStepProvider(task.name, defaultProvider, defaultModel, ed.StepProviders)
+		stepResolved, err := ResolveLLM(LLMRequest{
+			Provider:  stepProvider,
+			ModelName: stepModel,
+			MaxTokens: defaultMaxTokensLarge,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve provider for task %s: %w", task.name, err)
+		}
+
+		// Check if provider changed. If so, reset conversation history and mark for article re-send.
+		stepKey := stepResolved.ProviderType + ":" + stepResolved.ModelName
+		if stepKey != currentKey {
+			conversationHistory = nil
+			currentResolved = stepResolved
+			currentKey = stepKey
+			isFirstMessageForProvider = true
+
+			// Re-add persona if present in the new conversation.
+			if persona := ed.Persona; persona != "" {
+				conversationHistory = append(conversationHistory, &schema.Message{
+					Role:    schema.System,
+					Content: persona,
+				})
+			}
+		}
+
+		// Build the user message: first message of a provider session includes article.
 		var userMessage string
-		if i == 0 {
+		if isFirstMessageForProvider {
 			userMessage = buildTaskPrompt(actx, task)
+			isFirstMessageForProvider = false
 		} else {
 			userMessage = fmt.Sprintf(`<start_of_task>:
 %s
@@ -957,7 +989,7 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 		attemptResult, err := s.runAnalysisTaskWithRetry(
 			ctx,
 			actx,
-			resolved,
+			currentResolved,
 			task,
 			taskIdx,
 			totalTasks,
@@ -973,7 +1005,7 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 		}
 
 		response := attemptResult.response
-		log.WithField("task", task.name).WithField("provider", resolved.ProviderType).Debugf("Full response:\n%s", response)
+		log.WithField("task", task.name).WithField("provider", currentResolved.ProviderType).Debugf("Full response:\n%s", response)
 
 		// Only successful attempts advance the shared conversation history.
 		conversationHistory = append(conversationHistory, &schema.Message{

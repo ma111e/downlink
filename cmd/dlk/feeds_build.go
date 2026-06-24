@@ -266,7 +266,13 @@ func resolveFeedURL(client *downlinkclient.DownlinkClient, rawURL string, header
 
 	discovered := diag.GetDiscoveredFeeds()
 	if len(discovered) == 0 {
-		return "", fmt.Errorf("no RSS/Atom feeds found on %s — pass a direct feed URL", rawURL)
+		// No embedded feed: configure the HTML index page directly. Autoconfig's html
+		// path discovers the post-link list and scrapes each linked article.
+		if !jsonOutput {
+			fmt.Printf("%s %s has no RSS/Atom feed; configuring it as an HTML index page.\n",
+				styleWarn.Render("!"), rawURL)
+		}
+		return rawURL, nil
 	}
 
 	if !jsonOutput {

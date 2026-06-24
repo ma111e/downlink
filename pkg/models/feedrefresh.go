@@ -16,8 +16,10 @@ func (FeedRefreshRun) TableName() string { return "feed_refresh_runs" }
 
 // FeedRefreshResult is the outcome of refreshing one feed during a run. Success
 // reflects the top-level fetch (FetchError empty); item-level scrape/store
-// failures are counted in ErrorCount and kept verbatim in ErrorLog. ErrorLog is
-// stored gzip-compressed (the store layer owns the codec).
+// failures are counted in ErrorCount and kept verbatim in ErrorLog. Non-fatal
+// notices (e.g. content sanitized for invalid UTF-8, the article still stored)
+// are counted in WarningCount and kept in WarningLog. Both logs are stored
+// gzip-compressed (the store layer owns the codec).
 type FeedRefreshResult struct {
 	Id           string    `gorm:"primaryKey" json:"id"`
 	RunId        string    `gorm:"index" json:"run_id"`
@@ -28,9 +30,11 @@ type FeedRefreshResult struct {
 	TotalFetched int       `json:"total_fetched"`
 	Stored       int       `json:"stored"`
 	Skipped      int       `json:"skipped"`
-	ErrorCount   int       `json:"error_count"` // number of item-level errors
+	ErrorCount   int       `json:"error_count"`   // number of item-level errors
+	WarningCount int       `json:"warning_count"` // number of non-fatal notices (e.g. sanitized content)
 	FetchError   string    `gorm:"column:fetch_error;type:text" json:"fetch_error,omitempty"`
 	ErrorLog     []byte    `gorm:"type:blob" json:"-"` // gzip of joined item-level errors
+	WarningLog   []byte    `gorm:"type:blob" json:"-"` // gzip of joined item-level warnings
 	RawBody      []byte    `gorm:"type:blob" json:"-"` // gzip of the raw fetched feed body
 	RawStatus    int       `json:"raw_status,omitempty"`
 	RawType      string    `json:"raw_type,omitempty"` // raw response Content-Type

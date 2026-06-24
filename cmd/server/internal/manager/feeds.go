@@ -234,14 +234,16 @@ func (m *FeedManager) FetchFeed(feed models.Feed, from *time.Time, to *time.Time
 			continue
 		}
 
-		// Check if content is valid UTF-8
+		// Sanitize invalid UTF-8 rather than dropping the article: a few bad bytes
+		// (e.g. a stray Latin-1 0xe9) shouldn't cost the whole item. Strip the
+		// invalid sequences and store the rest.
 		if !utf8.ValidString(article.Content) {
-			log.WithField("article", article.Id).Error("Article content is not valid UTF-8, skipping")
-			result.Errors = append(result.Errors, fmt.Sprintf("%s: invalid UTF-8 content", item.Title))
 			if trace.Enabled() {
 				trace.Content(article.Id, article.Link, "invalid-utf8", article.Content)
 			}
-			continue
+			article.Content = strings.ToValidUTF8(article.Content, "")
+			log.WithField("article", article.Id).Warn("Article content had invalid UTF-8; stripped invalid bytes")
+			result.Warnings = append(result.Warnings, fmt.Sprintf("%s: content had invalid UTF-8, stripped invalid bytes", item.Title))
 		}
 
 		if err := m.store.StoreArticle(article); err != nil {

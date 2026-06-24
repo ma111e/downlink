@@ -24,6 +24,7 @@ type FeedRefreshInput struct {
 	Skipped      int
 	FetchError   string
 	Errors       []string // item-level errors; joined with "\n" into ErrorLog
+	Warnings     []string // non-fatal notices; joined with "\n" into WarningLog
 	RawBody      []byte   // raw fetched feed body; gzip-compressed before storage
 	RawStatus    int
 	RawType      string
@@ -40,15 +41,17 @@ type FeedRefreshRunSummary struct {
 	TotalStored  int
 	TotalFetched int
 	ErrorCount   int
+	WarningCount int
 }
 
-// FeedRefreshResultView is a decompressed per-feed result for display; Errors is
-// the item-level error log split back into lines and RawBody is the raw fetched
-// feed body as plain text.
+// FeedRefreshResultView is a decompressed per-feed result for display; Errors
+// and Warnings are the item-level logs split back into lines and RawBody is the
+// raw fetched feed body as plain text.
 type FeedRefreshResultView struct {
 	models.FeedRefreshResult
-	Errors  []string
-	RawBody string
+	Errors   []string
+	Warnings []string
+	RawBody  string
 }
 
 // StartFeedRefreshRun inserts a new refresh-run row at the start of a cycle.
@@ -71,8 +74,10 @@ func (s *GormStore) RecordFeedRefresh(in FeedRefreshInput) error {
 		Stored:       in.Stored,
 		Skipped:      in.Skipped,
 		ErrorCount:   len(in.Errors),
+		WarningCount: len(in.Warnings),
 		FetchError:   in.FetchError,
 		ErrorLog:     gzipString(strings.Join(in.Errors, "\n")),
+		WarningLog:   gzipString(strings.Join(in.Warnings, "\n")),
 		RawBody:      gzipString(string(in.RawBody)),
 		RawStatus:    in.RawStatus,
 		RawType:      in.RawType,
@@ -98,7 +103,8 @@ func (s *GormStore) ListFeedRefreshRunSummaries(limit int) ([]FeedRefreshRunSumm
 			"COALESCE(SUM(CASE WHEN feed_refresh_results.success THEN 0 ELSE 1 END), 0) AS fail_count, " +
 			"COALESCE(SUM(feed_refresh_results.stored), 0) AS total_stored, " +
 			"COALESCE(SUM(feed_refresh_results.total_fetched), 0) AS total_fetched, " +
-			"COALESCE(SUM(feed_refresh_results.error_count), 0) AS error_count").
+			"COALESCE(SUM(feed_refresh_results.error_count), 0) AS error_count, " +
+			"COALESCE(SUM(feed_refresh_results.warning_count), 0) AS warning_count").
 		Joins("LEFT JOIN feed_refresh_results ON feed_refresh_results.run_id = feed_refresh_runs.id").
 		Group("feed_refresh_runs.id").
 		Order("feed_refresh_runs.started_at DESC")
@@ -140,11 +146,19 @@ func (s *GormStore) ListFeedRefreshResultsForRun(runID string) ([]FeedRefreshRes
 		if log != "" {
 			lines = strings.Split(log, "\n")
 		}
+		warnLog, err := gunzipBytes(r.WarningLog)
+		if err != nil {
+			return nil, fmt.Errorf("decompress warning log for result %s: %w", r.Id, err)
+		}
+		var warnLines []string
+		if warnLog != "" {
+			warnLines = strings.Split(warnLog, "\n")
+		}
 		body, err := gunzipBytes(r.RawBody)
 		if err != nil {
 			return nil, fmt.Errorf("decompress raw body for result %s: %w", r.Id, err)
 		}
-		views = append(views, FeedRefreshResultView{FeedRefreshResult: r, Errors: lines, RawBody: body})
+		views = append(views, FeedRefreshResultView{FeedRefreshResult: r, Errors: lines, Warnings: warnLines, RawBody: body})
 	}
 	return views, nil
 }

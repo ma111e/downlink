@@ -281,3 +281,19 @@ func findEnabledProviderByName(name string) (models.ProviderConfig, error) {
 	}
 	return models.ProviderConfig{}, fmt.Errorf("configured analysis provider %q not found or not enabled", name)
 }
+
+// resolveStepProvider resolves the effective provider/model for a named pipeline step,
+// applying any step-specific override on top of the defaults.
+func resolveStepProvider(step, defaultProvider, defaultModel string, overrides map[string]models.StepProviderOverride) (provider, model string) {
+	if override, ok := overrides[step]; ok {
+		p, m := defaultProvider, defaultModel
+		if override.Provider != "" {
+			p = override.Provider
+		}
+		if override.Model != "" {
+			m = override.Model
+		}
+		return p, m
+	}
+	return defaultProvider, defaultModel
+}

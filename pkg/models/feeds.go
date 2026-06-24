@@ -114,6 +114,7 @@ type FetchResult struct {
 	Stored           int
 	Skipped          int
 	Errors           []string
+	Warnings         []string // non-fatal notices (e.g. content sanitized); the article was still stored
 	StoredArticleIDs []string // IDs of articles successfully stored in this fetch
 
 	// Raw feed response captured for the refresh monitor, so the exact bytes a
@@ -131,6 +132,19 @@ type SelectorCandidate struct {
 	Chars       int     `json:"chars"`
 	LinkDensity float64 `json:"link_density"`
 	Snippet     string  `json:"snippet"`
+}
+
+// LinkListCandidate is a ranked guess at the repeating post-link structure on an
+// HTML index page: a links_selector scoping the post anchors, plus the relative
+// date_selector and url_filter inferred from the repeating block. Mirrors
+// scrapers.LinkListCandidate.
+type LinkListCandidate struct {
+	LinksSelector string   `json:"links_selector"`
+	Count         int      `json:"count"`                   // anchors the selector matched
+	SampleHrefs   []string `json:"sample_hrefs"`            // a few resolved post URLs
+	DateSelector  string   `json:"date_selector,omitempty"` // relative selector for the block's date
+	DateSample    string   `json:"date_sample,omitempty"`   // raw text/attr of one matched date
+	URLFilter     string   `json:"url_filter,omitempty"`    // shared path segment of the post URLs
 }
 
 // ArticleInspection is the result of scraping a single article URL in a given

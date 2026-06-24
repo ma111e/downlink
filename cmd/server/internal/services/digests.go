@@ -303,7 +303,8 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		groupingResult = &duplicateGroupingResult{}
 	} else {
 		sendProgress(stream, "dedupe", "identifying duplicate articles...", 0, 0)
-		groupingResult, rawResponse, err = s.identifyDuplicates(ctx, analyses, articleMap, effProvider, effModel, ded)
+		dedupeProvider, dedupeModel := resolveStepProvider("dedupe", effProvider, effModel, ded.StepProviders)
+		groupingResult, rawResponse, err = s.identifyDuplicates(ctx, analyses, articleMap, dedupeProvider, dedupeModel, ded)
 		if err != nil {
 			_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: fmt.Sprintf("failed to identify duplicates: %v", err)})
 			return fmt.Errorf("failed to identify duplicates: %w", err)
@@ -316,7 +317,8 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	var summaryProviderType, summaryModelName string
 	withSummary := ded.ExecutiveSummary
 	sendProgress(stream, "summarize", "generating digest title...", 0, 0)
-	digestTitle, digestSummary, summaryProviderType, summaryModelName, err = s.generateDigestSummary(ctx, analyses, articleMap, windowStart, windowEnd, effProvider, effModel, withSummary, ded)
+	summaryProvider, summaryModel := resolveStepProvider("digest_summary", effProvider, effModel, ded.StepProviders)
+	digestTitle, digestSummary, summaryProviderType, summaryModelName, err = s.generateDigestSummary(ctx, analyses, articleMap, windowStart, windowEnd, summaryProvider, summaryModel, withSummary, ded)
 	if err != nil {
 		log.WithError(err).Warn("Failed to generate digest title/summary, continuing without it")
 	} else {
@@ -398,7 +400,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	glossaryEntries := 0
 	if ded.Glossary {
 		sendProgress(stream, "glossary", "building glossary...", 0, 0)
-		n, err := s.populateGlossary(ctx, digest.Id, analyses, articleMap, effProvider, effModel)
+		n, err := s.populateGlossary(ctx, digest.Id, analyses, articleMap, effProvider, effModel, ded)
 		if err != nil {
 			log.WithError(err).WithField("digestId", digest.Id).Warn("Failed to populate glossary")
 		}
@@ -1200,7 +1202,7 @@ func (s *DigestServer) generateDigestSummary(ctx context.Context, analyses []mod
 // any LLM call; only genuinely new terms are defined, in a single batched call. Definitions
 // are therefore generated exactly once per term — never re-generated and discarded. Manual
 // overrides are never overwritten.
-func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, provider, model string) (int, error) {
+func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, provider, model string, ded EffectiveEditorial) (int, error) {
 	stepCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
@@ -1285,7 +1287,8 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 	}
 
 	if len(undefined) > 0 {
-		defs, err := s.defineEntities(stepCtx, undefined, provider, model)
+		entitiesProvider, entitiesModel := resolveStepProvider("glossary_entities", provider, model, ded.StepProviders)
+		defs, err := s.defineEntities(stepCtx, undefined, entitiesProvider, entitiesModel)
 		if err != nil {
 			log.WithError(err).Warn("Failed to generate glossary definitions")
 		}
@@ -1339,7 +1342,7 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 	// Backfill per-article "in this article" context for matched entity terms (which bypass
 	// the extraction task), even when their global definition is cached. Warn-only — never
 	// fails digest generation.
-	s.populateArticleContexts(stepCtx, analyses, articleMap, entityMeta, provider, model)
+	s.populateArticleContexts(stepCtx, analyses, articleMap, entityMeta, provider, model, ded)
 
 	log.WithFields(log.Fields{"digestId": digestId, "entries": len(rows)}).Info("Glossary populated")
 	return len(rows), nil
@@ -1351,7 +1354,7 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 // the per-article extraction task, so without this they show only a global definition. One
 // batched LLM call per article (bounded by the gateway's concurrency cap); all failures are
 // logged and swallowed so digest generation is never affected.
-func (s *DigestServer) populateArticleContexts(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, entityMeta map[string]glossaryTermCtx, provider, model string) {
+func (s *DigestServer) populateArticleContexts(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, entityMeta map[string]glossaryTermCtx, provider, model string, ded EffectiveEditorial) {
 	if len(entityMeta) == 0 {
 		return
 	}
@@ -1408,7 +1411,8 @@ func (s *DigestServer) populateArticleContexts(ctx context.Context, analyses []m
 	for _, j := range jobs {
 		j := j
 		g.Go(func() error {
-			m, err := s.articleTermContexts(gctx, j.content, j.terms, provider, model)
+			contextProvider, contextModel := resolveStepProvider("glossary_context", provider, model, ded.StepProviders)
+			m, err := s.articleTermContexts(gctx, j.content, j.terms, contextProvider, contextModel)
 			if err != nil {
 				log.WithError(err).Warn("Failed to generate article term contexts")
 				return nil
