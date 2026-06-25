@@ -240,7 +240,9 @@ type OverviewSection struct {
 
 // digestTemplateData is the root data passed to the HTML template
 type digestTemplateData struct {
-	StartedAt           string
+	WindowStart         string // digest window start, human style (e.g. "26 Jun 2026 14:00 UTC")
+	WindowEnd           string // digest window end, human style
+	WindowRange         string // compact "start → end" range for the nav
 	ArticleCount        int
 	ModelName           string
 	TimeWindow          string
@@ -483,7 +485,7 @@ func RenderDigestHTML(digest models.Digest, layout, theme string) ([]byte, error
 			Title:               articleTitle(art.Title),
 			Source:              articleSource(art.Link),
 			Link:                art.Link,
-			PublishedAt:         art.PublishedAt.Format("2006-01-02 15:04"),
+			PublishedAt:         formatTimestamp(art.PublishedAt),
 			Category:            category,
 			Tags:                tags,
 			ImportanceScore:     importanceScore,
@@ -608,10 +610,15 @@ func RenderDigestHTML(digest models.Digest, layout, theme string) ([]byte, error
 		}
 	}
 
+	// CreatedAt is the article-selection window start (see GenerateDigest); the
+	// window ends one TimeWindow later. Present both ends explicitly so the page
+	// matches the archive index's period_start/period_end (see ManifestEntryFromDigest).
+	windowStart := digest.CreatedAt
+	windowEnd := digest.CreatedAt.Add(digest.TimeWindow)
 	data := digestTemplateData{
-		// CreatedAt is the article-selection window start; show it directly so the
-		// digest page matches the archive index's period_start (see ManifestEntryFromDigest).
-		StartedAt:           digest.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
+		WindowStart:         formatTimestamp(windowStart),
+		WindowEnd:           formatTimestamp(windowEnd),
+		WindowRange:         formatWindowRange(windowStart, windowEnd),
 		ArticleCount:        articleCount,
 		ModelName:           digestModelName,
 		TimeWindow:          formatDuration(digest.TimeWindow),
