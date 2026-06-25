@@ -176,7 +176,6 @@ func createModelCommands() *cobra.Command {
 
 	// Save LLM providers command
 	var providerType, modelName, apiKey, baseURLFlag string
-	var temperature float64
 	var enabled bool
 	var updateAllProviders bool
 	var inputFile string
@@ -228,7 +227,6 @@ func createModelCommands() *cobra.Command {
 						if p.ProviderType == np.ProviderType {
 							providers[i].ModelName = np.ModelName
 							providers[i].Enabled = np.Enabled
-							providers[i].Temperature = np.Temperature
 							updated = true
 							break
 						}
@@ -246,9 +244,6 @@ func createModelCommands() *cobra.Command {
 						providers[i].ModelName = modelName
 					}
 					providers[i].Enabled = enabled
-					if temperature != 0 {
-						providers[i].Temperature = &temperature
-					}
 				}
 			} else if providerType != "" {
 				// Update specific provider
@@ -265,11 +260,6 @@ func createModelCommands() *cobra.Command {
 						// Update enabled status
 						providers[i].Enabled = enabled
 
-						// Update temperature if provided
-						if temperature != 0 {
-							providers[i].Temperature = &temperature
-						}
-
 						// Update base URL if provided
 						if baseURLFlag != "" {
 							providers[i].BaseURL = baseURLFlag
@@ -285,7 +275,6 @@ func createModelCommands() *cobra.Command {
 						ProviderType: providerType,
 						ModelName:    modelName,
 						Enabled:      enabled,
-						Temperature:  &temperature,
 						BaseURL:      baseURLFlag,
 					}
 					providers = append(providers, newProvider)
@@ -347,9 +336,6 @@ func createModelCommands() *cobra.Command {
 				fmt.Println("Updated LLM Providers:")
 				for i, provider := range providers {
 					fmt.Printf("%d. %s/(%s) - Enabled: %v\n", i+1, provider.ProviderType, provider.ModelName, provider.Enabled)
-					if provider.Temperature != nil {
-						fmt.Printf("   Temperature: %.2f\n", *provider.Temperature)
-					}
 				}
 			}
 		},
@@ -359,7 +345,6 @@ func createModelCommands() *cobra.Command {
 	saveProvidersCmd.Flags().StringVarP(&modelName, "model", "m", "", "Model name to use")
 	saveProvidersCmd.Flags().StringVarP(&apiKey, "api-key", "k", "", "API key for the provider")
 	saveProvidersCmd.Flags().StringVarP(&baseURLFlag, "url", "u", "", "Base URL for the provider endpoint")
-	saveProvidersCmd.Flags().Float64VarP(&temperature, "temperature", "t", 0, "Temperature setting (0.0-1.0)")
 	saveProvidersCmd.Flags().BoolVarP(&enabled, "enabled", "e", true, "Enable or disable the provider")
 	saveProvidersCmd.Flags().BoolVarP(&updateAllProviders, "all", "a", false, "Update all providers with the same settings")
 	saveProvidersCmd.Flags().StringVarP(&inputFile, "file", "f", "", "JSON file containing provider configurations")

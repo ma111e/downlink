@@ -60,7 +60,6 @@ Each entry configures one LLM backend.
 | `enabled` | bool | `false` | Whether the entry is usable. |
 | `base_url` | string | / | Endpoint URL. Required for `llamacpp` and OpenAI-compatible endpoints; optional for `anthropic`/`openai` (provider default used when empty). |
 | `api_key` | string | / | API key. Not used by `ollama`/`llamacpp` (local) or the OAuth provider types. |
-| `temperature` | float | / | Sampling temperature. |
 | `max_retries` | int | / | Retries on a failed request. |
 | `timeout_minutes` | int | `20` | Per-request timeout. |
 | `credentials` | array | / | OAuth credential pool for `openai-codex`/`claude-code`; populated by `dlk model creds login`, not edited by hand. |

@@ -238,11 +238,6 @@ func ProviderConfigToProto(config *models.ProviderConfig) *protos.ProviderConfig
 	}
 
 	// Handle pointer fields that might be nil
-	if config.Temperature != nil {
-		temp := float32(*config.Temperature)
-		protoConfig.Temperature = &temp
-	}
-
 	if config.MaxRetries != nil {
 		retries := int32(*config.MaxRetries)
 		protoConfig.MaxRetries = &retries
@@ -299,11 +294,6 @@ func ProviderConfigToModel(config *protos.ProviderConfig) *models.ProviderConfig
 	}
 
 	// Handle pointer fields that might be nil
-	if config.Temperature != nil {
-		temp := float64(*config.Temperature)
-		modelConfig.Temperature = &temp
-	}
-
 	if config.MaxRetries != nil {
 		retries := int(*config.MaxRetries)
 		modelConfig.MaxRetries = &retries

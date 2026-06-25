@@ -71,7 +71,7 @@ Configure LLM providers and pick the active analysis model. See
 | `model` | Interactively select the active provider and model. |
 | `model list` | List configured provider entries. |
 | `model add` | Add a provider entry interactively. |
-| `model update` | Update entries. Flags: `--provider/-p`, `--model/-m`, `--api-key/-k`, `--url/-u`, `--temperature/-t`, `--enabled/-e`, `--all/-a`, `--file/-f`. With no targeting flag, runs interactively. |
+| `model update` | Update entries. Flags: `--provider/-p`, `--model/-m`, `--api-key/-k`, `--url/-u`, `--enabled/-e`, `--all/-a`, `--file/-f`. With no targeting flag, runs interactively. |
 | `model remove` | Remove a provider entry interactively. |
 | `model set-persona` | Edit the analysis persona prompt. |
 | `model creds login [provider-type]` | OAuth device-code login for `openai-codex` / `claude-code`. Pass the provider type to skip the picker. |

@@ -28,7 +28,6 @@ type ProviderConfig struct {
 	ModelName      string            `json:"model_name"`
 	Enabled        bool              `json:"enabled"`
 	BaseURL        string            `json:"base_url,omitempty"`        // Used for Ollama and other local providers
-	Temperature    *float64          `json:"temperature,omitempty"`     // Using pointer type for zero values (GORM best practice)
 	MaxRetries     *int              `json:"max_retries,omitempty"`     // Using pointer type for zero values (GORM best practice)
 	TimeoutMinutes *int              `json:"timeout_minutes,omitempty"` // Using pointer type for zero values (GORM best practice)
 	APIKey         string            `json:"api_key,omitempty"`         // Per-provider API key; overrides the global key when set

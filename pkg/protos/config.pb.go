@@ -823,7 +823,6 @@ type ProviderConfig struct {
 	ModelName      string                  `protobuf:"bytes,2,opt,name=model_name,json=modelName,proto3" json:"model_name,omitempty"`
 	Enabled        bool                    `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	BaseUrl        string                  `protobuf:"bytes,4,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
-	Temperature    *float32                `protobuf:"fixed32,5,opt,name=temperature,proto3,oneof" json:"temperature,omitempty"`
 	MaxRetries     *int32                  `protobuf:"varint,6,opt,name=max_retries,json=maxRetries,proto3,oneof" json:"max_retries,omitempty"`
 	TimeoutMinutes *int32                  `protobuf:"varint,7,opt,name=timeout_minutes,json=timeoutMinutes,proto3,oneof" json:"timeout_minutes,omitempty"`
 	ApiKey         string                  `protobuf:"bytes,8,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
@@ -895,13 +894,6 @@ func (x *ProviderConfig) GetBaseUrl() string {
 		return x.BaseUrl
 	}
 	return ""
-}
-
-func (x *ProviderConfig) GetTemperature() float32 {
-	if x != nil && x.Temperature != nil {
-		return *x.Temperature
-	}
-	return 0
 }
 
 func (x *ProviderConfig) GetMaxRetries() int32 {
@@ -1173,24 +1165,22 @@ const file_config_proto_rawDesc = "" +
 	" \x01(\tR\x0flastErrorReason\x12-\n" +
 	"\x13last_error_reset_at\x18\v \x01(\tR\x10lastErrorResetAt\x12\x1d\n" +
 	"\n" +
-	"expires_at\x18\f \x01(\tR\texpiresAt\"\xa7\x03\n" +
+	"expires_at\x18\f \x01(\tR\texpiresAt\"\x83\x03\n" +
 	"\x0eProviderConfig\x12\x12\n" +
 	"\x04name\x18\t \x01(\tR\x04name\x12#\n" +
 	"\rprovider_type\x18\x01 \x01(\tR\fproviderType\x12\x1d\n" +
 	"\n" +
 	"model_name\x18\x02 \x01(\tR\tmodelName\x12\x18\n" +
 	"\aenabled\x18\x03 \x01(\bR\aenabled\x12\x19\n" +
-	"\bbase_url\x18\x04 \x01(\tR\abaseUrl\x12%\n" +
-	"\vtemperature\x18\x05 \x01(\x02H\x00R\vtemperature\x88\x01\x01\x12$\n" +
-	"\vmax_retries\x18\x06 \x01(\x05H\x01R\n" +
+	"\bbase_url\x18\x04 \x01(\tR\abaseUrl\x12$\n" +
+	"\vmax_retries\x18\x06 \x01(\x05H\x00R\n" +
 	"maxRetries\x88\x01\x01\x12,\n" +
-	"\x0ftimeout_minutes\x18\a \x01(\x05H\x02R\x0etimeoutMinutes\x88\x01\x01\x12\x17\n" +
+	"\x0ftimeout_minutes\x18\a \x01(\x05H\x01R\x0etimeoutMinutes\x88\x01\x01\x12\x17\n" +
 	"\aapi_key\x18\b \x01(\tR\x06apiKey\x12@\n" +
 	"\vcredentials\x18\n" +
 	" \x03(\v2\x1e.downlink.CodexCredentialProtoR\vcredentialsB\x0e\n" +
-	"\f_temperatureB\x0e\n" +
 	"\f_max_retriesB\x12\n" +
-	"\x10_timeout_minutes\"\x9b\x03\n" +
+	"\x10_timeout_minutesJ\x04\b\x05\x10\x06R\vtemperature\"\x9b\x03\n" +
 	"\x0eAnalysisConfig\x12\x1a\n" +
 	"\bprovider\x18\x04 \x01(\tR\bprovider\x12\x18\n" +
 	"\apersona\x18\x03 \x01(\tR\apersona\x12#\n" +
