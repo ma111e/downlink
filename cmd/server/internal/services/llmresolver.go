@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultTemperature    = 0.3
+	defaultTemperature    = 0.7
 	defaultMaxRetries     = 3
 	defaultTimeout        = 20 * time.Minute
 	defaultMaxTokensLarge = 200_000
@@ -70,9 +70,6 @@ func ResolveLLM(req LLMRequest) (*ResolvedLLM, error) {
 
 	// 3. Apply defaults: req override → ProviderConfig → package default.
 	temperature := defaultTemperature
-	if providerConfig.Temperature != nil {
-		temperature = *providerConfig.Temperature
-	}
 	if req.Temperature != nil {
 		temperature = *req.Temperature
 	}

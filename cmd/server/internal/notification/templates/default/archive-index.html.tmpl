@@ -862,6 +862,7 @@ html[data-theme="light"] .seg button.on { color: #ffffff; }
     layout: localStorage.getItem(LAYOUT_KEY) || 'log',
     group: localStorage.getItem(GROUP_KEY) || '1d',
     collapsed: new Set(),
+    collapsedGroup: null,
     theme: localStorage.getItem(THEME_KEY) || document.documentElement.dataset.theme || 'dark',
     pinned: loadPins(),
     pinFilter: false
@@ -913,7 +914,7 @@ html[data-theme="light"] .seg button.on { color: #ffffff; }
   els.group.addEventListener('change', function() {
     state.group = els.group.value;
     localStorage.setItem(GROUP_KEY, state.group);
-    state.collapsed = new Set();
+    state.collapsedGroup = null;
     renderResultline();
     renderArchive();
   });
@@ -1117,6 +1118,24 @@ html[data-theme="light"] .seg button.on { color: #ffffff; }
       if (sb == null) return -1;
       return els.sort.value === 'oldest' ? sa - sb : sb - sa;
     });
+    // On first render of a grouping, default-collapse buckets older than 3 days
+    // relative to the newest bucket (robust against a stale published archive).
+    // User toggles afterward persist until the group selector changes.
+    if (state.collapsedGroup !== state.group) {
+      state.collapsed = new Set();
+      var newestStart = order.reduce(function(max, key) {
+        var s = buckets[key].start;
+        return s != null && (max == null || s > max) ? s : max;
+      }, null);
+      if (newestStart != null) {
+        var cutoff = newestStart - 3 * 864e5;
+        order.forEach(function(key) {
+          var s = buckets[key].start;
+          if (s != null && s < cutoff) state.collapsed.add(key);
+        });
+      }
+      state.collapsedGroup = state.group;
+    }
     return order.map(function(key) {
       var b = buckets[key];
       var collapsed = state.collapsed.has(key);
