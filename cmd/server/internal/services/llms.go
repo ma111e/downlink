@@ -878,6 +878,12 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 		defer cancel()
 	}
 
+	// Capture the per-run override before ResolveLLM stamps the resolved concrete
+	// provider/model back onto req below; the loop further down must distinguish
+	// "user supplied an override" from "we filled in the resolved default".
+	overrideProvider := req.Provider
+	overrideModel := req.ModelName
+
 	resolved, err := ResolveLLM(LLMRequest{
 		ProviderName: req.ProviderName,
 		ProviderType: req.ProviderType,
@@ -909,9 +915,16 @@ func (s *LLMsServer) runAnalysisPipeline(ctx context.Context, req *protos.Analyz
 	succeededTasks := 0
 
 	// Get the effective provider/model for article analysis tasks (used as defaults).
-	// These come from the editorial config (profile or global default).
+	// These come from the editorial config (profile or global default). A per-run
+	// --provider/--model override (carried on the request) wins over that default
+	// for every analysis task, matching the precedence used by
+	// resolveRunProviderModel for the rest of the pipeline.
 	defaultProvider := ed.Provider
 	defaultModel := ed.Model
+	if overrideProvider != "" || overrideModel != "" {
+		defaultProvider = overrideProvider
+		defaultModel = overrideModel
+	}
 
 	// Track the current provider session so we can detect switches and reset conversation.
 	var conversationHistory []*schema.Message
