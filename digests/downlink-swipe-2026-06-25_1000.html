@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<script>
+// Set the theme before first paint to avoid a flash. A saved choice wins;
+// otherwise the server-rendered data-theme (the configured default) is kept.
+// Shared key across digest/archive/swipe pages.
+(function(){
+  try {
+    var valid = { "dark": 1, "light": 1, "contrast": 1, "mono": 1, "colorblind": 1, "pastel": 1,  };
+    var t = localStorage.getItem('downlink.theme');
+    if (valid[t]) document.documentElement.dataset.theme = t;
+  } catch(e){}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="DOWNLINK · Triage — 4 hours digest">
+<meta property="og:type" content="article">
+<meta property="og:title" content="DCloud Scam Infrastructure, curl CVE-2026-8932, Hoppscotch CVE-2026-50160, and Ukrposhta Cyberattack — DOWNLINK Triage">
+<meta property="og:description" content="Swipe-triage the 4 hours intelligence digest.">
+<title>DOWNLINK · Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b0e;
+    --surface: #111116;
+    --surface2: #15151c;
+    --border: #1c1c25;
+    --border2: #252530;
+    --text: #dddde8;
+    --text2: #a8a8be;
+    --text3: #4a4a60;
+    --cyan: oklch(74% 0.14 196);
+    --must:   oklch(66% 0.15 38);
+    --should: oklch(73% 0.16 60);
+    --may:    oklch(65% 0.13 250);
+    --discard: oklch(62% 0.20 22);
+    --accept:  oklch(70% 0.16 155);
+    --cat-research: oklch(72% 0.19 320);
+    --cat-advisory: oklch(74% 0.18 44);
+    --cat-news:     oklch(72% 0.15 220);
+    --cat-opinion:  oklch(70% 0.17 350);
+    --cat-guide:    oklch(76% 0.15 130);
+    --cat-commercial:   oklch(80% 0.15 85);
+    --cat-sponsored:    oklch(72% 0.16 300);
+    --cat-announcement: oklch(75% 0.14 160);
+    --dot: #ffffff08;
+  }
+  /* Light theme: palette anchored on #EFEEEA / #FE7743 / #273F4F. */
+  html[data-theme="light"] {
+    --bg: #efeeea;
+    --surface: #fafaf8;
+    --surface2: #e8e7e2;
+    --border: #d3d2cc;
+    --border2: #b8b7b0;
+    --text: #0d0c0a;
+    --text2: #273f4f;
+    --text3: #5c6e78;
+    /* Homogeneous accents: uniform OKLCH L 66% / C 0.18, hue only varies. */
+    --cyan:    oklch(66% 0.18 45);   /* brand orange */
+    --must:    oklch(66% 0.18 25);
+    --should:  oklch(66% 0.18 67);
+    --may:     oklch(66% 0.18 250);
+    --discard: oklch(66% 0.18 25);
+    --accept:  oklch(66% 0.18 150);
+    --cat-research:     oklch(66% 0.18 328);
+    --cat-advisory:     oklch(66% 0.18 40);
+    --cat-news:         oklch(66% 0.18 236);
+    --cat-opinion:      oklch(66% 0.18 358);
+    --cat-guide:        oklch(66% 0.18 150);
+    --cat-commercial:   oklch(66% 0.18 78);
+    --cat-sponsored:    oklch(66% 0.18 300);
+    --cat-announcement: oklch(66% 0.18 168);
+    --dot: rgba(0,0,0,.035);
+  }
+  /* Contrast theme: pure black, max-legibility whites, vivid accents. */
+  html[data-theme="contrast"] {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface2: #111111;
+    --border: #2a2a2a;
+    --border2: #3a3a3a;
+    --text: #ffffff;
+    --text2: #c7c7c7;
+    --text3: #888888;
+    --cyan: #00ffd1;
+    --must:   #ff5050;
+    --should: #ffd24a;
+    --may:    #00ffd1;
+    --discard: #ff5050;
+    --accept:  #00ff95;
+    --cat-research:     #00ffd1;
+    --cat-advisory:     #ff8a3a;
+    --cat-news:         #4ab8ff;
+    --cat-opinion:      #ff6ec7;
+    --cat-guide:        #5dff8f;
+    --cat-commercial:   #ffd24a;
+    --cat-sponsored:    #c08cff;
+    --cat-announcement: #3affc0;
+    --dot: rgba(255,255,255,.08);
+  }
+  /* Mono theme: grayscale, no chroma. */
+  html[data-theme="mono"] {
+    --bg: #0c0c0c;
+    --surface: #131313;
+    --surface2: #181818;
+    --border: #242424;
+    --border2: #333333;
+    --text: #e6e6e6;
+    --text2: #9a9a9a;
+    --text3: #5e5e5e;
+    --cyan: #e6e6e6;
+    --must:   #f0f0f0;
+    --should: #c8c8c8;
+    --may:    #9a9a9a;
+    --discard: #cfcfcf;
+    --accept:  #cfcfcf;
+    --cat-research:     #e6e6e6;
+    --cat-advisory:     #cfcfcf;
+    --cat-news:         #bdbdbd;
+    --cat-opinion:      #d6d6d6;
+    --cat-guide:        #c8c8c8;
+    --cat-commercial:   #b0b0b0;
+    --cat-sponsored:    #a8a8a8;
+    --cat-announcement: #bcbcbc;
+    --dot: rgba(255,255,255,.04);
+  }
+  /* Colorblind theme: light base, colorblind-safe Okabe-Ito accents. Crucially
+     discard/accept become vermillion/blue so the triage actions are no longer a
+     red/green pair (the worst case for protan/deutan vision). */
+  html[data-theme="colorblind"] {
+    --bg: #efeeea;
+    --surface: #fafaf8;
+    --surface2: #e8e7e2;
+    --border: #d3d2cc;
+    --border2: #b8b7b0;
+    --text: #0d0c0a;
+    --text2: #273f4f;
+    --text3: #5c6e78;
+    --cyan:    #0072b2;  /* Okabe blue */
+    --must:    #c44601;  /* vermillion */
+    --should:  #8a6d00;  /* dark gold */
+    --may:     #2f79a5;  /* teal-blue */
+    --discard: #c44601;  /* vermillion (was red) */
+    --accept:  #0072b2;  /* blue (was green) */
+    --cat-research:     #197d1e;  /* green */
+    --cat-advisory:     #be4401;  /* vermillion */
+    --cat-news:         #0071b0;  /* blue */
+    --cat-opinion:      #c42787;  /* reddish-purple */
+    --cat-guide:        #0d7b4a;  /* bluish-green */
+    --cat-commercial:   #856900;  /* gold */
+    --cat-sponsored:    #8f4acc;  /* purple */
+    --cat-announcement: #007a6d;  /* teal */
+    --dot: rgba(0,0,0,.035);
+  }
+  /* Pastel theme: soft cream base (#FAF6E6), deepened mint/coral accents, deep plum text. */
+  html[data-theme="pastel"] {
+    --bg: #faf6e6;
+    --surface: #fffdf4;
+    --surface2: #f1ead2;
+    --border: #e6dcbf;
+    --border2: #d2c5a2;
+    --text: #3a3137;
+    --text2: #6c5560;
+    --text3: #9c8a86;
+    --cyan:    #1f9d8f;  /* mint-teal primary */
+    --must:    #d9534f;  /* coral-red */
+    --should:  #e08a2e;  /* peach-amber */
+    --may:     #4a90d9;  /* soft blue */
+    --discard: #d9534f;  /* coral-red */
+    --accept:  #2f9e63;  /* green */
+    --cat-research: #a05fc0;  /* purple */
+    --cat-advisory: #e0655c;  /* coral */
+    --cat-news:     #3f8fd0;  /* blue */
+    --cat-opinion:  #de6b94;  /* rose-pink */
+    --cat-guide:    #2faa8e;  /* mint-green */
+    --cat-commercial:   #d99a2b;  /* gold */
+    --cat-sponsored:    #8c6dd0;  /* violet */
+    --cat-announcement: #2ba88f;  /* teal-green */
+    --dot: rgba(0,0,0,.03);
+  }
+  /* Per-theme source-color palette (--p0..--pN), generated server-side. */
+  :root{--p0:#f87171;--p1:#fb923c;--p2:#4ade80;--p3:#2dd4bf;--p4:#60a5fa;--p5:#c084fc;--p6:#f472b6;--p7:#a78bfa;--p8:#34d399;--p9:#38bdf8;--p10:#e879f9;}html[data-theme="light"]{--p0:#ef4444;--p1:#f97316;--p2:#22c55e;--p3:#14b8a6;--p4:#3b82f6;--p5:#a855f7;--p6:#ec4899;--p7:#8b5cf6;--p8:#10b981;--p9:#0ea5e9;--p10:#d946ef;}html[data-theme="colorblind"]{--p0:#0071b0;--p1:#be4401;--p2:#0d7b4a;--p3:#8f4acc;--p4:#856900;--p5:#1972a7;--p6:#c42787;--p7:#007a6d;--p8:#1a72a1;--p9:#aa5400;--p10:#517082;}html[data-theme="mono"]{--p0:#7a7a7a;--p1:#868686;--p2:#929292;--p3:#9e9e9e;--p4:#aaaaaa;--p5:#b6b6b6;--p6:#c2c2c2;--p7:#cecece;--p8:#dadada;--p9:#e6e6e6;--p10:#f0f0f0;}html[data-theme="pastel"]{--p0:#e0655c;--p1:#e08a2e;--p2:#2f9e63;--p3:#1f9d8f;--p4:#4a90d9;--p5:#8c6dd0;--p6:#de6b94;--p7:#a05fc0;--p8:#2faa8e;--p9:#3f8fd0;--p10:#c267c0;}
+  html {
+    background: var(--bg);
+    background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  body { min-height: 100vh; min-height: 100dvh; overflow-x: hidden; }
+  /* dvh keeps the bottom action buttons reachable under mobile browser chrome */
+  .swipe-shell { height: 100vh; height: 100dvh; }
+  /* the nav is a fixed-height single row; on phones drop the clock so the
+     logo + count + theme picker never overflow */
+  @media (max-width: 460px) {
+    .swipe-nav { padding-left: 14px !important; padding-right: 14px !important; }
+    .swipe-clock { display: none; }
+  }
+  @media (max-width: 360px) {
+    .swipe-nav { padding-left: 8px !important; padding-right: 8px !important; }
+  }
+  ::selection { background: color-mix(in oklch, var(--cyan) 25%, transparent); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: var(--text3); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .section-label::before { content: "//"; color: var(--text3); opacity: 0.5; font-size: 11px; }
+
+  .card-stack { position: relative; width: 100%; max-width: 520px; flex: 1; min-height: 0; margin: 0 auto; }
+  .swipe-card {
+    position: absolute; inset: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    will-change: transform; user-select: none; -webkit-user-select: none;
+  }
+  .swipe-card.dragging { cursor: grabbing; }
+  .swipe-card.depth-card { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1); }
+
+  .stamp {
+    position: absolute; top: 28px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 26px; letter-spacing: 0.14em;
+    padding: 8px 16px; border: 3px solid; border-radius: 6px;
+    pointer-events: none; text-transform: uppercase; opacity: 0;
+  }
+  .stamp.skip { left: 28px; transform: rotate(-14deg); color: var(--accept); border-color: var(--accept); }
+  .stamp.read { right: 28px; transform: rotate(14deg);  color: var(--cyan);   border-color: var(--cyan); }
+
+  .pill-btn {
+    all: unset; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2); background: var(--surface); color: var(--text);
+    transition: transform 0.12s, background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .pill-btn:hover { transform: scale(1.06); }
+  .pill-btn.skip:hover { border-color: var(--accept);  color: var(--accept); }
+  .pill-btn.read:hover { border-color: var(--cyan);    color: var(--cyan); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: var(--cyan); transition: width 0.3s; }
+
+  .detail-scroll { overflow-y: auto; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+
+  .prose { line-height: 1.8; color: var(--text2); font-size: 13px; text-align: justify; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.3rem; }
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose a { color: var(--cyan); }
+  .prose h1, .prose h2, .prose h3 { color: var(--text); font-weight: 600; margin: 1rem 0 0.4rem; font-size: 0.9rem; }
+  /* Summary variant: matches the TL;DR body (bright, tighter, left-aligned) so the
+     Brief tab reads consistently with the front card. */
+  .prose.summary { color: var(--text); line-height: 1.55; text-align: left; }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-width: 1px 0;
+    overflow-x: auto;
+    margin: 0 -24px;
+  }
+  .tab-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 0.55rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-panel { padding: 1rem 0 0; }
+  .report-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .report-item {
+    position: relative;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+  }
+  .report-item:hover { border-color: color-mix(in oklch, var(--cyan) 40%, var(--border)); }
+  .report-title { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .report-link { flex: 1 1 auto; min-width: 0; color: var(--text); text-decoration: none; }
+  /* Stretch the title link over the whole card so a click anywhere opens the report. */
+  .report-link::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+  .report-item:hover .report-link { color: var(--cyan); }
+  .report-primary {
+    flex-shrink: 0;
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 1px 6px; border-radius: 2px;
+    --c: oklch(72% 0.16 150);
+    color: var(--c);
+    border: 1px solid color-mix(in oklch, var(--c) 45%, transparent);
+    background: color-mix(in oklch, var(--c) 12%, transparent);
+  }
+  .report-cat {
+    flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--c);
+  }
+  .report-cat::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c); flex-shrink: 0; }
+  .report-cat-research { --c: var(--cat-research); }
+  .report-cat-advisory { --c: var(--cat-advisory); }
+  .report-cat-news     { --c: var(--cat-news); }
+  .report-cat-opinion  { --c: var(--cat-opinion); }
+  .report-cat-guide    { --c: var(--cat-guide); }
+  .report-cat-commercial   { --c: var(--cat-commercial); }
+  .report-cat-sponsored    { --c: var(--cat-sponsored); }
+  .report-cat-announcement { --c: var(--cat-announcement); }
+  .report-meta { margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+  .report-context { margin-top: 0.4rem; font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+window.__DL_ARTICLES = [{"n":3,"title":"From San Pedro to Salinas: How a Chinese Framework “DCloud Uni-App” Powers a Global Scam Economy","source":"infoblox.com","sourceColorIdx":2,"link":"https://www.infoblox.com/blog/threat-intelligence/from-san-pedro-to-salinas-how-a-chinese-framework-dcloud-uni-app-powers-a-global-scam-economy/","time":"12:58","priority":"SHOULD READ","score":88,"tldr":"Infoblox researchers found that the legitimate Chinese DCloud Uni-App framework underpins a massive global scam ecosystem, identifying more than 236,000 scam domains used for fake crypto exchanges, pig-butchering, phishing, gambling scams, and wallet drainers. The research suggests many sites are decentralized templates, but shared infrastructure and fingerprints point to centralized operators behind large portions of the activity.","briefOverview":"\u003cp\u003eInfoblox Threat Intel investigated scam websites built with the DCloud Uni-App framework, a legitimate Chinese open-source toolkit for building cross-platform mobile applications. The research connects the framework to at least 236,493 distinct second-level domains identified as scam infrastructure since 2022. These sites include fake crypto exchanges, pig-butchering operations, WhatsApp phishing networks, fake gambling platforms, brand impersonation sites, and crypto wallet drainers.\u003c/p\u003e\n\n\u003cp\u003eThe article says RainbowEx, the fake cryptocurrency platform that affected San Pedro, Argentina, was not a unique fraud but part of a broader template-based ecosystem using DCloud. Similar investment scam patterns appeared in the Lightning Shared Scooter Co. scheme in the United States and the currently active Yuechi Sharing Technology Ltd. operation targeting Australia, New Zealand, and the United States. Victims are ordinary people recruited through social channels, shown fake profits, and then blocked from withdrawing funds.\u003c/p\u003e\n\n\u003cp\u003eInfoblox found that some operators left DCloud’s default fingerprints intact while others removed them, and the more evasive sites used bulletproof hosting at roughly double the rate of the default sites. Most scam domains were hosted on legitimate providers such as Cloudflare, Alibaba Cloud, Tencent Cloud, and AWS, but CTG Server dominated the bulletproof-hosted subset. The article also reports more than five million enterprise DNS queries to visible DCloud-built investment scam infrastructure, suggesting consumer scams can create exposure inside workplaces when employees reach these sites from work networks.\u003c/p\u003e\n","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":["Infoblox Threat Intel identified at least 236,493 distinct second-level domains using DCloud Uni-App as scam infrastructure, including fake crypto exchanges, pig-butchering operations, WhatsApp phishing, fake gambling platforms, brand impersonation sites, and crypto wallet drainers.","The RainbowEx scam that affected San Pedro, Argentina was built using DCloud Uni-App and was part of a larger template-based ecosystem rather than a bespoke fraud operation.","Infoblox found that some DCloud investment scam sites attempted to remove DCloud fingerprints, and these evasive sites were hosted on bulletproof hosting providers at roughly double the rate of vanilla sites.","The Lightning Shared Scooter Co. scam in the United States used DCloud-based websites and apps and caused reported losses including more than $370,700 among more than five dozen victims in Salinas, California alone.","Yuechi Sharing Technology Ltd. is described as a currently live DCloud-built investment scam that displays genuine Hong Kong incorporation paperwork and a real FinCEN money-services business registration as legitimacy props."],"insights":["Government paperwork can be used as part of the deception: Yuechi displayed a real Hong Kong incorporation record and a real FinCEN MSB registration even though the article states these registrations do not validate the operation.","The harder-to-detect DCloud scam sites are also more likely to use bulletproof hosting, with evasive sites showing roughly double the bulletproof-hosting share of sites that leave default framework fingerprints intact.","Enterprise exposure appears to come mostly from ordinary employees encountering consumer scams, because no single DCloud-built investment scam domain received more than about 20,000 enterprise queries from any one customer and activity was spread across many low-volume contacts.","The article says coordinated drops in active DCloud scam domains during 2025 and 2026 did not match detection changes, suggesting that tracking shared templates and infrastructure can reveal disruptions affecting large parts of the scam ecosystem.","CTG Server stood out within the bulletproof-hosted portion of the dataset, hosting 19 of the top 20 bulletproof-hosted DCloud scam domains ranked by Infoblox customer visibility."],"referencedReports":[{"title":"Alert on Fraud Schemes Abusing FinCEN’s Name, Insignia, and Authorities for Financial Gain","url":"https://www.fincen.gov/sites/default/files/2024-12/Alert-FinCEN-Scams-FINAL508.pdf","publisher":"FinCEN","context":"The article cites FinCEN’s December 2024 alert as evidence that the agency is aware fraud schemes abuse its name, insignia, and authorities for financial gain.","category":"advisory","primary":false},{"title":"How I Got Approached by Yuechi Sharing Technology Ltd (YST) and Uncovered a Likely Ponzi Operation","url":"https://www.dehek.com/general/how-i-got-approached-by-yuechi-sharing-technology-ltd-ys-and-uncovered-a-likely-ponzi-operation/","publisher":"Danny De Hek","context":"The article references independent investigator Danny De Hek’s report documenting how he was approached by Yuechi Sharing Technology Ltd. recruiters and details of the scam lure and process.","category":"research","primary":false}],"body":"\u003cp\u003eInfoblox Threat Intel investigated scam websites built with the DCloud Uni-App framework, a legitimate Chinese open-source toolkit for building cross-platform mobile applications. The research connects the framework to at least 236,493 distinct second-level domains identified as scam infrastructure since 2022. These sites include fake crypto exchanges, pig-butchering operations, WhatsApp phishing networks, fake gambling platforms, brand impersonation sites, and crypto wallet drainers.\u003c/p\u003e\n\n\u003cp\u003eThe article says RainbowEx, the fake cryptocurrency platform that affected San Pedro, Argentina, was not a unique fraud but part of a broader template-based ecosystem using DCloud. Similar investment scam patterns appeared in the Lightning Shared Scooter Co. scheme in the United States and the currently active Yuechi Sharing Technology Ltd. operation targeting Australia, New Zealand, and the United States. Victims are ordinary people recruited through social channels, shown fake profits, and then blocked from withdrawing funds.\u003c/p\u003e\n\n\u003cp\u003eInfoblox found that some operators left DCloud’s default fingerprints intact while others removed them, and the more evasive sites used bulletproof hosting at roughly double the rate of the default sites. Most scam domains were hosted on legitimate providers such as Cloudflare, Alibaba Cloud, Tencent Cloud, and AWS, but CTG Server dominated the bulletproof-hosted subset. The article also reports more than five million enterprise DNS queries to visible DCloud-built investment scam infrastructure, suggesting consumer scams can create exposure inside workplaces when employees reach these sites from work networks.\u003c/p\u003e\n"},{"n":4,"title":"Russia used Cellebrite phone-hacking tool to crack down on dissident after firm cut off country","source":"therecord.media","sourceColorIdx":7,"link":"https://therecord.media/russia-used-cellebrite-tool-after-company-pulled-out-of-country","time":"12:15","priority":"SHOULD READ","score":82,"tldr":"Citizen Lab says Russian authorities used Cellebrite’s UFED phone-extraction tool to break into dissident Andrey Pivovarov’s iPhone in 2021, months after Cellebrite said it had cut off Russia over human rights concerns. The case suggests legacy Cellebrite systems may continue working offline after a customer is supposedly restricted, raising concerns about abuse by authoritarian governments.","briefOverview":"\u003cp\u003eRussian authorities used Cellebrite phone data extraction technology to access dissident Andrey Pivovarov’s iPhone after Cellebrite said in March 2021 that it would stop working with Russia over human rights concerns. Citizen Lab said it determined with high confidence that Pivovarov’s phone was broken into on or around June 17, 2021, while it was in Russian custody. Pivovarov was detained in May 2021, his devices were seized, and he was not asked for consent or provided passwords.\u003c/p\u003e\n\n\u003cp\u003eCitizen Lab said forensic analysis of MobileLockdown records from the phone showed USB connections to a device with a Host ID previously attributed to Cellebrite. Court records reviewed by Citizen Lab showed that documents pulled from Pivovarov’s phone were used to build a case against him on charges of carrying out the activities of an “undesirable” organization. The court documents also showed that Cellebrite’s UFED was used to search for specific political terms after the phone was cracked, while Russian authorities did not break into his MacBook.\u003c/p\u003e\n\n\u003cp\u003eCellebrite’s chief marketing officer said any use of legacy Cellebrite hardware in Russia after March 2021 was unauthorized and that Russia remains permanently on the company’s restricted-customer list. Citizen Lab said Cellebrite systems have historically included an offline mode and that much UFED functionality can continue after updates stop, making it difficult for the company to meaningfully cut off problematic customers. Citizen Lab and Access Now urged Cellebrite to stop selling to regimes that have abused its technology and to conduct human rights due diligence before and after sales.\u003c/p\u003e\n","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":["Citizen Lab reported that Russian authorities used Cellebrite’s UFED phone data extraction technology on dissident Andrey Pivovarov’s iPhone about three months after Cellebrite said it would stop working with Russia over human rights concerns.","Citizen Lab said forensic analysis of MobileLockdown records showed USB connections to a device with a Host ID it had previously attributed to Cellebrite while Pivovarov’s phone was in Russian custody.","Court records reviewed by Citizen Lab showed that documents pulled from Pivovarov’s phone were used to build a case against him for carrying out activities of an “undesirable” organization.","Cellebrite’s chief marketing officer said any use of legacy Cellebrite hardware in Russia after March 2021 was unauthorized and that Russia remains permanently on the company’s restricted-customer list.","Citizen Lab and Access Now urged Cellebrite to stop selling to regimes that have abused its technology and to conduct human rights due diligence before and after sales."],"insights":["Cellebrite’s historical support for offline operation and continued UFED functionality after updates stop can undermine a vendor’s ability to enforce human rights restrictions once hardware has already been sold.","The case shows that phone extraction tools can contribute directly to political prosecutions, because court records cited by Citizen Lab showed data from Pivovarov’s phone was used in the case against him.","Citizen Lab’s proposed mitigations are concrete vendor controls, including remotely disabling technology after credible abuse reports and adding cryptographically signed watermarks to all imaged devices.","The report highlights that Cellebrite’s exposure is not limited to Russia, as Citizen Lab has also documented recent use of its technology against civil society phones in Serbia, Jordan, and Kenya."],"referencedReports":[{"title":"Russia Breaks Into Human Rights Activist’s Phone With Cellebrite","url":"https://citizenlab.ca/research/russia-breaks-into-human-rights-activists-phone-with-cellebrite/","publisher":"Citizen Lab","context":"The article cites a Citizen Lab report as the basis for findings that Russian authorities broke into Andrey Pivovarov’s phone using Cellebrite technology after the company said it had cut off Russia.","category":"research","primary":true}],"body":"\u003cp\u003eRussian authorities used Cellebrite phone data extraction technology to access dissident Andrey Pivovarov’s iPhone after Cellebrite said in March 2021 that it would stop working with Russia over human rights concerns. Citizen Lab said it determined with high confidence that Pivovarov’s phone was broken into on or around June 17, 2021, while it was in Russian custody. Pivovarov was detained in May 2021, his devices were seized, and he was not asked for consent or provided passwords.\u003c/p\u003e\n\n\u003cp\u003eCitizen Lab said forensic analysis of MobileLockdown records from the phone showed USB connections to a device with a Host ID previously attributed to Cellebrite. Court records reviewed by Citizen Lab showed that documents pulled from Pivovarov’s phone were used to build a case against him on charges of carrying out the activities of an “undesirable” organization. The court documents also showed that Cellebrite’s UFED was used to search for specific political terms after the phone was cracked, while Russian authorities did not break into his MacBook.\u003c/p\u003e\n\n\u003cp\u003eCellebrite’s chief marketing officer said any use of legacy Cellebrite hardware in Russia after March 2021 was unauthorized and that Russia remains permanently on the company’s restricted-customer list. Citizen Lab said Cellebrite systems have historically included an offline mode and that much UFED functionality can continue after updates stop, making it difficult for the company to meaningfully cut off problematic customers. Citizen Lab and Access Now urged Cellebrite to stop selling to regimes that have abused its technology and to conduct human rights due diligence before and after sales.\u003c/p\u003e\n"},{"n":5,"title":"Ukraine's state postal operator reports app disruption after cyberattack","source":"therecord.media","sourceColorIdx":7,"link":"https://therecord.media/ukraine-state-postal-operator-reports-disruption","time":"12:16","priority":"SHOULD READ","score":78,"tldr":"Ukraine’s state postal operator Ukrposhta said its mobile app is temporarily disrupted after an overnight cyberattack on its IT systems. A pro-Russian hacktivist group claimed it breached Ukrposhta and stole user data, but those claims have not been independently verified.","briefOverview":"\u003cp\u003eUkraine\u0026rsquo;s state-owned postal operator, Ukrposhta, said its mobile application is experiencing temporary disruptions after an overnight “enemy” attack on the company’s IT systems. The organization said its specialists are working to restore the service and return the app to normal use as soon as possible. Ukrposhta did not disclose who was behind the attack or whether any data had been compromised.\u003c/p\u003e\n\n\u003cp\u003eEarlier in the week, a pro-Russian hacktivist group calling itself the IT Army of Russia claimed responsibility for the attack. The group alleged it had breached Ukrposhta\u0026rsquo;s infrastructure several weeks earlier, gained access to one of the company\u0026rsquo;s servers, and exfiltrated a database containing user information and other internal data. Recorded Future News said it could not independently verify the group\u0026rsquo;s claims.\u003c/p\u003e\n\n\u003cp\u003eUkrposhta is Ukraine\u0026rsquo;s national postal operator and one of the country\u0026rsquo;s largest employers, with about 32,000 employees and more than 6,000 post offices nationwide. The article notes that the IT Army of Russia emerged in March 2025 and has claimed responsibility for numerous cyberattacks targeting Ukrainian organizations. Ukrposhta previously reported a 2024 incident involving a partner\u0026rsquo;s IT infrastructure that disrupted payment processing, customer accounts, APIs, and caused temporary parcel delivery delays.\u003c/p\u003e\n","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":["Ukraine's state-owned postal operator Ukrposhta said its mobile application is experiencing temporary disruptions following an overnight attack on the company's IT systems.","Ukrposhta said its specialists are working to restore the mobile app service, but it did not disclose who was behind the attack or whether any data had been compromised.","A pro-Russian hacktivist group called the IT Army of Russia claimed responsibility for the attack and alleged it had accessed a company server and exfiltrated a database containing user information and other internal data.","Recorded Future News said it could not independently verify the IT Army of Russia's claims.","Ukrposhta has about 32,000 employees and more than 6,000 post offices nationwide, and it previously reported a 2024 partner infrastructure incident that disrupted payment processing, customer accounts, APIs, and parcel deliveries."],"insights":["The reported public impact is limited to Ukrposhta’s mobile app, but the claimed compromise involves broader internal infrastructure and user data, creating a gap between confirmed disruption and alleged severity.","The IT Army of Russia’s alleged breach timeline of several weeks before public disruption suggests the group is claiming prior access rather than only a one-time outage event.","Ukrposhta’s 2024 incident shows that disruptions to partner infrastructure can affect core services such as payments, customer accounts, APIs, and parcel deliveries, making third-party dependencies relevant to postal service resilience.","The article links attacks on both Ukrposhta and Nova Poshta to Russia-linked activity, indicating that Ukrainian postal operators have been a recurring target rather than isolated victims.","Security researchers’ description of the IT Army of Russia recruiting insiders and soliciting intelligence points to risks that extend beyond technical attacks into human access and information-gathering around critical infrastructure."],"referencedReports":[],"body":"\u003cp\u003eUkraine\u0026rsquo;s state-owned postal operator, Ukrposhta, said its mobile application is experiencing temporary disruptions after an overnight “enemy” attack on the company’s IT systems. The organization said its specialists are working to restore the service and return the app to normal use as soon as possible. Ukrposhta did not disclose who was behind the attack or whether any data had been compromised.\u003c/p\u003e\n\n\u003cp\u003eEarlier in the week, a pro-Russian hacktivist group calling itself the IT Army of Russia claimed responsibility for the attack. The group alleged it had breached Ukrposhta\u0026rsquo;s infrastructure several weeks earlier, gained access to one of the company\u0026rsquo;s servers, and exfiltrated a database containing user information and other internal data. Recorded Future News said it could not independently verify the group\u0026rsquo;s claims.\u003c/p\u003e\n\n\u003cp\u003eUkrposhta is Ukraine\u0026rsquo;s national postal operator and one of the country\u0026rsquo;s largest employers, with about 32,000 employees and more than 6,000 post offices nationwide. The article notes that the IT Army of Russia emerged in March 2025 and has claimed responsibility for numerous cyberattacks targeting Ukrainian organizations. Ukrposhta previously reported a 2024 incident involving a partner\u0026rsquo;s IT infrastructure that disrupted payment processing, customer accounts, APIs, and caused temporary parcel delivery delays.\u003c/p\u003e\n"},{"n":8,"title":"A Compromised Vendor Account Sent an ACH Redirect With a Fabricated Closure Deadline and Mismatched Phone Numbers","source":"ironscales.com","sourceColorIdx":9,"link":"https://ironscales.com/threat-intelligence/vendor-ach-redirect-compromised-account-fabricated-urgency-mismatched-signatures","time":"11:00","priority":"MAY READ","score":70,"tldr":"A compromised legitimate vendor email account was used to request an urgent ACH banking change, bypassing normal authentication-based defenses because SPF and DMARC passed. The key warning sign was a duplicated signature block with mismatched phone numbers, underscoring the need to verify all payment-change requests through known out-of-band contacts.","briefOverview":"\u003cp\u003eAn attacker operating through a compromised vendor account sent an ACH banking-change request to a construction firm\u0026rsquo;s accounts payable contact. The email claimed the vendor\u0026rsquo;s account was scheduled for closure that same day, creating urgency around the request. There was no invoice attached, no prior context, and no reference to an outstanding payment or billing cycle.\u003c/p\u003e\n\n\u003cp\u003eThe message appeared legitimate from an email authentication perspective because it came from a long-established vendor domain registered in February 2000. It passed SPF and DMARC, and the relay through a third-party email signature service explained the absence of DKIM and the non-matching relay IP. The article emphasizes that compromised legitimate sender accounts are valuable because they can resemble normal business correspondence to receiving mail systems.\u003c/p\u003e\n\n\u003cp\u003eThe clearest warning sign was that the message contained two copies of the same vendor signature block with phone numbers that differed by one digit. IRONSCALES Adaptive AI flagged the message at 68% confidence based on behavioral signals, including the accounts payable target, the sensitive financial request, time pressure, and lack of supporting documentation. The article recommends verifying any banking change through a known out-of-band phone number from a contract or public listing, rather than using contact details from the requesting email.\u003c/p\u003e\n","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":["An attacker using a compromised vendor account sent a construction firm's accounts payable contact an ACH banking-change request with a same-day account closure deadline.","The sending domain was registered in February 2000, and the message passed SPF and DMARC while being relayed through a legitimate third-party email signature service.","The email contained no invoice, purchase order number, outstanding balance reference, or prior context for the requested banking change.","The message included two copies of the same vendor signature block, and the phone numbers in the two blocks differed by one digit.","IRONSCALES Adaptive AI flagged the message at 68% confidence based on behavioral signals including the accounts payable target, financial-process request, time pressure, and lack of supporting documentation."],"insights":["Authentication success did not make the message safe, because the attacker used a compromised legitimate vendor account and the third-party signature relay was authorized to send for the domain.","Duplicate signature blocks with small numeric differences can expose attacker-inserted content when a legitimate signature service appends the real stored signature template afterward.","A banking-change request without invoice, purchase order, outstanding balance, or billing-cycle context is a useful warning sign because the article says attackers often lack access to real billing history.","The most effective control described is procedural rather than technical: verify banking changes by calling a known vendor number from a contract or public listing, not any number included in the email.","Quarter-end timing can make a fabricated financial deadline feel more believable to accounts payable staff, increasing the risk that urgency will override normal verification."],"referencedReports":[{"title":"Verizon DBIR 2026","url":"https://www.verizon.com/business/resources/T742/reports/2026-dbir-data-breach-investigations-report.pdf","publisher":"Verizon","context":"The article cites the report as identifying vendor email compromise as one of the highest-value social engineering attack classes by per-incident financial impact.","category":"research","primary":false},{"title":"MITRE ATT\u0026CK T1566.001","url":"https://attack.mitre.org/techniques/T1566/001/","publisher":"MITRE ATT\u0026CK","context":"The article references this MITRE ATT\u0026CK technique as covering spearphishing with attachments.","category":"research","primary":false},{"title":"CISA guidance on BEC","url":"https://www.cisa.gov/secure-our-world/recognize-and-report-phishing","publisher":"CISA","context":"The article cites CISA guidance as recommending independent verification of all payment-change requests.","category":"guide","primary":false},{"title":"Microsoft Digital Defense Report 2024","url":"https://www.microsoft.com/en-us/security/security-insider/threat-landscape/microsoft-digital-defense-report-2024","publisher":"Microsoft","context":"The article cites the report as noting that financially motivated business email compromise continues to outpace malware-delivery attacks in total reported losses.","category":"research","primary":false}],"body":"\u003cp\u003eAn attacker operating through a compromised vendor account sent an ACH banking-change request to a construction firm\u0026rsquo;s accounts payable contact. The email claimed the vendor\u0026rsquo;s account was scheduled for closure that same day, creating urgency around the request. There was no invoice attached, no prior context, and no reference to an outstanding payment or billing cycle.\u003c/p\u003e\n\n\u003cp\u003eThe message appeared legitimate from an email authentication perspective because it came from a long-established vendor domain registered in February 2000. It passed SPF and DMARC, and the relay through a third-party email signature service explained the absence of DKIM and the non-matching relay IP. The article emphasizes that compromised legitimate sender accounts are valuable because they can resemble normal business correspondence to receiving mail systems.\u003c/p\u003e\n\n\u003cp\u003eThe clearest warning sign was that the message contained two copies of the same vendor signature block with phone numbers that differed by one digit. IRONSCALES Adaptive AI flagged the message at 68% confidence based on behavioral signals, including the accounts payable target, the sensitive financial request, time pressure, and lack of supporting documentation. The article recommends verifying any banking change through a known out-of-band phone number from a contract or public listing, rather than using contact details from the requesting email.\u003c/p\u003e\n"},{"n":10,"title":"Introduction to COM usage by Windows threats","source":"blog.talosintelligence.com","sourceColorIdx":6,"link":"https://blog.talosintelligence.com/introduction-to-com-usage-by-windows-threats/","time":"10:00","priority":"MAY READ","score":60,"tldr":"Windows malware often abuses COM and DCOM to access built-in capabilities like Task Scheduler, WMI, BITS, shell automation, and remote execution while hiding behavior behind GUIDs and indirect vtable calls. Analysts should map ProgIDs, CLSIDs, IIDs, and vtable offsets to real interfaces and methods to understand what a sample is doing.","briefOverview":"\u003cp\u003eThe article explains how Windows threats use Component Object Model, a fundamental Windows technology for object activation, inter-process communication, automation, and language-independent component reuse. COM is widely used by legitimate applications, but the same qualities make it useful to threat actors. Malware frequently uses COM interfaces for lateral movement, execution, download and exfiltration, persistence, evasion, system discovery, and automation of built-in Windows and Office functionality.\u003c/p\u003e\n\n\u003cp\u003eA central point of the article is that COM-heavy binaries can be difficult to reverse engineer because important behavior may appear only as opaque GUIDs and indirect vtable calls. Analysts need to identify ProgIDs, CLSIDs, IIDs, and vtable offsets, then map them to meaningful classes, interfaces, and method names. The article describes tools and workflows using OleView.NET, ComView, IDA Pro’s COM Helper, COMIDA, COM Code Helper, Binary Ninja COM-related support, and DispatchLogger to make COM behavior easier to understand.\u003c/p\u003e\n\n\u003cp\u003eThe article also shows how Distributed COM extends the same model across a network and can be identified through APIs such as CoCreateInstanceEx with appropriate parameters. Case studies include Qakbot using WMI through IWbemLocator, Gh0stRAT/SimpleRemoter and WarmCookie using Task Scheduler COM interfaces for scheduled task creation, and Attor using BITS through IBackgroundCopyJob for communication with a C2 server. The broader impact is that malware can use normal Windows components for task creation, WMI access, BITS transfers, shell automation, Office automation, local execution, remote activation, or persistence while hiding the activity behind indirect calls.\u003c/p\u003e\n","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":["Component Object Model is a fundamental Windows technology used by legitimate applications for object activation, inter-process communication, automation, and language-independent component reuse, and the same qualities make it useful to threat actors.","Malware frequently uses COM interfaces for lateral movement, execution, download and exfiltration, persistence, evasion, system discovery, and automation of built-in Windows and Office functionality.","Reverse engineering COM-heavy binaries requires analysts to translate opaque GUIDs and indirect vtable calls into meaningful classes, interfaces, and method names.","Distributed COM extends COM so a client can activate and use COM objects on another system, with method invocation transported over Microsoft RPC.","The article cites Qakbot, Gh0stRAT/SimpleRemoter, Attor, and WarmCookie as examples of malware families using COM interfaces such as WMI, Task Scheduler, and BITS."],"insights":["The presence of CoCreateInstanceEx with appropriate parameters can help distinguish remote DCOM activity from local COM usage during binary analysis.","COM GUIDs in compiled binaries often use little-endian byte order for the first three fields, so hunting rules must search for byte patterns that differ from the familiar string-form GUIDs.","Malware may create scheduled tasks through Task Scheduler COM interfaces instead of launching schtasks.exe, which means process telemetry may not show a direct schtasks.exe execution event.","Calls to CoInitializeSecurity or CoSetProxyBlanket are useful analysis clues because they often indicate that the sample is preparing identity and authentication settings for WMI, DCOM, or another out-of-process COM interface.","Mapping a vtable offset to the correct interface method can turn an opaque indirect call such as a register-plus-offset call into a meaningful action like ITaskService::Connect or IWbemLocator::ConnectServer."],"referencedReports":[{"title":"ESET discovers Attor, a spy platform with curious GSM fingerprinting","url":"https://www.welivesecurity.com/2019/10/10/eset-discovers-attor-spy-platform/","publisher":"ESET","context":"The article cites ESET as the first public documentation of the Attor cyberespionage platform in 2019.","category":"research","primary":false},{"title":"Hunting COM Objects","url":"https://cloud.google.com/blog/topics/threat-intelligence/hunting-com-objects/","publisher":"Mandiant / Google Cloud","context":"The article lists this as further reading on hunting COM objects.","category":"research","primary":false},{"title":"Hunting COM Objects, Part Two","url":"https://cloud.google.com/blog/topics/threat-intelligence/hunting-com-objects-part-two","publisher":"Mandiant / Google Cloud","context":"The article lists this follow-up as further reading on hunting COM objects.","category":"research","primary":false},{"title":"Observing COM within Malicious Code","url":"https://www.malwarebytes.com/blog/news/2014/02/observing-com-within-malicious-code","publisher":"Malwarebytes Labs","context":"The article lists this as further reading related to COM usage in malicious code.","category":"research","primary":false}],"body":"\u003cp\u003eThe article explains how Windows threats use Component Object Model, a fundamental Windows technology for object activation, inter-process communication, automation, and language-independent component reuse. COM is widely used by legitimate applications, but the same qualities make it useful to threat actors. Malware frequently uses COM interfaces for lateral movement, execution, download and exfiltration, persistence, evasion, system discovery, and automation of built-in Windows and Office functionality.\u003c/p\u003e\n\n\u003cp\u003eA central point of the article is that COM-heavy binaries can be difficult to reverse engineer because important behavior may appear only as opaque GUIDs and indirect vtable calls. Analysts need to identify ProgIDs, CLSIDs, IIDs, and vtable offsets, then map them to meaningful classes, interfaces, and method names. The article describes tools and workflows using OleView.NET, ComView, IDA Pro’s COM Helper, COMIDA, COM Code Helper, Binary Ninja COM-related support, and DispatchLogger to make COM behavior easier to understand.\u003c/p\u003e\n\n\u003cp\u003eThe article also shows how Distributed COM extends the same model across a network and can be identified through APIs such as CoCreateInstanceEx with appropriate parameters. Case studies include Qakbot using WMI through IWbemLocator, Gh0stRAT/SimpleRemoter and WarmCookie using Task Scheduler COM interfaces for scheduled task creation, and Attor using BITS through IBackgroundCopyJob for communication with a C2 server. The broader impact is that malware can use normal Windows components for task creation, WMI access, BITS transfers, shell automation, Office automation, local execution, remote activation, or persistence while hiding the activity behind indirect calls.\u003c/p\u003e\n"},{"n":9,"title":"Inside the 2026 SMB threat landscape: From phishing and scams to fake AI tools","source":"securelist.com","sourceColorIdx":5,"link":"https://securelist.com/smb-threat-report-2026/120357/","time":"10:00","priority":"MAY READ","score":58,"tldr":"Kaspersky’s 2026 SMB threat analysis finds that attackers are increasingly using fake AI tools, communication apps, phishing emails, and dark web access sales to target small and medium-sized businesses. The main takeaway is that SMBs are now major targets and need stronger employee awareness, access controls, backups, and layered security protections.","briefOverview":"\u003cp\u003eKaspersky’s 2026 threat analysis for small and medium-sized businesses says SMBs remain attractive targets for cybercriminals in both mass attacks and more sophisticated campaigns. In the first four months of 2026, Kaspersky solutions detected 33,352 attacks on SMB users in which malware or potentially unwanted applications were disguised as five popular AI services, almost five times more than in 2025. The report says AI-related baits have become more widespread than the office and collaboration tools covered by Kaspersky’s research.\u003c/p\u003e\n\n\u003cp\u003eThe report also found that fake communication apps remained the most widespread lure, with 414,736 attacks on SMB users from January to April 2026 involving malware or potentially unwanted applications disguised as popular communication apps. Kaspersky described scams and phishing campaigns that mimicked banks, AI services, social network business-page alerts, cloud document notifications, compliance notices, meeting invitations, and routine business quote requests. These schemes were used to steal credentials, personal information, funds, or to distribute malware through email attachments.\u003c/p\u003e\n\n\u003cp\u003eKaspersky Digital Footprint Intelligence also analyzed dark web posts offering initial access to corporate infrastructures in the first four months of 2025 and 2026. The report says posts concerning small and medium-sized organizations accounted for more than half of the analyzed posts with initial access offers, while posts tied to the Middle East, Africa, and Latin America increased in 2026. Kaspersky advises SMBs to define access rules, regularly back up important data, establish guidelines for external services, train employees, use suitable security tools, protect email, and monitor for exposed company data or lookalike websites.\u003c/p\u003e\n","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":["From January to April 2026, Kaspersky solutions detected 33,352 attacks on SMB users in which malware or potentially unwanted applications for PCs were disguised as five popular AI services, almost five times more than in 2025.","Popular messengers and communication services remained the most widespread lure, with Kaspersky blocking 414,736 attacks on SMB users involving fake communication apps from January to April 2026.","Kaspersky observed phishing campaigns and scams targeting businesses and entrepreneurs that mimicked financial services, AI services, social networks, cloud document notifications, compliance notices, and meeting invitations to steal credentials, personal information, or funds.","Kaspersky Digital Footprint Intelligence found that posts concerning small and medium-sized organizations accounted for more than half of analyzed dark web posts offering initial access to corporate infrastructures from January to April 2026.","Kaspersky advises SMBs to define and update access rules, regularly back up important data, establish clear guidelines for external services, train employees, and use cybersecurity solutions suited to their size and budget."],"insights":["AI-themed lures have overtaken the office and collaboration tools covered in Kaspersky’s research, with 39% more SMB attacks disguised as AI tools than as those office tools in the first four months of 2026.","Attackers are rapidly adapting to current technology trends, as newer AI tools such as Claude and OpenClaw appeared among the common lures used against SMBs in 2026.","Some phishing campaigns try to bypass ordinary email suspicion by using legitimate third-party platforms, such as redirecting victims through a real Zoom Docs page before sending them to a phishing site.","Dark web initial-access posts appear to be becoming more targeted, as posts without a specified region decreased by 56% in 2026 compared with the same period in 2025.","SMBs face risk not only as direct targets but also because attackers may use them in trusted relationship attacks to reach larger organizations that rely on them as contractors."],"referencedReports":[{"title":"New SBE Council Survey: Small Businesses Confident About 2025 Year-End Performance; AI, Digital Tools and Multi-Channel Strategies Driving Growth and Competitiveness","url":"https://sbecouncil.org/2025/10/23/new-sbe-council-survey-small-businesses-confident-about-2025-year-end-performance-ai-digital-tools-and-multi-channel-strategies-driving-growth-and-competitiveness/","publisher":"Small Business \u0026 Entrepreneurship Council","context":"The article cites this survey to support the point that small business owners are embracing artificial intelligence and digital transformation.","category":"research","primary":false}],"body":"\u003cp\u003eKaspersky’s 2026 threat analysis for small and medium-sized businesses says SMBs remain attractive targets for cybercriminals in both mass attacks and more sophisticated campaigns. In the first four months of 2026, Kaspersky solutions detected 33,352 attacks on SMB users in which malware or potentially unwanted applications were disguised as five popular AI services, almost five times more than in 2025. The report says AI-related baits have become more widespread than the office and collaboration tools covered by Kaspersky’s research.\u003c/p\u003e\n\n\u003cp\u003eThe report also found that fake communication apps remained the most widespread lure, with 414,736 attacks on SMB users from January to April 2026 involving malware or potentially unwanted applications disguised as popular communication apps. Kaspersky described scams and phishing campaigns that mimicked banks, AI services, social network business-page alerts, cloud document notifications, compliance notices, meeting invitations, and routine business quote requests. These schemes were used to steal credentials, personal information, funds, or to distribute malware through email attachments.\u003c/p\u003e\n\n\u003cp\u003eKaspersky Digital Footprint Intelligence also analyzed dark web posts offering initial access to corporate infrastructures in the first four months of 2025 and 2026. The report says posts concerning small and medium-sized organizations accounted for more than half of the analyzed posts with initial access offers, while posts tied to the Middle East, Africa, and Latin America increased in 2026. Kaspersky advises SMBs to define access rules, regularly back up important data, establish guidelines for external services, train employees, use suitable security tools, protect email, and monitor for exposed company data or lookalike websites.\u003c/p\u003e\n"},{"n":2,"title":"Breach At The Beach: The Ultimate Entra ID Training Experience","source":"varonis.com","sourceColorIdx":9,"link":"https://www.varonis.com/blog/breach-at-the-beach-ctf","time":"13:02","priority":"MAY READ","score":45,"tldr":"Varonis launched Breach at the Beach, a free Entra ID capture-the-flag training experience that teaches defenders how real-world attackers abuse identity features, non-human identities, and noisy logs to exfiltrate data. Players can earn CPE credits and participate online or at Black Hat USA and DEF CON 34 in 2026.","briefOverview":"\u003cp\u003eVaronis Threat Labs researchers Doron Kapah and Mark Vaitsman created Breach at the Beach, a free Entra ID capture-the-flag training experience. The scenario follows Pixel, Varonis’ threat-detecting cat, as she investigates a breach in Entra ID and traces a threat actor’s steps to uncover what sensitive data the attacker is after. The article says the experience was built to give security practitioners first-hand knowledge of what data exfiltration in Entra ID looks like on the frontlines.\u003c/p\u003e\n\n\u003cp\u003eThe article frames Entra ID as the control plane for the enterprise because it connects users, applications, permissions, automation, and AI-powered workflows. It highlights the rise of non-human identities, including AI agents, service principals, and automated workflows, as a factor that expands the attack surface and makes monitoring and detection harder. The CTF’s techniques are described as being based on real cases the researchers encountered in customer environments, rather than hypothetical scenarios.\u003c/p\u003e\n\n\u003cp\u003eBreach at the Beach is designed to teach players how threats abuse legitimate features, how to work through raw Entra logs, and how to eliminate noise in a changing environment. The researchers also deliberately designed the CTF to avoid an LLM’s ability to solve challenges so players absorb the lessons rather than quickly using AI assistance to compete. Players can complete stages to earn CPE credits, themed badges, and a certificate, and the experience will also be available in person at Black Hat USA 2026 and DEF CON 34.\u003c/p\u003e\n","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":["Varonis Threat Labs researchers Doron Kapah and Mark Vaitsman created Breach at the Beach as an Entra ID training experience focused on what data exfiltration in Entra ID looks like in real-world situations.","Breach at the Beach is a capture-the-flag experience in which players follow Pixel, Varonis’ threat-detecting cat, to trace a threat actor’s steps and identify what sensitive data the attacker is pursuing.","The challenges are based on real customer-environment cases encountered by the researchers and teach players how attackers abuse legitimate features, investigate raw Entra logs, and work without AI assistance.","The article says the rise of non-human identities such as AI agents, service principals, and automated workflows has expanded the Entra ID attack surface and made monitoring and detection more difficult.","Breach at the Beach is free to play online, awards 1 CPE credit and a themed badge for each completed stage, and provides a certificate of completion after all four stages are finished."],"insights":["The CTF deliberately avoids challenges that an LLM can solve, reflecting a newer training concern that AI assistance may let participants bypass the learning process rather than understand the attack flow.","The article emphasizes that defenders should look for legitimate Entra ID functionality being weaponized, not only for broken settings or obvious misconfigurations.","Raw Entra logs and changing data are intentionally built into the exercise because the researchers view noise reduction and creating clarity from messy identity data as a core real-world defender skill.","The training is designed to be useful across roles because the authors argue that red teamers, blue teamers, CISOs, and threat intelligence professionals all benefit from understanding both attacker behavior and defensive visibility gaps.","The CTF ties completion to CPE credits, badges, and a certificate, making the hands-on identity-security training directly usable for professional development requirements."],"referencedReports":[],"body":"\u003cp\u003eVaronis Threat Labs researchers Doron Kapah and Mark Vaitsman created Breach at the Beach, a free Entra ID capture-the-flag training experience. The scenario follows Pixel, Varonis’ threat-detecting cat, as she investigates a breach in Entra ID and traces a threat actor’s steps to uncover what sensitive data the attacker is after. The article says the experience was built to give security practitioners first-hand knowledge of what data exfiltration in Entra ID looks like on the frontlines.\u003c/p\u003e\n\n\u003cp\u003eThe article frames Entra ID as the control plane for the enterprise because it connects users, applications, permissions, automation, and AI-powered workflows. It highlights the rise of non-human identities, including AI agents, service principals, and automated workflows, as a factor that expands the attack surface and makes monitoring and detection harder. The CTF’s techniques are described as being based on real cases the researchers encountered in customer environments, rather than hypothetical scenarios.\u003c/p\u003e\n\n\u003cp\u003eBreach at the Beach is designed to teach players how threats abuse legitimate features, how to work through raw Entra logs, and how to eliminate noise in a changing environment. The researchers also deliberately designed the CTF to avoid an LLM’s ability to solve challenges so players absorb the lessons rather than quickly using AI assistance to compete. Players can complete stages to earn CPE credits, themed badges, and a certificate, and the experience will also be available in person at Black Hat USA 2026 and DEF CON 34.\u003c/p\u003e\n"},{"n":7,"title":"ThreatsDay Bulletin: Smart TV Proxyware, 24-Year curl Bug, AI Crime Forums + 13 More Stories","source":"thehackernews.com","sourceColorIdx":8,"link":"https://thehackernews.com/2026/06/threatsday-bulletin-smart-tv-proxyware.html","time":"12:24","priority":"MAY READ","score":40,"tldr":"This ThreatsDay roundup highlights how attackers are still getting big results from basic weaknesses like forgotten credentials, trusted app abuse, fake updates, exposed services, and poorly governed devices such as smart TVs. The key takeaway is to patch quickly, revoke stale access, monitor privileged accounts, and reassess “normal” tools and devices that may be quietly enabling compromise.","briefOverview":"\u003cp\u003eThis ThreatsDay bulletin rounds up 16 security stories involving software flaws, social engineering, exposed services, abused collaboration tools, smart TV proxyware, cybercrime activity, and surveillance export concerns. The article emphasizes that many incidents rely on simple weaknesses such as stale credentials, fake updates, trusted workflows, and devices that users rarely inspect. It highlights affected parties including smart TV owners, organizations using Salesforce-connected apps, self-hosted Hoppscotch users, macOS users, Microsoft 365 users, and research institutions running REDCap.\u003c/p\u003e\n\n\u003cp\u003eSeveral items focus on vulnerabilities and exposed infrastructure. AISLE discovered six curl vulnerabilities, including CVE-2026-8932, described as the oldest curl vulnerability reported so far because it has shipped since curl 7.7 in 2001, and the flaws were fixed in version 8.21.0. Hoppscotch disclosed CVE-2026-50160, a critical unauthenticated flaw in self-hosted versions that allows arbitrary configuration keys such as JWT_SECRET and SESSION_SECRET to be injected, leading to full server compromise. Censys found just over 8,500 REDCap instances globally, while Google Threat Intelligence Group attributed a year-plus espionage campaign against North American academic, medical, and military research institutions to UNC6508 using internet-facing REDCap servers as an initial access vector.\u003c/p\u003e\n\n\u003cp\u003eThe bulletin also covers multiple abuse campaigns and broader ecosystem risks. Spur Intelligence found residential proxy software in 2,058 of 6,038 reviewed LG webOS and Samsung Tizen smart TV apps, allowing third-party traffic to be relayed through owners’ internet connections with user consent. Zscaler reported that a Payouts King ransomware initial access broker used Microsoft Teams impersonation to deliver the Edgecution malicious Microsoft Edge extension and a Python-based backdoor, while Fortra described phishing that abuses Outlook Groups and Microsoft 365 collaboration features. Other stories include a Klue legacy credential from 2022 being used by Icarus extortionists to steal Salesforce data, ClickFix campaigns delivering macOS infostealers, Scattered Spider members convicted for the Transport for London hack, and Sophos reporting that AI is a major topic in cybercrime forums.\u003c/p\u003e\n","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":["AISLE discovered six vulnerabilities in curl, including CVE-2026-8932, an issue present since curl version 7.7 from March 2001 and fixed in version 8.21.0.","A critical flaw in self-hosted Hoppscotch, CVE-2026-50160, allows an unauthenticated attacker to inject configuration keys such as JWT_SECRET and SESSION_SECRET, leading to full server compromise.","Spur Intelligence found that 2,058 of 6,038 reviewed LG webOS and Samsung Tizen smart TV apps contained residential proxy software that can relay third-party traffic through the TV owner’s internet connection with user consent.","Zscaler reported that a Payouts King ransomware initial access broker used Microsoft Teams impersonation to deliver the Edgecution malicious Microsoft Edge extension and a Python-based backdoor.","Klue said a credential originally provided to a third party in 2022 for a limited pilot was exploited by the Icarus extortionists to steal Salesforce data from multiple corporate customers."],"insights":["Smart TVs are described as unusually attractive residential proxy hosts because they stay plugged in and online for years, sit on the same home network as other devices, and are rarely audited like computers.","The Hoppscotch flaw shows how a single unauthenticated HTTP request can become persistent full-server compromise when extra configuration fields are not stripped before being written to the database.","The Klue incident highlights that credentials issued for a limited pilot can remain dangerous years later if they are not revoked after the pilot ends.","The Microsoft 365 phishing campaign is notable because it moves the malicious activity into normal collaboration workflows such as group additions, shared files, and calendar invites rather than relying only on a suspicious email.","The curl finding shows that security-relevant logic flaws can remain in widely used software for decades, with CVE-2026-8932 dating back to curl version 7.7 from 2001."],"referencedReports":[{"title":"Multiple Flaws in curl","url":"https://aisle.com/blog/aisle-discovers-6-new-cves-in-curl-including-the-oldest-issue-ever-reported","publisher":"AISLE","context":"The article says AISLE discovered six vulnerabilities in curl, including the oldest curl vulnerability reported so far.","category":"research","primary":false},{"title":"CVE-2026-8932","url":"https://curl.se/docs/CVE-2026-8932.html","publisher":"curl","context":"The article links to curl’s advisory for CVE-2026-8932, a connection reuse issue involving changed mTLS configuration.","category":"advisory","primary":false},{"title":"Maximum-Severity Bug in Hoppscotch","url":"https://github.com/hoppscotch/hoppscotch/security/advisories/GHSA-j542-4rch-8hwf","publisher":"Hoppscotch","context":"The article cites Hoppscotch’s security advisory for CVE-2026-50160, a critical self-hosted Hoppscotch flaw leading to complete compromise.","category":"advisory","primary":false},{"title":"Hoppscotch CVE-2026-50160","url":"https://www.offgridsec.com/blog-hoppscotch-cve-2026-50160.html","publisher":"Offgrid Security","context":"The article credits Offgrid Security’s autonomous AI security agent with discovering the Hoppscotch vulnerability and describes Offgrid’s explanation of the exploit chain.","category":"research","primary":false},{"title":"Residential Proxy SDKs Hidden in LG and Samsung Smart TV Apps","url":"https://spur.us/blog/smart-tv-apps-residential-proxy-sdks","publisher":"Spur Intelligence","context":"The article references Spur Intelligence’s report finding residential proxy software in more than one-third of reviewed LG and Samsung smart TV apps.","category":"research","primary":false},{"title":"Payouts King Ransomware Initial Access Broker Deploys New Edgecution Malware","url":"https://www.zscaler.com/blogs/security-research/payouts-king-ransomware-initial-access-broker-deploys-new-edgecution","publisher":"Zscaler ThreatLabz","context":"The article cites Zscaler ThreatLabz research on a Payouts King ransomware affiliate using Microsoft Teams social engineering to deliver Edgecution malware.","category":"research","primary":false},{"title":"NCC Group Monthly Threat Pulse Review of May 2026","url":"https://www.nccgroup.com/newsroom/ncc-group-monthly-threat-pulse-review-of-may-2026/","publisher":"NCC Group","context":"The article cites NCC Group’s threat pulse review as evidence that nation-state actors are increasingly adopting cybercriminal tools and tactics.","category":"research","primary":false},{"title":"New ClickFix Attack Mounts DMG Images to Deliver macOS Infostealer","url":"https://github.com/PaloAltoNetworks/Unit42-timely-threat-intel/blob/main/2026-06-20-ClickFix-campaign-delivers-macOS-infostealer-via-DMG.txt","publisher":"Palo Alto Networks Unit 42","context":"The article references Unit 42’s technical intelligence on a ClickFix campaign that tricks macOS users into running commands that install an information stealer.","category":"research","primary":false},{"title":"Evasive ClickFix Injection Delivers RAT","url":"https://github.com/PaloAltoNetworks/Unit42-timely-threat-intel/blob/main/2026-06-05-%20Evasive-ClickFix-Injection-Delivers-RAT.txt","publisher":"Palo Alto Networks Unit 42","context":"The article says Palo Alto Networks detailed another multi-step ClickFix attack that delivers a cross-platform trojan.","category":"research","primary":false},{"title":"Phishing Through Collaboration","url":"https://www.fortra.com/blog/phishing-through-collaboration","publisher":"Fortra","context":"The article cites Fortra’s analysis of a phishing campaign abusing Outlook Groups and Microsoft 365 collaboration features.","category":"research","primary":false},{"title":"AI in the Underground: Curiosity, Claims, and Concerns","url":"https://www.sophos.com/en-us/blog/ai-in-the-underground-curiosity-claims-and-concerns","publisher":"Sophos","context":"The article references Sophos’s analysis of how cybercriminals discuss, market, and worry about AI in underground communities.","category":"research","primary":false},{"title":"REDCap Exposure Analysis","url":"https://censys.com/blog/redcap-exposure-analysis/","publisher":"Censys","context":"The article cites Censys’s exposure analysis identifying just over 8,500 REDCap instances globally.","category":"research","primary":false},{"title":"Bulgaria Licensed Surveillance Exports to Rights Violators","url":"https://www.hrw.org/news/2026/06/18/bulgaria-licensed-surveillance-exports-to-rights-violators","publisher":"Human Rights Watch","context":"The article references Human Rights Watch’s report on Bulgaria licensing surveillance technology exports to countries likely to use them for repression or serious rights violations.","category":"research","primary":false},{"title":"Malware Distribution via Browser-in-the-Browser Kit","url":"https://github.com/PaloAltoNetworks/Unit42-timely-threat-intel/blob/main/2026-06-22-malware-distribution-via-browser-in-the-browser-kit.txt","publisher":"Palo Alto Networks Unit 42","context":"The article cites Unit 42’s technical intelligence on a brandsquatting campaign using the Browser-in-the-Browser technique to distribute malicious payloads.","category":"research","primary":false},{"title":"Browser-In-The-Browser Phishing Campaign","url":"https://github.com/PaloAltoNetworks/Unit42-timely-threat-intel/blob/main/2026-06-08-Browser-In-The-Browser-Pishing-Campaign.txt","publisher":"Palo Alto Networks Unit 42","context":"The article says Unit 42 previously disclosed details of a separate Browser-in-the-Browser campaign used to steal Microsoft 365 credentials.","category":"research","primary":false}],"body":"\u003cp\u003eThis ThreatsDay bulletin rounds up 16 security stories involving software flaws, social engineering, exposed services, abused collaboration tools, smart TV proxyware, cybercrime activity, and surveillance export concerns. The article emphasizes that many incidents rely on simple weaknesses such as stale credentials, fake updates, trusted workflows, and devices that users rarely inspect. It highlights affected parties including smart TV owners, organizations using Salesforce-connected apps, self-hosted Hoppscotch users, macOS users, Microsoft 365 users, and research institutions running REDCap.\u003c/p\u003e\n\n\u003cp\u003eSeveral items focus on vulnerabilities and exposed infrastructure. AISLE discovered six curl vulnerabilities, including CVE-2026-8932, described as the oldest curl vulnerability reported so far because it has shipped since curl 7.7 in 2001, and the flaws were fixed in version 8.21.0. Hoppscotch disclosed CVE-2026-50160, a critical unauthenticated flaw in self-hosted versions that allows arbitrary configuration keys such as JWT_SECRET and SESSION_SECRET to be injected, leading to full server compromise. Censys found just over 8,500 REDCap instances globally, while Google Threat Intelligence Group attributed a year-plus espionage campaign against North American academic, medical, and military research institutions to UNC6508 using internet-facing REDCap servers as an initial access vector.\u003c/p\u003e\n\n\u003cp\u003eThe bulletin also covers multiple abuse campaigns and broader ecosystem risks. Spur Intelligence found residential proxy software in 2,058 of 6,038 reviewed LG webOS and Samsung Tizen smart TV apps, allowing third-party traffic to be relayed through owners’ internet connections with user consent. Zscaler reported that a Payouts King ransomware initial access broker used Microsoft Teams impersonation to deliver the Edgecution malicious Microsoft Edge extension and a Python-based backdoor, while Fortra described phishing that abuses Outlook Groups and Microsoft 365 collaboration features. Other stories include a Klue legacy credential from 2022 being used by Icarus extortionists to steal Salesforce data, ClickFix campaigns delivering macOS infostealers, Scattered Spider members convicted for the Transport for London hack, and Sophos reporting that AI is a major topic in cybercrime forums.\u003c/p\u003e\n"},{"n":1,"title":"Webinar: Why account takeovers remain one of the hardest threats to stop","source":"bleepingcomputer.com","sourceColorIdx":10,"link":"https://www.bleepingcomputer.com/news/security/webinar-why-account-takeovers-remain-one-of-the-hardest-threats-to-stop/","time":"12:12","priority":"MAY READ","score":35,"tldr":"BleepingComputer will host a July 8, 2026 webinar with Abnormal AI and Novant Health on why account takeovers are hard to detect and how behavioral AI can speed up investigations and response. The key focus is identifying compromised accounts earlier when attackers use legitimate credentials, trusted services, and normal-looking business activity.","briefOverview":"\u003cp\u003eBleepingComputer will host a live webinar on July 8, 2026 titled \u0026ldquo;Stop chasing alerts: Automating email security with behavioral AI.\u0026rdquo; The webinar will be presented by Dan Nickolaisen, Solutions Architect Manager at Abnormal AI, and Eric Danneker, Director of Cyber Vigilance and Defense at Novant Health. It will examine how attackers gain access to legitimate accounts, why traditional security controls often struggle to detect account compromise quickly, and how behavioral AI can help security teams accelerate investigations and response.\u003c/p\u003e\n\n\u003cp\u003eThe article says account takeover attacks remain one of the most disruptive security incidents facing enterprises despite investments in phishing defenses, identity protection, and multi-factor authentication. Modern account takeover attacks frequently rely on trusted identities, legitimate cloud services, and compromised business accounts rather than obviously malicious activity. This can allow attackers to blend into normal business operations while maintaining access to email, collaboration platforms, and corporate resources.\u003c/p\u003e\n\n\u003cp\u003eThe webinar will cover how phishing, business email compromise, and account takeover attacks lead to compromised business accounts, as well as why attackers increasingly rely on legitimate identities and trusted services. It will also address the challenges security teams face when investigating potential account compromise and how behavioral AI can automate detection, investigation, and remediation workflows. Attendees are expected to learn practical approaches for identifying account compromise earlier, reducing manual investigation work, and limiting the impact of account takeover attacks.\u003c/p\u003e\n","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":["BleepingComputer will host a live webinar on July 8, 2026 titled \"Stop chasing alerts: Automating email security with behavioral AI.\"","The webinar will be presented by Dan Nickolaisen of Abnormal AI and Eric Danneker of Novant Health.","The webinar will examine how attackers gain access to legitimate accounts, why traditional security controls struggle to detect account compromise quickly, and how behavioral AI can help investigations and response.","The article says modern account takeover attacks often use trusted identities, legitimate cloud services, and compromised business accounts instead of obviously malicious activity.","Attendees will learn approaches for identifying account compromise earlier, reducing manual investigation work, and limiting the impact of account takeover attacks."],"insights":["Account takeover remains difficult even for organizations that already invest in phishing defenses, identity protection, and multi-factor authentication.","The article highlights that compromised accounts can be hard to spot because they may involve legitimate credentials, trusted devices, and normal business communications rather than clearly malicious behavior.","A practical focus of the webinar is reducing the time security teams spend manually investigating suspicious messages, unusual login activity, and user reports.","The article frames behavioral AI as useful not just for detection, but also for automating investigation and remediation workflows after suspicious account activity appears."],"referencedReports":[],"body":"\u003cp\u003eBleepingComputer will host a live webinar on July 8, 2026 titled \u0026ldquo;Stop chasing alerts: Automating email security with behavioral AI.\u0026rdquo; The webinar will be presented by Dan Nickolaisen, Solutions Architect Manager at Abnormal AI, and Eric Danneker, Director of Cyber Vigilance and Defense at Novant Health. It will examine how attackers gain access to legitimate accounts, why traditional security controls often struggle to detect account compromise quickly, and how behavioral AI can help security teams accelerate investigations and response.\u003c/p\u003e\n\n\u003cp\u003eThe article says account takeover attacks remain one of the most disruptive security incidents facing enterprises despite investments in phishing defenses, identity protection, and multi-factor authentication. Modern account takeover attacks frequently rely on trusted identities, legitimate cloud services, and compromised business accounts rather than obviously malicious activity. This can allow attackers to blend into normal business operations while maintaining access to email, collaboration platforms, and corporate resources.\u003c/p\u003e\n\n\u003cp\u003eThe webinar will cover how phishing, business email compromise, and account takeover attacks lead to compromised business accounts, as well as why attackers increasingly rely on legitimate identities and trusted services. It will also address the challenges security teams face when investigating potential account compromise and how behavioral AI can automate detection, investigation, and remediation workflows. Attendees are expected to learn practical approaches for identifying account compromise earlier, reducing manual investigation work, and limiting the impact of account takeover attacks.\u003c/p\u003e\n"},{"n":6,"title":"Surviving the Mythos Era: Richard Bejtlich on the Case for NDR","source":"thehackernews.com","sourceColorIdx":8,"link":"https://thehackernews.com/2026/06/surviving-mythos-era-richard-bejtlich.html","time":"11:17","priority":"MAY READ","score":35,"tldr":"The article argues that security teams should use network detection and response to move beyond alert-driven triage toward evidence-based investigations and active interdiction of threats. It highlights Richard Bejtlich’s Corelight guide as a practical framework for using network telemetry, threat hunting, and AI-assisted workflows to validate and disrupt attacks before they become breaches.","briefOverview":"\u003cp\u003eThe article discusses Richard Bejtlich’s \u003cem\u003eNDR Essentials: A Practical Guide to Network Detection and Response\u003c/em\u003e, published in partnership with Corelight. It argues that many security operations teams have abundant telemetry but still struggle to answer what happened during an incident, what evidence they have, and whether they are seeing the full context. The article says alerts are becoming less useful as vulnerability discovery accelerates, because organizations need validated evidence of active exploit and exposure rather than more raw telemetry.\u003c/p\u003e\n\n\u003cp\u003eBejtlich’s guide makes the case for network interdiction, which focuses on identifying and disrupting malicious activity after initial compromise but before attackers achieve their objectives. The article says network detection and response supports this by providing visibility into traffic moving throughout the network and preserving high-fidelity evidence. It highlights four primary sources of network evidence: full packet captures, extracted files, transaction logs, and alerts or detections.\u003c/p\u003e\n\n\u003cp\u003eThe article also describes how threat hunting should begin with a hypothesis about adversarial techniques rather than with alert follow-up. It says analysts can use network logs and sessions to validate or disprove those hypotheses by looking for items such as unusual protocols, large outbound data transfers, lateral movement, executables, and certificate exposure. It further explains that AI can help optimize alert frameworks, accelerate incident response through agentic triage, and coordinate siloed tools, while human verification remains necessary to prevent hallucinations or unintended consequences.\u003c/p\u003e\n","standardSynthesis":"","comprehensiveSynthesis":"","keyPoints":["The article says many security operations teams struggle during incident investigations to answer what happened, what evidence they have, and whether they are seeing the full context.","Richard Bejtlich’s NDR Essentials guide argues that network detection and response helps practitioners validate findings, understand attacker behavior, and support AI-assisted investigations.","The guide emphasizes network interdiction, which means identifying and disrupting malicious activity after initial compromise but before attackers achieve their objectives.","Bejtlich says threat hunting should begin with a hypothesis about adversarial techniques rather than with alert follow-up, and analysts should use network logs and sessions to validate or disprove that hypothesis.","The article says AI can help network detection and response by optimizing alert frameworks, accelerating incident response through agentic triage, and coordinating outputs from siloed security tools."],"insights":["The article argues that organizations should treat alerts as starting points for investigation rather than as proof that an event occurred, because alerts often provide assumptions rather than defensible evidence.","Bejtlich recommends a “zero-baseline” approach to alerting, since too many pre-enabled rules can create alert fatigue that buries or numbs security teams.","The guide identifies four concrete sources of network evidence for investigations: full packet captures, extracted files, transaction logs, and alerts or detections.","The article says AI can reduce analyst workload and coordinate security tools, but human verification remains necessary to prevent hallucinations or unintended consequences.","The placement of traffic capture at the network edge, the center, or both is presented as an operational choice that directly affects how analysts can investigate activity."],"referencedReports":[],"body":"\u003cp\u003eThe article discusses Richard Bejtlich’s \u003cem\u003eNDR Essentials: A Practical Guide to Network Detection and Response\u003c/em\u003e, published in partnership with Corelight. It argues that many security operations teams have abundant telemetry but still struggle to answer what happened during an incident, what evidence they have, and whether they are seeing the full context. The article says alerts are becoming less useful as vulnerability discovery accelerates, because organizations need validated evidence of active exploit and exposure rather than more raw telemetry.\u003c/p\u003e\n\n\u003cp\u003eBejtlich’s guide makes the case for network interdiction, which focuses on identifying and disrupting malicious activity after initial compromise but before attackers achieve their objectives. The article says network detection and response supports this by providing visibility into traffic moving throughout the network and preserving high-fidelity evidence. It highlights four primary sources of network evidence: full packet captures, extracted files, transaction logs, and alerts or detections.\u003c/p\u003e\n\n\u003cp\u003eThe article also describes how threat hunting should begin with a hypothesis about adversarial techniques rather than with alert follow-up. It says analysts can use network logs and sessions to validate or disprove those hypotheses by looking for items such as unusual protocols, large outbound data transfers, lateral movement, executables, and certificate exposure. It further explains that AI can help optimize alert frameworks, accelerate incident response through agentic triage, and coordinate siloed tools, while human verification remains necessary to prevent hallucinations or unintended consequences.\u003c/p\u003e\n"}];
+window.__DL_DIGEST   = "downlink-digest-2026-06-25_1000.html";
+window.__DL_WINDOW   = "4 hours";
+</script>
+<script type="text/babel">
+
+const ARTICLES_RAW = window.__DL_ARTICLES;
+const DIGEST_HREF  = window.__DL_DIGEST;
+const TIME_WINDOW  = window.__DL_WINDOW;
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", padding:24 }}>
+        <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, padding:"40px 32px", maxWidth:480, textAlign:"center" }}>
+          <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:11, color:"var(--discard)", letterSpacing:"0.18em", marginBottom:12 }}>// RENDER ERROR</div>
+          <p style={{ color:"var(--text2)", fontSize:13 }}>{String(this.state.error)}</p>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+// Shared card chrome so the front and back faces render identical tokens.
+function CardTitle({ children }) {
+  return (
+    <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 20, lineHeight: 1.3, letterSpacing: "-0.005em", color: "var(--text)" }}>
+      {children}
+    </h2>
+  );
+}
+
+function SourceTag({ article }) {
+  const srcColor = `var(--p${article.sourceColorIdx})`;
+  return (
+    <>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+        {article.source}
+      </span>
+    </>
+  );
+}
+
+function numberedList(items, accent) {
+  return (
+    <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+      {(items || []).map((item, i) => (
+        <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: accent, marginTop: 3, letterSpacing: "0.04em" }}>
+            {String(i + 1).padStart(2, "0")}
+          </span>
+          <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function KeyPointsSection({ keyPoints, accent }) {
+  if (!keyPoints || keyPoints.length === 0) return null;
+  return (
+    <div style={{ marginTop: 18 }}>
+      <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+      {numberedList(keyPoints, accent)}
+    </div>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            {report.primary && <span className="report-primary">PRIMARY</span>}
+            <a className="report-link" href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+            {report.category && <span className={"report-cat report-cat-" + report.category}>{report.category}</span>}
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const priorityC = priorityColor(article.priority);
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => (
+    <>
+      <p style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55, margin: 0 }}>{article.tldr}</p>
+      <KeyPointsSection keyPoints={article.keyPoints} accent={priorityC} />
+    </>
+  ) });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose summary" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Comprehensive", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  // Key Points are folded under the TL;DR tab so the flipped (behind) view's default
+  // matches the front card. Only surface a standalone tab when there is no TL;DR to host them.
+  if (!article.tldr && article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => numberedList(article.keyPoints, priorityC) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => numberedList(article.insights, priorityC) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  // Read mode (the flipped detail view) opens on the Brief overview when present;
+  // otherwise it falls back to the first available tab (TL;DR, then others).
+  const initialTab = tabs.some(t => t.id === "brief") ? "brief" : (tabs[0] ? tabs[0].id : "source");
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  const rightTabIds = new Set(["keypoints", "insights", "reports"]);
+  const leftTabs  = tabs.filter(t => !rightTabIds.has(t.id));
+  const rightTabs = tabs.filter(t =>  rightTabIds.has(t.id));
+  const renderTabBtn = tab => (
+    <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+      {tab.label}
+    </button>
+  );
+  return (
+    <>
+      <div className="tabs">
+        {leftTabs.map(renderTabBtn)}
+        {rightTabs.length > 0 && <span style={{ flex: 1 }} />}
+        {rightTabs.map(renderTabBtn)}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  const [theme, setTheme] = React.useState(() => document.documentElement.dataset.theme || 'dark');
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  const applyTheme = (t) => {
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('downlink.theme', t); } catch(e){}
+    setTheme(t);
+  };
+  return (
+    <nav className="swipe-nav" style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <svg viewBox="0 0 33.85 30.03" aria-hidden="true" style={{ height: 18, width: 'auto', color: 'var(--cyan)', marginRight: 4, flex: 'none' }}><g transform="rotate(32 16.92 15.01) translate(3.42 7.51)" fill="currentColor"><rect x="1.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="25.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="2.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="24.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="3.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="23.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="4.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="22.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="5.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="21.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="6.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="20.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="7.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="19.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="8.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="18.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="9.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="17.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="10.080" y="12.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="16.080" y="12.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="11.080" y="12.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="15.080" y="12.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="12.080" y="13.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="14.080" y="13.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="13.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="5.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="21.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="6.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="20.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="7.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="19.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="8.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="18.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="9.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="17.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="10.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="16.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="11.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="15.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="12.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="14.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="9.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="17.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="10.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="16.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="11.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="15.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="12.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="14.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="12.080" y="2.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="1.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="2.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="3.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="14.080" y="2.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="5.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect></g></svg>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <span className="swipe-clock" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+        }}>
+          {Math.min(index + 1, total)} / {total}
+        </div>
+        <select value={theme} onChange={(e) => applyTheme(e.target.value)} title="Select theme" aria-label="Select theme" style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "var(--text2)",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "4px 20px 4px 8px", borderRadius: 2,
+          cursor: "pointer", textTransform: "uppercase", appearance: "none", WebkitAppearance: "none",
+          backgroundImage: "linear-gradient(45deg, transparent 50%, var(--text3) 50%), linear-gradient(135deg, var(--text3) 50%, transparent 50%)",
+          backgroundPosition: "calc(100% - 10px) 50%, calc(100% - 6px) 50%", backgroundSize: "4px 4px, 4px 4px", backgroundRepeat: "no-repeat"
+        }}>
+          <option value="dark">DARK</option>
+          <option value="light">LIGHT</option>
+          <option value="contrast">CONTRAST</option>
+          <option value="mono">MONO</option>
+          <option value="colorblind">COLORBLIND</option>
+          <option value="pastel">PASTEL</option>
+          
+        </select>
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <SourceTag article={article} />
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <CardTitle>{article.title}</CardTitle>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55, margin: 0 }}>{article.tldr}</p>
+        <KeyPointsSection keyPoints={article.keyPoints} accent={priorityC} />
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <div style={{ marginBottom: 12 }}>
+          <CardTitle>{article.title}</CardTitle>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <SourceTag article={article} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Front continues off to the right and fades out, then the detail view fades in.
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.32s cubic-bezier(.4,0,.6,1), opacity 0.32s";
+          el.style.transform = `translate(140%, ${dy * 1.4}px) rotate(18deg)`;
+          el.style.opacity = "0";
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.style.opacity = "0";
+            el2.getBoundingClientRect();
+            el2.style.transition = "opacity 0.22s ease";
+            el2.style.opacity = "1";
+            setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 240);
+          }
+        }, 320);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{ opacity: 0 }}>DONE</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div className="swipe-shell" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 24px 16px", minHeight: 0 }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 16px", width: "100%", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 16, flexShrink: 0 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 12, textAlign: "center", flexShrink: 0 }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ErrorBoundary><App /></ErrorBoundary>
+);
+</script>
+</body>
+</html>
