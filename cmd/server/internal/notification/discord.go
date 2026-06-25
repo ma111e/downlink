@@ -281,10 +281,20 @@ func truncateString(s string, maxLen int) string {
 	return string([]rune(s)[:maxLen-3]) + "..."
 }
 
-// formatDuration formats a duration in a human-readable way
+// formatDuration formats a duration in a human-readable way. Sub-hour windows
+// are rendered in minutes; whole-day multiples collapse to days; everything else
+// stays in hours rounded to the nearest hour (so a 25h window reads "25 hours",
+// not "1 day").
 func formatDuration(d time.Duration) string {
-	hours := int(d.Hours())
-	if hours >= 24 {
+	if d < time.Hour {
+		mins := int(d.Round(time.Minute).Minutes())
+		if mins <= 1 {
+			return "1 min"
+		}
+		return fmt.Sprintf("%d min", mins)
+	}
+	hours := int(d.Round(time.Hour).Hours())
+	if hours%24 == 0 {
 		days := hours / 24
 		if days == 1 {
 			return "1 day"
@@ -295,4 +305,26 @@ func formatDuration(d time.Duration) string {
 		return "1 hour"
 	}
 	return fmt.Sprintf("%d hours", hours)
+}
+
+// presentationDateLayout is the single human-style layout for user-visible
+// timestamps (e.g. "26 Jun 2026 15:04 UTC"). Machine-readable surfaces
+// (manifest JSON, feeds, Discord embed timestamps) keep their own formats.
+const presentationDateLayout = "02 Jan 2006 15:04 UTC"
+
+// formatTimestamp renders t in the canonical human-style presentation format,
+// always in UTC.
+func formatTimestamp(t time.Time) string {
+	return t.UTC().Format(presentationDateLayout)
+}
+
+// formatWindowRange renders the digest window as "26 Jun 15:04 → 27 Jun 15:04 UTC",
+// collapsing the date on the end when start and end fall on the same UTC day
+// ("26 Jun 15:04 → 18:00 UTC").
+func formatWindowRange(start, end time.Time) string {
+	s, e := start.UTC(), end.UTC()
+	if s.Year() == e.Year() && s.YearDay() == e.YearDay() {
+		return fmt.Sprintf("%s → %s UTC", s.Format("02 Jan 15:04"), e.Format("15:04"))
+	}
+	return fmt.Sprintf("%s → %s UTC", s.Format("02 Jan 15:04"), e.Format("02 Jan 15:04"))
 }

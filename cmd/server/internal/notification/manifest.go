@@ -26,9 +26,16 @@ type Headline struct {
 
 // ManifestEntry describes a single published digest in the manifest.
 type ManifestEntry struct {
-	Filename     string     `json:"filename"`
+	Filename string `json:"filename"`
+	// PeriodStart and PeriodEnd are the canonical, honestly-named bounds of the
+	// digest's article-selection window (ISO "2006-01-02 15:04 UTC", machine-readable).
+	PeriodStart string `json:"period_start,omitempty"`
+	PeriodEnd   string `json:"period_end,omitempty"`
+	// StartedAt is a deprecated legacy alias that holds the window END (not the
+	// start). It is still written so entries published before period_end existed
+	// keep round-tripping and the archive index can fall back to it. Prefer
+	// PeriodEnd; remove once all historical entries have aged out.
 	StartedAt    string     `json:"started_at"`
-	PeriodStart  string     `json:"period_start,omitempty"`
 	TimeWindow   string     `json:"time_window"`
 	ArticleCount int        `json:"article_count"`
 	MustCount    int        `json:"must_count"`
@@ -170,13 +177,16 @@ func (m Manifest) Write(path string) error {
 func ManifestEntryFromDigest(d models.Digest) ManifestEntry {
 	provider, model := digestProviderLabel(d)
 	must, should, may, opt := digestPriorityCounts(d)
-	// CreatedAt is the window start (see GenerateDigest). period_start (the
-	// timestamp the archive index displays) is therefore CreatedAt directly,
-	// and started_at (used for "last sync") is the window end, CreatedAt+window.
+	// CreatedAt is the window start (see GenerateDigest); the window ends one
+	// TimeWindow later. period_start/period_end are the canonical bounds;
+	// started_at is the deprecated legacy alias for the end.
+	const layout = "2006-01-02 15:04 UTC"
+	periodEnd := d.CreatedAt.UTC().Add(d.TimeWindow).Format(layout)
 	return ManifestEntry{
 		Filename:     DigestHTMLFilename(d),
-		StartedAt:    d.CreatedAt.UTC().Add(d.TimeWindow).Format("2006-01-02 15:04 UTC"),
-		PeriodStart:  d.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"),
+		PeriodStart:  d.CreatedAt.UTC().Format(layout),
+		PeriodEnd:    periodEnd,
+		StartedAt:    periodEnd,
 		TimeWindow:   formatDuration(d.TimeWindow),
 		ArticleCount: len(d.Articles),
 		MustCount:    must,
