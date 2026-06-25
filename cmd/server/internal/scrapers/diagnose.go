@@ -168,14 +168,33 @@ func feedItemText(item *gofeed.Item) string {
 	return strings.TrimSpace(doc.Text())
 }
 
+// utf8BOM is the UTF-8 byte order mark.
+var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
+
+// stripLeadingBOMs removes any run of UTF-8 BOMs at the start of body. Some pages
+// emit the BOM more than once; the HTML/XML parsers only tolerate one, and the stray
+// BOMs are non-whitespace character tokens that corrupt the parse tree.
+func stripLeadingBOMs(body []byte) []byte {
+	for bytes.HasPrefix(body, utf8BOM) {
+		body = body[len(utf8BOM):]
+	}
+	return body
+}
+
 // extractHTMLTitle returns the trimmed text of an HTML page's <title> element, or
 // "" when the body can't be parsed or has no title.
 func extractHTMLTitle(body []byte) string {
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(stripLeadingBOMs(body)))
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(doc.Find("head title").First().Text())
+	// Prefer the head title, but fall back to any title: a malformed page can foster
+	// the title into the body, where "head title" wouldn't match.
+	t := strings.TrimSpace(doc.Find("head title").First().Text())
+	if t == "" {
+		t = strings.TrimSpace(doc.Find("title").First().Text())
+	}
+	return t
 }
 
 // DiagnoseFeedURL fetches a feed URL and returns a structured diagnosis. It is a
@@ -220,7 +239,7 @@ var (
 // guessFeedType sniffs the leading bytes to classify what came back, independent
 // of the (often wrong or missing) Content-Type header.
 func guessFeedType(body []byte) string {
-	trimmed := bytes.TrimPrefix(body, []byte{0xEF, 0xBB, 0xBF}) // strip UTF-8 BOM
+	trimmed := stripLeadingBOMs(body)
 	trimmed = bytes.TrimLeft(trimmed, " \t\r\n")
 	if len(trimmed) == 0 {
 		return "empty"

@@ -111,6 +111,9 @@ func TestExtractHTMLTitle(t *testing.T) {
 		{"title", `<html><head><title>  Acme Blog  </title></head><body>x</body></html>`, "Acme Blog"},
 		{"no title", `<html><head></head><body>x</body></html>`, ""},
 		{"empty body", ``, ""},
+		// Some pages emit the UTF-8 BOM more than once; the stray BOMs push the title
+		// out of <head> in the parse tree, so detection must strip them first.
+		{"stacked BOMs", strings.Repeat("\ufeff", 9) + `<!doctype html><html><head><title>Vulnerabilities Archive</title></head><body>x</body></html>`, "Vulnerabilities Archive"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -118,5 +121,14 @@ func TestExtractHTMLTitle(t *testing.T) {
 				t.Errorf("extractHTMLTitle = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestStripLeadingBOMs(t *testing.T) {
+	if got := stripLeadingBOMs([]byte(strings.Repeat("\ufeff", 9) + "x")); string(got) != "x" {
+		t.Errorf("stripLeadingBOMs left %q, want %q", got, "x")
+	}
+	if got := stripLeadingBOMs([]byte("x")); string(got) != "x" {
+		t.Errorf("stripLeadingBOMs changed BOM-free body to %q", got)
 	}
 }
