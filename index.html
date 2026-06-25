@@ -839,7 +839,7 @@ html[data-theme="light"] .seg button.on { color: #ffffff; }
   <section id="archive" data-manifest-url="digests/manifest.json" data-digest-base-url="digests"></section>
 
   <footer class="foot">
-    <span>DOWNLINK · automated news digest archive · d05ea4d</span>
+    <span>DOWNLINK · automated news digest archive · 0d26d8f</span>
     <span id="footer-total">0 articles across 0 transmissions</span>
     <span><a href="reports.html">reports</a> · <a href="sources.html">sources</a></span>
     <span id="footer-generated">generated —</span>
@@ -1023,7 +1023,7 @@ html[data-theme="light"] .seg button.on { color: #ffffff; }
   function renderTop() {
     var latest = state.rows[0];
     var totalArticles = state.rows.reduce(function(sum, d) { return sum + (d.article_count || 0); }, 0);
-    els.topMeta.innerHTML = '<b>' + state.rows.length + '</b> transmissions · last sync <b>' + escapeHTML(relDate(parseTs(latest && latest.started_at))) + '</b>';
+    els.topMeta.innerHTML = '<b>' + state.rows.length + '</b> transmissions · last sync <b>' + escapeHTML(relDate(parseTs(latest && (latest.period_end || latest.started_at)))) + '</b>';
     els.footerTotal.textContent = totalArticles.toLocaleString() + ' articles across ' + state.rows.length + ' transmissions';
     els.footerGenerated.textContent = 'generated ' + (state.manifest.generated_at || '—');
     if (!latest) {
@@ -1031,9 +1031,10 @@ html[data-theme="light"] .seg button.on { color: #ffffff; }
       return;
     }
     var dt = parseTs(latest.period_start || latest.started_at);
+    var dtEnd = parseTs(latest.period_end || latest.started_at);
     els.hero.innerHTML =
       '<span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>' +
-      '<div class="hero-head"><span>LATEST TRANSMISSION</span><span>// ' + escapeHTML(fmtDate(dt) + ' ' + fmtTime(dt) + ' UTC') + '</span><span class="rule"></span><span>' + escapeHTML(relDate(dt)) + '</span></div>' +
+      '<div class="hero-head"><span>LATEST TRANSMISSION</span><span>// ' + escapeHTML(windowRange(dt, dtEnd)) + '</span><span class="rule"></span><span>' + escapeHTML(relDate(dtEnd)) + '</span></div>' +
       '<div class="hero-grid"><div>' +
       '<h1>' + escapeHTML(topHeadline(latest)) + '</h1>' +
       '<p class="summary">' + escapeHTML(latest.summary || '') + '</p>' +
@@ -1366,6 +1367,18 @@ html[data-theme="light"] .seg button.on { color: #ffffff; }
   function fmtTime(d) {
     return d ? d.toUTCString().slice(17, 22) : '';
   }
+  
+  
+  function windowRange(start, end) {
+    if (!start) return '';
+    if (!end) return fmtDate(start) + ' ' + fmtTime(start) + ' UTC';
+    var sameDay = start.getUTCFullYear() === end.getUTCFullYear()
+      && start.getUTCMonth() === end.getUTCMonth()
+      && start.getUTCDate() === end.getUTCDate();
+    var left = fmtDate(start) + ' ' + fmtTime(start);
+    var right = sameDay ? fmtTime(end) : fmtDate(end) + ' ' + fmtTime(end);
+    return left + ' → ' + right + ' UTC';
+  }
   function relDate(d) {
     if (!d) return '—';
     var hours = Math.round((Date.now() - d.getTime()) / 36e5);
@@ -1400,7 +1413,7 @@ html[data-theme="light"] .seg button.on { color: #ffffff; }
   
   function bucketLabel(startMs, group) {
     var s = new Date(startMs);
-    if (group === '1d') return fmtDate(s) + ' · ' + monthName(s) + ' ' + s.getUTCFullYear();
+    if (group === '1d') return fmtDate(s);
     if (group === '1w') {
       var e = new Date(startMs + 6 * 864e5);
       return fmtDate(s) + ' – ' + fmtDate(e) + ' ' + e.getUTCFullYear();
