@@ -14,7 +14,7 @@ import (
 // FeedRefreshRetention bounds how many recent refresh runs (and their per-feed
 // results) the monitor keeps. 0 disables pruning. Mirrors
 // services.LLMMonitorRetention.
-var FeedRefreshRetention = 100
+var FeedRefreshRetention = 20
 
 // generateRefreshRunId returns a unique id for a feed-refresh monitoring run.
 // Nanosecond precision keeps back-to-back runs from colliding.

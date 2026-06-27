@@ -9,7 +9,7 @@ import (
 	"github.com/ma111e/downlink/pkg/digestlayouts"
 )
 
-//go:embed templates/*/*.tmpl
+//go:embed templates/*/*.tmpl templates/*/*.css templates/landing.css templates/switcher.css
 var notificationTemplateFS embed.FS
 
 //go:embed static/*

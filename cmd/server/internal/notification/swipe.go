@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	"github.com/ma111e/downlink/pkg/models"
+	"github.com/ma111e/downlink/pkg/utils"
 )
 
 // swipeArticle is the JSON representation of an article for the swipe triage view.
@@ -36,6 +37,7 @@ type swipeTemplateData struct {
 	TimeWindow     string
 	ArticlesJSON   string
 	PaletteCSS     string        // per-theme --pN source-color custom properties
+	StyleCSS       string        // static page stylesheet, loaded from the sibling .css file
 	Theme          string        // resolved data-theme attribute value
 	Themes         []themeOption // all known themes, for the picker + pre-paint allowlist
 }
@@ -158,6 +160,11 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string, layout, theme 
 	if err != nil {
 		return nil, fmt.Errorf("swipe: load template: %w", err)
 	}
+	styleCSS, err := loadNotificationTemplate(layout, "swipe.css")
+	if err != nil {
+		return nil, fmt.Errorf("swipe: load CSS: %w", err)
+	}
+	data.StyleCSS = utils.StripCSSComments(styleCSS)
 
 	// Use <% %> delimiters so JSX {{ }} syntax in the template is left untouched.
 	tmpl, err := template.New("swipe").Delims("<%", "%>").Parse(templateText)

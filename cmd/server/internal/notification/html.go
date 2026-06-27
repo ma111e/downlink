@@ -8,6 +8,7 @@ import (
 	"github.com/ma111e/downlink/pkg/digestthemes"
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/scoring"
+	"github.com/ma111e/downlink/pkg/utils"
 	"github.com/ma111e/downlink/pkg/version"
 	"html"
 	"html/template"
@@ -251,6 +252,7 @@ type digestTemplateData struct {
 	Theme               string        // resolved data-theme attribute value
 	Themes              []themeOption // all known themes, for the picker + pre-paint allowlist
 	PaletteCSS          template.CSS  // per-theme --pN source-color custom properties
+	StyleCSS            template.CSS  // static page stylesheet, loaded from the sibling .css file
 	DigestSummary       template.HTML // kept for backwards compat; OverviewSections is used for rendering
 	OverviewSections    []OverviewSection
 	TOCGroups           []TOCGroup
@@ -665,6 +667,12 @@ func RenderDigestHTML(digest models.Digest, layout, theme string) ([]byte, error
 		// sectionBorderB: border-bottom on all cells except the last two (the last pair)
 		"sectionBorderB": func(i, total int) bool { return i < total-2 },
 	}
+
+	styleCSS, err := loadNotificationTemplate(layout, "digest.css")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load digest CSS: %w", err)
+	}
+	data.StyleCSS = template.CSS(utils.StripCSSComments(styleCSS))
 
 	templateText, err := loadNotificationTemplate(layout, "digest.html.tmpl")
 	if err != nil {
@@ -1288,6 +1296,7 @@ type digestIndexTemplateData struct {
 	Commit        string
 	Theme         string        // resolved data-theme attribute value
 	Themes        []themeOption // all known themes, for the picker + pre-paint allowlist
+	StyleCSS      template.CSS  // static page stylesheet, loaded from the sibling .css file
 }
 
 // RenderDigestIndex generates the index HTML shell. The digest list is
@@ -1306,6 +1315,10 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout, theme string
 	if err != nil {
 		return nil, fmt.Errorf("failed to load index template: %w", err)
 	}
+	styleCSS, err := loadNotificationTemplate(layout, "archive-index.css")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load index CSS: %w", err)
+	}
 
 	tmpl, err := template.New("index").Parse(templateText)
 	if err != nil {
@@ -1318,6 +1331,7 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout, theme string
 		Commit:        version.Commit,
 		Theme:         resolveTheme(theme),
 		Themes:        themeOptions(),
+		StyleCSS:      template.CSS(utils.StripCSSComments(styleCSS)),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render digest index: %w", err)
 	}
@@ -1332,10 +1346,11 @@ type sourceEntry struct {
 }
 
 type sourcesTemplateData struct {
-	Theme   string        // resolved data-theme attribute value
-	Themes  []themeOption // all known themes, for the picker + pre-paint allowlist
-	Commit  string
-	Sources []sourceEntry
+	Theme    string        // resolved data-theme attribute value
+	Themes   []themeOption // all known themes, for the picker + pre-paint allowlist
+	Commit   string
+	Sources  []sourceEntry
+	StyleCSS template.CSS // static page stylesheet, loaded from the sibling .css file
 }
 
 // RenderSourcesPage generates the standalone "sources" page listing every
@@ -1349,6 +1364,10 @@ func RenderSourcesPage(feeds []models.Feed, layout, theme string) ([]byte, error
 	templateText, err := loadNotificationTemplate(layout, "sources.html.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load sources template: %w", err)
+	}
+	styleCSS, err := loadNotificationTemplate(layout, "sources.css")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load sources CSS: %w", err)
 	}
 
 	tmpl, err := template.New("sources").Parse(templateText)
@@ -1377,10 +1396,11 @@ func RenderSourcesPage(feeds []models.Feed, layout, theme string) ([]byte, error
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, sourcesTemplateData{
-		Theme:   resolveTheme(theme),
-		Themes:  themeOptions(),
-		Commit:  version.Commit,
-		Sources: entries,
+		Theme:    resolveTheme(theme),
+		Themes:   themeOptions(),
+		Commit:   version.Commit,
+		Sources:  entries,
+		StyleCSS: template.CSS(utils.StripCSSComments(styleCSS)),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render sources page: %w", err)
 	}

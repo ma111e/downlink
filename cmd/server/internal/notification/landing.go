@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+
+	"github.com/ma111e/downlink/pkg/utils"
 )
 
 // LandingProfile is one profile shown on the public root landing page and listed
@@ -26,33 +28,30 @@ func ProfilesJSON(profiles []LandingProfile) ([]byte, error) {
 	}{Profiles: profiles}, "", "  ")
 }
 
+// landingCSS is the landing page stylesheet, split out into templates/landing.css
+// and injected via the styleCSS template func so it stays trusted (no CSS-context
+// escaping).
+var landingCSS = func() template.CSS {
+	b, err := notificationTemplateFS.ReadFile("templates/landing.css")
+	if err != nil {
+		panic(fmt.Sprintf("read embedded landing.css: %v", err))
+	}
+	return template.CSS(utils.StripCSSComments(string(b)))
+}()
+
 // rootLandingTemplate is a small, self-contained landing page listing the public
 // profiles and linking into each profile's section. It intentionally has no
 // external assets so it works at the repo root regardless of layout.
-var rootLandingTemplate = template.Must(template.New("landing").Parse(`<!doctype html>
+var rootLandingTemplate = template.Must(template.New("landing").
+	Funcs(template.FuncMap{"styleCSS": func() template.CSS { return landingCSS }}).
+	Parse(`<!doctype html>
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Downlink — Profiles</title>
 <link rel="icon" href="favicon.ico">
-<style>
-  :root { color-scheme: dark; }
-  body { margin:0; font:16px/1.5 system-ui,sans-serif; background:#0f1115; color:#e7e9ee; }
-  .wrap { max-width:720px; margin:0 auto; padding:3rem 1.25rem; }
-  h1 { font-size:1.6rem; margin:0 0 .25rem; }
-  p.sub { color:#9aa3b2; margin:0 0 2rem; }
-  ul { list-style:none; margin:0; padding:0; display:grid; gap:.75rem; }
-  a.card { display:flex; gap:.9rem; align-items:flex-start; text-decoration:none;
-           color:inherit; background:#171a21; border:1px solid #242833; border-radius:12px;
-           padding:1rem 1.1rem; transition:border-color .15s, transform .05s; }
-  a.card:hover { border-color:#3a86ff; }
-  a.card:active { transform:translateY(1px); }
-  .icon { font-size:1.6rem; line-height:1; }
-  .name { font-weight:600; }
-  .desc { color:#9aa3b2; font-size:.92rem; margin-top:.15rem; }
-  footer { color:#5b6472; font-size:.8rem; margin-top:2.5rem; }
-</style>
+<style>{{styleCSS}}</style>
 </head>
 <body>
 <div class="wrap">

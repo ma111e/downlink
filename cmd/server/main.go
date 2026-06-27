@@ -239,7 +239,7 @@ func main() {
 	rootCmd.PersistentFlags().IntVar(&maxConcurrentLLMRequests, "max-concurrent-llm-requests", 1, "Maximum number of concurrent LLM analysis requests (default: 1)")
 	rootCmd.PersistentFlags().IntVar(&adminPort, "admin-port", 65262, "Localhost port for the LLM monitoring dashboard")
 	rootCmd.PersistentFlags().IntVar(&llmMonitorRetention, "llm-monitor-retention", 100, "Number of most-recent digest runs whose LLM conversations are retained (0 disables pruning)")
-	rootCmd.PersistentFlags().IntVar(&feedRefreshRetention, "feed-monitor-retention", 100, "Number of most-recent feed refresh runs whose history is retained (0 disables pruning)")
+	rootCmd.PersistentFlags().IntVar(&feedRefreshRetention, "feed-monitor-retention", 20, "Number of most-recent feed refresh runs whose history is retained (0 disables pruning)")
 	rootCmd.PersistentFlags().Bool("auto-analyze", false, "Automatically enqueue articles for analysis after each feed refresh [overrides config]")
 	rootCmd.PersistentFlags().Bool("vibe-score", false, "Use the legacy single-number LLM importance prompt instead of the rubric scoring system [overrides config]")
 	rootCmd.PersistentFlags().Bool("glossary", false, "Generate glossary-mode content (plain-language explanation + jargon glossary) per article [overrides config]")

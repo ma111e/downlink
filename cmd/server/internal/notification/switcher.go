@@ -3,6 +3,8 @@ package notification
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/ma111e/downlink/pkg/utils"
 )
 
 // profileSwitcherSnippet returns a self-contained floating profile switcher: a
@@ -15,15 +17,10 @@ import (
 // string literals.
 func profileSwitcherSnippet(currentSlug, rootPrefix string) string {
 	// %q produces safe double-quoted Go/JS string literals for the two values.
+	// switcherCSS is injected as a plain argument, so its literal % characters
+	// need no escaping (unlike when the CSS lived in the format string).
 	return fmt.Sprintf(`<div id="dl-profile-switcher" hidden></div>
-<style>
-#dl-profile-switcher{position:fixed;top:12px;right:12px;z-index:2147483000;font:13px/1.4 system-ui,sans-serif}
-#dl-profile-switcher select{appearance:none;cursor:pointer;padding:.4em 1.8em .4em .7em;border-radius:8px;
-  border:1px solid rgba(127,127,127,.4);background:rgba(127,127,127,.12);color:inherit;
-  background-image:url("data:image/svg+xml,%%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%%3E%%3Cpath d='M0 0l5 6 5-6z' fill='%%23999'/%%3E%%3C/svg%%3E");
-  background-repeat:no-repeat;background-position:right .6em center;backdrop-filter:blur(6px)}
-@media print{#dl-profile-switcher{display:none}}
-</style>
+<style>%s</style>
 <script>
 (function(){
   var ROOT=%q, CUR=%q;
@@ -44,8 +41,18 @@ func profileSwitcherSnippet(currentSlug, rootPrefix string) string {
     box.hidden=false;
   }).catch(function(){});
 })();
-</script>`, rootPrefix, currentSlug)
+</script>`, switcherCSS, rootPrefix, currentSlug)
 }
+
+// switcherCSS is the floating profile-switcher stylesheet, split out into
+// templates/switcher.css and inlined into the snippet at injection time.
+var switcherCSS = func() string {
+	b, err := notificationTemplateFS.ReadFile("templates/switcher.css")
+	if err != nil {
+		panic(fmt.Sprintf("read embedded switcher.css: %v", err))
+	}
+	return utils.StripCSSComments(string(b))
+}()
 
 // injectProfileSwitcher inserts the switcher snippet just before the last
 // </body> tag, falling back to appending it when no such tag is present.

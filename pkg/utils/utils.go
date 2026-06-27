@@ -102,6 +102,71 @@ func ParseDayUTC(s string) (start, end time.Time, err error) {
 	return day, day.AddDate(0, 0, 1), nil
 }
 
+// StripCSSComments removes /* ... */ comments from a stylesheet, replacing each
+// with a single space (so adjacent tokens like "0/* */0" stay separated rather
+// than merging into "00"), then trims trailing whitespace per line and drops any
+// line left blank. It scans character by character and ignores /* sequences that
+// appear inside single- or double-quoted strings (e.g. url("...")), so it never
+// cuts into a value.
+//
+// Source .css files keep their comments; this is applied at render time so the
+// published HTML stays lean.
+func StripCSSComments(css string) string {
+	var b strings.Builder
+	b.Grow(len(css))
+
+	var quote byte // 0 when not inside a string, else the opening quote char
+	for i := 0; i < len(css); i++ {
+		c := css[i]
+
+		if quote != 0 {
+			b.WriteByte(c)
+			// A backslash escapes the next char inside a string literal.
+			if c == '\\' && i+1 < len(css) {
+				i++
+				b.WriteByte(css[i])
+				continue
+			}
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+
+		if c == '\'' || c == '"' {
+			quote = c
+			b.WriteByte(c)
+			continue
+		}
+
+		if c == '/' && i+1 < len(css) && css[i+1] == '*' {
+			// Skip to the closing */ (or end of input for an unterminated comment).
+			end := strings.Index(css[i+2:], "*/")
+			if end < 0 {
+				i = len(css)
+			} else {
+				i += 2 + end + 1 // advance past the closing "*/"
+			}
+			b.WriteByte(' ')
+			continue
+		}
+
+		b.WriteByte(c)
+	}
+
+	// Trim trailing whitespace per line and drop lines left empty.
+	lines := strings.Split(b.String(), "\n")
+	out := lines[:0]
+	for _, line := range lines {
+		line = strings.TrimRight(line, " \t")
+		if line == "" {
+			continue
+		}
+		out = append(out, line)
+	}
+	return strings.Join(out, "\n")
+}
+
 // NormalizeFeedName converts a feed title to a URL-safe normalized name
 // Converts to lowercase, replaces spaces with '-', and special chars with '_'
 func NormalizeFeedName(title string) string {
