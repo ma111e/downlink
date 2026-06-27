@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"sort"
-	"text/template"
 
 	"github.com/ma111e/downlink/pkg/models"
-	"github.com/ma111e/downlink/pkg/utils"
 )
 
 // swipeArticle is the JSON representation of an article for the swipe triage view.
@@ -35,12 +34,28 @@ type swipeTemplateData struct {
 	DigestFilename string
 	DigestTitle    string
 	TimeWindow     string
-	ArticlesJSON   string
-	PaletteCSS     string        // per-theme --pN source-color custom properties
-	StyleCSS       string        // static page stylesheet (inline mode); empty when external
-	StyleLink      string        // <link> to the external stylesheet (external mode); empty when inline
+	ArticlesJSON   template.JS   // marshaled []swipeArticle for the #dl-articles island
+	MetaJSON       template.JS   // {digest, window, themes} for the #dl-meta island
+	PaletteCSS     template.CSS  // per-theme --pN source-color custom properties
+	StyleCSS       template.CSS  // static page stylesheet (inline mode); empty when external
+	StyleLink      template.HTML // <link> to the external stylesheet (external mode); empty when inline
+	ScriptJS       template.JS   // page bundle (inline mode); empty when external
+	ScriptSrc      template.HTML // <script src> to the external bundle (external mode); empty when inline
 	Theme          string        // resolved data-theme attribute value
-	Themes         []themeOption // all known themes, for the picker + pre-paint allowlist
+	Themes         []themeOption // all known themes, for the pre-paint allowlist
+}
+
+// swipeMeta is the #dl-meta island payload the swipe bundle reads. Field names
+// match what main.tsx expects (lowercase JSON keys).
+type swipeMeta struct {
+	Digest string           `json:"digest"`
+	Window string           `json:"window"`
+	Themes []swipeThemeMeta `json:"themes"`
+}
+
+type swipeThemeMeta struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
 }
 
 var swipePriorityRank = map[string]int{
@@ -148,28 +163,52 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string, layout, theme 
 		return nil, fmt.Errorf("swipe: marshal articles: %w", err)
 	}
 
+	themeOpts := themeOptions()
+	metaThemes := make([]swipeThemeMeta, len(themeOpts))
+	for i, t := range themeOpts {
+		metaThemes[i] = swipeThemeMeta{Value: t.Value, Label: t.Label}
+	}
+	metaJSON, err := json.Marshal(swipeMeta{
+		Digest: digestFilename,
+		Window: formatDuration(digest.TimeWindow),
+		Themes: metaThemes,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("swipe: marshal meta: %w", err)
+	}
+
 	data := swipeTemplateData{
 		DigestFilename: digestFilename,
 		DigestTitle:    digest.Title,
 		TimeWindow:     formatDuration(digest.TimeWindow),
-		ArticlesJSON:   string(articlesJSON),
-		PaletteCSS:     string(paletteCSS()),
+		ArticlesJSON:   template.JS(articlesJSON),
+		MetaJSON:       template.JS(metaJSON),
+		PaletteCSS:     paletteCSS(),
 		Theme:          resolveTheme(theme),
-		Themes:         themeOptions(),
+		Themes:         themeOpts,
 	}
 
 	templateText, err := loadNotificationTemplate(layout, "swipe.html.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("swipe: load template: %w", err)
 	}
-	styleCSS, err := loadNotificationTemplate(layout, "swipe.css")
+	styleCSS, err := loadStyleCSS(layout, "swipe.css")
 	if err != nil {
 		return nil, fmt.Errorf("swipe: load CSS: %w", err)
 	}
-	data.StyleCSS, data.StyleLink = rc.styleFields(utils.StripCSSComments(styleCSS), "swipe.css")
+	styleBody, styleLink := rc.styleFields(styleCSS, "swipe.css")
+	data.StyleCSS = template.CSS(styleBody)
+	data.StyleLink = template.HTML(styleLink)
 
-	// Use <% %> delimiters so JSX {{ }} syntax in the template is left untouched.
-	tmpl, err := template.New("swipe").Delims("<%", "%>").Parse(templateText)
+	scriptJS, err := loadBuiltAsset("swipe.js")
+	if err != nil {
+		return nil, fmt.Errorf("swipe: load JS: %w", err)
+	}
+	scriptBody, scriptSrc := rc.scriptFields(scriptJS, "swipe.js")
+	data.ScriptJS = template.JS(scriptBody)
+	data.ScriptSrc = template.HTML(scriptSrc)
+
+	tmpl, err := template.New("swipe").Parse(templateText)
 	if err != nil {
 		return nil, fmt.Errorf("swipe: parse template: %w", err)
 	}

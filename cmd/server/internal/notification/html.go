@@ -8,7 +8,6 @@ import (
 	"github.com/ma111e/downlink/pkg/digestthemes"
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/scoring"
-	"github.com/ma111e/downlink/pkg/utils"
 	"github.com/ma111e/downlink/pkg/version"
 	"html"
 	"html/template"
@@ -254,6 +253,8 @@ type digestTemplateData struct {
 	PaletteCSS          template.CSS  // per-theme --pN source-color custom properties
 	StyleCSS            template.CSS  // static page stylesheet (inline mode); empty when external
 	StyleLink           template.HTML // <link> to the external stylesheet (external mode); empty when inline
+	ScriptJS            template.JS   // page bundle (inline mode); empty when external
+	ScriptSrc           template.HTML // <script src> to the external bundle (external mode); empty when inline
 	DigestSummary       template.HTML // kept for backwards compat; OverviewSections is used for rendering
 	OverviewSections    []OverviewSection
 	TOCGroups           []TOCGroup
@@ -670,13 +671,21 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 		"sectionBorderB": func(i, total int) bool { return i < total-2 },
 	}
 
-	styleCSS, err := loadNotificationTemplate(layout, "digest.css")
+	styleCSS, err := loadStyleCSS(layout, "digest.css")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load digest CSS: %w", err)
 	}
-	body, link := rc.styleFields(utils.StripCSSComments(styleCSS), "digest.css")
+	body, link := rc.styleFields(styleCSS, "digest.css")
 	data.StyleCSS = template.CSS(body)
 	data.StyleLink = template.HTML(link)
+
+	scriptJS, err := loadBuiltAsset("digest.js")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load digest JS: %w", err)
+	}
+	scriptBody, scriptSrc := rc.scriptFields(scriptJS, "digest.js")
+	data.ScriptJS = template.JS(scriptBody)
+	data.ScriptSrc = template.HTML(scriptSrc)
 
 	templateText, err := loadNotificationTemplate(layout, "digest.html.tmpl")
 	if err != nil {
@@ -1302,6 +1311,8 @@ type digestIndexTemplateData struct {
 	Themes        []themeOption // all known themes, for the picker + pre-paint allowlist
 	StyleCSS      template.CSS  // static page stylesheet (inline mode); empty when external
 	StyleLink     template.HTML // <link> to the external stylesheet (external mode); empty when inline
+	ScriptJS      template.JS   // page bundle (inline mode); empty when external
+	ScriptSrc     template.HTML // <script src> to the external bundle (external mode); empty when inline
 }
 
 // RenderDigestIndex generates the index HTML shell. The digest list is
@@ -1321,16 +1332,21 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout, theme string
 	if err != nil {
 		return nil, fmt.Errorf("failed to load index template: %w", err)
 	}
-	styleCSS, err := loadNotificationTemplate(layout, "archive-index.css")
+	styleCSS, err := loadStyleCSS(layout, "archive-index.css")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load index CSS: %w", err)
+	}
+	scriptJS, err := loadBuiltAsset("archive-index.js")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load index JS: %w", err)
 	}
 
 	tmpl, err := template.New("index").Parse(templateText)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse index template: %w", err)
 	}
-	body, link := rc.styleFields(utils.StripCSSComments(styleCSS), "archive-index.css")
+	body, link := rc.styleFields(styleCSS, "archive-index.css")
+	scriptBody, scriptSrc := rc.scriptFields(scriptJS, "archive-index.js")
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, digestIndexTemplateData{
 		ManifestURL:   manifestURL,
@@ -1340,6 +1356,8 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout, theme string
 		Themes:        themeOptions(),
 		StyleCSS:      template.CSS(body),
 		StyleLink:     template.HTML(link),
+		ScriptJS:      template.JS(scriptBody),
+		ScriptSrc:     template.HTML(scriptSrc),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render digest index: %w", err)
 	}
@@ -1360,6 +1378,8 @@ type sourcesTemplateData struct {
 	Sources   []sourceEntry
 	StyleCSS  template.CSS  // static page stylesheet (inline mode); empty when external
 	StyleLink template.HTML // <link> to the external stylesheet (external mode); empty when inline
+	ScriptJS  template.JS   // page bundle (inline mode); empty when external
+	ScriptSrc template.HTML // <script src> to the external bundle (external mode); empty when inline
 }
 
 // RenderSourcesPage generates the standalone "sources" page listing every
@@ -1375,9 +1395,13 @@ func RenderSourcesPage(feeds []models.Feed, layout, theme string, opts ...Render
 	if err != nil {
 		return nil, fmt.Errorf("failed to load sources template: %w", err)
 	}
-	styleCSS, err := loadNotificationTemplate(layout, "sources.css")
+	styleCSS, err := loadStyleCSS(layout, "sources.css")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load sources CSS: %w", err)
+	}
+	scriptJS, err := loadBuiltAsset("sources.js")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load sources JS: %w", err)
 	}
 
 	tmpl, err := template.New("sources").Parse(templateText)
@@ -1404,7 +1428,8 @@ func RenderSourcesPage(feeds []models.Feed, layout, theme string, opts ...Render
 		return strings.ToLower(entries[i].Title) < strings.ToLower(entries[j].Title)
 	})
 
-	body, link := rc.styleFields(utils.StripCSSComments(styleCSS), "sources.css")
+	body, link := rc.styleFields(styleCSS, "sources.css")
+	scriptBody, scriptSrc := rc.scriptFields(scriptJS, "sources.js")
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, sourcesTemplateData{
 		Theme:     resolveTheme(theme),
@@ -1413,6 +1438,8 @@ func RenderSourcesPage(feeds []models.Feed, layout, theme string, opts ...Render
 		Sources:   entries,
 		StyleCSS:  template.CSS(body),
 		StyleLink: template.HTML(link),
+		ScriptJS:  template.JS(scriptBody),
+		ScriptSrc: template.HTML(scriptSrc),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render sources page: %w", err)
 	}

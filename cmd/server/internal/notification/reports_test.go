@@ -115,10 +115,14 @@ func TestRenderReportsPageEmbedsJSON(t *testing.T) {
 		t.Fatalf("RenderReportsPage: %v", err)
 	}
 	html := string(out)
-	if !strings.Contains(html, "window.__DL_REPORTS") {
-		t.Error("expected embedded window.__DL_REPORTS payload")
+	if !strings.Contains(html, `<script type="application/json" id="dl-reports">`) {
+		t.Error("expected the #dl-reports JSON island")
 	}
 	if !strings.Contains(html, "Threat Group Annual Report") {
-		t.Error("expected report title in rendered page")
+		t.Error("expected report title in the embedded JSON payload")
+	}
+	// The page bundle is inlined for the self-contained default render.
+	if !strings.Contains(html, `<script type="module">`) {
+		t.Error("expected the reports bundle to be inlined")
 	}
 }

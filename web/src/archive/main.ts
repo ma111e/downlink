@@ -1,0 +1,595 @@
+// archive-index page bundle: the manifest fetch + search/filter/group/sort UI.
+// Data comes from manifest.json (fetched client-side) and the #archive element's
+// data-* attributes. The blocking pre-paint theme IIFE stays inline in the template.
+import '../css/archive-index.css'
+
+(function() {
+  var PIN_KEY = 'downlink.pinned.v2';
+  var THEME_KEY = 'downlink.theme';
+  var LAYOUT_KEY = 'downlink.archive.layout';
+  var GROUP_KEY = 'downlink.archive.group';
+  var state = {
+    manifest: null,
+    rows: [],
+    filtered: [],
+    active: 0,
+    expanded: null,
+    layout: localStorage.getItem(LAYOUT_KEY) || 'log',
+    group: localStorage.getItem(GROUP_KEY) || '1d',
+    collapsed: new Set(),
+    collapsedGroup: null,
+    theme: localStorage.getItem(THEME_KEY) || document.documentElement.dataset.theme || 'dark',
+    pinned: loadPins(),
+    pinFilter: false
+  };
+
+  var els = {
+    archive: document.getElementById('archive'),
+    hero: document.getElementById('hero'),
+    topMeta: document.getElementById('top-meta'),
+    resultline: document.getElementById('resultline'),
+    footerTotal: document.getElementById('footer-total'),
+    footerGenerated: document.getElementById('footer-generated'),
+    search: document.getElementById('search'),
+    month: document.getElementById('month'),
+    model: document.getElementById('model'),
+    group: document.getElementById('group'),
+    sort: document.getElementById('sort'),
+    theme: document.getElementById('theme'),
+    pinFilter: document.getElementById('pin-filter')
+  };
+
+  document.documentElement.dataset.theme = state.theme;
+  els.theme.value = state.theme;
+  els.group.value = state.group;
+  setLayout(state.layout);
+
+  var manifestURL = els.archive.getAttribute('data-manifest-url') || 'manifest.json';
+  var digestBaseURL = els.archive.getAttribute('data-digest-base-url') || '';
+  fetch(manifestURL, { cache: 'no-cache' }).then(function(r) {
+    if (!r.ok) throw new Error('manifest fetch ' + r.status);
+    return r.json();
+  }).then(function(m) {
+    state.manifest = m || {};
+    state.rows = (state.manifest.digests || []).slice().sort(function(a, b) {
+      var ta = parseTs(a.period_start || a.started_at);
+      var tb = parseTs(b.period_start || b.started_at);
+      return (tb ? tb.getTime() : 0) - (ta ? ta.getTime() : 0);
+    });
+    populateFilters();
+    applyFilters();
+  }).catch(function(err) {
+    els.hero.innerHTML = '<div class="empty">manifest.json failed to load · ' + escapeHTML(String(err)) + '</div>';
+    els.archive.innerHTML = '<div class="empty">Make sure manifest.json sits next to index.html.</div>';
+  });
+
+  els.search.addEventListener('input', applyFilters);
+  els.month.addEventListener('change', applyFilters);
+  els.model.addEventListener('change', applyFilters);
+  els.group.addEventListener('change', function() {
+    state.group = els.group.value;
+    localStorage.setItem(GROUP_KEY, state.group);
+    state.collapsedGroup = null;
+    renderResultline();
+    renderArchive();
+  });
+  els.sort.addEventListener('change', applyFilters);
+  els.theme.addEventListener('change', function() {
+    state.theme = els.theme.value;
+    document.documentElement.dataset.theme = state.theme;
+    localStorage.setItem(THEME_KEY, state.theme);
+    renderResultline();
+  });
+  els.pinFilter.addEventListener('click', function() {
+    state.pinFilter = !state.pinFilter;
+    els.pinFilter.classList.toggle('primary', state.pinFilter);
+    applyFilters();
+  });
+  document.querySelectorAll('[data-layout]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      setLayout(btn.dataset.layout);
+      renderArchive();
+    });
+  });
+  document.addEventListener('keydown', function(e) {
+    var target = e.target;
+    var editing = target && ['INPUT', 'SELECT', 'TEXTAREA'].indexOf(target.tagName) >= 0;
+    if (editing) {
+      if (e.key === 'Escape') target.blur();
+      return;
+    }
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.key === '/') {
+      e.preventDefault();
+      els.search.focus();
+      return;
+    }
+    if (e.key === 'j' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActive(Math.min(state.filtered.length - 1, state.active + 1));
+    } else if (e.key === 'k' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActive(Math.max(0, state.active - 1));
+    } else if (e.key === 'Enter') {
+      var row = state.filtered[state.active];
+      if (row) window.location.href = digestURL(row.filename);
+    } else if (e.key === 'p') {
+      var pinRow = state.filtered[state.active];
+      if (pinRow) togglePin(pinRow.filename);
+    } else if (e.key === 'g') {
+      var next = state.layout === 'log' ? 'grid' : state.layout === 'grid' ? 'timeline' : 'log';
+      setLayout(next);
+      renderArchive();
+    }
+  });
+
+  function populateFilters() {
+    var months = unique(state.rows.map(function(d) {
+      var dt = parseTs(d.period_start || d.started_at);
+      return dt ? dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) : '';
+    }).filter(Boolean));
+    var models = unique(state.rows.flatMap(function(d) {
+      return (d.models && d.models.length) ? d.models : (d.model ? [d.model] : []);
+    }).filter(Boolean));
+    fillSelect(els.month, months);
+    fillSelect(els.model, models);
+  }
+
+  function applyFilters() {
+    var q = els.search.value.trim().toLowerCase();
+    var month = els.month.value;
+    var model = els.model.value;
+    var rows = state.rows.slice();
+    if (q) {
+      rows = rows.filter(function(d) {
+        return (d.filename || '').toLowerCase().indexOf(q) >= 0 ||
+          (d.summary || '').toLowerCase().indexOf(q) >= 0 ||
+          (d.headlines || []).some(function(h) { return headlineText(h).toLowerCase().indexOf(q) >= 0; });
+      });
+    }
+    if (month !== 'all') {
+      rows = rows.filter(function(d) {
+        var dt = parseTs(d.period_start || d.started_at);
+        return dt && dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) === month;
+      });
+    }
+    if (model !== 'all') {
+      rows = rows.filter(function(d) {
+        return (d.models && d.models.indexOf(model) >= 0) || d.model === model;
+      });
+    }
+    if (state.pinFilter) {
+      rows = rows.filter(function(d) { return state.pinned.has(d.filename); });
+    }
+    if (els.sort.value === 'oldest') rows.reverse();
+    if (els.sort.value === 'most') rows.sort(function(a, b) { return (b.article_count || 0) - (a.article_count || 0); });
+    if (els.sort.value === 'must') rows.sort(function(a, b) { return (b.must_count || 0) - (a.must_count || 0); });
+    state.filtered = rows;
+    if (state.active >= rows.length) state.active = 0;
+    if (state.expanded != null && state.expanded >= rows.length) state.expanded = null;
+    renderAll();
+  }
+
+  function renderAll() {
+    renderTop();
+    renderResultline();
+    renderArchive();
+  }
+
+  function renderTop() {
+    var latest = state.rows[0];
+    var totalArticles = state.rows.reduce(function(sum, d) { return sum + (d.article_count || 0); }, 0);
+    els.topMeta.innerHTML = '<b>' + state.rows.length + '</b> transmissions · last sync <b>' + escapeHTML(relDate(parseTs(latest && (latest.period_end || latest.started_at)))) + '</b>';
+    els.footerTotal.textContent = totalArticles.toLocaleString() + ' articles across ' + state.rows.length + ' transmissions';
+    els.footerGenerated.textContent = 'generated ' + (state.manifest.generated_at || '—');
+    if (!latest) {
+      els.hero.innerHTML = '<span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span><div class="empty">No digests yet.</div>';
+      return;
+    }
+    var dt = parseTs(latest.period_start || latest.started_at);
+    var dtEnd = parseTs(latest.period_end || latest.started_at);
+    els.hero.innerHTML =
+      '<span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>' +
+      '<div class="hero-head"><span>LATEST TRANSMISSION</span><span>// ' + escapeHTML(windowRange(dt, dtEnd)) + '</span><span class="rule"></span><span>' + escapeHTML(relDate(dtEnd)) + '</span></div>' +
+      '<div class="hero-grid"><div>' +
+      '<h1>' + escapeHTML(topHeadline(latest)) + '</h1>' +
+      '<p class="summary">' + escapeHTML(latest.summary || '') + '</p>' +
+      '<div class="cta-row"><a class="btn primary mono" href="' + escapeAttr(digestURL(latest.filename)) + '">Open digest -></a><a class="btn mono" href="' + escapeAttr(swipeURL(latest.filename)) + '">Triage</a></div>' +
+      '<div class="stats">' +
+      statHTML('Articles', latest.article_count || 0) +
+      statHTML('Window', escapeHTML(latest.time_window || '—')) +
+      statHTML('Must / Should', (latest.must_count || 0) + '<small>/</small>' + (latest.should_count || 0)) +
+      statHTML('Model', escapeHTML((latest.models && latest.models.length ? latest.models.join(' · ') : latest.model) || 'unknown')) +
+      '</div></div>' +
+      '<ul class="top-headlines">' + (latest.headlines || []).map(function(h, i) {
+        return '<li><span class="num">' + pad2(i + 1) + '</span><span>' + escapeHTML(headlineText(h)) + '</span></li>';
+      }).join('') +
+      '<li><span class="num">Σ</span><span style="color:var(--ink-dim);font-size:12px">archive: <b style="color:var(--ink)">' + state.rows.length + '</b> digests · <b style="color:var(--ink)">' + totalArticles.toLocaleString() + '</b> articles tracked</span></li>' +
+      '</ul></div>';
+  }
+
+  function renderResultline() {
+    els.resultline.innerHTML =
+      '<span><b>' + state.filtered.length + '</b> of ' + state.rows.length + '</span>' +
+      '<span class="dot"></span><span>view: <b>' + escapeHTML(state.layout) + '</b></span>' +
+      (state.group !== 'none' ? '<span class="dot"></span><span>group: <b>' + escapeHTML(els.group.options[els.group.selectedIndex] ? els.group.options[els.group.selectedIndex].text : state.group) + '</b></span>' : '') +
+      '<span class="dot"></span><span>theme: <b>' + escapeHTML(state.theme) + '</b></span>' +
+      '<span style="flex:1"></span><span class="kb-hint">j/k navigate · enter open · p pin · g cycle view · / search</span>';
+  }
+
+  function renderArchive() {
+    if (!state.filtered.length) {
+      els.archive.innerHTML = '<div class="empty">no transmissions match your filter · clear search to reset</div>';
+      return;
+    }
+    if (state.layout === 'grid') renderGrid();
+    else if (state.layout === 'timeline') renderTimeline();
+    else renderLog();
+  }
+
+  function renderLog() {
+    var body = state.group === 'none'
+      ? state.filtered.map(logRowHTML).join('')
+      : groupedLogBody();
+    els.archive.innerHTML = '<div class="log">' +
+      '<div class="log-head"><div></div><div class="sortable" data-sort-toggle="date">timestamp</div><div>win</div><div>top headline</div><div>priority mix</div><div class="sortable" data-sort-toggle="most" style="text-align:right">articles</div><div></div></div>' +
+      body + '</div>';
+    wireRows();
+    wireGroupHeaders();
+    els.archive.querySelector('[data-sort-toggle="date"]').addEventListener('click', function() {
+      els.sort.value = els.sort.value === 'newest' ? 'oldest' : 'newest';
+      applyFilters();
+    });
+    els.archive.querySelector('[data-sort-toggle="most"]').addEventListener('click', function() {
+      els.sort.value = 'most';
+      applyFilters();
+    });
+  }
+
+  // groupedLogBody buckets the (already sorted) filtered rows by the selected
+  // time window, ordering buckets by time and keeping rows in their sorted order
+  // within each bucket. Each bucket gets a collapsible aggregate header.
+  function groupedLogBody() {
+    var order = [];
+    var buckets = {};
+    state.filtered.forEach(function(d, i) {
+      var dt = parseTs(d.period_start || d.started_at);
+      var start = bucketStartMs(dt, state.group);
+      var key = start == null ? 'unknown' : String(start);
+      if (!buckets[key]) {
+        buckets[key] = { start: start, items: [], must: 0, should: 0, may: 0, opt: 0, arts: 0 };
+        order.push(key);
+      }
+      var b = buckets[key];
+      b.items.push({ row: d, index: i });
+      b.must += d.must_count || 0;
+      b.should += d.should_count || 0;
+      b.may += d.may_count || 0;
+      b.opt += d.opt_count || 0;
+      b.arts += d.article_count || 0;
+    });
+    order.sort(function(a, b) {
+      var sa = buckets[a].start, sb = buckets[b].start;
+      if (sa == null) return 1;
+      if (sb == null) return -1;
+      return els.sort.value === 'oldest' ? sa - sb : sb - sa;
+    });
+    // On first render of a grouping, default-collapse buckets older than 3 days
+    // relative to the newest bucket (robust against a stale published archive).
+    // User toggles afterward persist until the group selector changes.
+    if (state.collapsedGroup !== state.group) {
+      state.collapsed = new Set();
+      var newestStart = order.reduce(function(max, key) {
+        var s = buckets[key].start;
+        return s != null && (max == null || s > max) ? s : max;
+      }, null);
+      if (newestStart != null) {
+        var cutoff = newestStart - 3 * 864e5;
+        order.forEach(function(key) {
+          var s = buckets[key].start;
+          if (s != null && s < cutoff) state.collapsed.add(key);
+        });
+      }
+      state.collapsedGroup = state.group;
+    }
+    return order.map(function(key) {
+      var b = buckets[key];
+      var collapsed = state.collapsed.has(key);
+      var label = b.start == null ? 'undated' : bucketLabel(b.start, state.group);
+      var header = '<div class="log-group grp-' + state.group + (collapsed ? ' collapsed' : '') + '" data-bucket="' + escapeAttr(key) + '" role="button" tabindex="0" aria-expanded="' + (collapsed ? 'false' : 'true') + '">' +
+        '<span class="caret">' + (collapsed ? '▶' : '▼') + '</span>' +
+        '<span class="g-label">' + escapeHTML(label) + '</span>' +
+        '<span class="g-count"><b>' + b.items.length + '</b> digest' + (b.items.length === 1 ? '' : 's') + '</span>' +
+        '<span class="g-arts"><b>' + b.arts + '</b> art</span>' +
+        priorityBarFromCounts(b.must, b.should, b.may, b.opt) + '</div>';
+      if (collapsed) return header;
+      return header + b.items.map(function(item) { return logRowHTML(item.row, item.index); }).join('');
+    }).join('');
+  }
+
+  function wireGroupHeaders() {
+    els.archive.querySelectorAll('[data-bucket]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var key = el.dataset.bucket;
+        if (state.collapsed.has(key)) state.collapsed.delete(key);
+        else state.collapsed.add(key);
+        renderArchive();
+      });
+    });
+  }
+
+  function renderGrid() {
+    els.archive.innerHTML = '<div class="grid">' + state.filtered.map(cardHTML).join('') + '</div>';
+    wireRows();
+  }
+
+  function renderTimeline() {
+    var groups = {};
+    state.filtered.forEach(function(d, i) {
+      var dt = parseTs(d.period_start || d.started_at);
+      var key = dt ? dt.toISOString().slice(0, 10) : 'unknown';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push({ row: d, index: i });
+    });
+    els.archive.innerHTML = '<div class="timeline">' + Object.keys(groups).map(function(day) {
+      var items = groups[day];
+      var dt = parseTs(items[0].row.period_start || items[0].row.started_at);
+      return '<div class="tl-day"><div class="day-label"><span class="d">' + escapeHTML(dt ? pad2(dt.getUTCDate()) : '--') + '</span><span class="m">' + escapeHTML(dt ? monthName(dt) + ' ' + dt.getUTCFullYear() : 'UNKNOWN') + '</span></div><div class="tl-rail">' +
+        items.map(timelineRowHTML).join('') + '</div></div>';
+    }).join('') + '</div>';
+    wireRows();
+  }
+
+  function logRowHTML(d, i) {
+    var dt = parseTs(d.period_start || d.started_at);
+    var expanded = state.expanded === i;
+    return '<div class="log-row' + (state.active === i ? ' active' : '') + (expanded ? ' expanded' : '') + '" role="button" tabindex="0" aria-expanded="' + (expanded ? 'true' : 'false') + '" data-index="' + i + '">' +
+      pinButtonHTML(d.filename) +
+      '<div class="ts"><span class="date">' + escapeHTML(fmtDate(dt)) + '</span><span class="time">' + escapeHTML(fmtTime(dt) + ' UTC') + '</span></div>' +
+      '<div class="win">' + escapeHTML(d.time_window || '—') + '</div>' +
+      '<a class="head head-link" href="' + escapeAttr(digestURL(d.filename)) + '"><span class="head-txt">' + escapeHTML(topHeadline(d)) + '</span><svg class="head-ext" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8.5 8.5M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"/></svg></a>' +
+      priorityBarHTML(d) +
+      '<div class="cnt">' + (d.article_count || 0) + '<small>art</small></div><div class="arr">' + (expanded ? 'v' : '->') + '</div>' +
+      (expanded ? previewHTML(d) : '') + '</div>';
+  }
+
+  function cardHTML(d, i) {
+    var dt = parseTs(d.period_start || d.started_at);
+    return '<a class="card' + (state.active === i ? ' active' : '') + '" href="' + escapeAttr(digestURL(d.filename)) + '" data-index="' + i + '">' +
+      '<span class="corner tl"></span><span class="corner br"></span>' +
+      '<div class="card-head"><div class="ts2">' + escapeHTML(fmtDate(dt)) + '<small>' + escapeHTML(fmtTime(dt) + ' · ' + (d.time_window || '—')) + '</small></div><div class="card-actions"><span class="badge">' + escapeHTML(d.provider || 'unknown') + '</span>' + pinButtonHTML(d.filename) + '</div></div>' +
+      '<div class="head" style="white-space:normal;margin-bottom:8px;font-size:14px;line-height:1.35">' + escapeHTML(topHeadline(d)) + '</div>' +
+      '<p class="summary2">' + escapeHTML(d.summary || '') + '</p>' + priorityBarHTML(d) +
+      '<div class="card-foot"><div class="cnts"><span><span class="swatch" style="background:var(--must)"></span>' + (d.must_count || 0) + '</span><span><span class="swatch" style="background:var(--should)"></span>' + (d.should_count || 0) + '</span><span><span class="swatch" style="background:var(--may)"></span>' + (d.may_count || 0) + '</span></div><div>' + (d.article_count || 0) + ' art</div></div></a>';
+  }
+
+  function timelineRowHTML(item) {
+    var d = item.row;
+    var dt = parseTs(d.period_start || d.started_at);
+    return '<a class="tl-row' + (state.active === item.index ? ' active' : '') + '" href="' + escapeAttr(digestURL(d.filename)) + '" data-index="' + item.index + '">' +
+      '<div class="tl-meta"><span class="t">' + escapeHTML(fmtTime(dt)) + ' UTC</span><span>·</span><span>' + escapeHTML(d.time_window || '—') + ' window</span><span>·</span><span>' + (d.article_count || 0) + ' articles</span><span style="flex:1"></span>' + pinButtonHTML(d.filename) + '</div>' +
+      '<div class="tl-head">' + escapeHTML(topHeadline(d)) + '</div>' + priorityBarHTML(d) + '</a>';
+  }
+
+  function wireRows() {
+    els.archive.querySelectorAll('[data-index]').forEach(function(el) {
+      if (el.classList.contains('log-row')) {
+        el.addEventListener('click', function() {
+          handleLogRowClick(Number(el.dataset.index));
+        });
+      }
+    });
+    els.archive.querySelectorAll('[data-pin]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        togglePin(btn.dataset.pin);
+      });
+    });
+    els.archive.querySelectorAll('.open-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+    els.archive.querySelectorAll('.head-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();   // let the <a> navigate; don't expand/collapse the row
+      });
+    });
+  }
+
+  function handleLogRowClick(index) {
+    if (index < 0 || index >= state.filtered.length) return;
+    if (state.expanded === index) {
+      state.expanded = null;   // second click toggles the row closed
+      renderArchive();
+      return;
+    }
+    state.active = index;
+    state.expanded = index;
+    renderArchive();
+  }
+
+  function setActive(index, scroll) {
+    if (index < 0 || index >= state.filtered.length) return;
+    state.active = index;
+    if (state.group !== 'none' && state.layout === 'log') {
+      // Auto-expand the bucket the active row lives in so j/k stays usable.
+      var d = state.filtered[index];
+      var start = bucketStartMs(parseTs(d.period_start || d.started_at), state.group);
+      state.collapsed.delete(start == null ? 'unknown' : String(start));
+    }
+    renderArchive();
+    if (scroll !== false) {
+      var el = els.archive.querySelector('[data-index="' + index + '"]');
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function setLayout(layout) {
+    state.layout = layout;
+    localStorage.setItem(LAYOUT_KEY, layout);
+    document.querySelectorAll('[data-layout]').forEach(function(btn) {
+      btn.classList.toggle('on', btn.dataset.layout === layout);
+    });
+    renderResultline();
+  }
+
+  function togglePin(filename) {
+    if (state.pinned.has(filename)) state.pinned.delete(filename);
+    else state.pinned.add(filename);
+    savePins(state.pinned);
+    applyFilters();
+  }
+
+  function pinButtonHTML(filename) {
+    var on = state.pinned.has(filename);
+    return '<button class="pin' + (on ? ' on' : '') + '" data-pin="' + escapeAttr(filename) + '" type="button" aria-label="' + (on ? 'Unpin digest' : 'Pin digest') + '">' + starSVG(on) + '</button>';
+  }
+
+  function digestURL(filename) {
+    var name = String(filename || '');
+    if (!digestBaseURL) return name;
+    return digestBaseURL.replace(/\/?$/, '/') + name.replace(/^\/+/, '');
+  }
+
+  function swipeURL(filename) {
+    var name = String(filename || '').replace(/^downlink-digest-/, 'downlink-swipe-');
+    return digestURL(name);
+  }
+
+  function priorityBarHTML(d) {
+    return priorityBarFromCounts(d.must_count || 0, d.should_count || 0, d.may_count || 0, d.opt_count || 0);
+  }
+
+  function priorityBarFromCounts(must, should, may, opt) {
+    var total = must + should + may + opt || 1;
+    return '<div class="pri-bar" title="MUST ' + must + ' · SHOULD ' + should + ' · MAY ' + may + ' · OPT ' + opt + '">' +
+      '<span class="must" style="width:' + (must / total * 100) + '%"></span>' +
+      '<span class="should" style="width:' + (should / total * 100) + '%"></span>' +
+      '<span class="may" style="width:' + (may / total * 100) + '%"></span>' +
+      '<span class="opt" style="width:' + (opt / total * 100) + '%"></span></div>';
+  }
+
+  function previewHTML(d) {
+    return '<div class="preview"><ul>' + (d.headlines || []).map(function(h, i) {
+      var cls = previewPriorityClass(h, i);
+      return '<li><span class="pri ' + cls + '"></span><span>' + escapeHTML(headlineText(h)) + '</span></li>';
+    }).join('') + '</ul><a class="open-link" href="' + escapeAttr(digestURL(d.filename)) + '">Open digest -></a></div>';
+  }
+
+  function previewPriorityClass(h, index) {
+    var priority = h && h.priority;
+    if (priority === 'must' || priority === 'should' || priority === 'may') return priority;
+    if (index === 0) return 'must';
+    if (index === 1) return 'should';
+    return 'may';
+  }
+
+  function statHTML(label, value) {
+    return '<div class="stat"><div class="k">' + escapeHTML(label) + '</div><div class="v">' + value + '</div></div>';
+  }
+
+  function loadPins() {
+    try { return new Set(JSON.parse(localStorage.getItem(PIN_KEY) || '[]')); }
+    catch (e) { return new Set(); }
+  }
+  function savePins(pins) {
+    try { localStorage.setItem(PIN_KEY, JSON.stringify(Array.from(pins))); } catch (e) {}
+  }
+  function fillSelect(select, values) {
+    select.innerHTML = '<option value="all">all</option>' + values.map(function(v) {
+      return '<option value="' + escapeAttr(v) + '">' + escapeHTML(v) + '</option>';
+    }).join('');
+  }
+  function unique(values) {
+    return Array.from(new Set(values));
+  }
+  function headlineText(h) {
+    return (h && h.title) || '';
+  }
+  function topHeadline(d) {
+    return d.title || (d.headlines && headlineText(d.headlines[0])) || d.filename || 'Untitled digest';
+  }
+  function parseTs(s) {
+    if (!s) return null;
+    var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    if (!m) return null;
+    return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5])));
+  }
+  function fmtDate(d) {
+    return d ? d.toUTCString().slice(5, 16).trim() : '';
+  }
+  function fmtTime(d) {
+    return d ? d.toUTCString().slice(17, 22) : '';
+  }
+  // windowRange renders "26 Jun 14:00 → 27 Jun 14:00 UTC", collapsing the date on
+  // the end when start and end fall on the same UTC day. Mirrors the digest page.
+  function windowRange(start, end) {
+    if (!start) return '';
+    if (!end) return fmtDate(start) + ' ' + fmtTime(start) + ' UTC';
+    var sameDay = start.getUTCFullYear() === end.getUTCFullYear()
+      && start.getUTCMonth() === end.getUTCMonth()
+      && start.getUTCDate() === end.getUTCDate();
+    var left = fmtDate(start) + ' ' + fmtTime(start);
+    var right = sameDay ? fmtTime(end) : fmtDate(end) + ' ' + fmtTime(end);
+    return left + ' → ' + right + ' UTC';
+  }
+  function relDate(d) {
+    if (!d) return '—';
+    var hours = Math.round((Date.now() - d.getTime()) / 36e5);
+    if (hours < 1) return 'just now';
+    if (hours < 24) return hours + 'h ago';
+    var days = Math.round(hours / 24);
+    if (days < 30) return days + 'd ago';
+    return Math.round(days / 30) + 'mo ago';
+  }
+  function monthName(d) {
+    return d.toUTCString().slice(8, 11).toUpperCase();
+  }
+  function groupWindowHours(group) {
+    return { '4h': 4, '8h': 8, '12h': 12, '1d': 24, '1w': 168 }[group] || 0;
+  }
+  // bucketStartMs returns the UTC-aligned start of the window dt falls into, in ms.
+  function bucketStartMs(dt, group) {
+    if (!dt) return null;
+    var y = dt.getUTCFullYear(), mo = dt.getUTCMonth(), d = dt.getUTCDate();
+    if (group === '1w') {
+      // Align weeks to Monday 00:00 UTC.
+      var midnight = Date.UTC(y, mo, d);
+      var offset = (dt.getUTCDay() + 6) % 7; // Mon=0 .. Sun=6
+      return midnight - offset * 864e5;
+    }
+    if (group === '1d') return Date.UTC(y, mo, d);
+    var win = groupWindowHours(group);
+    if (!win) return null;
+    var h = Math.floor(dt.getUTCHours() / win) * win;
+    return Date.UTC(y, mo, d, h);
+  }
+  // bucketLabel renders the window range header for a bucket start time.
+  function bucketLabel(startMs, group) {
+    var s = new Date(startMs);
+    if (group === '1d') return fmtDate(s);
+    if (group === '1w') {
+      var e = new Date(startMs + 6 * 864e5);
+      return fmtDate(s) + ' – ' + fmtDate(e) + ' ' + e.getUTCFullYear();
+    }
+    var win = groupWindowHours(group);
+    var endH = s.getUTCHours() + win;
+    return fmtDate(s) + ' · ' + pad2(s.getUTCHours()) + ':00–' + pad2(endH) + ':00 UTC';
+  }
+  function pad2(n) {
+    return String(n).padStart(2, '0');
+  }
+  function starSVG(filled) {
+    return '<svg width="14" height="14" viewBox="0 0 24 24" fill="' + (filled ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"></path></svg>';
+  }
+  function escapeHTML(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch];
+    });
+  }
+  function escapeAttr(value) {
+    return escapeHTML(value);
+  }
+})();
