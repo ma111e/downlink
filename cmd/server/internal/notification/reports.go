@@ -166,22 +166,24 @@ type reportsTemplateData struct {
 	Themes      []themeOption // all known themes, for the picker + pre-paint allowlist
 	Commit      string
 	ReportCount int
-	ReportsJSON template.JS  // marshaled []aggregatedReport for client-side search
-	StyleCSS    template.CSS // static page stylesheet, loaded from the sibling .css file
+	ReportsJSON template.JS   // marshaled []aggregatedReport for client-side search
+	StyleCSS    template.CSS  // static page stylesheet (inline mode); empty when external
+	StyleLink   template.HTML // <link> to the external stylesheet (external mode); empty when inline
 }
 
 // RenderReportsPageForDigests aggregates the referenced reports across the given
 // digests and renders the standalone reports page. It is the exported entry point
 // for callers outside this package (the publisher and the dev preview server),
 // since the aggregated report type is internal.
-func RenderReportsPageForDigests(digests []models.Digest, layout, theme string) ([]byte, error) {
-	return RenderReportsPage(aggregateReports(digests), layout, theme)
+func RenderReportsPageForDigests(digests []models.Digest, layout, theme string, opts ...RenderOption) ([]byte, error) {
+	return RenderReportsPage(aggregateReports(digests), layout, theme, opts...)
 }
 
 // RenderReportsPage generates the standalone "reports" page. Every referenced
 // report is embedded as JSON so search, tag/category filtering, and sorting all
 // run client-side with no fetch.
-func RenderReportsPage(reports []aggregatedReport, layout, theme string) ([]byte, error) {
+func RenderReportsPage(reports []aggregatedReport, layout, theme string, opts ...RenderOption) ([]byte, error) {
+	rc := applyRenderOptions(opts)
 	layout, err := resolveLayout(layout)
 	if err != nil {
 		return nil, err
@@ -207,6 +209,7 @@ func RenderReportsPage(reports []aggregatedReport, layout, theme string) ([]byte
 		return nil, fmt.Errorf("failed to marshal reports: %w", err)
 	}
 
+	body, link := rc.styleFields(utils.StripCSSComments(styleCSS), "reports.css")
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, reportsTemplateData{
 		Theme:       resolveTheme(theme),
@@ -214,7 +217,8 @@ func RenderReportsPage(reports []aggregatedReport, layout, theme string) ([]byte
 		Commit:      version.Commit,
 		ReportCount: len(reports),
 		ReportsJSON: template.JS(payload),
-		StyleCSS:    template.CSS(utils.StripCSSComments(styleCSS)),
+		StyleCSS:    template.CSS(body),
+		StyleLink:   template.HTML(link),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render reports page: %w", err)
 	}

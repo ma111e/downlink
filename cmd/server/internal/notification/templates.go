@@ -35,6 +35,18 @@ var staticAssets = []string{
 	"site.webmanifest",
 }
 
+// stylesheetAssets lists the per-page CSS files the publisher writes alongside
+// digest HTML when external CSS is enabled. Each name matches both a source
+// .css under templates/<layout>/ and the "./<name>" link emitted by the
+// corresponding page (see WithExternalCSS).
+var stylesheetAssets = []string{
+	"digest.css",
+	"archive-index.css",
+	"sources.css",
+	"reports.css",
+	"swipe.css",
+}
+
 // writeStaticAsset writes a single embedded static file to dst if it doesn't
 // already exist there (idempotent). Returns the relative path written so the
 // caller can stage it in the git worktree.

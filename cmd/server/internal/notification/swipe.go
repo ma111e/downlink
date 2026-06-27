@@ -37,7 +37,8 @@ type swipeTemplateData struct {
 	TimeWindow     string
 	ArticlesJSON   string
 	PaletteCSS     string        // per-theme --pN source-color custom properties
-	StyleCSS       string        // static page stylesheet, loaded from the sibling .css file
+	StyleCSS       string        // static page stylesheet (inline mode); empty when external
+	StyleLink      string        // <link> to the external stylesheet (external mode); empty when inline
 	Theme          string        // resolved data-theme attribute value
 	Themes         []themeOption // all known themes, for the picker + pre-paint allowlist
 }
@@ -61,7 +62,8 @@ func swipePriorityLabel(tag string) string {
 
 // RenderSwipeHTML generates the self-contained Tinder-style triage page for a digest.
 // digestFilename is the filename of the companion list-view page (used for the back link).
-func RenderSwipeHTML(digest models.Digest, digestFilename string, layout, theme string) ([]byte, error) {
+func RenderSwipeHTML(digest models.Digest, digestFilename string, layout, theme string, opts ...RenderOption) ([]byte, error) {
+	rc := applyRenderOptions(opts)
 	layout, err := resolveLayout(layout)
 	if err != nil {
 		return nil, err
@@ -164,7 +166,7 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string, layout, theme 
 	if err != nil {
 		return nil, fmt.Errorf("swipe: load CSS: %w", err)
 	}
-	data.StyleCSS = utils.StripCSSComments(styleCSS)
+	data.StyleCSS, data.StyleLink = rc.styleFields(utils.StripCSSComments(styleCSS), "swipe.css")
 
 	// Use <% %> delimiters so JSX {{ }} syntax in the template is left untouched.
 	tmpl, err := template.New("swipe").Delims("<%", "%>").Parse(templateText)

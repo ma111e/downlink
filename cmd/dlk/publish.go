@@ -25,6 +25,7 @@ func createPublishCommands() *cobra.Command {
 		commitEmail    string
 		layout         string
 		windowDays     int
+		selfContained  bool
 	)
 
 	cmd := &cobra.Command{
@@ -46,6 +47,7 @@ GitHub directly using the provided token.`,
 	cmd.PersistentFlags().StringVar(&commitEmail, "commit-email", "", "Git commit author email (default: downlink-bot@users.noreply.github.com)")
 	cmd.PersistentFlags().StringVar(&layout, "theme", "", "Layout theme for rendered pages, empty = default (see: digest list --themes)")
 	cmd.PersistentFlags().IntVar(&windowDays, "window-days", 0, "Days of digests to retain in the manifest and feeds (0 = default 30; env: DOWNLINK_GH_PAGES_WINDOW_DAYS)")
+	cmd.PersistentFlags().BoolVar(&selfContained, "self-contained", false, "Inline CSS into every page instead of linking shared external .css files (env: DOWNLINK_GH_PAGES_SELF_CONTAINED)")
 
 	buildConfig := func() (models.GitHubPagesNotificationConfig, error) {
 		envBool := func(key string, current bool) (bool, error) {
@@ -81,6 +83,10 @@ GitHub directly using the provided token.`,
 		if err != nil {
 			return models.GitHubPagesNotificationConfig{}, err
 		}
+		selfContained, err = envBool("DOWNLINK_GH_PAGES_SELF_CONTAINED", selfContained)
+		if err != nil {
+			return models.GitHubPagesNotificationConfig{}, err
+		}
 
 		if windowDays == 0 {
 			if v, err := strconv.Atoi(strings.TrimSpace(os.Getenv("DOWNLINK_GH_PAGES_WINDOW_DAYS"))); err == nil && v > 0 {
@@ -109,6 +115,7 @@ GitHub directly using the provided token.`,
 			CommitEmail:       commitEmail,
 			Layout:            layout,
 			PublishWindowDays: windowDays,
+			SelfContained:     selfContained,
 		}, nil
 	}
 
