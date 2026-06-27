@@ -38,4 +38,5 @@ type GitHubPagesNotificationConfig struct {
 	CloneDir          string `json:"clone_dir"`           // local working clone; default: os.TempDir()/downlink-ghpages
 	DiscordWebhookURL string `json:"discord_webhook_url"` // optional: notify this webhook when a page is published
 	PublishWindowDays int    `json:"publish_window_days"` // days to retain in manifest/feeds; 0 = default (30)
+	SelfContained     bool   `json:"self_contained"`      // inline CSS into every page instead of linking external .css files (default: external)
 }

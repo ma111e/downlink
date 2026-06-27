@@ -142,6 +142,39 @@ func TestRenderDigestHTMLDoesNotIncludeManifestSwitcher(t *testing.T) {
 	}
 }
 
+func TestRenderDigestHTMLCSSMode(t *testing.T) {
+	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
+
+	// Default (no options): fully self-contained — the big stylesheet is inlined,
+	// no external link. This is what Discord attachments and the dev server use.
+	inline, err := RenderDigestHTML(digest, "default", "")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML(inline) error = %v", err)
+	}
+	if s := string(inline); strings.Contains(s, `href="./digest.css"`) {
+		t.Fatalf("inline render should not link an external stylesheet")
+	} else if !strings.Contains(s, ".toc-title") { // a class only present when CSS is inlined
+		t.Fatalf("inline render should embed the stylesheet rules")
+	}
+
+	// External: the static stylesheet moves to a <link>; only the (tiny, dynamic)
+	// palette stays inline, so the bulk CSS rules are gone from the document.
+	ext, err := RenderDigestHTML(digest, "default", "", WithExternalCSS())
+	if err != nil {
+		t.Fatalf("RenderDigestHTML(external) error = %v", err)
+	}
+	s := string(ext)
+	if !strings.Contains(s, `<link rel="stylesheet" href="./digest.css">`) {
+		t.Fatalf("external render should link ./digest.css:\n%s", s)
+	}
+	if strings.Contains(s, ".toc-title") {
+		t.Fatalf("external render should not inline the stylesheet rules")
+	}
+	if !strings.Contains(s, "--p0:") {
+		t.Fatalf("external render should keep the palette inline")
+	}
+}
+
 func TestRenderDigestHTMLLayoutSelection(t *testing.T) {
 	digest := sampleDigest("digest-one", time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC))
 

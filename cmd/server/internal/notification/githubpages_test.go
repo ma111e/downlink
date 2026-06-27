@@ -101,6 +101,94 @@ func TestGitHubPagesPublisherWritesDefaultDigestFolderLayout(t *testing.T) {
 	)
 }
 
+func TestGitHubPagesPublisherWritesExternalStylesheets(t *testing.T) {
+	cloneDir := t.TempDir()
+	repo, err := gogit.PlainInit(cloneDir, false)
+	if err != nil {
+		t.Fatalf("PlainInit() error = %v", err)
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		t.Fatalf("Worktree() error = %v", err)
+	}
+
+	// Default config => external CSS.
+	publisher := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{CloneDir: cloneDir})
+	outputDir, err := resolveGitHubPagesOutputDir(publisher.cfg.OutputDir)
+	if err != nil {
+		t.Fatalf("resolve output dir: %v", err)
+	}
+	digest := sampleDigest("digest-ext", time.Now().UTC().Truncate(time.Minute))
+	digestFilename := DigestHTMLFilename(digest)
+
+	if _, err := publisher.renderAndStage(wt, digest, outputDir, "default"); err != nil {
+		t.Fatalf("renderAndStage() error = %v", err)
+	}
+	if err := publisher.ensureIndex(wt, outputDir, "default"); err != nil {
+		t.Fatalf("ensureIndex() error = %v", err)
+	}
+
+	// The CSS files land at both the repo root and the digest folder, and are staged.
+	for _, name := range stylesheetAssets {
+		assertFileExists(t, cloneDir, name)
+		assertFileExists(t, cloneDir, "digests", name)
+		assertStaged(t, wt, name, filepath.Join("digests", name))
+	}
+	// The digest page links the external sheet rather than inlining the rules.
+	page := assertFileExists(t, cloneDir, "digests", digestFilename)
+	if !strings.Contains(string(page), `<link rel="stylesheet" href="./digest.css">`) {
+		t.Fatalf("external digest page should link ./digest.css")
+	}
+	if strings.Contains(string(page), ".toc-title") {
+		t.Fatalf("external digest page should not inline the stylesheet rules")
+	}
+}
+
+func TestGitHubPagesPublisherSelfContainedInlinesCSS(t *testing.T) {
+	cloneDir := t.TempDir()
+	repo, err := gogit.PlainInit(cloneDir, false)
+	if err != nil {
+		t.Fatalf("PlainInit() error = %v", err)
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		t.Fatalf("Worktree() error = %v", err)
+	}
+
+	publisher := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{CloneDir: cloneDir, SelfContained: true})
+	outputDir, err := resolveGitHubPagesOutputDir(publisher.cfg.OutputDir)
+	if err != nil {
+		t.Fatalf("resolve output dir: %v", err)
+	}
+	digest := sampleDigest("digest-sc", time.Now().UTC().Truncate(time.Minute))
+	digestFilename := DigestHTMLFilename(digest)
+
+	if _, err := publisher.renderAndStage(wt, digest, outputDir, "default"); err != nil {
+		t.Fatalf("renderAndStage() error = %v", err)
+	}
+	if err := publisher.ensureIndex(wt, outputDir, "default"); err != nil {
+		t.Fatalf("ensureIndex() error = %v", err)
+	}
+
+	// No external CSS files are written.
+	for _, name := range stylesheetAssets {
+		if _, err := os.Stat(filepath.Join(cloneDir, name)); !os.IsNotExist(err) {
+			t.Fatalf("self-contained mode should not write %s (err=%v)", name, err)
+		}
+		if _, err := os.Stat(filepath.Join(cloneDir, "digests", name)); !os.IsNotExist(err) {
+			t.Fatalf("self-contained mode should not write digests/%s (err=%v)", name, err)
+		}
+	}
+	// The digest page inlines its CSS and carries no external link.
+	page := assertFileExists(t, cloneDir, "digests", digestFilename)
+	if strings.Contains(string(page), `href="./digest.css"`) {
+		t.Fatalf("self-contained digest page should not link ./digest.css")
+	}
+	if !strings.Contains(string(page), ".toc-title") {
+		t.Fatalf("self-contained digest page should inline the stylesheet rules")
+	}
+}
+
 func TestGitHubPagesPublisherWritesCustomDigestFolderLayout(t *testing.T) {
 	cloneDir := t.TempDir()
 	repo, err := gogit.PlainInit(cloneDir, false)

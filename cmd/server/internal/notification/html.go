@@ -252,7 +252,8 @@ type digestTemplateData struct {
 	Theme               string        // resolved data-theme attribute value
 	Themes              []themeOption // all known themes, for the picker + pre-paint allowlist
 	PaletteCSS          template.CSS  // per-theme --pN source-color custom properties
-	StyleCSS            template.CSS  // static page stylesheet, loaded from the sibling .css file
+	StyleCSS            template.CSS  // static page stylesheet (inline mode); empty when external
+	StyleLink           template.HTML // <link> to the external stylesheet (external mode); empty when inline
 	DigestSummary       template.HTML // kept for backwards compat; OverviewSections is used for rendering
 	OverviewSections    []OverviewSection
 	TOCGroups           []TOCGroup
@@ -315,7 +316,8 @@ func init() {
 // The provider/model switcher in the rendered page is populated client-side
 // from manifest.json - the page itself only embeds the digest id and a hash
 // of its article set used to filter siblings.
-func RenderDigestHTML(digest models.Digest, layout, theme string) ([]byte, error) {
+func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...RenderOption) ([]byte, error) {
+	rc := applyRenderOptions(opts)
 	layout, err := resolveLayout(layout)
 	if err != nil {
 		return nil, err
@@ -672,7 +674,9 @@ func RenderDigestHTML(digest models.Digest, layout, theme string) ([]byte, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to load digest CSS: %w", err)
 	}
-	data.StyleCSS = template.CSS(utils.StripCSSComments(styleCSS))
+	body, link := rc.styleFields(utils.StripCSSComments(styleCSS), "digest.css")
+	data.StyleCSS = template.CSS(body)
+	data.StyleLink = template.HTML(link)
 
 	templateText, err := loadNotificationTemplate(layout, "digest.html.tmpl")
 	if err != nil {
@@ -1296,17 +1300,19 @@ type digestIndexTemplateData struct {
 	Commit        string
 	Theme         string        // resolved data-theme attribute value
 	Themes        []themeOption // all known themes, for the picker + pre-paint allowlist
-	StyleCSS      template.CSS  // static page stylesheet, loaded from the sibling .css file
+	StyleCSS      template.CSS  // static page stylesheet (inline mode); empty when external
+	StyleLink     template.HTML // <link> to the external stylesheet (external mode); empty when inline
 }
 
 // RenderDigestIndex generates the index HTML shell. The digest list is
 // populated client-side by fetching manifest.json, so the rendered bytes are
 // constant for a given template.
-func RenderDigestIndex(layout, theme string) ([]byte, error) {
-	return renderDigestIndexWithPaths("manifest.json", "", layout, theme)
+func RenderDigestIndex(layout, theme string, opts ...RenderOption) ([]byte, error) {
+	return renderDigestIndexWithPaths("manifest.json", "", layout, theme, opts...)
 }
 
-func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout, theme string) ([]byte, error) {
+func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout, theme string, opts ...RenderOption) ([]byte, error) {
+	rc := applyRenderOptions(opts)
 	layout, err := resolveLayout(layout)
 	if err != nil {
 		return nil, err
@@ -1324,6 +1330,7 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout, theme string
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse index template: %w", err)
 	}
+	body, link := rc.styleFields(utils.StripCSSComments(styleCSS), "archive-index.css")
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, digestIndexTemplateData{
 		ManifestURL:   manifestURL,
@@ -1331,7 +1338,8 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout, theme string
 		Commit:        version.Commit,
 		Theme:         resolveTheme(theme),
 		Themes:        themeOptions(),
-		StyleCSS:      template.CSS(utils.StripCSSComments(styleCSS)),
+		StyleCSS:      template.CSS(body),
+		StyleLink:     template.HTML(link),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render digest index: %w", err)
 	}
@@ -1346,17 +1354,19 @@ type sourceEntry struct {
 }
 
 type sourcesTemplateData struct {
-	Theme    string        // resolved data-theme attribute value
-	Themes   []themeOption // all known themes, for the picker + pre-paint allowlist
-	Commit   string
-	Sources  []sourceEntry
-	StyleCSS template.CSS // static page stylesheet, loaded from the sibling .css file
+	Theme     string        // resolved data-theme attribute value
+	Themes    []themeOption // all known themes, for the picker + pre-paint allowlist
+	Commit    string
+	Sources   []sourceEntry
+	StyleCSS  template.CSS  // static page stylesheet (inline mode); empty when external
+	StyleLink template.HTML // <link> to the external stylesheet (external mode); empty when inline
 }
 
 // RenderSourcesPage generates the standalone "sources" page listing every
 // enabled feed. The feeds are embedded server-side, so the rendered bytes are
 // self-contained and need no client-side fetch. Disabled feeds are omitted.
-func RenderSourcesPage(feeds []models.Feed, layout, theme string) ([]byte, error) {
+func RenderSourcesPage(feeds []models.Feed, layout, theme string, opts ...RenderOption) ([]byte, error) {
+	rc := applyRenderOptions(opts)
 	layout, err := resolveLayout(layout)
 	if err != nil {
 		return nil, err
@@ -1394,13 +1404,15 @@ func RenderSourcesPage(feeds []models.Feed, layout, theme string) ([]byte, error
 		return strings.ToLower(entries[i].Title) < strings.ToLower(entries[j].Title)
 	})
 
+	body, link := rc.styleFields(utils.StripCSSComments(styleCSS), "sources.css")
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, sourcesTemplateData{
-		Theme:    resolveTheme(theme),
-		Themes:   themeOptions(),
-		Commit:   version.Commit,
-		Sources:  entries,
-		StyleCSS: template.CSS(utils.StripCSSComments(styleCSS)),
+		Theme:     resolveTheme(theme),
+		Themes:    themeOptions(),
+		Commit:    version.Commit,
+		Sources:   entries,
+		StyleCSS:  template.CSS(body),
+		StyleLink: template.HTML(link),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render sources page: %w", err)
 	}
