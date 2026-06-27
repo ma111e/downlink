@@ -1,5 +1,13 @@
 # syntax=docker/dockerfile:1
 
+# ----- asset stage (Vite-built CSS/JS embedded into the server) -----
+FROM node:20-alpine AS assets
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
 # ----- build stage (CGO required for SQLite via mattn/go-sqlite3) -----
 FROM golang:1.25-alpine AS builder
 
@@ -11,6 +19,9 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+# Overlay the built web assets (gitignored, so absent from the build context).
+# vite.config.ts writes outDir ../cmd/.../assets relative to /web, i.e. /cmd/...
+COPY --from=assets /cmd/server/internal/notification/assets/ cmd/server/internal/notification/assets/
 
 ARG VERSION=dev
 ARG COMMIT=dev

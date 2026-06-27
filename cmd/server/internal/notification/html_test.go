@@ -9,6 +9,31 @@ import (
 	"github.com/ma111e/downlink/pkg/models"
 )
 
+// normalizeCSS drops the characters minification rewrites, so CSS-rule
+// assertions survive it: whitespace and trailing semicolons are removed, and
+// quotes are stripped from attribute selectors (e.g. [data-x="y"] -> [data-x=y]).
+// Both sides of a comparison are normalized identically, so descendant-combinator
+// spacing is preserved as a match.
+func normalizeCSS(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch r {
+		case ' ', '\t', '\n', '\r', ';', '"', '\'':
+			continue
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// containsCSSRule reports whether haystack contains rule, ignoring the whitespace
+// and trailing-semicolon differences introduced by CSS minification.
+func containsCSSRule(haystack, rule string) bool {
+	return strings.Contains(normalizeCSS(haystack), normalizeCSS(rule))
+}
+
 func TestHighlightTagsInSectionText(t *testing.T) {
 	re := compileTagRegexp([]string{"cobalt-strike", "lazarus", "north-korea"})
 	if re == nil {
@@ -50,21 +75,19 @@ func TestRenderDigestIndexUsesManifest(t *testing.T) {
 	}
 	html := string(htmlBytes)
 
+	// Markup the bundle reads from (data-* attributes, layout buttons) plus
+	// string literals the minified archive bundle preserves. Variable/function
+	// names are renamed by minification, so we assert on stable tokens only.
 	for _, want := range []string{
 		`data-manifest-url="manifest.json"`,
 		`data-digest-base-url=""`,
-		"var manifestURL = els.archive.getAttribute('data-manifest-url') || 'manifest.json';",
-		"function digestURL(filename)",
-		"fetch(manifestURL",
-		"state.manifest.digests",
-		"latest.started_at",
-		"latest.summary",
-		"latest.headlines",
-		"d.must_count",
-		"localStorage.getItem(PIN_KEY)",
 		"data-layout=\"log\"",
 		"data-layout=\"grid\"",
 		"data-layout=\"timeline\"",
+		`<script type="module">`, // the bundle is inlined (self-contained)
+		"downlink.pinned.v2",     // PIN_KEY literal, survives minification
+		"data-manifest-url",      // getAttribute argument literal in the bundle
+		"must_count",             // manifest field accessed by the bundle
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderDigestIndex() missing %q:\n%s", want, html)
@@ -114,6 +137,47 @@ func TestRenderSourcesPageListsEnabledFeeds(t *testing.T) {
 		if strings.Contains(html, omit) {
 			t.Fatalf("RenderSourcesPage() should omit disabled feed %q", omit)
 		}
+	}
+}
+
+// TestRenderSourcesPageScriptSeam checks the JS bundle seam: inline by default
+// (self-contained, for Discord/dev) and an external <script src> under
+// WithExternalCSS (GitHub Pages). The pre-paint theme IIFE stays inline in both.
+func TestRenderSourcesPageScriptSeam(t *testing.T) {
+	feeds := []models.Feed{{Title: "Example", URL: "https://example.com/feed"}}
+
+	inlineBytes, err := RenderSourcesPage(feeds, "default", "")
+	if err != nil {
+		t.Fatalf("RenderSourcesPage() inline error = %v", err)
+	}
+	inline := string(inlineBytes)
+	// The minified bundle is inlined as a module; no external src is emitted.
+	if !strings.Contains(inline, `<script type="module">`) {
+		t.Fatalf("inline render missing inline module script:\n%s", inline)
+	}
+	if strings.Contains(inline, `src="./sources.js"`) {
+		t.Fatalf("inline render should not link the external bundle:\n%s", inline)
+	}
+	// A recognizable token from the bundle proves the JS is present.
+	if !strings.Contains(inline, "downlink.theme") {
+		t.Fatalf("inline render missing bundled script body:\n%s", inline)
+	}
+	// The blocking pre-paint IIFE stays inline regardless of mode. (html/template
+	// strips JS comments, so assert on a code token unique to that script.)
+	if !strings.Contains(inline, "if (valid[t])") {
+		t.Fatalf("inline render dropped the pre-paint theme script:\n%s", inline)
+	}
+
+	extBytes, err := RenderSourcesPage(feeds, "default", "", WithExternalCSS())
+	if err != nil {
+		t.Fatalf("RenderSourcesPage() external error = %v", err)
+	}
+	ext := string(extBytes)
+	if !strings.Contains(ext, `<script type="module" src="./sources.js"></script>`) {
+		t.Fatalf("external render missing external bundle tag:\n%s", ext)
+	}
+	if !strings.Contains(ext, "if (valid[t])") {
+		t.Fatalf("external render dropped the pre-paint theme script:\n%s", ext)
 	}
 }
 
@@ -392,14 +456,24 @@ func TestRenderDigestHTMLGlossaryMode(t *testing.T) {
 		`<dt class="glossary-panel-term">RCE`,
 		`Running your own commands on someone else&#39;s computer.`,
 		`github.com/ma111e/downlink/issues/new`,
-		// Drawer is hidden until Learning mode + the Glossary feature are on.
-		`html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: flex; }`,
 		// Panel entries carry their help tier, and the level filter hides entries above the level.
 		`class="glossary-panel-entry" data-lvl="`,
-		`html[data-help-level="2"] .glossary-panel-entry[data-lvl="3"] { display: none; }`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderDigestHTML() missing learning/glossary fragment %q:\n%s", want, html)
+		}
+	}
+
+	// These rules come from the (now minified) inlined stylesheet, so match them
+	// ignoring whitespace/semicolon differences.
+	for _, rule := range []string{
+		// Drawer is hidden until Learning mode + the Glossary feature are on.
+		`html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: flex; }`,
+		// The level filter hides entries above the selected help level.
+		`html[data-help-level="2"] .glossary-panel-entry[data-lvl="3"] { display: none; }`,
+	} {
+		if !containsCSSRule(html, rule) {
+			t.Fatalf("RenderDigestHTML() missing learning/glossary CSS rule %q:\n%s", rule, html)
 		}
 	}
 
@@ -457,13 +531,15 @@ func TestRenderDigestHTMLGlossaryPopup(t *testing.T) {
 	html := string(htmlBytes)
 
 	for _, want := range []string{
-		// The term→definition map is baked in, keyed by the normalized key, with its type.
-		`var GLOSSARY = {`,
+		// The term→definition map is baked into the #dl-glossary JSON island, keyed by
+		// the normalized key, with its type.
+		`<script type="application/json" id="dl-glossary">`,
 		`"cobalt strike":`,
 		`A commercial hacking toolkit often abused by attackers.`,
 		`"type":"tool"`,
-		// The per-article context map is baked in and keyed by article id then term key.
-		`var CONTEXT = {`,
+		// The per-article context map is baked into the #dl-glossary-context island,
+		// keyed by article id then term key.
+		`<script type="application/json" id="dl-glossary-context">`,
 		`"article-c":`,
 		`It was the main implant used in this intrusion.`,
 		// The article body carries its id so the click handler can resolve per-article context.
@@ -477,8 +553,9 @@ func TestRenderDigestHTMLGlossaryPopup(t *testing.T) {
 		`<mark class="tag-hl">Cobalt Strike</mark>`,
 		// Help-level control is rendered since the digest has beginner-aid content.
 		`id="nav-learn-switch"`,
-		// The highlighted entity carries its help tier so the level filter can reveal/hide it.
-		`m.dataset.lvl =`,
+		// The bundle is inlined (self-contained) and tags each highlight with a help tier.
+		`<script type="module">`,
+		`dataset.lvl`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderDigestHTML() missing glossary-popup fragment %q:\n%s", want, html)
@@ -669,14 +746,22 @@ func TestRenderDigestHTMLPlainWords(t *testing.T) {
 		`class="panel-section plain-words-block"`,
 		`In plain words`,
 		`Millions of ordinary customers could see their personal details misused.`,
-		// Consent gate: hidden by default, revealed only under Learning mode + the Plain words feature.
-		`.plain-words-block { display: none;`,
-		`html[data-learning="on"][data-learn-plain="on"] .plain-words-block { display: block; }`,
 		// The help-level control is available even though the digest has no glossary content.
 		`id="nav-learn-switch"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderDigestHTML() missing plain-words fragment %q:\n%s", want, html)
+		}
+	}
+
+	// Consent gate from the minified inlined stylesheet: hidden by default,
+	// revealed only under Learning mode + the Plain words feature.
+	for _, rule := range []string{
+		`.plain-words-block { display: none;`,
+		`html[data-learning="on"][data-learn-plain="on"] .plain-words-block { display: block; }`,
+	} {
+		if !containsCSSRule(html, rule) {
+			t.Fatalf("RenderDigestHTML() missing plain-words CSS rule %q:\n%s", rule, html)
 		}
 	}
 }
@@ -706,8 +791,11 @@ func TestRenderSwipeHTMLInjectsDigestAndArticles(t *testing.T) {
 	html := string(htmlBytes)
 
 	for _, want := range []string{
-		`window.__DL_DIGEST   = "downlink-digest-2026-04-24_1200.html";`,
-		`window.__DL_ARTICLES = [{"n":1`,
+		// Article + meta data now live in JSON islands the bundle reads.
+		`<script type="application/json" id="dl-articles">`,
+		`<script type="application/json" id="dl-meta">`,
+		`"digest":"downlink-digest-2026-04-24_1200.html"`,
+		`[{"n":1`,
 		`"title":"Article B"`,
 		`"priority":"MUST READ"`,
 		`"tldr":"Article B tldr."`,
@@ -719,12 +807,21 @@ func TestRenderSwipeHTMLInjectsDigestAndArticles(t *testing.T) {
 		`"referencedReports":[{"title":"Article B report","url":"https://example.com/report","publisher":"Example Labs","context":"Supporting source.","category":"","primary":false}]`,
 		`"title":"Article A"`,
 		`"priority":"SHOULD READ"`,
-		`function AnalysisTabs({ article })`,
+		// The React app is bundled and inlined (no CDN React/Babel). The "Key Points"
+		// / "Reports" tab labels are string literals the minified bundle preserves.
+		`<script type="module">`,
 		`Key Points`,
 		`Reports`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("RenderSwipeHTML() missing %q:\n%s", want, html)
+		}
+	}
+
+	// The legacy CDN React + in-browser Babel pipeline must be gone.
+	for _, gone := range []string{"unpkg.com", "text/babel", "@babel/standalone", "window.__DL_ARTICLES"} {
+		if strings.Contains(html, gone) {
+			t.Fatalf("RenderSwipeHTML() should no longer contain %q", gone)
 		}
 	}
 }

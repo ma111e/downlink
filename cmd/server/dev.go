@@ -35,6 +35,7 @@ func newDevDigestCommand() *cobra.Command {
 	var (
 		addr         string
 		templatesDir string
+		assetsDir    string
 		noOpen       bool
 		testDigestID string
 		theme        string
@@ -99,6 +100,7 @@ the archive index against real data).`,
 			return devserver.Run(devserver.Options{
 				Addr:         addr,
 				TemplatesDir: templatesDir,
+				AssetsDir:    assetsDir,
 				OpenBrowser:  !noOpen,
 				Digests:      digests,
 				Theme:        theme,
@@ -108,6 +110,7 @@ the archive index against real data).`,
 
 	cmd.Flags().StringVar(&addr, "addr", ":8099", "Address to listen on")
 	cmd.Flags().StringVar(&templatesDir, "templates-dir", "cmd/server/internal/notification/templates", "Directory of *.tmpl files to serve and watch")
+	cmd.Flags().StringVar(&assetsDir, "assets-dir", "cmd/server/internal/notification/assets", "Directory of Vite-built CSS/JS to serve and watch (run `npm run watch` in web/ alongside)")
 	cmd.Flags().BoolVar(&noOpen, "no-open", false, "Do not open the browser on startup")
 	cmd.Flags().StringVar(&testDigestID, "test-digest-id", "", "Render this digest id from the local DB instead of the sample fixture")
 	cmd.Flags().StringVar(&theme, "theme", "", `Template layout to use (default: "default")`)

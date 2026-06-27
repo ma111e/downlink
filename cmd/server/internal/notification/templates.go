@@ -7,13 +7,22 @@ import (
 	"path/filepath"
 
 	"github.com/ma111e/downlink/pkg/digestlayouts"
+	"github.com/ma111e/downlink/pkg/utils"
 )
 
-//go:embed templates/*/*.tmpl templates/*/*.css templates/landing.css templates/switcher.css
+//go:embed templates/*/*.tmpl templates/landing.css templates/switcher.css
 var notificationTemplateFS embed.FS
 
 //go:embed static/*
 var staticFS embed.FS
+
+// builtAssetsFS holds the Vite-built, pre-minified per-page assets (digest.css,
+// digest.js, ...). The directory always exists thanks to the committed
+// assets/PLACEHOLDER, so the embed compiles even before `make assets` has run;
+// the real assets are produced by the web/ build and are gitignored.
+//
+//go:embed assets
+var builtAssetsFS embed.FS
 
 // staticAssets lists every file under static/ that should be written to the
 // gh-pages output directory alongside digest HTML files.
@@ -47,6 +56,19 @@ var stylesheetAssets = []string{
 	"swipe.css",
 }
 
+// scriptAssets lists the per-page JS bundles the publisher writes alongside
+// digest HTML when external assets are enabled. Each name matches both a
+// Vite-built asset and the "./<name>" <script src> emitted by the corresponding
+// page. Pages are migrated to external bundles incrementally; only the names
+// listed here are written and linked.
+var scriptAssets = []string{
+	"sources.js",
+	"archive-index.js",
+	"reports.js",
+	"digest.js",
+	"swipe.js",
+}
+
 // writeStaticAsset writes a single embedded static file to dst if it doesn't
 // already exist there (idempotent). Returns the relative path written so the
 // caller can stage it in the git worktree.
@@ -74,6 +96,52 @@ var devTemplateDir string
 // string to fall back to the embedded templates. Intended for the dev preview server.
 func SetTemplateDir(dir string) {
 	devTemplateDir = dir
+}
+
+// assetDir, when non-empty, makes loadBuiltAsset read Vite-built assets from disk
+// instead of the embedded builtAssetsFS. The dev server points it at the web/
+// build output dir so `vite build --watch` rebuilds show up on the next render
+// with no recompile. Set via SetAssetDir.
+var assetDir string
+
+// SetAssetDir switches built-asset loading to read from dir on disk. Pass an empty
+// string to fall back to the embedded assets. Intended for the dev preview server.
+func SetAssetDir(dir string) {
+	assetDir = dir
+}
+
+// loadBuiltAsset reads a Vite-built asset (e.g. "digest.css", "digest.js") from
+// the on-disk asset dir when set (dev), otherwise from the embedded FS. The
+// content is already minified by the web build and is used verbatim.
+func loadBuiltAsset(name string) (string, error) {
+	if assetDir != "" {
+		if b, err := os.ReadFile(filepath.Join(assetDir, name)); err == nil {
+			return string(b), nil
+		}
+	}
+	b, err := builtAssetsFS.ReadFile("assets/" + name)
+	if err != nil {
+		return "", fmt.Errorf("read built asset %q (run `make assets`?): %w", name, err)
+	}
+	return string(b), nil
+}
+
+// loadStyleCSS returns the stylesheet for a page, ready to inline or write.
+// A dev override or operator custom layout may ship its own .css, which is used
+// verbatim (comment-stripped, matching legacy behaviour); otherwise the
+// Vite-built, pre-minified asset is returned.
+func loadStyleCSS(layout, name string) (string, error) {
+	if devTemplateDir != "" {
+		if b, err := os.ReadFile(filepath.Join(devTemplateDir, layout, name)); err == nil {
+			return utils.StripCSSComments(string(b)), nil
+		}
+	}
+	if layoutsDir != "" {
+		if b, err := os.ReadFile(filepath.Join(layoutsDir, layout, name)); err == nil {
+			return utils.StripCSSComments(string(b)), nil
+		}
+	}
+	return loadBuiltAsset(name)
 }
 
 // layoutsDir, when non-empty, is an on-disk directory of operator-supplied

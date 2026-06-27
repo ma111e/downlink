@@ -27,6 +27,7 @@ import (
 type Options struct {
 	Addr         string          // listen address, e.g. ":8099"
 	TemplatesDir string          // directory holding *.tmpl files, watched for changes
+	AssetsDir    string          // directory of Vite-built assets (*.css/*.js), read on disk and watched
 	OpenBrowser  bool            // open the default browser at startup
 	Digests      []models.Digest // digests listed in the archive and served individually
 	Theme        string          // template layout name; empty = default
@@ -36,10 +37,13 @@ type Options struct {
 // the HTTP server fails.
 func Run(opts Options) error {
 	notification.SetTemplateDir(opts.TemplatesDir)
+	// Read Vite-built CSS/JS from disk so `vite build --watch` rebuilds show up on
+	// the next render with no Go recompile.
+	notification.SetAssetDir(opts.AssetsDir)
 
 	hub := newReloadHub()
 
-	watcher, err := startWatcher(opts.TemplatesDir, hub)
+	watcher, err := startWatcher(opts.TemplatesDir, opts.AssetsDir, hub)
 	if err != nil {
 		return fmt.Errorf("watch templates: %w", err)
 	}
@@ -250,10 +254,12 @@ func (h *reloadHub) handleSSE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// startWatcher watches dir (and its layout subdirectories) for *.tmpl changes and
-// triggers a debounced reload. fsnotify is not recursive, so each directory holding
-// templates is added explicitly.
-func startWatcher(dir string, hub *reloadHub) (*fsnotify.Watcher, error) {
+// startWatcher watches the templates tree (and its layout subdirectories) for
+// *.tmpl changes and the Vite output dir for *.css/*.js changes, triggering a
+// debounced reload. The latter lets `vite build --watch` rebuilds reach the
+// browser. fsnotify is not recursive, so each watched directory is added
+// explicitly. assetsDir may be empty to watch templates only.
+func startWatcher(dir, assetsDir string, hub *reloadHub) (*fsnotify.Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -278,6 +284,23 @@ func startWatcher(dir string, hub *reloadHub) (*fsnotify.Watcher, error) {
 			return nil, fmt.Errorf("add %s: %w", sub, err)
 		}
 	}
+	// The flat assets dir holds the Vite-built CSS/JS.
+	if assetsDir != "" {
+		if err := watcher.Add(assetsDir); err != nil {
+			watcher.Close()
+			return nil, fmt.Errorf("add %s: %w", assetsDir, err)
+		}
+	}
+
+	reloadExts := []string{".tmpl", ".css", ".js"}
+	matches := func(name string) bool {
+		for _, ext := range reloadExts {
+			if strings.HasSuffix(name, ext) {
+				return true
+			}
+		}
+		return false
+	}
 
 	go func() {
 		var timer *time.Timer
@@ -288,13 +311,13 @@ func startWatcher(dir string, hub *reloadHub) (*fsnotify.Watcher, error) {
 				if !ok {
 					return
 				}
-				if !strings.HasSuffix(event.Name, ".tmpl") {
+				if !matches(event.Name) {
 					continue
 				}
 				if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename|fsnotify.Remove) == 0 {
 					continue
 				}
-				log.WithField("file", filepath.Base(event.Name)).Debug("template changed, reloading")
+				log.WithField("file", filepath.Base(event.Name)).Debug("watched file changed, reloading")
 				// Debounce: editors often emit several events per save.
 				if timer != nil {
 					timer.Stop()

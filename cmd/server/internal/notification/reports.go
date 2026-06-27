@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/ma111e/downlink/pkg/models"
-	"github.com/ma111e/downlink/pkg/utils"
 	"github.com/ma111e/downlink/pkg/version"
 )
 
@@ -166,9 +165,11 @@ type reportsTemplateData struct {
 	Themes      []themeOption // all known themes, for the picker + pre-paint allowlist
 	Commit      string
 	ReportCount int
-	ReportsJSON template.JS   // marshaled []aggregatedReport for client-side search
+	ReportsJSON template.JS   // marshaled []aggregatedReport for the #dl-reports island
 	StyleCSS    template.CSS  // static page stylesheet (inline mode); empty when external
 	StyleLink   template.HTML // <link> to the external stylesheet (external mode); empty when inline
+	ScriptJS    template.JS   // page bundle (inline mode); empty when external
+	ScriptSrc   template.HTML // <script src> to the external bundle (external mode); empty when inline
 }
 
 // RenderReportsPageForDigests aggregates the referenced reports across the given
@@ -192,9 +193,13 @@ func RenderReportsPage(reports []aggregatedReport, layout, theme string, opts ..
 	if err != nil {
 		return nil, fmt.Errorf("failed to load reports template: %w", err)
 	}
-	styleCSS, err := loadNotificationTemplate(layout, "reports.css")
+	styleCSS, err := loadStyleCSS(layout, "reports.css")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load reports CSS: %w", err)
+	}
+	scriptJS, err := loadBuiltAsset("reports.js")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load reports JS: %w", err)
 	}
 	tmpl, err := template.New("reports").Parse(templateText)
 	if err != nil {
@@ -209,7 +214,8 @@ func RenderReportsPage(reports []aggregatedReport, layout, theme string, opts ..
 		return nil, fmt.Errorf("failed to marshal reports: %w", err)
 	}
 
-	body, link := rc.styleFields(utils.StripCSSComments(styleCSS), "reports.css")
+	body, link := rc.styleFields(styleCSS, "reports.css")
+	scriptBody, scriptSrc := rc.scriptFields(scriptJS, "reports.js")
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, reportsTemplateData{
 		Theme:       resolveTheme(theme),
@@ -219,6 +225,8 @@ func RenderReportsPage(reports []aggregatedReport, layout, theme string, opts ..
 		ReportsJSON: template.JS(payload),
 		StyleCSS:    template.CSS(body),
 		StyleLink:   template.HTML(link),
+		ScriptJS:    template.JS(scriptBody),
+		ScriptSrc:   template.HTML(scriptSrc),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render reports page: %w", err)
 	}

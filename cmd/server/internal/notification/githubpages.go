@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/ma111e/downlink/pkg/models"
-	"github.com/ma111e/downlink/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -542,6 +541,9 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, layout
 	if err := p.ensureStylesheets(wt, outputDir, layout); err != nil {
 		return err
 	}
+	if err := p.ensureScripts(wt, outputDir); err != nil {
+		return err
+	}
 	if err := p.ensureSourcesPage(wt, outputDir, layout); err != nil {
 		return err
 	}
@@ -612,11 +614,11 @@ func (p *GitHubPagesPublisher) ensureStylesheets(wt *gogit.Worktree, outputDir, 
 		return err
 	}
 	for _, name := range stylesheetAssets {
-		css, err := loadNotificationTemplate(layout, name)
+		css, err := loadStyleCSS(layout, name)
 		if err != nil {
 			return fmt.Errorf("github pages: load stylesheet %s: %w", name, err)
 		}
-		data := []byte(utils.StripCSSComments(css))
+		data := []byte(css)
 		for _, dir := range []string{".", outputDir} {
 			relPath := filepath.Join(dir, name)
 			absPath := filepath.Join(p.cfg.CloneDir, relPath)
@@ -631,6 +633,40 @@ func (p *GitHubPagesPublisher) ensureStylesheets(wt *gogit.Worktree, outputDir, 
 			}
 			if _, err := wt.Add(relPath); err != nil {
 				return fmt.Errorf("github pages: stage stylesheet %s: %w", relPath, err)
+			}
+		}
+	}
+	return nil
+}
+
+// ensureScripts writes each per-page JS bundle to the repo root and to outputDir
+// (so pages at either depth can link "./<name>") and stages them. Content is the
+// Vite-built, minified bundle. Skipped in self-contained mode, where pages inline
+// their JS and no .js files are needed.
+func (p *GitHubPagesPublisher) ensureScripts(wt *gogit.Worktree, outputDir string) error {
+	if p.cfg.SelfContained {
+		return nil
+	}
+	for _, name := range scriptAssets {
+		js, err := loadBuiltAsset(name)
+		if err != nil {
+			return fmt.Errorf("github pages: load script %s: %w", name, err)
+		}
+		data := []byte(js)
+		for _, dir := range []string{".", outputDir} {
+			relPath := filepath.Join(dir, name)
+			absPath := filepath.Join(p.cfg.CloneDir, relPath)
+			existing, readErr := os.ReadFile(absPath)
+			if readErr != nil || !bytes.Equal(existing, data) {
+				if err := os.MkdirAll(filepath.Dir(absPath), 0755); err != nil {
+					return fmt.Errorf("github pages: mkdir for script %s: %w", relPath, err)
+				}
+				if err := os.WriteFile(absPath, data, 0644); err != nil {
+					return fmt.Errorf("github pages: write script %s: %w", relPath, err)
+				}
+			}
+			if _, err := wt.Add(relPath); err != nil {
+				return fmt.Errorf("github pages: stage script %s: %w", relPath, err)
 			}
 		}
 	}

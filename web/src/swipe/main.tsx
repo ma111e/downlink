@@ -1,0 +1,664 @@
+// swipe (triage) page bundle: the React card-swipe app, pre-built (no runtime
+// Babel, no CDN React). Article + meta data come from the #dl-articles and
+// #dl-meta JSON islands. The blocking pre-paint theme IIFE stays inline.
+import * as React from 'react'
+import * as ReactDOM from 'react-dom/client'
+import '../css/swipe.css'
+
+function dlReadJSON(id, fallback) {
+  var el = document.getElementById(id);
+  if (!el) return fallback;
+  try { var v = JSON.parse(el.textContent || 'null'); return v == null ? fallback : v; }
+  catch (e) { return fallback; }
+}
+
+const META = dlReadJSON('dl-meta', {});
+const ARTICLES_RAW = dlReadJSON('dl-articles', []);
+const DIGEST_HREF = META.digest || '';
+const TIME_WINDOW = META.window || '';
+const THEMES = Array.isArray(META.themes) ? META.themes : [];
+const ARCHIVE_HREF = "index.html";
+
+const PRIORITY_ORDER = { "MUST READ": 0, "SHOULD READ": 1, "MAY READ": 2 };
+
+const ARTICLES = [...ARTICLES_RAW].sort((a, b) => {
+  const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  return p !== 0 ? p : b.score - a.score;
+});
+
+function priorityColor(p) {
+  if (p === "MUST READ")   return "var(--must)";
+  if (p === "SHOULD READ") return "var(--should)";
+  return "var(--may)";
+}
+function priorityShort(p) {
+  return p === "MUST READ" ? "MUST" : p === "SHOULD READ" ? "SHOULD" : "MAY";
+}
+
+function swipeHrefForDigest(filename) {
+  return String(filename || "").replace(/^downlink-digest-/, "downlink-swipe-");
+}
+
+function digestBasename(href) {
+  return String(href || "").split("/").pop();
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", padding:24 }}>
+        <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, padding:"40px 32px", maxWidth:480, textAlign:"center" }}>
+          <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:11, color:"var(--discard)", letterSpacing:"0.18em", marginBottom:12 }}>// RENDER ERROR</div>
+          <p style={{ color:"var(--text2)", fontSize:13 }}>{String(this.state.error)}</p>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+function PriorityBadge({ priority }) {
+  const color = priorityColor(priority);
+  return (
+    <span style={{
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color,
+      border: "1px solid color-mix(in oklch, " + color + " 45%, transparent)",
+      background: "color-mix(in oklch, " + color + " 12%, transparent)",
+      padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap"
+    }}>
+      {priorityShort(priority)}
+    </span>
+  );
+}
+
+function ScoreBar({ score }) {
+  const color = score >= 90 ? "var(--must)" : score >= 75 ? "var(--should)" : "var(--text3)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+      <div style={{ width: 38, height: 3, background: "var(--border2)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: score + "%", background: color }} />
+      </div>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color, minWidth: 22, textAlign: "right" }}>{score}</span>
+    </div>
+  );
+}
+
+function htmlPanel(value) {
+  return { __html: value || "" };
+}
+
+// Shared card chrome so the front and back faces render identical tokens.
+function CardTitle({ children }) {
+  return (
+    <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 20, lineHeight: 1.3, letterSpacing: "-0.005em", color: "var(--text)" }}>
+      {children}
+    </h2>
+  );
+}
+
+function SourceTag({ article }) {
+  const srcColor = `var(--p${article.sourceColorIdx})`;
+  return (
+    <>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: srcColor, display: "inline-block" }} />
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: srcColor, letterSpacing: "0.04em" }}>
+        {article.source}
+      </span>
+    </>
+  );
+}
+
+function numberedList(items, accent) {
+  return (
+    <ul style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 8 }}>
+      {(items || []).map((item, i) => (
+        <li key={i} style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 8, alignItems: "start" }}>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: accent, marginTop: 3, letterSpacing: "0.04em" }}>
+            {String(i + 1).padStart(2, "0")}
+          </span>
+          <span style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55 }}>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function KeyPointsSection({ keyPoints, accent }) {
+  if (!keyPoints || keyPoints.length === 0) return null;
+  return (
+    <div style={{ marginTop: 18 }}>
+      <span className="section-label" style={{ marginBottom: 10 }}>KEY POINTS</span>
+      {numberedList(keyPoints, accent)}
+    </div>
+  );
+}
+
+function ReportsPanel({ reports }) {
+  return (
+    <ul className="report-list">
+      {(reports || []).map((report, i) => (
+        <li className="report-item" key={i}>
+          <div className="report-title">
+            {report.primary && <span className="report-primary">PRIMARY</span>}
+            <a className="report-link" href={report.url} target="_blank" rel="noopener noreferrer">{report.title || report.url}</a>
+            {report.category && <span className={"report-cat report-cat-" + report.category}>{report.category}</span>}
+          </div>
+          {report.publisher && <div className="report-meta">{report.publisher}</div>}
+          {report.context && <div className="report-context">{report.context}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisTabs({ article }) {
+  const priorityC = priorityColor(article.priority);
+  const tabs = [];
+  if (article.tldr) tabs.push({ id: "tldr", label: "TL;DR", render: () => (
+    <>
+      <p style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55, margin: 0 }}>{article.tldr}</p>
+      <KeyPointsSection keyPoints={article.keyPoints} accent={priorityC} />
+    </>
+  ) });
+  if (article.briefOverview) tabs.push({ id: "brief", label: "Brief", render: () => <div className="prose summary" dangerouslySetInnerHTML={htmlPanel(article.briefOverview)} /> });
+  if (article.standardSynthesis) tabs.push({ id: "standard", label: "Standard", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.standardSynthesis)} /> });
+  if (article.comprehensiveSynthesis) tabs.push({ id: "comprehensive", label: "Comprehensive", render: () => <div className="prose" dangerouslySetInnerHTML={htmlPanel(article.comprehensiveSynthesis)} /> });
+  // Key Points are folded under the TL;DR tab so the flipped (behind) view's default
+  // matches the front card. Only surface a standalone tab when there is no TL;DR to host them.
+  if (!article.tldr && article.keyPoints && article.keyPoints.length > 0) tabs.push({ id: "keypoints", label: "Key Points", render: () => numberedList(article.keyPoints, priorityC) });
+  if (article.insights && article.insights.length > 0) tabs.push({ id: "insights", label: "Insights", render: () => numberedList(article.insights, priorityC) });
+  if (article.referencedReports && article.referencedReports.length > 0) tabs.push({ id: "reports", label: "Reports", render: () => <ReportsPanel reports={article.referencedReports} /> });
+
+  // Read mode (the flipped detail view) opens on the Brief overview when present;
+  // otherwise it falls back to the first available tab (TL;DR, then others).
+  const initialTab = tabs.some(t => t.id === "brief") ? "brief" : (tabs[0] ? tabs[0].id : "source");
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  React.useEffect(() => setActiveTab(initialTab), [article.n, initialTab]);
+
+  if (tabs.length === 0) {
+    const fallbackHTML = htmlPanel(article.body);
+    return (
+      <div className="tab-panel">
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+      </div>
+    );
+  }
+
+  const active = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  const rightTabIds = new Set(["keypoints", "insights", "reports"]);
+  const leftTabs  = tabs.filter(t => !rightTabIds.has(t.id));
+  const rightTabs = tabs.filter(t =>  rightTabIds.has(t.id));
+  const renderTabBtn = tab => (
+    <button key={tab.id} type="button" className={"tab-btn" + (tab.id === active.id ? " active" : "")} onClick={() => setActiveTab(tab.id)}>
+      {tab.label}
+    </button>
+  );
+  return (
+    <>
+      <div className="tabs">
+        {leftTabs.map(renderTabBtn)}
+        {rightTabs.length > 0 && <span style={{ flex: 1 }} />}
+        {rightTabs.map(renderTabBtn)}
+      </div>
+      <div className="tab-panel">{active.render()}</div>
+    </>
+  );
+}
+
+function Nav({ index, total }) {
+  const [time, setTime] = React.useState(() => new Date().toTimeString().slice(0, 8));
+  const [theme, setTheme] = React.useState(() => document.documentElement.dataset.theme || 'dark');
+  React.useEffect(() => {
+    const iv = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  const applyTheme = (t) => {
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('downlink.theme', t); } catch(e){}
+    setTheme(t);
+  };
+  return (
+    <nav className="swipe-nav" style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "color-mix(in oklch, var(--bg) 90%, transparent)", backdropFilter: "blur(16px)",
+      borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between"
+    }}>
+      <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 0, textDecoration: "none" }}>
+        <svg viewBox="0 0 33.85 30.03" aria-hidden="true" style={{ height: 18, width: 'auto', color: 'var(--cyan)', marginRight: 4, flex: 'none' }}><g transform="rotate(32 16.92 15.01) translate(3.42 7.51)" fill="currentColor"><rect x="1.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="25.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="2.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="24.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="3.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="23.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="4.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="22.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="5.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="21.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="6.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="20.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="7.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="19.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="8.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="18.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="9.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="17.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="10.080" y="12.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="16.080" y="12.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="11.080" y="12.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="15.080" y="12.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="12.080" y="13.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="14.080" y="13.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="13.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="5.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="21.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="6.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="20.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="7.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="19.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="8.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="18.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="9.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="17.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="10.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="16.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="11.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="15.080" y="10.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="12.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="14.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="11.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="9.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="17.080" y="7.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="10.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="16.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="11.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="15.080" y="8.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="12.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="14.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="9.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="12.080" y="2.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="1.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="2.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="3.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="14.080" y="2.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect><rect x="13.080" y="5.080" width="0.84" height="0.84" rx="0.13" ry="0.13"></rect></g></svg>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>DOWN</span>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, letterSpacing: "0.14em", color: "var(--text)" }}>LINK</span>
+        <span style={{
+          marginLeft: 10, fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: "var(--cyan)",
+          letterSpacing: "0.1em", border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)",
+          background: "color-mix(in oklch, var(--cyan) 7%, transparent)", padding: "1px 6px", borderRadius: 2
+        }}>TRIAGE</span>
+      </a>
+      <span className="swipe-clock" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text2)", letterSpacing: "0.06em" }}>{time}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap"
+        }}>
+          {Math.min(index + 1, total)} / {total}
+        </div>
+        <select value={theme} onChange={(e) => applyTheme(e.target.value)} title="Select theme" aria-label="Select theme" style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", color: "var(--text2)",
+          border: "1px solid var(--border2)", background: "var(--surface)", padding: "4px 20px 4px 8px", borderRadius: 2,
+          cursor: "pointer", textTransform: "uppercase", appearance: "none", WebkitAppearance: "none",
+          backgroundImage: "linear-gradient(45deg, transparent 50%, var(--text3) 50%), linear-gradient(135deg, var(--text3) 50%, transparent 50%)",
+          backgroundPosition: "calc(100% - 10px) 50%, calc(100% - 6px) 50%", backgroundSize: "4px 4px, 4px 4px", backgroundRepeat: "no-repeat"
+        }}>
+          {THEMES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
+      </div>
+    </nav>
+  );
+}
+
+function CardFront({ article }) {
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <SourceTag article={article} />
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <PriorityBadge priority={article.priority} />
+          </div>
+        </div>
+        <CardTitle>{article.title}</CardTitle>
+      </div>
+      <div style={{ padding: "20px 24px", flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+        <span className="section-label" style={{ marginBottom: 12 }}>TL;DR</span>
+        <p style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.55, margin: 0 }}>{article.tldr}</p>
+        <KeyPointsSection keyPoints={article.keyPoints} accent={priorityC} />
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface2)" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>{article.time}</span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+function CardBack({ article, onBack }) {
+  const priorityC = priorityColor(article.priority);
+  return (
+    <>
+      <div style={{ height: 4, background: priorityC }} />
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text2)", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14 }}>&#8592;</span> BACK
+        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <PriorityBadge priority={article.priority} />
+        </div>
+      </div>
+      <div className="detail-scroll" style={{ padding: "20px 24px", flex: 1 }}>
+        <div style={{ marginBottom: 12 }}>
+          <CardTitle>{article.title}</CardTitle>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+          <SourceTag article={article} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>&#183;</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)" }}>{article.time}</span>
+        </div>
+        <AnalysisTabs article={article} />
+        <a href={article.link} target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", textDecoration: "none",
+            letterSpacing: "0.08em", padding: "6px 12px",
+            border: "1px solid color-mix(in oklch, var(--cyan) 30%, transparent)", borderRadius: 2, display: "inline-block", marginTop: 18 }}>
+          OPEN SOURCE &#8599;
+        </a>
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+          ART · {String(article.n).padStart(2, "0")}
+        </span>
+        <ScoreBar score={article.score} />
+      </div>
+    </>
+  );
+}
+
+// Renders the dismissed card flying off-screen as a non-interactive overlay.
+// App mounts this immediately when dismiss is triggered, then unmounts after ~420ms.
+function FlyingCard({ article, startDx, startDy }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translate(${startDx}px, ${startDy * 0.4}px) rotate(${startDx * 0.05}deg)`;
+    el.style.opacity = "1";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.38s cubic-bezier(.4,0,.6,1), opacity 0.38s";
+    el.style.transform = `translate(-140%, ${startDy * 1.5}px) rotate(-22deg)`;
+    el.style.opacity = "0";
+  }, []);
+  return (
+    <div ref={ref} className="swipe-card" style={{ zIndex: 200, pointerEvents: "none" }}>
+      <CardFront article={article} />
+    </div>
+  );
+}
+
+function SwipeCard({ article, isTop, depth, onDismiss, onFlipChange }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [flipped, setFlipped]   = React.useState(false);
+
+  const cardRef    = React.useRef(null);
+  const skipRef    = React.useRef(null);
+  const readRef    = React.useRef(null);
+  const rafRef     = React.useRef(null);
+  const dxRef      = React.useRef(0);
+  const dyRef      = React.useRef(0);
+  const velRef     = React.useRef({ x: 0, ts: 0 });
+  const startRef   = React.useRef({ x: 0, y: 0, pointerId: null, target: null });
+  const dirRef     = React.useRef(null);
+  // True once this card has been in a depth slot; triggers promote animation on next isTop=true.
+  const wasDepthRef = React.useRef(!isTop);
+
+  // Promote animation: smoothly rise from depth=1 position when becoming top card.
+  React.useEffect(() => {
+    if (!isTop) { wasDepthRef.current = true; return; }
+    if (!wasDepthRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = "translateY(8px) scale(0.96)";
+    el.getBoundingClientRect();
+    el.style.transition = "transform 0.35s cubic-bezier(0.2,0.9,0.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    const t = setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 380);
+    return () => clearTimeout(t);
+  }, [isTop]);
+
+  // Expose flip trigger + notify parent of flip state.
+  React.useEffect(() => {
+    if (isTop) {
+      if (!flipped) window.__downlinkFlipTop = () => setFlipped(true);
+      if (onFlipChange) onFlipChange(flipped);
+    }
+    return () => { if (isTop) window.__downlinkFlipTop = null; };
+  }, [isTop, flipped]);
+
+  const applyDragTransform = (dx, dy) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${dx}px, ${dy * 0.4}px) rotate(${dx * 0.05}deg)`;
+    if (skipRef.current) skipRef.current.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    if (readRef.current) readRef.current.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
+  };
+
+  const resetStamps = () => {
+    if (skipRef.current) skipRef.current.style.opacity = "0";
+    if (readRef.current) readRef.current.style.opacity = "0";
+  };
+
+  const snapBack = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(.2,.9,.2,1)";
+    el.style.transform = "translate(0,0) rotate(0deg)";
+    resetStamps();
+    dxRef.current = 0;
+    dyRef.current = 0;
+    setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 340);
+  };
+
+  const onPointerDown = (e) => {
+    if (!isTop) return;
+    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, target: e.target };
+    velRef.current = { x: 0, ts: performance.now() };
+    dirRef.current = null;
+  };
+
+  const onPointerMove = (e) => {
+    if (startRef.current.pointerId === null) return;
+    const rawDx = e.clientX - startRef.current.x;
+    const rawDy = e.clientY - startRef.current.y;
+
+    if (dirRef.current === null) {
+      if (Math.hypot(rawDx, rawDy) < 8) return;
+      dirRef.current = Math.abs(rawDx) >= Math.abs(rawDy) ? 'h' : 'v';
+      if (dirRef.current === 'v') { startRef.current.pointerId = null; return; }
+      startRef.current.target?.setPointerCapture?.(startRef.current.pointerId);
+      setDragging(true);
+    }
+
+    if (dirRef.current !== 'h') return;
+    if (flipped && rawDx > 0) return;
+
+    const now = performance.now();
+    const dt = now - velRef.current.ts;
+    if (dt > 0) velRef.current = { x: (rawDx - dxRef.current) / dt, ts: now };
+    dxRef.current = rawDx;
+    dyRef.current = flipped ? 0 : rawDy;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyDragTransform(dxRef.current, dyRef.current));
+  };
+
+  const onPointerUp = () => {
+    const wasH = dirRef.current === 'h';
+    dirRef.current = null;
+    startRef.current.pointerId = null;
+    if (!wasH) return;
+
+    setDragging(false);
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+    const dx  = dxRef.current;
+    const dy  = dyRef.current;
+    const vel = velRef.current.x;
+    const DIST_THRESHOLD = 110;
+    const VEL_THRESHOLD  = 0.35;
+
+    if (flipped) {
+      if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    } else {
+      if (vel > VEL_THRESHOLD || dx > DIST_THRESHOLD) {
+        // Front continues off to the right and fades out, then the detail view fades in.
+        const el = cardRef.current;
+        if (el) {
+          el.style.transition = "transform 0.32s cubic-bezier(.4,0,.6,1), opacity 0.32s";
+          el.style.transform = `translate(140%, ${dy * 1.4}px) rotate(18deg)`;
+          el.style.opacity = "0";
+        }
+        resetStamps();
+        setTimeout(() => {
+          setFlipped(true);
+          dxRef.current = 0;
+          dyRef.current = 0;
+          const el2 = cardRef.current;
+          if (el2) {
+            el2.style.transition = "none";
+            el2.style.transform = "translate(0,0) rotate(0deg)";
+            el2.style.opacity = "0";
+            el2.getBoundingClientRect();
+            el2.style.transition = "opacity 0.22s ease";
+            el2.style.opacity = "1";
+            setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 240);
+          }
+        }, 320);
+      } else if (vel < -VEL_THRESHOLD || dx < -DIST_THRESHOLD) {
+        resetStamps();
+        onDismiss(dx, dy);
+      } else {
+        snapBack();
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={"swipe-card" + (!isTop ? " depth-card" : "") + (dragging ? " dragging" : "")}
+      style={{
+        transform: isTop ? undefined : `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`,
+        zIndex: 100 - depth,
+        cursor: isTop ? "grab" : "default",
+        pointerEvents: isTop ? "auto" : "none",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {!flipped ? <CardFront article={article} /> : <CardBack article={article} onBack={() => setFlipped(false)} />}
+      <div ref={skipRef} className="stamp skip" style={{ opacity: 0 }}>DONE</div>
+      {!flipped && <div ref={readRef} className="stamp read" style={{ opacity: 0 }}>READ</div>}
+    </div>
+  );
+}
+
+function App() {
+  const [index, setIndex]           = React.useState(0);
+  const [generation, setGeneration] = React.useState(0);
+  const [topFlipped, setTopFlipped] = React.useState(false);
+  const [flyingCard, setFlyingCard] = React.useState(null);
+  const [previousDigestHref, setPreviousDigestHref] = React.useState(null);
+  const total     = ARTICLES.length;
+  const remaining = total - index;
+  const finished  = index >= total;
+
+  React.useEffect(() => {
+    fetch("manifest.json", { cache: "no-cache" })
+      .then(r => r.ok ? r.json() : null)
+      .then(m => {
+        const digests = (m && m.digests) || [];
+        const current = digestBasename(DIGEST_HREF);
+        const idx = digests.findIndex(d => d.filename === current);
+        const previous = idx >= 0 ? digests[idx + 1] : null;
+        if (previous && previous.filename) setPreviousDigestHref(swipeHrefForDigest(previous.filename));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss the current top card: renders FlyingCard overlay, immediately advances stack.
+  const dismiss = React.useCallback((startDx = 0, startDy = 0) => {
+    const article = ARTICLES[index];
+    setFlyingCard({ article, startDx, startDy });
+    setIndex(i => i + 1);
+    setTopFlipped(false);
+    setTimeout(() => setFlyingCard(null), 450);
+  }, [index]);
+
+  const advance = React.useCallback(() => dismiss(0, 0), [dismiss]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (finished) return;
+      if (e.key === "ArrowLeft")  advance();
+      if (e.key === "ArrowRight") { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finished, advance]);
+
+  return (
+    <div className="swipe-shell" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Nav index={index} total={total} />
+      {finished ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "48px 40px", textAlign: "center", maxWidth: 460, width: "100%" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.18em", marginBottom: 16 }}>// QUEUE EMPTY</div>
+            <h2 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, fontSize: 24, marginBottom: 10 }}>You're caught up.</h2>
+            <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
+              All {total} articles in the {TIME_WINDOW} window have been triaged.
+            </p>
+            <button onClick={() => { setIndex(0); setGeneration(g => g + 1); }}
+              style={{ all: "unset", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--cyan)", letterSpacing: "0.08em", padding: "10px 20px", border: "1px solid color-mix(in oklch, var(--cyan) 35%, transparent)", borderRadius: 2, background: "color-mix(in oklch, var(--cyan) 8%, transparent)" }}>
+              &#8635; REVIEW AGAIN
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+              {previousDigestHref && (
+                <a href={previousDigestHref} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--cyan)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--cyan)" }}>
+                  PREVIOUS DIGEST &#8594;
+                </a>
+              )}
+              <a href={ARCHIVE_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                ARCHIVE INDEX
+              </a>
+              <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+                LIST VIEW
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 24px 16px", minHeight: 0 }}>
+          <div style={{ maxWidth: 520, margin: "0 auto 16px", width: "100%", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="section-label">TRIAGE QUEUE</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.06em" }}>
+                {remaining} REMAINING · {index} CLEARED
+              </span>
+            </div>
+            <div className="progress-bar"><div style={{ width: ((index / total) * 100) + "%" }} /></div>
+          </div>
+
+          <div className="card-stack">
+            {flyingCard && (
+              <FlyingCard
+                article={flyingCard.article}
+                startDx={flyingCard.startDx}
+                startDy={flyingCard.startDy}
+              />
+            )}
+            {ARTICLES.slice(index, index + 3).slice().reverse().map((article, revI, arr) => {
+              const realDepth = arr.length - 1 - revI;
+              return (
+                <SwipeCard
+                  key={article.n + "-" + generation}
+                  article={article}
+                  isTop={realDepth === 0}
+                  depth={realDepth}
+                  onDismiss={realDepth === 0 ? dismiss : undefined}
+                  onFlipChange={realDepth === 0 ? setTopFlipped : undefined}
+                />
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 16, flexShrink: 0 }}>
+            <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+            {!topFlipped && (
+              <button className="pill-btn read" onClick={() => { if (window.__downlinkFlipTop) window.__downlinkFlipTop(); }} title="View details (ArrowRight)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 12, textAlign: "center", flexShrink: 0 }}>
+            <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
+              &#8592; BACK TO LIST VIEW
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ErrorBoundary><App /></ErrorBoundary>
+);
