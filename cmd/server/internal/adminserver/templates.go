@@ -7,10 +7,23 @@ import (
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/ma111e/downlink/pkg/utils"
 )
 
-//go:embed templates/*.tmpl
+//go:embed templates/*.tmpl templates/*.css
 var templateFS embed.FS
+
+// layoutCSS is the shared admin stylesheet, split out of layout.tmpl. It is
+// injected via the styleCSS template func so it stays trusted (no CSS-context
+// escaping) instead of being re-parsed as template text.
+var layoutCSS = func() template.CSS {
+	b, err := templateFS.ReadFile("templates/layout.css")
+	if err != nil {
+		panic(fmt.Sprintf("read embedded layout.css: %v", err))
+	}
+	return template.CSS(utils.StripCSSComments(string(b)))
+}()
 
 // pageRenderer is the subset of *template.Template the handlers use; it keeps
 // render() decoupled from the concrete template type for testability.
@@ -26,6 +39,7 @@ var funcs = template.FuncMap{
 	"add":       func(a, b int) int { return a + b },
 	"sub":       func(a, b int) int { return a - b },
 	"ratioBar":  ratioBar,
+	"styleCSS":  func() template.CSS { return layoutCSS },
 }
 
 // ratioBar renders a thin two-segment bar showing the uplink:downlink split.

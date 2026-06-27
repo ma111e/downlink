@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ma111e/downlink/pkg/models"
+	"github.com/ma111e/downlink/pkg/utils"
 	"github.com/ma111e/downlink/pkg/version"
 )
 
@@ -165,7 +166,8 @@ type reportsTemplateData struct {
 	Themes      []themeOption // all known themes, for the picker + pre-paint allowlist
 	Commit      string
 	ReportCount int
-	ReportsJSON template.JS // marshaled []aggregatedReport for client-side search
+	ReportsJSON template.JS  // marshaled []aggregatedReport for client-side search
+	StyleCSS    template.CSS // static page stylesheet, loaded from the sibling .css file
 }
 
 // RenderReportsPageForDigests aggregates the referenced reports across the given
@@ -188,6 +190,10 @@ func RenderReportsPage(reports []aggregatedReport, layout, theme string) ([]byte
 	if err != nil {
 		return nil, fmt.Errorf("failed to load reports template: %w", err)
 	}
+	styleCSS, err := loadNotificationTemplate(layout, "reports.css")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load reports CSS: %w", err)
+	}
 	tmpl, err := template.New("reports").Parse(templateText)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse reports template: %w", err)
@@ -208,6 +214,7 @@ func RenderReportsPage(reports []aggregatedReport, layout, theme string) ([]byte
 		Commit:      version.Commit,
 		ReportCount: len(reports),
 		ReportsJSON: template.JS(payload),
+		StyleCSS:    template.CSS(utils.StripCSSComments(styleCSS)),
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render reports page: %w", err)
 	}
