@@ -21,20 +21,20 @@ that it can publish to GitHub Pages and Discord.
   <br><em>Digests page</em>
 </p>
 <p align="center">
-  <a href=".github/assets/sources.png"><img alt="Sources page" src=".github/assets/sources.png" width="80%"></a>
-  <br><em>Sources page</em>
-</p>
-<p align="center">
-  <a href=".github/assets/reports.png"><img alt="Reports page" src=".github/assets/reports.png" width="80%"></a>
-  <br><em>Reports page. It aggregates the reports referenced across digests</em>
-</p>
-<p align="center">
   <a href=".github/assets/digest-row-learning.png"><img alt="Article expanded with learning mode on" src=".github/assets/digest-row-learning.png" width="80%"></a>
   <br><em>Learning mode. It adds a glossary and plain-language explanations so newcomers can make sense of the cybersecurity landscape, with highlighted click-to-define jargon</em>
 </p>
 <p align="center">
   <a href=".github/assets/tour.png"><img alt="Onboarding tour" src=".github/assets/tour.png" width="80%"></a>
   <br><em>An optional tour pointing the learning features out</em>
+</p>
+<p align="center">
+  <a href=".github/assets/sources.png"><img alt="Sources page" src=".github/assets/sources.png" width="80%"></a>
+  <br><em>Sources page</em>
+</p>
+<p align="center">
+  <a href=".github/assets/reports.png"><img alt="Reports page" src=".github/assets/reports.png" width="80%"></a>
+  <br><em>Reports page. It aggregates the reports referenced across digests</em>
 </p>
 <p align="center">
   <a href=".github/assets/cli-digest-generate.png"><img alt="dlk digest generate run" src=".github/assets/cli-digest-generate.png" width="80%"></a>
