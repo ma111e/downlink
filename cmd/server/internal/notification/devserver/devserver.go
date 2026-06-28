@@ -30,6 +30,7 @@ type Options struct {
 	AssetsDir    string          // directory of Vite-built assets (*.css/*.js), read on disk and watched
 	OpenBrowser  bool            // open the default browser at startup
 	Digests      []models.Digest // digests listed in the archive and served individually
+	Feeds        []models.Feed   // feeds listed on the sources page (empty for the sample fixture)
 	Theme        string          // template layout name; empty = default
 }
 
@@ -94,6 +95,14 @@ func Run(opts Options) error {
 		})
 	})
 
+	// The sources page lists the feeds backing the digests. Footer links on every
+	// page point here.
+	mux.HandleFunc("/sources.html", func(w http.ResponseWriter, r *http.Request) {
+		serveHTML(w, func() ([]byte, error) {
+			return notification.RenderSourcesPage(opts.Feeds, opts.Theme, "")
+		})
+	})
+
 	// Stub manifest listing every preview digest so the archive shell renders.
 	mux.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
 		m := notification.Manifest{
@@ -129,6 +138,91 @@ func Run(opts Options) error {
 	}
 
 	return http.ListenAndServe(opts.Addr, mux)
+}
+
+// Export renders the same page set Run serves into dir as static HTML and
+// returns, without starting an HTTP server. Files use the bare filenames the
+// pages link to, so relative links between them resolve when opened from disk.
+// Pages are self-contained (inline CSS/JS) except the archive index and swipe
+// page, which fetch manifest.json client-side; serve dir over HTTP to view those.
+func Export(opts Options, dir string) error {
+	notification.SetTemplateDir(opts.TemplatesDir)
+	// Read Vite-built CSS/JS from disk so a fresh `npm run build` is inlined.
+	notification.SetAssetDir(opts.AssetsDir)
+
+	digests := dedupeByFilename(opts.Digests)
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create export dir: %w", err)
+	}
+
+	write := func(name string, render func() ([]byte, error)) error {
+		html, err := render()
+		if err != nil {
+			return fmt.Errorf("render %s: %w", name, err)
+		}
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, html, 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", name, err)
+		}
+		fmt.Printf("  %s\n", path)
+		return nil
+	}
+
+	fmt.Printf("\nexporting %d digest(s) to %s\n", len(digests), dir)
+
+	if err := write("index.html", func() ([]byte, error) {
+		return notification.RenderDigestIndex(opts.Theme, "")
+	}); err != nil {
+		return err
+	}
+
+	// Stub manifest listing every exported digest so the archive shell renders.
+	m := notification.Manifest{
+		SourceRepo:  "downlink-dev",
+		GeneratedAt: time.Now().UTC().Format("2006-01-02 15:04 UTC"),
+	}
+	for _, d := range digests {
+		m.Upsert(notification.ManifestEntryFromDigest(d))
+	}
+	manifest, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal manifest: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), manifest, 0o644); err != nil {
+		return fmt.Errorf("write manifest.json: %w", err)
+	}
+	fmt.Printf("  %s\n", filepath.Join(dir, "manifest.json"))
+
+	for _, d := range digests {
+		d := d
+		digestFilename := notification.DigestHTMLFilename(d)
+		if err := write(digestFilename, func() ([]byte, error) {
+			return notification.RenderDigestHTML(d, opts.Theme, "")
+		}); err != nil {
+			return err
+		}
+		if err := write(notification.SwipeHTMLFilename(d), func() ([]byte, error) {
+			return notification.RenderSwipeHTML(d, digestFilename, opts.Theme, "")
+		}); err != nil {
+			return err
+		}
+	}
+
+	if err := write("reports.html", func() ([]byte, error) {
+		return notification.RenderReportsPageForDigests(digests, opts.Theme, "")
+	}); err != nil {
+		return err
+	}
+
+	if err := write("sources.html", func() ([]byte, error) {
+		return notification.RenderSourcesPage(opts.Feeds, opts.Theme, "")
+	}); err != nil {
+		return err
+	}
+
+	fmt.Println()
+	return nil
 }
 
 // dedupeByFilename returns digests with duplicate digest filenames removed,

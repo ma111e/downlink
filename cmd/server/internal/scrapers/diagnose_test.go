@@ -1,9 +1,12 @@
 package scrapers
 
 import (
+	"bytes"
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/mmcdole/gofeed"
 )
 
 func TestAnalyzeFeedBody_ValidRSS(t *testing.T) {
@@ -130,5 +133,42 @@ func TestStripLeadingBOMs(t *testing.T) {
 	}
 	if got := stripLeadingBOMs([]byte("x")); string(got) != "x" {
 		t.Errorf("stripLeadingBOMs changed BOM-free body to %q", got)
+	}
+}
+
+func TestStripInvalidXMLChars(t *testing.T) {
+	// A stray U+0002 (the bug: a hyphen mangled upstream) is dropped.
+	if got := stripInvalidXMLChars([]byte("source\x02grounded")); string(got) != "sourcegrounded" {
+		t.Errorf("stripInvalidXMLChars = %q, want %q", got, "sourcegrounded")
+	}
+	// Legal XML whitespace and ordinary multi-byte UTF-8 survive untouched.
+	if got := stripInvalidXMLChars([]byte("a\tb\nc\rd é")); string(got) != "a\tb\nc\rd é" {
+		t.Errorf("stripInvalidXMLChars dropped legal chars: %q", got)
+	}
+	// A clean body is returned unchanged, without reallocating.
+	clean := []byte("<rss><channel/></rss>")
+	if got := stripInvalidXMLChars(clean); &got[0] != &clean[0] {
+		t.Errorf("stripInvalidXMLChars reallocated a clean body")
+	}
+}
+
+func TestStripInvalidXMLChars_RestoresParse(t *testing.T) {
+	body := []byte(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>` +
+		`<title>X</title><item><title>source` + "\x02" + `grounded</title>` +
+		`<link>https://e.com/a</link></item></channel></rss>`)
+
+	// The raw body must fail the same way the real fetch did.
+	if _, err := gofeed.NewParser().Parse(bytes.NewReader(body)); err == nil {
+		t.Fatal("expected raw body with U+0002 to fail parsing")
+	} else if !strings.Contains(err.Error(), "U+0002") {
+		t.Fatalf("expected U+0002 parse error, got %v", err)
+	}
+
+	feed, err := gofeed.NewParser().Parse(bytes.NewReader(stripInvalidXMLChars(body)))
+	if err != nil {
+		t.Fatalf("sanitized body still failed to parse: %v", err)
+	}
+	if len(feed.Items) != 1 || feed.Items[0].Title != "sourcegrounded" {
+		t.Fatalf("unexpected parsed feed: %+v", feed.Items)
 	}
 }

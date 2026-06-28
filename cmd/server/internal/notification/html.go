@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gomarkdown/markdown"
 	mdhtml "github.com/gomarkdown/markdown/html"
@@ -705,10 +706,38 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 	return buf.Bytes(), nil
 }
 
+// digestFileTimestampLayout is the timestamp format embedded in published digest
+// and swipe filenames (see DigestHTMLFilename / SwipeHTMLFilename).
+const digestFileTimestampLayout = "2006-01-02_1504"
+
 // DigestHTMLFilename returns a filesystem-safe filename for the digest HTML file.
 func DigestHTMLFilename(digest models.Digest) string {
-	ts := digest.CreatedAt.UTC().Format("2006-01-02_1504")
+	ts := digest.CreatedAt.UTC().Format(digestFileTimestampLayout)
 	return fmt.Sprintf("downlink-digest-%s.html", ts)
+}
+
+// parseDigestFileTimestamp extracts the UTC timestamp from a published digest or
+// swipe filename (downlink-digest-<ts>.html / downlink-swipe-<ts>.html). The
+// second return value is false when name is not such a file or the timestamp
+// segment does not parse.
+func parseDigestFileTimestamp(name string) (time.Time, bool) {
+	core := strings.TrimSuffix(name, ".html")
+	if core == name {
+		return time.Time{}, false
+	}
+	switch {
+	case strings.HasPrefix(core, "downlink-digest-"):
+		core = strings.TrimPrefix(core, "downlink-digest-")
+	case strings.HasPrefix(core, "downlink-swipe-"):
+		core = strings.TrimPrefix(core, "downlink-swipe-")
+	default:
+		return time.Time{}, false
+	}
+	ts, err := time.ParseInLocation(digestFileTimestampLayout, core, time.UTC)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return ts, true
 }
 
 // parseOverviewSections splits a markdown digest summary into OverviewSection blocks.
