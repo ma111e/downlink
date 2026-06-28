@@ -9,6 +9,33 @@ import (
 	"github.com/ma111e/downlink/pkg/models"
 )
 
+func TestParseDigestFileTimestamp(t *testing.T) {
+	want := time.Date(2026, 6, 28, 14, 5, 0, 0, time.UTC)
+	tests := []struct {
+		name   string
+		file   string
+		wantOK bool
+		wantTS time.Time
+	}{
+		{"digest", "downlink-digest-2026-06-28_1405.html", true, want},
+		{"swipe", "downlink-swipe-2026-06-28_1405.html", true, want},
+		{"bad timestamp", "downlink-digest-not-a-date.html", false, time.Time{}},
+		{"wrong prefix", "manifest.json", false, time.Time{}},
+		{"missing suffix", "downlink-digest-2026-06-28_1405", false, time.Time{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := parseDigestFileTimestamp(tt.file)
+			if ok != tt.wantOK {
+				t.Fatalf("ok = %v, want %v", ok, tt.wantOK)
+			}
+			if ok && !got.Equal(tt.wantTS) {
+				t.Fatalf("ts = %v, want %v", got, tt.wantTS)
+			}
+		})
+	}
+}
+
 // normalizeCSS drops the characters minification rewrites, so CSS-rule
 // assertions survive it: whitespace and trailing semicolons are removed, and
 // quotes are stripped from attribute selectors (e.g. [data-x="y"] -> [data-x=y]).

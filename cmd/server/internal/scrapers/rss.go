@@ -50,7 +50,10 @@ func (s *RSSFeedScraper) Fetch(url string, params map[string]any) ([]models.Feed
 		return nil, nil, fmt.Errorf("failed to fetch feed: %w", err)
 	}
 
-	feed, err := s.parser.Parse(bytes.NewReader(raw.Body))
+	// Strip any illegal XML control characters before parsing. Some feeds carry
+	// stray C0 bytes inside otherwise valid UTF-8 text, which Go's encoding/xml
+	// rejects; the original raw.Body is preserved for the saved diagnostic below.
+	feed, err := s.parser.Parse(bytes.NewReader(stripInvalidXMLChars(raw.Body)))
 	if err != nil {
 		// Save the raw body so the offending bytes stay inspectable even when the
 		// server is not running at trace log level, and point the error at it. This

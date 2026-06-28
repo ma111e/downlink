@@ -115,7 +115,7 @@ func InspectFeedURL(feedURL string, headers map[string]string, maxLinks int) Fee
 
 	var insp FeedInspection
 	var itemCount int
-	feed, parseErr := gofeed.NewParser().Parse(bytes.NewReader(raw.Body))
+	feed, parseErr := gofeed.NewParser().Parse(bytes.NewReader(stripInvalidXMLChars(raw.Body)))
 	if parseErr == nil && feed != nil {
 		itemCount = len(feed.Items)
 		insp.Title = feed.Title
@@ -179,6 +179,50 @@ func stripLeadingBOMs(body []byte) []byte {
 		body = body[len(utf8BOM):]
 	}
 	return body
+}
+
+// stripInvalidXMLChars drops every rune that XML 1.0 forbids, leaving the rest of
+// the body untouched. Some feeds smuggle stray C0 control bytes into otherwise
+// valid UTF-8 text (e.g. a hyphen mangled upstream into U+0002); Go's encoding/xml
+// rejects these regardless of Strict mode, so they have to go before gofeed parses.
+// The legal set is #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] |
+// [#x10000-#x10FFFF]. The clean fast path returns body unchanged with no allocation.
+func stripInvalidXMLChars(body []byte) []byte {
+	validXMLRune := func(r rune) bool {
+		switch {
+		case r == 0x09, r == 0x0A, r == 0x0D:
+			return true
+		case r >= 0x20 && r <= 0xD7FF:
+			return true
+		case r >= 0xE000 && r <= 0xFFFD:
+			return true
+		case r >= 0x10000 && r <= 0x10FFFF:
+			return true
+		default:
+			return false
+		}
+	}
+
+	// Scan first so a well-formed body (the common case) costs only a pass with no
+	// allocation, mirroring stripLeadingBOMs.
+	clean := true
+	for _, r := range string(body) {
+		if !validXMLRune(r) {
+			clean = false
+			break
+		}
+	}
+	if clean {
+		return body
+	}
+
+	out := make([]byte, 0, len(body))
+	for _, r := range string(body) {
+		if validXMLRune(r) {
+			out = utf8.AppendRune(out, r)
+		}
+	}
+	return out
 }
 
 // extractHTMLTitle returns the trimmed text of an HTML page's <title> element, or

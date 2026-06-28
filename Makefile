@@ -1,4 +1,4 @@
-.PHONY: docs server cli dev-digest assets
+.PHONY: docs server cli dev-digest preview assets
 
 default: help
 
@@ -38,6 +38,10 @@ dev-digest:
 	@( cd web && npm run watch >/dev/null 2>&1 & )
 	@( sleep 2 && xdg-open http://localhost:8099 >/dev/null 2>&1 & )
 	air -c .air.toml
+
+## preview : Render the digest sample pages to tmp/preview/ as static HTML (for screenshots)
+preview: cmd/server/internal/notification/assets/digest.css
+	go run ./cmd/server dev digest --export tmp/preview
 
 ## help : Shows this help
 help: Makefile

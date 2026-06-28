@@ -37,6 +37,7 @@ func newDevDigestCommand() *cobra.Command {
 		templatesDir string
 		assetsDir    string
 		noOpen       bool
+		exportDir    string
 		testDigestID string
 		theme        string
 		from         string
@@ -73,6 +74,7 @@ the archive index against real data).`,
 			windowSet := from != "" || to != "" || between != "" || day != ""
 
 			var digests []models.Digest
+			var feeds []models.Feed
 
 			switch {
 			case windowSet:
@@ -97,14 +99,31 @@ the archive index against real data).`,
 				digests = []models.Digest{notification.SampleDigest("dev", time.Now())}
 			}
 
-			return devserver.Run(devserver.Options{
+			// On the DB-backed paths the store is already initialized; load the feeds
+			// so the sources page lists real sources. The sample fixture has none.
+			if windowSet || testDigestID != "" {
+				loaded, err := store.Db.ListFeeds()
+				if err != nil {
+					return fmt.Errorf("list feeds: %w", err)
+				}
+				feeds = loaded
+			}
+
+			devOpts := devserver.Options{
 				Addr:         addr,
 				TemplatesDir: templatesDir,
 				AssetsDir:    assetsDir,
 				OpenBrowser:  !noOpen,
 				Digests:      digests,
+				Feeds:        feeds,
 				Theme:        theme,
-			})
+			}
+
+			if exportDir != "" {
+				return devserver.Export(devOpts, exportDir)
+			}
+
+			return devserver.Run(devOpts)
 		},
 	}
 
@@ -112,6 +131,7 @@ the archive index against real data).`,
 	cmd.Flags().StringVar(&templatesDir, "templates-dir", "cmd/server/internal/notification/templates", "Directory of *.tmpl files to serve and watch")
 	cmd.Flags().StringVar(&assetsDir, "assets-dir", "cmd/server/internal/notification/assets", "Directory of Vite-built CSS/JS to serve and watch (run `npm run watch` in web/ alongside)")
 	cmd.Flags().BoolVar(&noOpen, "no-open", false, "Do not open the browser on startup")
+	cmd.Flags().StringVar(&exportDir, "export", "", "Render the page set to this directory as static HTML and exit (no server)")
 	cmd.Flags().StringVar(&testDigestID, "test-digest-id", "", "Render this digest id from the local DB instead of the sample fixture")
 	cmd.Flags().StringVar(&theme, "theme", "", `Template layout to use (default: "default")`)
 	cmd.Flags().StringVar(&from, "from", "", "Start of the window selecting stored digests by creation time (e.g., 'now', '2025-01-01', '24h'; default: 24h)")

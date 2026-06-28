@@ -293,6 +293,7 @@ When no title is given, an interactive list is shown to pick from.`,
 
 	var republishDryRun bool
 	var republishNoWait bool
+	var republishRebase bool
 
 	republishAllCmd := &cobra.Command{
 		Use:   "republish-all",
@@ -302,6 +303,13 @@ present in the GitHub Pages manifest, re-render each page with the current
 templates, rebuild the manifest, and push the result as a single commit.
 
 Use --dry-run to render and stage locally without committing or pushing.
+
+Use --rebase to rebuild the branch as a single orphan commit and force-push it,
+discarding all prior history. The rendered tree is complete on its own, so this
+keeps the Pages branch from growing a commit per publish, but the rewrite is
+permanent and not recoverable from git history. Run it only when automatic
+publishing is idle, since a force-push will clobber a digest published in the
+meantime. Ignored under --dry-run.
 
 This command requires a running downlink server (--address / --port).`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -336,12 +344,13 @@ This command requires a running downlink server (--address / --port).`,
 					digests = append(digests, d)
 				}
 				prog.Complete("fetch", true, fmt.Sprintf("fetched %d digests", len(digests)))
-				return publisher.RepublishAll(digests, cfg.Layout, republishDryRun, !republishNoWait)
+				return publisher.RepublishAll(digests, cfg.Layout, republishDryRun, !republishNoWait, republishRebase)
 			})
 		},
 	}
 	republishAllCmd.Flags().BoolVar(&republishDryRun, "dry-run", false, "Render and stage locally without committing or pushing")
 	republishAllCmd.Flags().BoolVar(&republishNoWait, "no-wait", false, "Push and exit without waiting for the GitHub Pages deploy")
+	republishAllCmd.Flags().BoolVar(&republishRebase, "rebase", false, "Rebuild the branch as a single orphan commit and force-push, discarding all prior history (destructive; ignored with --dry-run)")
 
 	var republishIndexDryRun bool
 

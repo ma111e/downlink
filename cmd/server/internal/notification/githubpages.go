@@ -15,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	gogit "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
@@ -776,13 +777,49 @@ func (p *GitHubPagesPublisher) writeAndStageManifest(wt *gogit.Worktree, digest 
 	if err != nil {
 		return fmt.Errorf("github pages: load manifest: %w", err)
 	}
+	cutoff := p.publishCutoff()
 	manifest.Upsert(ManifestEntryFromDigest(digest))
-	manifest.Prune(p.publishCutoff())
+	manifest.Prune(cutoff)
 	if err := manifest.Write(manifestAbsPath); err != nil {
 		return fmt.Errorf("github pages: write manifest: %w", err)
 	}
 	if _, err := wt.Add(manifestRelPath); err != nil {
 		return fmt.Errorf("github pages: failed to stage manifest: %w", err)
+	}
+	if err := p.pruneAgedDigestFiles(wt, outputDir, cutoff); err != nil {
+		return err
+	}
+	return nil
+}
+
+// pruneAgedDigestFiles removes published digest/swipe HTML whose filename
+// timestamp is before cutoff, staging each removal in wt. It mirrors the manifest
+// prune (same cutoff against the same timestamp) so aged HTML stops accumulating
+// in the Pages repo while files for surviving manifest entries are never touched.
+func (p *GitHubPagesPublisher) pruneAgedDigestFiles(wt *gogit.Worktree, outputDir string, cutoff time.Time) error {
+	dirAbs := filepath.Join(p.cfg.CloneDir, outputDir)
+	entries, err := os.ReadDir(dirAbs)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("github pages: read output dir: %w", err)
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		ts, ok := parseDigestFileTimestamp(e.Name())
+		if !ok || !ts.Before(cutoff) {
+			continue
+		}
+		relPath := filepath.Join(outputDir, e.Name())
+		if _, err := wt.Remove(relPath); err != nil {
+			// A file that's already gone from the index shouldn't wedge a publish.
+			log.WithError(err).WithField("file", relPath).Debug("Skipping aged digest file removal")
+			continue
+		}
+		log.WithField("file", relPath).Debug("Removed aged digest file past publish window")
 	}
 	return nil
 }
@@ -934,7 +971,12 @@ func resolveGitHubPagesOutputDir(input string) (string, error) {
 // entries are removed. Pass dryRun=true to render and stage locally without
 // committing or pushing. When wait is true (and not a dry run) it blocks until
 // the resulting GitHub Pages build deploys.
-func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout string, dryRun, wait bool) error {
+//
+// When rebase is true (and not a dry run) the branch is rebuilt as a single
+// orphan commit and force-pushed, discarding all prior history. The rendered
+// tree is complete on its own, so this keeps the Pages branch from accumulating
+// a commit per publish — at the cost of an unrecoverable history rewrite.
+func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout string, dryRun, wait, rebase bool) error {
 	if len(digests) == 0 {
 		log.Info("RepublishAll: no digests to republish")
 		return nil
@@ -1071,6 +1113,9 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout stri
 	if _, err := wt.Add(manifestRelPath); err != nil {
 		return fmt.Errorf("github pages: failed to stage manifest: %w", err)
 	}
+	if err := p.pruneAgedDigestFiles(wt, outputDir, cutoff); err != nil {
+		return err
+	}
 
 	if err := p.writeAndStageFeeds(wt, outputDir, filterDigestsNewerThan(mergeDigestsNewestFirst(toRender, FeedDigestLimit), cutoff)); err != nil {
 		p.pComplete("render", false, "feed render failed")
@@ -1090,8 +1135,21 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout stri
 		return nil
 	}
 
-	p.pStart("commit", "Committing & pushing")
 	commitMsg := fmt.Sprintf("Republish %d digests (template migration)", len(toRender))
+
+	if rebase {
+		p.pStart("commit", "Rebuilding history & force-pushing")
+		commitHash, err := p.commitOrphanAndForcePush(auth, commitMsg)
+		if err != nil {
+			p.pComplete("commit", false, "force-push failed")
+			return err
+		}
+		p.pComplete("commit", true, "force-pushed "+shortSHA(commitHash.String()))
+		log.WithField("count", len(toRender)).Info("Published digests republished to GitHub Pages (history rewritten)")
+		return p.waitForDeploy(commitHash.String(), "deploy", "Waiting for GitHub Pages deploy", wait)
+	}
+
+	p.pStart("commit", "Committing & pushing")
 	commitHash, err := wt.Commit(commitMsg, &gogit.CommitOptions{
 		Author: &object.Signature{
 			Name:  p.cfg.CommitAuthor,
@@ -1224,6 +1282,70 @@ func (p *GitHubPagesPublisher) pushWithRetry(repo *gogit.Repository, wt *gogit.W
 		}
 	}
 	return nil
+}
+
+// commitOrphanAndForcePush rebuilds the local repo so the current worktree
+// contents become a single parentless commit, then force-pushes it to the
+// configured branch, discarding all prior history. Used by republish-all
+// --rebase to keep the Pages branch from accumulating a commit per publish.
+//
+// The full rendered tree already lives on disk in CloneDir, so dropping the
+// .git directory and re-initialising loses no content: the first commit of the
+// fresh repo is naturally parentless, and a force refspec overwrites the remote.
+func (p *GitHubPagesPublisher) commitOrphanAndForcePush(auth *githttp.BasicAuth, message string) (plumbing.Hash, error) {
+	if err := os.RemoveAll(filepath.Join(p.cfg.CloneDir, ".git")); err != nil {
+		return plumbing.ZeroHash, fmt.Errorf("github pages: drop git history: %w", err)
+	}
+
+	repo, err := gogit.PlainInit(p.cfg.CloneDir, false)
+	if err != nil {
+		return plumbing.ZeroHash, fmt.Errorf("github pages: re-init repo: %w", err)
+	}
+
+	// Point HEAD at the target branch so the first commit lands there directly,
+	// independent of go-git's default init branch name.
+	headRef := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName(p.cfg.Branch))
+	if err := repo.Storer.SetReference(headRef); err != nil {
+		return plumbing.ZeroHash, fmt.Errorf("github pages: set HEAD to %q: %w", p.cfg.Branch, err)
+	}
+
+	if _, err := repo.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{p.cfg.RepoURL},
+	}); err != nil {
+		return plumbing.ZeroHash, fmt.Errorf("github pages: create remote: %w", err)
+	}
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		return plumbing.ZeroHash, fmt.Errorf("github pages: get worktree: %w", err)
+	}
+	if _, err := wt.Add("."); err != nil {
+		return plumbing.ZeroHash, fmt.Errorf("github pages: stage rebuilt tree: %w", err)
+	}
+
+	commitHash, err := wt.Commit(message, &gogit.CommitOptions{
+		Author: &object.Signature{
+			Name:  p.cfg.CommitAuthor,
+			Email: p.cfg.CommitEmail,
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return plumbing.ZeroHash, fmt.Errorf("github pages: commit orphan: %w", err)
+	}
+
+	forceRefSpec := config.RefSpec(fmt.Sprintf("+refs/heads/%s:refs/heads/%s", p.cfg.Branch, p.cfg.Branch))
+	pushErr := repo.Push(&gogit.PushOptions{
+		RemoteName: "origin",
+		Auth:       auth,
+		RefSpecs:   []config.RefSpec{forceRefSpec},
+	})
+	if pushErr != nil && pushErr != gogit.NoErrAlreadyUpToDate {
+		return plumbing.ZeroHash, fmt.Errorf("github pages: force-push failed: %w", pushErr)
+	}
+
+	return commitHash, nil
 }
 
 // renderAndStageSwipe renders the swipe triage view, writes it alongside the
