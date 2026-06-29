@@ -3,6 +3,7 @@ package manager
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -406,6 +407,10 @@ func (m *FeedManager) ApplyFeeds(configs []models.FeedConfig, defaults *models.S
 		}
 
 		if exists {
+			if feedConfigMatchesStored(existing, cfg) {
+				// Already in sync: don't report or re-write it.
+				continue
+			}
 			result.Updated = append(result.Updated, label)
 		} else {
 			result.Created = append(result.Created, label)
@@ -469,6 +474,71 @@ func (m *FeedManager) DeleteFeeds(feedIds []string, dryRun bool) (DeleteResult, 
 		}
 	}
 	return result, nil
+}
+
+// feedConfigMatchesStored reports whether the (already-defaulted) desired config
+// matches what is stored for an existing feed, so ApplyFeeds only reports and
+// re-writes feeds that actually changed. cfg must have bakeDefaultSelectors
+// applied already, matching how the feed was registered. Runtime-only fields
+// (LastFetch, GroupId) are intentionally ignored.
+func feedConfigMatchesStored(existing models.Feed, cfg models.FeedConfig) bool {
+	if existing.Title != cfg.Title {
+		return false
+	}
+	if existing.Type != cfg.Scraper.Type {
+		return false
+	}
+	if existing.Enabled == nil || *existing.Enabled != cfg.Enabled {
+		return false
+	}
+	if !sameStringSet(existing.Topics, cfg.Topics) {
+		return false
+	}
+	return sameJSON(map[string]any(existing.Scraper), map[string]any(scraperMapFromConfig(cfg.Scraper)))
+}
+
+// sameStringSet reports whether a and b hold the same values, ignoring order and
+// duplicates.
+func sameStringSet(a, b []string) bool {
+	seen := make(map[string]struct{}, len(a))
+	for _, s := range a {
+		seen[s] = struct{}{}
+	}
+	for _, s := range b {
+		if _, ok := seen[s]; !ok {
+			return false
+		}
+		delete(seen, s)
+	}
+	return len(seen) == 0
+}
+
+// sameJSON compares two values by their normalized JSON form. A stored JSONMap
+// comes back from SQLite with JSON-decoded types (numbers as float64, etc.), so a
+// freshly built map won't match it structurally; round-tripping both through JSON
+// removes that skew before comparison.
+func sameJSON(a, b any) bool {
+	na, err := normalizeJSON(a)
+	if err != nil {
+		return false
+	}
+	nb, err := normalizeJSON(b)
+	if err != nil {
+		return false
+	}
+	return reflect.DeepEqual(na, nb)
+}
+
+func normalizeJSON(v any) (any, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var out any
+	if err := json.Unmarshal(b, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // bakeDefaultSelectors fills any empty selector field on cfg from defaults, so

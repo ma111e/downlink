@@ -151,6 +151,22 @@ their `output_subdir`, the slug by default. On each digest generation:
 - **`<subdir>/sources.html`** - the profile's feed list.
 - **`<subdir>/reports.html`** - referenced reports aggregated across the profile's digests in the publish window. Linked from the digest, archive, and swipe page footers. Skipped when no report data is available.
 
+![Published digest page](../.github/assets/digest-row-expanded.png)
+
+<p align="center"><em><code>downlink-digest-*.html</code>, the self-contained digest page.</em></p>
+
+![Archive index](../.github/assets/digest-index.png)
+
+<p align="center"><em><code>index.html</code>, the profile's archive UI.</em></p>
+
+![Sources page](../.github/assets/sources.png)
+
+<p align="center"><em><code>sources.html</code>, the profile's feed list.</em></p>
+
+![Reports page](../.github/assets/reports.png)
+
+<p align="center"><em><code>reports.html</code> aggregates the reports referenced across digests.</em></p>
+
 The repo root depends on how many profiles are enabled:
 
 - **One profile**: `index.html` is the root archive UI that loads `<subdir>/manifest.json`, as before.

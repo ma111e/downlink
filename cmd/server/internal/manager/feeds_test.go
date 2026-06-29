@@ -81,3 +81,94 @@ func TestFetchFeed_SanitizesInvalidUTF8Content(t *testing.T) {
 		t.Fatalf("Content = %q, want %q", art.Content, "caf bar")
 	}
 }
+
+// ApplyFeeds should only report a feed as Updated when its config actually
+// changed; re-applying an unchanged file must be a no-op.
+func TestApplyFeeds_OnlyReportsRealChanges(t *testing.T) {
+	db, err := store.New(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("store.New: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	m := NewFeedManager(db)
+	m.RegisterScraper("rss", &stubScraper{})
+
+	base := func() models.FeedConfig {
+		return models.FeedConfig{
+			URL:     "https://example.com/rss",
+			Title:   "Example",
+			Enabled: true,
+			Topics:  []string{"tech", "news"},
+			Scraper: models.ScraperConfig{
+				Type:     "rss",
+				Scraping: "none",
+				Selectors: &models.Selectors{
+					Article: ".content",
+				},
+			},
+		}
+	}
+
+	// First apply: feed is created.
+	res, err := m.ApplyFeeds([]models.FeedConfig{base()}, nil, false)
+	if err != nil {
+		t.Fatalf("ApplyFeeds (create): %v", err)
+	}
+	if len(res.Created) != 1 || len(res.Updated) != 0 || len(res.Disabled) != 0 {
+		t.Fatalf("create: got %+v, want 1 created", res)
+	}
+
+	// Re-apply identical config: nothing to do.
+	res, err = m.ApplyFeeds([]models.FeedConfig{base()}, nil, false)
+	if err != nil {
+		t.Fatalf("ApplyFeeds (resync): %v", err)
+	}
+	if len(res.Created)+len(res.Updated)+len(res.Disabled) != 0 {
+		t.Fatalf("resync: got %+v, want nothing to do", res)
+	}
+
+	// Topic order should not matter.
+	reordered := base()
+	reordered.Topics = []string{"news", "tech"}
+	res, err = m.ApplyFeeds([]models.FeedConfig{reordered}, nil, false)
+	if err != nil {
+		t.Fatalf("ApplyFeeds (reordered topics): %v", err)
+	}
+	if len(res.Updated) != 0 {
+		t.Fatalf("reordered topics: got %+v, want no update", res)
+	}
+
+	// Each meaningful field change should mark exactly that feed Updated.
+	mutators := map[string]func(*models.FeedConfig){
+		"title":    func(c *models.FeedConfig) { c.Title = "Renamed" },
+		"selector": func(c *models.FeedConfig) { c.Scraper.Selectors.Article = ".other" },
+		"topics":   func(c *models.FeedConfig) { c.Topics = []string{"tech"} },
+		"scraping": func(c *models.FeedConfig) { c.Scraper.Scraping = "dynamic" },
+	}
+	for name, mutate := range mutators {
+		t.Run(name, func(t *testing.T) {
+			cfg := base()
+			mutate(&cfg)
+			// dry-run so the stored feed stays at the baseline for the next case.
+			res, err := m.ApplyFeeds([]models.FeedConfig{cfg}, nil, true)
+			if err != nil {
+				t.Fatalf("ApplyFeeds (%s): %v", name, err)
+			}
+			if len(res.Updated) != 1 || len(res.Created) != 0 {
+				t.Fatalf("%s: got %+v, want 1 updated", name, res)
+			}
+		})
+	}
+
+	// Disabling the feed should report it as Disabled, not Updated.
+	disabled := base()
+	disabled.Enabled = false
+	res, err = m.ApplyFeeds([]models.FeedConfig{disabled}, nil, false)
+	if err != nil {
+		t.Fatalf("ApplyFeeds (disable): %v", err)
+	}
+	if len(res.Disabled) != 1 || len(res.Updated) != 0 {
+		t.Fatalf("disable: got %+v, want 1 disabled", res)
+	}
+}

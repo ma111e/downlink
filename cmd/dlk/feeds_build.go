@@ -110,11 +110,11 @@ file instead (showing a diff when the feed is already present).`,
 					headerLabel = strings.Join(sortedKeys(headers), ", ")
 				}
 				fmt.Println(styleSection.Render("── autoconfig run ──"))
-				fmt.Printf("  %s %s\n", styleKey.Render("Feed:    "), targetURL)
-				fmt.Printf("  %s %s\n", styleKey.Render("Provider:"), providerType)
-				fmt.Printf("  %s %s\n", styleKey.Render("Model:   "), modelName)
-				fmt.Printf("  %s %s\n", styleKey.Render("Headers: "), styleDim.Render(headerLabel))
-				fmt.Printf("  %s %s\n", styleKey.Render("Steps:   "), styleDim.Render(stepsLabel))
+				fmt.Printf("  %s %s\n", styleKey.Render("Feed:         "), targetURL)
+				fmt.Printf("  %s %s\n", styleKey.Render("Provider type:"), providerType)
+				fmt.Printf("  %s %s\n", styleKey.Render("Model:        "), modelName)
+				fmt.Printf("  %s %s\n", styleKey.Render("Headers:      "), styleDim.Render(headerLabel))
+				fmt.Printf("  %s %s\n", styleKey.Render("Steps:        "), styleDim.Render(stepsLabel))
 			}
 
 			if !yes && !jsonOutput {

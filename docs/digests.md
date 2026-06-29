@@ -59,6 +59,10 @@ Output and publishing:
 Generation streams per-stage and per-article progress. Press Ctrl-C once to ask the server
 to stop at the next stage boundary; twice to force exit.
 
+![dlk digest generate run](../.github/assets/cli-digest-generate.png)
+
+<p align="center"><em><code>dlk digest generate</code> analyzing and ranking articles.</em></p>
+
 ## Viewing
 
 | Command | Description |
@@ -66,6 +70,24 @@ to stop at the next stage boundary; twice to force exit.
 | `dlk digest list` | List digests (`--limit <n>`). |
 | `dlk digest get [id]` | Show the summary and articles. `--markdown` renders styled prose. Omit the id to pick interactively. |
 | `dlk digest articles [id]` | List just the articles in a digest. |
+
+The published HTML archive is the main way to read digests.
+
+![Digest archive index](../.github/assets/digest-index.png)
+
+<p align="center"><em>The digests index.</em></p>
+
+![Digest page with an article expanded](../.github/assets/digest-row-expanded.png)
+
+<p align="center"><em>A digest page with an article expanded.</em></p>
+
+![Article expanded with glossary mode on](../.github/assets/digest-row-learning.png)
+
+<p align="center"><em>Glossary mode adds plain-language explanations and click-to-define jargon. See <a href="analysis-and-scoring.md">analysis-and-scoring.md</a>.</em></p>
+
+![Onboarding tour](../.github/assets/tour.png)
+
+<p align="center"><em>An optional tour pointing out the glossary features.</em></p>
 
 ## Layouts and themes
 

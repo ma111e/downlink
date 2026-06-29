@@ -9,6 +9,10 @@ The argument can be an RSS/Atom feed, an HTML index page (a link-list of posts),
 or a plain web page. For a web page the CLI first discovers the page's feeds and
 lets you pick one (`resolveFeedURL` in [cmd/dlk/feeds_build.go](../cmd/dlk/feeds_build.go)).
 
+![dlk feeds autoconfig run](../.github/assets/cli-feeds-autoconfig.png)
+
+<p align="center"><em><code>autoconfig</code> probing a page and printing a ready-to-paste feed config.</em></p>
+
 ## Entry points
 
 - CLI: `dlk feeds autoconfig <url>` ([cmd/dlk/feeds_build.go](../cmd/dlk/feeds_build.go))

@@ -141,6 +141,8 @@ existing feeds file (with a diff for feeds already present).
 dlk feeds autoconfig https://example.com/rss.xml
 ```
 
+![dlk feeds autoconfig run](../.github/assets/cli-feeds-autoconfig.png)
+
 Flags: `--header/-H` (seed a header, repeatable), `--provider/-p`, `--model/-m`,
 `--max-steps`, `--no-topics`, `--update <file>`, `--yes/-y`, `--verbose/-v`. The full agent
 design is documented in [feed-autoconfig.md](feed-autoconfig.md).
