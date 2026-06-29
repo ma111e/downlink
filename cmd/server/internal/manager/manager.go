@@ -63,28 +63,13 @@ func (m *FeedManager) GetScraper(feedType string) (scrapers.Scraper, error) {
 	return scraper, nil
 }
 
-// RegisterFeed registers a feed
-func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
-	if err := config.Validate(); err != nil {
-		return err
-	}
-
-	// Check if scraper exists
-	if _, err := m.GetScraper(config.Scraper.Type); err != nil {
-		return err
-	}
-
-	// Generate feed Id
-	feedId, err := generateFeedId(config.URL)
-	if err != nil {
-		return fmt.Errorf("invalid feed URL %s: %w", config.URL, err)
-	}
-
-	// Flatten the nested scraper config into the runtime params map. The fetch path
-	// reads these keys flat off feed.Scraper, so the shape here must stay flat:
-	// scraping / selectors / headers / triggers plus any type-specific options.
+// scraperMapFromConfig flattens the nested scraper config into the runtime params
+// map stored on Feed.Scraper. The fetch path reads these keys flat, so the shape
+// must stay flat: scraping / selectors / headers / triggers plus any type-specific
+// options. This is the single source of truth for the stored scraper shape, shared
+// by RegisterFeed (writes) and ApplyFeeds (diffing against the stored feed).
+func scraperMapFromConfig(sc models.ScraperConfig) datatypes.JSONMap {
 	scraperMap := make(datatypes.JSONMap)
-	sc := config.Scraper
 	for k, v := range sc.Options {
 		scraperMap[k] = v
 	}
@@ -119,6 +104,25 @@ func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
 			}
 		}
 	}
+	return scraperMap
+}
+
+// RegisterFeed registers a feed
+func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
+	if err := config.Validate(); err != nil {
+		return err
+	}
+
+	// Check if scraper exists
+	if _, err := m.GetScraper(config.Scraper.Type); err != nil {
+		return err
+	}
+
+	// Generate feed Id
+	feedId, err := generateFeedId(config.URL)
+	if err != nil {
+		return fmt.Errorf("invalid feed URL %s: %w", config.URL, err)
+	}
 
 	// Create feed
 	feed := models.Feed{
@@ -126,7 +130,7 @@ func (m *FeedManager) RegisterFeed(config models.FeedConfig) error {
 		URL:     config.URL,
 		Type:    config.Scraper.Type,
 		Title:   config.Title,
-		Scraper: scraperMap,
+		Scraper: scraperMapFromConfig(config.Scraper),
 		Enabled: &config.Enabled,
 	}
 

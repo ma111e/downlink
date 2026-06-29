@@ -37,6 +37,10 @@ that it can publish to GitHub Pages and Discord.
   <br><em>Reports page. It aggregates the reports referenced across digests</em>
 </p>
 <p align="center">
+  <a href=".github/assets/cli-feeds-autoconfig.png"><img alt="dlk feeds autoconfig run" src=".github/assets/cli-feeds-autoconfig.png" width="80%"></a>
+  <br><em><code>dlk feeds autoconfig</code> probing a page and proposing a ready-to-paste feed config</em>
+</p>
+<p align="center">
   <a href=".github/assets/cli-digest-generate.png"><img alt="dlk digest generate run" src=".github/assets/cli-digest-generate.png" width="80%"></a>
   <br><em><code>dlk digest generate</code> analyzing and ranking articles</em>
 </p>
