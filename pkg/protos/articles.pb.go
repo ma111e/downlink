@@ -98,7 +98,6 @@ type Tag struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Color         string                 `protobuf:"bytes,3,opt,name=color,proto3" json:"color,omitempty"`
-	UseCount      int32                  `protobuf:"varint,4,opt,name=use_count,json=useCount,proto3" json:"use_count,omitempty"`
 	Articles      []*Article             `protobuf:"bytes,5,rep,name=articles,proto3" json:"articles,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -153,13 +152,6 @@ func (x *Tag) GetColor() string {
 		return x.Color
 	}
 	return ""
-}
-
-func (x *Tag) GetUseCount() int32 {
-	if x != nil {
-		return x.UseCount
-	}
-	return 0
 }
 
 func (x *Tag) GetArticles() []*Article {
@@ -970,13 +962,12 @@ const file_articles_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05color\x18\x02 \x01(\tR\x05color\x12\x12\n" +
 	"\x04icon\x18\x03 \x01(\tR\x04icon\x12-\n" +
-	"\barticles\x18\x04 \x03(\v2\x11.downlink.ArticleR\barticles\"\x8b\x01\n" +
+	"\barticles\x18\x04 \x03(\v2\x11.downlink.ArticleR\barticles\"t\n" +
 	"\x03Tag\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
-	"\x05color\x18\x03 \x01(\tR\x05color\x12\x1b\n" +
-	"\tuse_count\x18\x04 \x01(\x05R\buseCount\x12-\n" +
-	"\barticles\x18\x05 \x03(\v2\x11.downlink.ArticleR\barticles\"\xad\x01\n" +
+	"\x05color\x18\x03 \x01(\tR\x05color\x12-\n" +
+	"\barticles\x18\x05 \x03(\v2\x11.downlink.ArticleR\barticlesJ\x04\b\x04\x10\x05\"\xad\x01\n" +
 	"\x0eRelatedArticle\x12\x1d\n" +
 	"\n" +
 	"article_id\x18\x01 \x01(\tR\tarticleId\x12,\n" +

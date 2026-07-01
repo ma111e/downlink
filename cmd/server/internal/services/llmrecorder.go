@@ -12,6 +12,12 @@ import (
 // --llm-monitor-retention flag in main. 0 disables pruning.
 var LLMMonitorRetention = 100
 
+// AnalysisRetention is the number of most-recent analyses kept per (article,
+// profile); older ones are pruned at the end of each digest generation. Analyses
+// referenced by a digest are always kept regardless. Set from the
+// --analysis-retention flag in main. 0 disables pruning.
+var AnalysisRetention = 10
+
 // llmRecorder implements llmgateway.Recorder, persisting each LLM call that
 // belongs to a digest run to the store for the monitoring webpage. Calls made
 // outside a run (no run id on the context) are ignored — they have nowhere to

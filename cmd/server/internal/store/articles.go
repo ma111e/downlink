@@ -439,3 +439,17 @@ func (s *GormStore) DeleteFeedArticles(feedId string) error {
 	}
 	return nil
 }
+
+// DeleteUnusedTags removes tags no article references. Tags are created on
+// article ingestion and never garbage-collected otherwise, so orphans (a tag
+// whose only articles were later deleted, or a mis-typed tag) accumulate
+// unbounded. An unused tag is attached to no article, so it is invisible to the
+// UI; deleting it is safe.
+func (s *GormStore) DeleteUnusedTags() error {
+	if err := s.db.Exec(
+		`DELETE FROM tags WHERE id NOT IN (SELECT tag_id FROM article_tags)`,
+	).Error; err != nil {
+		return fmt.Errorf("delete unused tags: %w", err)
+	}
+	return nil
+}
