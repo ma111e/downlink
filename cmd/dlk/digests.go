@@ -641,8 +641,15 @@ func newDigestProgressHandler(prog *batchProgress) func(*protos.DigestProgressEv
 			}
 			if ev.ArticleId != "" {
 				ensureArticleStarted(ev.ArticleId, ev.ArticleTitle)
+				updateAnalyzeHeader()
+			} else if ev.Current > 0 && ev.Current == ev.Total {
+				// Completion sentinel: server emits current==total with no article_id
+				// after ensureArticlesAnalyzed, covering the pre-analyzed case where
+				// no per-article events ever fired.
+				prog.completeRow("analyze", true, ev.Message)
+			} else {
+				updateAnalyzeHeader()
 			}
-			updateAnalyzeHeader()
 		case "analyze_task":
 			if ev.ArticleId == "" {
 				return
@@ -673,6 +680,9 @@ func newDigestProgressHandler(prog *batchProgress) func(*protos.DigestProgressEv
 				prog.completeRow(rowId, false, fmt.Sprintf("%s: %s", title, ev.Error))
 				if markArticleCompleted(ev.ArticleId) {
 					updateAnalyzeHeader()
+					if completed == int(total) && total > 0 {
+						prog.completeRow("analyze", true, fmt.Sprintf("%d articles", total))
+					}
 				}
 			}
 		case "dedupe":
@@ -682,11 +692,14 @@ func newDigestProgressHandler(prog *batchProgress) func(*protos.DigestProgressEv
 			}
 		case "summarize":
 			prog.showRow("summarize")
-			if ev.Message == "digest summary generated" {
+			if ev.Message != "" && ev.Message != "generating digest title..." {
 				prog.completeRow("summarize", true, "done")
 			}
 		case "store":
 			prog.showRow("store")
+			if ev.Message != "" && ev.Message != "storing digest..." {
+				prog.completeRow("store", true, "")
+			}
 		case "glossary":
 			prog.showRow("glossary")
 			if strings.HasPrefix(ev.Message, "glossary built") {

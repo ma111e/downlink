@@ -75,6 +75,16 @@ func New(path string) (*GormStore, error) {
 	}
 	sqlDB.SetMaxOpenConns(1)
 
+	// Full auto-vacuum shrinks the file automatically after each commit that frees
+	// pages (pruning, rewrites), so it never leaks into an ever-growing file with
+	// no manual upkeep. It must be set before the database is first written to (a
+	// fresh DB only adopts the mode while still empty; an existing DB adopts it on
+	// the next VACUUM — see the migrate command), so this runs before WAL and
+	// schema creation below.
+	if err := db.Exec("PRAGMA auto_vacuum = FULL").Error; err != nil {
+		return nil, fmt.Errorf("failed to set auto_vacuum: %w", err)
+	}
+
 	// Enable foreign keys for SQLite
 	if err := db.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)

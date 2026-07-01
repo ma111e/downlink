@@ -61,6 +61,7 @@ func main() {
 	var adminPort int
 	var llmMonitorRetention int
 	var feedRefreshRetention int
+	var analysisRetention int
 
 	rootCmd := &cobra.Command{
 		Use:     "server",
@@ -97,6 +98,7 @@ func main() {
 			adminPort = viper.GetInt("admin-port")
 			llmMonitorRetention = viper.GetInt("llm-monitor-retention")
 			feedRefreshRetention = viper.GetInt("feed-monitor-retention")
+			analysisRetention = viper.GetInt("analysis-retention")
 
 			if lvl, err := log.ParseLevel(logLevel); err == nil {
 				log.SetLevel(lvl)
@@ -210,6 +212,7 @@ func main() {
 			// LLM monitoring dashboard (localhost only). Retention bounds how
 			// many recent digest runs' conversations are kept.
 			services.LLMMonitorRetention = llmMonitorRetention
+			services.AnalysisRetention = analysisRetention
 			manager.FeedRefreshRetention = feedRefreshRetention
 			go func() {
 				monitor := adminserver.NewAdminServer(store.Db, adminPort)
@@ -240,6 +243,7 @@ func main() {
 	rootCmd.PersistentFlags().IntVar(&adminPort, "admin-port", 65262, "Localhost port for the LLM monitoring dashboard")
 	rootCmd.PersistentFlags().IntVar(&llmMonitorRetention, "llm-monitor-retention", 100, "Number of most-recent digest runs whose LLM conversations are retained (0 disables pruning)")
 	rootCmd.PersistentFlags().IntVar(&feedRefreshRetention, "feed-monitor-retention", 20, "Number of most-recent feed refresh runs whose history is retained (0 disables pruning)")
+	rootCmd.PersistentFlags().IntVar(&analysisRetention, "analysis-retention", 10, "Number of most-recent analyses retained per article+profile; digest-referenced analyses are always kept (0 disables pruning)")
 	rootCmd.PersistentFlags().Bool("auto-analyze", false, "Automatically enqueue articles for analysis after each feed refresh [overrides config]")
 	rootCmd.PersistentFlags().Bool("vibe-score", false, "Use the legacy single-number LLM importance prompt instead of the rubric scoring system [overrides config]")
 	rootCmd.PersistentFlags().Bool("glossary", false, "Generate glossary-mode content (plain-language explanation + jargon glossary) per article [overrides config]")
@@ -262,6 +266,7 @@ func main() {
 	rootCmd.PersistentFlags().Bool("reinit-gh-pages", false, "Erase and reinitialize the GitHub Pages repository from scratch (destructive, prompts for confirmation)")
 
 	rootCmd.AddCommand(newDevCommand())
+	rootCmd.AddCommand(newMigrateCommand())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

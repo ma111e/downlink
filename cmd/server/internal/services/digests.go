@@ -186,6 +186,12 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		if err := store.Db.PruneLLMRuns(LLMMonitorRetention); err != nil {
 			log.WithError(err).Warn("failed to prune old LLM monitor runs")
 		}
+		if err := store.Db.PruneAnalyses(AnalysisRetention); err != nil {
+			log.WithError(err).Warn("failed to prune old article analyses")
+		}
+		if err := store.Db.DeleteUnusedTags(); err != nil {
+			log.WithError(err).Warn("failed to delete unused tags")
+		}
 	}()
 
 	windowStart := req.StartTime.AsTime()
@@ -273,6 +279,12 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 			log.Warn(msg)
 			sendProgress(stream, "analyze", "warning: "+msg, 0, 0)
 		}
+		// Signal analysis complete. current==total with no article_id is the
+		// completion sentinel the CLI watches for, covering the case where all
+		// articles were pre-analyzed and no per-article events were ever sent.
+		sendProgress(stream, "analyze",
+			fmt.Sprintf("analyzed %d articles", len(analyses)),
+			uint32(len(analyses)), uint32(len(analyses)))
 	}
 
 	if cancelled(stream) {
@@ -395,6 +407,7 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		log.WithError(err).WithField("digestId", digest.Id).Warn("Failed to batch store digest-article associations")
 	}
 	digest.ArticleCount = &articleLen
+	sendProgress(stream, "store", "digest stored", 0, 0)
 
 	// Step 6: Populate the persistent global glossary from this digest (opt-in). Failures
 	// here must never fail digest generation, so errors are logged as warnings only.

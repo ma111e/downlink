@@ -1,10 +1,7 @@
 package store
 
 import (
-	"bytes"
-	"compress/gzip"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/ma111e/downlink/pkg/models"
@@ -75,7 +72,7 @@ func (s *GormStore) FinishLLMRun(id string, finishedAt time.Time) error {
 		Update("finished_at", finishedAt).Error
 }
 
-// RecordLLMCall persists one LLM call, gzip-compressing the prompt and response.
+// RecordLLMCall persists one LLM call, zstd-compressing the prompt and response.
 func (s *GormStore) RecordLLMCall(in LLMCallInput) error {
 	call := models.LLMCall{
 		Id:               uuid.New().String(),
@@ -83,8 +80,8 @@ func (s *GormStore) RecordLLMCall(in LLMCallInput) error {
 		Label:            in.Label,
 		ProviderType:     in.ProviderType,
 		ModelName:        in.ModelName,
-		Prompt:           gzipString(in.Prompt),
-		Response:         gzipString(in.Response),
+		Prompt:           compressString(in.Prompt),
+		Response:         compressString(in.Response),
 		PromptTokens:     in.PromptTokens,
 		CompletionTokens: in.CompletionTokens,
 		TotalTokens:      in.TotalTokens,
@@ -144,11 +141,11 @@ func (s *GormStore) ListLLMCallsForRun(runID string) ([]LLMCallView, error) {
 
 	views := make([]LLMCallView, 0, len(calls))
 	for _, c := range calls {
-		prompt, err := gunzipBytes(c.Prompt)
+		prompt, err := decompressBytes(c.Prompt)
 		if err != nil {
 			return nil, fmt.Errorf("decompress prompt for call %s: %w", c.Id, err)
 		}
-		response, err := gunzipBytes(c.Response)
+		response, err := decompressBytes(c.Response)
 		if err != nil {
 			return nil, fmt.Errorf("decompress response for call %s: %w", c.Id, err)
 		}
@@ -185,30 +182,4 @@ func (s *GormStore) PruneLLMRuns(keep int) error {
 		}
 		return nil
 	})
-}
-
-// gzipString compresses s with gzip. A nil/empty input yields a valid empty-gzip stream.
-func gzipString(s string) []byte {
-	var buf bytes.Buffer
-	w := gzip.NewWriter(&buf)
-	_, _ = w.Write([]byte(s))
-	_ = w.Close()
-	return buf.Bytes()
-}
-
-// gunzipBytes reverses gzipString. Empty input decodes to an empty string.
-func gunzipBytes(b []byte) (string, error) {
-	if len(b) == 0 {
-		return "", nil
-	}
-	r, err := gzip.NewReader(bytes.NewReader(b))
-	if err != nil {
-		return "", err
-	}
-	defer r.Close()
-	out, err := io.ReadAll(r)
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
 }
