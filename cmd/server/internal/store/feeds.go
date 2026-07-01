@@ -76,9 +76,10 @@ func (s *GormStore) DeleteFeed(id string) error {
 		return fmt.Errorf("failed to delete feed: %w", result.Error)
 	}
 
-	// Articles associated with this feed will be deleted automatically
-	// due to ON DELETE CASCADE specified in the model relationships.
-	// Topic and profile-membership rows have no FK cascade, so clear them here.
+	// NOTE: articles are NOT removed here. Article.FeedId carries no FK
+	// constraint and migrations run with DisableForeignKeyConstraintWhenMigrating,
+	// so there is no ON DELETE CASCADE; articles of a deleted feed are orphaned.
+	// Topic and profile-membership rows are cleared explicitly below.
 	if err := s.db.Where("feed_id = ?", id).Delete(&models.FeedTopic{}).Error; err != nil {
 		return fmt.Errorf("failed to delete feed topics: %w", err)
 	}

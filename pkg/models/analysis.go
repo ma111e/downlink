@@ -55,13 +55,13 @@ type ArticleAnalysis struct {
 	Tldr                   string              `gorm:"type:text" json:"tldr"`
 	PlainWords             string              `gorm:"type:text" json:"plain_words"`
 	Justification          string              `gorm:"type:text" json:"justification"`
-	BriefOverview          string              `gorm:"type:text" json:"brief_overview"`
-	StandardSynthesis      string              `gorm:"type:text" json:"standard_synthesis"`
-	ComprehensiveSynthesis string              `gorm:"type:text" json:"comprehensive_synthesis"`
+	BriefOverview          string              `gorm:"serializer:zstd;type:blob" json:"brief_overview"`
+	StandardSynthesis      string              `gorm:"serializer:zstd;type:blob" json:"standard_synthesis"`
+	ComprehensiveSynthesis string              `gorm:"serializer:zstd;type:blob" json:"comprehensive_synthesis"`
 	GlossaryTermsJson      string              `gorm:"column:glossary_terms;type:text" json:"-"`
 	GlossaryTerms          []GlossaryTerm      `gorm:"-" json:"glossary_terms"`
-	ThinkingProcess        string              `gorm:"type:text" json:"thinking_process,omitempty"`
-	RawResponse            string              `gorm:"type:text" json:"raw_response"`
+	ThinkingProcess        string              `gorm:"serializer:zstd;type:blob" json:"thinking_process,omitempty"`
+	RawResponse            string              `gorm:"serializer:zstd;type:blob" json:"raw_response"`
 	CreatedAt              time.Time           `gorm:"index" json:"created_at"`
 	Article                *Article            `gorm:"foreignKey:ArticleId;references:Id" json:"-"`
 }
