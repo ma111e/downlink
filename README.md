@@ -1,9 +1,15 @@
-# Downlink
+<p align="center">
+  <img alt="Downlink logo" src=".github/assets/logo.svg" height="62">
+</p>
 
-[![CI](https://github.com/ma111e/downlink/actions/workflows/ci.yml/badge.svg)](https://github.com/ma111e/downlink/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/go-1.25-00ADD8.svg)](go.mod)
-[![Docker Image](https://img.shields.io/github/v/tag/ma111e/downlink?logo=docker&logoColor=white&label=ghcr.io%2Fma111e%2Fdownlink&color=2496ED)](https://github.com/ma111e/downlink/pkgs/container/downlink)
+<h1 align="center">Downlink</h1>
+
+<p align="center">
+  <a href="https://github.com/ma111e/downlink/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ma111e/downlink/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
+  <a href="go.mod"><img alt="Go Version" src="https://img.shields.io/badge/go-1.25-00ADD8.svg"></a>
+  <a href="https://github.com/ma111e/downlink/pkgs/container/downlink"><img alt="Docker Image" src="https://img.shields.io/github/v/tag/ma111e/downlink?logo=docker&logoColor=white&label=ghcr.io%2Fma111e%2Fdownlink&color=2496ED"></a>
+</p>
 
 A feed aggregator and content-analysis platform for security news. Downlink
 collects RSS/Atom feeds, scrapes full article content, runs each article through
