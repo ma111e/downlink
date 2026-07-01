@@ -3,15 +3,12 @@ package downlinkclient
 import (
 	"context"
 	"errors"
-	"net"
 	"testing"
 
 	"github.com/ma111e/downlink/pkg/models"
 	"github.com/ma111e/downlink/pkg/protos"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -59,30 +56,10 @@ func (s *stubFeeds) RefreshAllFeeds(_ *protos.RefreshAllFeedsRequest, stream grp
 	return nil
 }
 
-// newTestClient stands up an in-memory gRPC server with stub and returns a
-// DownlinkClient wired to it over bufconn.
+// newTestClient wires a DownlinkClient to an in-memory server backed by the
+// given FeedsService stub.
 func newTestClient(t *testing.T, stub protos.FeedsServiceServer) *DownlinkClient {
-	t.Helper()
-	lis := bufconn.Listen(1024 * 1024)
-	srv := grpc.NewServer()
-	protos.RegisterFeedsServiceServer(srv, stub)
-	go func() { _ = srv.Serve(lis) }()
-
-	conn, err := grpc.NewClient(
-		"passthrough:///bufnet",
-		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
-			return lis.DialContext(ctx)
-		}),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		t.Fatalf("grpc.NewClient() error = %v", err)
-	}
-	t.Cleanup(func() {
-		_ = conn.Close()
-		srv.Stop()
-	})
-	return NewDownlinkClient(conn)
+	return dialStub(t, func(s *grpc.Server) { protos.RegisterFeedsServiceServer(s, stub) })
 }
 
 func TestListFeedsMapsResponseToModels(t *testing.T) {
