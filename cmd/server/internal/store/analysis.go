@@ -86,3 +86,31 @@ func (s *GormStore) GetAllArticleAnalyses(articleId, profileId string) ([]models
 
 	return analyses, nil
 }
+
+// PruneAnalyses keeps only the most recent keep analyses per (article, profile),
+// deleting older ones to bound growth. keep <= 0 is a no-op. Analyses referenced
+// by any digest (via digest_analyses.analysis_id) are never deleted, so digest
+// history stays intact regardless of retention.
+func (s *GormStore) PruneAnalyses(keep int) error {
+	if keep <= 0 {
+		return nil
+	}
+
+	res := s.db.Exec(`
+		DELETE FROM article_analyses
+		WHERE id IN (
+			SELECT id FROM (
+				SELECT id, ROW_NUMBER() OVER (
+					PARTITION BY article_id, profile_id ORDER BY created_at DESC
+				) AS rn
+				FROM article_analyses
+			) WHERE rn > ?
+		)
+		AND id NOT IN (
+			SELECT analysis_id FROM digest_analyses WHERE analysis_id IS NOT NULL
+		)`, keep)
+	if res.Error != nil {
+		return fmt.Errorf("prune analyses: %w", res.Error)
+	}
+	return nil
+}

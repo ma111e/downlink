@@ -28,6 +28,7 @@ type Store interface {
 	UpdateArticle(id string, update models.ArticleUpdate) error
 	MarkFeedArticlesAsRead(feedId string) error
 	DeleteFeedArticles(feedId string) error
+	DeleteUnusedTags() error
 
 	StoreDigest(digest models.Digest) error
 	GetDigest(id string) (models.Digest, error)
@@ -62,6 +63,7 @@ type Store interface {
 	GetArticleAnalysis(articleId, profileId string) (*models.ArticleAnalysis, error)
 	GetArticleAnalysesBatch(articleIds []string, profileId string) (map[string]*models.ArticleAnalysis, error)
 	GetAllArticleAnalyses(articleId, profileId string) ([]models.ArticleAnalysis, error)
+	PruneAnalyses(keep int) error
 
 	ListFeedGroups() ([]models.FeedGroup, error)
 	GetFeedGroup(id string) (models.FeedGroup, error)

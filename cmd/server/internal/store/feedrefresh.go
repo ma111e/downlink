@@ -12,7 +12,7 @@ import (
 )
 
 // FeedRefreshInput is the raw (uncompressed) outcome of refreshing one feed.
-// RecordFeedRefresh joins and gzip-compresses Errors before persisting.
+// RecordFeedRefresh joins and zstd-compresses Errors before persisting.
 type FeedRefreshInput struct {
 	RunID        string
 	FeedId       string
@@ -25,7 +25,7 @@ type FeedRefreshInput struct {
 	FetchError   string
 	Errors       []string // item-level errors; joined with "\n" into ErrorLog
 	Warnings     []string // non-fatal notices; joined with "\n" into WarningLog
-	RawBody      []byte   // raw fetched feed body; gzip-compressed before storage
+	RawBody      []byte   // raw fetched feed body; zstd-compressed before storage
 	RawStatus    int
 	RawType      string
 	DurationMs   int64
@@ -76,9 +76,9 @@ func (s *GormStore) RecordFeedRefresh(in FeedRefreshInput) error {
 		ErrorCount:   len(in.Errors),
 		WarningCount: len(in.Warnings),
 		FetchError:   in.FetchError,
-		ErrorLog:     gzipString(strings.Join(in.Errors, "\n")),
-		WarningLog:   gzipString(strings.Join(in.Warnings, "\n")),
-		RawBody:      gzipString(string(in.RawBody)),
+		ErrorLog:     compressString(strings.Join(in.Errors, "\n")),
+		WarningLog:   compressString(strings.Join(in.Warnings, "\n")),
+		RawBody:      compressString(string(in.RawBody)),
 		RawStatus:    in.RawStatus,
 		RawType:      in.RawType,
 		DurationMs:   in.DurationMs,
@@ -138,7 +138,7 @@ func (s *GormStore) ListFeedRefreshResultsForRun(runID string) ([]FeedRefreshRes
 
 	views := make([]FeedRefreshResultView, 0, len(results))
 	for _, r := range results {
-		log, err := gunzipBytes(r.ErrorLog)
+		log, err := decompressBytes(r.ErrorLog)
 		if err != nil {
 			return nil, fmt.Errorf("decompress error log for result %s: %w", r.Id, err)
 		}
@@ -146,7 +146,7 @@ func (s *GormStore) ListFeedRefreshResultsForRun(runID string) ([]FeedRefreshRes
 		if log != "" {
 			lines = strings.Split(log, "\n")
 		}
-		warnLog, err := gunzipBytes(r.WarningLog)
+		warnLog, err := decompressBytes(r.WarningLog)
 		if err != nil {
 			return nil, fmt.Errorf("decompress warning log for result %s: %w", r.Id, err)
 		}
@@ -154,7 +154,7 @@ func (s *GormStore) ListFeedRefreshResultsForRun(runID string) ([]FeedRefreshRes
 		if warnLog != "" {
 			warnLines = strings.Split(warnLog, "\n")
 		}
-		body, err := gunzipBytes(r.RawBody)
+		body, err := decompressBytes(r.RawBody)
 		if err != nil {
 			return nil, fmt.Errorf("decompress raw body for result %s: %w", r.Id, err)
 		}
