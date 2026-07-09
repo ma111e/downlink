@@ -18,6 +18,7 @@ import (
 	"github.com/ma111e/downlink/pkg/protos"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1277,32 +1278,52 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 		}
 	}
 
-	if len(candidates) == 0 {
+	// Load the whole persistent glossary once: it serves both the candidate lookup below and
+	// the prose scan that re-links terms stored by previous generations.
+	stored, err := store.Db.ListGlossaryEntries(0)
+	if err != nil {
+		return 0, fmt.Errorf("failed to load glossary entries: %w", err)
+	}
+	byKey := make(map[string]*models.GlossaryEntry, len(stored))
+	for i := range stored {
+		byKey[stored[i].NormalizedKey] = &stored[i]
+	}
+
+	// Stored terms that appear in this digest's prose are linked (and thus highlighted) even
+	// when this run's extraction did not re-emit them — extraction is capped and
+	// non-deterministic, so previously stored words must not depend on being extracted again.
+	matchedByIdx := matchStoredGlossaryTerms(analyses, byKey)
+
+	if len(candidates) == 0 && len(matchedByIdx) == 0 {
 		return 0, nil
 	}
 
 	// entryIds collects the canonical glossary entry ids this digest references (deduped).
 	entryIds := make(map[string]struct{})
-	// entityMeta records display term + category for entity-kind entry keys, so per-article
-	// context can be generated and attached for tag-derived terms (which bypass extraction).
-	entityMeta := make(map[string]glossaryTermCtx)
+	// termMeta records display term + category for entry keys that bypass per-article
+	// extraction (tag-derived entities and prose-matched stored terms), so their "in this
+	// article" context can still be generated and attached.
+	termMeta := make(map[string]glossaryTermCtx)
 
-	keys := make([]string, 0, len(candidates))
-	for key := range candidates {
-		keys = append(keys, key)
-	}
-	existing, err := store.Db.GetGlossaryEntriesByKeys(keys)
-	if err != nil {
-		return 0, fmt.Errorf("failed to load existing glossary entries: %w", err)
+	for _, matched := range matchedByIdx {
+		for key := range matched {
+			e := byKey[key]
+			entryIds[e.Id] = struct{}{}
+			if _, ok := termMeta[key]; !ok {
+				termMeta[key] = glossaryTermCtx{Term: e.Term, Category: e.Category}
+			}
+		}
 	}
 
 	// Reference terms that already have a definition; queue the rest for one batched LLM call.
 	var undefined []string
 	for key, c := range candidates {
-		if e, ok := existing[key]; ok && e.EffectiveDefinition() != "" {
+		if e, ok := byKey[key]; ok && e.EffectiveDefinition() != "" {
 			entryIds[e.Id] = struct{}{}
 			if e.Kind == models.GlossaryKindEntity {
-				entityMeta[key] = glossaryTermCtx{Term: e.Term, Category: e.Category}
+				if _, ok := termMeta[key]; !ok {
+					termMeta[key] = glossaryTermCtx{Term: e.Term, Category: e.Category}
+				}
 			}
 			continue
 		}
@@ -1357,7 +1378,7 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 			}
 			entryIds[entry.Id] = struct{}{}
 			if c.kind == models.GlossaryKindEntity {
-				entityMeta[key] = glossaryTermCtx{Term: term, Category: category}
+				termMeta[key] = glossaryTermCtx{Term: term, Category: category}
 			}
 		}
 	}
@@ -1373,23 +1394,23 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 		return 0, fmt.Errorf("failed to store digest glossary links: %w", err)
 	}
 
-	// Backfill per-article "in this article" context for matched entity terms (which bypass
-	// the extraction task), even when their global definition is cached. Warn-only — never
-	// fails digest generation.
-	s.populateArticleContexts(stepCtx, analyses, articleMap, entityMeta, provider, model, ded)
+	// Backfill per-article "in this article" context for terms that bypass the extraction
+	// task (tag-derived entities and prose-matched stored terms), even when their global
+	// definition is cached. Warn-only — never fails digest generation.
+	s.populateArticleContexts(stepCtx, analyses, articleMap, termMeta, matchedByIdx, provider, model, ded)
 
 	log.WithFields(log.Fields{"digestId": digestId, "entries": len(rows)}).Info("Glossary populated")
 	return len(rows), nil
 }
 
 // populateArticleContexts generates and persists a per-article "in this article" context
-// sentence for each tag-derived entity term that is part of the digest glossary but does not
-// already carry context for that article. Entity terms come from tags and never pass through
-// the per-article extraction task, so without this they show only a global definition. One
-// batched LLM call per article (bounded by the gateway's concurrency cap); all failures are
-// logged and swallowed so digest generation is never affected.
-func (s *DigestServer) populateArticleContexts(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, entityMeta map[string]glossaryTermCtx, provider, model string, ded EffectiveEditorial) {
-	if len(entityMeta) == 0 {
+// sentence for each digest-glossary term that does not already carry context for that
+// article: tag-derived entity terms and prose-matched stored terms, neither of which passes
+// through the per-article extraction task, so without this they show only a global
+// definition. One batched LLM call per article (bounded by the gateway's concurrency cap);
+// all failures are logged and swallowed so digest generation is never affected.
+func (s *DigestServer) populateArticleContexts(ctx context.Context, analyses []models.ArticleAnalysis, articleMap map[string]models.Article, termMeta map[string]glossaryTermCtx, matchedByIdx map[int]map[string]bool, provider, model string, ded EffectiveEditorial) {
+	if len(termMeta) == 0 {
 		return
 	}
 
@@ -1409,23 +1430,7 @@ func (s *DigestServer) populateArticleContexts(ctx context.Context, analyses []m
 		if !ok {
 			continue
 		}
-		existingCtx := make(map[string]bool)
-		for _, t := range analyses[ai].GlossaryTerms {
-			if strings.TrimSpace(t.Context) != "" {
-				existingCtx[models.NormalizeGlossaryKey(t.Term)] = true
-			}
-		}
-		var terms []string
-		for _, tag := range art.Tags {
-			key := models.NormalizeGlossaryKey(tag.Name)
-			if key == "" || existingCtx[key] {
-				continue
-			}
-			if _, isEntry := entityMeta[key]; !isEntry {
-				continue
-			}
-			terms = append(terms, strings.TrimSpace(tag.Name))
-		}
+		terms := articleContextTerms(art.Tags, matchedByIdx[ai], analyses[ai].GlossaryTerms, termMeta)
 		if len(terms) > 0 {
 			jobs = append(jobs, job{analysisIdx: ai, content: art.Content, terms: terms})
 		}
@@ -1465,7 +1470,7 @@ func (s *DigestServer) populateArticleContexts(ctx context.Context, analyses []m
 	for ai, ctxByKey := range results {
 		add := make(map[string]glossaryTermCtx, len(ctxByKey))
 		for key, c := range ctxByKey {
-			meta := entityMeta[key]
+			meta := termMeta[key]
 			add[key] = glossaryTermCtx{Term: meta.Term, Category: meta.Category, Context: c}
 		}
 		merged := mergeArticleContexts(analyses[ai].GlossaryTerms, add)
@@ -1485,6 +1490,96 @@ func (s *DigestServer) populateArticleContexts(ctx context.Context, analyses []m
 			log.WithError(err).WithField("analysisId", analyses[ai].Id).Warn("Failed to persist article term contexts")
 		}
 	}
+}
+
+// matchStoredGlossaryTerms scans each analysis's prose — the same fields the rendered digest
+// highlights — for stored glossary terms, so entries from previous generations are linked to
+// this digest even when this run's extraction did not re-emit them. Matching uses the page's
+// own regex semantics (notification.CompileTermRegexp); each match is resolved back to its
+// entry via the display term's normalized form, which can differ from the entry key
+// (canonical display names come from the model, e.g. "MITRE ATT&CK" for key "mitre attack").
+// Entries without an effective definition are skipped: they cannot resolve in the popup.
+// Returns analysis index → set of matched NormalizedKeys.
+func matchStoredGlossaryTerms(analyses []models.ArticleAnalysis, entries map[string]*models.GlossaryEntry) map[int]map[string]bool {
+	terms := make([]string, 0, len(entries))
+	keyByTermKey := make(map[string]string, len(entries))
+	for key, e := range entries {
+		if e.EffectiveDefinition() == "" {
+			continue
+		}
+		termKey := models.NormalizeGlossaryKey(e.Term)
+		if termKey == "" {
+			continue
+		}
+		terms = append(terms, e.Term)
+		keyByTermKey[termKey] = key
+	}
+	re := notification.CompileTermRegexp(terms)
+	if re == nil {
+		return nil
+	}
+
+	out := make(map[int]map[string]bool)
+	for i := range analyses {
+		a := &analyses[i]
+		parts := []string{a.Tldr, a.PlainWords, a.Justification, a.BriefOverview, a.StandardSynthesis, a.ComprehensiveSynthesis}
+		parts = append(parts, a.KeyPoints...)
+		parts = append(parts, a.Insights...)
+		for _, m := range re.FindAllString(strings.Join(parts, "\n"), -1) {
+			key, ok := keyByTermKey[models.NormalizeGlossaryKey(m)]
+			if !ok {
+				continue
+			}
+			if out[i] == nil {
+				out[i] = make(map[string]bool)
+			}
+			out[i][key] = true
+		}
+	}
+	return out
+}
+
+// articleContextTerms selects the terms that need an "in this article" context sentence for
+// one article: tag-derived glossary terms plus prose-matched stored terms (keys in matched),
+// minus those whose analysis already carries a context, deduped by normalized key. Tag terms
+// keep the tag's surface form; matched terms use the stored entry's display term.
+func articleContextTerms(tags []models.Tag, matched map[string]bool, existingTerms []models.GlossaryTerm, termMeta map[string]glossaryTermCtx) []string {
+	existingCtx := make(map[string]bool, len(existingTerms))
+	for _, t := range existingTerms {
+		if strings.TrimSpace(t.Context) != "" {
+			existingCtx[models.NormalizeGlossaryKey(t.Term)] = true
+		}
+	}
+	seen := make(map[string]bool)
+	var terms []string
+	for _, tag := range tags {
+		key := models.NormalizeGlossaryKey(tag.Name)
+		if key == "" || existingCtx[key] || seen[key] {
+			continue
+		}
+		if _, isEntry := termMeta[key]; !isEntry {
+			continue
+		}
+		seen[key] = true
+		terms = append(terms, strings.TrimSpace(tag.Name))
+	}
+	matchedKeys := make([]string, 0, len(matched))
+	for key := range matched {
+		matchedKeys = append(matchedKeys, key)
+	}
+	sort.Strings(matchedKeys) // deterministic prompt order
+	for _, key := range matchedKeys {
+		if existingCtx[key] || seen[key] {
+			continue
+		}
+		meta, ok := termMeta[key]
+		if !ok || strings.TrimSpace(meta.Term) == "" {
+			continue
+		}
+		seen[key] = true
+		terms = append(terms, meta.Term)
+	}
+	return terms
 }
 
 // entityDefinition is a generated definition plus its canonical display name, semantic type,

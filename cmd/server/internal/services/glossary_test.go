@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"testing"
 
 	"github.com/ma111e/downlink/pkg/models"
@@ -197,6 +198,121 @@ func TestArticleTermContextsFromResult(t *testing.T) {
 	}
 	if len(got) != 1 {
 		t.Errorf("expected one entry after dedup/drop, got %d: %v", len(got), got)
+	}
+}
+
+func TestMatchStoredGlossaryTerms(t *testing.T) {
+	def := "A definition."
+	entries := map[string]*models.GlossaryEntry{
+		"cve":           {Id: "e-cve", NormalizedKey: "cve", Term: "CVE", Category: "vulnerability", Definition: def},
+		"cobalt strike": {Id: "e-cs", NormalizedKey: "cobalt strike", Term: "Cobalt Strike", Category: "tool", Definition: def},
+		"mitre attack":  {Id: "e-mitre", NormalizedKey: "mitre attack", Term: "MITRE ATT&CK", Category: "concept", Definition: def},
+		"phishing":      {Id: "e-phish", NormalizedKey: "phishing", Term: "Phishing", Category: "technique", Definition: def},
+		"nodef":         {Id: "e-nodef", NormalizedKey: "nodef", Term: "NoDef", Category: "tool", Definition: ""}, // undefined: never matched
+	}
+	analyses := []models.ArticleAnalysis{
+		{
+			Tldr:      "A new cve affects routers.", // case-insensitive
+			KeyPoints: []string{"Attackers deployed cobalt-strike beacons."}, // separator variant
+		},
+		{
+			// Display term "MITRE ATT&CK" normalizes to "mitre att ck", not the entry key
+			// "mitre attack" — the match must still resolve to the entry.
+			StandardSynthesis: "Techniques were mapped to MITRE ATT&CK. NoDef appears but stays out. CVEs keep rising.",
+		},
+	}
+
+	got := matchStoredGlossaryTerms(analyses, entries)
+
+	if !got[0]["cve"] || !got[0]["cobalt strike"] {
+		t.Errorf("analysis 0 should match cve + cobalt strike, got %v", got[0])
+	}
+	if len(got[0]) != 2 {
+		t.Errorf("analysis 0 matches = %v, want exactly {cve, cobalt strike}", got[0])
+	}
+	if !got[1]["mitre attack"] {
+		t.Errorf("analysis 1 should resolve 'MITRE ATT&CK' back to entry key 'mitre attack', got %v", got[1])
+	}
+	if got[1]["nodef"] {
+		t.Error("entries without an effective definition must be skipped")
+	}
+	if got[1]["cve"] {
+		t.Error("'CVEs' must not match 'CVE' (word boundary)")
+	}
+	for i, keys := range got {
+		if keys["phishing"] {
+			t.Errorf("analysis %d matched 'phishing' which appears nowhere", i)
+		}
+	}
+}
+
+func TestArticleContextTerms(t *testing.T) {
+	termMeta := map[string]glossaryTermCtx{
+		"lazarus":       {Term: "Lazarus", Category: "threat-actor"},
+		"cve":           {Term: "CVE", Category: "vulnerability"},
+		"cobalt strike": {Term: "Cobalt Strike", Category: "tool"},
+		"c2":            {Term: "C2", Category: "concept"},
+	}
+	tags := []models.Tag{
+		{Name: "lazarus"},       // entity tag, no context yet → queued
+		{Name: "c2"},            // has context already → skipped
+		{Name: "random-tag"},    // not a glossary entry → skipped
+		{Name: "cobalt-strike"}, // also prose-matched → queued once
+	}
+	matched := map[string]bool{
+		"cve":           true, // prose-matched, no context yet → queued (display term from meta)
+		"c2":            true, // has context already → skipped
+		"cobalt strike": true,
+	}
+	existing := []models.GlossaryTerm{
+		{Term: "C2", Type: "concept", Context: "already explained here"},
+	}
+
+	got := articleContextTerms(tags, matched, existing, termMeta)
+
+	want := map[string]bool{"lazarus": true, "cobalt-strike": true, "CVE": true}
+	if len(got) != len(want) {
+		t.Fatalf("terms = %v, want exactly %v", got, want)
+	}
+	for _, term := range got {
+		if !want[term] {
+			t.Errorf("unexpected term %q in %v", term, got)
+		}
+	}
+}
+
+func TestPopulateGlossaryLinksStoredTermsFromProse(t *testing.T) {
+	// The regression this guards: a term stored by a previous generation must be linked to a
+	// new digest when it appears in the prose, even though this run's extraction did not
+	// re-emit it (no GlossaryTerms, no tags) — and without any LLM call.
+	s := withTempStore(t)
+	entry := &models.GlossaryEntry{
+		NormalizedKey: "cve",
+		Term:          "CVE",
+		Kind:          models.GlossaryKindJargon,
+		Category:      "vulnerability",
+		Difficulty:    "beginner",
+		Definition:    "A public identifier for a known security flaw.",
+	}
+	if err := s.UpsertGlossaryEntry(entry); err != nil {
+		t.Fatalf("seed glossary entry: %v", err)
+	}
+
+	analyses := []models.ArticleAnalysis{{ArticleId: "a1", Tldr: "A critical CVE in routers is being exploited."}}
+	srv := &DigestServer{}
+	n, err := srv.populateGlossary(context.Background(), "digest-test", analyses, map[string]models.Article{}, "prov", "model", EffectiveEditorial{})
+	if err != nil {
+		t.Fatalf("populateGlossary() error = %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("linked entries = %d, want 1", n)
+	}
+	links, err := s.GetDigestGlossary("digest-test")
+	if err != nil {
+		t.Fatalf("GetDigestGlossary() error = %v", err)
+	}
+	if len(links) != 1 || links[0].EntryId != entry.Id {
+		t.Errorf("digest_glossary = %+v, want single link to %s", links, entry.Id)
 	}
 }
 
