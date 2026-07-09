@@ -75,6 +75,14 @@ with `dlk digest generate --glossary` (use `--glossary=false` to force it off). 
 LLM round-trip per article. Existing analyses have no glossary content, so run
 `dlk digest generate --reanalyze --glossary` to backfill it.
 
+Terms accumulate in a persistent global glossary shared by all digests. A definition is
+generated once per term; any later digest that mentions the term in prose highlights it
+and reuses the stored definition, paying only for the short per-article "why it matters
+here" note. Single common English words ("Go", "Signal") are excluded from this
+cross-digest matching and only highlight in digests whose articles are actually about
+them. Curate definitions with `dlk glossary override`; see
+[cli-reference.md](cli-reference.md#glossary).
+
 ## Persona and writing style
 
 Two `analysis` config fields shape LLM output:
