@@ -358,6 +358,28 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 		panelIdxByKey[key] = len(glossaryPanel)
 		glossaryPanel = append(glossaryPanel, GlossaryPanelEntry{Term: dg.Entry.Term, Type: dg.Entry.Category, Definition: def, Lvl: tier})
 	}
+	// The canonical display term can normalize to a different key than the stored one
+	// (canonical names come from the model, e.g. Term "Cloudflare Workers" for key "worker").
+	// The highlight regex matches the display form and the JS popup resolves the matched text
+	// by its normalized key, so register that form too — in a second pass, after every
+	// canonical key, so it never shadows one.
+	for _, dg := range digest.DigestGlossary {
+		if dg.Entry == nil {
+			continue
+		}
+		canon, ok := glossaryByKey[dg.Entry.NormalizedKey]
+		if !ok {
+			continue
+		}
+		termKey := models.NormalizeGlossaryKey(dg.Entry.Term)
+		if termKey == "" || termKey == dg.Entry.NormalizedKey {
+			continue
+		}
+		if _, seen := glossaryByKey[termKey]; seen {
+			continue
+		}
+		glossaryByKey[termKey] = canon
+	}
 	// Layer in alias surface forms: other phrasings the articles use for a defined term
 	// (e.g. "QNAP NAS boxes" / "QNAP NAS devices" for "QNAP NAS"). Each alias highlights in
 	// prose and resolves, via the popup map, to its canonical term's definition, and is
@@ -394,7 +416,7 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 		}
 	}
 	glossaryActive := len(glossaryByKey) > 0
-	glossaryRe := compileTagRegexp(glossaryTerms) // nil when no glossary → highlighting is a no-op
+	glossaryRe := CompileTermRegexp(glossaryTerms) // nil when no glossary → highlighting is a no-op
 	// Consolidated, deduplicated glossary for the right-side panel, sorted by term.
 	sort.SliceStable(glossaryPanel, func(i, j int) bool {
 		return strings.ToLower(glossaryPanel[i].Term) < strings.ToLower(glossaryPanel[j].Term)
@@ -856,13 +878,15 @@ func marshalGlossaryContextJS(m map[string]map[string]string) template.JS {
 // nonAlphanumRun matches a maximal run of non-alphanumeric characters.
 var nonAlphanumRun = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 
-// compileTagRegexp builds a single case-insensitive, word-bounded alternation that matches any
+// CompileTermRegexp builds a single case-insensitive, word-bounded alternation that matches any
 // of the given terms in prose, treating any internal run of non-alphanumeric characters as
 // interchangeable with any other separator/punctuation (e.g. "cobalt-strike" matches
 // "Cobalt Strike", "wscript.exe" matches "wscript-exe", "HTTP/3" matches "HTTP 3"). This
 // separator equivalence MUST agree with NormalizeGlossaryKey (pkg/models/glossary.go) and the JS
 // glossaryKey() normalizer in the digest template. Returns nil when there are no usable terms.
-func compileTagRegexp(tags []string) *regexp.Regexp {
+// Exported so digest generation matches stored glossary terms with the same semantics the
+// rendered page highlights them with.
+func CompileTermRegexp(tags []string) *regexp.Regexp {
 	terms := make([]string, 0, len(tags))
 	for _, t := range tags {
 		t = strings.TrimSpace(t)

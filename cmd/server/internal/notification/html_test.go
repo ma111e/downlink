@@ -62,7 +62,7 @@ func containsCSSRule(haystack, rule string) bool {
 }
 
 func TestHighlightTagsInSectionText(t *testing.T) {
-	re := compileTagRegexp([]string{"cobalt-strike", "lazarus", "north-korea"})
+	re := CompileTermRegexp([]string{"cobalt-strike", "lazarus", "north-korea"})
 	if re == nil {
 		t.Fatal("compileTagRegexp returned nil for non-empty tags")
 	}
@@ -592,6 +592,64 @@ func TestRenderDigestHTMLGlossaryPopup(t *testing.T) {
 	// The baked key must equal NormalizeGlossaryKey output for the term.
 	if !strings.Contains(html, `"`+models.NormalizeGlossaryKey("Cobalt Strike")+`":`) {
 		t.Fatal("baked glossary key does not match NormalizeGlossaryKey output")
+	}
+}
+
+func TestRenderDigestHTMLGlossaryDivergentTermKey(t *testing.T) {
+	// The canonical display term can normalize to a different key than the stored one
+	// (canonical names come from the model, e.g. Term "Cloudflare Workers" stored under key
+	// "worker"). The prose highlight matches the display form, and the JS popup looks it up
+	// by the matched text's normalized key — so that key must also resolve in the baked map.
+	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+	category := "news"
+	digest := models.Digest{
+		Id:         "digest-divergent",
+		CreatedAt:  createdAt,
+		TimeWindow: 24 * time.Hour,
+		Articles: []models.Article{
+			{Id: "article-d", Title: "Divergent Article", Link: "https://example.com/d", PublishedAt: createdAt, CategoryName: &category},
+		},
+		DigestAnalyses: []models.DigestAnalysis{
+			{
+				ArticleId: "article-d",
+				Analysis: &models.ArticleAnalysis{
+					ArticleId:     "article-d",
+					ProviderType:  "openai",
+					ModelName:     "gpt-test",
+					BriefOverview: "The payload was staged on Cloudflare Workers.",
+				},
+			},
+		},
+		DigestGlossary: []models.DigestGlossary{
+			{
+				DigestId: "digest-divergent",
+				EntryId:  "entry-worker",
+				Entry: &models.GlossaryEntry{
+					Id:            "entry-worker",
+					NormalizedKey: "worker", // stored key from the originally extracted term
+					Term:          "Cloudflare Workers",
+					Kind:          models.GlossaryKindEntity,
+					Category:      "product",
+					Definition:    "A serverless platform for running code on Cloudflare's edge.",
+				},
+			},
+		},
+	}
+
+	htmlBytes, err := RenderDigestHTML(digest, "default", "")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML() error = %v", err)
+	}
+	html := string(htmlBytes)
+
+	if !strings.Contains(html, `<mark class="tag-hl">Cloudflare Workers</mark>`) {
+		t.Fatalf("display term not highlighted in prose:\n%s", html)
+	}
+	// Both the stored key and the display term's normalized key must resolve in the popup map.
+	for _, key := range []string{`"worker":`, `"cloudflare workers":`} {
+		if !strings.Contains(html, key) {
+			t.Fatalf("baked glossary map missing key %s:\n%s", key, html)
+		}
 	}
 }
 

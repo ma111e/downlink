@@ -135,7 +135,7 @@ func (e *GlossaryEntry) EffectiveDefinition() string {
 
 // glossaryKeySep collapses runs of any non-alphanumeric character to a single space so that
 // "Cobalt Strike", "cobalt-strike", "cobalt   strike", "wscript.exe"/"wscript-exe", and
-// "HTTP/3"/"HTTP 3" each map to one key. This equivalence MUST agree with compileTagRegexp
+// "HTTP/3"/"HTTP 3" each map to one key. This equivalence MUST agree with CompileTermRegexp
 // (notification/html.go) and the JS glossaryKey() normalizer in the digest template, otherwise a
 // highlighted term in the prose will not resolve to its definition.
 var glossaryKeySep = regexp.MustCompile(`[^a-z0-9]+`)
