@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"crypto/md5"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1361,8 +1362,16 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 			if name := strings.TrimSpace(ed.Name); name != "" {
 				term = name
 			}
+			// When the canonical name refines the surface form (e.g. "worker" → "Cloudflare
+			// Workers"), key the entry by the canonical name: the surface form is only a
+			// contextual alias, and keeping it as the permanent identity would hand every
+			// future "worker" extraction this entry's definition.
+			entryKey := key
+			if tk := models.NormalizeGlossaryKey(term); canonicalRefinesKey(key, tk) {
+				entryKey = tk
+			}
 			entry := &models.GlossaryEntry{
-				NormalizedKey:   key,
+				NormalizedKey:   entryKey,
 				Term:            term,
 				Kind:            c.kind,
 				Category:        category,
@@ -1492,6 +1501,65 @@ func (s *DigestServer) populateArticleContexts(ctx context.Context, analyses []m
 	}
 }
 
+//go:embed glossary_match_stoplist.txt
+var glossaryMatchStoplistRaw string
+
+// glossaryMatchStoplist is the set of common English words (top-3000 of the
+// google-10000-english frequency list, plus a few curated ambiguous names like "worker" and
+// "eclipse") that must never drive global prose-matching: a stored entry whose display term
+// is such a word ("Go", "Signal", "Black") is far more often the ordinary word than the
+// entity. Extraction/tag-driven linking is unaffected, so these entries still highlight in
+// digests whose articles are actually about them.
+var glossaryMatchStoplist = sync.OnceValue(func() map[string]bool {
+	words := strings.Fields(glossaryMatchStoplistRaw)
+	set := make(map[string]bool, len(words))
+	for _, w := range words {
+		set[w] = true
+	}
+	return set
+})
+
+// isCommonWordKey reports whether the normalized key is a single common English word (or a
+// bare plural of one), which disqualifies it from global prose-matching.
+func isCommonWordKey(key string) bool {
+	if strings.Contains(key, " ") {
+		return false
+	}
+	stop := glossaryMatchStoplist()
+	if stop[key] {
+		return true
+	}
+	return strings.HasSuffix(key, "s") && stop[strings.TrimSuffix(key, "s")]
+}
+
+// canonicalRefinesKey reports whether the model's canonical display name refines the
+// extracted surface key: every key word prefix-matches a distinct canonical word and the
+// canonical form has at least as many words (e.g. "worker" → "cloudflare workers", but not
+// "python black" → "black"). Such entries are stored under the canonical key so a generic
+// surface form never becomes the permanent identity of a specific thing.
+func canonicalRefinesKey(key, termKey string) bool {
+	if key == "" || termKey == "" || key == termKey {
+		return false
+	}
+	keyWords := strings.Fields(key)
+	termWords := strings.Fields(termKey)
+	if len(termWords) < len(keyWords) {
+		return false
+	}
+	used := make([]bool, len(termWords))
+outer:
+	for _, kw := range keyWords {
+		for i, tw := range termWords {
+			if !used[i] && strings.HasPrefix(tw, kw) {
+				used[i] = true
+				continue outer
+			}
+		}
+		return false
+	}
+	return true
+}
+
 // matchStoredGlossaryTerms scans each analysis's prose — the same fields the rendered digest
 // highlights — for stored glossary terms, so entries from previous generations are linked to
 // this digest even when this run's extraction did not re-emit them. Matching uses the page's
@@ -1508,7 +1576,7 @@ func matchStoredGlossaryTerms(analyses []models.ArticleAnalysis, entries map[str
 			continue
 		}
 		termKey := models.NormalizeGlossaryKey(e.Term)
-		if termKey == "" {
+		if termKey == "" || isCommonWordKey(termKey) {
 			continue
 		}
 		terms = append(terms, e.Term)

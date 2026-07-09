@@ -246,6 +246,63 @@ func TestMatchStoredGlossaryTerms(t *testing.T) {
 	}
 }
 
+func TestMatchStoredGlossaryTermsStoplist(t *testing.T) {
+	// Single-word terms that are common English words ("Go", "Signal", "Black") must never
+	// prose-match: globally they are far more often the ordinary word than the glossary
+	// entity. Domain words, acronyms, and multi-word terms keep matching.
+	def := "A definition."
+	entries := map[string]*models.GlossaryEntry{
+		"go":            {Id: "e-go", NormalizedKey: "go", Term: "Go", Category: "product", Definition: def},
+		"signal":        {Id: "e-signal", NormalizedKey: "signal", Term: "Signal", Category: "product", Definition: def},
+		"alerts":        {Id: "e-alerts", NormalizedKey: "alerts", Term: "alerts", Category: "concept", Definition: def}, // plural of a common word
+		"phishing":      {Id: "e-phish", NormalizedKey: "phishing", Term: "phishing", Category: "technique", Definition: def},
+		"python":        {Id: "e-py", NormalizedKey: "python", Term: "Python", Category: "tool", Definition: def},
+		"patch tuesday": {Id: "e-pt", NormalizedKey: "patch tuesday", Term: "Patch Tuesday", Category: "concept", Definition: def}, // multi-word with a stoplisted word
+		"cve":           {Id: "e-cve", NormalizedKey: "cve", Term: "CVE", Category: "vulnerability", Definition: def},
+	}
+	analyses := []models.ArticleAnalysis{{
+		Tldr: "Attackers go after Signal users; alerts fired. A phishing kit written in Python landed before Patch Tuesday, exploiting an old CVE.",
+	}}
+
+	got := matchStoredGlossaryTerms(analyses, entries)
+
+	for _, blocked := range []string{"go", "signal", "alerts"} {
+		if got[0][blocked] {
+			t.Errorf("common word %q must not prose-match", blocked)
+		}
+	}
+	for _, kept := range []string{"phishing", "python", "patch tuesday", "cve"} {
+		if !got[0][kept] {
+			t.Errorf("%q should prose-match, got %v", kept, got[0])
+		}
+	}
+}
+
+func TestCanonicalRefinesKey(t *testing.T) {
+	cases := []struct {
+		key, termKey string
+		want         bool
+	}{
+		{"worker", "cloudflare workers", true}, // generic surface, specific canonical → re-key
+		{"copilot", "microsoft 365 copilot", true},
+		{"python black", "black", false},          // canonical is a shortening → keep surface key
+		{"att", "at t", false},                    // tokenization variant, no word prefix-match
+		{"mitre attack", "mitre att ck", false},   // "attack" is not a prefix of "att"
+		{"cve", "cve", false},                     // identical
+		{"apple macos", "macos", false},           // fewer words
+		{"worker", "", false},                     // empty canonical
+		{"", "cloudflare workers", false},         // empty key
+		{"gh0strat", "gh0st rat", false},          // "gh0strat" is not a prefix of "gh0st"
+		{"us senate", "u s senate", false},        // "us" is not a prefix of "u"
+		{"unifi os", "ubiquiti unifi os", true},   // every key word prefix-matches a distinct canonical word
+	}
+	for _, c := range cases {
+		if got := canonicalRefinesKey(c.key, c.termKey); got != c.want {
+			t.Errorf("canonicalRefinesKey(%q, %q) = %v, want %v", c.key, c.termKey, got, c.want)
+		}
+	}
+}
+
 func TestArticleContextTerms(t *testing.T) {
 	termMeta := map[string]glossaryTermCtx{
 		"lazarus":       {Term: "Lazarus", Category: "threat-actor"},
