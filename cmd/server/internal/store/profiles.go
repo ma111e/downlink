@@ -41,6 +41,15 @@ func (s *GormStore) StoreProfile(profile models.Profile) error {
 	return nil
 }
 
+// SetProfileEnabled flips a profile's enabled flag in place, without touching
+// any other column (used by the apply reconcile to disable absent profiles).
+func (s *GormStore) SetProfileEnabled(id string, enabled bool) error {
+	if err := s.db.Model(&models.Profile{}).Where("id = ?", id).Update("enabled", enabled).Error; err != nil {
+		return fmt.Errorf("failed to set enabled=%v on profile %q: %w", enabled, id, err)
+	}
+	return nil
+}
+
 // DeleteProfile deletes a profile and its feed-membership rows. The default
 // profile cannot be deleted.
 func (s *GormStore) DeleteProfile(id string) error {

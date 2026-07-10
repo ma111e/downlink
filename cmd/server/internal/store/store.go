@@ -73,6 +73,7 @@ type Store interface {
 	ListProfiles() ([]models.Profile, error)
 	GetProfile(id string) (models.Profile, error)
 	StoreProfile(profile models.Profile) error
+	SetProfileEnabled(id string, enabled bool) error
 	DeleteProfile(id string) error
 	SetProfileFeeds(profileId string, feedIds []string) error
 	ListProfileFeeds(profileId string) ([]models.Feed, error)

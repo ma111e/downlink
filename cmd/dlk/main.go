@@ -46,6 +46,7 @@ func main() {
 	// Add all command groups
 	rootCmd.AddCommand(createArticleCommands())
 	rootCmd.AddCommand(createFeedCommands())
+	rootCmd.AddCommand(createProfileCommands())
 	rootCmd.AddCommand(createAnalysisCommands())
 	rootCmd.AddCommand(createModelCommands())
 	rootCmd.AddCommand(createDigestCommands())

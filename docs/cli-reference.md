@@ -46,6 +46,15 @@ Selector-building subcommands (`inspect`, `fetch-article`, `test-selector`,
 `probe-modes`, `probe-headers`, `autoconfig`) are covered in
 [feeds-and-scraping.md](feeds-and-scraping.md).
 
+## profiles
+
+Manage editorial profiles. See [profiles.md](profiles.md) for the config schema.
+
+| Command | Description |
+|---|---|
+| `profiles apply -f <file>` | Reconcile the database to a profiles YAML file: create/update listed profiles (feed pools re-resolved), disable the rest (digests/analyses kept; the default profile is exempt). `--dry-run` previews. |
+| `profiles list` | List stored profiles: slug, name, enabled, feed count, subdir, layout, theme. |
+
 ## analysis
 
 Run and inspect LLM analysis of articles. See

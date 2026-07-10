@@ -44,11 +44,11 @@ func TestApplyProfiles(t *testing.T) {
 		},
 	}
 
-	res, err := m.ApplyProfiles(pf)
+	res, err := m.ApplyProfiles(pf, false)
 	if err != nil {
 		t.Fatalf("ApplyProfiles: %v", err)
 	}
-	if len(res.Upserted) != 1 || res.Upserted[0] != "press" {
+	if len(res.Created) != 1 || res.Created[0] != "press" {
 		t.Fatalf("unexpected apply result: %+v", res)
 	}
 
@@ -73,9 +73,14 @@ func TestApplyProfiles(t *testing.T) {
 		t.Errorf("expected press profile to own the example.com feed, got %+v", feeds)
 	}
 
-	// Re-applying is idempotent (no duplicate membership, still one feed).
-	if _, err := m.ApplyProfiles(pf); err != nil {
+	// Re-applying is idempotent (no duplicate membership, still one feed) and
+	// classifies the profile as updated rather than created.
+	res, err = m.ApplyProfiles(pf, false)
+	if err != nil {
 		t.Fatalf("ApplyProfiles (second): %v", err)
+	}
+	if len(res.Updated) != 1 || len(res.Created) != 0 {
+		t.Errorf("re-apply should report updated, got %+v", res)
 	}
 	feeds, _ = db.ListProfileFeeds("press")
 	if len(feeds) != 1 {
@@ -143,7 +148,7 @@ func TestProfileTopicSelection(t *testing.T) {
 		{Slug: "everything"},                                                     // unscoped => all enabled
 		{Slug: "news-clean", Topics: []string{"news"}, ExcludeFeeds: []string{newsURL}}, // topic minus explicit exclude
 		{Slug: "pinned", Topics: []string{"apt"}, Feeds: []string{newsURL}},      // topic plus explicit include
-	}})
+	}}, false)
 	if err != nil {
 		t.Fatalf("ApplyProfiles: %v", err)
 	}
@@ -286,14 +291,14 @@ func TestApplyProfilesWarningsAndCollisions(t *testing.T) {
 		m := newManager(t)
 		res, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
 			{Slug: "typo", Theme: "neon"},
-		}})
+		}}, false)
 		if err != nil {
 			t.Fatalf("ApplyProfiles: %v", err)
 		}
 		if len(res.Warnings) != 1 || !strings.HasPrefix(res.Warnings[0], "typo: ") {
 			t.Errorf("Warnings = %v, want one entry prefixed with the slug", res.Warnings)
 		}
-		if len(res.Upserted) != 1 {
+		if len(res.Created) != 1 {
 			t.Errorf("warnings must not block the upsert: %+v", res)
 		}
 	})
@@ -302,7 +307,7 @@ func TestApplyProfilesWarningsAndCollisions(t *testing.T) {
 		m := newManager(t)
 		_, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
 			{Slug: "twin"}, {Slug: "twin"},
-		}})
+		}}, false)
 		if err == nil || !strings.Contains(err.Error(), "duplicate profile slug") {
 			t.Errorf("err = %v, want duplicate-slug error", err)
 		}
@@ -312,7 +317,7 @@ func TestApplyProfilesWarningsAndCollisions(t *testing.T) {
 		m := newManager(t)
 		_, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
 			{Slug: "a", OutputSubdir: "shared"}, {Slug: "b", OutputSubdir: "shared"},
-		}})
+		}}, false)
 		if err == nil || !strings.Contains(err.Error(), "shared") {
 			t.Errorf("err = %v, want subdir-collision error", err)
 		}
@@ -323,7 +328,7 @@ func TestApplyProfilesWarningsAndCollisions(t *testing.T) {
 		m := newManager(t)
 		_, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
 			{Slug: "hijack", OutputSubdir: "digests"},
-		}})
+		}}, false)
 		if err == nil || !strings.Contains(err.Error(), "default") {
 			t.Errorf("err = %v, want collision with default profile", err)
 		}
@@ -333,8 +338,118 @@ func TestApplyProfilesWarningsAndCollisions(t *testing.T) {
 		m := newManager(t)
 		if _, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
 			{Slug: "default"},
-		}}); err != nil {
+		}}, false); err != nil {
 			t.Errorf("ApplyProfiles with explicit default entry: %v", err)
 		}
 	})
+}
+
+func TestApplyProfilesReconcile(t *testing.T) {
+	db, err := store.New(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("store.New: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	m := NewFeedManager(db)
+
+	enabledOf := func(slug string) bool {
+		p, err := db.GetProfile(slug)
+		if err != nil {
+			t.Fatalf("GetProfile(%s): %v", slug, err)
+		}
+		return p.Enabled == nil || *p.Enabled
+	}
+
+	// Seed two profiles from a full file.
+	full := &models.ProfilesFile{Profiles: []models.ProfileConfig{
+		{Slug: "keep"}, {Slug: "stale"},
+	}}
+	if _, err := m.ApplyProfiles(full, false); err != nil {
+		t.Fatalf("ApplyProfiles (seed): %v", err)
+	}
+
+	// Applying a trimmed file disables the absent profile; the kept one and the
+	// seeded default are untouched.
+	trimmed := &models.ProfilesFile{Profiles: []models.ProfileConfig{{Slug: "keep"}}}
+	res, err := m.ApplyProfiles(trimmed, false)
+	if err != nil {
+		t.Fatalf("ApplyProfiles (trimmed): %v", err)
+	}
+	if len(res.Disabled) != 1 || res.Disabled[0] != "stale" {
+		t.Errorf("Disabled = %v, want [stale]", res.Disabled)
+	}
+	if enabledOf("stale") {
+		t.Error("stale profile should be disabled after reconcile")
+	}
+	if !enabledOf("keep") || !enabledOf("default") {
+		t.Error("keep and default profiles must stay enabled")
+	}
+
+	// Re-applying the trimmed file reports nothing to disable (already disabled).
+	res, err = m.ApplyProfiles(trimmed, false)
+	if err != nil {
+		t.Fatalf("ApplyProfiles (trimmed again): %v", err)
+	}
+	if len(res.Disabled) != 0 {
+		t.Errorf("second trimmed apply Disabled = %v, want empty", res.Disabled)
+	}
+
+	// Re-adding the profile WITHOUT an explicit enabled key re-enables it: the
+	// file is the source of truth and enabled defaults to true.
+	res, err = m.ApplyProfiles(full, false)
+	if err != nil {
+		t.Fatalf("ApplyProfiles (re-add): %v", err)
+	}
+	if !enabledOf("stale") {
+		t.Error("re-added profile should be re-enabled")
+	}
+	if len(res.Updated) != 2 || len(res.Created) != 0 {
+		t.Errorf("re-add should report both as updated, got %+v", res)
+	}
+}
+
+func TestApplyProfilesDryRun(t *testing.T) {
+	db, err := store.New(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("store.New: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	m := NewFeedManager(db)
+
+	// Seed one profile for the would-be-disabled half of the plan.
+	if _, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
+		{Slug: "stale"},
+	}}, false); err != nil {
+		t.Fatalf("ApplyProfiles (seed): %v", err)
+	}
+
+	res, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
+		{Slug: "fresh", Theme: "neon"}, // theme typo: warnings must still surface in dry-run
+	}}, true)
+	if err != nil {
+		t.Fatalf("ApplyProfiles (dry-run): %v", err)
+	}
+
+	// The full plan is reported...
+	if len(res.Created) != 1 || res.Created[0] != "fresh" {
+		t.Errorf("Created = %v, want [fresh]", res.Created)
+	}
+	if len(res.Disabled) != 1 || res.Disabled[0] != "stale" {
+		t.Errorf("Disabled = %v, want [stale]", res.Disabled)
+	}
+	if len(res.Warnings) != 1 {
+		t.Errorf("Warnings = %v, want the theme warning", res.Warnings)
+	}
+
+	// ...but nothing was written.
+	if _, err := db.GetProfile("fresh"); err == nil {
+		t.Error("dry-run must not create profiles")
+	}
+	stale, err := db.GetProfile("stale")
+	if err != nil {
+		t.Fatalf("GetProfile(stale): %v", err)
+	}
+	if stale.Enabled != nil && !*stale.Enabled {
+		t.Error("dry-run must not disable absent profiles")
+	}
 }

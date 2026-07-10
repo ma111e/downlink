@@ -20,9 +20,19 @@ your current setup. Nothing about the published site changes until a second prof
 ## profiles.yml
 
 Profiles are defined in `profiles.yml` and applied to the database when the server starts
-(path via `--profiles-file`, default `profiles.yml`). Edit the file and restart to apply.
-This differs from `feeds.yml`, which is applied at runtime with `dlk feeds apply`. Copy the
-bundled example:
+(path via `--profiles-file`, default `profiles.yml`) or at runtime, like `feeds.yml`:
+
+```sh
+dlk profiles apply -f profiles.yml            # --dry-run to preview
+dlk profiles list                             # see the stored profiles
+```
+
+Apply reconciles the database to match the file: profiles in the file are created or
+updated (feed pools re-resolved), and stored profiles absent from the file are **disabled**,
+never deleted — their digests and analyses are kept, and re-adding the entry re-enables
+them. The `default` profile exists independently of the file and is never disabled. The
+same reconcile runs at startup, so a trimmed `profiles.yml` disables the profiles it no
+longer lists. Copy the bundled example to get started:
 
 ```sh
 cp profiles.example.yml profiles.yml
