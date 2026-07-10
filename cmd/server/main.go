@@ -153,11 +153,15 @@ func main() {
 				if loadErr != nil {
 					log.WithError(loadErr).Fatalf("Failed to load profiles file %s", profilesFile)
 				}
-				res, applyErr := manager.Manager.ApplyProfiles(pf)
+				res, applyErr := manager.Manager.ApplyProfiles(pf, false)
 				if applyErr != nil {
 					log.WithError(applyErr).Fatalln("Failed to apply profiles")
 				}
-				log.WithField("profiles", res.Upserted).Info("Applied profiles from profiles.yml")
+				log.WithFields(log.Fields{
+					"created":  res.Created,
+					"updated":  res.Updated,
+					"disabled": res.Disabled,
+				}).Info("Applied profiles from profiles.yml")
 			}
 
 			return nil
@@ -447,6 +451,7 @@ func startServer(host string, port int, tls bool, certFile, keyFile string, maxC
 	protos.RegisterCategoriesServiceServer(grpcServer, services.NewCategoriesServer())
 	queueServer := services.NewQueueServer(llmsServer, maxConcurrentLLMRequests)
 	protos.RegisterFeedsServiceServer(grpcServer, services.NewFeedsServer(queueServer, gw))
+	protos.RegisterProfilesServiceServer(grpcServer, services.NewProfilesServer())
 	protos.RegisterDigestServiceServer(grpcServer, digestServer)
 	protos.RegisterLLMsServiceServer(grpcServer, llmsServer)
 	protos.RegisterQueueServiceServer(grpcServer, queueServer)

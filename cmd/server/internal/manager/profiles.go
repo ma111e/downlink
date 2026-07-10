@@ -17,9 +17,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ProfileApplyResult summarizes a profiles.yml apply.
+// ProfileApplyResult summarizes a (would-be, when dry-run) profiles.yml apply.
 type ProfileApplyResult struct {
-	Upserted []string // profile slugs created or updated
+	Created  []string // profile slugs created
+	Updated  []string // profile slugs already stored and re-applied
+	Disabled []string // stored profile slugs absent from the file, now disabled
 	Skipped  []string // profile slugs skipped (e.g. invalid)
 	Warnings []string // soft config problems, already logged; kept for CLI display
 }
@@ -27,13 +29,14 @@ type ProfileApplyResult struct {
 // defaultProfileSlug is the always-present profile seeded by the store.
 const defaultProfileSlug = "default"
 
-// ApplyProfiles reconciles the stored profiles against profiles.yml: each entry
-// is upserted and its feed pool (referenced by URL) is set to exactly the
-// resolved feed ids. Feeds are resolved the same way the feed catalog stores
-// them (by domain id), so a profile picks up whichever feed serves that URL.
-// Profiles absent from the file are left untouched (the default profile, in
-// particular, is never removed here).
-func (m *FeedManager) ApplyProfiles(file *models.ProfilesFile) (ProfileApplyResult, error) {
+// ApplyProfiles reconciles the stored profiles against profiles.yml, mirroring
+// feeds apply: each entry is upserted with its feed pool set to exactly the
+// resolved feed ids (by domain id, so a profile picks up whichever feed serves
+// that URL), and stored profiles absent from the file are disabled — never
+// deleted, and never the default profile. When dryRun is true the full plan
+// (validation, collisions, created/updated/disabled) is computed but nothing is
+// written.
+func (m *FeedManager) ApplyProfiles(file *models.ProfilesFile, dryRun bool) (ProfileApplyResult, error) {
 	var result ProfileApplyResult
 	if file == nil {
 		return result, nil
@@ -82,6 +85,22 @@ func (m *FeedManager) ApplyProfiles(file *models.ProfilesFile) (ProfileApplyResu
 			result.Warnings = append(result.Warnings, fmt.Sprintf("%s: %s", pc.Slug, w))
 		}
 
+		// Normalize omitted booleans/ints to their documented defaults instead of
+		// leaving them nil: GORM omits defaulted zero columns from the upsert, so
+		// a nil Enabled would keep whatever the row had before — and a profile
+		// disabled because it was absent from the file would then stay disabled
+		// after being re-added. The file is the source of truth.
+		enabled := pc.Enabled
+		if enabled == nil {
+			v := true
+			enabled = &v
+		}
+		sortOrder := pc.SortOrder
+		if sortOrder == nil {
+			v := 0
+			sortOrder = &v
+		}
+
 		sel := buildProfileSelection(pc)
 		profile := models.Profile{
 			Id:           pc.Slug,
@@ -90,8 +109,8 @@ func (m *FeedManager) ApplyProfiles(file *models.ProfilesFile) (ProfileApplyResu
 			Icon:         pc.Icon,
 			Layout:       pc.Layout,
 			Theme:        pc.Theme,
-			Enabled:      pc.Enabled,
-			SortOrder:    pc.SortOrder,
+			Enabled:      enabled,
+			SortOrder:    sortOrder,
 			OutputSubdir: pc.OutputSubdir,
 			Editorial:    pc.Editorial,
 			Selection:    sel,
@@ -99,19 +118,55 @@ func (m *FeedManager) ApplyProfiles(file *models.ProfilesFile) (ProfileApplyResu
 		if profile.Name == "" {
 			profile.Name = pc.Slug
 		}
-		if err := m.store.StoreProfile(profile); err != nil {
-			return result, fmt.Errorf("failed to store profile %q: %w", pc.Slug, err)
+
+		exists := false
+		if _, err := m.store.GetProfile(pc.Slug); err == nil {
+			exists = true
+		}
+
+		if !dryRun {
+			if err := m.store.StoreProfile(profile); err != nil {
+				return result, fmt.Errorf("failed to store profile %q: %w", pc.Slug, err)
+			}
 		}
 
 		feedIDs, err := m.resolveProfileFeedIDs(sel)
 		if err != nil {
 			return result, fmt.Errorf("failed to resolve feeds for profile %q: %w", pc.Slug, err)
 		}
-		if err := m.store.SetProfileFeeds(pc.Slug, feedIDs); err != nil {
-			return result, fmt.Errorf("failed to set feeds for profile %q: %w", pc.Slug, err)
+		if !dryRun {
+			if err := m.store.SetProfileFeeds(pc.Slug, feedIDs); err != nil {
+				return result, fmt.Errorf("failed to set feeds for profile %q: %w", pc.Slug, err)
+			}
 		}
 
-		result.Upserted = append(result.Upserted, pc.Slug)
+		if exists {
+			result.Updated = append(result.Updated, pc.Slug)
+		} else {
+			result.Created = append(result.Created, pc.Slug)
+		}
+	}
+
+	// Stored profiles absent from the file are disabled (never deleted; their
+	// digests and analyses are kept, and re-adding the entry re-enables them).
+	// The default profile is exempt: it exists independently of profiles.yml.
+	stored, err := m.store.ListProfiles()
+	if err != nil {
+		return result, fmt.Errorf("failed to list profiles for reconciliation: %w", err)
+	}
+	for _, p := range stored {
+		if p.Id == defaultProfileSlug || seenSlugs[p.Id] {
+			continue
+		}
+		if p.Enabled != nil && !*p.Enabled {
+			continue
+		}
+		result.Disabled = append(result.Disabled, p.Id)
+		if !dryRun {
+			if err := m.store.SetProfileEnabled(p.Id, false); err != nil {
+				return result, fmt.Errorf("failed to disable absent profile %q: %w", p.Id, err)
+			}
+		}
 	}
 
 	return result, nil

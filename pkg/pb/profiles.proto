@@ -1,0 +1,57 @@
+syntax = "proto3";
+package downlink;
+
+option go_package = "protos/";
+
+// ProfilesService manages editorial profiles (the profiles.yml catalog).
+service ProfilesService {
+  // ApplyProfiles reconciles the stored profiles against a profiles.yml
+  // payload: entries are created/updated with their feed pools re-resolved,
+  // and stored profiles absent from the payload are disabled (never deleted;
+  // the default profile is exempt). Mirrors FeedsService.ApplyFeeds.
+  rpc ApplyProfiles(ApplyProfilesRequest) returns (ApplyProfilesResponse) {}
+
+  // ListProfiles returns the stored profiles ordered by sort order.
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse) {}
+}
+
+// ApplyProfilesRequest carries the raw profiles.yml content. The server parses
+// it with the same schema as the startup apply, so models.ProfileConfig stays
+// the single definition of the file format (no proto mirror to drift).
+message ApplyProfilesRequest {
+  string profiles_yaml = 1;
+  bool dry_run = 2; // when true, compute the plan but make no changes
+}
+
+// ApplyProfilesResponse reports the (would-be, when dry_run) reconciliation
+// outcome. All lists carry profile slugs; warnings are human-readable
+// "slug: problem" lines from config validation.
+message ApplyProfilesResponse {
+  repeated string created = 1;
+  repeated string updated = 2;
+  repeated string disabled = 3;
+  repeated string skipped = 4;
+  repeated string warnings = 5;
+}
+
+// ListProfilesRequest is the request for the ListProfiles method.
+message ListProfilesRequest {}
+
+// ProfileSummary is one stored profile, trimmed for CLI display.
+message ProfileSummary {
+  string slug = 1;
+  string name = 2;
+  string description = 3;
+  string icon = 4;
+  bool enabled = 5;
+  int32 sort_order = 6;
+  string output_subdir = 7;
+  string layout = 8;
+  string theme = 9;
+  int32 feed_count = 10;
+}
+
+// ListProfilesResponse is the response for the ListProfiles method.
+message ListProfilesResponse {
+  repeated ProfileSummary profiles = 1;
+}

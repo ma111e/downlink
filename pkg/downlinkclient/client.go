@@ -19,6 +19,7 @@ type DownlinkClient struct {
 	analysisClient     protos.AnalysisServiceClient
 	digestClient       protos.DigestServiceClient
 	feedsClient        protos.FeedsServiceClient
+	profilesClient     protos.ProfilesServiceClient
 	llmsClient         protos.LLMsServiceClient
 	queueClient        protos.QueueServiceClient
 	serverConfigClient protos.ServerConfigServiceClient
@@ -34,6 +35,7 @@ func NewDownlinkClient(conn *grpc.ClientConn) *DownlinkClient {
 		analysisClient:     protos.NewAnalysisServiceClient(conn),
 		digestClient:       protos.NewDigestServiceClient(conn),
 		feedsClient:        protos.NewFeedsServiceClient(conn),
+		profilesClient:     protos.NewProfilesServiceClient(conn),
 		llmsClient:         protos.NewLLMsServiceClient(conn),
 		queueClient:        protos.NewQueueServiceClient(conn),
 		serverConfigClient: protos.NewServerConfigServiceClient(conn),
