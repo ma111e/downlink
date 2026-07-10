@@ -5,8 +5,8 @@ default: help
 COMMIT := $(shell git rev-parse --short HEAD)
 LDFLAGS := -X github.com/ma111e/downlink/pkg/version.Commit=$(COMMIT)
 
-## all : Builds the server and cli
-all: server cli
+## all : Builds the web assets, server and cli
+all: assets server cli
 
 ## proto: Generate grpc files
 proto:
