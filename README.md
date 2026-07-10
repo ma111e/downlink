@@ -106,6 +106,14 @@ docker run --rm -p 50051:50051 \
   downlink
 ```
 
+If you use [profiles](docs/profiles.md), also mount the catalog and any custom
+layout packs; both are optional and skipped when absent:
+
+```sh
+  -v "$PWD/profiles.yml:/app/profiles.yml" \
+  -v "$PWD/layouts:/app/layouts" \
+```
+
 A `docker-compose.yml` is provided that also wires up the optional Solimen
 full-browser scraper.
 
