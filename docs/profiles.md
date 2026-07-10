@@ -116,7 +116,7 @@ not overridable, so result validation and corrective re-prompts still apply.
 
 | Field | Type | Description |
 |---|---|---|
-| `tasks` | map | Task name → instruction. Keys: `categorize`, `tldr`, `plain_words`, `key_points`, `insights`, `referenced_reports`, `summaries`, `glossary`, `importance`. |
+| `tasks` | map | Task name → instruction. Keys: `categorize`, `tldr`, `plain_words`, `key_points`, `insights`, `referenced_reports`, `summaries`, `glossary`, `rubric`. (`importance` replaces `rubric` when `vibe_score: true`.) |
 | `digest_summary` | string | Extra guidance appended to the digest-summary prompt. |
 | `dedupe` | string | Extra guidance appended to the duplicate-grouping prompt. |
 
