@@ -197,7 +197,7 @@ func RenderReportsPage(reports []aggregatedReport, layout, theme string, opts ..
 	if err != nil {
 		return nil, fmt.Errorf("failed to load reports CSS: %w", err)
 	}
-	scriptJS, err := loadBuiltAsset("reports.js")
+	scriptJS, err := loadBuiltAsset(layout, "reports.js")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load reports JS: %w", err)
 	}

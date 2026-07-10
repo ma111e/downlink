@@ -648,8 +648,12 @@ func (p *GitHubPagesPublisher) ensureScripts(wt *gogit.Worktree, outputDir strin
 	if p.cfg.SelfContained {
 		return nil
 	}
+	layout, err := resolveLayout(p.cfg.Layout)
+	if err != nil {
+		return err
+	}
 	for _, name := range scriptAssets {
-		js, err := loadBuiltAsset(name)
+		js, err := loadBuiltAsset(layout, name)
 		if err != nil {
 			return fmt.Errorf("github pages: load script %s: %w", name, err)
 		}

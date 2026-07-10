@@ -110,20 +110,33 @@ func SetAssetDir(dir string) {
 	assetDir = dir
 }
 
-// loadBuiltAsset reads a Vite-built asset (e.g. "digest.css", "digest.js") from
-// the on-disk asset dir when set (dev), otherwise from the embedded FS. The
-// content is already minified by the web build and is used verbatim.
-func loadBuiltAsset(name string) (string, error) {
+// loadBuiltAsset reads a Vite-built asset (e.g. "digest.css", "digest.js") for the
+// given layout from the on-disk asset dir when set (dev), otherwise from the embedded
+// FS. A non-default layout ships its assets under assets/<layout>/<name>; when that
+// variant is absent the default assets/<name> is used, so a layout that only overrides
+// some pages inherits the rest. The content is already minified by the web build and
+// is used verbatim.
+func loadBuiltAsset(layout, name string) (string, error) {
+	// Candidate paths, most specific first: a non-default layout's own asset, then
+	// the shared default asset.
+	names := []string{name}
+	if layout != "" && layout != digestlayouts.Default() {
+		names = []string{filepath.Join(layout, name), name}
+	}
 	if assetDir != "" {
-		if b, err := os.ReadFile(filepath.Join(assetDir, name)); err == nil {
+		for _, n := range names {
+			if b, err := os.ReadFile(filepath.Join(assetDir, n)); err == nil {
+				return string(b), nil
+			}
+		}
+	}
+	for _, n := range names {
+		// embed.FS always uses forward slashes regardless of OS.
+		if b, err := builtAssetsFS.ReadFile("assets/" + filepath.ToSlash(n)); err == nil {
 			return string(b), nil
 		}
 	}
-	b, err := builtAssetsFS.ReadFile("assets/" + name)
-	if err != nil {
-		return "", fmt.Errorf("read built asset %q (run `make assets`?): %w", name, err)
-	}
-	return string(b), nil
+	return "", fmt.Errorf("read built asset %q for layout %q (run `make assets`?): %w", name, layout, os.ErrNotExist)
 }
 
 // loadStyleCSS returns the stylesheet for a page, ready to inline or write.
@@ -141,7 +154,7 @@ func loadStyleCSS(layout, name string) (string, error) {
 			return utils.StripCSSComments(string(b)), nil
 		}
 	}
-	return loadBuiltAsset(name)
+	return loadBuiltAsset(layout, name)
 }
 
 // layoutsDir, when non-empty, is an on-disk directory of operator-supplied
@@ -173,7 +186,13 @@ func OnDiskLayoutExists(layout string) bool {
 // rest from the default pack.
 func loadNotificationTemplate(layout, name string) (string, error) {
 	if devTemplateDir != "" {
-		path := filepath.Join(devTemplateDir, layout, name)
+		// Mirror the embedded cascade: the selected layout's page, then the default
+		// layout's page. A layout that omits a page (e.g. v2 reuses the default
+		// swipe/reports/sources) still previews instead of erroring.
+		if b, err := os.ReadFile(filepath.Join(devTemplateDir, layout, name)); err == nil {
+			return string(b), nil
+		}
+		path := filepath.Join(devTemplateDir, digestlayouts.Default(), name)
 		b, err := os.ReadFile(path)
 		if err != nil {
 			return "", fmt.Errorf("read %s: %w", path, err)

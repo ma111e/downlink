@@ -50,6 +50,32 @@ type RenderedAnalysis struct {
 	KeyPoints              []template.HTML
 	Insights               []template.HTML
 	ReferencedReports      []RenderedReport
+	Rubric                 []RubricDimension // per-dimension 0-4 scores, for the v2 rubric grid; nil for legacy analyses
+}
+
+// RubricDimension is one scoring dimension surfaced to the template as a labelled
+// 0-4 value, so a layout can render the rubric as a small bar grid. The set and
+// order mirror the digest score rubric (see scoring.Dimensions / scoreTooltip).
+type RubricDimension struct {
+	Label string // uppercased dimension name, e.g. "SEVERITY"
+	Value int    // 0-4
+}
+
+// rubricDimensions flattens a scoring.Dimensions into the fixed display order used by
+// the rubric grid (severity first, matching the digest reader). Returns nil when no
+// dimensions are available (legacy vibe-score analyses).
+func rubricDimensions(d *scoring.Dimensions) []RubricDimension {
+	if d == nil {
+		return nil
+	}
+	return []RubricDimension{
+		{Label: "SEVERITY", Value: d.Severity},
+		{Label: "SPECIFICITY", Value: d.Specificity},
+		{Label: "BREADTH", Value: d.Breadth},
+		{Label: "ACTIONABILITY", Value: d.Actionability},
+		{Label: "NOVELTY", Value: d.Novelty},
+		{Label: "CREDIBILITY", Value: d.Credibility},
+	}
 }
 
 // RenderedReport is a referenced report prepared for the digest template, with its
@@ -505,6 +531,7 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 				KeyPoints:              highlightPlainSlice(analysis.KeyPoints, tagRe),
 				Insights:               highlightPlainSlice(analysis.Insights, tagRe),
 				ReferencedReports:      renderReports(analysis.ReferencedReports, tagRe),
+				Rubric:                 rubricDimensions(analysis.ScoreDimensions),
 			}
 		}
 
@@ -685,8 +712,16 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 		"priorityKey":        priorityKey,
 		"scoreBar":           scoreBarHTML,
 		"scoreBarTip":        scoreBarTipHTML,
-		"hasPrimary":         reportsHavePrimary,
-		"nonPrimaryCount":    reportsNonPrimaryCount,
+		// rubricCells: a fixed 4-slot bar for a 0-4 rubric value; true = filled cell.
+		"rubricCells": func(v int) []bool {
+			cells := make([]bool, 4)
+			for i := range cells {
+				cells[i] = i < v
+			}
+			return cells
+		},
+		"hasPrimary":      reportsHavePrimary,
+		"nonPrimaryCount": reportsNonPrimaryCount,
 		// overview grid helpers
 		// evenIndex: i=0 is EXEC (full-width); i=2,4,6… are left-column cells → get border-right
 		"evenIndex": func(i int) bool { return i%2 == 0 },
@@ -702,7 +737,7 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 	data.StyleCSS = template.CSS(body)
 	data.StyleLink = template.HTML(link)
 
-	scriptJS, err := loadBuiltAsset("digest.js")
+	scriptJS, err := loadBuiltAsset(layout, "digest.js")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load digest JS: %w", err)
 	}
@@ -1389,7 +1424,7 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout, theme string
 	if err != nil {
 		return nil, fmt.Errorf("failed to load index CSS: %w", err)
 	}
-	scriptJS, err := loadBuiltAsset("archive-index.js")
+	scriptJS, err := loadBuiltAsset(layout, "archive-index.js")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load index JS: %w", err)
 	}
@@ -1452,7 +1487,7 @@ func RenderSourcesPage(feeds []models.Feed, layout, theme string, opts ...Render
 	if err != nil {
 		return nil, fmt.Errorf("failed to load sources CSS: %w", err)
 	}
-	scriptJS, err := loadBuiltAsset("sources.js")
+	scriptJS, err := loadBuiltAsset(layout, "sources.js")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load sources JS: %w", err)
 	}

@@ -200,7 +200,7 @@ func RenderSwipeHTML(digest models.Digest, digestFilename string, layout, theme 
 	data.StyleCSS = template.CSS(styleBody)
 	data.StyleLink = template.HTML(styleLink)
 
-	scriptJS, err := loadBuiltAsset("swipe.js")
+	scriptJS, err := loadBuiltAsset(layout, "swipe.js")
 	if err != nil {
 		return nil, fmt.Errorf("swipe: load JS: %w", err)
 	}
