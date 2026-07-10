@@ -3,6 +3,7 @@ package manager
 import (
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/ma111e/downlink/cmd/server/internal/store"
@@ -170,4 +171,170 @@ func TestProfileTopicSelection(t *testing.T) {
 	if got := urls("ti"); !eq(got, []string{aptURL, apt2URL}) {
 		t.Errorf("ti after new apt feed = %v, want both apt feeds", got)
 	}
+}
+
+func boolp(b bool) *bool { return &b }
+
+func TestValidateProfileConfig(t *testing.T) {
+	cases := []struct {
+		name string
+		pc   models.ProfileConfig
+		want []string // substrings, one per expected warning; empty = clean
+	}{
+		{
+			name: "fully valid profile is clean",
+			pc: models.ProfileConfig{
+				Slug:   "ok",
+				Layout: "default",
+				Theme:  "dark",
+				Editorial: &models.ProfileEditorial{
+					Prompts: &models.PromptOverrides{Tasks: map[string]string{"rubric": "custom"}},
+					Rubric: &models.RubricConfig{
+						Weights: map[string]float64{
+							"specificity": 0.20, "severity": 0.20, "breadth": 0.15,
+							"novelty": 0.15, "actionability": 0.15, "credibility": 0.15,
+						},
+						Tiers: &models.TierThresholds{Must: 80, Should: 60, May: 40},
+					},
+				},
+			},
+		},
+		{
+			name: "unknown prompt task key",
+			pc: models.ProfileConfig{Slug: "p", Editorial: &models.ProfileEditorial{
+				Prompts: &models.PromptOverrides{Tasks: map[string]string{"tldrr": "x"}},
+			}},
+			want: []string{"unknown prompt task"},
+		},
+		{
+			name: "importance override without vibe mode",
+			pc: models.ProfileConfig{Slug: "p", Editorial: &models.ProfileEditorial{
+				Prompts: &models.PromptOverrides{Tasks: map[string]string{"importance": "x"}},
+			}},
+			want: []string{"vibe_score"},
+		},
+		{
+			name: "rubric override in vibe mode",
+			pc: models.ProfileConfig{Slug: "p", Editorial: &models.ProfileEditorial{
+				VibeScore: boolp(true),
+				Prompts:   &models.PromptOverrides{Tasks: map[string]string{"rubric": "x"}},
+			}},
+			want: []string{"vibe_score"},
+		},
+		{
+			name: "unknown rubric weight key",
+			pc: models.ProfileConfig{Slug: "p", Editorial: &models.ProfileEditorial{
+				Rubric: &models.RubricConfig{Weights: map[string]float64{"severty": 0.25}},
+			}},
+			want: []string{"unknown rubric weight"},
+		},
+		{
+			name: "weights not summing to one",
+			pc: models.ProfileConfig{Slug: "p", Editorial: &models.ProfileEditorial{
+				Rubric: &models.RubricConfig{Weights: map[string]float64{
+					"specificity": 0.40, "severity": 0.40, "breadth": 0.30,
+					"novelty": 0.20, "actionability": 0.10, "credibility": 0.10,
+				}},
+			}},
+			want: []string{"weights sum"},
+		},
+		{
+			name: "misordered tiers",
+			pc: models.ProfileConfig{Slug: "p", Editorial: &models.ProfileEditorial{
+				Rubric: &models.RubricConfig{Tiers: &models.TierThresholds{Must: 50, Should: 60, May: 40}},
+			}},
+			want: []string{"tiers"},
+		},
+		{
+			name: "unknown layout",
+			pc:   models.ProfileConfig{Slug: "p", Layout: "brutalist"},
+			want: []string{"unknown layout"},
+		},
+		{
+			name: "unknown theme",
+			pc:   models.ProfileConfig{Slug: "p", Theme: "neon"},
+			want: []string{"unknown theme"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := validateProfileConfig(tc.pc)
+			if len(got) != len(tc.want) {
+				t.Fatalf("warnings = %v, want %d matching %v", got, len(tc.want), tc.want)
+			}
+			for i, sub := range tc.want {
+				if !strings.Contains(got[i], sub) {
+					t.Errorf("warning[%d] = %q, want substring %q", i, got[i], sub)
+				}
+			}
+		})
+	}
+}
+
+func TestApplyProfilesWarningsAndCollisions(t *testing.T) {
+	newManager := func(t *testing.T) *FeedManager {
+		db, err := store.New(filepath.Join(t.TempDir(), "test.db"))
+		if err != nil {
+			t.Fatalf("store.New: %v", err)
+		}
+		t.Cleanup(func() { _ = db.Close() })
+		return NewFeedManager(db)
+	}
+
+	t.Run("warnings are collected with slug prefix", func(t *testing.T) {
+		m := newManager(t)
+		res, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
+			{Slug: "typo", Theme: "neon"},
+		}})
+		if err != nil {
+			t.Fatalf("ApplyProfiles: %v", err)
+		}
+		if len(res.Warnings) != 1 || !strings.HasPrefix(res.Warnings[0], "typo: ") {
+			t.Errorf("Warnings = %v, want one entry prefixed with the slug", res.Warnings)
+		}
+		if len(res.Upserted) != 1 {
+			t.Errorf("warnings must not block the upsert: %+v", res)
+		}
+	})
+
+	t.Run("duplicate slug fails", func(t *testing.T) {
+		m := newManager(t)
+		_, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
+			{Slug: "twin"}, {Slug: "twin"},
+		}})
+		if err == nil || !strings.Contains(err.Error(), "duplicate profile slug") {
+			t.Errorf("err = %v, want duplicate-slug error", err)
+		}
+	})
+
+	t.Run("duplicate output subdir fails", func(t *testing.T) {
+		m := newManager(t)
+		_, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
+			{Slug: "a", OutputSubdir: "shared"}, {Slug: "b", OutputSubdir: "shared"},
+		}})
+		if err == nil || !strings.Contains(err.Error(), "shared") {
+			t.Errorf("err = %v, want subdir-collision error", err)
+		}
+	})
+
+	t.Run("collision with the seeded default profile fails", func(t *testing.T) {
+		// With no configured output dir the default profile publishes to "digests".
+		m := newManager(t)
+		_, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
+			{Slug: "hijack", OutputSubdir: "digests"},
+		}})
+		if err == nil || !strings.Contains(err.Error(), "default") {
+			t.Errorf("err = %v, want collision with default profile", err)
+		}
+	})
+
+	t.Run("redefining default in the file is not a self-collision", func(t *testing.T) {
+		m := newManager(t)
+		if _, err := m.ApplyProfiles(&models.ProfilesFile{Profiles: []models.ProfileConfig{
+			{Slug: "default"},
+		}}); err != nil {
+			t.Errorf("ApplyProfiles with explicit default entry: %v", err)
+		}
+	})
 }

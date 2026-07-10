@@ -99,10 +99,26 @@ type TierThresholds struct {
 	May    int `json:"may" yaml:"may"`
 }
 
+// KnownPromptTaskNames is the set of analysis task names a profile may override
+// via PromptOverrides.Tasks. "rubric" is the scoring task in default mode;
+// "importance" is its legacy replacement, only run under vibe_score: true.
+var KnownPromptTaskNames = map[string]bool{
+	"categorize":         true,
+	"tldr":               true,
+	"plain_words":        true,
+	"key_points":         true,
+	"insights":           true,
+	"referenced_reports": true,
+	"summaries":          true,
+	"glossary":           true,
+	"rubric":             true,
+	"importance":         true,
+}
+
 // PromptOverrides lets a profile replace task instructions verbatim. Tasks is
-// keyed by analysis task name (categorize, tldr, plain_words, key_points,
-// insights, referenced_reports, summaries, glossary, importance). Output schema
-// and required keys are NOT overridable, so validation still applies.
+// keyed by analysis task name (see KnownPromptTaskNames; the scoring task is
+// "rubric" in default mode, "importance" only under vibe_score: true). Output
+// schema and required keys are NOT overridable, so validation still applies.
 type PromptOverrides struct {
 	Tasks         map[string]string `json:"tasks,omitempty" yaml:"tasks,omitempty"`
 	DigestSummary string            `json:"digest_summary,omitempty" yaml:"digest_summary,omitempty"`

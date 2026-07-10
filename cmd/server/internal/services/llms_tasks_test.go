@@ -144,3 +144,27 @@ func TestCategorizeTaskCustomCategories(t *testing.T) {
 		t.Errorf("custom categorize instruction missing described category: %s", custom.instruction)
 	}
 }
+
+// TestGetAnalysisTasksNamesAreKnown guards models.KnownPromptTaskNames against
+// drift: every task the pipeline can emit must be listed there, or profile
+// prompt-override validation would flag a real task name as unknown.
+func TestGetAnalysisTasksNamesAreKnown(t *testing.T) {
+	variants := map[string]struct {
+		contentLen int
+		fastMode   bool
+		ed         EffectiveEditorial
+	}{
+		"fast":         {500, true, edFlags(false, false, false, false)},
+		"rubric":       {2000, false, edFlags(false, false, false, false)},
+		"vibe":         {2000, false, edFlags(true, false, false, false)},
+		"glossary":     {2000, false, edFlags(false, true, false, false)},
+		"all-optional": {2000, false, edFlags(true, true, true, true)},
+	}
+	for label, v := range variants {
+		for _, task := range getAnalysisTasks(v.contentLen, v.fastMode, v.ed) {
+			if !models.KnownPromptTaskNames[task.name] {
+				t.Errorf("%s: task %q missing from models.KnownPromptTaskNames", label, task.name)
+			}
+		}
+	}
+}
