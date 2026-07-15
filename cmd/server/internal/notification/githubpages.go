@@ -1092,6 +1092,26 @@ func (p *GitHubPagesPublisher) RepublishAllLayouts(digests []models.Digest, layo
 		})
 	}
 
+	// The primary (base) layout's manifest is the canonical list of published
+	// digests. Compute it once and mirror it into every layout so a newly added
+	// layout, whose subdir has no manifest yet, still renders the same set instead
+	// of no-op'ing on an empty manifest.
+	auth := &githttp.BasicAuth{
+		Username: "x-access-token",
+		Password: p.cfg.Token,
+	}
+	if _, err := p.ensureRepo(auth); err != nil {
+		return fmt.Errorf("github pages: failed to prepare local repo: %w", err)
+	}
+	baseManifest, err := LoadManifest(filepath.Join(p.cfg.CloneDir, base, ManifestFilename))
+	if err != nil {
+		return fmt.Errorf("github pages: load manifest: %w", err)
+	}
+	published := make(map[string]bool, len(baseManifest.Digests))
+	for _, e := range baseManifest.Digests {
+		published[e.Filename] = true
+	}
+
 	for i, layout := range effective {
 		subCfg := p.cfg
 		subCfg.OutputDir = LayoutScopedSubdir(base, layout, i == 0)
@@ -1109,7 +1129,7 @@ func (p *GitHubPagesPublisher) RepublishAllLayouts(digests []models.Digest, layo
 		sub.theme = p.theme
 		sub.SetLayoutPeers(peers)
 
-		if err := sub.RepublishAll(digests, layout, dryRun, wait, rebase); err != nil {
+		if err := sub.republishAllFiltered(digests, layout, published, dryRun, wait, rebase); err != nil {
 			return err
 		}
 	}
@@ -1117,6 +1137,15 @@ func (p *GitHubPagesPublisher) RepublishAllLayouts(digests []models.Digest, layo
 }
 
 func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout string, dryRun, wait, rebase bool) error {
+	return p.republishAllFiltered(digests, layout, nil, dryRun, wait, rebase)
+}
+
+// republishAllFiltered re-renders the published digests for a single layout. The
+// set of digests to render is taken from publishedFilter when non-nil; otherwise
+// it is derived from this output subdir's own manifest. Passing an explicit
+// filter lets a caller mirror another layout's published set into a subdir that
+// has no manifest of its own yet (e.g. a newly added layout).
+func (p *GitHubPagesPublisher) republishAllFiltered(digests []models.Digest, layout string, publishedFilter map[string]bool, dryRun, wait, rebase bool) error {
 	if len(digests) == 0 {
 		log.Info("RepublishAll: no digests to republish")
 		return nil
@@ -1156,9 +1185,12 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout stri
 	if err != nil {
 		return fmt.Errorf("github pages: load manifest: %w", err)
 	}
-	published := make(map[string]bool, len(manifest.Digests))
-	for _, e := range manifest.Digests {
-		published[e.Filename] = true
+	published := publishedFilter
+	if published == nil {
+		published = make(map[string]bool, len(manifest.Digests))
+		for _, e := range manifest.Digests {
+			published[e.Filename] = true
+		}
 	}
 	var toRender []models.Digest
 	for _, d := range digests {
