@@ -98,7 +98,7 @@ Generate and view digests. See [digests.md](digests.md).
 | `digest get [id]` | Show a digest summary and its articles. `--markdown` for styled prose. |
 | `digest generate` | Build a new digest from a time window (default: last 24h). `--profile <slug>` generates for one [profile](profiles.md); many other flags, see [digests.md](digests.md). |
 | `digest articles [id]` | List the articles in a digest. |
-| `digest list --themes` | List available layouts and exit. |
+| `digest list --layouts` | List available layouts and exit. |
 
 Profiles are defined in `profiles.yml` and applied at server startup (no `dlk` command);
 see [profiles.md](profiles.md).
@@ -138,10 +138,10 @@ with a token and do not need a running server, except `add`, `republish`, and
 `republish-all`, which fetch digests from the server. See [github-pages.md](github-pages.md).
 
 Persistent flags (all subcommands): `--repo`, `--branch`, `--token`, `--output-dir`,
-`--configure-pages`, `--clone-dir`, `--commit-author`, `--commit-email`, `--theme`,
+`--configure-pages`, `--clone-dir`, `--commit-author`, `--commit-email`, `--layout`,
 `--window-days` (days of digests to retain in the manifest and feeds; `0` uses the default
-of 30). The token can also come from `DOWNLINK_GH_PAGES_TOKEN`; `--theme` from
-`DOWNLINK_GH_PAGES_THEME`; `--window-days` from `DOWNLINK_GH_PAGES_WINDOW_DAYS`.
+of 30). The token can also come from `DOWNLINK_GH_PAGES_TOKEN`; `--layout` from
+`DOWNLINK_GH_PAGES_LAYOUT`; `--window-days` from `DOWNLINK_GH_PAGES_WINDOW_DAYS`.
 
 | Command | Description |
 |---|---|

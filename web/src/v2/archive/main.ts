@@ -7,7 +7,7 @@ import '../../css/v2/archive-index.css'
 (function () {
   var THEME_KEY = 'downlink.theme';
 
-  var WINDOWS = ['all', '4h', '1d'];
+  var WINDOWS = ['all', '4h', '8h', '12h', '1d', '1w'];
   var SORTS = ['newest', 'must-reads', 'articles'];
 
   var state = {
@@ -78,11 +78,39 @@ import '../../css/v2/archive-index.css'
     try { localStorage.setItem(THEME_KEY, state.theme); } catch (e) {}
   });
 
+  // Settings menu (gear dropdown holding the theme select + Animations switch).
+  // The pre-paint IIFE applies the persisted downlink.anim flag; this only toggles it.
+  var ANIM_KEY = 'downlink.anim';
+  var settingsCard = document.getElementById('settings-card') as HTMLElement | null;
+  var settingsBtn = document.getElementById('settings-toggle') as HTMLElement | null;
+  var animBtn = document.getElementById('set-anim') as HTMLElement | null;
+  function animOff() { return document.documentElement.dataset.anim === 'off'; }
+  function syncAnim() { if (animBtn) animBtn.setAttribute('aria-checked', animOff() ? 'false' : 'true'); }
+  function setSettingsOpen(open: boolean) {
+    if (!settingsCard || !settingsBtn) return;
+    settingsCard.hidden = !open;
+    settingsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  if (settingsBtn) settingsBtn.addEventListener('click', function () { setSettingsOpen(!!settingsCard && settingsCard.hidden); });
+  if (animBtn) animBtn.addEventListener('click', function () {
+    if (animOff()) delete document.documentElement.dataset.anim;
+    else document.documentElement.dataset.anim = 'off';
+    try { localStorage.setItem(ANIM_KEY, animOff() ? 'off' : 'on'); } catch (e) {}
+    syncAnim();
+  });
+  syncAnim();
+  document.addEventListener('click', function (e) {
+    if (!settingsCard || settingsCard.hidden) return;
+    if ((e.target as HTMLElement).closest('#nav-settings')) return;
+    setSettingsOpen(false);
+  });
+
   document.addEventListener('keydown', function (e) {
     var t = e.target as HTMLElement;
     var editing = t && ['INPUT', 'SELECT', 'TEXTAREA'].indexOf(t.tagName) >= 0;
     if (editing) { if (e.key === 'Escape') t.blur(); return; }
     if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.key === 'Escape') { setSettingsOpen(false); return; }
     if (e.key === '/') { e.preventDefault(); els.search.focus(); return; }
     if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); setActive(state.active + 1); }
     else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); setActive(state.active - 1); }
@@ -107,7 +135,7 @@ import '../../css/v2/archive-index.css'
     var groups: Record<string, any> = {};
     state.rows.forEach(function (d) {
       if (state.mustOnly && !(d.must_count > 0)) return;
-      if (win !== 'all' && (d.time_window || '') !== win) return;
+      if (win !== 'all' && winBucket(d.time_window) !== win) return;
       if (q && !matchesQuery(d, q)) return;
       var dt = parseTs(d.period_start || d.started_at);
       var key = dt ? dt.toISOString().slice(0, 10) : 'unknown';
@@ -165,6 +193,7 @@ import '../../css/v2/archive-index.css'
     var dtEnd = parseTs(latest.period_end || latest.started_at);
     var model = (latest.models && latest.models.length ? latest.models.join(' · ') : latest.model) || 'unknown';
     els.hero.innerHTML =
+      '<div class="v2-hero-top">' +
       '<div class="v2-hero-main">' +
       '<div class="v2-hero-kicker">LATEST · ' + escapeHTML(windowRange(dt, dtEnd)) + ' · ' + escapeHTML(relDate(dtEnd)) + '</div>' +
       '<a class="v2-hero-title" href="' + escapeAttr(digestURL(latest.filename)) + '">' + escapeHTML(topHeadline(latest)) + '</a>' +
@@ -177,7 +206,34 @@ import '../../css/v2/archive-index.css'
       '<div class="v2-hero-cta">' +
       '<a class="v2-btn v2-btn-primary" href="' + escapeAttr(digestURL(latest.filename)) + '">OPEN DIGEST →</a>' +
       '<a class="v2-btn" href="' + escapeAttr(swipeURL(latest.filename)) + '">TRIAGE</a>' +
-      '</div>';
+      '</div></div>' +
+      heroList(latest);
+  }
+
+  // The latest digest's article titles, each tagged with its priority, sorted by
+  // importance (as the manifest delivers them). Scrolls when it overflows.
+  function heroList(d: any) {
+    var headlines = d.headlines || [];
+    if (!headlines.length) return '';
+    var href = escapeAttr(digestURL(d.filename));
+    return '<ul class="v2-hero-list">' + headlines.map(function (h: any) {
+      var pri = (h.priority || '').toLowerCase();
+      var cls = (pri === 'must' || pri === 'should' || pri === 'may') ? pri : 'opt';
+      return '<li><a class="v2-hero-item" href="' + href + '">' +
+        '<span class="v2-hero-pri ' + cls + '">' + escapeHTML(cls) + '</span>' +
+        '<span class="v2-hero-item-title">' + escapeHTML(headlineText(h)) + '</span></a></li>';
+    }).join('') + '</ul>';
+  }
+
+  // Bucket a human time_window ("8 hours", "1 day", "45 min", ...) into one of the
+  // fixed window keys the UI colors and filters by, cool (short) -> warm (long).
+  // Returns '' for unknown/absent values.
+  function winBucket(win: string) {
+    var m = (win || '').toLowerCase().match(/(\d+)\s*(min|hour|day|week)/);
+    if (!m) return '';
+    var n = Number(m[1]);
+    var hours = m[2] === 'week' ? n * 168 : m[2] === 'day' ? n * 24 : m[2] === 'min' ? 0 : n;
+    return hours <= 4 ? '4h' : hours <= 8 ? '8h' : hours <= 12 ? '12h' : hours <= 24 ? '1d' : '1w';
   }
 
   function rowHTML(d: any, idx: number) {
@@ -185,7 +241,7 @@ import '../../css/v2/archive-index.css'
     var win = d.time_window || '—';
     return '<a class="v2-row" data-index="' + idx + '" href="' + escapeAttr(digestURL(d.filename)) + '">' +
       '<span class="v2-row-ts">' + escapeHTML(fmtTime(dt)) + ' <span class="v2-dim">UTC</span></span>' +
-      '<span class="v2-row-win' + (win === '1d' ? ' is-day' : '') + '">' + escapeHTML(win) + '</span>' +
+      '<span class="v2-row-win' + (winBucket(win) ? ' win-' + winBucket(win) : '') + '">' + escapeHTML(win) + '</span>' +
       '<span class="v2-row-head">' + escapeHTML(topHeadline(d)) + '</span>' +
       priorityBar(d) +
       '<span class="v2-row-count">' + (d.article_count || 0) + ' →</span></a>';

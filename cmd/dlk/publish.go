@@ -45,7 +45,7 @@ GitHub directly using the provided token.`,
 	cmd.PersistentFlags().StringVar(&cloneDir, "clone-dir", "", "Local directory for the repo clone (default: $TMPDIR/downlink-ghpages)")
 	cmd.PersistentFlags().StringVar(&commitAuthor, "commit-author", "", "Git commit author name (default: downlink-bot)")
 	cmd.PersistentFlags().StringVar(&commitEmail, "commit-email", "", "Git commit author email (default: downlink-bot@users.noreply.github.com)")
-	cmd.PersistentFlags().StringVar(&layout, "theme", "", "Layout theme for rendered pages, empty = default (see: digest list --themes)")
+	cmd.PersistentFlags().StringVar(&layout, "layout", "", "Layout for rendered pages, empty = default (see: digest list --layouts)")
 	cmd.PersistentFlags().IntVar(&windowDays, "window-days", 0, "Days of digests to retain in the manifest and feeds (0 = default 30; env: DOWNLINK_GH_PAGES_WINDOW_DAYS)")
 	cmd.PersistentFlags().BoolVar(&selfContained, "self-contained", false, "Inline CSS into every page instead of linking shared external .css files (env: DOWNLINK_GH_PAGES_SELF_CONTAINED)")
 
@@ -74,9 +74,9 @@ GitHub directly using the provided token.`,
 		cloneDir = envString("DOWNLINK_GH_PAGES_CLONE_DIR", cloneDir)
 		commitAuthor = envString("DOWNLINK_GH_PAGES_COMMIT_AUTHOR", commitAuthor)
 		commitEmail = envString("DOWNLINK_GH_PAGES_COMMIT_EMAIL", commitEmail)
-		layout = envString("DOWNLINK_GH_PAGES_THEME", layout)
+		layout = envString("DOWNLINK_GH_PAGES_LAYOUT", layout)
 		if layout != "" && !digestlayouts.Valid(layout) {
-			return models.GitHubPagesNotificationConfig{}, fmt.Errorf("unknown layout theme %q; run 'digest list --themes' to see available themes", layout)
+			return models.GitHubPagesNotificationConfig{}, fmt.Errorf("unknown layout %q; run 'digest list --layouts' to see available layouts", layout)
 		}
 		var err error
 		configurePages, err = envBool("DOWNLINK_GH_PAGES_CONFIGURE", configurePages)

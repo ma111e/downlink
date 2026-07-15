@@ -4,6 +4,29 @@
    The palette is embedded here so the page is self-contained across all six themes,
    matching downlink's convention where each page stylesheet carries its own palette. */
 
+/* cross-document page transition (same as the v1 pages). The destination page's CSS
+   drives the animation, so landing on a digest (drilling "in" from the index) plays
+   right-to-left: the outgoing index slides left while the digest slides in from the
+   right. Unsupported browsers (e.g. Firefox) navigate instantly. */
+@view-transition { navigation: auto; }
+@keyframes vt-slide-fade-out {
+  to { opacity: 0; transform: translateX(-24px); }
+}
+@keyframes vt-slide-fade-in {
+  from { opacity: 0; transform: translateX(24px); }
+}
+/* Scoped to html[data-vt] (set on pagereveal only for cross-document arrivals) so the
+   root slide never fires for the same-document article-swap transition below — an
+   unscoped root rule would slide the whole page on every TOC selection. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-vt]::view-transition-old(root) {
+    animation: vt-slide-fade-out 220ms cubic-bezier(0.4, 0, 1, 1) both;
+  }
+  html[data-vt]::view-transition-new(root) {
+    animation: vt-slide-fade-in 320ms cubic-bezier(0, 0, 0.2, 1) 120ms both;
+  }
+}
+
 /* ---- theme palette (keep in sync with web/src/css/digest.css) ---- */
 :root {
   --bg:      #0b0b0e;
@@ -14,7 +37,7 @@
   --border2: #252530;
   --text:    #dddde8;
   --text2:   #a8a8be;
-  --text3:   #4a4a60;
+  --text3:   #75758c;
   --cyan:    oklch(74% 0.14 196);
   --accent-text: #0b0b0e;
   --green:   oklch(74% 0.16 150);
@@ -25,6 +48,9 @@
   --mono:    'IBM Plex Mono', 'SF Mono', 'Fira Code', Consolas, monospace;
   --sans:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --radius:  4px;
+  --t-fast:  120ms;
+  --t-med:   160ms;
+  --ease-out: cubic-bezier(.25, .7, .3, 1);
   --cat-research: oklch(72% 0.19 320);
   --cat-advisory: oklch(74% 0.18 44);
   --cat-news:     oklch(72% 0.15 220);
@@ -45,7 +71,7 @@ html[data-theme="light"] {
   --text:    #0d0c0a;
   --text2:   #273f4f;
   --text3:   #5c6e78;
-  --cyan:    oklch(66% 0.18 45);
+  --cyan:    oklch(74% 0.16 45);
   --accent-text: #0d0c0a;
   --green:   oklch(66% 0.18 150);
   --violet:  oklch(66% 0.18 300);
@@ -98,7 +124,7 @@ html[data-theme="mono"] {
   --border2: #333333;
   --text:    #e6e6e6;
   --text2:   #9a9a9a;
-  --text3:   #5e5e5e;
+  --text3:   #7a7a7a;
   --cyan:    #e6e6e6;
   --accent-text: #0c0c0c;
   --green:   #cfcfcf;
@@ -171,6 +197,12 @@ html[data-theme="pastel"] {
   --dot:     rgba(0,0,0,.03);
 }
 
+/* Native form controls (the theme select's popup list) must follow the theme —
+   without this the browser paints its default light dropdown over the dark card. */
+:root { color-scheme: dark; }
+html[data-theme="light"], html[data-theme="colorblind"], html[data-theme="pastel"] { color-scheme: light; }
+.v2-theme option { background: var(--surface); color: var(--text); }
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body.v2 {
@@ -182,7 +214,34 @@ body.v2 {
 body.v2 a { color: inherit; text-decoration: none; }
 body.v2 ::selection { background: color-mix(in srgb, var(--cyan) 25%, transparent); }
 
+/* ---- motion -------------------------------------------------------------------
+   Instrument-style motion: short ease-out entrances on opacity/transform only, so
+   nothing ever blocks input or animates layout. Closes/dismissals stay instant.
+   Most entrances are pure CSS: toggling `hidden` (or .active/.open) changes display,
+   which restarts the element's animation. */
+/* Big panels move without fading (a full-region fade reads as a luminance flash,
+   worst on the light themes); soft fades start at .4 for mid-size content; full
+   0→1 fades are reserved for small overlays that genuinely appear. */
+@keyframes v2-settle { from { transform: translateY(5px); } }
+@keyframes v2-open  { from { opacity: .4; transform: translateY(5px); } }
+@keyframes v2-soft  { from { opacity: .4; } }
+@keyframes v2-meter { from { transform: scaleX(0); } }
+@keyframes v2-drop  { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@keyframes v2-toast { from { opacity: 0; transform: translateY(8px); } }
+
 .v2-page { min-height: 100vh; height: 100vh; display: flex; flex-direction: column; }
+
+/* One-time load cascade: topbar → head → toc → detail settle top-down in ~300ms;
+   the page is interactive the whole time. */
+.v2-topbar, .v2-head, .v2-toc, .v2-detail-pane { animation: v2-settle 180ms var(--ease-out) backwards; }
+.v2-head { animation-delay: 40ms; }
+.v2-toc { animation-delay: 80ms; }
+.v2-detail-pane { animation-delay: 120ms; }
+/* When the page arrives via the cross-document view transition, the slide is the
+   entrance — skip the cascade so the two never stack. data-vt is set on pagereveal
+   and cleared when the transition finishes. */
+html[data-vt] .v2-topbar, html[data-vt] .v2-head, html[data-vt] .v2-toc,
+html[data-vt] .v2-detail-pane { animation: none; }
 
 /* ---- topbar ---- */
 .v2-topbar {
@@ -210,9 +269,19 @@ body.v2 ::selection { background: color-mix(in srgb, var(--cyan) 25%, transparen
   padding: 4px 10px; cursor: pointer; white-space: nowrap;
   display: inline-flex; align-items: center; gap: 7px;
 }
-.v2-chip:hover { opacity: .82; }
+.v2-chip:hover { color: var(--text); border-color: var(--text3); }
+.v2-chip-icon { padding: 4px 7px; color: var(--text2) !important; }
 .v2-chip.on { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, transparent); }
-.v2-caret { font-size: 8px; }
+/* Interactive chrome sharpens on hover (colour, never opacity) and presses down 1px. */
+.v2-chip, .v2-cat, .v2-tag-pill, .v2-prio, .v2-btn, .v2-dup-toggle, .v2-report-more, .v2-tab, .v2-learn-caret, .v2-theme {
+  transition: color var(--t-fast), border-color var(--t-fast), background-color var(--t-fast);
+}
+.v2-chip:active, .v2-cat:active, .v2-tag-pill:active, .v2-prio:active, .v2-btn:active,
+.v2-dup-toggle:active, .v2-report-more:active { transform: translateY(1px); }
+/* disclosure caret shared by the brief / justification / duplicates / reports toggles and
+   the plain-words label; rotates 180° when its section expands (.on, or .open for plain). */
+.v2-caret { display: inline-block; font-size: 10.5px; line-height: 1; transition: transform .2s ease; }
+.on .v2-caret, .v2-plain-label.open .v2-caret { transform: rotate(180deg); }
 
 /* learning switch */
 .v2-learn-track {
@@ -242,11 +311,103 @@ html[data-learning="on"] .v2-help-mini { display: inline-flex; }
 }
 .v2-help-flash.is-shown { opacity: 1; }
 
+/* ---- learn card (caret-opened) ------------------------------------------------
+   The LEARNING chip gains a caret that drops a card holding the help-level slider
+   (Full → Partial → Minimal) and the feature switches (Plain words / Glossary).
+   Accent is --cyan to match the rest of the v2 chrome. */
+.v2-learn-wrap { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.v2-learn-caret {
+  display: inline-flex; align-items: center; font-size: 9px; line-height: 1;
+  color: var(--text2); background: transparent; border: 1px solid var(--border2);
+  border-radius: 3px; padding: 4px 7px; cursor: pointer;
+  /* Learning off: keep the caret visible but greyed out and inert. */
+  opacity: .4; pointer-events: none;
+}
+html[data-learning="on"] .v2-learn-caret { opacity: 1; pointer-events: auto; }
+.v2-learn-caret:hover { color: var(--text); }
+.v2-learn-caret[aria-expanded="true"] { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, transparent); }
+
+.v2-learn-card {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 50; min-width: 210px;
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 6px;
+  padding: 8px; box-shadow: 0 8px 30px rgba(0,0,0,.4);
+}
+.v2-learn-card[hidden] { display: none; }
+.v2-learn-card:not([hidden]) { animation: v2-drop var(--t-fast) var(--ease-out); transform-origin: top right; }
+.v2-learn-card-title {
+  font: 600 9px var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text3); padding: 2px 4px 6px;
+}
+/* help-level slider: track + 3 stops (left=Full, right=Minimal) + a draggable knob. */
+.v2-help-slider { position: relative; height: 20px; margin: 0 4px 2px; cursor: pointer; touch-action: none; border-radius: 999px; }
+.v2-help-slider:focus-visible { outline: 1px solid var(--cyan); outline-offset: 2px; }
+.v2-help-slider-track { position: absolute; top: 50%; left: 5px; right: 5px; height: 4px; transform: translateY(-50%); background: var(--border2); border-radius: 999px; }
+.v2-help-slider-dot { position: absolute; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--text3); transform: translate(-50%, -50%); transition: background .12s; }
+.v2-help-slider-dot[data-pos="0"] { left: 5px; }
+.v2-help-slider-dot[data-pos="1"] { left: 50%; }
+.v2-help-slider-dot[data-pos="2"] { left: calc(100% - 5px); }
+.v2-help-slider-dot.is-active { background: var(--cyan); }
+.v2-help-slider-knob {
+  position: absolute; top: 50%; left: 5px; width: 13px; height: 13px; border-radius: 50%;
+  background: var(--text); border: 1px solid var(--border); transform: translate(-50%, -50%);
+  transition: left .12s; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+.v2-help-slider-ends {
+  display: flex; justify-content: space-between; padding: 0 4px 6px;
+  font: 400 9px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text3);
+}
+.v2-learn-feature {
+  display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px;
+  background: none; border: none; border-radius: 4px; padding: 6px 4px; cursor: pointer;
+  color: var(--text2); font: 400 12px var(--sans);
+}
+.v2-learn-feature:hover { background: color-mix(in srgb, var(--cyan) 8%, transparent); color: var(--text); }
+.v2-learn-feature:focus-visible { outline: 1px solid var(--cyan); outline-offset: -1px; }
+.v2-learn-feature-label { flex: 1; text-align: left; }
+.v2-learn-switch { position: relative; width: 26px; height: 14px; border-radius: 999px; background: var(--border2); transition: background .15s; flex: none; }
+.v2-learn-switch-knob { position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--text3); transition: transform .15s, background .15s; }
+.v2-learn-feature[aria-checked="true"] { color: var(--text); }
+.v2-learn-feature[aria-checked="true"] .v2-learn-switch { background: color-mix(in srgb, var(--cyan) 55%, transparent); }
+.v2-learn-feature[aria-checked="true"] .v2-learn-switch-knob { transform: translateX(12px); background: var(--cyan); }
+
+/* ---- settings menu (gear-opened) -----------------------------------------------
+   Topbar gear button dropping a card with the theme select, the Animations switch,
+   and the tour launcher. Reuses the learn-card title/feature/switch styles. */
+.v2-settings-wrap { position: relative; display: inline-flex; align-items: center; }
+.v2-settings-card {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 50; min-width: 210px;
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 6px;
+  padding: 8px; box-shadow: 0 8px 30px rgba(0,0,0,.4);
+}
+.v2-settings-card[hidden] { display: none; }
+.v2-settings-card:not([hidden]) { animation: v2-drop var(--t-fast) var(--ease-out); transform-origin: top right; }
+.v2-settings-card .v2-theme { width: 100%; margin: 0 0 4px; }
+#settings-toggle[aria-expanded="true"] { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, transparent); }
+.v2-settings-go { font: 500 11px var(--mono); color: var(--text3); }
+
+/* "In plain words": a collapsible plain-language restatement, shown only under
+   Learning + the Plain-words feature. The body expands on clicking the label. */
+.v2-plain-block { display: none; margin-top: 16px; }
+html[data-learning="on"][data-learn-plain="on"] .v2-plain-block { display: block; }
+.v2-plain-label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; background: none; border: none; padding: 0; margin: 0; }
+/* caret sizing/rotation handled by the shared .v2-caret rules near the topbar */
+.v2-plain-body { display: none; margin-top: 8px; }
+.v2-plain-body.open { display: block; animation: v2-open var(--t-med) var(--ease-out); }
+
 /* ---- header block ---- */
 .v2-head { padding: 16px 28px 12px; border-bottom: 1px solid var(--border); flex: none; }
 .v2-head-title { font: 600 16px/1.4 var(--sans); color: var(--text); }
 .v2-head-controls { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+/* category filters live on their own row below the priority filters */
+.v2-head-row { display: flex; gap: 8px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
 .v2-head-sep { width: 1px; height: 14px; background: var(--border2); }
+/* leading label for each filter group (PRIORITY / CATEGORY / TAGS), mirroring the v1 layout;
+   the shared min-width keeps the three button bars aligned down the left edge. */
+.v2-filter-label {
+  flex: none; min-width: 62px;
+  font: 600 8.5px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text3);
+}
 .v2-prio {
   font: 600 9.5px var(--mono); letter-spacing: .08em; border-radius: 2px; padding: 3px 8px;
   cursor: pointer; border: 1px solid transparent; background: var(--surface); color: var(--text2);
@@ -259,25 +420,40 @@ html[data-learning="on"] .v2-help-mini { display: inline-flex; }
 .v2-prio.on.v2-prio-may { border-color: color-mix(in srgb, var(--may) 45%, transparent); }
 
 /* category chips (ALL + each category) and the tag cloud — neutral terminal chips whose
-   active state uses the cyan accent, matching the priority chips. */
+   active state lights up in that category's own colour (--cat); the ALL chip has no
+   category, so it falls back to the cyan accent, matching the priority chips. */
 .v2-cat {
   font: 500 9.5px var(--mono); letter-spacing: .06em; text-transform: uppercase;
   border-radius: 2px; padding: 3px 8px; cursor: pointer;
   border: 1px solid var(--border2); background: transparent; color: var(--text2);
 }
-.v2-cat:hover { opacity: .82; }
-.v2-cat.on { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, transparent); }
+.v2-cat[data-cat="research"]     { --cat: var(--cat-research); }
+.v2-cat[data-cat="advisory"]     { --cat: var(--cat-advisory); }
+.v2-cat[data-cat="news"]         { --cat: var(--cat-news); }
+.v2-cat[data-cat="opinion"]      { --cat: var(--cat-opinion); }
+.v2-cat[data-cat="guide"]        { --cat: var(--cat-guide); }
+.v2-cat[data-cat="commercial"]   { --cat: var(--cat-commercial); }
+.v2-cat[data-cat="sponsored"]    { --cat: var(--cat-sponsored); }
+.v2-cat[data-cat="announcement"] { --cat: var(--cat-announcement); }
+.v2-cat:hover { color: var(--text); border-color: var(--text3); }
+.v2-cat.on { color: var(--cat, var(--cyan)); border-color: color-mix(in srgb, var(--cat, var(--cyan)) 45%, transparent); }
 .v2-cat-n { color: var(--text3); }
-.v2-cat.on .v2-cat-n { color: var(--cyan); }
+.v2-cat.on .v2-cat-n { color: var(--cat, var(--cyan)); }
+/* Promotions & announcements toggle (settings menu): hide these categories' filter
+   chips along with their TOC rows (rows are hidden in v2ApplyFilters). */
+html[data-promo="off"] .v2-cat[data-cat="commercial"],
+html[data-promo="off"] .v2-cat[data-cat="sponsored"],
+html[data-promo="off"] .v2-cat[data-cat="announcement"] { display: none; }
 
 .v2-tagcloud { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .v2-tag-pill {
   font: 400 9.5px var(--mono); border-radius: 2px; padding: 2px 7px; cursor: pointer;
   border: 1px solid var(--border); background: transparent; color: var(--text2);
 }
-.v2-tag-pill:hover { border-color: var(--border2); }
+.v2-tag-pill:hover { color: var(--text); border-color: var(--border2); }
 .v2-tag-pill.on { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, transparent); background: color-mix(in srgb, var(--cyan) 8%, transparent); }
-/* the "+N more" / "− less" expander: pills past the first 5 are hidden until toggled. */
+/* the "+N more" / "− less" expander: pills that overflow the first row are hidden (measured
+   in JS) until the toggle expands the cloud to wrap across multiple rows. */
 .v2-tag-pill.tag-hidden { display: none; }
 .v2-tag-more { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, transparent); }
 .v2-tag-more:hover { background: color-mix(in srgb, var(--cyan) 10%, transparent); }
@@ -290,6 +466,7 @@ html[data-learning="on"] .v2-help-mini { display: inline-flex; }
 /* display:grid above would otherwise defeat the `hidden` attribute on the collapsed
    brief panel (equal specificity, later rule wins); keep it hidden until toggled. */
 .v2-brief[hidden] { display: none; }
+.v2-brief:not([hidden]) { animation: v2-open var(--t-med) var(--ease-out); }
 .v2-brief-section:first-child { grid-column: 1 / -1; }
 .v2-brief-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 5px; }
 .v2-brief-tag { font: 600 9px var(--mono); letter-spacing: .1em; color: var(--cyan); }
@@ -317,25 +494,58 @@ html[data-learning="on"] .v2-help-mini { display: inline-flex; }
 }
 .v2-info-tip:hover::after { display: block; }
 
-.v2-toc-item { padding: 9px 18px; border-left: 2px solid transparent; cursor: pointer; }
+.v2-toc-item {
+  padding: 9px 18px; border-left: 2px solid transparent; cursor: pointer;
+}
+/* Filter re-scan: v2ApplyFilters re-adds .v2-reveal with a per-row --i so the first
+   visible rows cascade in (capped in JS; rows past the cap appear instantly). */
+.v2-toc-item.v2-reveal { animation: v2-soft var(--t-fast) var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 12ms); }
 .v2-toc-item:hover { background: var(--surface); }
 .v2-toc-item.is-active { border-left-color: var(--cyan); background: var(--surface); }
+/* Category label above each TOC entry — a leading square + uppercase mono label in the
+   category's palette colour, so the section a row belongs to reads at a glance. */
+.v2-toc-cat {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  font: 600 8.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text3);
+}
+.v2-toc-cat::before { content: ""; width: 6px; height: 6px; border-radius: 1px; background: currentColor; flex: none; }
+.v2-toc-item[data-category="research"]     .v2-toc-cat { color: var(--cat-research); }
+.v2-toc-item[data-category="advisory"]     .v2-toc-cat { color: var(--cat-advisory); }
+.v2-toc-item[data-category="news"]         .v2-toc-cat { color: var(--cat-news); }
+.v2-toc-item[data-category="opinion"]      .v2-toc-cat { color: var(--cat-opinion); }
+.v2-toc-item[data-category="guide"]        .v2-toc-cat { color: var(--cat-guide); }
+.v2-toc-item[data-category="commercial"]   .v2-toc-cat { color: var(--cat-commercial); }
+.v2-toc-item[data-category="sponsored"]    .v2-toc-cat { color: var(--cat-sponsored); }
+.v2-toc-item[data-category="announcement"] .v2-toc-cat { color: var(--cat-announcement); }
+/* Faint category-colored left bar per row so the section reads at a glance without the old
+   heavy eyebrow; the active row's solid --cyan bar (below) overrides it. */
+.v2-toc-item[data-category="research"]     { border-left-color: color-mix(in srgb, var(--cat-research)     30%, transparent); }
+.v2-toc-item[data-category="advisory"]     { border-left-color: color-mix(in srgb, var(--cat-advisory)     30%, transparent); }
+.v2-toc-item[data-category="news"]         { border-left-color: color-mix(in srgb, var(--cat-news)         30%, transparent); }
+.v2-toc-item[data-category="opinion"]      { border-left-color: color-mix(in srgb, var(--cat-opinion)      30%, transparent); }
+.v2-toc-item[data-category="guide"]        { border-left-color: color-mix(in srgb, var(--cat-guide)        30%, transparent); }
+.v2-toc-item[data-category="commercial"]   { border-left-color: color-mix(in srgb, var(--cat-commercial)   30%, transparent); }
+.v2-toc-item[data-category="sponsored"]    { border-left-color: color-mix(in srgb, var(--cat-sponsored)    30%, transparent); }
+.v2-toc-item[data-category="announcement"] { border-left-color: color-mix(in srgb, var(--cat-announcement) 30%, transparent); }
+/* keep the active row's solid bar winning over the per-category tints above */
+.v2-toc-item.is-active[data-category] { border-left-color: var(--cyan); }
 .v2-toc-item-top { display: flex; gap: 8px; align-items: baseline; }
-.v2-toc-num { font: 600 10px var(--mono); flex: none; }
-.v2-toc-title { font: 400 12px/1.4 var(--sans); color: var(--text2); flex: 1; min-width: 0; }
-.v2-toc-item.is-active .v2-toc-title { font-weight: 500; color: var(--text); }
+.v2-toc-num { font: 600 9.5px var(--mono); flex: none; }
+.v2-toc-title { font: 500 12.5px/1.4 var(--sans); color: var(--text); flex: 1; min-width: 0; }
+.v2-toc-item.is-active .v2-toc-title { font-weight: 600; color: var(--text); }
 .v2-toc-score { font: 600 10.5px var(--mono); flex: none; }
 .v2-toc-meta {
-  display: flex; gap: 8px; align-items: center; margin-top: 4px; padding-left: 22px;
-  font: 400 9.5px var(--mono); color: var(--text2);
+  display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 5px; padding-left: 22px;
+  font: 400 9.5px var(--mono); color: var(--text3);
 }
 .v2-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; vertical-align: middle; }
 .v2-dup-toggle {
   font: 600 8.5px var(--mono); color: var(--text2); border: 1px solid var(--border2);
   border-radius: 2px; padding: 1px 5px; cursor: pointer; background: transparent;
 }
-.v2-dup-toggle:hover { opacity: .78; }
+.v2-dup-toggle:hover { color: var(--text); border-color: var(--text3); }
 .v2-dup-list { padding: 2px 18px 8px 40px; }
+.v2-dup-list:not([hidden]) { animation: v2-open var(--t-med) var(--ease-out); }
 .v2-dup {
   display: flex; gap: 8px; align-items: baseline; padding: 4px 0;
   border-top: 1px dashed var(--border2); cursor: pointer;
@@ -353,6 +563,15 @@ html[data-learning="on"] .v2-help-mini { display: inline-flex; }
 
 /* ---- detail pane ---- */
 .v2-detail-pane { padding: 20px 28px; overflow-y: auto; }
+/* Article swap mimics the page navigation effect: v2Select wraps the swap in a
+   same-document view transition with the pane named v2-detail for its duration,
+   so the old article slides out left while the new slides in from the right —
+   the same keyframes as the cross-document transition above, tightened a little
+   for in-page frequency (this fires on every j/k press). */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(v2-detail) { animation: vt-slide-fade-out 160ms cubic-bezier(0.4, 0, 1, 1) both; }
+  ::view-transition-new(v2-detail) { animation: vt-slide-fade-in 260ms cubic-bezier(0, 0, 0.2, 1) 80ms both; }
+}
 /* The detail content fills the pane (bounded only by the pane padding); nothing here
    is width-capped so the reader expands with the viewport on wide screens. */
 .v2-detail-meta { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
@@ -386,27 +605,50 @@ html[data-learning="on"] .v2-help-mini { display: inline-flex; }
 .v2-rubric-label { font: 400 8.5px var(--mono); color: var(--text3); margin-bottom: 4px; }
 .v2-rubric-bars { display: flex; gap: 2px; }
 .v2-rc { flex: 1; height: 3px; background: var(--border2); display: block; }
-.v2-rc.on { background: var(--text2); }
+.v2-rc.on {
+  background: var(--text2);
+  animation: v2-meter 200ms var(--ease-out) backwards; transform-origin: left;
+}
+/* Meters settle left→right across the six cells. */
+.v2-rubric-cell:nth-child(2) .v2-rc.on { animation-delay: 25ms; }
+.v2-rubric-cell:nth-child(3) .v2-rc.on { animation-delay: 50ms; }
+.v2-rubric-cell:nth-child(4) .v2-rc.on { animation-delay: 75ms; }
+.v2-rubric-cell:nth-child(5) .v2-rc.on { animation-delay: 100ms; }
+.v2-rubric-cell:nth-child(6) .v2-rc.on { animation-delay: 125ms; }
 
 /* tabs */
 .v2-tabs { display: flex; gap: 2px; margin-bottom: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .v2-tab {
+  position: relative;
   font: 600 10px var(--mono); letter-spacing: .08em; color: var(--text2);
   border: none; border-bottom: 2px solid transparent; background: transparent;
   padding: 6px 12px; cursor: pointer;
 }
-.v2-tab:hover { opacity: .8; }
-.v2-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+/* Active underline as a scaling bar (over the transparent border, which keeps layout)
+   so switching tabs reads as the indicator snapping to the new tab. */
+.v2-tab::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px;
+  background: var(--cyan); transform: scaleX(0);
+  transition: transform var(--t-fast) var(--ease-out);
+}
+.v2-tab:hover { color: var(--text); }
+.v2-tab.active { color: var(--cyan); }
+.v2-tab.active::after { transform: scaleX(1); }
 .v2-tabpanel { display: none; }
-.v2-tabpanel.active { display: block; }
+.v2-tabpanel.active { display: block; animation: v2-soft var(--t-fast) var(--ease-out); }
 
-/* key points */
-.v2-kp-block { margin-top: 6px; }
+/* key points: rendered inside the TL;DR panel (so they show only under TL;DR). The text
+   matches the .prose sizing/colour for a homogeneous read; the num keeps its cyan accent.
+   Margins are reset because the list now nests inside .prose (which indents bare ul/ol). */
+.v2-kp-block { margin-top: 14px; }
 .v2-subhead { font: 600 9.5px var(--mono); letter-spacing: .12em; color: var(--text2); margin: 14px 0 8px; }
-.v2-kp { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.v2-kp { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 0; }
+/* The block now nests inside the TL;DR .prose panel; beat `.prose ul` (0,1,1) so the list
+   keeps its flush-left alignment instead of picking up prose's 1.2em list indent. */
+.prose .v2-kp { margin: 0; }
 .v2-kp li { display: flex; gap: 10px; }
-.v2-kp-num { font: 600 10px var(--mono); color: var(--cyan); flex: none; padding-top: 2px; }
-.v2-kp-text { font: 400 12.5px/1.6 var(--sans); color: var(--text2); }
+.v2-kp-num { font: 600 10px var(--mono); color: var(--cyan); flex: none; padding-top: 3px; }
+.v2-kp-text { font: 400 13px/1.75 var(--sans); color: var(--text); }
 
 /* actions + justification */
 .v2-detail-actions { display: flex; gap: 10px; align-items: center; margin: 16px 0 0; flex-wrap: wrap; }
@@ -414,24 +656,55 @@ html[data-learning="on"] .v2-help-mini { display: inline-flex; }
   font: 600 10px var(--mono); letter-spacing: .08em; border-radius: 2px; padding: 8px 14px;
   border: 1px solid var(--border2); color: var(--text2); cursor: pointer; background: transparent;
 }
-.v2-btn:hover { opacity: .85; }
+.v2-btn:hover { color: var(--text); border-color: var(--text3); }
 /* Two classes so the accent text colour beats `body.v2 a { color: inherit }` on the
    <a> buttons; --accent-text is the per-theme AA-contrast colour for the cyan accent. */
 .v2-btn.v2-btn-primary { color: var(--accent-text); background: var(--cyan); border-color: var(--cyan); }
+.v2-btn.v2-btn-primary:hover { color: var(--accent-text); filter: brightness(1.07); }
 .v2-btn-ghost { color: var(--text2); }
 .v2-why {
   background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
   padding: 12px 16px; margin-top: 12px;
 }
+.v2-why:not([hidden]) { animation: v2-open var(--t-med) var(--ease-out); }
 .v2-why .prose { font: 400 11.5px/1.7 var(--sans); color: var(--text2); }
 
-/* reports */
-.v2-reports { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 12px 14px; margin-top: 20px; }
-.v2-report { display: flex; gap: 9px; align-items: baseline; padding: 3px 0; flex-wrap: wrap; }
+/* reports: one card per report — title row (PRIMARY badge + title, category pinned
+   top-right), publisher line, then the explanation prose. Non-primary reports are hidden
+   until the "+N more" toggle expands the list. */
+.v2-reports { margin-top: 20px; }
+.v2-report {
+  display: block; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+  padding: 12px 14px; transition: border-color .15s ease, background .15s ease;
+}
+.v2-report:hover { border-color: color-mix(in srgb, var(--cyan) 45%, transparent); background: var(--surface2); }
+.v2-report:hover .v2-report-title { color: var(--cyan); }
+.v2-report + .v2-report { margin-top: 8px; }
+.v2-report-hidden { display: none; }
+.v2-reports.is-expanded .v2-report-hidden { display: block; animation: v2-soft var(--t-fast) var(--ease-out) backwards; }
+/* Expanded reports fade in with a short cascade, capped at two extra steps. */
+.v2-reports.is-expanded .v2-report-hidden + .v2-report-hidden { animation-delay: 25ms; }
+.v2-reports.is-expanded .v2-report-hidden + .v2-report-hidden + .v2-report-hidden { animation-delay: 50ms; }
+.v2-report-head { display: flex; gap: 9px; align-items: baseline; }
 .v2-report-primary { font: 600 8.5px var(--mono); color: var(--accent-text); background: var(--should); border-radius: 2px; padding: 1px 6px; flex: none; }
-.v2-report-title { font: 500 12px var(--sans); color: var(--text); }
+/* Lighten the PRIMARY tag's amber in the light theme (in step with the light accent), without touching the shared --should priority colour. */
+html[data-theme="light"] .v2-report-primary { background: oklch(74% 0.16 67); }
+.v2-report-title { font: 500 12.5px var(--sans); color: var(--text); flex: 1; min-width: 0; }
 .v2-report-title:hover { color: var(--cyan); }
-.v2-report-meta { font: 400 9.5px var(--mono); color: var(--text2); }
+/* Category pinned to the card's top-right. Colour comes from the sibling cat-<category>
+   class; leave `color` unset here so it isn't clobbered, and let the dot inherit it. */
+.v2-report-cat { display: inline-flex; align-items: center; gap: 5px; flex: none; margin-left: auto; align-self: flex-start; font: 500 9px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.v2-report-cat::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.v2-report-meta { font: 400 9.5px var(--mono); color: var(--text2); margin-top: 4px; }
+.v2-report-context { margin-top: 6px; }
+/* "+N more" / "− less" reports toggle — a small terminal chip. */
+.v2-report-more {
+  margin-top: 10px; font: 500 9.5px var(--mono); letter-spacing: .06em; color: var(--text2);
+  background: transparent; border: 1px solid var(--border2); border-radius: 3px;
+  padding: 4px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.v2-report-more:hover { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, transparent); }
 
 .v2-fail p { font: 400 11px var(--mono); color: var(--must); margin: 0 0 12px; }
 
@@ -444,12 +717,16 @@ html[data-learning="on"] .v2-help-mini { display: inline-flex; }
 .prose code { font-family: var(--mono); font-size: .88em; background: var(--surface); padding: 1px 4px; border-radius: 3px; }
 .prose h1, .prose h2, .prose h3 { font-size: 1em; margin: .8em 0 .3em; color: var(--text); }
 
-/* glossary marks: plain until Learning is on, then highlighted by background tint only
-   (no underline, no text recolour). data-lvl carries each term's tier (1=advanced,
-   2=intermediate, 3=beginner); the help-level filter below hides terms above the level. */
+/* glossary marks: plain until Learning + the Glossary feature are on, then highlighted
+   by a background tint plus a faint underline (kept legible on the dark palettes, where a
+   bare low-opacity tint was nearly invisible). Clicking a mark opens the definition popup
+   (also gated on the Glossary feature, in JS). data-lvl carries each term's tier
+   (1=advanced, 2=intermediate, 3=beginner); the help-level filter below hides terms
+   above the selected level. */
 mark.tag-hl { color: inherit; background: none; border: none; cursor: text; padding: 0; }
-html[data-learning="on"] mark.tag-hl {
-  background: color-mix(in srgb, var(--cyan) 14%, transparent);
+html[data-learning="on"][data-learn-glossary="on"] mark.tag-hl {
+  background: color-mix(in srgb, var(--cyan) 24%, transparent);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--cyan) 50%, transparent);
   border-radius: 2px; cursor: help; padding: 0 1px;
 }
 /* Help-level filter: a term shows only when the selected level (1/2/3) >= its tier.
@@ -457,13 +734,13 @@ html[data-learning="on"] mark.tag-hl {
 html[data-help-level="1"] mark.tag-hl[data-lvl="2"],
 html[data-help-level="1"] mark.tag-hl[data-lvl="3"],
 html[data-help-level="2"] mark.tag-hl[data-lvl="3"] {
-  background: transparent; cursor: auto; padding: 0;
+  background: transparent; box-shadow: none; cursor: auto; padding: 0;
 }
 
 /* glossary popup: a vertical card — term (+ type) on top, definition below, then the
    per-article "In this article" context. */
 .v2-gloss-popup {
-  position: fixed; left: 24px; bottom: 24px; z-index: 40; max-width: 360px; width: calc(100% - 48px);
+  position: fixed; right: 24px; bottom: 24px; z-index: 40; max-width: 360px; width: calc(100% - 48px);
   display: flex; flex-direction: column;
   background: var(--surface); border: 1px solid color-mix(in srgb, var(--cyan) 40%, var(--border));
   border-radius: 4px; padding: 12px 32px 12px 14px; box-shadow: 0 8px 30px rgba(0,0,0,.35);
@@ -471,6 +748,7 @@ html[data-help-level="2"] mark.tag-hl[data-lvl="3"] {
 /* The base rule sets display:flex, which would otherwise defeat the `hidden`
    attribute (equal specificity, later rule wins) and leave the popup always on. */
 .v2-gloss-popup[hidden] { display: none; }
+.v2-gloss-popup:not([hidden]) { animation: v2-toast var(--t-med) var(--ease-out); }
 .v2-gloss-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
 .v2-gloss-term { font: 600 10px var(--mono); letter-spacing: .1em; color: var(--cyan); text-transform: uppercase; }
 .v2-gloss-type {
@@ -484,6 +762,101 @@ html[data-help-level="2"] mark.tag-hl[data-lvl="3"] {
   position: absolute; top: 8px; right: 10px;
   font: 600 11px var(--mono); color: var(--text3); cursor: pointer; background: none; border: none;
 }
+
+/* ---- glossary side panel (right drawer) --------------------------------------
+   Ported from the v1 layout; available only under Learning + the Glossary feature. A
+   fixed right-edge tab opens a searchable, help-level-filtered list of every term. */
+.glossary-panel-toggle, .glossary-panel { display: none; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-panel-toggle { display: block; }
+html[data-learning="on"][data-learn-glossary="on"] .glossary-panel { display: flex; }
+.glossary-panel-toggle {
+  position: fixed; top: 50%; right: 0; transform: translateY(-50%); z-index: 999;
+  writing-mode: vertical-rl; font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--cyan); background: var(--surface); border: 1px solid var(--border2); border-right: none;
+  border-radius: 6px 0 0 6px; padding: 12px 6px; cursor: pointer;
+}
+.glossary-panel-toggle:hover { border-color: var(--cyan); color: var(--text); }
+.glossary-panel {
+  position: fixed; top: 0; right: 0; height: 100vh; width: 320px; max-width: 100vw; z-index: 1001;
+  flex-direction: column; background: var(--surface); border-left: 1px solid var(--border);
+  transform: translateX(100%); transition: transform .2s var(--ease-out);
+}
+.glossary-panel.is-open { transform: none; box-shadow: -8px 0 28px rgba(0,0,0,.35); }
+.glossary-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,.5); opacity: 0; pointer-events: none;
+  transition: opacity .2s ease;
+}
+.glossary-backdrop.is-open { opacity: 1; pointer-events: auto; }
+.glossary-panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--border); flex: none;
+}
+.glossary-panel-title { font: 600 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
+.glossary-panel-close { background: none; border: none; color: var(--text2); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.glossary-panel-close:hover { color: var(--text); }
+.glossary-panel-search { padding: 12px 16px; border-bottom: 1px solid var(--border); flex: none; }
+.glossary-panel-search input {
+  width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 4px; padding: 7px 10px; color: var(--text); font: 400 12px var(--mono); outline: none;
+}
+.glossary-panel-search input:focus { border-color: var(--cyan); }
+.glossary-panel-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
+.glossary-panel-list { margin: 0; padding: 0; }
+.glossary-panel-entry[hidden] { display: none; }
+/* Help-level filter: hide panel entries whose tier exceeds the selected level (in sync with marks). */
+html[data-help-level="1"] .glossary-panel-entry[data-lvl="2"],
+html[data-help-level="1"] .glossary-panel-entry[data-lvl="3"],
+html[data-help-level="2"] .glossary-panel-entry[data-lvl="3"] { display: none; }
+.glossary-panel-empty { margin: 0; color: var(--text2); font: 400 13px var(--sans); }
+.glossary-panel-term { margin: 0; color: var(--text); font: 600 13px var(--sans); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.glossary-panel-type { font: 500 8px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--text2); border: 1px solid var(--border2); border-radius: 999px; padding: 1px 6px; }
+.glossary-panel-def { margin: 3px 0 16px; padding: 0; color: var(--text2); font: 400 12.5px/1.5 var(--sans); }
+.glossary-panel-aliases { margin-top: 4px; color: var(--text2); font: 400 11.5px/1.4 var(--sans); opacity: .85; }
+.glossary-panel-foot { padding: 12px 16px; border-top: 1px solid var(--border); flex: none; }
+.glossary-panel-suggest { display: inline-block; font: 400 11.5px var(--sans); color: var(--cyan); text-decoration: none; }
+.glossary-panel-suggest:hover { text-decoration: underline; }
+
+/* ---- first-visit onboarding tour ---------------------------------------------
+   Ported from v1: a dim overlay whose spotlight cutout frames one learning control while a
+   floating card explains it. Only rendered on Learning pages; shown once (downlink.onboarded)
+   and replayable from the topbar "?" chip. */
+.tour-overlay { position: fixed; inset: 0; z-index: 2000; background: transparent; }
+.tour-spotlight {
+  position: fixed; z-index: 2001; pointer-events: none; top: 0; left: 0; width: 0; height: 0;
+  border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0,0,0,.62), 0 0 0 2px var(--cyan);
+  transition: top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+.tour-spotlight.is-centered { box-shadow: 0 0 0 9999px rgba(0,0,0,.62); }
+.tour-card {
+  position: fixed; z-index: 2002; box-sizing: border-box; width: min(340px, calc(100vw - 28px));
+  background: var(--surface); color: var(--text); border: 1px solid var(--border2); border-radius: 10px;
+  padding: 15px 17px 13px; box-shadow: 0 12px 40px rgba(0,0,0,.45); font-family: var(--sans);
+}
+.tour-card-step { font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+.tour-card-title { font: 600 15px/1.25 var(--sans); margin: 0 0 6px; color: var(--text); }
+.tour-card-body { font: 400 13px/1.5 var(--sans); color: var(--text2); margin: 0; }
+.tour-card-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.tour-dots { display: inline-flex; gap: 5px; align-items: center; margin-right: auto; }
+.tour-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); }
+.tour-dots span.is-active { background: var(--cyan); }
+.tour-btn { font: 500 11px var(--mono); letter-spacing: .04em; text-transform: uppercase; padding: 5px 11px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; }
+.tour-btn:hover { border-color: var(--cyan); color: var(--text); }
+.tour-btn:focus-visible { outline: 1px solid var(--cyan); outline-offset: 1px; }
+.tour-btn-primary { background: var(--cyan); border-color: var(--cyan); color: var(--accent-text); }
+.tour-btn-primary:hover { color: var(--accent-text); filter: brightness(1.06); }
+.tour-skip { border: none; color: var(--text3); padding-left: 2px; }
+.tour-skip:hover { border: none; color: var(--text2); }
+/* Reduced motion: kill every animation/transition on the page (tour spotlight included). */
+@media (prefers-reduced-motion: reduce) {
+  body.v2 *, body.v2 *::before, body.v2 *::after { animation: none !important; transition: none !important; }
+}
+/* Same kill switch, reader-controlled: the Animations toggle in the settings menu
+   (persisted as downlink.anim, applied pre-paint). View transitions are skipped in
+   JS since the @view-transition opt-in can't be gated by an attribute. */
+html[data-anim="off"] body.v2 *,
+html[data-anim="off"] body.v2 *::before,
+html[data-anim="off"] body.v2 *::after { animation: none !important; transition: none !important; }
 
 /* ---- responsive ---------------------------------------------------------- */
 /* Medium screens: narrow the sidebar before collapsing it. */

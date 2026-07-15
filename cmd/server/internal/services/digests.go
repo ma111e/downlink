@@ -439,13 +439,10 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		log.WithError(err).Warn("Failed to reload digest for notifications, skipping all")
 	} else {
 		fullDigest.AnalysisErrors = analysisErrors
-		// Layout precedence: explicit per-run --theme override, else the profile's
-		// layout (the server/global default applies when both are empty).
-		effLayout := req.GetTheme()
-		if effLayout == "" {
-			effLayout = profile.Layout
-		}
-		if _, err := sendConfiguredDigestNotifications(stream, fullDigest, effLayout, false, req.GhPagesEnabled, profile); err != nil {
+		// Layout precedence: the explicit per-run --layout list, else the
+		// profile's layout (the server/global default applies when both are empty).
+		effLayouts := resolveEffectiveLayouts(req.GetLayouts(), profile.Layout)
+		if _, err := sendConfiguredDigestNotifications(stream, fullDigest, effLayouts, false, req.GhPagesEnabled, profile); err != nil {
 			log.WithError(err).Warn("Failed to send one or more digest notifications")
 		}
 	}
@@ -488,11 +485,8 @@ func (s *DigestServer) sendNotificationTestDigest(req *protos.GenerateDigestRequ
 	if perr != nil {
 		testProfile = models.Profile{Id: defaultProfileId}
 	}
-	testLayout := req.GetTheme()
-	if testLayout == "" {
-		testLayout = testProfile.Layout
-	}
-	attempts, err := sendConfiguredDigestNotifications(stream, digest, testLayout, true, req.GhPagesEnabled, testProfile)
+	testLayouts := resolveEffectiveLayouts(req.GetLayouts(), testProfile.Layout)
+	attempts, err := sendConfiguredDigestNotifications(stream, digest, testLayouts, true, req.GhPagesEnabled, testProfile)
 	if err != nil {
 		_ = stream.Send(&protos.DigestProgressEvent{Stage: "error", Error: err.Error()})
 		return err
@@ -614,9 +608,48 @@ func buildLandingProfiles() []notification.LandingProfile {
 	return entries
 }
 
-func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest, layout string, failOnError bool, ghPagesOverride *bool, profile models.Profile) (int, error) {
+// resolveEffectiveLayouts resolves the layouts a digest is published in: the
+// explicit per-run list when given, else the profile's layout. It always returns
+// at least one element (possibly "") so a single empty entry lets resolveLayout
+// apply the server default.
+func resolveEffectiveLayouts(layouts []string, profileLayout string) []string {
+	var out []string
+	seen := make(map[string]struct{})
+	for _, l := range layouts {
+		if l == "" {
+			continue
+		}
+		if _, ok := seen[l]; ok {
+			continue
+		}
+		seen[l] = struct{}{}
+		out = append(out, l)
+	}
+	if len(out) > 0 {
+		return out
+	}
+	return []string{profileLayout}
+}
+
+// layoutScopedSubdir returns the GitHub Pages output subdir for a layout. The
+// primary (first) layout keeps the profile's base subdir so single-layout
+// publishing is unchanged; additional layouts publish into "<base>-<layout>".
+func layoutScopedSubdir(base, layout string, primary bool) string {
+	if primary || layout == "" {
+		return base
+	}
+	return base + "-" + layout
+}
+
+func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest, layouts []string, failOnError bool, ghPagesOverride *bool, profile models.Profile) (int, error) {
 	var errs []error
 	attempts := 0
+
+	// The primary layout drives the Discord render and keeps the base output subdir.
+	primaryLayout := ""
+	if len(layouts) > 0 {
+		primaryLayout = layouts[0]
+	}
 
 	discordEnabled := config.Config.Notifications.Discord.Enabled && config.Config.Notifications.Discord.WebhookURL != ""
 	if discordEnabled {
@@ -628,7 +661,7 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 			errs = append(errs, fmt.Errorf("discord digest: %w", err))
 		}
 
-		htmlBytes, err := notification.RenderDigestHTML(digest, layout, profile.Theme)
+		htmlBytes, err := notification.RenderDigestHTML(digest, primaryLayout, profile.Theme)
 		if err != nil {
 			log.WithError(err).Warn("Failed to render digest HTML")
 			errs = append(errs, fmt.Errorf("discord html render: %w", err))
@@ -648,58 +681,90 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 	ghPagesEnabled := ghPagesConfigEnabled && config.Config.Notifications.GitHubPages.RepoURL != ""
 	if ghPagesEnabled {
 		attempts++
-		sendProgress(stream, "notify", "publishing digest to GitHub Pages...", 0, 0)
-		ghCfg := config.Config.Notifications.GitHubPages
-		// Per-profile publishing: this profile gets its own output subdirectory and
-		// layout, and its archive/feeds/sources are scoped to its digests + feeds.
-		ghCfg.OutputDir = profileSubdir(profile)
-		ghCfg.Layout = layout
-		if ghCfg.Token == "" {
-			ghCfg.Token = os.Getenv("DOWNLINK_GH_PAGES_TOKEN")
+		token := config.Config.Notifications.GitHubPages.Token
+		if token == "" {
+			token = os.Getenv("DOWNLINK_GH_PAGES_TOKEN")
 		}
-		if ghCfg.Token == "" {
+		if token == "" {
 			err := errors.New("GitHub Pages enabled but no token configured (set token in config or DOWNLINK_GH_PAGES_TOKEN env)")
 			log.Warn(err)
 			errs = append(errs, err)
 		} else {
 			profileID := profile.Id
-			publisher := notification.NewGitHubPagesPublisher(ghCfg)
-			publisher.SetProfileContext(profile.Id, profile.Theme)
-			publisher.SetDigestLister(func(n int) ([]models.Digest, error) {
-				return store.Db.ListDigestsByProfile(profileID, n, true)
-			})
-			publisher.SetSourceLister(func() ([]models.Feed, error) {
-				return store.Db.ListProfileFeeds(profileID)
-			})
-			// Reports page: the profile's digests within the publish window, with
-			// each digest's articles (+ tags) loaded so referenced reports can be
-			// aggregated with the tags they were referenced from.
-			publisher.SetReportLister(func(since time.Time) ([]models.Digest, error) {
-				digests, err := store.Db.ListDigestsByProfile(profileID, 0, true)
-				if err != nil {
-					return nil, err
+			baseSubdir := profileSubdir(profile)
+			landing := buildLandingProfiles()
+			// Publish the digest in each layout. The primary (first) layout keeps
+			// the base output subdir and owns the repo-root landing page; each
+			// additional layout publishes into its own "<base>-<layout>" subdir so
+			// the layouts coexist without overwriting one another.
+			//
+			// layoutPeers pairs every coexisting layout with its subdir so each
+			// published page can offer readers an in-page switch between them.
+			var layoutPeers []notification.LayoutPeer
+			for i, l := range layouts {
+				layoutPeers = append(layoutPeers, notification.LayoutPeer{
+					Layout: l,
+					Subdir: layoutScopedSubdir(baseSubdir, l, i == 0),
+				})
+			}
+			for i, layout := range layouts {
+				primary := i == 0
+				if len(layouts) > 1 {
+					sendProgress(stream, "notify", fmt.Sprintf("publishing digest to GitHub Pages (%s)...", layout), 0, 0)
+				} else {
+					sendProgress(stream, "notify", "publishing digest to GitHub Pages...", 0, 0)
 				}
-				out := make([]models.Digest, 0, len(digests))
-				for i := range digests {
-					if digests[i].CreatedAt.Before(since) {
-						continue
-					}
-					arts, err := store.Db.GetDigestArticles(digests[i].Id)
+
+				ghCfg := config.Config.Notifications.GitHubPages
+				// Per-profile publishing: this profile gets its own output subdirectory
+				// and layout, and its archive/feeds/sources are scoped to its digests +
+				// feeds.
+				ghCfg.OutputDir = layoutScopedSubdir(baseSubdir, layout, primary)
+				ghCfg.Layout = layout
+				ghCfg.Token = token
+
+				publisher := notification.NewGitHubPagesPublisher(ghCfg)
+				publisher.SetProfileContext(profile.Id, profile.Theme)
+				publisher.SetLayoutPeers(layoutPeers)
+				publisher.SetDigestLister(func(n int) ([]models.Digest, error) {
+					return store.Db.ListDigestsByProfile(profileID, n, true)
+				})
+				publisher.SetSourceLister(func() ([]models.Feed, error) {
+					return store.Db.ListProfileFeeds(profileID)
+				})
+				// Reports page: the profile's digests within the publish window, with
+				// each digest's articles (+ tags) loaded so referenced reports can be
+				// aggregated with the tags they were referenced from.
+				publisher.SetReportLister(func(since time.Time) ([]models.Digest, error) {
+					digests, err := store.Db.ListDigestsByProfile(profileID, 0, true)
 					if err != nil {
-						log.WithError(err).Warn("reports: failed to load digest articles")
-						continue
+						return nil, err
 					}
-					digests[i].Articles = arts
-					out = append(out, digests[i])
+					out := make([]models.Digest, 0, len(digests))
+					for i := range digests {
+						if digests[i].CreatedAt.Before(since) {
+							continue
+						}
+						arts, err := store.Db.GetDigestArticles(digests[i].Id)
+						if err != nil {
+							log.WithError(err).Warn("reports: failed to load digest articles")
+							continue
+						}
+						digests[i].Articles = arts
+						out = append(out, digests[i])
+					}
+					return out, nil
+				})
+				// When more than one profile exists, the repo root becomes a landing
+				// page linking into each profile's section. Only the primary layout
+				// owns the root landing so secondary-layout subdirs don't rerender it.
+				if primary {
+					publisher.SetLanding(landing)
 				}
-				return out, nil
-			})
-			// When more than one profile exists, the repo root becomes a landing
-			// page linking into each profile's section.
-			publisher.SetLanding(buildLandingProfiles())
-			if err := publisher.SendDigest(digest); err != nil {
-				log.WithError(err).Warn("Failed to publish digest to GitHub Pages")
-				errs = append(errs, fmt.Errorf("github pages: %w", err))
+				if err := publisher.SendDigest(digest); err != nil {
+					log.WithError(err).WithField("layout", layout).Warn("Failed to publish digest to GitHub Pages")
+					errs = append(errs, fmt.Errorf("github pages (%s): %w", layout, err))
+				}
 			}
 		}
 	}

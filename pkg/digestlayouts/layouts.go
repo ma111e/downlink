@@ -1,6 +1,6 @@
 package digestlayouts
 
-// Layout names a graphical/layout theme for the digest HTML output. A layout is a
+// Layout names a template set (page structure) for the digest HTML output. A layout is a
 // full set of page templates living under the notification package's
 // templates/<name>/ directory. Color palettes are a separate, client-side concern
 // (see pkg/digestthemes and the in-page theme dropdown); this registry exists so the

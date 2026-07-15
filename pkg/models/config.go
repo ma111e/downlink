@@ -31,7 +31,7 @@ type GitHubPagesNotificationConfig struct {
 	ConfigurePages    bool   `json:"configure_pages"`     // configure GitHub Pages source to this branch
 	Token             string `json:"token"`               // GitHub PAT; prefer env DOWNLINK_GH_PAGES_TOKEN
 	OutputDir         string `json:"output_dir"`          // subdirectory inside repo (empty = repo root)
-	Layout            string `json:"layout"`              // graphical/layout theme for published pages; empty = "default"
+	Layout            string `json:"layout"`              // layout (template set) for published pages; empty = "default"
 	BaseURL           string `json:"base_url"`            // public URL, e.g. https://user.github.io
 	CommitAuthor      string `json:"commit_author"`       // default "downlink-bot"
 	CommitEmail       string `json:"commit_email"`        // default "downlink-bot@users.noreply.github.com"

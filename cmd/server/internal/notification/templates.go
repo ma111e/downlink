@@ -10,7 +10,7 @@ import (
 	"github.com/ma111e/downlink/pkg/utils"
 )
 
-//go:embed templates/*/*.tmpl templates/landing.css templates/switcher.css
+//go:embed templates/*/*.tmpl templates/landing.css templates/switcher.css templates/layoutswitch.css
 var notificationTemplateFS embed.FS
 
 //go:embed static/*

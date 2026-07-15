@@ -11,11 +11,37 @@
     var t = localStorage.getItem('downlink.theme');
     if (valid[t]) document.documentElement.dataset.theme = t;
     if (localStorage.getItem('downlink.learning') === 'on') {
-      document.documentElement.dataset.learning = 'on';
+      var d = document.documentElement.dataset;
+      d.learning = 'on';
       var lvl = localStorage.getItem('downlink.help.level');
-      document.documentElement.dataset.helpLevel = (lvl === '1' || lvl === '2') ? lvl : '3';
+      d.helpLevel = (lvl === '1' || lvl === '2') ? lvl : '3';
+      // Per-feature sub-toggles default on unless explicitly turned off.
+      d.learnPlain = localStorage.getItem('downlink.learn.plain') === 'off' ? 'off' : 'on';
+      d.learnGlossary = localStorage.getItem('downlink.learn.glossary') === 'off' ? 'off' : 'on';
     }
+    // Animations are on unless explicitly disabled from the settings menu.
+    if (localStorage.getItem('downlink.anim') === 'off') document.documentElement.dataset.anim = 'off';
+    // The commercial/sponsored/announcement categories are hidden by default (settings menu
+    // toggle); they only show once the reader has explicitly turned them on.
+    if (localStorage.getItem('downlink.promo') !== 'on') document.documentElement.dataset.promo = 'off';
   } catch(e){}
+  function animOff(){ return document.documentElement.dataset.anim === 'off'; }
+  // Arriving via a cross-document view transition: the page-slide is the entrance,
+  // so flag <html> to suppress the in-page load cascade (they'd fight otherwise).
+  // Cold loads / unsupported browsers keep the cascade. With animations disabled the
+  // transition is skipped outright (the @view-transition opt-in can't be gated in CSS).
+  addEventListener('pagereveal', function (e) {
+    if (!e.viewTransition) return;
+    if (animOff()) { e.viewTransition.skipTransition(); return; }
+    document.documentElement.dataset.vt = 'on';
+    // Clean up on rejection too: a leaked flag would make every in-page article
+    // swap slide the whole root (the TOC with it) instead of just the detail pane.
+    var un = function () { delete document.documentElement.dataset.vt; };
+    e.viewTransition.finished.then(un, un);
+  });
+  addEventListener('pageswap', function (e) {
+    if (e.viewTransition && animOff()) e.viewTransition.skipTransition();
+  });
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -45,19 +71,49 @@
     <span class="v2-topmeta">{{.WindowRange}} · {{.TimeWindow}} window</span>
     <div class="v2-spacer"></div>
     <span class="v2-topstats">{{.ArticleCount}} articles{{if .ModelName}} · {{.ModelName}}{{end}}</span>
-    <select class="v2-theme" id="theme" onchange="v2ApplyTheme(this.value)" title="Select theme" aria-label="Select theme">
-      {{range .Themes}}<option value="{{.Value}}">{{.Label}}</option>
-      {{end}}
-    </select>
-    <a class="v2-chip" href="{{.SwipeFilename}}">TRIAGE</a>
-    {{if .HasLearning}}<button type="button" class="v2-chip v2-learn" id="learn-toggle" role="switch" aria-checked="false" onclick="v2ToggleLearning()">
-      <span class="v2-learn-track"><span class="v2-learn-knob"></span></span>LEARNING</button>
-    <span class="v2-help-mini" id="help-mini" title="Help level — click to cycle (Full / Partial / Minimal)" onclick="v2CycleHelp()">
-      <span class="v2-help-dot" data-pos="0"></span>
-      <span class="v2-help-dot" data-pos="1"></span>
-      <span class="v2-help-dot" data-pos="2"></span>
-      <span class="v2-help-flash" id="help-flash" aria-hidden="true"></span>
-    </span>{{end}}
+    <a class="v2-chip v2-chip-icon" href="{{.SwipeFilename}}" title="Triage" aria-label="Triage"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="2.5" width="9" height="11" rx="1.5" transform="rotate(9 9 8)"></rect><rect x="2.5" y="2.5" width="9" height="11" rx="1.5"></rect></svg></a>
+    {{if .HasLearning}}<div class="v2-learn-wrap" id="nav-learn">
+      <button type="button" class="v2-chip v2-learn" id="learn-toggle" role="switch" aria-checked="false" onclick="v2ToggleLearning()">
+        <span class="v2-learn-track"><span class="v2-learn-knob"></span></span>LEARNING</button>
+      <button type="button" class="v2-learn-caret" id="learn-caret" onclick="v2ToggleLearnMenu()" aria-expanded="false" aria-label="Customize learning">▾</button>
+      <span class="v2-help-mini" id="help-mini" title="Help level — click to cycle (Full / Partial / Minimal)" onclick="v2CycleHelp()">
+        <span class="v2-help-dot" data-pos="0"></span>
+        <span class="v2-help-dot" data-pos="1"></span>
+        <span class="v2-help-dot" data-pos="2"></span>
+        <span class="v2-help-flash" id="help-flash" aria-hidden="true"></span>
+      </span>
+      <div class="v2-learn-card" id="learn-card" role="menu" hidden>
+        <div class="v2-learn-card-title">Help level</div>
+        <div class="v2-help-slider" id="help-slider" role="slider" tabindex="0"
+             aria-label="Help level: full (most help) to minimal (least)"
+             aria-valuemin="1" aria-valuemax="3" aria-valuenow="3" aria-valuetext="Full">
+          <span class="v2-help-slider-track" aria-hidden="true"></span>
+          <span class="v2-help-slider-dot" data-pos="0" data-level="3" title="Full — explain every term"></span>
+          <span class="v2-help-slider-dot" data-pos="1" data-level="2" title="Partial — security-specific & niche"></span>
+          <span class="v2-help-slider-dot" data-pos="2" data-level="1" title="Minimal — only rare/advanced"></span>
+          <span class="v2-help-slider-knob" id="help-slider-knob" aria-hidden="true"></span>
+        </div>
+        <div class="v2-help-slider-ends"><span>Full</span><span>Minimal</span></div>
+        <div class="v2-learn-card-title">Learning features</div>
+        <button class="v2-learn-feature" id="learn-feat-plain" type="button" role="switch" aria-checked="true" onclick="v2ToggleLearnFeature('plain')"><span class="v2-learn-feature-label">Plain words</span><span class="v2-learn-switch"><span class="v2-learn-switch-knob"></span></span></button>
+        <button class="v2-learn-feature" id="learn-feat-glossary" type="button" role="switch" aria-checked="true" onclick="v2ToggleLearnFeature('glossary')"><span class="v2-learn-feature-label">Glossary</span><span class="v2-learn-switch"><span class="v2-learn-switch-knob"></span></span></button>
+      </div>
+    </div>{{end}}
+    <div class="v2-settings-wrap" id="nav-settings">
+      <button type="button" class="v2-chip v2-chip-icon" id="settings-toggle" onclick="v2ToggleSettings()" aria-expanded="false" aria-haspopup="true" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></button>
+      <div class="v2-settings-card" id="settings-card" role="menu" hidden>
+        <div class="v2-learn-card-title">Theme</div>
+        <select class="v2-theme" id="theme" onchange="v2ApplyTheme(this.value)" title="Select theme" aria-label="Select theme">
+          {{range .Themes}}<option value="{{.Value}}">{{.Label}}</option>
+          {{end}}
+        </select>
+        <div class="v2-learn-card-title">Interface</div>
+        <button class="v2-learn-feature" id="set-anim" type="button" role="switch" aria-checked="true" onclick="v2ToggleAnim()"><span class="v2-learn-feature-label">Animations</span><span class="v2-learn-switch"><span class="v2-learn-switch-knob"></span></span></button>
+        <button class="v2-learn-feature" id="set-promo" type="button" role="switch" aria-checked="false" onclick="v2TogglePromo()" title="Show or hide the commercial, sponsored and announcement categories"><span class="v2-learn-feature-label">Promotions &amp; announcements</span><span class="v2-learn-switch"><span class="v2-learn-switch-knob"></span></span></button>
+        <button class="v2-learn-feature" id="set-layout" type="button" role="switch" aria-checked="true" onclick="v2ToggleLayout()" title="Switch back to the classic digest layout" hidden><span class="v2-learn-feature-label">New layout</span><span class="v2-learn-switch"><span class="v2-learn-switch-knob"></span></span></button>
+        {{if .HasLearning}}<button class="v2-learn-feature" type="button" onclick="v2CloseSettings();startTour()"><span class="v2-learn-feature-label">Take the tour</span><span class="v2-settings-go" aria-hidden="true">↗</span></button>{{end}}
+      </div>
+    </div>
     <a class="v2-github" href="https://github.com/ma111e/downlink" target="_blank" rel="noopener noreferrer" title="View on GitHub" aria-label="View on GitHub">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
     </a>
@@ -66,16 +122,19 @@
   <section class="v2-head">
     {{if .DigestTitle}}<h1 class="v2-head-title">{{.DigestTitle}}</h1>{{end}}
     <div class="v2-head-controls">
+      <span class="v2-filter-label">PRIORITY</span>
       <button type="button" class="v2-prio v2-prio-must" data-prio="must" onclick="v2FilterPrio('must')">MUST {{index .PriorityCounts "must"}}</button>
       <button type="button" class="v2-prio v2-prio-should" data-prio="should" onclick="v2FilterPrio('should')">SHOULD {{index .PriorityCounts "should"}}</button>
       <button type="button" class="v2-prio v2-prio-may" data-prio="may" onclick="v2FilterPrio('may')">MAY {{index .PriorityCounts "may"}}</button>
-      {{if .Categories}}<span class="v2-head-sep"></span>
-      <button type="button" class="v2-cat on" data-cat="all" onclick="v2FilterCat(this.dataset.cat)">ALL <span class="v2-cat-n">{{.ArticleCount}}</span></button>
-      {{range .Categories}}<button type="button" class="v2-cat" data-cat="{{.}}" onclick="v2FilterCat(this.dataset.cat)">{{.}} <span class="v2-cat-n">{{index $.CategoryCounts .}}</span></button>{{end}}{{end}}
       {{if .OverviewSections}}<span class="v2-head-sep"></span>
       <button type="button" class="v2-chip" id="brief-toggle" onclick="v2ToggleBrief()">INTELLIGENCE BRIEF <span class="v2-caret">▾</span></button>{{end}}
     </div>
-    {{if .Tags}}<div class="v2-tagcloud">{{if gt (len .Tags) 5}}{{range slice .Tags 0 5}}<button type="button" class="v2-tag-pill" data-tag="{{.Name}}" onclick="v2ToggleTag(this.dataset.tag)">{{.Name}} <span class="v2-cat-n">{{.Count}}</span></button>{{end}}{{range slice .Tags 5}}<button type="button" class="v2-tag-pill tag-hidden" data-tag="{{.Name}}" onclick="v2ToggleTag(this.dataset.tag)">{{.Name}} <span class="v2-cat-n">{{.Count}}</span></button>{{end}}<button type="button" class="v2-tag-pill v2-tag-more" data-more="+{{add (len .Tags) -5}} more" onclick="v2ToggleMoreTags(this)">+{{add (len .Tags) -5}} more</button>{{else}}{{range .Tags}}<button type="button" class="v2-tag-pill" data-tag="{{.Name}}" onclick="v2ToggleTag(this.dataset.tag)">{{.Name}} <span class="v2-cat-n">{{.Count}}</span></button>{{end}}{{end}}</div>{{end}}
+    {{if .Categories}}<div class="v2-head-row">
+      <span class="v2-filter-label">CATEGORY</span>
+      <button type="button" class="v2-cat on" data-cat="all" onclick="v2FilterCat(this.dataset.cat)">ALL <span class="v2-cat-n">{{.ArticleCount}}</span></button>
+      {{range .Categories}}<button type="button" class="v2-cat" data-cat="{{.}}" onclick="v2FilterCat(this.dataset.cat)">{{.}} <span class="v2-cat-n">{{index $.CategoryCounts .}}</span></button>{{end}}
+    </div>{{end}}
+    {{if .Tags}}<div class="v2-tagcloud"><span class="v2-filter-label">TAGS</span>{{range .Tags}}<button type="button" class="v2-tag-pill" data-tag="{{.Name}}" onclick="v2ToggleTag(this.dataset.tag)">{{.Name}} <span class="v2-cat-n">{{.Count}}</span></button>{{end}}<button type="button" class="v2-tag-pill v2-tag-more" hidden onclick="v2ToggleMoreTags(this)"></button></div>{{end}}
     {{if .OverviewSections}}<div class="v2-brief" id="brief-panel" hidden>
       {{range $i, $s := .OverviewSections}}<div class="v2-brief-section">
         <div class="v2-brief-head"><span class="v2-brief-tag">{{$s.Tag}}</span><span class="v2-brief-title">{{$s.Title}}</span></div>
@@ -100,7 +159,8 @@
             {{if gt .ImportanceScore 0}}<span class="v2-toc-score {{tocNumClass .ReadTag}}">{{.ImportanceScore}}</span>{{end}}
           </div>
           <div class="v2-toc-meta">
-            {{if $row.CanonDetail}}<span><span class="v2-dot" style="background:{{paletteVar $row.CanonDetail.Source}}"></span> {{$row.CanonDetail.Source}}{{if .Category}} · {{.Category}}{{end}}</span>{{end}}
+            {{if .Category}}<span class="v2-toc-cat">{{.Category}}</span>{{end}}
+            {{if $row.CanonDetail}}<span><span class="v2-dot" style="background:{{paletteVar $row.CanonDetail.Source}}"></span> {{$row.CanonDetail.Source}}</span>{{end}}
             {{if $row.Others}}<button type="button" class="v2-dup-toggle" onclick="event.stopPropagation();v2ToggleDup(this)">+{{len $row.Others}} DUPLICATES <span class="v2-caret">▾</span></button>{{end}}
           </div>
         </div>{{end}}{{if $row.Others}}<div class="v2-dup-list" hidden>
@@ -111,7 +171,10 @@
             <span class="v2-toc-title">{{.Title}}</span>
             {{if gt .ImportanceScore 0}}<span class="v2-toc-score {{tocNumClass .ReadTag}}">{{.ImportanceScore}}</span>{{end}}
           </div>
-          {{if $row.Detail}}<div class="v2-toc-meta"><span><span class="v2-dot" style="background:{{paletteVar $row.Detail.Source}}"></span> {{$row.Detail.Source}}{{if .Category}} · {{.Category}}{{end}}</span></div>{{end}}
+          {{if or .Category $row.Detail}}<div class="v2-toc-meta">
+            {{if .Category}}<span class="v2-toc-cat">{{.Category}}</span>{{end}}
+            {{if $row.Detail}}<span><span class="v2-dot" style="background:{{paletteVar $row.Detail.Source}}"></span> {{$row.Detail.Source}}</span>{{end}}
+          </div>{{end}}
         </div>{{end}}{{end}}{{end}}
       </div>{{end}}
       <div class="v2-toc-hint">j/k to move · enter to open source</div>
@@ -133,6 +196,43 @@
   <p id="glossary-popup-context" class="v2-gloss-context" hidden><span class="v2-gloss-context-label">In this article</span> <span id="glossary-popup-context-text"></span></p>
 </div>{{end}}
 
+{{if .HasLearning}}{{if .GlossaryPanel}}
+<button id="glossary-panel-toggle" class="glossary-panel-toggle" type="button" onclick="toggleGlossaryPanel()" aria-expanded="false" aria-controls="glossary-panel" title="Open the glossary">Glossary</button>
+<div id="glossary-backdrop" class="glossary-backdrop"></div>
+<aside id="glossary-panel" class="glossary-panel" aria-label="Glossary">
+  <div class="glossary-panel-head">
+    <span class="glossary-panel-title">Glossary</span>
+    <button class="glossary-panel-close" type="button" onclick="closeGlossaryPanel()" aria-label="Close glossary">×</button>
+  </div>
+  <div class="glossary-panel-search">
+    <input id="glossary-panel-search" type="search" placeholder="Filter terms…" autocomplete="off" aria-label="Filter glossary" oninput="filterGlossary(this.value)">
+  </div>
+  <div class="glossary-panel-body">
+    <dl class="glossary-panel-list">
+      {{range .GlossaryPanel}}<div class="glossary-panel-entry" data-lvl="{{.Lvl}}"><dt class="glossary-panel-term">{{.Term}}{{if .Type}} <span class="glossary-panel-type">{{.Type}}</span>{{end}}</dt><dd class="glossary-panel-def">{{.Definition}}{{if .Aliases}}<div class="glossary-panel-aliases">also: {{range $i, $a := .Aliases}}{{if $i}}, {{end}}{{$a}}{{end}}</div>{{end}}</dd></div>{{end}}
+    </dl>
+    <p id="glossary-panel-empty" class="glossary-panel-empty" hidden>No matching terms.</p>
+  </div>
+  <div class="glossary-panel-foot">
+    <a class="glossary-panel-suggest" href="https://github.com/ma111e/downlink/issues/new?title=Glossary%20improvement" target="_blank" rel="noopener noreferrer">Suggest an improvement</a>
+  </div>
+</aside>{{end}}{{end}}
+
+{{if .HasLearning}}<div id="tour" class="tour-overlay" role="dialog" aria-modal="true" aria-labelledby="tour-title" hidden>
+  <div id="tour-spotlight" class="tour-spotlight is-centered" aria-hidden="true"></div>
+  <div id="tour-card" class="tour-card">
+    <div id="tour-step" class="tour-card-step"></div>
+    <h2 id="tour-title" class="tour-card-title"></h2>
+    <p id="tour-body" class="tour-card-body"></p>
+    <div class="tour-card-foot">
+      <button type="button" class="tour-btn tour-skip" id="tour-skip">Skip</button>
+      <span class="tour-dots" id="tour-dots" aria-hidden="true"></span>
+      <button type="button" class="tour-btn" id="tour-back">Back</button>
+      <button type="button" class="tour-btn tour-btn-primary" id="tour-next">Next</button>
+    </div>
+  </div>
+</div>{{end}}
+
 <script type="application/json" id="dl-glossary">{{.GlossaryJSON}}</script>
 <script type="application/json" id="dl-glossary-context">{{.GlossaryContextJSON}}</script>
 {{if .ScriptJS}}<script type="module">{{.ScriptJS}}</script>{{end}}{{.ScriptSrc}}
@@ -143,7 +243,7 @@
   <div class="v2-detail-meta">
     {{if gt .ImportanceScore 0}}<span class="v2-badge {{priorityBadgeClass .ReadTag}}">{{priorityShort .ReadTag}} · {{.ImportanceScore}}</span>{{end}}
     {{if .Category}}<span class="v2-detail-cat cat-{{.Category}}">{{.Category}}</span>{{end}}
-    <span class="v2-detail-src"><span class="v2-dot" style="background:{{paletteVar .Source}}"></span> {{.Source}} · {{.PublishedAt}}{{if and .HasAnalysis .Analysis.ModelName}} · {{.Analysis.ModelName}}{{end}}</span>
+    <span class="v2-detail-src">{{.PublishedAt}}{{if and .HasAnalysis .Analysis.ModelName}} · {{.Analysis.ModelName}}{{end}}</span>
   </div>
   <h2 class="v2-detail-title">{{.Title}}</h2>
   {{if .HasAnalysis}}
@@ -162,16 +262,19 @@
     {{if .Analysis.Insights}}<button type="button" class="v2-tab" onclick="v2Tab(this,'insights-{{.Id}}')">INSIGHTS</button>{{end}}
   </div>
   <div class="v2-tabbodies">
-    {{if .Analysis.Tldr}}<div id="tldr-{{.Id}}" class="v2-tabpanel active prose" data-article-id="{{.Id}}">{{.Analysis.Tldr}}</div>{{end}}
+    {{if .Analysis.Tldr}}<div id="tldr-{{.Id}}" class="v2-tabpanel active prose" data-article-id="{{.Id}}">{{.Analysis.Tldr}}{{if .Analysis.KeyPoints}}<div class="v2-kp-block">
+      <div class="v2-subhead">KEY POINTS</div>
+      <ul class="v2-kp v2-kp-num">{{range $i, $kp := .Analysis.KeyPoints}}<li><span class="v2-kp-num">{{printf "%02d" (add $i 1)}}</span><span class="v2-kp-text">{{$kp}}</span></li>{{end}}</ul>
+    </div>{{end}}</div>{{end}}
     <div id="brief-{{.Id}}" class="v2-tabpanel{{if not .Analysis.Tldr}} active{{end}} prose" data-article-id="{{.Id}}">{{.Analysis.BriefOverview}}</div>
     {{if .Analysis.StandardSynthesis}}<div id="standard-{{.Id}}" class="v2-tabpanel prose" data-article-id="{{.Id}}">{{.Analysis.StandardSynthesis}}</div>{{end}}
     {{if .Analysis.ComprehensiveSynthesis}}<div id="deep-{{.Id}}" class="v2-tabpanel prose" data-article-id="{{.Id}}">{{.Analysis.ComprehensiveSynthesis}}</div>{{end}}
     {{if .Analysis.Insights}}<div id="insights-{{.Id}}" class="v2-tabpanel" data-article-id="{{.Id}}"><ul class="v2-kp">{{range .Analysis.Insights}}<li><span class="v2-kp-text">{{.}}</span></li>{{end}}</ul></div>{{end}}
   </div>
 
-  {{if .Analysis.KeyPoints}}<div class="v2-kp-block">
-    <div class="v2-subhead">KEY POINTS</div>
-    <ul class="v2-kp v2-kp-num">{{range $i, $kp := .Analysis.KeyPoints}}<li><span class="v2-kp-num">{{printf "%02d" (add $i 1)}}</span><span class="v2-kp-text">{{$kp}}</span></li>{{end}}</ul>
+  {{if .Analysis.PlainWords}}<div class="v2-plain-block">
+    <button type="button" class="v2-plain-label v2-subhead" onclick="v2TogglePlain(this)">IN PLAIN WORDS <span class="v2-caret">▾</span></button>
+    <div class="v2-plain-body prose">{{.Analysis.PlainWords}}</div>
   </div>{{end}}
 
   <div class="v2-detail-actions">
@@ -188,9 +291,15 @@
 
 {{define "v2Reports"}}<div class="v2-reports">
   <div class="v2-subhead">REPORTS · {{len .}}</div>
-  {{range .}}<div class="v2-report">
-    {{if .Primary}}<span class="v2-report-primary">PRIMARY</span>{{end}}
-    <a class="v2-report-title" href="{{.URL}}" target="_blank" rel="noopener">{{if .Title}}{{.Title}}{{else}}{{.URL}}{{end}}</a>
-    <span class="v2-report-meta">{{if .Publisher}}{{.Publisher}}{{end}}{{if .Category}} · {{.Category}}{{end}}</span>
-  </div>{{end}}
+  {{$hasPrimary := hasPrimary .}}{{$n := nonPrimaryCount .}}
+  {{range .}}<a class="v2-report{{if and $hasPrimary (not .Primary)}} v2-report-hidden{{end}}" href="{{.URL}}" target="_blank" rel="noopener">
+    <div class="v2-report-head">
+      {{if .Primary}}<span class="v2-report-primary">PRIMARY</span>{{end}}
+      <span class="v2-report-title">{{if .Title}}{{.Title}}{{else}}{{.URL}}{{end}}</span>
+      {{if .Category}}<span class="v2-report-cat cat-{{.Category}}">{{.Category}}</span>{{end}}
+    </div>
+    {{if .Publisher}}<div class="v2-report-meta">{{.Publisher}}</div>{{end}}
+    {{if .Context}}<div class="v2-report-context prose">{{.Context}}</div>{{end}}
+  </a>{{end}}
+  {{if and $hasPrimary (gt $n 0)}}<button type="button" class="v2-report-more" data-more="+{{$n}} more" onclick="v2ToggleReports(this)"><span class="v2-report-more-label">+{{$n}} more</span> <span class="v2-caret">▾</span></button>{{end}}
 </div>{{end}}

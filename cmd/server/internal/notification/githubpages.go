@@ -45,6 +45,16 @@ type GitHubPagesPublisher struct {
 	landing     []LandingProfile
 	profileSlug string // current profile being published (switcher active state)
 	theme       string // current profile's first-paint theme ("" = default)
+	layoutPeers []LayoutPeer // sibling layouts published in this run (layout-switch UI)
+}
+
+// LayoutPeer is one layout published for the current profile in this run, paired
+// with the output subdir it lives in. The layout-switch snippet uses the set of
+// peers to move a reader between coexisting layouts (e.g. default <-> v2) by
+// swapping the subdir segment in the URL.
+type LayoutPeer struct {
+	Layout string // layout name, e.g. "default" or "v2"
+	Subdir string // output subdir the layout is published under, e.g. "digests-v2"
 }
 
 // DigestLister returns up to limit newest digests with full payload (provider
@@ -113,6 +123,14 @@ func (p *GitHubPagesPublisher) SetProfileContext(slug, theme string) {
 	p.theme = theme
 }
 
+// SetLayoutPeers records every layout published for this profile in the current
+// run (including this publisher's own layout) with its output subdir. When two
+// or more layouts coexist, the layout-switch snippet is injected so readers can
+// move between them; with fewer than two peers switching stays inert.
+func (p *GitHubPagesPublisher) SetLayoutPeers(peers []LayoutPeer) {
+	p.layoutPeers = peers
+}
+
 // rootPrefix is the relative path from a published page back to the repo root.
 // Per-profile pages live under outputDir (one or more segments deep), so the
 // switcher and any root-relative reference walk up that many levels.
@@ -129,6 +147,36 @@ func (p *GitHubPagesPublisher) maybeInjectSwitcher(html []byte, outputDir string
 		return html
 	}
 	return injectProfileSwitcher(html, p.profileSlug, p.rootPrefix(outputDir))
+}
+
+// maybeInjectLayoutSwitch adds the layout-switch UI (pre-paint redirect,
+// "try the new layout" banner on the default layout, and the classic-layout
+// hint for the v2 settings toggle) when more than one layout is published for
+// this profile. With a single layout the page is returned unchanged.
+func (p *GitHubPagesPublisher) maybeInjectLayoutSwitch(html []byte) []byte {
+	if len(p.layoutPeers) <= 1 {
+		return html
+	}
+	return injectLayoutSwitch(html, p.cfg.Layout, p.layoutPeers)
+}
+
+// cfAnalyticsSnippet is the Cloudflare Web Analytics beacon injected into every
+// published page. The token is public by design: it ships in the served HTML.
+const cfAnalyticsSnippet = `<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "67d95ce834bf420dbeb692f23a7eed3c"}'></script><!-- End Cloudflare Web Analytics -->`
+
+// injectAnalytics places the Cloudflare Web Analytics beacon just before the
+// first </head>. Pages without a </head> are returned unchanged.
+func injectAnalytics(html []byte) []byte {
+	marker := []byte("</head>")
+	idx := bytes.Index(html, marker)
+	if idx < 0 {
+		return html
+	}
+	out := make([]byte, 0, len(html)+len(cfAnalyticsSnippet))
+	out = append(out, html[:idx]...)
+	out = append(out, cfAnalyticsSnippet...)
+	out = append(out, html[idx:]...)
+	return out
 }
 
 // SetProgress attaches a PublishProgress sink so callers can render live step
@@ -484,6 +532,8 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, layout
 		return fmt.Errorf("github pages: failed to build index: %w", err)
 	}
 	indexBytes = p.maybeInjectSwitcher(indexBytes, outputDir)
+	indexBytes = p.maybeInjectLayoutSwitch(indexBytes)
+	indexBytes = injectAnalytics(indexBytes)
 
 	existing, readErr := os.ReadFile(indexAbsPath)
 	if readErr != nil || !bytes.Equal(existing, indexBytes) {
@@ -524,6 +574,7 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, layout
 			return fmt.Errorf("github pages: failed to build root index: %w", err)
 		}
 	}
+	rootIndexBytes = injectAnalytics(rootIndexBytes)
 	rootIndexRelPath := "index.html"
 	rootIndexAbsPath := filepath.Join(p.cfg.CloneDir, rootIndexRelPath)
 	existingRoot, readRootErr := os.ReadFile(rootIndexAbsPath)
@@ -706,6 +757,8 @@ func (p *GitHubPagesPublisher) ensureSourcesPage(wt *gogit.Worktree, outputDir, 
 		locations = append([]string{"sources.html"}, locations...)
 	}
 	out := p.maybeInjectSwitcher(sourcesBytes, outputDir)
+	out = p.maybeInjectLayoutSwitch(out)
+	out = injectAnalytics(out)
 	for _, relPath := range locations {
 		absPath := filepath.Join(p.cfg.CloneDir, relPath)
 		existing, readErr := os.ReadFile(absPath)
@@ -750,6 +803,8 @@ func (p *GitHubPagesPublisher) ensureReportsPage(wt *gogit.Worktree, outputDir, 
 		locations = append([]string{"reports.html"}, locations...)
 	}
 	out := p.maybeInjectSwitcher(reportsBytes, outputDir)
+	out = p.maybeInjectLayoutSwitch(out)
+	out = injectAnalytics(out)
 	for _, relPath := range locations {
 		absPath := filepath.Join(p.cfg.CloneDir, relPath)
 		existing, readErr := os.ReadFile(absPath)
@@ -1071,6 +1126,8 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout stri
 				return fmt.Errorf("github pages: render digest %s: %w", digest.Id, err)
 			}
 			htmlBytes = p.maybeInjectSwitcher(htmlBytes, outputDir)
+			htmlBytes = p.maybeInjectLayoutSwitch(htmlBytes)
+			htmlBytes = injectAnalytics(htmlBytes)
 			if err := os.MkdirAll(filepath.Dir(digestAbsPath), 0755); err != nil {
 				return fmt.Errorf("github pages: create output dir: %w", err)
 			}
@@ -1083,6 +1140,8 @@ func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout stri
 				return fmt.Errorf("github pages: render swipe %s: %w", digest.Id, err)
 			}
 			swipeBytes = p.maybeInjectSwitcher(swipeBytes, outputDir)
+			swipeBytes = p.maybeInjectLayoutSwitch(swipeBytes)
+			swipeBytes = injectAnalytics(swipeBytes)
 			swipeRelPath := filepath.Join(outputDir, SwipeHTMLFilename(digest))
 			swipeAbsPath := filepath.Join(p.cfg.CloneDir, swipeRelPath)
 			if err := os.WriteFile(swipeAbsPath, swipeBytes, 0644); err != nil {
@@ -1361,6 +1420,8 @@ func (p *GitHubPagesPublisher) renderAndStageSwipe(wt *gogit.Worktree, digest mo
 		return fmt.Errorf("github pages: failed to render swipe HTML: %w", err)
 	}
 	swipeBytes = p.maybeInjectSwitcher(swipeBytes, outputDir)
+	swipeBytes = p.maybeInjectLayoutSwitch(swipeBytes)
+	swipeBytes = injectAnalytics(swipeBytes)
 
 	swipeFilename := SwipeHTMLFilename(digest)
 	swipeRelPath := filepath.Join(outputDir, swipeFilename)
@@ -1385,6 +1446,8 @@ func (p *GitHubPagesPublisher) renderAndStage(wt *gogit.Worktree, digest models.
 		return "", fmt.Errorf("github pages: failed to render digest HTML: %w", err)
 	}
 	htmlBytes = p.maybeInjectSwitcher(htmlBytes, outputDir)
+	htmlBytes = p.maybeInjectLayoutSwitch(htmlBytes)
+	htmlBytes = injectAnalytics(htmlBytes)
 
 	digestFilename := DigestHTMLFilename(digest)
 	digestRelPath := filepath.Join(outputDir, digestFilename)

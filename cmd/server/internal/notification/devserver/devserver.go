@@ -31,7 +31,7 @@ type Options struct {
 	OpenBrowser  bool            // open the default browser at startup
 	Digests      []models.Digest // digests listed in the archive and served individually
 	Feeds        []models.Feed   // feeds listed on the sources page (empty for the sample fixture)
-	Theme        string          // template layout name; empty = default
+	Layout       string          // template layout name; empty = default
 }
 
 // Run starts the preview server and blocks until the process is interrupted or
@@ -65,7 +65,7 @@ func Run(opts Options) error {
 			http.NotFound(w, r)
 			return
 		}
-		serveHTML(w, func() ([]byte, error) { return notification.RenderDigestIndex(opts.Theme, "") })
+		serveHTML(w, func() ([]byte, error) { return notification.RenderDigestIndex(opts.Layout, "") })
 	}
 	mux.HandleFunc("/", archiveIndex)
 	mux.HandleFunc("/index.html", archiveIndex)
@@ -77,12 +77,12 @@ func Run(opts Options) error {
 		digestFilename := notification.DigestHTMLFilename(d)
 		mux.HandleFunc("/"+digestFilename, func(w http.ResponseWriter, r *http.Request) {
 			serveHTML(w, func() ([]byte, error) {
-				return notification.RenderDigestHTML(d, opts.Theme, "")
+				return notification.RenderDigestHTML(d, opts.Layout, "")
 			})
 		})
 		mux.HandleFunc("/"+notification.SwipeHTMLFilename(d), func(w http.ResponseWriter, r *http.Request) {
 			serveHTML(w, func() ([]byte, error) {
-				return notification.RenderSwipeHTML(d, digestFilename, opts.Theme, "")
+				return notification.RenderSwipeHTML(d, digestFilename, opts.Layout, "")
 			})
 		})
 	}
@@ -91,7 +91,7 @@ func Run(opts Options) error {
 	// digest. Footer links on the digest/archive/swipe pages point here.
 	mux.HandleFunc("/reports.html", func(w http.ResponseWriter, r *http.Request) {
 		serveHTML(w, func() ([]byte, error) {
-			return notification.RenderReportsPageForDigests(digests, opts.Theme, "")
+			return notification.RenderReportsPageForDigests(digests, opts.Layout, "")
 		})
 	})
 
@@ -99,7 +99,7 @@ func Run(opts Options) error {
 	// page point here.
 	mux.HandleFunc("/sources.html", func(w http.ResponseWriter, r *http.Request) {
 		serveHTML(w, func() ([]byte, error) {
-			return notification.RenderSourcesPage(opts.Feeds, opts.Theme, "")
+			return notification.RenderSourcesPage(opts.Feeds, opts.Layout, "")
 		})
 	})
 
@@ -172,7 +172,7 @@ func Export(opts Options, dir string) error {
 	fmt.Printf("\nexporting %d digest(s) to %s\n", len(digests), dir)
 
 	if err := write("index.html", func() ([]byte, error) {
-		return notification.RenderDigestIndex(opts.Theme, "")
+		return notification.RenderDigestIndex(opts.Layout, "")
 	}); err != nil {
 		return err
 	}
@@ -198,25 +198,25 @@ func Export(opts Options, dir string) error {
 		d := d
 		digestFilename := notification.DigestHTMLFilename(d)
 		if err := write(digestFilename, func() ([]byte, error) {
-			return notification.RenderDigestHTML(d, opts.Theme, "")
+			return notification.RenderDigestHTML(d, opts.Layout, "")
 		}); err != nil {
 			return err
 		}
 		if err := write(notification.SwipeHTMLFilename(d), func() ([]byte, error) {
-			return notification.RenderSwipeHTML(d, digestFilename, opts.Theme, "")
+			return notification.RenderSwipeHTML(d, digestFilename, opts.Layout, "")
 		}); err != nil {
 			return err
 		}
 	}
 
 	if err := write("reports.html", func() ([]byte, error) {
-		return notification.RenderReportsPageForDigests(digests, opts.Theme, "")
+		return notification.RenderReportsPageForDigests(digests, opts.Layout, "")
 	}); err != nil {
 		return err
 	}
 
 	if err := write("sources.html", func() ([]byte, error) {
-		return notification.RenderSourcesPage(opts.Feeds, opts.Theme, "")
+		return notification.RenderSourcesPage(opts.Feeds, opts.Layout, "")
 	}); err != nil {
 		return err
 	}

@@ -64,7 +64,8 @@ type GenerateDigestOptions struct {
 	SkipAnalysis           bool
 	SkipDuplicates         bool
 	ExcludeDigested        bool
-	Layout                 string // graphical/layout theme name; empty = server default
+	Layout                 string   // single layout name (legacy; folded into Layouts); empty = server default
+	Layouts                []string // multi-layout publish; each layout published to its own subdir. Overrides Layout when set.
 	OneShotAnalysis        bool
 	Test                   bool
 	TestDigestID           string
@@ -98,13 +99,19 @@ func (pc *DownlinkClient) GenerateDigest(ctx context.Context, startTime time.Tim
 }
 
 func (pc *DownlinkClient) GenerateDigestWithOptions(ctx context.Context, options GenerateDigestOptions) (models.Digest, error) {
+	// Fold the legacy single Layout into the layouts list when no list was given.
+	layouts := options.Layouts
+	if len(layouts) == 0 && options.Layout != "" {
+		layouts = []string{options.Layout}
+	}
+
 	stream, err := pc.digestClient.GenerateDigest(ctx, &protos.GenerateDigestRequest{
 		StartTime:              timestamppb.New(options.StartTime),
 		EndTime:                timestamppb.New(options.EndTime),
 		SkipAnalysis:           options.SkipAnalysis,
 		SkipDuplicates:         options.SkipDuplicates,
 		ExcludeDigested:        options.ExcludeDigested,
-		Theme:                  options.Layout, // proto field carries the layout name (kept for wire compat)
+		Layouts:                layouts,
 		OneShotAnalysis:        options.OneShotAnalysis,
 		Test:                   options.Test,
 		TestDigestId:           options.TestDigestID,

@@ -52,7 +52,7 @@ Output and publishing:
 | Flag | Description |
 |---|---|
 | `--profile <slug>` | Generate for a [profile](profiles.md): its feed pool, editorial config, layout, and theme. Omitted uses the default profile. |
-| `--theme <layout>` | Layout (template set) for this run. Empty uses the profile's, then the server default. See [Layouts and themes](#layouts-and-themes). |
+| `--layout <name>` | Layout (template set) for this run: a single name, a comma-separated list, or `all`. Multiple layouts publish each to its own subdir. Empty uses the profile's, then the server default. See [Layouts and themes](#layouts-and-themes). |
 | `--gh-pages` / `--no-gh-pages` | Force GitHub Pages publishing on or off for this run, overriding server config. |
 | `--test` / `--test-digest-id <id>` | Send a stored digest to the notification channels without generating a new one. |
 
@@ -93,13 +93,15 @@ The published HTML archive is the main way to read digests.
 
 Two independent axes style the published HTML.
 
-**Layout** is the template set (page structure). The built-in layout is `default`;
-list available layouts with `dlk digest list --themes`. The `--theme` flag takes a layout
-name despite its name. Set it per run with `dlk digest generate --theme <layout>`, a server
-default with `github_pages.layout`, or per profile with `layout` in `profiles.yml`. Ship
-your own layout under the layouts dir (`--layouts-dir`); a custom layout may override only
-some pages and inherits the rest from `default`. The `dlk publish` commands also accept
-`--theme <layout>` (a persistent flag, e.g. `republish-all`, `add`, `republish`).
+**Layout** is the template set (page structure). The built-in layouts are `default` and
+`v2`; list them with `dlk digest list --layouts`. Set the layout per run with
+`dlk digest generate --layout <name>`, a server default with `github_pages.layout`, or per
+profile with `layout` in `profiles.yml`. `--layout` accepts a comma-separated list (or
+`all`) to publish the digest in several layouts at once, each into its own output subdir
+(`<base>` for the first, `<base>-<layout>` for the rest). Ship your own layout under the
+layouts dir (`--layouts-dir`); a custom layout may override only some pages and inherits the
+rest from `default`. The `dlk publish` commands also accept `--layout <name>` (a persistent
+flag, e.g. `republish-all`, `add`, `republish`).
 
 **Theme** is the color palette. It is the first-paint default baked into the page; readers
 switch it with the in-page picker. Set a profile's default with `theme` in `profiles.yml`.

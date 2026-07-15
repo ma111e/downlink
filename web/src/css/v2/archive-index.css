@@ -3,6 +3,26 @@
    The palette is embedded here so the page is self-contained across all six themes,
    matching downlink's convention where each page stylesheet carries its own palette. */
 
+/* cross-document page transition (same as the v1 pages). The destination page's CSS
+   drives the animation, so landing on the index (navigating "back" from a digest)
+   plays left-to-right: the outgoing digest slides right while the index slides in
+   from the left. Unsupported browsers (e.g. Firefox) navigate instantly. */
+@view-transition { navigation: auto; }
+@keyframes vt-slide-fade-out {
+  to { opacity: 0; transform: translateX(24px); }
+}
+@keyframes vt-slide-fade-in {
+  from { opacity: 0; transform: translateX(-24px); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: vt-slide-fade-out 220ms cubic-bezier(0.4, 0, 1, 1) both;
+  }
+  ::view-transition-new(root) {
+    animation: vt-slide-fade-in 320ms cubic-bezier(0, 0, 0.2, 1) 120ms both;
+  }
+}
+
 /* ---- theme palette (keep in sync with web/src/css/digest.css) ---- */
 :root {
   --bg:      #0b0b0e;
@@ -33,6 +53,12 @@
   --cat-sponsored:    oklch(72% 0.16 300);
   --cat-announcement: oklch(75% 0.14 160);
   --dot:     #ffffff08;
+  /* Per-window chip colors, cool (short) -> warm (long); ported from the v1 archive. */
+  --win-4h:  #2bb4a0;
+  --win-8h:  #3b9ad9;
+  --win-12h: #d99a2b;
+  --win-1d:  #e1663b;
+  --win-1w:  #9b6dd6;
 }
 html[data-theme="light"] {
   --bg:      #efeeea;
@@ -60,6 +86,11 @@ html[data-theme="light"] {
   --cat-sponsored:    oklch(66% 0.18 300);
   --cat-announcement: oklch(66% 0.18 168);
   --dot:     rgba(0,0,0,.035);
+  --win-4h:  oklch(66% 0.18 180);
+  --win-8h:  oklch(66% 0.18 245);
+  --win-12h: oklch(66% 0.18 80);
+  --win-1d:  oklch(66% 0.18 32);
+  --win-1w:  oklch(66% 0.18 300);
 }
 html[data-theme="contrast"] {
   --bg:      #000000;
@@ -87,6 +118,11 @@ html[data-theme="contrast"] {
   --cat-sponsored:    #c08cff;
   --cat-announcement: #3affc0;
   --dot:     rgba(255,255,255,.08);
+  --win-4h:  #2ee6cf;
+  --win-8h:  #5ab0ff;
+  --win-12h: #ffcc33;
+  --win-1d:  #ff7a4d;
+  --win-1w:  #c08cff;
 }
 html[data-theme="mono"] {
   --bg:      #0c0c0c;
@@ -114,6 +150,11 @@ html[data-theme="mono"] {
   --cat-sponsored:    #a8a8a8;
   --cat-announcement: #bcbcbc;
   --dot:     rgba(255,255,255,.04);
+  --win-4h:  #e4e4e4;
+  --win-8h:  #cccccc;
+  --win-12h: #b4b4b4;
+  --win-1d:  #9c9c9c;
+  --win-1w:  #848484;
 }
 html[data-theme="colorblind"] {
   --bg:      #efeeea;
@@ -141,6 +182,11 @@ html[data-theme="colorblind"] {
   --cat-sponsored:    #8f4acc;
   --cat-announcement: #007a6d;
   --dot:     rgba(0,0,0,.035);
+  --win-4h:  #0072b2;
+  --win-8h:  #1a7a4f;
+  --win-12h: #8a6d00;
+  --win-1d:  #c44601;
+  --win-1w:  #7a4fa0;
 }
 html[data-theme="pastel"] {
   --bg:      #faf6e6;
@@ -168,7 +214,18 @@ html[data-theme="pastel"] {
   --cat-sponsored:    #8c6dd0;
   --cat-announcement: #2ba88f;
   --dot:     rgba(0,0,0,.03);
+  --win-4h:  #1f9d8f;
+  --win-8h:  #4a90d9;
+  --win-12h: #d99a2b;
+  --win-1d:  #e0655c;
+  --win-1w:  #9a6dd0;
 }
+
+/* Native form controls (the theme select's popup list) must follow the theme —
+   without this the browser paints its default light dropdown over the dark card. */
+:root { color-scheme: dark; }
+html[data-theme="light"], html[data-theme="colorblind"], html[data-theme="pastel"] { color-scheme: light; }
+.v2-theme option { background: var(--surface); color: var(--text); }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -183,16 +240,19 @@ body.v2 ::selection { background: color-mix(in srgb, var(--cyan) 25%, transparen
 
 .v2-page { min-height: 100vh; display: flex; flex-direction: column; }
 
-/* ---- topbar ---- */
+/* ---- topbar ----
+   Geometry (padding, gaps, font sizes) is kept identical to the digest page's topbar
+   (web/src/css/v2/digest.css) so navigating between the two doesn't shift the bar
+   height or the brand position. */
 .v2-topbar {
-  display: flex; align-items: center; gap: 14px;
-  padding: 13px 32px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; row-gap: 8px;
+  padding: 13px 28px; border-bottom: 1px solid var(--border);
 }
 .v2-brand-mark { width: 20px; height: 18px; color: var(--cyan); flex: none; }
-.v2-brand { font: 600 14px var(--sans); letter-spacing: .16em; color: var(--text); }
-.v2-brand-sub { font: 400 11px var(--mono); color: var(--text3); }
+.v2-brand { font: 600 13px var(--sans); letter-spacing: .16em; color: var(--text); }
+.v2-brand-sub { font: 400 10.5px var(--mono); color: var(--text3); }
 .v2-spacer { flex: 1; }
-.v2-topstats { font: 400 11px var(--mono); color: var(--text2); }
+.v2-topstats { font: 400 10.5px var(--mono); color: var(--text2); }
 .v2-theme {
   font: 500 10px var(--mono); letter-spacing: .06em; color: var(--text2);
   background: transparent; border: 1px solid var(--border2); border-radius: 3px;
@@ -202,13 +262,80 @@ body.v2 ::selection { background: color-mix(in srgb, var(--cyan) 25%, transparen
 .v2-github svg { width: 15px; height: 15px; }
 .v2-github:hover { color: var(--text); }
 
+/* ---- settings menu (gear-opened) -----------------------------------------------
+   Same gear + card as the digest topbar (styles copied per the self-contained-
+   stylesheet convention; class names match the digest markup) so the two bars stay
+   identical. Holds the theme select and the Animations switch. */
+/* Double class to beat the later filterbar .v2-chip rule (8px padding); the topbar
+   gear must keep the digest topbar's chip geometry so the bars stay the same height. */
+.v2-chip.v2-chip-icon { display: inline-flex; align-items: center; padding: 4px 7px; }
+.v2-settings-wrap { position: relative; display: inline-flex; align-items: center; }
+.v2-settings-card {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 50; min-width: 210px;
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 6px;
+  padding: 8px; box-shadow: 0 8px 30px rgba(0,0,0,.4);
+}
+.v2-settings-card[hidden] { display: none; }
+.v2-settings-card .v2-theme { width: 100%; margin: 0 0 4px; }
+#settings-toggle[aria-expanded="true"] { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, transparent); }
+.v2-learn-card-title {
+  font: 600 9px var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text3); padding: 2px 4px 6px;
+}
+.v2-learn-feature {
+  display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px;
+  background: none; border: none; border-radius: 4px; padding: 6px 4px; cursor: pointer;
+  color: var(--text2); font: 400 12px var(--sans);
+}
+.v2-learn-feature:hover { background: color-mix(in srgb, var(--cyan) 8%, transparent); color: var(--text); }
+.v2-learn-feature:focus-visible { outline: 1px solid var(--cyan); outline-offset: -1px; }
+.v2-learn-feature-label { flex: 1; text-align: left; }
+.v2-learn-switch { position: relative; width: 26px; height: 14px; border-radius: 999px; background: var(--border2); transition: background .15s; flex: none; }
+.v2-learn-switch-knob { position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--text3); transition: transform .15s, background .15s; }
+.v2-learn-feature[aria-checked="true"] { color: var(--text); }
+.v2-learn-feature[aria-checked="true"] .v2-learn-switch { background: color-mix(in srgb, var(--cyan) 55%, transparent); }
+.v2-learn-feature[aria-checked="true"] .v2-learn-switch-knob { transform: translateX(12px); background: var(--cyan); }
+
+/* Reader-controlled kill switch: the Animations toggle in the settings menu
+   (persisted as downlink.anim, applied pre-paint; view transitions skipped in JS). */
+html[data-anim="off"] body.v2 *,
+html[data-anim="off"] body.v2 *::before,
+html[data-anim="off"] body.v2 *::after { animation: none !important; transition: none !important; }
+
 /* ---- hero ---- */
 .v2-hero {
-  display: flex; align-items: center; gap: 22px;
+  display: flex; flex-direction: column; gap: 18px;
   padding: 22px 32px; border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, var(--surface), var(--bg));
 }
+.v2-hero-top { display: flex; align-items: center; gap: 22px; }
 .v2-hero-main { flex: 1; min-width: 0; }
+
+/* Latest digest's articles, priority-tagged and sorted by importance. Scrolls
+   when the list outgrows its cap so the hero height stays bounded. */
+.v2-hero-list {
+  list-style: none; max-height: 176px; overflow-y: auto;
+  display: grid; gap: 1px;
+  border-top: 1px solid var(--border); padding-top: 12px;
+  scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+}
+.v2-hero-item {
+  display: grid; grid-template-columns: 46px 1fr; align-items: center; gap: 12px;
+  padding: 5px 4px; border-radius: 3px; color: var(--text2);
+}
+.v2-hero-item:hover { background: color-mix(in srgb, var(--cyan) 8%, transparent); color: var(--text); }
+.v2-hero-pri {
+  font: 600 8.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; text-align: center;
+  border: 1px solid currentColor; border-radius: 2px; padding: 2px 0; opacity: .9;
+}
+.v2-hero-pri.must   { color: var(--must); }
+.v2-hero-pri.should { color: var(--should); }
+.v2-hero-pri.may    { color: var(--may); }
+.v2-hero-pri.opt    { color: var(--text3); }
+.v2-hero-item-title {
+  font: 400 12.5px var(--sans); color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .v2-hero-empty { font: 400 11px var(--mono); color: var(--text3); padding: 6px 0; }
 .v2-hero-kicker { font: 500 10px var(--mono); letter-spacing: .14em; color: var(--cyan); margin-bottom: 7px; }
 .v2-hero-title { display: block; font: 600 20px/1.3 var(--sans); color: var(--text); }
@@ -281,7 +408,12 @@ body.v2 ::selection { background: color-mix(in srgb, var(--cyan) 25%, transparen
   font: 500 9.5px var(--mono); color: var(--text2); text-align: center;
   border: 1px solid var(--border2); border-radius: 2px; padding: 2px 6px;
 }
-.v2-row-win.is-day { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 40%, transparent); }
+/* Tint each window chip with its per-window color (cool -> warm), matching v1. */
+.v2-row-win.win-4h  { color: var(--win-4h);  border-color: color-mix(in srgb, var(--win-4h)  40%, transparent); }
+.v2-row-win.win-8h  { color: var(--win-8h);  border-color: color-mix(in srgb, var(--win-8h)  40%, transparent); }
+.v2-row-win.win-12h { color: var(--win-12h); border-color: color-mix(in srgb, var(--win-12h) 40%, transparent); }
+.v2-row-win.win-1d  { color: var(--win-1d);  border-color: color-mix(in srgb, var(--win-1d)  40%, transparent); }
+.v2-row-win.win-1w  { color: var(--win-1w);  border-color: color-mix(in srgb, var(--win-1w)  40%, transparent); }
 .v2-row-head {
   font: 500 12.5px var(--sans); color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -307,7 +439,7 @@ body.v2 ::selection { background: color-mix(in srgb, var(--cyan) 25%, transparen
 /* ---- responsive ---------------------------------------------------------- */
 /* Tablet: tighten padding + column widths so the 5-column log still fits. */
 @media (max-width: 1024px) {
-  .v2-topbar, .v2-hero, .v2-filterbar, .v2-colhead, .v2-row, .v2-daygroup, .v2-foot, .v2-empty { padding-left: 24px; padding-right: 24px; }
+  .v2-hero, .v2-filterbar, .v2-colhead, .v2-row, .v2-daygroup, .v2-foot, .v2-empty { padding-left: 24px; padding-right: 24px; }
   .v2-colhead, .v2-row { grid-template-columns: 120px 48px 1fr 120px 58px; gap: 12px; }
 }
 
@@ -315,9 +447,8 @@ body.v2 ::selection { background: color-mix(in srgb, var(--cyan) 25%, transparen
    timestamp + headline + count on top, the priority-mix bar full width below.
    Headlines wrap instead of truncating. Controls wrap; search takes a full row. */
 @media (max-width: 720px) {
-  .v2-topbar, .v2-hero, .v2-filterbar, .v2-colhead, .v2-row, .v2-daygroup, .v2-foot, .v2-empty { padding-left: 16px; padding-right: 16px; }
-  .v2-topbar { flex-wrap: wrap; row-gap: 8px; }
-  .v2-hero { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .v2-hero, .v2-filterbar, .v2-colhead, .v2-row, .v2-daygroup, .v2-foot, .v2-empty { padding-left: 16px; padding-right: 16px; }
+  .v2-hero-top { flex-direction: column; align-items: flex-start; gap: 16px; }
   .v2-hero-cta { width: 100%; }
   .v2-filterbar { flex-wrap: wrap; }
   .v2-search { flex-basis: 100%; order: -1; }
@@ -334,10 +465,21 @@ body.v2 ::selection { background: color-mix(in srgb, var(--cyan) 25%, transparen
   .v2-mix { grid-area: mix; height: 6px; align-self: center; }
 }
 
-/* Phone: shed the long topbar stats + per-group summary so headers stay on one line. */
+/* Phone: shed the per-group summary so headers stay on one line. */
 @media (max-width: 480px) {
-  .v2-topstats { display: none; }
   .v2-daysum { display: none; }
   .v2-chip { padding: 7px 9px; }
   .v2-foot { gap: 6px; }
+}
+
+/* Topbar tracks the digest page's breakpoints (860/560/400), not this page's, so the
+   bar geometry never shifts when navigating between the archive and a digest. */
+@media (max-width: 860px) {
+  .v2-topbar { padding-left: 16px; padding-right: 16px; }
+}
+@media (max-width: 560px) {
+  .v2-topstats { display: none; }
+}
+@media (max-width: 400px) {
+  .v2-topbar { padding-left: 12px; padding-right: 12px; }
 }

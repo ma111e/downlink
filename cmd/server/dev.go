@@ -39,7 +39,7 @@ func newDevDigestCommand() *cobra.Command {
 		noOpen       bool
 		exportDir    string
 		testDigestID string
-		theme        string
+		layout       string
 		from         string
 		to           string
 		between      string
@@ -116,7 +116,7 @@ the archive index against real data).`,
 				OpenBrowser:  !noOpen,
 				Digests:      digests,
 				Feeds:        feeds,
-				Theme:        theme,
+				Layout:       layout,
 			}
 
 			if exportDir != "" {
@@ -133,7 +133,7 @@ the archive index against real data).`,
 	cmd.Flags().BoolVar(&noOpen, "no-open", false, "Do not open the browser on startup")
 	cmd.Flags().StringVar(&exportDir, "export", "", "Render the page set to this directory as static HTML and exit (no server)")
 	cmd.Flags().StringVar(&testDigestID, "test-digest-id", "", "Render this digest id from the local DB instead of the sample fixture")
-	cmd.Flags().StringVar(&theme, "theme", "", `Template layout to use (default: "default")`)
+	cmd.Flags().StringVar(&layout, "layout", "", `Template layout to use (default: "default")`)
 	cmd.Flags().StringVar(&from, "from", "", "Start of the window selecting stored digests by creation time (e.g., 'now', '2025-01-01', '24h'; default: 24h)")
 	cmd.Flags().StringVar(&to, "to", "", "End of the window selecting stored digests by creation time (e.g., 'now', '2025-01-01', '1h')")
 	cmd.Flags().StringVar(&between, "between", "", "Select stored digests created between two dates/durations (e.g., '7d,1d', '2025-01-01,2025-01-07')")

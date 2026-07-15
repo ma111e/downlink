@@ -33,15 +33,15 @@ func createDigestCommands() *cobra.Command {
 	}
 
 	// List digests command
-	var listThemes bool
+	var listLayouts bool
 	listCmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List digests",
 		Long:    `View all available digests.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if listThemes {
-				fmt.Println("Available layout themes:")
+			if listLayouts {
+				fmt.Println("Available layouts:")
 				for _, l := range digestlayouts.All() {
 					fmt.Printf("  %-12s %s\n", l.Name, l.Description)
 				}
@@ -83,7 +83,7 @@ func createDigestCommands() *cobra.Command {
 
 	// Add flags for list command
 	listCmd.Flags().IntVar(&digestLimit, "limit", 0, "Maximum number of digests to return (0 = all)")
-	listCmd.Flags().BoolVar(&listThemes, "themes", false, "List available layout themes and exit")
+	listCmd.Flags().BoolVar(&listLayouts, "layouts", false, "List available layouts and exit")
 
 	// Get digest command
 	var showMarkdown bool
@@ -140,7 +140,8 @@ func createDigestCommands() *cobra.Command {
 	}
 	getCmd.Flags().BoolVar(&showMarkdown, "markdown", false, "Display summary in styled markdown format")
 
-	// Generate digest command
+	// Generate digest command. digestLayout carries the --layout value, which may be
+	// a comma-separated list of layouts (or "all") for multi-layout publishing.
 	var digestFrom, digestTo, digestBetween, digestDay, digestLayout, digestTestID string
 	var digestProvider, digestModel, digestProfile string
 	var digestDryRun, digestRefreshFeeds, digestTest, digestNoGHPages, digestGHPages, digestReanalyzeOnModelChange, digestReanalyze, digestVibeScore, digestGlossary, digestSelectModel bool
@@ -174,8 +175,9 @@ Examples:
 			client := getNewDownlinkClient()
 
 			if digestTest {
-				if digestLayout != "" && !digestlayouts.Valid(digestLayout) {
-					fmt.Printf("Unknown layout theme %q. Run 'digest list --themes' to see available themes.\n", digestLayout)
+				layouts, err := resolveDigestLayouts(digestLayout)
+				if err != nil {
+					fmt.Println(err)
 					return
 				}
 
@@ -207,7 +209,7 @@ Examples:
 				digest, err := client.GenerateDigestWithOptions(ctx, downlinkclient.GenerateDigestOptions{
 					StartTime:    time.Now(),
 					EndTime:      time.Now(),
-					Layout:       digestLayout,
+					Layouts:      layouts,
 					Test:         true,
 					TestDigestID: digestTestID,
 					OnEvent:      handler,
@@ -312,8 +314,9 @@ Examples:
 				return
 			}
 
-			if digestLayout != "" && !digestlayouts.Valid(digestLayout) {
-				fmt.Printf("Unknown layout theme %q. Run 'digest list --themes' to see available themes.\n", digestLayout)
+			layouts, err := resolveDigestLayouts(digestLayout)
+			if err != nil {
+				fmt.Println(err)
 				return
 			}
 
@@ -437,7 +440,7 @@ Examples:
 				SkipAnalysis:           skipAnalysis,
 				SkipDuplicates:         skipDuplicates,
 				ExcludeDigested:        excludeDigested,
-				Layout:                 digestLayout,
+				Layouts:                layouts,
 				OneShotAnalysis:        oneShotAnalysis,
 				GHPagesEnabled:         ghPagesEnabled,
 				ReanalyzeOnModelChange: digestReanalyzeOnModelChange,
@@ -487,7 +490,7 @@ Examples:
 	generateCmd.Flags().BoolVar(&digestExecutiveSummary, "executive-summary", false, "Generate the digest-level executive summary for this run [overrides server config; use --executive-summary=false to force off]")
 	generateCmd.Flags().Bool("one-shot", false, "Analyze missing articles with one full LLM prompt instead of the multi-step chain")
 	generateCmd.Flags().Bool("exclude-digested", false, "Exclude articles already included in a previous digest")
-	generateCmd.Flags().StringVar(&digestLayout, "theme", "", "Layout/graphical theme for the digest (empty = profile/server default; see: digest list --themes)")
+	generateCmd.Flags().StringVar(&digestLayout, "layout", "", "Layout(s) for the digest: a single name, a comma-separated list, or 'all'. Multiple layouts publish each to its own subdir. Empty = profile/server default; see: digest list --layouts")
 	generateCmd.Flags().StringVar(&digestProfile, "profile", "", "Editorial profile to generate the digest for (empty = default profile)")
 	generateCmd.Flags().StringVarP(&digestProvider, "provider", "p", "", "Provider override for this run (a provider type or a configured provider name, auto-detected by the server); applies to all LLM steps")
 	generateCmd.Flags().StringVarP(&digestModel, "model", "m", "", "Model override for this run. If given without --provider, the server finds the provider offering it (errors if ambiguous)")
@@ -555,6 +558,47 @@ Examples:
 
 	cmd.AddCommand(listCmd, getCmd, generateCmd, articlesCmd)
 	return cmd
+}
+
+// resolveDigestLayouts parses the --layout flag value into the list of layouts to
+// publish. The value may be empty (nil, server/profile default applies), a single
+// name, a comma-separated list, or "all" (every registered layout). Names are
+// trimmed, deduped, and validated; unknown names return an error mirroring the
+// former single-value message.
+func resolveDigestLayouts(raw string) ([]string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+
+	seen := make(map[string]struct{})
+	var out []string
+	add := func(name string) {
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
+	}
+
+	for _, part := range strings.Split(raw, ",") {
+		name := strings.TrimSpace(part)
+		if name == "" {
+			continue
+		}
+		if name == "all" {
+			for _, l := range digestlayouts.All() {
+				add(l.Name)
+			}
+			continue
+		}
+		if !digestlayouts.Valid(name) {
+			return nil, fmt.Errorf("unknown layout %q. Run 'digest list --layouts' to see available layouts.", name)
+		}
+		add(name)
+	}
+
+	return out, nil
 }
 
 // newDigestProgressHandler returns a stateful event handler that maps server-sent

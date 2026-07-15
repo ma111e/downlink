@@ -143,6 +143,13 @@ func TestGitHubPagesPublisherWritesExternalStylesheets(t *testing.T) {
 	if !strings.Contains(string(page), `<link rel="stylesheet" href="./digest.css">`) {
 		t.Fatalf("external digest page should link ./digest.css")
 	}
+	// Every published page carries the analytics beacon.
+	for _, rel := range []string{filepath.Join("digests", digestFilename), filepath.Join("digests", "index.html"), "index.html"} {
+		p := assertFileExists(t, cloneDir, rel)
+		if !strings.Contains(string(p), cfAnalyticsSnippet) {
+			t.Fatalf("published page %s missing analytics beacon", rel)
+		}
+	}
 	if strings.Contains(string(page), ".toc-title") {
 		t.Fatalf("external digest page should not inline the stylesheet rules")
 	}
@@ -467,5 +474,21 @@ func assertStaged(t *testing.T, wt *gogit.Worktree, paths ...string) {
 		if fileStatus.Staging != gogit.Added {
 			t.Fatalf("%s staging status = %q, want %q; full status:\n%s", slashPath, fileStatus.Staging, gogit.Added, status.String())
 		}
+	}
+}
+
+func TestInjectAnalytics(t *testing.T) {
+	page := []byte("<html><head><title>t</title></head><body></body></html>")
+	out := injectAnalytics(page)
+	if got := strings.Count(string(out), cfAnalyticsSnippet); got != 1 {
+		t.Fatalf("beacon snippet count = %d, want 1; output:\n%s", got, out)
+	}
+	if !strings.HasSuffix(strings.SplitN(string(out), "</head>", 2)[0], cfAnalyticsSnippet) {
+		t.Fatalf("beacon snippet not placed directly before </head>; output:\n%s", out)
+	}
+
+	headless := []byte("<html><body>no head</body></html>")
+	if got := injectAnalytics(headless); string(got) != string(headless) {
+		t.Fatalf("headless input modified: %s", got)
 	}
 }

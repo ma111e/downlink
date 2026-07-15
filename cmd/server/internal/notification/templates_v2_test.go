@@ -27,8 +27,10 @@ func TestRenderV2Digest(t *testing.T) {
 			t.Errorf("v2 digest missing %q", want)
 		}
 	}
-	// The default bundle's onboarding tour code must NOT leak in.
-	if strings.Contains(s, "downlink.onboarded") {
+	// The default bundle must NOT leak in. handleClusterClick is a default-layout TOC
+	// function with no v2 equivalent, so it's a stable "wrong bundle" sentinel. (Don't use
+	// tour/glossary identifiers here — v2 now has its own tour + glossary panel too.)
+	if strings.Contains(s, "handleClusterClick") {
 		t.Error("v2 digest unexpectedly contains default digest bundle")
 	}
 }
