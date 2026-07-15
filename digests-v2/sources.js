@@ -1,0 +1,1 @@
+const n="downlink.theme",e=document.getElementById("theme");if(e){const t=document.documentElement,a=localStorage.getItem(n)||t.dataset.theme||"dark";t.dataset.theme=a,e.value=a,e.addEventListener("change",()=>{t.dataset.theme=e.value,localStorage.setItem(n,e.value)})}
