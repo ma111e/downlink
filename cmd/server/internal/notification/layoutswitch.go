@@ -82,7 +82,7 @@ func layoutHeadSnippet(current, currentSubdir string, peersJSON []byte) string {
 // window.__dlLayout defined by the head snippet.
 func layoutCTASnippet(latest string) string {
 	return fmt.Sprintf(`<div id="dl-layout-cta" hidden>
-<span>A redesigned layout is available.</span>
+<span style="display:none !important">A redesigned layout is available.</span>
 <button type="button" data-dl-try>Try it</button>
 <button type="button" data-dl-dismiss>Not now</button>
 </div>
