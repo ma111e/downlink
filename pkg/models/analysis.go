@@ -49,8 +49,12 @@ type ArticleAnalysis struct {
 	KeyPointsJson          string              `gorm:"column:key_points;type:text" json:"-"`
 	InsightsJson           string              `gorm:"column:insights;type:text" json:"-"`
 	ReferencedReportsJson  string              `gorm:"column:referenced_reports;type:text" json:"-"`
+	VendorsJson            string              `gorm:"column:vendors;type:text" json:"-"`
+	TechnologiesJson       string              `gorm:"column:technologies;type:text" json:"-"`
 	KeyPoints              []string            `gorm:"-" json:"key_points"`
 	Insights               []string            `gorm:"-" json:"insights"`
+	Vendors                []string            `gorm:"-" json:"vendors"`
+	Technologies           []string            `gorm:"-" json:"technologies"`
 	ReferencedReports      []ReferencedReport  `gorm:"-" json:"referenced_reports"`
 	Tldr                   string              `gorm:"type:text" json:"tldr"`
 	PlainWords             string              `gorm:"type:text" json:"plain_words"`
@@ -94,6 +98,22 @@ func (a *ArticleAnalysis) BeforeCreate(tx *gorm.DB) error {
 		a.InsightsJson = string(insightsBytes)
 	}
 
+	if len(a.Vendors) > 0 {
+		vendorsBytes, err := json.Marshal(a.Vendors)
+		if err != nil {
+			return err
+		}
+		a.VendorsJson = string(vendorsBytes)
+	}
+
+	if len(a.Technologies) > 0 {
+		technologiesBytes, err := json.Marshal(a.Technologies)
+		if err != nil {
+			return err
+		}
+		a.TechnologiesJson = string(technologiesBytes)
+	}
+
 	if len(a.ReferencedReports) > 0 {
 		referencedReportsBytes, err := json.Marshal(a.ReferencedReports)
 		if err != nil {
@@ -132,6 +152,18 @@ func (a *ArticleAnalysis) AfterFind(tx *gorm.DB) error {
 
 	if a.InsightsJson != "" {
 		if err := json.Unmarshal([]byte(a.InsightsJson), &a.Insights); err != nil {
+			return err
+		}
+	}
+
+	if a.VendorsJson != "" {
+		if err := json.Unmarshal([]byte(a.VendorsJson), &a.Vendors); err != nil {
+			return err
+		}
+	}
+
+	if a.TechnologiesJson != "" {
+		if err := json.Unmarshal([]byte(a.TechnologiesJson), &a.Technologies); err != nil {
 			return err
 		}
 	}

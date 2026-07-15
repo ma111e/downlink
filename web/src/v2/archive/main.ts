@@ -1,6 +1,6 @@
 // v2 archive-index bundle: fetches manifest.json and renders the redesigned archive —
 // a date-grouped log of digests with a priority-mix bar per row, a hero for the latest
-// transmission, and search / must-only / window / sort controls plus j/k navigation.
+// transmission, and search / window controls plus j/k navigation.
 // The blocking pre-paint theme IIFE stays inline in the template.
 import '../../css/v2/archive-index.css'
 
@@ -8,7 +8,6 @@ import '../../css/v2/archive-index.css'
   var THEME_KEY = 'downlink.theme';
 
   var WINDOWS = ['all', '4h', '8h', '12h', '1d', '1w'];
-  var SORTS = ['newest', 'must-reads', 'articles'];
 
   var state = {
     manifest: {} as any,
@@ -16,9 +15,7 @@ import '../../css/v2/archive-index.css'
     flat: [] as any[],   // visible rows in render order, for j/k
     active: 0,
     query: '',
-    mustOnly: false,
     windowIdx: 0,
-    sortIdx: 0,
     theme: localStorage.getItem(THEME_KEY) || document.documentElement.dataset.theme || 'dark'
   };
 
@@ -28,11 +25,8 @@ import '../../css/v2/archive-index.css'
     topMeta: document.getElementById('top-meta') as HTMLElement,
     footerTotal: document.getElementById('footer-total') as HTMLElement,
     search: document.getElementById('search') as HTMLInputElement,
-    mustOnly: document.getElementById('must-only') as HTMLButtonElement,
     window: document.getElementById('window') as HTMLButtonElement,
     windowLabel: document.getElementById('window-label') as HTMLElement,
-    sort: document.getElementById('sort') as HTMLButtonElement,
-    sortLabel: document.getElementById('sort-label') as HTMLElement,
     theme: document.getElementById('theme') as HTMLSelectElement
   };
 
@@ -59,17 +53,8 @@ import '../../css/v2/archive-index.css'
   });
 
   els.search.addEventListener('input', function () { state.query = els.search.value; render(); });
-  els.mustOnly.addEventListener('click', function () {
-    state.mustOnly = !state.mustOnly;
-    els.mustOnly.classList.toggle('on', state.mustOnly);
-    render();
-  });
   els.window.addEventListener('click', function () {
     state.windowIdx = (state.windowIdx + 1) % WINDOWS.length;
-    render();
-  });
-  els.sort.addEventListener('click', function () {
-    state.sortIdx = (state.sortIdx + 1) % SORTS.length;
     render();
   });
   els.theme.addEventListener('change', function () {
@@ -122,10 +107,7 @@ import '../../css/v2/archive-index.css'
 
   function render() {
     var win = WINDOWS[state.windowIdx];
-    var sort = SORTS[state.sortIdx];
     els.windowLabel.textContent = win;
-    els.sortLabel.textContent = sort;
-    els.mustOnly.classList.toggle('on', state.mustOnly);
 
     var q = state.query.trim().toLowerCase();
     var flat: any[] = [];
@@ -134,7 +116,6 @@ import '../../css/v2/archive-index.css'
     var order: string[] = [];
     var groups: Record<string, any> = {};
     state.rows.forEach(function (d) {
-      if (state.mustOnly && !(d.must_count > 0)) return;
       if (win !== 'all' && winBucket(d.time_window) !== win) return;
       if (q && !matchesQuery(d, q)) return;
       var dt = parseTs(d.period_start || d.started_at);
@@ -143,12 +124,9 @@ import '../../css/v2/archive-index.css'
       groups[key].rows.push(d);
     });
 
-    // Sort within each group.
+    // Sort within each group, newest first.
     order.forEach(function (key) {
-      var rows = groups[key].rows;
-      if (sort === 'must-reads') rows.sort(function (a: any, b: any) { return (b.must_count || 0) - (a.must_count || 0); });
-      else if (sort === 'articles') rows.sort(function (a: any, b: any) { return (b.article_count || 0) - (a.article_count || 0); });
-      else rows.sort(function (a: any, b: any) {
+      groups[key].rows.sort(function (a: any, b: any) {
         var ta = parseTs(a.period_start || a.started_at); var tb = parseTs(b.period_start || b.started_at);
         return (tb ? tb.getTime() : 0) - (ta ? ta.getTime() : 0);
       });
@@ -205,24 +183,35 @@ import '../../css/v2/archive-index.css'
       '</div></div>' +
       '<div class="v2-hero-cta">' +
       '<a class="v2-btn v2-btn-primary" href="' + escapeAttr(digestURL(latest.filename)) + '">OPEN DIGEST →</a>' +
-      '<a class="v2-btn" href="' + escapeAttr(swipeURL(latest.filename)) + '">TRIAGE</a>' +
+      '<a class="v2-btn" href="' + escapeAttr(swipeURL(latest.filename)) + '"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="2.5" width="9" height="11" rx="1.5" transform="rotate(9 9 8)"></rect><rect x="2.5" y="2.5" width="9" height="11" rx="1.5"></rect></svg></a>' +
       '</div></div>' +
       heroList(latest);
   }
 
-  // The latest digest's article titles, each tagged with its priority, sorted by
-  // importance (as the manifest delivers them). Scrolls when it overflows.
+  // The latest digest's article titles grouped under priority section labels
+  // (must / should / may / other), preserving manifest order within each group.
+  // When no headline has a known priority the labels are dropped and the list
+  // renders flat. Scrolls when it overflows.
   function heroList(d: any) {
     var headlines = d.headlines || [];
     if (!headlines.length) return '';
     var href = escapeAttr(digestURL(d.filename));
-    return '<ul class="v2-hero-list">' + headlines.map(function (h: any) {
+    var buckets: Record<string, any[]> = { must: [], should: [], may: [], other: [] };
+    headlines.forEach(function (h: any) {
       var pri = (h.priority || '').toLowerCase();
-      var cls = (pri === 'must' || pri === 'should' || pri === 'may') ? pri : 'opt';
-      return '<li><a class="v2-hero-item" href="' + href + '">' +
-        '<span class="v2-hero-pri ' + cls + '">' + escapeHTML(cls) + '</span>' +
-        '<span class="v2-hero-item-title">' + escapeHTML(headlineText(h)) + '</span></a></li>';
-    }).join('') + '</ul>';
+      buckets[buckets[pri] ? pri : 'other'].push(h);
+    });
+    var grouped = headlines.length > buckets.other.length;
+    return '<div class="v2-hero-list">' + ['must', 'should', 'may', 'other'].map(function (key) {
+      var rows = buckets[key];
+      if (!rows.length) return '';
+      return '<div class="v2-hero-group">' +
+        (grouped ? '<div class="v2-hero-group-label ' + key + '">' + key + '</div>' : '') +
+        '<ul class="v2-hero-group-items">' + rows.map(function (h: any) {
+          return '<li><a class="v2-hero-item" href="' + href + '">' +
+            '<span class="v2-hero-item-title">' + escapeHTML(headlineText(h)) + '</span></a></li>';
+        }).join('') + '</ul></div>';
+    }).join('') + '</div>';
   }
 
   // Bucket a human time_window ("8 hours", "1 day", "45 min", ...) into one of the

@@ -28,8 +28,19 @@ function v2ApplyTheme(t: string) {
 var items = Array.prototype.slice.call(document.querySelectorAll('.v2-toc-item, .v2-dup')) as HTMLElement[];
 var selectedId: string | null = null;
 
+var mobileQuery = window.matchMedia('(max-width: 860px)');
+function isMobile() { return mobileQuery.matches; }
+
+// "Visible" means not filtered out (row `hidden`) and not inside a collapsed duplicate
+// list — an attribute check rather than offsetParent, because on the mobile drilldown
+// the whole TOC is display:none while an article is open, yet PREV/NEXT still need
+// the row order.
 function visibleItems(): HTMLElement[] {
-  return items.filter(function (el) { return el.offsetParent !== null; });
+  return items.filter(function (el) {
+    if (el.hidden) return false;
+    var dup = el.closest('.v2-dup-list') as HTMLElement | null;
+    return !(dup && dup.hidden);
+  });
 }
 
 var hasSelected = false;
@@ -38,13 +49,17 @@ var hasSelected = false;
 // is unaffected) slides the old article out left and the new one in from the right.
 // Skipped for the load-time selection, same-row clicks, reduced motion, and browsers
 // without startViewTransition (which swap instantly, like unsupported navigation).
-function v2Select(id: string) {
+// `drill` marks an explicit navigation (row tap, j/k, PREV/NEXT): on the mobile
+// drilldown it opens the full-screen article view. Implicit selections (load-time,
+// the filter fallback) never drill, so filtering can't yank the reader off the list.
+function v2Select(id: string, drill?: boolean) {
   var pane = document.querySelector('.v2-detail-pane') as HTMLElement | null;
   var vt = (document as any).startViewTransition;
   if (!hasSelected || id === selectedId || !vt || !pane ||
+      (isMobile() && document.documentElement.dataset.mview !== 'article') ||
       document.documentElement.dataset.anim === 'off' ||
       window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    v2ApplySelect(id);
+    v2ApplySelect(id, drill);
     return;
   }
   // The cross-document entrance flag scopes the root page-slide; if it lingers into
@@ -52,11 +67,11 @@ function v2Select(id: string) {
   // TOC included — would slide with the article. Clear it before the capture.
   delete document.documentElement.dataset.vt;
   pane.style.viewTransitionName = 'v2-detail';
-  var t = vt.call(document, function () { v2ApplySelect(id); });
+  var t = vt.call(document, function () { v2ApplySelect(id, drill); });
   var unname = function () { pane.style.viewTransitionName = ''; };
   t.finished.then(unname, unname);
 }
-function v2ApplySelect(id: string) {
+function v2ApplySelect(id: string, drill?: boolean) {
   selectedId = id;
   document.querySelectorAll('.v2-detail').forEach(function (d) {
     (d as HTMLElement).hidden = (d as HTMLElement).dataset.articleId !== id;
@@ -65,18 +80,58 @@ function v2ApplySelect(id: string) {
     el.classList.toggle('is-active', (el as HTMLElement).dataset.target === id);
   });
   var pane = document.querySelector('.v2-detail-pane') as HTMLElement | null;
-  if (pane) {
-    // On the stacked mobile layout the detail sits below the TOC, so bring it into
-    // view when the reader picks an article. On desktop (two panes) just reset the
-    // pane's own scroll. The very first (load-time) selection never scrolls the page.
-    if (hasSelected && window.matchMedia('(max-width: 860px)').matches) {
-      pane.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      pane.scrollTop = 0;
-    }
+  if (pane) pane.scrollTop = 0;
+  // Mobile drilldown: an explicit pick opens the article as its own view and starts
+  // it at the top of the page. Desktop ignores data-mview entirely (CSS is scoped
+  // to the ≤860px layout).
+  if (drill && isMobile()) {
+    // Remember where the list was, but only on list → article (PREV/NEXT while
+    // already reading must not clobber it), so back lands exactly where the
+    // reader left off.
+    if (document.documentElement.dataset.mview !== 'article') listScrollY = window.scrollY;
+    document.documentElement.dataset.mview = 'article';
+    window.scrollTo(0, 0);
   }
   hasSelected = true;
   v2CloseGloss();
+  v2SyncPosition();
+}
+
+// ---- mobile drilldown nav (back / prev / next) --------------------------------
+var listScrollY = 0; // list scroll offset captured on drill-in, restored by v2Back
+function v2Back() {
+  if (document.documentElement.dataset.mview !== 'article') return;
+  // Dismissals stay instant (motion rules). Restore the exact scroll offset the
+  // list was left at — re-centering the active row instead would shift the whole
+  // list and disorient the reader. If PREV/NEXT moved the selection off-screen
+  // in the meantime, only then fall back to bringing the row into view.
+  delete document.documentElement.dataset.mview;
+  window.scrollTo(0, listScrollY);
+  var row = document.querySelector('.v2-toc-item.is-active, .v2-dup.is-active') as HTMLElement | null;
+  if (row) {
+    var r = row.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight) row.scrollIntoView({ block: 'center' });
+  }
+}
+function v2Step(delta: number) {
+  var vis = visibleItems();
+  if (!vis.length) return;
+  var pos = vis.findIndex(function (el) { return el.dataset.target === selectedId; });
+  var next = pos < 0 ? 0 : Math.min(Math.max(pos + delta, 0), vis.length - 1);
+  if (next === pos) return;
+  v2Select(vis[next].dataset.target as string, true);
+}
+// Keep the "NN / NN" counters (back row + bottom bar) and the PREV/NEXT enabled
+// state in sync with the current selection and filters.
+function v2SyncPosition() {
+  var vis = visibleItems();
+  var pos = vis.findIndex(function (el) { return el.dataset.target === selectedId; });
+  var label = (pos < 0 ? '–' : String(pos + 1)) + ' / ' + vis.length;
+  document.querySelectorAll('.v2-mpos').forEach(function (el) { el.textContent = label; });
+  var prev = document.getElementById('mnav-prev') as HTMLButtonElement | null;
+  var next = document.getElementById('mnav-next') as HTMLButtonElement | null;
+  if (prev) prev.disabled = pos <= 0;
+  if (next) next.disabled = pos < 0 || pos >= vis.length - 1;
 }
 
 // ---- filters (priority + category + tags, ANDed) ----------------------------
@@ -116,6 +171,25 @@ function v2ApplyFilters() {
   if (vis.length && (!selectedId || vis.every(function (el) { return el.dataset.target !== selectedId; }))) {
     v2Select(vis[0].dataset.target as string);
   }
+  v2SyncFilterCount();
+  v2SyncPosition();
+}
+
+// Mobile FILTERS chip: fold/unfold the priority/category/tag rows. Page-lifetime
+// state only. The tag cloud can't be measured while the panel is display:none, so
+// re-lay it out on open.
+function v2ToggleFilters() {
+  var panel = document.getElementById('filters-panel');
+  if (!panel) return;
+  var open = panel.classList.toggle('is-open');
+  var btn = document.getElementById('filters-toggle');
+  if (btn) { btn.classList.toggle('on', open); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+  if (open) panel.querySelectorAll('.v2-tagcloud').forEach(v2LayoutTags);
+}
+function v2SyncFilterCount() {
+  var n = (curPrio ? 1 : 0) + (curCategory !== 'all' ? 1 : 0) + curTags.length;
+  var el = document.getElementById('filters-count') as HTMLElement | null;
+  if (el) { el.textContent = '· ' + n; el.hidden = n === 0; }
 }
 
 function v2FilterPrio(prio: string) {
@@ -148,6 +222,7 @@ function v2ToggleTag(tag: string) {
 // measured after render (and re-measured on resize) rather than fixed to a tag count.
 function v2LayoutTags(cloud: Element) {
   if (cloud.classList.contains('is-expanded')) return; // expanded shows everything
+  if (!(cloud as HTMLElement).offsetParent) return; // display:none (folded mobile filters) — nothing to measure
   var pills = Array.prototype.slice.call(
     cloud.querySelectorAll('.v2-tag-pill[data-tag]')
   ) as HTMLElement[];
@@ -245,10 +320,12 @@ function v2Tab(btn: HTMLElement, panelId: string) {
 // ---- collapsibles -----------------------------------------------------------
 function v2ToggleBrief() {
   var panel = document.getElementById('brief-panel');
-  var btn = document.getElementById('brief-toggle');
   if (!panel) return;
   panel.hidden = !panel.hidden;
-  if (btn) btn.classList.toggle('on', !panel.hidden);
+  // Two toggle instances (desktop filter row + mobile tools row) mirror one panel.
+  document.querySelectorAll('.js-brief-toggle').forEach(function (btn) {
+    btn.classList.toggle('on', !panel!.hidden);
+  });
 }
 function v2ToggleWhy(btn: HTMLElement) {
   var body = btn.closest('.v2-detail-actions')?.nextElementSibling as HTMLElement | null;
@@ -624,7 +701,7 @@ document.addEventListener('keydown', function (e) {
   var t = e.target as HTMLElement;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
   if (e.ctrlKey || e.altKey || e.metaKey) return;
-  if (e.key === 'Escape') { v2CloseGloss(); v2CloseLearnMenu(); v2CloseSettings(); closeGlossaryPanel(); return; }
+  if (e.key === 'Escape') { v2CloseGloss(); v2CloseLearnMenu(); v2CloseSettings(); closeGlossaryPanel(); v2Back(); return; }
   if (e.key !== 'j' && e.key !== 'k' && e.key !== 'Enter') return;
   var vis = visibleItems();
   if (!vis.length) return;
@@ -638,7 +715,10 @@ document.addEventListener('keydown', function (e) {
   var next = e.key === 'j' ? Math.min(pos + 1, vis.length - 1) : Math.max(pos - 1, 0);
   if (pos < 0) next = 0;
   var el = vis[next];
-  if (el) { v2Select(el.dataset.target as string); el.scrollIntoView({ block: 'nearest' }); }
+  if (el) {
+    v2Select(el.dataset.target as string, true);
+    if (document.documentElement.dataset.mview !== 'article') el.scrollIntoView({ block: 'nearest' });
+  }
 });
 
 // Select the first article on load.
@@ -784,7 +864,8 @@ document.addEventListener('keydown', function (e) {
 
 // Inline on* handlers in the server markup call these by name.
 Object.assign(window, {
-  v2ApplyTheme, v2Select, v2FilterPrio, v2FilterCat, v2ToggleTag, v2ToggleMoreTags, v2Tab, v2ToggleBrief,
+  v2ApplyTheme, v2Select, v2Back, v2Step, v2ToggleFilters,
+  v2FilterPrio, v2FilterCat, v2ToggleTag, v2ToggleMoreTags, v2Tab, v2ToggleBrief,
   v2ToggleWhy, v2ToggleDup, v2ToggleLearning, v2CycleHelp, v2CloseGloss,
   v2ToggleLearnFeature, v2ToggleLearnMenu, v2TogglePlain, v2ToggleReports,
   v2ToggleSettings, v2CloseSettings, v2ToggleAnim, v2TogglePromo, v2ToggleLayout,

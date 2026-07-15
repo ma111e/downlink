@@ -121,13 +121,18 @@
 
   <section class="v2-head">
     {{if .DigestTitle}}<h1 class="v2-head-title">{{.DigestTitle}}</h1>{{end}}
+    <div class="v2-mtools">
+      <button type="button" class="v2-chip" id="filters-toggle" aria-expanded="false" aria-controls="filters-panel" onclick="v2ToggleFilters()">FILTERS <span class="v2-filters-count" id="filters-count" hidden></span> <span class="v2-caret">▾</span></button>
+      {{if .OverviewSections}}<button type="button" class="v2-chip js-brief-toggle" onclick="v2ToggleBrief()">INTELLIGENCE BRIEF <span class="v2-caret">▾</span></button>{{end}}
+    </div>
+    <div class="v2-filters" id="filters-panel">
     <div class="v2-head-controls">
       <span class="v2-filter-label">PRIORITY</span>
       <button type="button" class="v2-prio v2-prio-must" data-prio="must" onclick="v2FilterPrio('must')">MUST {{index .PriorityCounts "must"}}</button>
       <button type="button" class="v2-prio v2-prio-should" data-prio="should" onclick="v2FilterPrio('should')">SHOULD {{index .PriorityCounts "should"}}</button>
       <button type="button" class="v2-prio v2-prio-may" data-prio="may" onclick="v2FilterPrio('may')">MAY {{index .PriorityCounts "may"}}</button>
       {{if .OverviewSections}}<span class="v2-head-sep"></span>
-      <button type="button" class="v2-chip" id="brief-toggle" onclick="v2ToggleBrief()">INTELLIGENCE BRIEF <span class="v2-caret">▾</span></button>{{end}}
+      <button type="button" class="v2-chip js-brief-toggle" id="brief-toggle" onclick="v2ToggleBrief()">INTELLIGENCE BRIEF <span class="v2-caret">▾</span></button>{{end}}
     </div>
     {{if .Categories}}<div class="v2-head-row">
       <span class="v2-filter-label">CATEGORY</span>
@@ -135,6 +140,7 @@
       {{range .Categories}}<button type="button" class="v2-cat" data-cat="{{.}}" onclick="v2FilterCat(this.dataset.cat)">{{.}} <span class="v2-cat-n">{{index $.CategoryCounts .}}</span></button>{{end}}
     </div>{{end}}
     {{if .Tags}}<div class="v2-tagcloud"><span class="v2-filter-label">TAGS</span>{{range .Tags}}<button type="button" class="v2-tag-pill" data-tag="{{.Name}}" onclick="v2ToggleTag(this.dataset.tag)">{{.Name}} <span class="v2-cat-n">{{.Count}}</span></button>{{end}}<button type="button" class="v2-tag-pill v2-tag-more" hidden onclick="v2ToggleMoreTags(this)"></button></div>{{end}}
+    </div>
     {{if .OverviewSections}}<div class="v2-brief" id="brief-panel" hidden>
       {{range $i, $s := .OverviewSections}}<div class="v2-brief-section">
         <div class="v2-brief-head"><span class="v2-brief-tag">{{$s.Tag}}</span><span class="v2-brief-title">{{$s.Title}}</span></div>
@@ -148,11 +154,11 @@
     <aside class="v2-toc" aria-label="Article index">
       {{range .TOCGroups}}<div class="v2-toc-group">
         <div class="v2-toc-grouphead">
-          <span class="v2-toc-grouplabel {{tocNumClass .Label}}">{{.Label}}</span>{{with tocGroupTooltip .Label}}<span class="v2-info-tip" data-tip="{{.}}">ⓘ</span>{{end}}
+          <span class="v2-toc-grouplabel {{tocNumClass .Label}}">{{.Label}}</span>{{with tocGroupTooltip .Label}}<span class="v2-info-tip" data-tip="{{.}}" tabindex="0">ⓘ</span>{{end}}
           <span class="v2-toc-groupcount">{{len .Rows}} items</span>
           <span class="v2-toc-grouprule"></span>
         </div>
-        {{range $i, $row := .Rows}}{{if $row.IsCluster}}{{with $row.Canonical}}<div class="v2-toc-item" data-target="{{.Id}}" data-priority="{{priorityKey .ReadTag}}" data-category="{{.Category}}" data-tags="{{if $row.CanonDetail}}{{joinTags $row.CanonDetail.Tags}}{{end}}" onclick="v2Select('{{.Id}}')">
+        {{range $i, $row := .Rows}}{{if $row.IsCluster}}{{with $row.Canonical}}<div class="v2-toc-item" data-target="{{.Id}}" data-priority="{{priorityKey .ReadTag}}" data-category="{{.Category}}" data-tags="{{if $row.CanonDetail}}{{joinTags $row.CanonDetail.Tags}}{{end}}" onclick="v2Select('{{.Id}}', true)">
           <div class="v2-toc-item-top">
             <span class="v2-toc-num {{tocNumClass .ReadTag}}">{{printf "%02d" (add $i 1)}}</span>
             <span class="v2-toc-title">{{.Title}}</span>
@@ -164,8 +170,8 @@
             {{if $row.Others}}<button type="button" class="v2-dup-toggle" onclick="event.stopPropagation();v2ToggleDup(this)">+{{len $row.Others}} DUPLICATES <span class="v2-caret">▾</span></button>{{end}}
           </div>
         </div>{{end}}{{if $row.Others}}<div class="v2-dup-list" hidden>
-          {{range $row.Others}}<div class="v2-dup" data-target="{{.Id}}" onclick="v2Select('{{.Id}}')"><span class="v2-dup-fork">⑂</span><span class="v2-dup-title">{{.Title}}</span></div>{{end}}
-        </div>{{end}}{{else}}{{with $row.Entry}}<div class="v2-toc-item" data-target="{{.Id}}" data-priority="{{priorityKey .ReadTag}}" data-category="{{.Category}}" data-tags="{{if $row.Detail}}{{joinTags $row.Detail.Tags}}{{end}}" onclick="v2Select('{{.Id}}')">
+          {{range $row.Others}}<div class="v2-dup" data-target="{{.Id}}" onclick="v2Select('{{.Id}}', true)"><span class="v2-dup-fork">⑂</span><span class="v2-dup-title">{{.Title}}</span></div>{{end}}
+        </div>{{end}}{{else}}{{with $row.Entry}}<div class="v2-toc-item" data-target="{{.Id}}" data-priority="{{priorityKey .ReadTag}}" data-category="{{.Category}}" data-tags="{{if $row.Detail}}{{joinTags $row.Detail.Tags}}{{end}}" onclick="v2Select('{{.Id}}', true)">
           <div class="v2-toc-item-top">
             <span class="v2-toc-num {{tocNumClass .ReadTag}}">{{printf "%02d" (add $i 1)}}</span>
             <span class="v2-toc-title">{{.Title}}</span>
@@ -181,9 +187,19 @@
     </aside>
 
     <main class="v2-detail-pane">
+      <div class="v2-mback">
+        <button type="button" class="v2-chip" onclick="v2Back()">← INDEX</button>
+        <span class="v2-mpos"></span>
+      </div>
       {{range .ArticleEntries}}{{template "v2Detail" .}}{{end}}
     </main>
   </div>
+
+  <nav class="v2-mnav" aria-label="Article pager">
+    <button type="button" class="v2-mnav-btn" id="mnav-prev" onclick="v2Step(-1)">‹ PREV</button>
+    <span class="v2-mpos"></span>
+    <button type="button" class="v2-mnav-btn" id="mnav-next" onclick="v2Step(1)">NEXT ›</button>
+  </nav>
 </div>
 
 {{if .HasLearning}}<div id="glossary-popup" class="v2-gloss-popup" role="status" aria-live="polite" hidden>

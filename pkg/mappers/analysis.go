@@ -108,6 +108,8 @@ func ArticleAnalysisToProto(analysis *models.ArticleAnalysis) *protos.ArticleAna
 		ScoreDimensions:        ScoreDimensionsToProto(analysis.ScoreDimensions),
 		PlainWords:             analysis.PlainWords,
 		GlossaryTerms:          AllGlossaryTermsToProto(analysis.GlossaryTerms),
+		Vendors:                analysis.Vendors,
+		Technologies:           analysis.Technologies,
 	}
 
 	return protoAnalysis
@@ -141,6 +143,8 @@ func ArticleAnalysisToModel(analysis *protos.ArticleAnalysis) *models.ArticleAna
 		ScoreDimensions:        ScoreDimensionsToModel(analysis.ScoreDimensions),
 		PlainWords:             analysis.PlainWords,
 		GlossaryTerms:          AllGlossaryTermsToModels(analysis.GlossaryTerms),
+		Vendors:                analysis.Vendors,
+		Technologies:           analysis.Technologies,
 	}
 
 	return modelAnalysis

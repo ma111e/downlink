@@ -527,6 +527,8 @@ type ArticleAnalysis struct {
 	ScoreDimensions        *ScoreDimensions       `protobuf:"bytes,21,opt,name=score_dimensions,json=scoreDimensions,proto3,oneof" json:"score_dimensions,omitempty"`
 	PlainWords             string                 `protobuf:"bytes,22,opt,name=plain_words,json=plainWords,proto3" json:"plain_words,omitempty"`
 	GlossaryTerms          []*GlossaryTerm        `protobuf:"bytes,24,rep,name=glossary_terms,json=glossaryTerms,proto3" json:"glossary_terms,omitempty"`
+	Vendors                []string               `protobuf:"bytes,25,rep,name=vendors,proto3" json:"vendors,omitempty"`
+	Technologies           []string               `protobuf:"bytes,26,rep,name=technologies,proto3" json:"technologies,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -718,6 +720,20 @@ func (x *ArticleAnalysis) GetPlainWords() string {
 func (x *ArticleAnalysis) GetGlossaryTerms() []*GlossaryTerm {
 	if x != nil {
 		return x.GlossaryTerms
+	}
+	return nil
+}
+
+func (x *ArticleAnalysis) GetVendors() []string {
+	if x != nil {
+		return x.Vendors
+	}
+	return nil
+}
+
+func (x *ArticleAnalysis) GetTechnologies() []string {
+	if x != nil {
+		return x.Technologies
 	}
 	return nil
 }
@@ -971,7 +987,7 @@ const file_analysis_proto_rawDesc = "" +
 	"\ractionability\x18\x05 \x01(\x05R\ractionability\x12 \n" +
 	"\vcredibility\x18\x06 \x01(\x05R\vcredibility\x12#\n" +
 	"\ris_aggregator\x18\a \x01(\bR\fisAggregator\x12%\n" +
-	"\x0eis_promotional\x18\b \x01(\bR\risPromotional\"\xb6\b\n" +
+	"\x0eis_promotional\x18\b \x01(\bR\risPromotional\"\xf4\b\n" +
 	"\x0fArticleAnalysis\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1001,7 +1017,9 @@ const file_analysis_proto_rawDesc = "" +
 	"\x10score_dimensions\x18\x15 \x01(\v2\x19.downlink.ScoreDimensionsH\x01R\x0fscoreDimensions\x88\x01\x01\x12\x1f\n" +
 	"\vplain_words\x18\x16 \x01(\tR\n" +
 	"plainWords\x12=\n" +
-	"\x0eglossary_terms\x18\x18 \x03(\v2\x16.downlink.GlossaryTermR\rglossaryTermsB\n" +
+	"\x0eglossary_terms\x18\x18 \x03(\v2\x16.downlink.GlossaryTermR\rglossaryTerms\x12\x18\n" +
+	"\avendors\x18\x19 \x03(\tR\avendors\x12\"\n" +
+	"\ftechnologies\x18\x1a \x03(\tR\ftechnologiesB\n" +
 	"\n" +
 	"\b_articleB\x13\n" +
 	"\x11_score_dimensionsJ\x04\b\x17\x10\x18R\x14glossary_explanationR\x0ewhy_it_matters\"p\n" +

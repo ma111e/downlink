@@ -396,6 +396,11 @@ html[data-learning="on"][data-learn-plain="on"] .v2-plain-block { display: block
 
 /* ---- header block ---- */
 .v2-head { padding: 16px 28px 12px; border-bottom: 1px solid var(--border); flex: none; }
+/* Mobile-only chrome: the FILTERS/BRIEF tools row, the article back row, and the fixed
+   bottom pager. All three exist in the markup everywhere but only render on the
+   drilldown layout (≤860px block at the end of this file). */
+.v2-mtools, .v2-mback, .v2-mnav { display: none; }
+.v2-filters-count { color: var(--cyan); }
 .v2-head-title { font: 600 16px/1.4 var(--sans); color: var(--text); }
 .v2-head-controls { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
 /* category filters live on their own row below the priority filters */
@@ -483,9 +488,11 @@ html[data-promo="off"] .v2-cat[data-cat="announcement"] { display: none; }
 .v2-toc-grouplabel { font: 600 9.5px var(--mono); letter-spacing: .1em; }
 .v2-toc-groupcount { font: 400 9.5px var(--mono); color: var(--text3); }
 .v2-toc-grouprule { flex: 1; height: 1px; background: var(--border); }
-/* small "ⓘ" tip next to a group label; the scoring criteria show in a CSS-only tooltip. */
+/* small "ⓘ" tip next to a group label; the scoring criteria show in a CSS-only tooltip.
+   Focusable (tabindex in the markup) so a tap opens it on touch, where hover never fires. */
 .v2-info-tip { position: relative; cursor: help; font-style: normal; font-size: 10px; line-height: 1; opacity: .45; user-select: none; }
-.v2-info-tip:hover { opacity: 1; }
+.v2-info-tip:hover, .v2-info-tip:focus-visible { opacity: 1; outline: none; }
+.v2-info-tip:focus-visible::after { display: block; }
 .v2-info-tip::after {
   content: attr(data-tip); display: none; position: absolute; left: 1.4em; top: -0.3em; width: 20em;
   background: var(--surface); color: var(--text); border: 1px solid var(--border2); border-radius: 4px;
@@ -864,28 +871,101 @@ html[data-anim="off"] body.v2 *::after { animation: none !important; transition:
   .v2-main { grid-template-columns: 300px 1fr; }
 }
 
-/* Tablet / stacked: the two-pane reader becomes a scrolling single column with
-   the TOC as a capped list on top and the detail flowing below. Drop the fixed
-   viewport height so the page scrolls naturally. (v2Select scrolls the chosen
-   article into view on this layout — see the digest bundle.) */
+/* Tablet / phone: the two-pane reader becomes a drilldown. The TOC is the whole
+   page (natural scroll); an explicit pick flips html[data-mview="article"] (set in
+   the digest bundle), which swaps the list for a full-screen article view with a
+   back row on top and a fixed PREV / position / NEXT pager at the bottom. Desktop
+   never sets data-mview, and every rule keyed on it lives inside this block. */
 @media (max-width: 860px) {
   .v2-page { height: auto; min-height: 100vh; }
   .v2-main { grid-template-columns: 1fr; }
-  .v2-toc { border-right: none; border-bottom: 1px solid var(--border); max-height: 44vh; }
-  .v2-detail-pane { overflow-y: visible; padding: 18px 16px; scroll-margin-top: 12px; }
   .v2-brief { grid-template-columns: 1fr; }
   .v2-topmeta { display: none; }
   .v2-topbar, .v2-head { padding-left: 16px; padding-right: 16px; }
-  .v2-toc-grouphead, .v2-toc-item, .v2-toc-hint { padding-left: 16px; padding-right: 16px; }
+
+  /* Topbar becomes two deliberate rows instead of arbitrary flex wrapping:
+     brand + boxed action icons on the first, the learning group on its own line
+     (a full-width ::after break, emitted only when the group exists, forces it
+     down). The GitHub link gets the same box as the other icon chips so the
+     action cluster reads as one unit. */
+  .v2-topbar { row-gap: 10px; }
+  .v2-github { border: 1px solid var(--border2); border-radius: 3px; padding: 8px 10px; }
+  .v2-topbar:has(.v2-learn-wrap)::after { content: ""; flex-basis: 100%; height: 0; order: 9; }
+  .v2-learn-wrap { order: 10; }
+  .v2-learn-caret { padding: 9px 10px; }
+  /* the learning group now sits at the left edge; keep its dropdown inside the viewport */
+  .v2-learn-card { left: 0; right: auto; }
+  .v2-learn-card:not([hidden]) { transform-origin: top left; }
+
+  /* drilldown view states */
+  .v2-toc { border-right: none; overflow-y: visible; }
+  html:not([data-mview="article"]) .v2-detail-pane { display: none; }
+  html[data-mview="article"] .v2-toc,
+  html[data-mview="article"] .v2-mtools,
+  html[data-mview="article"] .v2-filters,
+  html[data-mview="article"] .v2-brief { display: none; }
+  /* without a digest title the head is an empty band in article view — drop it */
+  html[data-mview="article"] .v2-head:not(:has(.v2-head-title)) { display: none; }
+  /* Becoming visible restarts the settle (move, no fade) — the drill-in entrance.
+     Bottom padding keeps the last content clear of the fixed pager. */
+  .v2-detail-pane {
+    overflow-y: visible; padding: 18px 16px calc(76px + env(safe-area-inset-bottom));
+    animation: v2-settle 180ms var(--ease-out);
+  }
+  .v2-mback { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  html[data-mview="article"] .v2-mnav { display: flex; }
+  .v2-mnav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: var(--surface); border-top: 1px solid var(--border);
+    animation: v2-settle 180ms var(--ease-out);
+  }
+  .v2-mnav-btn {
+    font: 600 10.5px var(--mono); letter-spacing: .08em; color: var(--text2);
+    background: transparent; border: 1px solid var(--border2); border-radius: 3px;
+    padding: 10px 16px; cursor: pointer;
+  }
+  .v2-mnav-btn:disabled { opacity: .35; }
+  .v2-mpos { font: 400 10.5px var(--mono); color: var(--text3); }
+  html[data-mview="article"] .v2-gloss-popup { bottom: calc(64px + env(safe-area-inset-bottom)); }
+
+  /* filters fold behind the FILTERS chip; the desktop brief toggle moves to the
+     tools row (its .js-brief-toggle twin), so hide the in-row original */
+  .v2-mtools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .v2-filters { display: none; }
+  .v2-filters.is-open { display: block; animation: v2-open var(--t-med) var(--ease-out); }
+  .v2-head-controls .v2-head-sep, .v2-head-controls .js-brief-toggle { display: none; }
+
+  /* TOC rows are the primary tap targets now */
+  .v2-toc-grouphead, .v2-toc-item { padding-left: 16px; padding-right: 16px; }
+  .v2-toc-item { padding-top: 12px; padding-bottom: 12px; }
+  .v2-toc-title { font-size: 14px; }
+  .v2-toc-meta { font-size: 10.5px; }
+  .v2-toc-hint { display: none; } /* j/k is keyboard-only */
+
+  /* touch targets: same terminal voice, bigger boxes */
+  .v2-chip, .v2-theme { padding: 8px 12px; font-size: 10.5px; }
+  .v2-prio, .v2-cat { padding: 7px 12px; font-size: 10.5px; }
+  .v2-tag-pill { padding: 6px 11px; font-size: 10.5px; }
+  .v2-tab { padding: 10px 14px; font-size: 11px; }
+  .v2-dup-toggle { padding: 5px 9px; }
+  .v2-btn { padding: 11px 16px; }
+  .glossary-panel-toggle { padding: 14px 9px; }
+
+  /* readability */
+  .prose { font-size: 14px; }
+  .v2-kp-text { font-size: 14px; }
+  .v2-why .prose { font-size: 12.5px; }
+  .glossary-panel-search input { font-size: 16px; } /* <16px would trigger iOS focus zoom */
 }
 
-/* Phone: hide long-form meta, wrap the rubric to 3 columns, shrink headings, and
-   let the glossary popup span the width so it never overflows the viewport. */
+/* Phone: hide long-form meta, wrap the rubric to 3 columns, shrink the digest title,
+   and let the glossary popup span the width so it never overflows the viewport. */
 @media (max-width: 560px) {
   .v2-topstats { display: none; }
   .v2-rubric { grid-template-columns: repeat(3, 1fr); row-gap: 10px; }
   .v2-head-title { font-size: 15px; }
-  .v2-detail-title { font-size: 15px; }
   .v2-brief { padding: 12px 14px; }
   .v2-gloss-popup { left: 12px; right: 12px; width: auto; max-width: none; }
 }
@@ -894,6 +974,6 @@ html[data-anim="off"] body.v2 *::after { animation: none !important; transition:
 @media (max-width: 400px) {
   .v2-rubric { grid-template-columns: repeat(2, 1fr); }
   .v2-topbar, .v2-head { padding-left: 12px; padding-right: 12px; }
-  .v2-detail-pane { padding: 16px 12px; }
+  .v2-detail-pane { padding: 16px 12px calc(76px + env(safe-area-inset-bottom)); }
   .v2-detail-actions .v2-btn { flex: 1 1 auto; text-align: center; }
 }

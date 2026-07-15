@@ -520,9 +520,9 @@ Category — choose exactly ONE of these values (lowercase, no other value allow
 - announcement: company/product release, launch, or PR announcement, or notice of an organized or upcoming event (conference, webinar, CTF, etc.)
 If unsure, use "news".
 
-` + categorizeTagsGuidance,
-			schema:       `{"category": "<news|research|advisory|opinion|guide|commercial|sponsored|announcement>", "tags": ["tag1", "tag2"]}`,
-			requiredKeys: []string{"category", "tags"},
+` + categorizeTagsGuidance + "\n\n" + categorizeVendorTechGuidance,
+			schema:       `{"category": "<news|research|advisory|opinion|guide|commercial|sponsored|announcement>", "tags": ["tag1", "tag2"], "vendors": ["vendor1"], "technologies": ["tech1"]}`,
+			requiredKeys: []string{"category", "tags", "vendors", "technologies"},
 		}
 	}
 
@@ -541,12 +541,14 @@ If unsure, use "news".
 Category — choose exactly ONE of these values (lowercase, no other value allowed):
 %sIf unsure, use %q.
 
-%s`, bullets.String(), names[0], categorizeTagsGuidance)
+%s
+
+%s`, bullets.String(), names[0], categorizeTagsGuidance, categorizeVendorTechGuidance)
 	return analysisTask{
 		name:         "categorize",
 		instruction:  instruction,
-		schema:       fmt.Sprintf(`{"category": "<%s>", "tags": ["tag1", "tag2"]}`, strings.Join(names, "|")),
-		requiredKeys: []string{"category", "tags"},
+		schema:       fmt.Sprintf(`{"category": "<%s>", "tags": ["tag1", "tag2"], "vendors": ["vendor1"], "technologies": ["tech1"]}`, strings.Join(names, "|")),
+		requiredKeys: []string{"category", "tags", "vendors", "technologies"},
 	}
 }
 
@@ -565,6 +567,17 @@ Always add the country/geography as a tag when the article mentions one (e.g. no
 If covering all entities would exceed 15 tags, drop the lowest-priority ones first.
 Tags must be lowercase kebab-case with no leading # or other prefix (e.g. lazarus, cobalt-strike, spearphishing, north-korea, defense-sector).
 Return ONLY the JSON object.`
+
+// categorizeVendorTechGuidance describes the vendors and technologies outputs of
+// the categorize task. These are distinct, filterable axes (independent of the
+// general tag list) so articles can later be filtered by vendor or technology.
+const categorizeVendorTechGuidance = `Additionally, identify the vendors and technologies the article is specifically about. These are separate from the tags above and may overlap with them.
+
+vendors — named companies, organizations, or projects that make, sell, maintain, or provide the products or services the article concerns (e.g. cisco, microsoft, fortinet, crowdstrike, cloudflare, openssl-project). Include both the vendor of any affected/patched product and any other vendor central to the story. Do NOT include victim organizations that merely got breached unless they are themselves the vendor of the technology in question.
+
+technologies — named products, platforms, software, hardware, protocols, frameworks, or technical systems the article is about (e.g. globalprotect, fortios, exchange-server, openssl, kubernetes, log4j, activemq). Prefer the specific product/technology name over its category.
+
+Both must be SPECIFIC named entities, lowercase kebab-case, with no leading # or other prefix. Do NOT use broad or generic umbrella terms (e.g. use fortios not firewall, exchange-server not email-server). Return an empty array for either field when the article names none.`
 
 // applyPromptOverrides replaces task instructions with profile-supplied prompt
 // overrides keyed by task name. The output schema and required keys are never
@@ -1342,6 +1355,37 @@ func (s *LLMsServer) buildAndStoreAnalysis(req *protos.AnalyzeArticleWithProvide
 	return s.storeAnalysisFromResult(req, result, response, thinkingProcess)
 }
 
+// normalizedStringSliceFromResult coerces an LLM result array into a slice of
+// lowercase, kebab-case-friendly strings: each element is trimmed, lowercased,
+// and stripped of a leading "#", matching how tags are normalized. Non-string
+// and empty elements are dropped; duplicates within the same list are removed.
+func normalizedStringSliceFromResult(value any) []string {
+	items, ok := value.([]interface{})
+	if !ok {
+		return nil
+	}
+
+	var out []string
+	seen := make(map[string]struct{})
+	for _, item := range items {
+		s, ok := item.(string)
+		if !ok {
+			continue
+		}
+		s = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(s), "#")))
+		if s == "" {
+			continue
+		}
+		if _, dup := seen[s]; dup {
+			continue
+		}
+		seen[s] = struct{}{}
+		out = append(out, s)
+	}
+
+	return out
+}
+
 func referencedReportsFromResult(value any) []models.ReferencedReport {
 	items, ok := value.([]interface{})
 	if !ok {
@@ -1540,6 +1584,9 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 			}
 		}
 	}
+
+	analysis.Vendors = normalizedStringSliceFromResult(result["vendors"])
+	analysis.Technologies = normalizedStringSliceFromResult(result["technologies"])
 
 	if reports := referencedReportsFromResult(result["referenced_reports"]); len(reports) > 0 {
 		analysis.ReferencedReports = reports
