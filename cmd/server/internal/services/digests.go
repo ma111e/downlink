@@ -631,16 +631,6 @@ func resolveEffectiveLayouts(layouts []string, profileLayout string) []string {
 	return []string{profileLayout}
 }
 
-// layoutScopedSubdir returns the GitHub Pages output subdir for a layout. The
-// primary (first) layout keeps the profile's base subdir so single-layout
-// publishing is unchanged; additional layouts publish into "<base>-<layout>".
-func layoutScopedSubdir(base, layout string, primary bool) string {
-	if primary || layout == "" {
-		return base
-	}
-	return base + "-" + layout
-}
-
 func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest, layouts []string, failOnError bool, ghPagesOverride *bool, profile models.Profile) (int, error) {
 	var errs []error
 	attempts := 0
@@ -704,7 +694,7 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 			for i, l := range layouts {
 				layoutPeers = append(layoutPeers, notification.LayoutPeer{
 					Layout: l,
-					Subdir: layoutScopedSubdir(baseSubdir, l, i == 0),
+					Subdir: notification.LayoutScopedSubdir(baseSubdir, l, i == 0),
 				})
 			}
 			for i, layout := range layouts {
@@ -719,7 +709,7 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 				// Per-profile publishing: this profile gets its own output subdirectory
 				// and layout, and its archive/feeds/sources are scoped to its digests +
 				// feeds.
-				ghCfg.OutputDir = layoutScopedSubdir(baseSubdir, layout, primary)
+				ghCfg.OutputDir = notification.LayoutScopedSubdir(baseSubdir, layout, primary)
 				ghCfg.Layout = layout
 				ghCfg.Token = token
 

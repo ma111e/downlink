@@ -57,6 +57,16 @@ type LayoutPeer struct {
 	Subdir string // output subdir the layout is published under, e.g. "digests-v2"
 }
 
+// LayoutScopedSubdir returns the GitHub Pages output subdir for a layout. The
+// primary (first) layout keeps the base subdir so single-layout publishing is
+// unchanged; additional layouts publish into "<base>-<layout>".
+func LayoutScopedSubdir(base, layout string, primary bool) string {
+	if primary || layout == "" {
+		return base
+	}
+	return base + "-" + layout
+}
+
 // DigestLister returns up to limit newest digests with full payload (provider
 // results + analyses). It lets the publisher build the RSS feed without
 // depending on the store: callers that have DB or client access supply it via
@@ -1035,6 +1045,77 @@ func resolveGitHubPagesOutputDir(input string) (string, error) {
 // orphan commit and force-pushed, discarding all prior history. The rendered
 // tree is complete on its own, so this keeps the Pages branch from accumulating
 // a commit per publish — at the cost of an unrecoverable history rewrite.
+// RepublishAllLayouts re-renders every published digest in each of the given
+// layouts. The primary (first) layout keeps the base output subdir; each
+// additional layout publishes into its own "<base>-<layout>" subdir, and every
+// page gets the layout-switch UI so readers can move between coexisting layouts.
+//
+// With zero or one effective layout it delegates to RepublishAll, leaving the
+// single-layout path unchanged. Each layout is published independently (its own
+// manifest, commit, and push) against the shared clone dir, mirroring how the
+// server publishes multi-layout digests.
+func (p *GitHubPagesPublisher) RepublishAllLayouts(digests []models.Digest, layouts []string, dryRun, wait, rebase bool) error {
+	// Drop empty entries and dedupe, preserving order.
+	seen := make(map[string]struct{})
+	var effective []string
+	for _, l := range layouts {
+		if l == "" {
+			continue
+		}
+		if _, ok := seen[l]; ok {
+			continue
+		}
+		seen[l] = struct{}{}
+		effective = append(effective, l)
+	}
+
+	if len(effective) <= 1 {
+		layout := ""
+		if len(effective) == 1 {
+			layout = effective[0]
+		}
+		return p.RepublishAll(digests, layout, dryRun, wait, rebase)
+	}
+
+	base, err := resolveGitHubPagesOutputDir(p.cfg.OutputDir)
+	if err != nil {
+		return fmt.Errorf("github pages: invalid output dir: %w", err)
+	}
+
+	// Pair every layout with its subdir so each published page can offer readers
+	// an in-page switch between the coexisting layouts.
+	var peers []LayoutPeer
+	for i, l := range effective {
+		peers = append(peers, LayoutPeer{
+			Layout: l,
+			Subdir: LayoutScopedSubdir(base, l, i == 0),
+		})
+	}
+
+	for i, layout := range effective {
+		subCfg := p.cfg
+		subCfg.OutputDir = LayoutScopedSubdir(base, layout, i == 0)
+		subCfg.Layout = layout
+
+		sub := NewGitHubPagesPublisher(subCfg)
+		// Carry over the caller-configured state so each layout renders with the
+		// same progress sink, listers, landing/profile context, and theme.
+		sub.progress = p.progress
+		sub.listDigests = p.listDigests
+		sub.listSources = p.listSources
+		sub.listReports = p.listReports
+		sub.landing = p.landing
+		sub.profileSlug = p.profileSlug
+		sub.theme = p.theme
+		sub.SetLayoutPeers(peers)
+
+		if err := sub.RepublishAll(digests, layout, dryRun, wait, rebase); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (p *GitHubPagesPublisher) RepublishAll(digests []models.Digest, layout string, dryRun, wait, rebase bool) error {
 	if len(digests) == 0 {
 		log.Info("RepublishAll: no digests to republish")

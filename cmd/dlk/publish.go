@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/ma111e/downlink/cmd/server/notification"
-	"github.com/ma111e/downlink/pkg/digestlayouts"
 	"github.com/ma111e/downlink/pkg/models"
 	"os"
 	"strconv"
@@ -45,7 +44,7 @@ GitHub directly using the provided token.`,
 	cmd.PersistentFlags().StringVar(&cloneDir, "clone-dir", "", "Local directory for the repo clone (default: $TMPDIR/downlink-ghpages)")
 	cmd.PersistentFlags().StringVar(&commitAuthor, "commit-author", "", "Git commit author name (default: downlink-bot)")
 	cmd.PersistentFlags().StringVar(&commitEmail, "commit-email", "", "Git commit author email (default: downlink-bot@users.noreply.github.com)")
-	cmd.PersistentFlags().StringVar(&layout, "layout", "", "Layout for rendered pages, empty = default (see: digest list --layouts)")
+	cmd.PersistentFlags().StringVar(&layout, "layout", "", "Layout for rendered pages, empty = default (see: digest list --layouts). republish-all also accepts a comma-separated list or 'all'")
 	cmd.PersistentFlags().IntVar(&windowDays, "window-days", 0, "Days of digests to retain in the manifest and feeds (0 = default 30; env: DOWNLINK_GH_PAGES_WINDOW_DAYS)")
 	cmd.PersistentFlags().BoolVar(&selfContained, "self-contained", false, "Inline CSS into every page instead of linking shared external .css files (env: DOWNLINK_GH_PAGES_SELF_CONTAINED)")
 
@@ -75,8 +74,11 @@ GitHub directly using the provided token.`,
 		commitAuthor = envString("DOWNLINK_GH_PAGES_COMMIT_AUTHOR", commitAuthor)
 		commitEmail = envString("DOWNLINK_GH_PAGES_COMMIT_EMAIL", commitEmail)
 		layout = envString("DOWNLINK_GH_PAGES_LAYOUT", layout)
-		if layout != "" && !digestlayouts.Valid(layout) {
-			return models.GitHubPagesNotificationConfig{}, fmt.Errorf("unknown layout %q; run 'digest list --layouts' to see available layouts", layout)
+		// resolveDigestLayouts validates single names, comma-separated lists, and
+		// "all"; only republish-all interprets multiple layouts, but the value is
+		// validated here so any subcommand rejects an unknown layout up front.
+		if _, err := resolveDigestLayouts(layout); err != nil {
+			return models.GitHubPagesNotificationConfig{}, err
 		}
 		var err error
 		configurePages, err = envBool("DOWNLINK_GH_PAGES_CONFIGURE", configurePages)
@@ -302,6 +304,10 @@ When no title is given, an interactive list is shown to pick from.`,
 present in the GitHub Pages manifest, re-render each page with the current
 templates, rebuild the manifest, and push the result as a single commit.
 
+Pass --layout with a comma-separated list or 'all' to re-render each layout into
+its own output subdir (the primary layout keeps the base subdir; the rest go to
+"<base>-<layout>"), matching how the server publishes multi-layout digests.
+
 Use --dry-run to render and stage locally without committing or pushing.
 
 Use --rebase to rebuild the branch as a single orphan commit and force-push it,
@@ -344,7 +350,11 @@ This command requires a running downlink server (--address / --port).`,
 					digests = append(digests, d)
 				}
 				prog.Complete("fetch", true, fmt.Sprintf("fetched %d digests", len(digests)))
-				return publisher.RepublishAll(digests, cfg.Layout, republishDryRun, !republishNoWait, republishRebase)
+				layouts, err := resolveDigestLayouts(cfg.Layout)
+				if err != nil {
+					return err
+				}
+				return publisher.RepublishAllLayouts(digests, layouts, republishDryRun, !republishNoWait, republishRebase)
 			})
 		},
 	}
