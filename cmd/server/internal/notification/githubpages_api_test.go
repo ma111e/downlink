@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ma111e/downlink/pkg/models"
 )
@@ -366,4 +367,143 @@ func withGitHubPagesAPIBaseURL(t *testing.T, baseURL string) {
 	t.Cleanup(func() {
 		githubPagesAPIBaseURL = old
 	})
+}
+
+func withFastBuildPolling(t *testing.T, interval, timeout time.Duration) {
+	t.Helper()
+	oldI, oldT := githubPagesBuildPollInterval, githubPagesBuildPollTimeout
+	githubPagesBuildPollInterval = interval
+	githubPagesBuildPollTimeout = timeout
+	t.Cleanup(func() {
+		githubPagesBuildPollInterval = oldI
+		githubPagesBuildPollTimeout = oldT
+	})
+}
+
+// recordingProgress captures PublishProgress calls for assertions.
+type recordingProgress struct {
+	starts    map[string]string // last label seen per step
+	updates   []string          // all update labels, in order
+	completed map[string]string // note per completed step
+	okByStep  map[string]bool
+}
+
+func newRecordingProgress() *recordingProgress {
+	return &recordingProgress{
+		starts:    map[string]string{},
+		completed: map[string]string{},
+		okByStep:  map[string]bool{},
+	}
+}
+
+func (r *recordingProgress) Start(step, label string)  { r.starts[step] = label }
+func (r *recordingProgress) Update(step, label string) { r.updates = append(r.updates, label) }
+func (r *recordingProgress) Complete(step string, ok bool, note string) {
+	r.completed[step] = note
+	r.okByStep[step] = ok
+}
+
+func TestFmtMMSS(t *testing.T) {
+	cases := []struct {
+		d    time.Duration
+		want string
+	}{
+		{0, "0:00"},
+		{45 * time.Second, "0:45"},
+		{5 * time.Minute, "5:00"},
+		{90 * time.Second, "1:30"},
+		{-time.Second, "0:00"},
+	}
+	for _, c := range cases {
+		if got := fmtMMSS(c.d); got != c.want {
+			t.Errorf("fmtMMSS(%v) = %q, want %q", c.d, got, c.want)
+		}
+	}
+}
+
+func TestWaitForDeployBuiltEmitsTrackURL(t *testing.T) {
+	withFastBuildPolling(t, time.Millisecond, time.Second)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/pages/builds/latest") {
+			t.Errorf("unexpected path %q", r.URL.Path)
+		}
+		json.NewEncoder(w).Encode(githubPagesBuild{Status: "built", Commit: "abc123"})
+	}))
+	defer server.Close()
+	withGitHubPagesAPIBaseURL(t, server.URL)
+
+	p := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{
+		RepoURL: "https://github.com/owner/repo.git",
+	})
+	prog := newRecordingProgress()
+	p.SetProgress(prog)
+
+	if err := p.waitForDeploy("abc123", "deploy", "Waiting for GitHub Pages deploy", true); err != nil {
+		t.Fatalf("waitForDeploy() error = %v", err)
+	}
+	track := prog.completed["deploy-track"]
+	if !strings.Contains(track, "https://github.com/owner/repo/deployments") {
+		t.Errorf("expected deployments track URL, got %q", track)
+	}
+	if !prog.okByStep["deploy"] || !strings.Contains(prog.completed["deploy"], "deployed") {
+		t.Errorf("expected deploy step to complete deployed, got %q (ok=%v)", prog.completed["deploy"], prog.okByStep["deploy"])
+	}
+}
+
+func TestWaitForDeployBuildingShowsTimer(t *testing.T) {
+	withFastBuildPolling(t, time.Millisecond, time.Second)
+	var calls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		status := "building"
+		if calls > 1 {
+			status = "built"
+		}
+		json.NewEncoder(w).Encode(githubPagesBuild{Status: status, Commit: "abc123"})
+	}))
+	defer server.Close()
+	withGitHubPagesAPIBaseURL(t, server.URL)
+
+	p := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{
+		RepoURL: "https://github.com/owner/repo.git",
+	})
+	prog := newRecordingProgress()
+	p.SetProgress(prog)
+
+	if err := p.waitForDeploy("abc123", "deploy", "Waiting for GitHub Pages deploy", true); err != nil {
+		t.Fatalf("waitForDeploy() error = %v", err)
+	}
+	var sawBuilding bool
+	for _, l := range prog.updates {
+		if strings.Contains(l, "building") && strings.Contains(l, " / ") {
+			sawBuilding = true
+		}
+	}
+	if !sawBuilding {
+		t.Errorf("expected a building label with a timer, got updates %v", prog.updates)
+	}
+}
+
+func TestWaitForDeployTimesOutSoftly(t *testing.T) {
+	withFastBuildPolling(t, time.Millisecond, 5*time.Millisecond)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Commit never matches, so the wait never resolves before the deadline.
+		json.NewEncoder(w).Encode(githubPagesBuild{Status: "building", Commit: "other"})
+	}))
+	defer server.Close()
+	withGitHubPagesAPIBaseURL(t, server.URL)
+
+	p := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{
+		RepoURL: "https://github.com/owner/repo.git",
+	})
+	prog := newRecordingProgress()
+	p.SetProgress(prog)
+
+	if err := p.waitForDeploy("abc123", "deploy", "Waiting for GitHub Pages deploy", true); err != nil {
+		t.Fatalf("waitForDeploy() should soft-succeed on timeout, got error = %v", err)
+	}
+	note := prog.completed["deploy"]
+	if !prog.okByStep["deploy"] || !strings.Contains(note, "timed out") || !strings.Contains(note, "deployments") {
+		t.Errorf("expected soft timeout note with track URL, got %q (ok=%v)", note, prog.okByStep["deploy"])
+	}
 }

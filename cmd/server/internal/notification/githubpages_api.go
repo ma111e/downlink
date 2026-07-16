@@ -71,9 +71,18 @@ func (p *GitHubPagesPublisher) waitForDeploy(commitSHA, stepID, label string, wa
 	apiURL := fmt.Sprintf("%s/repos/%s/%s/pages/builds/latest",
 		strings.TrimRight(githubPagesAPIBaseURL, "/"), owner, repo)
 
-	log.WithField("commit", commitSHA).Info("Waiting for GitHub Pages build to deploy")
-	p.pStart(stepID, label+" — queued")
-	deadline := time.Now().Add(githubPagesBuildPollTimeout)
+	trackURL := deploymentsURL(owner, repo)
+	log.WithFields(log.Fields{"commit": commitSHA, "track": trackURL}).
+		Info("Waiting for GitHub Pages build to deploy")
+	// Surface a permanent "track:" row so the user can watch the deploy in the
+	// browser regardless of how long the poll below takes.
+	p.pStart(stepID+"-track", "Deploy status: "+trackURL)
+	p.pComplete(stepID+"-track", true, "track: "+trackURL)
+
+	timeout := githubPagesBuildPollTimeout
+	start := time.Now()
+	deadline := start.Add(timeout)
+	p.pStart(stepID, deployLabel(label, "queued", 0, timeout))
 	for {
 		var build githubPagesBuild
 		status, body, err := p.doGitHubPagesRequest(http.MethodGet, apiURL, nil, &build)
@@ -91,6 +100,7 @@ func (p *GitHubPagesPublisher) waitForDeploy(commitSHA, stepID, label string, wa
 			return fmt.Errorf("github pages: get latest build returned %d: %s", status, body)
 		}
 
+		elapsed := time.Since(start)
 		if build.Commit == commitSHA {
 			switch build.Status {
 			case "built":
@@ -101,24 +111,47 @@ func (p *GitHubPagesPublisher) waitForDeploy(commitSHA, stepID, label string, wa
 				p.pComplete(stepID, false, "errored: "+build.Error.Message)
 				return fmt.Errorf("github pages: build for %s errored: %s", commitSHA, build.Error.Message)
 			case "building":
-				p.pUpdate(stepID, label+" — building")
+				p.pUpdate(stepID, deployLabel(label, "building", elapsed, timeout))
 			default:
-				p.pUpdate(stepID, label+" — "+build.Status)
+				p.pUpdate(stepID, deployLabel(label, build.Status, elapsed, timeout))
 			}
 		} else {
-			p.pUpdate(stepID, label+" — queued")
+			p.pUpdate(stepID, deployLabel(label, "queued", elapsed, timeout))
 		}
 
 		if time.Now().After(deadline) {
 			log.WithFields(log.Fields{
 				"commit":  commitSHA,
-				"timeout": githubPagesBuildPollTimeout,
+				"timeout": timeout,
 			}).Warn("Timed out waiting for GitHub Pages build to deploy; proceeding")
-			p.pComplete(stepID, true, "timed out; not yet deployed")
+			p.pComplete(stepID, true, fmt.Sprintf("timed out at %s; not yet deployed — check %s", fmtMMSS(timeout), trackURL))
 			return nil
 		}
 		time.Sleep(githubPagesBuildPollInterval)
 	}
+}
+
+// deploymentsURL is the GitHub deployments page for a repo, where GitHub Pages
+// builds show up under the github-pages environment. Handed to the user so they
+// can track a deploy that outlives (or stalls) the poll below.
+func deploymentsURL(owner, repo string) string {
+	return fmt.Sprintf("https://github.com/%s/%s/deployments", owner, repo)
+}
+
+// deployLabel renders the live deploy row with the current phase and an
+// elapsed/timeout timer so a long wait reads as progress, not a hang, e.g.
+// "Waiting for GitHub Pages deploy — building  0:45 / 5:00".
+func deployLabel(label, phase string, elapsed, timeout time.Duration) string {
+	return fmt.Sprintf("%s — %s  %s / %s", label, phase, fmtMMSS(elapsed), fmtMMSS(timeout))
+}
+
+// fmtMMSS formats a duration as m:ss (minutes are not zero-padded).
+func fmtMMSS(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	total := int(d.Round(time.Second) / time.Second)
+	return fmt.Sprintf("%d:%02d", total/60, total%60)
 }
 
 type githubPagesSite struct {
