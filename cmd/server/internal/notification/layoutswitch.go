@@ -76,31 +76,36 @@ func layoutHeadSnippet(current, currentSubdir string, peersJSON []byte) string {
 </script>`, current, currentSubdir, peersJSON, layoutSwitchStorageKey, layoutSwitchStorageKey)
 }
 
-// layoutCTASnippet returns the floating "try the new layout" banner injected
-// before </body> on the classic (default) layout. It self-hides once the reader
-// has picked a layout or dismissed it, and drives navigation through
-// window.__dlLayout defined by the head snippet.
+// layoutCTASnippet returns the floating layout-switch control injected before
+// </body> on the classic (default) layout. It has two states sharing one
+// container: the full "try the new layout" banner on first run, and a compact,
+// always-present pill afterwards. The pill gives readers a persistent way back
+// to the redesigned layout even after they dismissed the banner or switched away
+// from a previously chosen layout. Navigation is driven through window.__dlLayout
+// defined by the head snippet.
 func layoutCTASnippet(latest string) string {
 	return fmt.Sprintf(`<div id="dl-layout-cta" hidden>
-<span>A redesigned layout is available.</span>
+<span data-dl-full>A redesigned layout is available.</span>
 <button type="button" data-dl-try>Try it</button>
 <button type="button" data-dl-dismiss>Not now</button>
+<button type="button" data-dl-pill>New layout <span aria-hidden="true">&rarr;</span></button>
 </div>
 <style>%s</style>
 <script>
 (function(){
-  try{
-    if(localStorage.getItem(%q)) return;
-    if(localStorage.getItem(%q)) return;
-  }catch(e){}
   var box=document.getElementById("dl-layout-cta"); if(!box)return;
-  box.hidden=false;
-  box.querySelector("[data-dl-try]").addEventListener("click",function(){
-    if(window.__dlLayout) window.__dlLayout.go(%q);
-  });
+  var full=true;
+  try{
+    if(localStorage.getItem(%q)||localStorage.getItem(%q)) full=false;
+  }catch(e){}
+  function render(){ box.classList.toggle("is-pill",!full); box.hidden=false; }
+  function go(){ if(window.__dlLayout) window.__dlLayout.go(%q); }
+  box.querySelector("[data-dl-try]").addEventListener("click",go);
+  box.querySelector("[data-dl-pill]").addEventListener("click",go);
   box.querySelector("[data-dl-dismiss]").addEventListener("click",function(){
-    try{localStorage.setItem(%q,"1");}catch(e){} box.hidden=true;
+    try{localStorage.setItem(%q,"1");}catch(e){} full=false; render();
   });
+  render();
 })();
 </script>`, layoutSwitchCSS, layoutSwitchStorageKey, layoutSwitchDismissKey, latest, layoutSwitchDismissKey)
 }

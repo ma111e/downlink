@@ -24,11 +24,17 @@ func TestInjectLayoutSwitchDefault(t *testing.T) {
 		`"digests"`,                  // current subdir baked in
 		`"digests-v2"`,               // peer subdir baked in
 		`id="dl-layout-cta"`,         // CTA banner present on the classic layout
-		`window.__dlLayout.go("v2")`, // CTA targets the redesigned layout
+		`data-dl-pill`,               // persistent pill state present in the same snippet
+		`window.__dlLayout.go("v2")`, // CTA/pill target the redesigned layout
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("default-layout output missing %q\n---\n%s", want, out)
 		}
+	}
+	// Dismiss must collapse to the persistent pill, not tear the control down, so
+	// the reader keeps a way back to v2. The old snippet hid the box on dismiss.
+	if strings.Contains(out, "box.hidden=true") {
+		t.Errorf("dismiss should collapse to the pill, not hide the control\n---\n%s", out)
 	}
 	// The redirect script must land in <head> so it runs before first paint.
 	if hi := strings.Index(out, "<head>"); hi == -1 || !strings.Contains(out[hi:strings.Index(out, "</head>")], "window.__dlLayout") {
@@ -47,6 +53,9 @@ func TestInjectLayoutSwitchV2(t *testing.T) {
 	}
 	if strings.Contains(out, `id="dl-layout-cta"`) {
 		t.Errorf("v2 output should not carry the classic-layout call-to-action")
+	}
+	if strings.Contains(out, `data-dl-pill`) {
+		t.Errorf("v2 output should not carry the classic-layout persistent pill")
 	}
 }
 
