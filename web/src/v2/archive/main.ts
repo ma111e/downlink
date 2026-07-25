@@ -201,12 +201,23 @@ import '../../css/v2/archive-index.css'
     }).join('') + '</div>';
   }
 
+  // Bucket a human time_window ("8 hours", "1 day", "45 min", ...) into one of the
+  // fixed window keys the UI colors by, cool (short) -> warm (long). Returns '' for
+  // unknown/absent values.
+  function winBucket(win: string) {
+    var m = (win || '').toLowerCase().match(/(\d+)\s*(min|hour|day|week)/);
+    if (!m) return '';
+    var n = Number(m[1]);
+    var hours = m[2] === 'week' ? n * 168 : m[2] === 'day' ? n * 24 : m[2] === 'min' ? 0 : n;
+    return hours <= 4 ? '4h' : hours <= 8 ? '8h' : hours <= 12 ? '12h' : hours <= 24 ? '1d' : '1w';
+  }
+
   function rowHTML(d: any, idx: number) {
     var dt = parseTs(d.period_start || d.started_at);
     var win = d.time_window || '—';
     return '<a class="v2-row" data-index="' + idx + '" href="' + escapeAttr(digestURL(d.filename)) + '">' +
       '<span class="v2-row-ts">' + escapeHTML(fmtTime(dt)) + ' <span class="v2-dim">UTC</span></span>' +
-      '<span class="v2-row-win">' + escapeHTML(win) + '</span>' +
+      '<span class="v2-row-win' + (winBucket(win) ? ' win-' + winBucket(win) : '') + '">' + escapeHTML(win) + '</span>' +
       '<span class="v2-row-head">' + escapeHTML(topHeadline(d)) + '</span>' +
       priorityBar(d) +
       '<span class="v2-row-count">' + (d.article_count || 0) + ' →</span></a>';

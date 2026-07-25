@@ -136,6 +136,26 @@ func TestBuildDigestFeedsContent(t *testing.T) {
 			t.Errorf("rss feed missing window markup %q", want)
 		}
 	}
+	// Structured, namespaced per-item technology/product/vendor fields.
+	for _, want := range []string{
+		`xmlns:downlink="https://ma111e.github.io/downlink/ns"`,
+		`<downlink:technologies>`,
+		`<downlink:technology>vpn</downlink:technology>`,
+		`<downlink:technology>firewall</downlink:technology>`,
+		`<downlink:products>`,
+		`<downlink:product>fortios</downlink:product>`,
+		`<downlink:vendors>`,
+		`<downlink:vendor>fortinet</downlink:vendor>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("rss feed missing structured field markup %q", want)
+		}
+	}
+	// The duplicate non-canonical article's vendor must not leak into the
+	// structured fields either (already asserted absent from the body above).
+	if strings.Contains(body, "<downlink:vendor>omittedvendor</downlink:vendor>") {
+		t.Errorf("structured fields included a duplicate non-canonical article's vendor")
+	}
 }
 
 func TestISO8601Duration(t *testing.T) {

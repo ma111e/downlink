@@ -1,6 +1,7 @@
 package notification
 
 import (
+	"encoding/xml"
 	"fmt"
 	"html"
 	"os"
@@ -13,7 +14,6 @@ import (
 	"github.com/ma111e/downlink/pkg/scoring"
 	"github.com/ma111e/downlink/pkg/utils"
 
-	"github.com/gorilla/feeds"
 	log "github.com/sirupsen/logrus"
 	gogit "gopkg.in/src-d/go-git.v4"
 )
@@ -22,52 +22,165 @@ import (
 // the Pages branch on every push.
 const RSSFilename = "rss.xml"
 
+// downlinkFeedNS is the XML namespace URI for downlink's custom RSS extension
+// elements (the per-item technology/product/vendor fields). It is declared as
+// xmlns:downlink on <rss>; the value only needs to be a stable unique URI.
+const downlinkFeedNS = "https://ma111e.github.io/downlink/ns"
+
+const rssContentNS = "http://purl.org/rss/1.0/modules/content/"
+
+// rssDocument and friends are the minimal RSS 2.0 shape we marshal ourselves.
+// gorilla/feeds cannot emit custom namespaced item fields, so we build the XML
+// directly, reusing its proven content:encoded CDATA + xmlns attr pattern. The
+// downlink:* element names carry a colon that encoding/xml emits verbatim; they
+// are valid because xmlns:downlink is declared on the root.
+type rssDocument struct {
+	XMLName    xml.Name `xml:"rss"`
+	Version    string   `xml:"version,attr"`
+	ContentNS  string   `xml:"xmlns:content,attr"`
+	DownlinkNS string   `xml:"xmlns:downlink,attr"`
+	Channel    rssChannel
+}
+
+type rssChannel struct {
+	XMLName       xml.Name  `xml:"channel"`
+	Title         string    `xml:"title"`
+	Link          string    `xml:"link"`
+	Description   string    `xml:"description"`
+	LastBuildDate string    `xml:"lastBuildDate,omitempty"`
+	Items         []rssItem `xml:"item"`
+}
+
+type rssItem struct {
+	XMLName      xml.Name      `xml:"item"`
+	Title        string        `xml:"title"`
+	Link         string        `xml:"link"`
+	Guid         *rssGuid      `xml:"guid,omitempty"`
+	PubDate      string        `xml:"pubDate,omitempty"`
+	Description  string        `xml:"description"`
+	Content      *rssContent   `xml:"content:encoded,omitempty"`
+	Technologies *techGroup    `xml:"downlink:technologies,omitempty"`
+	Products     *productGroup `xml:"downlink:products,omitempty"`
+	Vendors      *vendorGroup  `xml:"downlink:vendors,omitempty"`
+}
+
+type rssContent struct {
+	XMLName xml.Name `xml:"content:encoded"`
+	Content string   `xml:",cdata"`
+}
+
+type rssGuid struct {
+	XMLName     xml.Name `xml:"guid"`
+	Id          string   `xml:",chardata"`
+	IsPermaLink string   `xml:"isPermaLink,attr,omitempty"`
+}
+
+// techGroup/productGroup/vendorGroup are the three namespaced parent elements
+// (e.g. <downlink:technologies>), each holding one namespaced child per term. A
+// distinct struct per axis lets encoding/xml emit the correct child element name.
+type techGroup struct {
+	Terms []string `xml:"downlink:technology"`
+}
+type productGroup struct {
+	Terms []string `xml:"downlink:product"`
+}
+type vendorGroup struct {
+	Terms []string `xml:"downlink:vendor"`
+}
+
 // BuildDigestFeeds renders an RSS feed for the given digests (expected
 // newest-first). Each digest becomes one feed entry whose HTML body lists, for
 // every article in the digest, its TLDR and key points. Links point at the
 // published digest HTML page under baseURL/outputDir; when baseURL is empty the
 // links are relative to the site root.
 func BuildDigestFeeds(digests []models.Digest, outputDir, baseURL string) (rss []byte, err error) {
-	now := time.Now()
-	updated := now
+	updated := time.Now()
 	if len(digests) > 0 {
 		updated = digests[0].CreatedAt
 	}
 
-	feed := &feeds.Feed{
-		Title:       "Downlink Digests",
-		Link:        &feeds.Link{Href: joinURL(baseURL, outputDir, "")},
-		Description: "Latest intelligence digests from Downlink",
-		Created:     updated,
-		Updated:     updated,
+	channel := rssChannel{
+		Title:         "Downlink Digests",
+		Link:          joinURL(baseURL, outputDir, ""),
+		Description:   "Latest intelligence digests from Downlink",
+		LastBuildDate: updated.UTC().Format(time.RFC1123Z),
 	}
 
 	for _, d := range digests {
 		link := joinURL(baseURL, outputDir, DigestHTMLFilename(d))
-		created := d.CreatedAt
-		itemUpdated := d.CreatedAt.Add(d.TimeWindow)
 
 		title := strings.TrimSpace(d.Title)
 		if title == "" {
 			title = "Digest " + d.CreatedAt.UTC().Format("2006-01-02 15:04 UTC")
 		}
 
-		feed.Items = append(feed.Items, &feeds.Item{
+		item := rssItem{
 			Title:       title,
-			Link:        &feeds.Link{Href: link},
-			Id:          link,
-			Created:     created,
-			Updated:     itemUpdated,
+			Link:        link,
+			Guid:        &rssGuid{Id: link},
+			PubDate:     d.CreatedAt.UTC().Format(time.RFC1123Z),
 			Description: digestSummaryText(d.DigestSummary, 300),
-			Content:     digestFeedContent(d),
-		})
+			Content:     &rssContent{Content: digestFeedContent(d)},
+		}
+
+		tech, products, vendors := aggregateDigestTerms(d)
+		if len(tech) > 0 {
+			item.Technologies = &techGroup{Terms: tech}
+		}
+		if len(products) > 0 {
+			item.Products = &productGroup{Terms: products}
+		}
+		if len(vendors) > 0 {
+			item.Vendors = &vendorGroup{Terms: vendors}
+		}
+
+		channel.Items = append(channel.Items, item)
 	}
 
-	rssStr, err := feed.ToRss()
+	doc := rssDocument{
+		Version:    "2.0",
+		ContentNS:  rssContentNS,
+		DownlinkNS: downlinkFeedNS,
+		Channel:    channel,
+	}
+
+	body, err := xml.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("render rss feed: %w", err)
 	}
-	return []byte(rssStr), nil
+	return append([]byte(xml.Header), body...), nil
+}
+
+// aggregateDigestTerms returns the distinct technologies, products, and vendors
+// across the digest's canonical articles (first-seen order). Duplicate
+// non-canonical articles are skipped, matching digestFeedContent, so the feed's
+// structured fields mirror what the content shows.
+func aggregateDigestTerms(d models.Digest) (tech, products, vendors []string) {
+	seenT := map[string]bool{}
+	seenP := map[string]bool{}
+	seenV := map[string]bool{}
+	addDistinct := func(dst *[]string, seen map[string]bool, items []string) {
+		for _, it := range items {
+			it = strings.TrimSpace(it)
+			if it == "" || seen[it] {
+				continue
+			}
+			seen[it] = true
+			*dst = append(*dst, it)
+		}
+	}
+	for _, da := range d.DigestAnalyses {
+		if da.Analysis == nil {
+			continue
+		}
+		if da.DuplicateGroup != "" && !da.IsMostComprehensive {
+			continue
+		}
+		addDistinct(&tech, seenT, da.Analysis.Technologies)
+		addDistinct(&products, seenP, da.Analysis.Products)
+		addDistinct(&vendors, seenV, da.Analysis.Vendors)
+	}
+	return tech, products, vendors
 }
 
 // digestFeedContent builds the HTML body for a digest feed entry: one section per
