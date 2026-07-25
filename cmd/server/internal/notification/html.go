@@ -120,6 +120,9 @@ type ArticleEntry struct {
 	PublishedAt         string
 	Category            string   // article category (one of the fixed set), empty if unset
 	Tags                []string // entity tags (actors/tools/techniques/country/stakeholders), without '#'
+	Technologies        []string // product TYPE from analysis, fixed vocabulary (e.g. vpn, firewall)
+	Products            []string // named products/platforms/software from analysis (e.g. fortios, kubernetes)
+	Vendors             []string // named companies/orgs from analysis (e.g. cisco, fortinet)
 	ImportanceScore     int
 	ReadTag             string
 	DuplicateGroup      string
@@ -290,11 +293,15 @@ type digestTemplateData struct {
 	CategoryCounts      map[string]int       // TOC rows per category, for the category filter badges
 	PriorityCounts      map[string]int       // TOC rows per priority key (must/should/may), for the priority filter badges
 	Tags                []TagCount           // distinct tags present among TOC rows (with match counts), for the tag filter cloud
+	Technologies        []TagCount           // distinct product types among Must/Should Read rows, for the type filter cloud
+	Products            []TagCount           // distinct named products among Must/Should Read rows, for the product filter cloud
+	Vendors             []TagCount           // distinct vendors among Must/Should Read rows, for the vendor filter cloud
 	HasLearning         bool                 // true when the digest has beginner aids ("In plain words" or glossary terms), gating the Learning switch + popup
 	GlossaryJSON        template.JS          // normalized-key → {term, def, type} map baked in for the definition popup
 	GlossaryContextJSON template.JS          // articleId → {normalized-key → context} for per-article popup context
 	GlossaryPanel       []GlossaryPanelEntry // deduped term list for the right-side glossary drawer
 	Commit              string
+	FeedURL             string // absolute RSS feed URL for head autodiscovery + footer link; empty hides both
 }
 
 // glossaryJSEntry is one entry in the page's baked-in term→definition lookup.
@@ -321,6 +328,22 @@ type GlossaryPanelEntry struct {
 type TagCount struct {
 	Name  string
 	Count int
+}
+
+// sortedTagCounts converts a name→count map into a slice ordered by count desc, then
+// name asc - the display order shared by the tag, technology, and vendor filter clouds.
+func sortedTagCounts(m map[string]int) []TagCount {
+	out := make([]TagCount, 0, len(m))
+	for name, c := range m {
+		out = append(out, TagCount{Name: name, Count: c})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Count != out[j].Count {
+			return out[i].Count > out[j].Count
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
 }
 
 // digestCategoryOrder is the fixed set of article categories surfaced in the digest,
@@ -513,6 +536,12 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 		for _, t := range art.Tags {
 			tags = append(tags, t.Name)
 		}
+		var technologies, products, vendors []string
+		if analysis != nil {
+			technologies = analysis.Technologies
+			products = analysis.Products
+			vendors = analysis.Vendors
+		}
 		// Highlight defined glossary terms (jargon + entities), not raw tags. When the digest has
 		// no glossary, glossaryRe is nil and highlighting is a no-op.
 		tagRe := glossaryRe
@@ -543,6 +572,9 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 			PublishedAt:         formatTimestamp(art.PublishedAt),
 			Category:            category,
 			Tags:                tags,
+			Technologies:        technologies,
+			Products:            products,
+			Vendors:             vendors,
 			ImportanceScore:     importanceScore,
 			ReadTag:             tag,
 			DuplicateGroup:      da.DuplicateGroup,
@@ -619,6 +651,9 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 	// cluster row carries only its canonical article's tags - so the filter cloud can
 	// show how many rows each tag matches. Ordered by count desc, name asc.
 	tagCounts := make(map[string]int)
+	techCounts := make(map[string]int)
+	productCounts := make(map[string]int)
+	vendorCounts := make(map[string]int)
 	for gi := range tocGroups {
 		label := tocGroups[gi].Label
 		if label != "Must Read" && label != "Should Read" {
@@ -636,18 +671,21 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 			for _, t := range detail.Tags {
 				tagCounts[t]++
 			}
+			for _, t := range detail.Technologies {
+				techCounts[t]++
+			}
+			for _, p := range detail.Products {
+				productCounts[p]++
+			}
+			for _, v := range detail.Vendors {
+				vendorCounts[v]++
+			}
 		}
 	}
-	tags := make([]TagCount, 0, len(tagCounts))
-	for t, c := range tagCounts {
-		tags = append(tags, TagCount{Name: t, Count: c})
-	}
-	sort.Slice(tags, func(i, j int) bool {
-		if tags[i].Count != tags[j].Count {
-			return tags[i].Count > tags[j].Count
-		}
-		return tags[i].Name < tags[j].Name
-	})
+	tags := sortedTagCounts(tagCounts)
+	technologies := sortedTagCounts(techCounts)
+	products := sortedTagCounts(productCounts)
+	vendors := sortedTagCounts(vendorCounts)
 
 	// In glossary mode, highlight the executive summary against the glossary term set (so its
 	// highlights open the definition popup); otherwise leave the summary unhighlighted.
@@ -687,6 +725,9 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 		CategoryCounts:      categoryCounts,
 		PriorityCounts:      priorityCounts,
 		Tags:                tags,
+		Technologies:        technologies,
+		Products:            products,
+		Vendors:             vendors,
 		Theme:               resolveTheme(theme),
 		Themes:              themeOptions(),
 		PaletteCSS:          paletteCSS(),
@@ -695,6 +736,7 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 		GlossaryContextJSON: marshalGlossaryContextJS(glossaryContext),
 		GlossaryPanel:       glossaryPanel,
 		Commit:              version.Commit,
+		FeedURL:             rc.feedURL,
 	}
 
 	funcMap := template.FuncMap{
@@ -1401,6 +1443,7 @@ type digestIndexTemplateData struct {
 	StyleLink     template.HTML // <link> to the external stylesheet (external mode); empty when inline
 	ScriptJS      template.JS   // page bundle (inline mode); empty when external
 	ScriptSrc     template.HTML // <script src> to the external bundle (external mode); empty when inline
+	FeedURL       string        // absolute RSS feed URL for head autodiscovery + footer link; empty hides both
 }
 
 // RenderDigestIndex generates the index HTML shell. The digest list is
@@ -1446,6 +1489,7 @@ func renderDigestIndexWithPaths(manifestURL, digestBaseURL, layout, theme string
 		StyleLink:     template.HTML(link),
 		ScriptJS:      template.JS(scriptBody),
 		ScriptSrc:     template.HTML(scriptSrc),
+		FeedURL:       rc.feedURL,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render digest index: %w", err)
 	}
@@ -1468,6 +1512,7 @@ type sourcesTemplateData struct {
 	StyleLink template.HTML // <link> to the external stylesheet (external mode); empty when inline
 	ScriptJS  template.JS   // page bundle (inline mode); empty when external
 	ScriptSrc template.HTML // <script src> to the external bundle (external mode); empty when inline
+	FeedURL   string        // absolute RSS feed URL for head autodiscovery + footer link; empty hides both
 }
 
 // RenderSourcesPage generates the standalone "sources" page listing every
@@ -1528,6 +1573,7 @@ func RenderSourcesPage(feeds []models.Feed, layout, theme string, opts ...Render
 		StyleLink: template.HTML(link),
 		ScriptJS:  template.JS(scriptBody),
 		ScriptSrc: template.HTML(scriptSrc),
+		FeedURL:   rc.feedURL,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to render sources page: %w", err)
 	}

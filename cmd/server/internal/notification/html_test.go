@@ -354,6 +354,77 @@ func TestRenderDigestHTMLBakesFilterCountsAtBuildTime(t *testing.T) {
 	}
 }
 
+func TestRenderDigestHTMLV2BakesTypeProductVendorFilters(t *testing.T) {
+	// The v2 layout surfaces three extra filter clouds built from Must/Should Read rows,
+	// mirroring the tag cloud: VENDORS (companies), PRODUCTS (named products), and TYPE
+	// (product types from the analysis `technologies` axis).
+	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+	digest := models.Digest{
+		Id:         "digest-tv",
+		CreatedAt:  createdAt,
+		TimeWindow: 24 * time.Hour,
+		Articles: []models.Article{
+			{Id: "article-b", Title: "Article B", Link: "https://example.com/b", PublishedAt: createdAt},
+			{Id: "article-a", Title: "Article A", Link: "https://example.com/a", PublishedAt: createdAt},
+		},
+		DigestAnalyses: []models.DigestAnalysis{
+			{
+				ArticleId: "article-b",
+				Analysis: &models.ArticleAnalysis{
+					ArticleId:       "article-b",
+					ProviderType:    "openai",
+					ModelName:       "gpt-test",
+					ImportanceScore: 95, // Must Read
+					BriefOverview:   "Brief.",
+					Products:        []string{"fortios", "kubernetes"},
+					Technologies:    []string{"firewall", "vpn"}, // product types
+					Vendors:         []string{"fortinet"},
+				},
+			},
+			{
+				ArticleId: "article-a",
+				Analysis: &models.ArticleAnalysis{
+					ArticleId:       "article-a",
+					ProviderType:    "openai",
+					ModelName:       "gpt-test",
+					ImportanceScore: 80, // Should Read
+					Products:        []string{"fortios"},
+					Technologies:    []string{"firewall"},
+					Vendors:         []string{"cisco"},
+				},
+			},
+		},
+	}
+
+	htmlBytes, err := RenderDigestHTML(digest, "v2", "")
+	if err != nil {
+		t.Fatalf("RenderDigestHTML() error = %v", err)
+	}
+	html := string(htmlBytes)
+
+	for _, want := range []string{
+		// Cloud labels.
+		`<span class="v2-filter-label">VENDORS</span>`,
+		`<span class="v2-filter-label">PRODUCTS</span>`,
+		`<span class="v2-filter-label">TYPE</span>`,
+		// Named products: fortios on both rows -> count 2; kubernetes on one -> count 1.
+		`data-product="fortios" onclick="v2ToggleProduct(this.dataset.product)">fortios <span class="v2-cat-n">2</span>`,
+		`data-product="kubernetes" onclick="v2ToggleProduct(this.dataset.product)">kubernetes <span class="v2-cat-n">1</span>`,
+		// Product types (technologies axis): firewall on both -> 2; vpn on one -> 1.
+		`data-tech="firewall" onclick="v2ToggleTech(this.dataset.tech)">firewall <span class="v2-cat-n">2</span>`,
+		`data-tech="vpn" onclick="v2ToggleTech(this.dataset.tech)">vpn <span class="v2-cat-n">1</span>`,
+		`data-vendor="fortinet" onclick="v2ToggleVendor(this.dataset.vendor)">fortinet <span class="v2-cat-n">1</span>`,
+		`data-vendor="cisco" onclick="v2ToggleVendor(this.dataset.vendor)">cisco <span class="v2-cat-n">1</span>`,
+		// TOC rows carry the filterable data attributes.
+		`data-tech="firewall vpn" data-product="fortios kubernetes" data-vendors="fortinet"`,
+		`data-tech="firewall" data-product="fortios" data-vendors="cisco"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("RenderDigestHTML(v2) missing %q", want)
+		}
+	}
+}
+
 func TestRenderDigestHTMLPreCollapsesReportsAtBuildTime(t *testing.T) {
 	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
 	category := "news"

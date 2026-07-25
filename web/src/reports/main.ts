@@ -110,6 +110,7 @@ import '../css/reports.css'
   }
 
   function toggleTag(name) {
+    if (!name) return;
     if (state.tags[name]) delete state.tags[name]; else state.tags[name] = true;
     renderTags();
     render();
@@ -212,7 +213,7 @@ import '../css/reports.css'
       if (toggle && sources) {
         toggle.addEventListener('click', function() { sources.classList.toggle('open'); });
       }
-      rep.querySelectorAll('.tag').forEach(function(tg) {
+      rep.querySelectorAll('.tag[data-tag]').forEach(function(tg) {
         tg.addEventListener('click', function() { toggleTag(tg.dataset.tag); });
       });
     });

@@ -535,7 +535,7 @@ func (p *GitHubPagesPublisher) ensureIndex(wt *gogit.Worktree, outputDir, layout
 	indexRelPath := filepath.Join(outputDir, "index.html")
 	indexAbsPath := filepath.Join(p.cfg.CloneDir, indexRelPath)
 
-	styleOpts := p.styleRenderOpts()
+	styleOpts := p.pageRenderOpts()
 
 	indexBytes, err := RenderDigestIndex(layout, p.theme, styleOpts...)
 	if err != nil {
@@ -663,6 +663,20 @@ func (p *GitHubPagesPublisher) styleRenderOpts() []RenderOption {
 	return []RenderOption{WithExternalCSS()}
 }
 
+// pageRenderOpts is the full option set for a published page: the style options
+// (external vs inline CSS/JS) plus the RSS feed URL that drives the head
+// autodiscovery link and the footer link. Every full-page render on the publish
+// path uses this; the CSS/JS file-writing paths keep styleRenderOpts. The feed
+// option is added even in self-contained mode so a self-contained Pages site
+// still advertises its feed.
+func (p *GitHubPagesPublisher) pageRenderOpts() []RenderOption {
+	opts := p.styleRenderOpts()
+	if feed := p.feedURL(); feed != "" {
+		opts = append(opts, WithFeedURL(feed))
+	}
+	return opts
+}
+
 // ensureStylesheets writes each per-page CSS file to the repo root and to
 // outputDir (so pages at either depth can link "./<name>") and stages them.
 // Content is the comment-stripped source CSS for the active layout. Skipped in
@@ -754,7 +768,7 @@ func (p *GitHubPagesPublisher) ensureSourcesPage(wt *gogit.Worktree, outputDir, 
 		return fmt.Errorf("github pages: failed to list sources: %w", err)
 	}
 
-	sourcesBytes, err := RenderSourcesPage(feeds, layout, p.theme, p.styleRenderOpts()...)
+	sourcesBytes, err := RenderSourcesPage(feeds, layout, p.theme, p.pageRenderOpts()...)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to build sources page: %w", err)
 	}
@@ -803,7 +817,7 @@ func (p *GitHubPagesPublisher) ensureReportsPage(wt *gogit.Worktree, outputDir, 
 		return fmt.Errorf("github pages: failed to list reports: %w", err)
 	}
 
-	reportsBytes, err := RenderReportsPage(aggregateReports(digests), layout, p.theme, p.styleRenderOpts()...)
+	reportsBytes, err := RenderReportsPage(aggregateReports(digests), layout, p.theme, p.pageRenderOpts()...)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to build reports page: %w", err)
 	}
@@ -1223,7 +1237,7 @@ func (p *GitHubPagesPublisher) republishAllFiltered(digests []models.Digest, lay
 	g, _ := errgroup.WithContext(context.Background())
 	g.SetLimit(workers)
 
-	styleOpts := p.styleRenderOpts() // read-only; safe to share across render goroutines
+	styleOpts := p.pageRenderOpts() // read-only; safe to share across render goroutines
 
 	for i, digest := range toRender {
 		g.Go(func() error {
@@ -1528,7 +1542,7 @@ func (p *GitHubPagesPublisher) commitOrphanAndForcePush(auth *githttp.BasicAuth,
 // digest HTML, and stages it in the worktree.
 func (p *GitHubPagesPublisher) renderAndStageSwipe(wt *gogit.Worktree, digest models.Digest, outputDir string) error {
 	digestFilename := DigestHTMLFilename(digest)
-	swipeBytes, err := RenderSwipeHTML(digest, digestFilename, p.cfg.Layout, p.theme, p.styleRenderOpts()...)
+	swipeBytes, err := RenderSwipeHTML(digest, digestFilename, p.cfg.Layout, p.theme, p.pageRenderOpts()...)
 	if err != nil {
 		return fmt.Errorf("github pages: failed to render swipe HTML: %w", err)
 	}
@@ -1554,7 +1568,7 @@ func (p *GitHubPagesPublisher) renderAndStageSwipe(wt *gogit.Worktree, digest mo
 // and stages it in the worktree. It returns the staged file's repo-relative
 // path.
 func (p *GitHubPagesPublisher) renderAndStage(wt *gogit.Worktree, digest models.Digest, outputDir string, layout string) (string, error) {
-	htmlBytes, err := RenderDigestHTML(digest, layout, p.theme, p.styleRenderOpts()...)
+	htmlBytes, err := RenderDigestHTML(digest, layout, p.theme, p.pageRenderOpts()...)
 	if err != nil {
 		return "", fmt.Errorf("github pages: failed to render digest HTML: %w", err)
 	}

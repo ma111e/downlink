@@ -156,6 +156,9 @@ function v2SyncPosition() {
 var curPrio: string | null = null;
 var curCategory = 'all';
 var curTags: string[] = [];
+var curTech: string[] = [];
+var curProducts: string[] = [];
+var curVendors: string[] = [];
 var curSearch = '';
 
 // Free-text match target for a TOC row: its rendered text (number, title, category
@@ -164,7 +167,7 @@ var curSearch = '';
 function rowSearchText(e: HTMLElement): string {
   var cached = (e as any)._search;
   if (cached === undefined) {
-    cached = ((e.textContent || '') + ' ' + (e.dataset.tags || '')).toLowerCase();
+    cached = ((e.textContent || '') + ' ' + (e.dataset.tags || '') + ' ' + (e.dataset.tech || '') + ' ' + (e.dataset.product || '') + ' ' + (e.dataset.vendors || '')).toLowerCase();
     (e as any)._search = cached;
   }
   return cached;
@@ -179,11 +182,17 @@ function v2ApplyFilters() {
     var okC = curCategory === 'all' || e.dataset.category === curCategory;
     var rowTags = (e.dataset.tags || '').split(' ');
     var okT = curTags.length === 0 || curTags.some(function (t) { return rowTags.indexOf(t) >= 0; });
+    var rowTech = (e.dataset.tech || '').split(' ');
+    var okTech = curTech.length === 0 || curTech.some(function (t) { return rowTech.indexOf(t) >= 0; });
+    var rowProducts = (e.dataset.product || '').split(' ');
+    var okProduct = curProducts.length === 0 || curProducts.some(function (p) { return rowProducts.indexOf(p) >= 0; });
+    var rowVendors = (e.dataset.vendors || '').split(' ');
+    var okVendor = curVendors.length === 0 || curVendors.some(function (v) { return rowVendors.indexOf(v) >= 0; });
     // Settings-level gate: the Promotions & announcements toggle hides these
     // categories entirely, on top of whatever filters are active.
     var okPromo = !v2PromoOff() || PROMO_CATS.indexOf(e.dataset.category || '') < 0;
     var okS = !curSearch || rowSearchText(e).indexOf(curSearch) >= 0;
-    e.hidden = !(okP && okC && okT && okPromo && okS);
+    e.hidden = !(okP && okC && okT && okTech && okProduct && okVendor && okPromo && okS);
     // Re-trigger the .v2-reveal cascade (CSS animation keyed on --i) so a filter change
     // reads as the list re-scanning. Only filters run this; j/k selection stays instant.
     e.classList.remove('v2-reveal');
@@ -221,7 +230,7 @@ function v2ToggleFilters() {
   if (open) panel.querySelectorAll('.v2-tagcloud').forEach(v2LayoutTags);
 }
 function v2SyncFilterCount() {
-  var n = (curPrio ? 1 : 0) + (curCategory !== 'all' ? 1 : 0) + curTags.length;
+  var n = (curPrio ? 1 : 0) + (curCategory !== 'all' ? 1 : 0) + curTags.length + curTech.length + curProducts.length + curVendors.length;
   var el = document.getElementById('filters-count') as HTMLElement | null;
   if (el) { el.textContent = '· ' + n; el.hidden = n === 0; }
 }
@@ -269,6 +278,33 @@ function v2ToggleTag(tag: string) {
   v2ApplyFilters();
 }
 
+function v2ToggleTech(tech: string) {
+  var i = curTech.indexOf(tech);
+  if (i >= 0) curTech.splice(i, 1); else curTech.push(tech);
+  document.querySelectorAll('.v2-tag-pill[data-tech]').forEach(function (b) {
+    b.classList.toggle('on', curTech.indexOf((b as HTMLElement).dataset.tech || '') >= 0);
+  });
+  v2ApplyFilters();
+}
+
+function v2ToggleVendor(vendor: string) {
+  var i = curVendors.indexOf(vendor);
+  if (i >= 0) curVendors.splice(i, 1); else curVendors.push(vendor);
+  document.querySelectorAll('.v2-tag-pill[data-vendor]').forEach(function (b) {
+    b.classList.toggle('on', curVendors.indexOf((b as HTMLElement).dataset.vendor || '') >= 0);
+  });
+  v2ApplyFilters();
+}
+
+function v2ToggleProduct(product: string) {
+  var i = curProducts.indexOf(product);
+  if (i >= 0) curProducts.splice(i, 1); else curProducts.push(product);
+  document.querySelectorAll('.v2-tag-pill[data-product]').forEach(function (b) {
+    b.classList.toggle('on', curProducts.indexOf((b as HTMLElement).dataset.product || '') >= 0);
+  });
+  v2ApplyFilters();
+}
+
 // Collapsed layout: pills fill one row at full width; whatever overflows the first row is
 // hidden and folded into a "+N more" button. The cutoff is width-based, so it must be
 // measured after render (and re-measured on resize) rather than fixed to a tag count.
@@ -276,7 +312,7 @@ function v2LayoutTags(cloud: Element) {
   if (cloud.classList.contains('is-expanded')) return; // expanded shows everything
   if (!(cloud as HTMLElement).offsetParent) return; // display:none (folded mobile filters) — nothing to measure
   var pills = Array.prototype.slice.call(
-    cloud.querySelectorAll('.v2-tag-pill[data-tag]')
+    cloud.querySelectorAll('.v2-tag-pill:not(.v2-tag-more)')
   ) as HTMLElement[];
   var more = cloud.querySelector('.v2-tag-more') as HTMLElement | null;
   if (!pills.length || !more) return;
@@ -917,7 +953,7 @@ document.addEventListener('keydown', function (e) {
 // Inline on* handlers in the server markup call these by name.
 Object.assign(window, {
   v2ApplyTheme, v2Select, v2Back, v2Step, v2ToggleFilters,
-  v2FilterPrio, v2FilterCat, v2ToggleTag, v2FilterSearch, v2ToggleMoreTags, v2Tab, v2ToggleBrief,
+  v2FilterPrio, v2FilterCat, v2ToggleTag, v2ToggleTech, v2ToggleProduct, v2ToggleVendor, v2FilterSearch, v2ToggleMoreTags, v2Tab, v2ToggleBrief,
   v2ToggleWhy, v2ToggleDup, v2ToggleLearning, v2CycleHelp, v2CloseGloss,
   v2ToggleLearnFeature, v2ToggleLearnMenu, v2TogglePlain, v2ToggleReports,
   v2ToggleSettings, v2CloseSettings, v2ToggleAnim, v2TogglePromo, v2ToggleLayout,

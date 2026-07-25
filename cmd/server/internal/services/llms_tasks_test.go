@@ -145,6 +145,59 @@ func TestCategorizeTaskCustomCategories(t *testing.T) {
 	}
 }
 
+// TestCategorizeTaskProductAxes verifies the categorize task exposes the three
+// vendor/product/type axes: vendors, products (named), and technologies (product type
+// from the fixed vocabulary, which the instruction must list).
+func TestCategorizeTaskProductAxes(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		task analysisTask
+	}{
+		{"default", categorizeTask(nil)},
+		{"custom", categorizeTask([]models.CategoryDef{{Name: "alert"}})},
+	} {
+		for _, key := range []string{`"vendors"`, `"products"`, `"technologies"`} {
+			if !strings.Contains(tc.task.schema, key) {
+				t.Errorf("%s categorize schema missing %s: %s", tc.name, key, tc.task.schema)
+			}
+		}
+		for _, key := range []string{"vendors", "products", "technologies"} {
+			found := false
+			for _, rk := range tc.task.requiredKeys {
+				if rk == key {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("%s categorize requiredKeys missing %q: %v", tc.name, key, tc.task.requiredKeys)
+			}
+		}
+		// The product-type vocabulary must be listed in the instruction so the model is
+		// constrained to it.
+		if !strings.Contains(tc.task.instruction, "firewall") || !strings.Contains(tc.task.instruction, "vpn") {
+			t.Errorf("%s categorize instruction missing product-type vocabulary", tc.name)
+		}
+	}
+}
+
+// TestNormalizeProductTypes keeps in-vocabulary values (lowercased/trimmed), drops
+// off-list values, and deduplicates.
+func TestNormalizeProductTypes(t *testing.T) {
+	got := normalizeProductTypes([]string{"Firewall", " vpn ", "fortios", "firewall", "", "not-a-type"})
+	want := []string{"firewall", "vpn"}
+	if len(got) != len(want) {
+		t.Fatalf("normalizeProductTypes = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("normalizeProductTypes = %v, want %v", got, want)
+		}
+	}
+	if out := normalizeProductTypes(nil); out != nil {
+		t.Errorf("normalizeProductTypes(nil) = %v, want nil", out)
+	}
+}
+
 // TestGetAnalysisTasksNamesAreKnown guards models.KnownPromptTaskNames against
 // drift: every task the pipeline can emit must be listed there, or profile
 // prompt-override validation would flag a real task name as unknown.

@@ -51,10 +51,12 @@ type ArticleAnalysis struct {
 	ReferencedReportsJson  string              `gorm:"column:referenced_reports;type:text" json:"-"`
 	VendorsJson            string              `gorm:"column:vendors;type:text" json:"-"`
 	TechnologiesJson       string              `gorm:"column:technologies;type:text" json:"-"`
+	ProductsJson           string              `gorm:"column:products;type:text" json:"-"`
 	KeyPoints              []string            `gorm:"-" json:"key_points"`
 	Insights               []string            `gorm:"-" json:"insights"`
 	Vendors                []string            `gorm:"-" json:"vendors"`
 	Technologies           []string            `gorm:"-" json:"technologies"`
+	Products               []string            `gorm:"-" json:"products"`
 	ReferencedReports      []ReferencedReport  `gorm:"-" json:"referenced_reports"`
 	Tldr                   string              `gorm:"type:text" json:"tldr"`
 	PlainWords             string              `gorm:"type:text" json:"plain_words"`
@@ -114,6 +116,14 @@ func (a *ArticleAnalysis) BeforeCreate(tx *gorm.DB) error {
 		a.TechnologiesJson = string(technologiesBytes)
 	}
 
+	if len(a.Products) > 0 {
+		productsBytes, err := json.Marshal(a.Products)
+		if err != nil {
+			return err
+		}
+		a.ProductsJson = string(productsBytes)
+	}
+
 	if len(a.ReferencedReports) > 0 {
 		referencedReportsBytes, err := json.Marshal(a.ReferencedReports)
 		if err != nil {
@@ -164,6 +174,12 @@ func (a *ArticleAnalysis) AfterFind(tx *gorm.DB) error {
 
 	if a.TechnologiesJson != "" {
 		if err := json.Unmarshal([]byte(a.TechnologiesJson), &a.Technologies); err != nil {
+			return err
+		}
+	}
+
+	if a.ProductsJson != "" {
+		if err := json.Unmarshal([]byte(a.ProductsJson), &a.Products); err != nil {
 			return err
 		}
 	}

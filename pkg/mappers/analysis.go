@@ -110,6 +110,7 @@ func ArticleAnalysisToProto(analysis *models.ArticleAnalysis) *protos.ArticleAna
 		GlossaryTerms:          AllGlossaryTermsToProto(analysis.GlossaryTerms),
 		Vendors:                analysis.Vendors,
 		Technologies:           analysis.Technologies,
+		Products:               analysis.Products,
 	}
 
 	return protoAnalysis
@@ -145,6 +146,7 @@ func ArticleAnalysisToModel(analysis *protos.ArticleAnalysis) *models.ArticleAna
 		GlossaryTerms:          AllGlossaryTermsToModels(analysis.GlossaryTerms),
 		Vendors:                analysis.Vendors,
 		Technologies:           analysis.Technologies,
+		Products:               analysis.Products,
 	}
 
 	return modelAnalysis

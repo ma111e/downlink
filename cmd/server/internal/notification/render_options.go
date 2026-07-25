@@ -13,6 +13,11 @@ type renderConfig struct {
 	// governs both stylesheets and scripts: the three render targets partition
 	// cleanly (GitHub Pages links both; Discord and the dev server inline both).
 	externalAssets bool
+
+	// feedURL is the absolute URL of the published RSS feed. When set, pages
+	// render a <head> autodiscovery link and a visible footer link; when empty
+	// (Discord/dev renders) both are omitted.
+	feedURL string
 }
 
 // WithExternalCSS makes a render link sibling .css/.js files (via <link> and
@@ -22,6 +27,13 @@ type renderConfig struct {
 // either way. The name is historical (it now covers scripts too).
 func WithExternalCSS() RenderOption {
 	return func(c *renderConfig) { c.externalAssets = true }
+}
+
+// WithFeedURL sets the absolute RSS feed URL used for the <head> autodiscovery
+// link and the visible footer link. Only the published GitHub Pages site passes
+// it; Discord and dev renders leave it empty so both links are omitted.
+func WithFeedURL(url string) RenderOption {
+	return func(c *renderConfig) { c.feedURL = url }
 }
 
 func applyRenderOptions(opts []RenderOption) renderConfig {

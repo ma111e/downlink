@@ -170,6 +170,7 @@ type reportsTemplateData struct {
 	StyleLink   template.HTML // <link> to the external stylesheet (external mode); empty when inline
 	ScriptJS    template.JS   // page bundle (inline mode); empty when external
 	ScriptSrc   template.HTML // <script src> to the external bundle (external mode); empty when inline
+	FeedURL     string        // absolute RSS feed URL for head autodiscovery + footer link; empty hides both
 }
 
 // RenderReportsPageForDigests aggregates the referenced reports across the given

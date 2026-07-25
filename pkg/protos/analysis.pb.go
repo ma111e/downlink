@@ -529,6 +529,7 @@ type ArticleAnalysis struct {
 	GlossaryTerms          []*GlossaryTerm        `protobuf:"bytes,24,rep,name=glossary_terms,json=glossaryTerms,proto3" json:"glossary_terms,omitempty"`
 	Vendors                []string               `protobuf:"bytes,25,rep,name=vendors,proto3" json:"vendors,omitempty"`
 	Technologies           []string               `protobuf:"bytes,26,rep,name=technologies,proto3" json:"technologies,omitempty"`
+	Products               []string               `protobuf:"bytes,27,rep,name=products,proto3" json:"products,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -734,6 +735,13 @@ func (x *ArticleAnalysis) GetVendors() []string {
 func (x *ArticleAnalysis) GetTechnologies() []string {
 	if x != nil {
 		return x.Technologies
+	}
+	return nil
+}
+
+func (x *ArticleAnalysis) GetProducts() []string {
+	if x != nil {
+		return x.Products
 	}
 	return nil
 }
@@ -987,7 +995,7 @@ const file_analysis_proto_rawDesc = "" +
 	"\ractionability\x18\x05 \x01(\x05R\ractionability\x12 \n" +
 	"\vcredibility\x18\x06 \x01(\x05R\vcredibility\x12#\n" +
 	"\ris_aggregator\x18\a \x01(\bR\fisAggregator\x12%\n" +
-	"\x0eis_promotional\x18\b \x01(\bR\risPromotional\"\xf4\b\n" +
+	"\x0eis_promotional\x18\b \x01(\bR\risPromotional\"\x90\t\n" +
 	"\x0fArticleAnalysis\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1019,7 +1027,8 @@ const file_analysis_proto_rawDesc = "" +
 	"plainWords\x12=\n" +
 	"\x0eglossary_terms\x18\x18 \x03(\v2\x16.downlink.GlossaryTermR\rglossaryTerms\x12\x18\n" +
 	"\avendors\x18\x19 \x03(\tR\avendors\x12\"\n" +
-	"\ftechnologies\x18\x1a \x03(\tR\ftechnologiesB\n" +
+	"\ftechnologies\x18\x1a \x03(\tR\ftechnologies\x12\x1a\n" +
+	"\bproducts\x18\x1b \x03(\tR\bproductsB\n" +
 	"\n" +
 	"\b_articleB\x13\n" +
 	"\x11_score_dimensionsJ\x04\b\x17\x10\x18R\x14glossary_explanationR\x0ewhy_it_matters\"p\n" +

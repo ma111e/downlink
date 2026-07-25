@@ -130,6 +130,47 @@ func TestBuildDigestFeedsRelativeLinksWhenNoBaseURL(t *testing.T) {
 	}
 }
 
+func TestPagesBaseURL(t *testing.T) {
+	cases := []struct {
+		name    string
+		baseURL string
+		repoURL string
+		want    string
+	}{
+		{"explicit base URL wins", "https://digests.example.com", "https://github.com/ma111e/downlink", "https://digests.example.com"},
+		{"project site", "", "https://github.com/ma111e/downlink", "https://ma111e.github.io/downlink"},
+		{"project site .git suffix", "", "https://github.com/ma111e/downlink.git", "https://ma111e.github.io/downlink"},
+		{"user site", "", "https://github.com/ma111e/ma111e.github.io", "https://ma111e.github.io"},
+		{"user site case-insensitive", "", "https://github.com/Ma111e/ma111e.github.io", "https://Ma111e.github.io"},
+		{"unparseable repo URL yields empty", "", "not a url", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			p := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{
+				BaseURL: c.baseURL,
+				RepoURL: c.repoURL,
+			})
+			if got := p.pagesBaseURL(); got != c.want {
+				t.Errorf("pagesBaseURL() = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+func TestFeedURL(t *testing.T) {
+	p := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{
+		RepoURL: "https://github.com/ma111e/downlink",
+	})
+	if want := "https://ma111e.github.io/downlink/rss.xml"; p.feedURL() != want {
+		t.Errorf("feedURL() = %q, want %q", p.feedURL(), want)
+	}
+
+	empty := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{RepoURL: "bad"})
+	if got := empty.feedURL(); got != "" {
+		t.Errorf("feedURL() with unparseable repo = %q, want empty", got)
+	}
+}
+
 func TestMergeDigestsNewestFirst(t *testing.T) {
 	t1 := time.Date(2026, 4, 22, 0, 0, 0, 0, time.UTC)
 	t2 := time.Date(2026, 4, 23, 0, 0, 0, 0, time.UTC)
@@ -146,6 +187,41 @@ func TestMergeDigestsNewestFirst(t *testing.T) {
 	}
 	if got[0].Id != "c" || got[1].Id != "b" {
 		t.Errorf("expected newest-first [c b], got [%s %s]", got[0].Id, got[1].Id)
+	}
+}
+
+func TestArchiveIndexFeedLinks(t *testing.T) {
+	feed := "https://ma111e.github.io/downlink/rss.xml"
+	autodiscovery := `<link rel="alternate" type="application/rss+xml" title="Downlink Digests" href="` + feed + `">`
+	footerLink := `<a href="` + feed + `">rss</a>`
+
+	for _, layout := range []string{"default", "v2"} {
+		t.Run(layout+"/with feed", func(t *testing.T) {
+			html, err := RenderDigestIndex(layout, "", WithFeedURL(feed))
+			if err != nil {
+				t.Fatalf("RenderDigestIndex() error = %v", err)
+			}
+			body := string(html)
+			if !strings.Contains(body, autodiscovery) {
+				t.Errorf("%s index missing autodiscovery link", layout)
+			}
+			if !strings.Contains(body, footerLink) {
+				t.Errorf("%s index missing footer rss link", layout)
+			}
+		})
+		t.Run(layout+"/without feed", func(t *testing.T) {
+			html, err := RenderDigestIndex(layout, "")
+			if err != nil {
+				t.Fatalf("RenderDigestIndex() error = %v", err)
+			}
+			body := string(html)
+			if strings.Contains(body, "application/rss+xml") {
+				t.Errorf("%s index leaked an autodiscovery link with no feed URL", layout)
+			}
+			if strings.Contains(body, ">rss</a>") {
+				t.Errorf("%s index leaked a footer rss link with no feed URL", layout)
+			}
+		})
 	}
 }
 

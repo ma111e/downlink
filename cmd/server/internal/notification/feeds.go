@@ -14,6 +14,7 @@ import (
 	"github.com/ma111e/downlink/pkg/utils"
 
 	"github.com/gorilla/feeds"
+	log "github.com/sirupsen/logrus"
 	gogit "gopkg.in/src-d/go-git.v4"
 )
 
@@ -187,10 +188,42 @@ func joinURL(base string, segments ...string) string {
 	return utils.JoinURL(base, segments...)
 }
 
+// pagesBaseURL returns the public base URL of the published site. An explicit
+// cfg.BaseURL always wins; otherwise the canonical GitHub Pages URL is derived
+// from repo_url: https://<owner>.github.io/<repo> for a project site, or
+// https://<owner>.github.io for a user/org site (repo == "<owner>.github.io").
+// A repo_url that can't be parsed yields "" (feed links stay relative, as
+// before) so a misconfigured URL never breaks a publish.
+func (p *GitHubPagesPublisher) pagesBaseURL() string {
+	if p.cfg.BaseURL != "" {
+		return p.cfg.BaseURL
+	}
+	owner, repo, err := parseGitHubRepoURL(p.cfg.RepoURL)
+	if err != nil {
+		log.WithError(err).Warn("github pages: cannot derive feed base URL from repo_url; feed links will be relative")
+		return ""
+	}
+	base := "https://" + owner + ".github.io"
+	if !strings.EqualFold(repo, owner+".github.io") {
+		base += "/" + repo
+	}
+	return base
+}
+
+// feedURL returns the absolute URL of the published RSS feed, or "" when no base
+// URL is available. Used for the head autodiscovery link and the footer link.
+func (p *GitHubPagesPublisher) feedURL() string {
+	base := p.pagesBaseURL()
+	if base == "" {
+		return ""
+	}
+	return joinURL(base, RSSFilename)
+}
+
 // writeAndStageFeeds builds the RSS feed from digests and writes it at the root
 // of the Pages clone, staging it in the worktree.
 func (p *GitHubPagesPublisher) writeAndStageFeeds(wt *gogit.Worktree, outputDir string, digests []models.Digest) error {
-	rss, err := BuildDigestFeeds(digests, outputDir, p.cfg.BaseURL)
+	rss, err := BuildDigestFeeds(digests, outputDir, p.pagesBaseURL())
 	if err != nil {
 		return fmt.Errorf("github pages: build feeds: %w", err)
 	}

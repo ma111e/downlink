@@ -266,6 +266,49 @@ var allowedCategories = map[string]bool{
 	"announcement": true,
 }
 
+// productTypeVocabulary is the fixed set of product TYPES the categorize task may
+// assign to the `technologies` axis (a product's kind, e.g. vpn/firewall — distinct
+// from the named `products` and `vendors` axes). Ordered for the prompt listing; the
+// lookup set is derived from it. Keep in sync with categorizeVendorTechGuidance.
+var productTypeVocabulary = []string{
+	"vpn", "firewall", "waf", "edr", "xdr", "siem", "soar", "ids-ips", "antivirus",
+	"email-security", "dlp", "casb", "proxy", "load-balancer", "router", "switch",
+	"nas", "hypervisor", "container-platform", "orchestration", "operating-system",
+	"database", "web-server", "cms", "browser", "mobile-os", "identity-provider",
+	"iam", "mfa", "pam", "secrets-manager", "api-gateway", "message-queue", "ci-cd",
+	"source-control", "package-registry", "cloud-platform", "object-storage", "backup",
+	"remote-access", "ics-scada", "plc", "iot-device", "network-monitoring",
+}
+
+// allowedProductTypes is the membership set for productTypeVocabulary.
+var allowedProductTypes = func() map[string]bool {
+	m := make(map[string]bool, len(productTypeVocabulary))
+	for _, t := range productTypeVocabulary {
+		m[t] = true
+	}
+	return m
+}()
+
+// normalizeProductTypes keeps only values within productTypeVocabulary (lowercased and
+// trimmed), deduplicating them, so the product-type axis never carries a fabricated or
+// off-list value. Returns nil when nothing survives.
+func normalizeProductTypes(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	var out []string
+	seen := make(map[string]bool, len(in))
+	for _, v := range in {
+		t := strings.ToLower(strings.TrimSpace(v))
+		if t == "" || seen[t] || !allowedProductTypes[t] {
+			continue
+		}
+		seen[t] = true
+		out = append(out, t)
+	}
+	return out
+}
+
 // normalizeCategory coerces a model-produced category into the allowed set,
 // falling back to "news" for any unexpected value.
 func normalizeCategory(category string) string {
@@ -521,8 +564,8 @@ Category — choose exactly ONE of these values (lowercase, no other value allow
 If unsure, use "news".
 
 ` + categorizeTagsGuidance + "\n\n" + categorizeVendorTechGuidance,
-			schema:       `{"category": "<news|research|advisory|opinion|guide|commercial|sponsored|announcement>", "tags": ["tag1", "tag2"], "vendors": ["vendor1"], "technologies": ["tech1"]}`,
-			requiredKeys: []string{"category", "tags", "vendors", "technologies"},
+			schema:       `{"category": "<news|research|advisory|opinion|guide|commercial|sponsored|announcement>", "tags": ["tag1", "tag2"], "vendors": ["vendor1"], "products": ["product1"], "technologies": ["type1"]}`,
+			requiredKeys: []string{"category", "tags", "vendors", "products", "technologies"},
 		}
 	}
 
@@ -547,8 +590,8 @@ Category — choose exactly ONE of these values (lowercase, no other value allow
 	return analysisTask{
 		name:         "categorize",
 		instruction:  instruction,
-		schema:       fmt.Sprintf(`{"category": "<%s>", "tags": ["tag1", "tag2"], "vendors": ["vendor1"], "technologies": ["tech1"]}`, strings.Join(names, "|")),
-		requiredKeys: []string{"category", "tags", "vendors", "technologies"},
+		schema:       fmt.Sprintf(`{"category": "<%s>", "tags": ["tag1", "tag2"], "vendors": ["vendor1"], "products": ["product1"], "technologies": ["type1"]}`, strings.Join(names, "|")),
+		requiredKeys: []string{"category", "tags", "vendors", "products", "technologies"},
 	}
 }
 
@@ -568,16 +611,20 @@ If covering all entities would exceed 15 tags, drop the lowest-priority ones fir
 Tags must be lowercase kebab-case with no leading # or other prefix (e.g. lazarus, cobalt-strike, spearphishing, north-korea, defense-sector).
 Return ONLY the JSON object.`
 
-// categorizeVendorTechGuidance describes the vendors and technologies outputs of
-// the categorize task. These are distinct, filterable axes (independent of the
-// general tag list) so articles can later be filtered by vendor or technology.
-const categorizeVendorTechGuidance = `Additionally, identify the vendors and technologies the article is specifically about. These are separate from the tags above and may overlap with them.
+// categorizeVendorTechGuidance describes the vendors, products, and technologies
+// outputs of the categorize task. These are distinct, filterable axes (independent of
+// the general tag list): vendors are companies, products are specific named products,
+// and technologies are the general product TYPE drawn from a fixed vocabulary. The
+// product-type list is injected from productTypeVocabulary so the two can't drift.
+var categorizeVendorTechGuidance = fmt.Sprintf(`Additionally, identify the vendors, products, and technologies the article is specifically about. These are separate from the tags above and may overlap with them.
 
 vendors — named companies, organizations, or projects that make, sell, maintain, or provide the products or services the article concerns (e.g. cisco, microsoft, fortinet, crowdstrike, cloudflare, openssl-project). Include both the vendor of any affected/patched product and any other vendor central to the story. Do NOT include victim organizations that merely got breached unless they are themselves the vendor of the technology in question.
 
-technologies — named products, platforms, software, hardware, protocols, frameworks, or technical systems the article is about (e.g. globalprotect, fortios, exchange-server, openssl, kubernetes, log4j, activemq). Prefer the specific product/technology name over its category.
+products — named products, platforms, software, hardware, protocols, frameworks, or technical systems the article is about (e.g. globalprotect, fortios, exchange-server, openssl, kubernetes, log4j, activemq). Prefer the specific product name over its category. Use fortios not firewall, exchange-server not email-server.
 
-Both must be SPECIFIC named entities, lowercase kebab-case, with no leading # or other prefix. Do NOT use broad or generic umbrella terms (e.g. use fortios not firewall, exchange-server not email-server). Return an empty array for either field when the article names none.`
+technologies — the general product TYPE(s) the products/systems above fall under, chosen ONLY from this fixed list: %s. Pick the closest one or more that clearly apply (e.g. fortios → firewall, vpn), and omit the field entirely when none fit. Use the listed values verbatim.
+
+vendors and products must be SPECIFIC named entities, lowercase kebab-case, with no leading # or other prefix. Return an empty array for any field when the article names none.`, strings.Join(productTypeVocabulary, ", "))
 
 // applyPromptOverrides replaces task instructions with profile-supplied prompt
 // overrides keyed by task name. The output schema and required keys are never
@@ -1586,7 +1633,9 @@ func (s *LLMsServer) storeAnalysisFromResult(req *protos.AnalyzeArticleWithProvi
 	}
 
 	analysis.Vendors = normalizedStringSliceFromResult(result["vendors"])
-	analysis.Technologies = normalizedStringSliceFromResult(result["technologies"])
+	analysis.Products = normalizedStringSliceFromResult(result["products"])
+	// technologies is the product-type axis: constrain to the fixed vocabulary.
+	analysis.Technologies = normalizeProductTypes(normalizedStringSliceFromResult(result["technologies"]))
 
 	if reports := referencedReportsFromResult(result["referenced_reports"]); len(reports) > 0 {
 		analysis.ReferencedReports = reports
