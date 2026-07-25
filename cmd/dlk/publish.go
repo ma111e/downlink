@@ -227,7 +227,21 @@ This command requires a running downlink server (--address / --port).`,
 			}
 			publisher := notification.NewGitHubPagesPublisher(cfg)
 			publisher.SetDigestLister(func(n int) ([]models.Digest, error) {
-				return client.ListDigestsFull(n)
+				digests, err := client.ListDigestsFull(n)
+				if err != nil {
+					return nil, err
+				}
+				// The gRPC digest payload omits articles (fetched via a separate
+				// RPC), but the feed body renders one section per article. Attach
+				// them so every item has content, not just the just-pushed digest.
+				for i := range digests {
+					arts, err := client.GetDigestArticles(digests[i].Id)
+					if err != nil {
+						return nil, err
+					}
+					digests[i].Articles = arts
+				}
+				return digests, nil
 			})
 			publisher.SetSourceLister(func() ([]models.Feed, error) {
 				return client.ListFeeds()
@@ -407,7 +421,21 @@ This command requires a running downlink server (--address / --port).`,
 			client := getNewDownlinkClient()
 			publisher := notification.NewGitHubPagesPublisher(cfg)
 			publisher.SetDigestLister(func(n int) ([]models.Digest, error) {
-				return client.ListDigestsFull(n)
+				digests, err := client.ListDigestsFull(n)
+				if err != nil {
+					return nil, err
+				}
+				// The gRPC digest payload omits articles (fetched via a separate
+				// RPC), but the feed body renders one section per article. Attach
+				// them so every item has content, not just the just-pushed digest.
+				for i := range digests {
+					arts, err := client.GetDigestArticles(digests[i].Id)
+					if err != nil {
+						return nil, err
+					}
+					digests[i].Articles = arts
+				}
+				return digests, nil
 			})
 			publisher.SetSourceLister(func() ([]models.Feed, error) {
 				return client.ListFeeds()

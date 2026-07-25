@@ -717,7 +717,21 @@ func sendConfiguredDigestNotifications(stream *safeStream, digest models.Digest,
 				publisher.SetProfileContext(profile.Id, profile.Theme)
 				publisher.SetLayoutPeers(layoutPeers)
 				publisher.SetDigestLister(func(n int) ([]models.Digest, error) {
-					return store.Db.ListDigestsByProfile(profileID, n, true)
+					digests, err := store.Db.ListDigestsByProfile(profileID, n, true)
+					if err != nil {
+						return nil, err
+					}
+					// Full-list digests carry analyses but not their articles, and
+					// the feed body renders one section per article. Attach them so
+					// every item (not just the just-pushed digest) has content.
+					for i := range digests {
+						arts, err := store.Db.GetDigestArticles(digests[i].Id)
+						if err != nil {
+							return nil, err
+						}
+						digests[i].Articles = arts
+					}
+					return digests, nil
 				})
 				publisher.SetSourceLister(func() ([]models.Feed, error) {
 					return store.Db.ListProfileFeeds(profileID)

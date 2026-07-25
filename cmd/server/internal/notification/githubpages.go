@@ -73,8 +73,10 @@ func LayoutScopedSubdir(base, layout string, primary bool) string {
 // SetDigestLister. A nil lister disables feed generation.
 type DigestLister func(limit int) ([]models.Digest, error)
 
-// FeedDigestLimit caps how many recent digests appear in the RSS feed.
-const FeedDigestLimit = 7
+// FeedDigestLimit caps how many recent digests appear in the RSS feed. The
+// publish window (PublishWindowDays) still bounds the set, so this is an upper
+// cap rather than a guarantee.
+const FeedDigestLimit = 10
 
 // publishCutoff returns the earliest PeriodStart a digest may have and still
 // appear in the manifest and feeds. Controlled by cfg.PublishWindowDays; 0 or

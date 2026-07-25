@@ -93,6 +93,7 @@ func digestFeedContent(d models.Digest) string {
 	})
 
 	var b strings.Builder
+	writeDigestWindow(&b, d)
 	if summary := digestSummaryText(d.DigestSummary, 0); summary != "" {
 		fmt.Fprintf(&b, "<p>%s</p>\n", html.EscapeString(summary))
 	}
@@ -129,8 +130,80 @@ func digestFeedContent(d models.Digest) string {
 			}
 			b.WriteString("</ul>\n")
 		}
+
+		writeTermList(&b, "technologies", "Technologies", da.Analysis.Technologies)
+		writeTermList(&b, "products", "Products", da.Analysis.Products)
+		writeTermList(&b, "vendors", "Vendors", da.Analysis.Vendors)
 	}
 
+	return b.String()
+}
+
+// writeDigestWindow writes the digest's coverage window as a paragraph that is
+// both human-readable and machine-parsable: the start/end are wrapped in <time>
+// elements carrying RFC3339 datetimes, and the duration in a <data> element
+// carrying an ISO-8601 duration. These attributes survive in the feed's
+// content payload regardless of how a reader sanitizes the display HTML.
+func writeDigestWindow(b *strings.Builder, d models.Digest) {
+	start := d.CreatedAt
+	end := d.CreatedAt.Add(d.TimeWindow)
+	s, e := start.UTC(), end.UTC()
+	fmt.Fprintf(b,
+		"<p class=\"digest-window\">Window: <time datetime=\"%s\">%s</time> → <time datetime=\"%s\">%s</time> (<data value=\"%s\">%s</data>)</p>\n",
+		s.Format(time.RFC3339), html.EscapeString(s.Format("02 Jan 15:04")),
+		e.Format(time.RFC3339), html.EscapeString(e.Format("02 Jan 15:04")+" UTC"),
+		iso8601Duration(d.TimeWindow), html.EscapeString(formatDuration(d.TimeWindow)),
+	)
+}
+
+// writeTermList writes one axis of an article's classification (technologies,
+// products, or vendors) as a paragraph tagged with data-axis, each term wrapped
+// in a <data value> element so a consumer can extract individual terms per
+// category. Empty or all-blank lists write nothing.
+func writeTermList(b *strings.Builder, axis, label string, items []string) {
+	var terms []string
+	for _, it := range items {
+		if it = strings.TrimSpace(it); it != "" {
+			terms = append(terms, it)
+		}
+	}
+	if len(terms) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "<p class=\"digest-terms\" data-axis=\"%s\"><strong>%s:</strong> ", axis, label)
+	for i, t := range terms {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		esc := html.EscapeString(t)
+		fmt.Fprintf(b, "<data value=\"%s\">%s</data>", esc, esc)
+	}
+	b.WriteString("</p>\n")
+}
+
+// iso8601Duration renders a duration as an ISO-8601 time duration (PnHnMnS form,
+// e.g. "PT24H", "PT1H30M", "PT45M"). Components that are zero are omitted; a
+// zero duration renders "PT0S". Kept in hours/minutes/seconds (no calendar
+// days/months) so the value is unambiguous.
+func iso8601Duration(d time.Duration) string {
+	if d <= 0 {
+		return "PT0S"
+	}
+	total := int64(d / time.Second)
+	h := total / 3600
+	m := (total % 3600) / 60
+	s := total % 60
+	var b strings.Builder
+	b.WriteString("PT")
+	if h > 0 {
+		fmt.Fprintf(&b, "%dH", h)
+	}
+	if m > 0 {
+		fmt.Fprintf(&b, "%dM", m)
+	}
+	if s > 0 {
+		fmt.Fprintf(&b, "%dS", s)
+	}
 	return b.String()
 }
 

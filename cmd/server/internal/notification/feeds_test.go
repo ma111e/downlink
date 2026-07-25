@@ -30,6 +30,9 @@ func sampleFeedDigests() []models.Digest {
 						ImportanceScore: 95,
 						Tldr:            "A severe vulnerability was disclosed today.",
 						KeyPoints:       []string{"Affects all versions", "Patch available now"},
+						Technologies:    []string{"vpn", "firewall"},
+						Products:        []string{"fortios"},
+						Vendors:         []string{"fortinet"},
 					},
 				},
 				{
@@ -41,6 +44,7 @@ func sampleFeedDigests() []models.Digest {
 						ImportanceScore: 40,
 						Tldr:            "Duplicate story that should be omitted.",
 						KeyPoints:       []string{"Should not appear"},
+						Vendors:         []string{"omittedvendor"},
 					},
 				},
 			},
@@ -101,9 +105,55 @@ func TestBuildDigestFeedsContent(t *testing.T) {
 	if want := "https://user.github.io/digests/downlink-digest-2026-04-24_1200.html"; !strings.Contains(body, want) {
 		t.Errorf("rss feed missing absolute digest link %q", want)
 	}
-	// Duplicate non-canonical article is omitted.
+	// Duplicate non-canonical article is omitted (both its TLDR and its terms).
 	if strings.Contains(body, "Should not appear") {
 		t.Errorf("rss feed included a duplicate non-canonical article")
+	}
+	if strings.Contains(body, "omittedvendor") {
+		t.Errorf("rss feed included terms from a duplicate non-canonical article")
+	}
+	// Per-article technology/product/vendor lists, machine-parsable.
+	for _, want := range []string{
+		`data-axis="technologies"`,
+		`data-axis="products"`,
+		`data-axis="vendors"`,
+		`<data value="firewall">firewall</data>`,
+		`<data value="fortios">fortios</data>`,
+		`<data value="fortinet">fortinet</data>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("rss feed missing per-article term markup %q", want)
+		}
+	}
+	// Per-item window: RFC3339 datetimes + ISO-8601 duration (24h window sample).
+	for _, want := range []string{
+		`class="digest-window"`,
+		`<time datetime="2026-04-24T12:00:00Z">`,
+		`<time datetime="2026-04-25T12:00:00Z">`,
+		`<data value="PT24H">`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("rss feed missing window markup %q", want)
+		}
+	}
+}
+
+func TestISO8601Duration(t *testing.T) {
+	cases := []struct {
+		in   time.Duration
+		want string
+	}{
+		{24 * time.Hour, "PT24H"},
+		{90 * time.Minute, "PT1H30M"},
+		{45 * time.Minute, "PT45M"},
+		{90 * time.Second, "PT1M30S"},
+		{0, "PT0S"},
+		{-5 * time.Minute, "PT0S"},
+	}
+	for _, c := range cases {
+		if got := iso8601Duration(c.in); got != c.want {
+			t.Errorf("iso8601Duration(%v) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }
 
