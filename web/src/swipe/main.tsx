@@ -640,7 +640,8 @@ function App() {
             })}
           </div>
 
-          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", marginTop: 16, flexShrink: 0 }}>
+          <div className="swipe-actions">
+          <div style={{ display: "flex", gap: 28, justifyContent: "center", alignItems: "center", paddingTop: 16 }}>
             <button className="pill-btn skip" onClick={advance} title="Mark as read (ArrowLeft)">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
@@ -655,10 +656,11 @@ function App() {
             )}
           </div>
 
-          <div style={{ marginTop: 12, textAlign: "center", flexShrink: 0 }}>
+          <div style={{ marginTop: 12, textAlign: "center" }}>
             <a href={DIGEST_HREF} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text3)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px dotted var(--text3)" }}>
               &#8592; BACK TO LIST VIEW
             </a>
+          </div>
           </div>
         </div>
       )}
