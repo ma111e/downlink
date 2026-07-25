@@ -46,6 +46,15 @@ type GitHubPagesPublisher struct {
 	profileSlug string // current profile being published (switcher active state)
 	theme       string // current profile's first-paint theme ("" = default)
 	layoutPeers []LayoutPeer // sibling layouts published in this run (layout-switch UI)
+
+	// Progress step scope. When publishing several layouts in one run, each layout
+	// reuses the same step IDs ("deploy", "render", ...). stepPrefix namespaces the
+	// IDs so the progress sink keeps a distinct row per layout instead of collapsing
+	// them onto one (which would freeze a completed row over a later layout's live
+	// deploy); stepSuffix disambiguates the otherwise-identical labels/notes. Both
+	// empty for a single-layout run, leaving that path unchanged.
+	stepPrefix string
+	stepSuffix string
 }
 
 // LayoutPeer is one layout published for the current profile in this run, paired
@@ -199,19 +208,19 @@ func (p *GitHubPagesPublisher) SetProgress(pr PublishProgress) {
 
 func (p *GitHubPagesPublisher) pStart(step, label string) {
 	if p.progress != nil {
-		p.progress.Start(step, label)
+		p.progress.Start(p.stepPrefix+step, label+p.stepSuffix)
 	}
 }
 
 func (p *GitHubPagesPublisher) pUpdate(step, label string) {
 	if p.progress != nil {
-		p.progress.Update(step, label)
+		p.progress.Update(p.stepPrefix+step, label+p.stepSuffix)
 	}
 }
 
 func (p *GitHubPagesPublisher) pComplete(step string, ok bool, note string) {
 	if p.progress != nil {
-		p.progress.Complete(step, ok, note)
+		p.progress.Complete(p.stepPrefix+step, ok, note+p.stepSuffix)
 	}
 }
 
@@ -1144,6 +1153,11 @@ func (p *GitHubPagesPublisher) RepublishAllLayouts(digests []models.Digest, layo
 		sub.profileSlug = p.profileSlug
 		sub.theme = p.theme
 		sub.SetLayoutPeers(peers)
+		// Scope each layout's progress steps so they render as distinct rows
+		// instead of every layout overwriting the shared "deploy"/"render"/...
+		// rows (which reads as a freeze on the prior layout's completed row).
+		sub.stepPrefix = layout + ":"
+		sub.stepSuffix = " (" + layout + ")"
 
 		if err := sub.republishAllFiltered(digests, layout, published, dryRun, wait, rebase); err != nil {
 			return err

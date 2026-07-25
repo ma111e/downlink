@@ -403,6 +403,46 @@ func (r *recordingProgress) Complete(step string, ok bool, note string) {
 	r.okByStep[step] = ok
 }
 
+// A scoped publisher (as set per layout in RepublishAllLayouts) must namespace
+// its progress step IDs and suffix its labels/notes, so a multi-layout run keeps
+// a distinct row per layout instead of colliding on the shared "deploy" ID.
+func TestProgressStepScopeNamespacesSteps(t *testing.T) {
+	p := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{})
+	prog := newRecordingProgress()
+	p.SetProgress(prog)
+	p.stepPrefix = "v2:"
+	p.stepSuffix = " (v2)"
+
+	p.pStart("deploy", "Waiting for GitHub Pages deploy")
+	p.pComplete("deploy", true, "deployed abc1234")
+
+	if _, ok := prog.starts["v2:deploy"]; !ok {
+		t.Errorf("expected scoped start id %q, got starts=%v", "v2:deploy", prog.starts)
+	}
+	if _, collided := prog.completed["deploy"]; collided {
+		t.Errorf("unscoped id %q leaked; scope not applied", "deploy")
+	}
+	note := prog.completed["v2:deploy"]
+	if !strings.Contains(note, "deployed abc1234") || !strings.Contains(note, "(v2)") {
+		t.Errorf("expected suffixed note, got %q", note)
+	}
+}
+
+// The default (single-layout) path leaves step IDs and labels untouched.
+func TestProgressStepScopeEmptyByDefault(t *testing.T) {
+	p := NewGitHubPagesPublisher(models.GitHubPagesNotificationConfig{})
+	prog := newRecordingProgress()
+	p.SetProgress(prog)
+
+	p.pStart("deploy", "Waiting")
+	if _, ok := prog.starts["deploy"]; !ok {
+		t.Errorf("expected unscoped id %q, got starts=%v", "deploy", prog.starts)
+	}
+	if got := prog.starts["deploy"]; got != "Waiting" {
+		t.Errorf("expected unchanged label %q, got %q", "Waiting", got)
+	}
+}
+
 func TestFmtMMSS(t *testing.T) {
 	cases := []struct {
 		d    time.Duration
