@@ -88,7 +88,13 @@ function v2ApplySelect(id: string, drill?: boolean) {
     // Remember where the list was, but only on list → article (PREV/NEXT while
     // already reading must not clobber it), so back lands exactly where the
     // reader left off.
-    if (document.documentElement.dataset.mview !== 'article') listScrollY = window.scrollY;
+    if (document.documentElement.dataset.mview !== 'article') {
+      listScrollY = window.scrollY;
+      // Push a history entry so the browser/OS back arrow pops back to the list
+      // (dismissed by the popstate handler) instead of leaving the digest page.
+      // Only on list → article: PREV/NEXT while reading must not stack entries.
+      history.pushState({ v2mview: 'article' }, '');
+    }
     document.documentElement.dataset.mview = 'article';
     window.scrollTo(0, 0);
   }
@@ -99,7 +105,14 @@ function v2ApplySelect(id: string, drill?: boolean) {
 
 // ---- mobile drilldown nav (back / prev / next) --------------------------------
 var listScrollY = 0; // list scroll offset captured on drill-in, restored by v2Back
+// Leave the article view by popping the history entry pushed on drill-in; the
+// popstate handler runs the actual dismissal. Routing the chip and Escape through
+// history.back() keeps the pushed entry balanced regardless of how the reader leaves.
 function v2Back() {
+  if (document.documentElement.dataset.mview !== 'article') return;
+  history.back();
+}
+function v2DismissArticle() {
   if (document.documentElement.dataset.mview !== 'article') return;
   // Dismissals stay instant (motion rules). Restore the exact scroll offset the
   // list was left at — re-centering the active row instead would shift the whole
@@ -113,6 +126,11 @@ function v2Back() {
     if (r.bottom < 0 || r.top > window.innerHeight) row.scrollIntoView({ block: 'center' });
   }
 }
+// Browser/OS back arrow (and history.back() from v2Back): if an article is open,
+// dismiss it back to the list. Other popstates on the list view are ignored.
+window.addEventListener('popstate', function () {
+  if (document.documentElement.dataset.mview === 'article') v2DismissArticle();
+});
 function v2Step(delta: number) {
   var vis = visibleItems();
   if (!vis.length) return;
@@ -134,10 +152,23 @@ function v2SyncPosition() {
   if (next) next.disabled = pos < 0 || pos >= vis.length - 1;
 }
 
-// ---- filters (priority + category + tags, ANDed) ----------------------------
+// ---- filters (priority + category + tags + search, ANDed) -------------------
 var curPrio: string | null = null;
 var curCategory = 'all';
 var curTags: string[] = [];
+var curSearch = '';
+
+// Free-text match target for a TOC row: its rendered text (number, title, category
+// label, source name) plus its tags, which aren't shown in the row markup but should
+// still match. Cached per row so a keystroke doesn't re-read textContent for every row.
+function rowSearchText(e: HTMLElement): string {
+  var cached = (e as any)._search;
+  if (cached === undefined) {
+    cached = ((e.textContent || '') + ' ' + (e.dataset.tags || '')).toLowerCase();
+    (e as any)._search = cached;
+  }
+  return cached;
+}
 
 function v2ApplyFilters() {
   // Cascade budget for the re-scan reveal below: rows past the cap appear instantly.
@@ -151,7 +182,8 @@ function v2ApplyFilters() {
     // Settings-level gate: the Promotions & announcements toggle hides these
     // categories entirely, on top of whatever filters are active.
     var okPromo = !v2PromoOff() || PROMO_CATS.indexOf(e.dataset.category || '') < 0;
-    e.hidden = !(okP && okC && okT && okPromo);
+    var okS = !curSearch || rowSearchText(e).indexOf(curSearch) >= 0;
+    e.hidden = !(okP && okC && okT && okPromo && okS);
     // Re-trigger the .v2-reveal cascade (CSS animation keyed on --i) so a filter change
     // reads as the list re-scanning. Only filters run this; j/k selection stays instant.
     e.classList.remove('v2-reveal');
@@ -171,6 +203,8 @@ function v2ApplyFilters() {
   if (vis.length && (!selectedId || vis.every(function (el) { return el.dataset.target !== selectedId; }))) {
     v2Select(vis[0].dataset.target as string);
   }
+  var empty = document.querySelector('.v2-toc-empty') as HTMLElement | null;
+  if (empty) empty.hidden = !(vis.length === 0 && curSearch !== '');
   v2SyncFilterCount();
   v2SyncPosition();
 }
@@ -191,6 +225,24 @@ function v2SyncFilterCount() {
   var el = document.getElementById('filters-count') as HTMLElement | null;
   if (el) { el.textContent = '· ' + n; el.hidden = n === 0; }
 }
+
+function v2FilterSearch(q: string) {
+  curSearch = (q || '').trim().toLowerCase();
+  v2ApplyFilters();
+}
+// Escape clears the field without also firing the global Escape handler (v2Back /
+// close-menus). Only meaningful while the input is focused.
+(function () {
+  var input = document.getElementById('toc-search') as HTMLInputElement | null;
+  if (!input) return;
+  input.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    e.stopPropagation();
+    if (input.value === '') return;
+    input.value = '';
+    v2FilterSearch('');
+  });
+})();
 
 function v2FilterPrio(prio: string) {
   curPrio = curPrio === prio ? null : prio;
@@ -865,7 +917,7 @@ document.addEventListener('keydown', function (e) {
 // Inline on* handlers in the server markup call these by name.
 Object.assign(window, {
   v2ApplyTheme, v2Select, v2Back, v2Step, v2ToggleFilters,
-  v2FilterPrio, v2FilterCat, v2ToggleTag, v2ToggleMoreTags, v2Tab, v2ToggleBrief,
+  v2FilterPrio, v2FilterCat, v2ToggleTag, v2FilterSearch, v2ToggleMoreTags, v2Tab, v2ToggleBrief,
   v2ToggleWhy, v2ToggleDup, v2ToggleLearning, v2CycleHelp, v2CloseGloss,
   v2ToggleLearnFeature, v2ToggleLearnMenu, v2TogglePlain, v2ToggleReports,
   v2ToggleSettings, v2CloseSettings, v2ToggleAnim, v2TogglePromo, v2ToggleLayout,

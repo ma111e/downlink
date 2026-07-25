@@ -1,13 +1,11 @@
 // v2 archive-index bundle: fetches manifest.json and renders the redesigned archive —
 // a date-grouped log of digests with a priority-mix bar per row, a hero for the latest
-// transmission, and search / window controls plus j/k navigation.
+// transmission, and a search control plus j/k navigation.
 // The blocking pre-paint theme IIFE stays inline in the template.
 import '../../css/v2/archive-index.css'
 
 (function () {
   var THEME_KEY = 'downlink.theme';
-
-  var WINDOWS = ['all', '4h', '8h', '12h', '1d', '1w'];
 
   var state = {
     manifest: {} as any,
@@ -15,7 +13,6 @@ import '../../css/v2/archive-index.css'
     flat: [] as any[],   // visible rows in render order, for j/k
     active: 0,
     query: '',
-    windowIdx: 0,
     theme: localStorage.getItem(THEME_KEY) || document.documentElement.dataset.theme || 'dark'
   };
 
@@ -25,8 +22,6 @@ import '../../css/v2/archive-index.css'
     topMeta: document.getElementById('top-meta') as HTMLElement,
     footerTotal: document.getElementById('footer-total') as HTMLElement,
     search: document.getElementById('search') as HTMLInputElement,
-    window: document.getElementById('window') as HTMLButtonElement,
-    windowLabel: document.getElementById('window-label') as HTMLElement,
     theme: document.getElementById('theme') as HTMLSelectElement
   };
 
@@ -53,10 +48,6 @@ import '../../css/v2/archive-index.css'
   });
 
   els.search.addEventListener('input', function () { state.query = els.search.value; render(); });
-  els.window.addEventListener('click', function () {
-    state.windowIdx = (state.windowIdx + 1) % WINDOWS.length;
-    render();
-  });
   els.theme.addEventListener('change', function () {
     state.theme = els.theme.value;
     document.documentElement.dataset.theme = state.theme;
@@ -106,9 +97,6 @@ import '../../css/v2/archive-index.css'
   });
 
   function render() {
-    var win = WINDOWS[state.windowIdx];
-    els.windowLabel.textContent = win;
-
     var q = state.query.trim().toLowerCase();
     var flat: any[] = [];
 
@@ -116,7 +104,6 @@ import '../../css/v2/archive-index.css'
     var order: string[] = [];
     var groups: Record<string, any> = {};
     state.rows.forEach(function (d) {
-      if (win !== 'all' && winBucket(d.time_window) !== win) return;
       if (q && !matchesQuery(d, q)) return;
       var dt = parseTs(d.period_start || d.started_at);
       var key = dt ? dt.toISOString().slice(0, 10) : 'unknown';
@@ -214,23 +201,12 @@ import '../../css/v2/archive-index.css'
     }).join('') + '</div>';
   }
 
-  // Bucket a human time_window ("8 hours", "1 day", "45 min", ...) into one of the
-  // fixed window keys the UI colors and filters by, cool (short) -> warm (long).
-  // Returns '' for unknown/absent values.
-  function winBucket(win: string) {
-    var m = (win || '').toLowerCase().match(/(\d+)\s*(min|hour|day|week)/);
-    if (!m) return '';
-    var n = Number(m[1]);
-    var hours = m[2] === 'week' ? n * 168 : m[2] === 'day' ? n * 24 : m[2] === 'min' ? 0 : n;
-    return hours <= 4 ? '4h' : hours <= 8 ? '8h' : hours <= 12 ? '12h' : hours <= 24 ? '1d' : '1w';
-  }
-
   function rowHTML(d: any, idx: number) {
     var dt = parseTs(d.period_start || d.started_at);
     var win = d.time_window || '—';
     return '<a class="v2-row" data-index="' + idx + '" href="' + escapeAttr(digestURL(d.filename)) + '">' +
       '<span class="v2-row-ts">' + escapeHTML(fmtTime(dt)) + ' <span class="v2-dim">UTC</span></span>' +
-      '<span class="v2-row-win' + (winBucket(win) ? ' win-' + winBucket(win) : '') + '">' + escapeHTML(win) + '</span>' +
+      '<span class="v2-row-win">' + escapeHTML(win) + '</span>' +
       '<span class="v2-row-head">' + escapeHTML(topHeadline(d)) + '</span>' +
       priorityBar(d) +
       '<span class="v2-row-count">' + (d.article_count || 0) + ' →</span></a>';
