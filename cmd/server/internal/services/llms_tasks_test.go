@@ -177,6 +177,14 @@ func TestCategorizeTaskProductAxes(t *testing.T) {
 		if !strings.Contains(tc.task.instruction, "firewall") || !strings.Contains(tc.task.instruction, "vpn") {
 			t.Errorf("%s categorize instruction missing product-type vocabulary", tc.name)
 		}
+		// Open standards/protocols must be excluded from the products axis, not
+		// enumerated as a product kind (guards against DKIM/DMARC/ARC-style misclassification).
+		if strings.Contains(tc.task.instruction, "hardware, protocols") {
+			t.Errorf("%s categorize instruction still lists protocols as a product kind", tc.name)
+		}
+		if !strings.Contains(tc.task.instruction, "are NOT products") {
+			t.Errorf("%s categorize instruction missing standards exclusion", tc.name)
+		}
 	}
 }
 
