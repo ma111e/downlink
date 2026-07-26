@@ -406,7 +406,7 @@ func TestRenderDigestHTMLV2BakesTypeProductVendorFilters(t *testing.T) {
 		// Cloud labels.
 		`<span class="v2-filter-label">VENDORS</span>`,
 		`<span class="v2-filter-label">PRODUCTS</span>`,
-		`<span class="v2-filter-label">TYPE</span>`,
+		`<span class="v2-filter-label">TECHNO</span>`,
 		// Named products: fortios on both rows -> count 2; kubernetes on one -> count 1.
 		`data-product="fortios" onclick="v2ToggleProduct(this.dataset.product)">fortios <span class="v2-cat-n">2</span>`,
 		`data-product="kubernetes" onclick="v2ToggleProduct(this.dataset.product)">kubernetes <span class="v2-cat-n">1</span>`,
