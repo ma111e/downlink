@@ -25,13 +25,17 @@ type CodexModel struct {
 	ContextWindowSize int    `json:"context_window_size"`
 }
 
+// fallbackCodexModels lists the Codex-available model slugs newest first, used
+// when the live API list cannot be fetched. Retired/deprecated slugs are dropped:
+// gpt-5.4 and gpt-5.4-mini retired from Codex on 2026-08-31, and gpt-5.2 /
+// gpt-5.3-codex are deprecated for ChatGPT sign-in.
 var fallbackCodexModels = []string{
-	"gpt-5.5",
-	"gpt-5.4",
-	"gpt-5.4-mini",
-	"gpt-5.3-codex",
-	"gpt-5.2",
+	"gpt-6-astra",
+	"gpt-5.6-sol",
+	"gpt-5.6-terra",
+	"gpt-5.6-luna",
 	"gpt-5.3-codex-spark",
+	"gpt-5.5",
 }
 
 // getCodexModelIDs fetches available Codex models directly from the OpenAI Codex API.

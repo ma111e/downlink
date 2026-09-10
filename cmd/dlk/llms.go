@@ -607,7 +607,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 			flushStdin()
 			_ = huh.NewInput().
 				Title("Model name").
-				Placeholder("e.g. gpt-4o").
+				Placeholder("e.g. gpt-5.6-terra").
 				Value(&modelName).
 				Validate(func(s string) error {
 					if strings.TrimSpace(s) == "" {
@@ -634,7 +634,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 			flushStdin()
 			_ = huh.NewInput().
 				Title("Model name").
-				Placeholder("e.g. gpt-4o").
+				Placeholder("e.g. gpt-5.6-terra").
 				Value(&modelName).
 				Validate(func(s string) error {
 					if strings.TrimSpace(s) == "" {

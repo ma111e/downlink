@@ -2131,28 +2131,35 @@ func getFallbackMistralModels() []models.ModelInfo {
 	}
 }
 
-// getFallbackOpenAIModels returns a default list of OpenAI models to use when API calls fail -- 03/20/2025
+// getFallbackOpenAIModels returns a default list of OpenAI models to use when API calls fail -- 09/10/2026
 func getFallbackOpenAIModels() []models.ModelInfo {
 	return []models.ModelInfo{
 		{
-			Id:           "gpt-4o",
-			Name:         "gpt-4o",
-			DisplayName:  "GPT-4o",
-			Description:  "OpenAI's most advanced multimodal model with high capability across text, vision, and audio tasks",
+			Id:           "gpt-6-astra",
+			Name:         "gpt-6-astra",
+			DisplayName:  "GPT-6 Astra",
+			Description:  "OpenAI's most capable model, built for the hardest end-to-end work",
 			ProviderType: "openai",
 		},
 		{
-			Id:           "gpt-4o-mini",
-			Name:         "gpt-4o-mini",
-			DisplayName:  "GPT-4o Mini",
-			Description:  "Smaller, faster, and more cost-effective version of GPT-4o",
+			Id:           "gpt-5.6-sol",
+			Name:         "gpt-5.6-sol",
+			DisplayName:  "GPT-5.6 Sol",
+			Description:  "Flagship model for complex professional work",
 			ProviderType: "openai",
 		},
 		{
-			Id:           "o3-mini",
-			Name:         "o3-mini",
-			DisplayName:  "O3 Mini",
-			Description:  "OpenAI's efficient small-scale model optimized for speed and efficiency",
+			Id:           "gpt-5.6-terra",
+			Name:         "gpt-5.6-terra",
+			DisplayName:  "GPT-5.6 Terra",
+			Description:  "Balances intelligence and cost for everyday tasks",
+			ProviderType: "openai",
+		},
+		{
+			Id:           "gpt-5.6-luna",
+			Name:         "gpt-5.6-luna",
+			DisplayName:  "GPT-5.6 Luna",
+			Description:  "Fast and affordable, optimized for cost-sensitive workloads",
 			ProviderType: "openai",
 		},
 	}
