@@ -119,6 +119,7 @@ Inspect and curate the global jargon glossary. The glossary is built during
 |---|---|
 | `glossary list` | List glossary entries. `--limit <n>` (0 = all). |
 | `glossary override <term> <definition>` | Set a curated definition that wins over the generated one and survives regeneration. Terms match case-insensitively and ignore all punctuation and spacing (`cobalt strike` == `cobalt-strike`, `wscript.exe` == `wscript-exe`). |
+| `glossary delete [term]` | Delete entries and every digest reference to them. Opens a filterable multi-select picker (type to filter, space to select, enter to confirm); `term` pre-narrows the list by matching the term or the definition. `-y`/`--yes` skips the picker and confirmation and deletes `term` outright. Same term matching as `override`. |
 
 ## queue
 

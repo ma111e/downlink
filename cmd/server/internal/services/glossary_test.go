@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/ma111e/downlink/pkg/models"
@@ -135,6 +136,39 @@ func TestCVETagPattern(t *testing.T) {
 		if cveTagPattern.MatchString(s) {
 			t.Errorf("cveTagPattern should not match %q", s)
 		}
+	}
+}
+
+func TestBuildEntityDefinitionList(t *testing.T) {
+	// The grounding column is what stops a name with several well-known referents from being
+	// defined as the most famous one — "Plymouth" was cached as the English city because the
+	// prompt only ever saw the bare term.
+	entities := []entityCandidate{
+		{Term: "Plymouth", Grounding: "Minnesota cities disconnect water systems after cyberattack"},
+		{Term: "Cobalt Strike"}, // no grounding available: column stays empty
+		{Term: "Signal", Grounding: "  Messaging app\nused to  coordinate  "},
+	}
+
+	list, idToTerm := buildEntityDefinitionList(entities)
+
+	lines := strings.Split(strings.TrimSuffix(list, "\n"), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("expected one line per entity, got %d: %q", len(lines), list)
+	}
+	want := []string{
+		"t1\tPlymouth\tMinnesota cities disconnect water systems after cyberattack",
+		"t2\tCobalt Strike\t",
+		// Whitespace collapsed: a newline here would break the one-term-per-line contract.
+		"t3\tSignal\tMessaging app used to coordinate",
+	}
+	for i, w := range want {
+		if lines[i] != w {
+			t.Errorf("line %d = %q, want %q", i+1, lines[i], w)
+		}
+	}
+
+	if len(idToTerm) != 3 || idToTerm["t1"] != "Plymouth" || idToTerm["t3"] != "Signal" {
+		t.Errorf("idToTerm should map each synthetic id back to its term, got %v", idToTerm)
 	}
 }
 

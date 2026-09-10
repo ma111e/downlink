@@ -39,6 +39,8 @@ func TestNormalizeGlossaryCategory(t *testing.T) {
 		"Malware":      "malware",
 		"  TOOL  ":     "tool",
 		"concept":      "concept",
+		"location":     "location",
+		"Person":       "person",
 		"":             "other",
 		"made-up":      "other",
 		"ransomware":   "other", // not in the taxonomy (it's a 'concept'/'malware'), coerced
@@ -46,6 +48,25 @@ func TestNormalizeGlossaryCategory(t *testing.T) {
 	for in, want := range cases {
 		if got := NormalizeGlossaryCategory(in); got != want {
 			t.Errorf("NormalizeGlossaryCategory(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestIsExcludedGlossaryCategory(t *testing.T) {
+	excluded := []string{"country", "location", "person", "cve", "  LOCATION  ", "Person"}
+	for _, in := range excluded {
+		if !IsExcludedGlossaryCategory(in) {
+			t.Errorf("IsExcludedGlossaryCategory(%q) = false, want true", in)
+		}
+	}
+
+	// Everything else stays, including unknown values — those coerce to "other", which is a
+	// real bucket the glossary keeps, not a signal to drop the term.
+	kept := []string{"threat-actor", "malware", "tool", "technique", "vulnerability",
+		"protocol", "concept", "organization", "product", "other", "", "made-up"}
+	for _, in := range kept {
+		if IsExcludedGlossaryCategory(in) {
+			t.Errorf("IsExcludedGlossaryCategory(%q) = true, want false", in)
 		}
 	}
 }

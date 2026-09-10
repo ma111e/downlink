@@ -31,6 +31,8 @@ var glossaryCategories = map[string]bool{
 	"organization":  true,
 	"product":       true,
 	"country":       true, // classified so it can be excluded; never stored as an entry
+	"location":      true, // classified so it can be excluded; never stored as an entry
+	"person":        true, // classified so it can be excluded; never stored as an entry
 	"cve":           true, // classified so it can be excluded; never stored as an entry
 	"other":         true,
 }
@@ -38,12 +40,27 @@ var glossaryCategories = map[string]bool{
 // GlossaryCategoryOther is the fallback category for unknown/empty values.
 const GlossaryCategoryOther = "other"
 
-// GlossaryCategoryCountry and GlossaryCategoryCVE mark candidates that are deliberately excluded
-// from the glossary (countries and CVE identifiers are not glossary-worthy named entities).
+// These categories mark candidates that are deliberately excluded from the glossary — see
+// IsExcludedGlossaryCategory.
 const (
-	GlossaryCategoryCountry = "country"
-	GlossaryCategoryCVE     = "cve"
+	GlossaryCategoryCountry  = "country"
+	GlossaryCategoryLocation = "location"
+	GlossaryCategoryPerson   = "person"
+	GlossaryCategoryCVE      = "cve"
 )
+
+// IsExcludedGlossaryCategory reports whether a classified category is deliberately kept out of
+// the glossary. Places (countries and any other geography) and named individuals teach a reader
+// nothing about security, and a place or person name is the main source of wrong-sense
+// definitions: the glossary caches one definition per name forever, and names like "Plymouth"
+// have several unrelated referents. CVE identifiers are linked elsewhere in the digest.
+func IsExcludedGlossaryCategory(category string) bool {
+	switch NormalizeGlossaryCategory(category) {
+	case GlossaryCategoryCountry, GlossaryCategoryLocation, GlossaryCategoryPerson, GlossaryCategoryCVE:
+		return true
+	}
+	return false
+}
 
 // NormalizeGlossaryCategory lowercases/trims the value and returns it if it is in the
 // fixed taxonomy, otherwise "other".

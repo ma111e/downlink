@@ -272,6 +272,52 @@ func selectArticle(client *downlinkclient.DownlinkClient, filter models.ArticleF
 	return models.Article{}, nil
 }
 
+// selectGlossaryEntries shows a filterable multi-select over the glossary, returning the
+// normalized keys of the chosen entries. query pre-narrows the list (matched against the term
+// and the definition) before the picker is built — the glossary runs to tens of thousands of
+// entries, and typing in the picker filters on the visible label only.
+// Returns nil + nil on cancel, error on fetch failure.
+func selectGlossaryEntries(client *downlinkclient.DownlinkClient, query string) ([]string, error) {
+	entries, err := client.ListGlossaryEntries(0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list glossary entries: %w", err)
+	}
+
+	if q := strings.ToLower(strings.TrimSpace(query)); q != "" {
+		filtered := entries[:0:0]
+		for _, e := range entries {
+			if strings.Contains(strings.ToLower(e.Term), q) || strings.Contains(strings.ToLower(e.EffectiveDefinition()), q) {
+				filtered = append(filtered, e)
+			}
+		}
+		entries = filtered
+	}
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("no matching glossary entries")
+	}
+
+	opts := make([]huh.Option[string], len(entries))
+	for i, e := range entries {
+		label := fmt.Sprintf("%-34s %-14s %s", truncate(e.Term, 34), truncate(e.Category, 14), truncate(e.EffectiveDefinition(), 70))
+		opts[i] = huh.NewOption(label, e.NormalizedKey)
+	}
+
+	var keys []string
+	flushStdin()
+	if err := huh.NewMultiSelect[string]().
+		Title("Select glossary entries to delete").
+		Description("type to filter · esc to leave the filter · space to select · enter to confirm").
+		Options(opts...).
+		Filterable(true).
+		Filtering(true). // open focused on the filter, so typing narrows immediately
+		Height(18).
+		Value(&keys).
+		WithTheme(dlkPromptTheme).Run(); err != nil {
+		return nil, nil
+	}
+	return keys, nil
+}
+
 // selectDigest shows a huh picker over available digests.
 // Returns zero value + nil on cancel, error on fetch failure.
 func selectDigest(client *downlinkclient.DownlinkClient) (models.Digest, error) {

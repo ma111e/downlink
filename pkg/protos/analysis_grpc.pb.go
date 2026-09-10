@@ -23,6 +23,7 @@ const (
 	AnalysisService_GetAnalysis_FullMethodName           = "/downlink.AnalysisService/GetAnalysis"
 	AnalysisService_ListGlossaryEntries_FullMethodName   = "/downlink.AnalysisService/ListGlossaryEntries"
 	AnalysisService_SetGlossaryOverride_FullMethodName   = "/downlink.AnalysisService/SetGlossaryOverride"
+	AnalysisService_DeleteGlossaryEntry_FullMethodName   = "/downlink.AnalysisService/DeleteGlossaryEntry"
 )
 
 // AnalysisServiceClient is the client API for AnalysisService service.
@@ -38,6 +39,8 @@ type AnalysisServiceClient interface {
 	ListGlossaryEntries(ctx context.Context, in *ListGlossaryEntriesRequest, opts ...grpc.CallOption) (*ListGlossaryEntriesResponse, error)
 	// SetGlossaryOverride sets a curated definition for a term that survives regeneration.
 	SetGlossaryOverride(ctx context.Context, in *SetGlossaryOverrideRequest, opts ...grpc.CallOption) (*SetGlossaryOverrideResponse, error)
+	// DeleteGlossaryEntry removes a term from the glossary along with every digest reference.
+	DeleteGlossaryEntry(ctx context.Context, in *DeleteGlossaryEntryRequest, opts ...grpc.CallOption) (*DeleteGlossaryEntryResponse, error)
 }
 
 type analysisServiceClient struct {
@@ -88,6 +91,16 @@ func (c *analysisServiceClient) SetGlossaryOverride(ctx context.Context, in *Set
 	return out, nil
 }
 
+func (c *analysisServiceClient) DeleteGlossaryEntry(ctx context.Context, in *DeleteGlossaryEntryRequest, opts ...grpc.CallOption) (*DeleteGlossaryEntryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteGlossaryEntryResponse)
+	err := c.cc.Invoke(ctx, AnalysisService_DeleteGlossaryEntry_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AnalysisServiceServer is the server API for AnalysisService service.
 // All implementations must embed UnimplementedAnalysisServiceServer
 // for forward compatibility.
@@ -101,6 +114,8 @@ type AnalysisServiceServer interface {
 	ListGlossaryEntries(context.Context, *ListGlossaryEntriesRequest) (*ListGlossaryEntriesResponse, error)
 	// SetGlossaryOverride sets a curated definition for a term that survives regeneration.
 	SetGlossaryOverride(context.Context, *SetGlossaryOverrideRequest) (*SetGlossaryOverrideResponse, error)
+	// DeleteGlossaryEntry removes a term from the glossary along with every digest reference.
+	DeleteGlossaryEntry(context.Context, *DeleteGlossaryEntryRequest) (*DeleteGlossaryEntryResponse, error)
 	mustEmbedUnimplementedAnalysisServiceServer()
 }
 
@@ -122,6 +137,9 @@ func (UnimplementedAnalysisServiceServer) ListGlossaryEntries(context.Context, *
 }
 func (UnimplementedAnalysisServiceServer) SetGlossaryOverride(context.Context, *SetGlossaryOverrideRequest) (*SetGlossaryOverrideResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetGlossaryOverride not implemented")
+}
+func (UnimplementedAnalysisServiceServer) DeleteGlossaryEntry(context.Context, *DeleteGlossaryEntryRequest) (*DeleteGlossaryEntryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteGlossaryEntry not implemented")
 }
 func (UnimplementedAnalysisServiceServer) mustEmbedUnimplementedAnalysisServiceServer() {}
 func (UnimplementedAnalysisServiceServer) testEmbeddedByValue()                         {}
@@ -216,6 +234,24 @@ func _AnalysisService_SetGlossaryOverride_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AnalysisService_DeleteGlossaryEntry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteGlossaryEntryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AnalysisServiceServer).DeleteGlossaryEntry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AnalysisService_DeleteGlossaryEntry_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AnalysisServiceServer).DeleteGlossaryEntry(ctx, req.(*DeleteGlossaryEntryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AnalysisService_ServiceDesc is the grpc.ServiceDesc for AnalysisService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -238,6 +274,10 @@ var AnalysisService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetGlossaryOverride",
 			Handler:    _AnalysisService_SetGlossaryOverride_Handler,
+		},
+		{
+			MethodName: "DeleteGlossaryEntry",
+			Handler:    _AnalysisService_DeleteGlossaryEntry_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

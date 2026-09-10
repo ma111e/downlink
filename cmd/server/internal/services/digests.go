@@ -1295,20 +1295,28 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 	stepCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
-	// candidate is a term this digest references, keyed by NormalizeGlossaryKey.
+	// candidate is a term this digest references, keyed by NormalizeGlossaryKey. grounding is
+	// one line describing how this digest's articles use the term; it disambiguates names with
+	// several well-known referents when the definition is generated.
 	type candidate struct {
 		kind        models.GlossaryKind
 		category    string
 		tagId       string
 		displayTerm string
+		grounding   string
 	}
 	candidates := make(map[string]*candidate)
 
-	// Jargon/concepts extracted per-article (term + type + context; no definition).
+	// Jargon/concepts extracted per-article (term + type + context; no definition). Terms the
+	// extraction classified as an excluded category (places, people) are dropped here rather
+	// than after the definition call, so they never cost tokens.
 	for i := range analyses {
 		for _, term := range analyses[i].GlossaryTerms {
 			key := models.NormalizeGlossaryKey(term.Term)
 			if key == "" {
+				continue
+			}
+			if models.IsExcludedGlossaryCategory(term.Type) {
 				continue
 			}
 			c, ok := candidates[key]
@@ -1318,6 +1326,10 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 			}
 			if c.category == "" || c.category == models.GlossaryCategoryOther {
 				c.category = models.NormalizeGlossaryCategory(term.Type)
+			}
+			// The per-article context sentence is the strongest available sense signal.
+			if c.grounding == "" {
+				c.grounding = strings.TrimSpace(term.Context)
 			}
 		}
 	}
@@ -1345,6 +1357,13 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 			}
 			c.kind = models.GlossaryKindEntity
 			c.tagId = slug
+			// Tag-derived terms never pass through per-article extraction, so they have no
+			// context sentence. The title of an article carrying the tag is the only sense
+			// signal available — and it is the one that distinguishes "Plymouth, Minnesota"
+			// from "Plymouth, England".
+			if c.grounding == "" {
+				c.grounding = strings.TrimSpace(article.Title)
+			}
 		}
 	}
 
@@ -1386,7 +1405,7 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 	}
 
 	// Reference terms that already have a definition; queue the rest for one batched LLM call.
-	var undefined []string
+	var undefined []entityCandidate
 	for key, c := range candidates {
 		if e, ok := byKey[key]; ok && e.EffectiveDefinition() != "" {
 			entryIds[e.Id] = struct{}{}
@@ -1397,7 +1416,7 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 			}
 			continue
 		}
-		undefined = append(undefined, c.displayTerm)
+		undefined = append(undefined, entityCandidate{Term: c.displayTerm, Grounding: c.grounding})
 	}
 
 	if len(undefined) > 0 {
@@ -1416,9 +1435,10 @@ func (s *DigestServer) populateGlossary(ctx context.Context, digestId string, an
 			if category == models.GlossaryCategoryOther && c.category != "" {
 				category = c.category
 			}
-			// Countries and CVE identifiers are not glossary-worthy; drop them once the model
-			// has classified them (CVE slugs are already skipped earlier, this catches the rest).
-			if category == models.GlossaryCategoryCountry || category == models.GlossaryCategoryCVE {
+			// Places, people, and CVE identifiers are not glossary-worthy; drop them once the
+			// model has classified them. Tag-derived candidates carry no extracted category, so
+			// this is the only gate that sees them.
+			if models.IsExcludedGlossaryCategory(category) {
 				continue
 			}
 			source := "tag"
@@ -1728,36 +1748,58 @@ type entityDefinition struct {
 	Difficulty string
 }
 
-// defineEntities asks the model for a canonical display name, a one-line plain-language
-// definition, a type, and a difficulty for each term — a named entity or a security concept —
-// returned keyed by NormalizedGlossaryKey. Named entities always get at least a categorical
-// definition (so important but obscure actors/malware are kept); only genuinely unclassifiable
-// terms come back empty and are dropped so they can be retried on a future digest. Countries and
-// CVEs are classified honestly (type "country"/"cve") and filtered out by the caller.
-func (s *DigestServer) defineEntities(ctx context.Context, entities []string, provider, model string) (map[string]entityDefinition, error) {
-	if len(entities) == 0 {
-		return map[string]entityDefinition{}, nil
-	}
+// entityCandidate is a term queued for definition plus one line describing how the digest's
+// articles use it. The grounding line only picks the right sense of an ambiguous name; it is
+// never echoed into the definition, which is cached globally and must stay general.
+type entityCandidate struct {
+	Term      string
+	Grounding string
+}
 
-	// Address each term by a stable synthetic id (t1, t2, …) so matching the response
-	// back to the candidate does not depend on the model echoing a normalization-stable
-	// string. Models routinely reword or expand a term (e.g. "mcp" → "Model Context
-	// Protocol", "mitre-attack" → "MITRE ATT&CK"), which would otherwise break the key
-	// match and silently discard a perfectly good definition.
+// buildEntityDefinitionList renders the term list for the definition prompt as one
+// "<id>\t<term>\t<grounding>" line per candidate, and returns the id → term mapping needed to
+// read the response back.
+//
+// Each term is addressed by a stable synthetic id (t1, t2, …) so matching the response back to
+// the candidate does not depend on the model echoing a normalization-stable string. Models
+// routinely reword or expand a term (e.g. "mcp" → "Model Context Protocol", "mitre-attack" →
+// "MITRE ATT&CK"), which would otherwise break the key match and silently discard a perfectly
+// good definition.
+func buildEntityDefinitionList(entities []entityCandidate) (string, map[string]string) {
 	idToTerm := make(map[string]string, len(entities))
 	var list strings.Builder
 	for i, e := range entities {
 		id := fmt.Sprintf("t%d", i+1)
-		idToTerm[id] = e
+		idToTerm[id] = e.Term
 		list.WriteString(id)
 		list.WriteString("\t")
-		list.WriteString(e)
+		list.WriteString(e.Term)
+		list.WriteString("\t")
+		// Whitespace is collapsed because a newline in the grounding line would break the
+		// one-term-per-line contract. An absent grounding just leaves the column empty.
+		list.WriteString(strings.Join(strings.Fields(e.Grounding), " "))
 		list.WriteString("\n")
 	}
+	return list.String(), idToTerm
+}
+
+// defineEntities asks the model for a canonical display name, a one-line plain-language
+// definition, a type, and a difficulty for each term — a named entity or a security concept —
+// returned keyed by NormalizedGlossaryKey. Named entities always get at least a categorical
+// definition (so important but obscure actors/malware are kept); only genuinely unclassifiable
+// terms come back empty and are dropped so they can be retried on a future digest. Places,
+// people, and CVEs are classified honestly (type "location"/"country"/"person"/"cve") and
+// filtered out by the caller.
+func (s *DigestServer) defineEntities(ctx context.Context, entities []entityCandidate, provider, model string) (map[string]entityDefinition, error) {
+	if len(entities) == 0 {
+		return map[string]entityDefinition{}, nil
+	}
+
+	list, idToTerm := buildEntityDefinitionList(entities)
 
 	prompt := fmt.Sprintf(`You are explaining cybersecurity terms to a complete beginner. For each term
-below — a named entity (threat actor, malware family, tool, CVE, vendor, organization, or
-country) or a security concept/technique/protocol relevant to a security story — give one
+below — a named entity (threat actor, malware family, tool, CVE, vendor, organization, place, or
+person) or a security concept/technique/protocol relevant to a security story — give one
 plain-language sentence a newcomer can understand, give its canonical display name, classify
 its type, and rate how much help a reader needs with it.
 
@@ -1773,8 +1815,10 @@ preserving real punctuation and capitalization (e.g. "HTTP/3", "wscript.exe", "D
 "MITRE ATT&CK", "Model Context Protocol"). Do not return a kebab-case slug.
 
 type must be ONE of: threat-actor, malware, tool, technique, vulnerability, protocol, concept,
-organization, product, country, cve, other. Use "country" for nations/geographies and "cve" for
-CVE identifiers — these will be filtered out, but classify them honestly.
+organization, product, country, location, person, cve, other. Use "country" for nations,
+"location" for any other place (city, town, state, province, region, continent), "person" for a
+named individual, and "cve" for CVE identifiers — these four will be filtered out, but classify
+them honestly rather than forcing them into a security category.
 
 difficulty must be ONE of — rate by how much help a reader needs with the term, not by how
 sophisticated it sounds:
@@ -1789,8 +1833,15 @@ sophisticated it sounds:
     (e.g. a specific loader family, an unusual evasion technique). Do not rate generic tradecraft as
     advanced just because it is technical.
 
-Each line below is "<id>\t<term>". Use the id (e.g. t1) as the JSON key for that term's
-definition — do not use the term text as the key.
+Each line below is "<id>\t<term>\t<context>". Use the id (e.g. t1) as the JSON key for that
+term's definition — do not use the term text as the key.
+
+The context column says how the term is used in the article it was taken from, and may be
+empty. Use it ONLY to pick the correct sense when a name has several well-known referents — a
+town that shares its name with a bigger one, a product named after a common word, a tool that
+shares its name with a protocol. The definition itself must stay general and reusable: describe
+what the term is in the world, never what happened in that article, and never repeat the context
+line back. If the context does not clarify the sense, ignore it entirely.
 
 <start_of_entities>
 %s<end_of_entities>
@@ -1801,7 +1852,7 @@ Respond with valid JSON only — no explanations, markdown, or text outside the 
   "definitions": {
     "<id>": {"name": "<canonical display name>", "definition": "<one plain-language sentence, or empty string if unclassifiable>", "type": "<category>", "difficulty": "<difficulty>"}
   }
-}`, list.String())
+}`, list)
 
 	resolved, err := ResolveLLM(LLMRequest{Provider: provider, ModelName: model})
 	if err != nil {

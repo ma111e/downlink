@@ -83,6 +83,11 @@ cross-digest matching and only highlight in digests whose articles are actually 
 them. Curate definitions with `dlk glossary override`; see
 [cli-reference.md](cli-reference.md#glossary).
 
+Because a stored definition is never regenerated, a wrong one is fixed by removing it:
+`dlk glossary delete` drops the entry and every digest reference to it, and the next digest
+that mentions the term defines it from scratch. Use it for terms that should never have
+been picked up as jargon too.
+
 ## Persona and writing style
 
 Two `analysis` config fields shape LLM output:

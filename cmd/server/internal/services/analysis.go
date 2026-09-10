@@ -56,3 +56,12 @@ func (s *AnalysisServer) SetGlossaryOverride(ctx context.Context, req *protos.Se
 		Entry: mappers.GlossaryEntryToProto(found[key]),
 	}, nil
 }
+
+// DeleteGlossaryEntry removes a term from the glossary and every digest reference to it.
+func (s *AnalysisServer) DeleteGlossaryEntry(ctx context.Context, req *protos.DeleteGlossaryEntryRequest) (*protos.DeleteGlossaryEntryResponse, error) {
+	term, err := store.Db.DeleteGlossaryEntry(req.Term)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete glossary entry: %w", err)
+	}
+	return &protos.DeleteGlossaryEntryResponse{Term: term}, nil
+}

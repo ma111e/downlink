@@ -53,6 +53,7 @@ type Store interface {
 	StoreDigestGlossaryBatch(rows []models.DigestGlossary) error
 	GetDigestGlossary(digestId string) ([]models.DigestGlossary, error)
 	SetGlossaryManualOverride(key, curatedDef string) error
+	DeleteGlossaryEntry(key string) (string, error)
 
 	GetCategories() ([]models.Category, error)
 	SaveCategory(category models.Category) error

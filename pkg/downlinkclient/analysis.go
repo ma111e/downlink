@@ -63,6 +63,18 @@ func (pc *DownlinkClient) SetGlossaryOverride(term, definition string) (models.G
 	return models.GlossaryEntry{}, nil
 }
 
+// DeleteGlossaryEntry removes a term from the glossary along with every digest reference to it,
+// and returns the deleted entry's display term.
+func (pc *DownlinkClient) DeleteGlossaryEntry(term string) (string, error) {
+	protoRes, err := pc.analysisClient.DeleteGlossaryEntry(pc.ctx, &protos.DeleteGlossaryEntryRequest{
+		Term: term,
+	})
+	if err != nil {
+		return "", err
+	}
+	return protoRes.Term, nil
+}
+
 // UpdateAnalysisConfig updates the enrichment configuration
 func (pc *DownlinkClient) UpdateAnalysisConfig(analysisConfig models.AnalysisConfig) error {
 	_, err := pc.serverConfigClient.UpdateAnalysisConfig(pc.ctx, &protos.UpdateAnalysisConfigRequest{

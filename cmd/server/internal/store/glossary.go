@@ -171,6 +171,39 @@ func (s *GormStore) GetDigestGlossary(digestId string) ([]models.DigestGlossary,
 	return rows, nil
 }
 
+// DeleteGlossaryEntry removes an entry and every digest reference to it. Used to prune terms
+// that should never have been glossarised (places, people) or whose cached definition is wrong:
+// definitions are sticky, so deleting is the only way to make a term be reconsidered from
+// scratch on a later digest. Returns the deleted entry's display term.
+func (s *GormStore) DeleteGlossaryEntry(key string) (string, error) {
+	key = models.NormalizeGlossaryKey(key)
+	if key == "" {
+		return "", fmt.Errorf("glossary entry key is empty")
+	}
+
+	var existing models.GlossaryEntry
+	if err := s.db.Where("normalized_key = ?", key).First(&existing).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", fmt.Errorf("glossary entry not found for key %q", key)
+		}
+		return "", fmt.Errorf("failed to look up glossary entry: %w", err)
+	}
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&models.DigestGlossary{}, "entry_id = ?", existing.Id).Error; err != nil {
+			return fmt.Errorf("failed to delete digest glossary rows: %w", err)
+		}
+		if err := tx.Delete(&models.GlossaryEntry{}, "id = ?", existing.Id).Error; err != nil {
+			return fmt.Errorf("failed to delete glossary entry: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return existing.Term, nil
+}
+
 // SetGlossaryManualOverride sets a curated definition that wins over and is never
 // overwritten by the generated definition.
 func (s *GormStore) SetGlossaryManualOverride(key, curatedDef string) error {

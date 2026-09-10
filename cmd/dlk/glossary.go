@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -81,6 +82,71 @@ case-insensitively and is space/hyphen-insensitive (e.g. "cobalt strike" == "cob
 		},
 	}
 
-	glossaryCmd.AddCommand(listCmd, overrideCmd)
+	var deleteYes bool
+	deleteCmd := &cobra.Command{
+		Use:   "delete [term]",
+		Short: "Remove entries from the glossary",
+		Long: `Delete glossary entries and every digest reference to them.
+
+With a term, deletes that entry directly. Without one, opens a filterable picker over the whole
+glossary — type to narrow, space to select, enter to confirm — and a leading argument can also
+be used as a search query to pre-narrow the list.
+
+Definitions are generated once and never regenerated, so deleting is how a term with a wrong
+cached definition gets reconsidered from scratch on a later digest. Terms matched the same way
+as 'override': case-insensitively and space/hyphen-insensitively.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client := getNewDownlinkClient()
+
+			var keys []string
+			if len(args) == 1 && deleteYes {
+				// Unattended: treat the argument as the exact term, never as a search query.
+				keys = []string{args[0]}
+			} else {
+				query := ""
+				if len(args) == 1 {
+					query = args[0]
+				}
+				selected, err := selectGlossaryEntries(client, query)
+				if err != nil {
+					return err
+				}
+				if len(selected) == 0 {
+					fmt.Println("Cancelled.")
+					return nil
+				}
+				keys = selected
+
+				noun := "entries"
+				if len(keys) == 1 {
+					noun = "entry"
+				}
+				confirm := false
+				flushStdin()
+				if err := huh.NewConfirm().
+					Title(fmt.Sprintf("Delete %d glossary %s?", len(keys), noun)).
+					Affirmative("Yes, delete").
+					Negative("No, keep them").
+					Value(&confirm).
+					WithTheme(dlkPromptTheme).Run(); err != nil || !confirm {
+					fmt.Println("Cancelled.")
+					return nil
+				}
+			}
+
+			for _, key := range keys {
+				term, err := client.DeleteGlossaryEntry(key)
+				if err != nil {
+					return fmt.Errorf("delete %q: %w", key, err)
+				}
+				fmt.Printf("%s Deleted %q\n", styleOK.Render("✓"), term)
+			}
+			return nil
+		},
+	}
+	deleteCmd.Flags().BoolVarP(&deleteYes, "yes", "y", false, "Delete the given term without the picker or a confirmation")
+
+	glossaryCmd.AddCommand(listCmd, overrideCmd, deleteCmd)
 	return glossaryCmd
 }
