@@ -35,19 +35,24 @@ type ManifestEntry struct {
 	// start). It is still written so entries published before period_end existed
 	// keep round-tripping and the archive index can fall back to it. Prefer
 	// PeriodEnd; remove once all historical entries have aged out.
-	StartedAt    string     `json:"started_at"`
-	TimeWindow   string     `json:"time_window"`
-	ArticleCount int        `json:"article_count"`
-	MustCount    int        `json:"must_count"`
-	ShouldCount  int        `json:"should_count"`
-	MayCount     int        `json:"may_count"`
-	OptCount     int        `json:"opt_count"`
-	Provider     string     `json:"provider"`
-	Model        string     `json:"model"`
-	Models       []string   `json:"models,omitempty"` // all unique model names across summary + article analysis
-	Title        string     `json:"title,omitempty"`
-	Headlines    []Headline `json:"headlines"`
-	Summary      string     `json:"summary"`
+	StartedAt    string `json:"started_at"`
+	TimeWindow   string `json:"time_window"`
+	ArticleCount int    `json:"article_count"`
+	MustCount    int    `json:"must_count"`
+	ShouldCount  int    `json:"should_count"`
+	MayCount     int    `json:"may_count"`
+	OptCount     int    `json:"opt_count"`
+	// UnscoredCount counts articles that produced no analysis, so they carry no
+	// reading priority at all. Kept separate from OptCount: a failed analysis is
+	// not the same as a low score. Entries published before this field existed
+	// decode as 0; republishing recomputes them.
+	UnscoredCount int        `json:"unscored_count"`
+	Provider      string     `json:"provider"`
+	Model         string     `json:"model"`
+	Models        []string   `json:"models,omitempty"` // all unique model names across summary + article analysis
+	Title         string     `json:"title,omitempty"`
+	Headlines     []Headline `json:"headlines"`
+	Summary       string     `json:"summary"`
 }
 
 // Manifest is the JSON document checked into the Pages branch listing every
@@ -176,29 +181,30 @@ func (m Manifest) Write(path string) error {
 // the archive-index manifest schema.
 func ManifestEntryFromDigest(d models.Digest) ManifestEntry {
 	provider, model := digestProviderLabel(d)
-	must, should, may, opt := digestPriorityCounts(d)
+	must, should, may, opt, unscored := digestPriorityCounts(d)
 	// CreatedAt is the window start (see GenerateDigest); the window ends one
 	// TimeWindow later. period_start/period_end are the canonical bounds;
 	// started_at is the deprecated legacy alias for the end.
 	const layout = "2006-01-02 15:04 UTC"
 	periodEnd := d.CreatedAt.UTC().Add(d.TimeWindow).Format(layout)
 	return ManifestEntry{
-		Filename:     DigestHTMLFilename(d),
-		PeriodStart:  d.CreatedAt.UTC().Format(layout),
-		PeriodEnd:    periodEnd,
-		StartedAt:    periodEnd,
-		TimeWindow:   formatDuration(d.TimeWindow),
-		ArticleCount: len(d.Articles),
-		MustCount:    must,
-		ShouldCount:  should,
-		MayCount:     may,
-		OptCount:     opt,
-		Provider:     provider,
-		Model:        model,
-		Models:       digestAllModelNames(d),
-		Title:        d.Title,
-		Headlines:    digestHeadlinePreview(d, 0),
-		Summary:      digestSummaryText(d.DigestSummary, 220),
+		Filename:      DigestHTMLFilename(d),
+		PeriodStart:   d.CreatedAt.UTC().Format(layout),
+		PeriodEnd:     periodEnd,
+		StartedAt:     periodEnd,
+		TimeWindow:    formatDuration(d.TimeWindow),
+		ArticleCount:  len(d.Articles),
+		MustCount:     must,
+		ShouldCount:   should,
+		MayCount:      may,
+		OptCount:      opt,
+		UnscoredCount: unscored,
+		Provider:      provider,
+		Model:         model,
+		Models:        digestAllModelNames(d),
+		Title:         d.Title,
+		Headlines:     digestHeadlinePreview(d, 0),
+		Summary:       digestSummaryText(d.DigestSummary, 220),
 	}
 }
 
@@ -236,7 +242,12 @@ func digestAllModelNames(d models.Digest) []string {
 	return names
 }
 
-func digestPriorityCounts(d models.Digest) (must, should, may, opt int) {
+// digestPriorityCounts tallies articles by reading priority. Articles that produced no
+// analysis are counted separately rather than folded into opt: a score of 0 is ambiguous
+// (Compute returns 0 for an all-zero rubric, and priorityKeyForScore has no unscored
+// bucket), so presence in scoreByArticle — which is only populated when an analysis
+// exists — is the discriminator, not the score itself.
+func digestPriorityCounts(d models.Digest) (must, should, may, opt, unscored int) {
 	scoreByArticle := make(map[string]int, len(d.DigestAnalyses))
 	for _, da := range d.DigestAnalyses {
 		if da.Analysis != nil {
@@ -244,7 +255,12 @@ func digestPriorityCounts(d models.Digest) (must, should, may, opt int) {
 		}
 	}
 	for _, art := range d.Articles {
-		switch priorityKeyForScore(scoreByArticle[art.Id]) {
+		score, analyzed := scoreByArticle[art.Id]
+		if !analyzed {
+			unscored++
+			continue
+		}
+		switch priorityKeyForScore(score) {
 		case "must":
 			must++
 		case "should":
@@ -255,7 +271,7 @@ func digestPriorityCounts(d models.Digest) (must, should, may, opt int) {
 			opt++
 		}
 	}
-	return must, should, may, opt
+	return must, should, may, opt, unscored
 }
 
 func priorityKeyForScore(score int) string {

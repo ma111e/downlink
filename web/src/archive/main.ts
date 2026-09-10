@@ -257,7 +257,7 @@ import '../css/archive-index.css'
       var start = bucketStartMs(dt, state.group);
       var key = start == null ? 'unknown' : String(start);
       if (!buckets[key]) {
-        buckets[key] = { start: start, items: [], must: 0, should: 0, may: 0, opt: 0, arts: 0 };
+        buckets[key] = { start: start, items: [], must: 0, should: 0, may: 0, opt: 0, unscored: 0, arts: 0 };
         order.push(key);
       }
       var b = buckets[key];
@@ -266,6 +266,7 @@ import '../css/archive-index.css'
       b.should += d.should_count || 0;
       b.may += d.may_count || 0;
       b.opt += d.opt_count || 0;
+      b.unscored += d.unscored_count || 0;
       b.arts += d.article_count || 0;
     });
     order.sort(function(a, b) {
@@ -301,7 +302,7 @@ import '../css/archive-index.css'
         '<span class="g-label">' + escapeHTML(label) + '</span>' +
         '<span class="g-count"><b>' + b.items.length + '</b> digest' + (b.items.length === 1 ? '' : 's') + '</span>' +
         '<span class="g-arts"><b>' + b.arts + '</b> art</span>' +
-        priorityBarFromCounts(b.must, b.should, b.may, b.opt) + '</div>';
+        priorityBarFromCounts(b.must, b.should, b.may, b.opt, b.unscored) + '</div>';
       if (collapsed) return header;
       return header + b.items.map(function(item) { return logRowHTML(item.row, item.index); }).join('');
     }).join('');
@@ -459,16 +460,20 @@ import '../css/archive-index.css'
   }
 
   function priorityBarHTML(d) {
-    return priorityBarFromCounts(d.must_count || 0, d.should_count || 0, d.may_count || 0, d.opt_count || 0);
+    return priorityBarFromCounts(d.must_count || 0, d.should_count || 0, d.may_count || 0, d.opt_count || 0, d.unscored_count || 0);
   }
 
-  function priorityBarFromCounts(must, should, may, opt) {
-    var total = must + should + may + opt || 1;
-    return '<div class="pri-bar" title="MUST ' + must + ' · SHOULD ' + should + ' · MAY ' + may + ' · OPT ' + opt + '">' +
+  // Unscored articles produced no analysis, so they have no reading priority. They get
+  // their own muted segment rather than padding out OPT, and they count toward the total
+  // so the coloured part of the bar shrinks by however much of the digest went unanalyzed.
+  function priorityBarFromCounts(must, should, may, opt, unscored) {
+    var total = must + should + may + opt + unscored || 1;
+    return '<div class="pri-bar" title="MUST ' + must + ' · SHOULD ' + should + ' · MAY ' + may + ' · OPT ' + opt + ' · UNSCORED ' + unscored + '">' +
       '<span class="must" style="width:' + (must / total * 100) + '%"></span>' +
       '<span class="should" style="width:' + (should / total * 100) + '%"></span>' +
       '<span class="may" style="width:' + (may / total * 100) + '%"></span>' +
-      '<span class="opt" style="width:' + (opt / total * 100) + '%"></span></div>';
+      '<span class="opt" style="width:' + (opt / total * 100) + '%"></span>' +
+      '<span class="unscored" style="width:' + (unscored / total * 100) + '%"></span></div>';
   }
 
   function previewHTML(d) {

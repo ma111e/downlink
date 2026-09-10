@@ -279,6 +279,11 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 		if len(analysisErrors) > 0 {
 			msg := fmt.Sprintf("%d article(s) could not be analyzed after retry", len(analysisErrors))
 			log.Warn(msg)
+			// The digest itself only says an article has no analysis, never why. The
+			// classified reason lives here and nowhere else, so log it per article.
+			for articleId, reason := range analysisErrors {
+				log.WithFields(log.Fields{"articleId": articleId, "reason": reason}).Warn("Article analysis failed")
+			}
 			sendProgress(stream, "analyze", "warning: "+msg, 0, 0)
 		}
 		// Signal analysis complete. current==total with no article_id is the
@@ -399,8 +404,9 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	}
 	digest.DigestAnalyses = digestAnalyses
 
-	// Store digest-article associations for all fetched articles; articles
-	// without analysis will be rendered with an error message in the digest.
+	// Store digest-article associations for all fetched articles; articles without an
+	// analysis are kept and rendered with a "no analysis is available" note plus a link
+	// to the source, so a failed analysis never silently drops an article.
 	articleIds := make([]string, len(articles))
 	for i, article := range articles {
 		articleIds[i] = article.Id
@@ -438,7 +444,6 @@ func (s *DigestServer) GenerateDigest(req *protos.GenerateDigestRequest, rawStre
 	if fullDigest, err := store.Db.GetDigest(digest.Id); err != nil {
 		log.WithError(err).Warn("Failed to reload digest for notifications, skipping all")
 	} else {
-		fullDigest.AnalysisErrors = analysisErrors
 		// Layout precedence: the explicit per-run --layout list, else the
 		// profile's layout (the server/global default applies when both are empty).
 		effLayouts := resolveEffectiveLayouts(req.GetLayouts(), profile.Layout)

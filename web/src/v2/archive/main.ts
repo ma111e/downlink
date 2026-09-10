@@ -223,13 +223,17 @@ import '../../css/v2/archive-index.css'
       '<span class="v2-row-count">' + (d.article_count || 0) + ' →</span></a>';
   }
 
+  // Unscored articles produced no analysis, so they have no reading priority and get their
+  // own muted segment instead of padding out OPT.
   function priorityBar(d: any) {
     var must = d.must_count || 0, should = d.should_count || 0, may = d.may_count || 0, opt = d.opt_count || 0;
-    var total = must + should + may + opt || 1;
+    var unscored = d.unscored_count || 0;
+    var total = must + should + may + opt + unscored || 1;
     function seg(cls: string, n: number) { return n ? '<span class="' + cls + '" style="flex:' + n + '"></span>' : ''; }
-    return '<span class="v2-mix" title="MUST ' + must + ' · SHOULD ' + should + ' · MAY ' + may + ' · OPT ' + opt + '">' +
+    return '<span class="v2-mix" title="MUST ' + must + ' · SHOULD ' + should + ' · MAY ' + may + ' · OPT ' + opt + ' · UNSCORED ' + unscored + '">' +
       seg('v2-mix-must', must) + seg('v2-mix-should', should) + seg('v2-mix-may', may) + seg('v2-mix-opt', opt) +
-      (total === 1 && !must && !should && !may && !opt ? '<span class="v2-mix-opt" style="flex:1"></span>' : '') +
+      seg('v2-mix-unscored', unscored) +
+      (total === 1 && !must && !should && !may && !opt && !unscored ? '<span class="v2-mix-opt" style="flex:1"></span>' : '') +
       '</span>';
   }
 

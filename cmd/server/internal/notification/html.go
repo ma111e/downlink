@@ -128,7 +128,6 @@ type ArticleEntry struct {
 	DuplicateGroup      string
 	IsMostComprehensive bool
 	HasAnalysis         bool
-	AnalysisError       string // non-empty when HasAnalysis is false and a classified error is available
 	Analysis            *RenderedAnalysis
 }
 
@@ -580,7 +579,6 @@ func RenderDigestHTML(digest models.Digest, layout, theme string, opts ...Render
 			DuplicateGroup:      da.DuplicateGroup,
 			IsMostComprehensive: da.IsMostComprehensive,
 			HasAnalysis:         rendered != nil,
-			AnalysisError:       digest.AnalysisErrors[art.Id],
 			Analysis:            rendered,
 		})
 	}

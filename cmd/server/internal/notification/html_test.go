@@ -981,3 +981,46 @@ func TestRenderSwipeHTMLInjectsDigestAndArticles(t *testing.T) {
 		}
 	}
 }
+
+// An article whose analysis failed stays in the digest instead of being dropped. It has no
+// score, so it sorts last and lands in the "Unscored" TOC group, and its body is a plain
+// note pointing the reader at the source rather than a summary.
+func TestRenderDigestHTMLShowsArticlesWithoutAnalysis(t *testing.T) {
+	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+	digest := sampleDigest("digest-one", createdAt)
+	digest.Articles = append(digest.Articles, models.Article{
+		Id:          "article-c",
+		Title:       "Article C",
+		Link:        "https://example.com/c",
+		PublishedAt: createdAt,
+	})
+
+	for _, layout := range []string{"default", "v2"} {
+		t.Run(layout, func(t *testing.T) {
+			htmlBytes, err := RenderDigestHTML(digest, layout, "")
+			if err != nil {
+				t.Fatalf("RenderDigestHTML(%q) error = %v", layout, err)
+			}
+			html := string(htmlBytes)
+
+			for _, want := range []string{
+				"Article C",
+				"No analysis is available for this article",
+				"https://example.com/c",
+				// readTag(0) is "Unscored", the last group in tagOrder.
+				"Unscored",
+			} {
+				if !strings.Contains(html, want) {
+					t.Errorf("RenderDigestHTML(%q) missing %q", layout, want)
+				}
+			}
+
+			// The old copy carried a per-article reason that no longer exists.
+			for _, gone := range []string{"Analysis failed", "could not be scored or summarized"} {
+				if strings.Contains(html, gone) {
+					t.Errorf("RenderDigestHTML(%q) still contains stale copy %q", layout, gone)
+				}
+			}
+		})
+	}
+}

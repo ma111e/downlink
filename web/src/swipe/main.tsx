@@ -181,7 +181,7 @@ function AnalysisTabs({ article }) {
     const fallbackHTML = htmlPanel(article.body);
     return (
       <div className="tab-panel">
-        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis text is available for this article.</div>}
+        {article.body ? <div className="prose" dangerouslySetInnerHTML={fallbackHTML} /> : <div className="prose">No analysis is available for this article</div>}
       </div>
     );
   }

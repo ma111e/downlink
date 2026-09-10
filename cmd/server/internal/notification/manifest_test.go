@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/ma111e/downlink/pkg/models"
 )
 
 func TestLoadManifestReadsExistingFile(t *testing.T) {
@@ -138,6 +140,7 @@ func TestManifestEntryFromDigest(t *testing.T) {
 		got.ShouldCount != 1 ||
 		got.MayCount != 0 ||
 		got.OptCount != 0 ||
+		got.UnscoredCount != 0 ||
 		got.Provider != "openai" ||
 		got.Model != "gpt-test" ||
 		got.Summary != "A short digest." {
@@ -148,6 +151,39 @@ func TestManifestEntryFromDigest(t *testing.T) {
 	}
 }
 
+// A score of 0 is ambiguous: Compute returns it for an all-zero rubric, and
+// priorityKeyForScore has no unscored bucket. Only the absence of an analysis marks an
+// article as unscored, so a genuine 0 must still be tallied as opt.
+func TestDigestPriorityCountsSeparatesUnscoredFromZeroScore(t *testing.T) {
+	createdAt := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+	digest := sampleDigest("digest-one", createdAt)
+
+	// article-c has no analysis at all; article-d was analyzed and genuinely scored 0.
+	digest.Articles = append(digest.Articles,
+		models.Article{Id: "article-c", Title: "Article C", Link: "https://example.com/c", PublishedAt: createdAt},
+		models.Article{Id: "article-d", Title: "Article D", Link: "https://example.com/d", PublishedAt: createdAt},
+	)
+	digest.DigestAnalyses = append(digest.DigestAnalyses, models.DigestAnalysis{
+		ArticleId: "article-d",
+		Analysis:  &models.ArticleAnalysis{ArticleId: "article-d", ImportanceScore: 0},
+	})
+
+	must, should, may, opt, unscored := digestPriorityCounts(digest)
+	if must != 1 || should != 1 || may != 0 || opt != 1 || unscored != 1 {
+		t.Fatalf("digestPriorityCounts() = must %d, should %d, may %d, opt %d, unscored %d; want 1/1/0/1/1",
+			must, should, may, opt, unscored)
+	}
+
+	// Every article lands in exactly one bucket.
+	if total := must + should + may + opt + unscored; total != len(digest.Articles) {
+		t.Errorf("buckets sum to %d, want %d", total, len(digest.Articles))
+	}
+
+	if got := ManifestEntryFromDigest(digest); got.UnscoredCount != 1 || got.OptCount != 1 {
+		t.Errorf("ManifestEntryFromDigest() unscored = %d, opt = %d; want 1 and 1", got.UnscoredCount, got.OptCount)
+	}
+}
+
 func TestManifestPrune(t *testing.T) {
 	cutoff := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
 	m := Manifest{
@@ -155,7 +191,7 @@ func TestManifestPrune(t *testing.T) {
 		Digests: []ManifestEntry{
 			{Filename: "a.html", PeriodStart: "2026-05-25 12:00 UTC"}, // within window → keep
 			{Filename: "b.html", PeriodStart: "2026-05-19 23:59 UTC"}, // before cutoff → prune
-			{Filename: "c.html", PeriodStart: ""},                      // unparseable → keep
+			{Filename: "c.html", PeriodStart: ""},                     // unparseable → keep
 			{Filename: "d.html", PeriodStart: "2026-05-20 00:00 UTC"}, // exactly at cutoff → keep
 		},
 	}
