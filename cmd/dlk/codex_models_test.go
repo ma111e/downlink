@@ -4,25 +4,39 @@ import (
 	"testing"
 )
 
-func TestGetCodexModelIDsNoToken(t *testing.T) {
-	// Without a token, it falls back to the built-in model list.
-	models := getCodexModelIDs("")
-	if len(models) == 0 {
-		t.Errorf("Expected built-in fallback models without token, got none")
+func TestFallbackCodexModelsNotEmpty(t *testing.T) {
+	if len(fallbackCodexModels) == 0 {
+		t.Error("Expected a non-empty built-in fallback model list")
 	}
 }
 
-func TestCodexModelResponse(t *testing.T) {
-	// Test that CodexModel struct can be unmarshaled correctly
-	var model CodexModel
-	model.Slug = "gpt-4o"
-	model.Priority = 1
-	model.Visibility = "public"
+func TestCodexModelSlugsFiltersAndSorts(t *testing.T) {
+	slugs := codexModelSlugs([]CodexModel{
+		{Slug: "gpt-5.5", Priority: 12, Visibility: "list"},
+		{Slug: "gpt-daybreak-red-latest", Priority: 11, Visibility: "hide"},
+		{Slug: "gpt-6-astra", Priority: 1, Visibility: "list"},
+		{Slug: "gpt-legacy", Priority: 20, Visibility: "hidden"},
+	})
 
-	if model.Slug != "gpt-4o" {
-		t.Errorf("Expected slug gpt-4o, got %s", model.Slug)
+	want := []string{"gpt-6-astra", "gpt-5.5"}
+	if len(slugs) != len(want) {
+		t.Fatalf("Expected %v, got %v", want, slugs)
 	}
-	if model.Priority != 1 {
-		t.Errorf("Expected priority 1, got %d", model.Priority)
+	for i := range want {
+		if slugs[i] != want[i] {
+			t.Errorf("Expected %v, got %v", want, slugs)
+			break
+		}
+	}
+}
+
+func TestCodexModelSlugsTiesBreakBySlug(t *testing.T) {
+	slugs := codexModelSlugs([]CodexModel{
+		{Slug: "b-model", Priority: 5, Visibility: "list"},
+		{Slug: "a-model", Priority: 5, Visibility: "list"},
+	})
+
+	if slugs[0] != "a-model" || slugs[1] != "b-model" {
+		t.Errorf("Expected slug-ordered tie break, got %v", slugs)
 	}
 }

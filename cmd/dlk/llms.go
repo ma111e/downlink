@@ -599,56 +599,7 @@ func resolveModelInteractive(client *downlinkclient.DownlinkClient, providerName
 	if strings.EqualFold(providerType, "claude-code") {
 		modelList = claudeCodeModelIDs()
 	} else if strings.EqualFold(providerType, "openai-codex") {
-		// Fetch provider configs to get stored credentials
-		providers, err := client.GetLLMProviders()
-		if err != nil {
-			fmt.Println("Error: Could not fetch provider credentials from server")
-			var modelName string
-			flushStdin()
-			_ = huh.NewInput().
-				Title("Model name").
-				Placeholder("e.g. gpt-5.6-terra").
-				Value(&modelName).
-				Validate(func(s string) error {
-					if strings.TrimSpace(s) == "" {
-						return fmt.Errorf("model name is required")
-					}
-					return nil
-				}).
-				WithTheme(dlkPromptTheme).Run()
-			return strings.TrimSpace(modelName)
-		}
-
-		// Find the Codex provider config to get stored credentials
-		var codexProvider *models.ProviderConfig
-		for i := range providers {
-			if strings.EqualFold(providers[i].ProviderType, "openai-codex") {
-				codexProvider = &providers[i]
-				break
-			}
-		}
-
-		if codexProvider == nil || len(codexProvider.Credentials) == 0 {
-			fmt.Println("Error: No Codex credentials stored. Run 'dlk model creds login' to authenticate.")
-			var modelName string
-			flushStdin()
-			_ = huh.NewInput().
-				Title("Model name").
-				Placeholder("e.g. gpt-5.6-terra").
-				Value(&modelName).
-				Validate(func(s string) error {
-					if strings.TrimSpace(s) == "" {
-						return fmt.Errorf("model name is required")
-					}
-					return nil
-				}).
-				WithTheme(dlkPromptTheme).Run()
-			return strings.TrimSpace(modelName)
-		}
-
-		// Use the first credential (highest priority) to fetch models
-		accessToken := codexProvider.Credentials[0].AccessToken
-		modelList = getCodexModelIDs(accessToken)
+		modelList = getCodexModelIDs()
 		fmt.Printf("Found %d Codex models\n", len(modelList))
 	} else {
 		// Standard provider: use server-provided models

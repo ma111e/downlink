@@ -3,70 +3,65 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 )
 
-// CodexModelResponse represents the OpenAI Codex API response
+// codexModelsURL is the Codex CLI's own model catalog. It is public, needs no
+// credentials, and stays in sync with what Codex ships.
+const codexModelsURL = "https://raw.githubusercontent.com/openai/codex/refs/heads/main/codex-rs/models-manager/models.json"
+
+// CodexModelResponse represents the Codex models.json catalog
 type CodexModelResponse struct {
 	Models []CodexModel `json:"models"`
 }
 
-// CodexModel represents a single Codex model from the API
+// CodexModel represents a single Codex model from the catalog
 type CodexModel struct {
-	Slug              string `json:"slug"`
-	Priority          int    `json:"priority"`
-	Visibility        string `json:"visibility"`
-	SupportedInAPI    bool   `json:"supported_in_api"`
-	DisplayName       string `json:"display_name"`
-	Description       string `json:"description"`
-	ContextWindowSize int    `json:"context_window_size"`
+	Slug           string `json:"slug"`
+	Priority       int    `json:"priority"`
+	Visibility     string `json:"visibility"`
+	SupportedInAPI bool   `json:"supported_in_api"`
+	DisplayName    string `json:"display_name"`
+	Description    string `json:"description"`
+	ContextWindow  int    `json:"context_window"`
 }
 
 // fallbackCodexModels lists the Codex-available model slugs newest first, used
-// when the live API list cannot be fetched. Retired/deprecated slugs are dropped:
-// gpt-5.4 and gpt-5.4-mini retired from Codex on 2026-08-31, and gpt-5.2 /
-// gpt-5.3-codex are deprecated for ChatGPT sign-in.
+// when the catalog cannot be fetched. Mirrors the entries marked visible in
+// upstream models.json.
 var fallbackCodexModels = []string{
 	"gpt-6-astra",
 	"gpt-5.6-sol",
 	"gpt-5.6-terra",
 	"gpt-5.6-luna",
-	"gpt-5.3-codex-spark",
 	"gpt-5.5",
 }
 
-// getCodexModelIDs fetches available Codex models directly from the OpenAI Codex API.
-// Returns models sorted by priority, with hidden models filtered out.
-// Falls back to a hardcoded list if the token is missing or the API call fails.
-func getCodexModelIDs(accessToken string) []string {
-	if accessToken == "" {
-		fmt.Println("Note: using built-in model list (no credentials available)")
-		return fallbackCodexModels
-	}
-
-	models, err := fetchCodexModelsFromAPI(accessToken)
+// getCodexModelIDs returns the available Codex models sorted by priority, with
+// hidden models filtered out. Falls back to a hardcoded list if the catalog
+// cannot be fetched.
+func getCodexModelIDs() []string {
+	models, err := fetchCodexModels()
 	if err != nil || len(models) == 0 {
-		fmt.Println("Note: using built-in model list (API fetch failed)")
+		fmt.Println("Note: using built-in model list (catalog fetch failed)")
 		return fallbackCodexModels
 	}
 
 	return models
 }
 
-// fetchCodexModelsFromAPI calls OpenAI's Codex models endpoint directly
-func fetchCodexModelsFromAPI(accessToken string) ([]string, error) {
-	req, err := http.NewRequest("GET", "https://chatgpt.com/backend-api/codex/models?client_version=1.0.0", nil)
+// fetchCodexModels reads the Codex model catalog published in the codex repo
+func fetchCodexModels() ([]string, error) {
+	req, err := http.NewRequest("GET", codexModelsURL, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("User-Agent", "downlink-cli/1.0")
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -74,22 +69,22 @@ func fetchCodexModelsFromAPI(accessToken string) ([]string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("catalog returned status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	var catalog CodexModelResponse
+	if err := json.NewDecoder(resp.Body).Decode(&catalog); err != nil {
 		return nil, err
 	}
 
-	var apiResp CodexModelResponse
-	if err := json.Unmarshal(body, &apiResp); err != nil {
-		return nil, err
-	}
+	return codexModelSlugs(catalog.Models), nil
+}
 
-	// Filter and sort models
+// codexModelSlugs filters out hidden models and returns the remaining slugs
+// ordered by priority.
+func codexModelSlugs(all []CodexModel) []string {
 	var models []CodexModel
-	for _, m := range apiResp.Models {
+	for _, m := range all {
 		// Skip hidden models
 		if m.Visibility == "hide" || m.Visibility == "hidden" {
 			continue
@@ -107,11 +102,10 @@ func fetchCodexModelsFromAPI(accessToken string) ([]string, error) {
 		return strings.Compare(a.Slug, b.Slug)
 	})
 
-	// Extract slugs
 	slugs := make([]string, len(models))
 	for i, m := range models {
 		slugs[i] = m.Slug
 	}
 
-	return slugs, nil
+	return slugs
 }
