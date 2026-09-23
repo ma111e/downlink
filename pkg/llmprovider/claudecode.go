@@ -88,8 +88,11 @@ func (p *claudeCodeProvider) generateMessages(ctx context.Context, msgs []*schem
 		lease, err := p.pool.Acquire(ctx)
 		if err != nil {
 			// Every credential is rate-limited: wait for the earliest reset and retry.
-			if errors.Is(err, claudeauth.ErrNoCredentials) && waits < maxRateLimitRetries {
+			if errors.Is(err, claudeauth.ErrNoCredentials) {
 				if reset, ok := p.pool.NextReset(); ok {
+					if waits >= maxRateLimitRetries {
+						return nil, &RateLimitedError{Provider: "claude-code", ResetAt: withWakeJitter(reset), Cause: err}
+					}
 					waits++
 					if werr := waitForRateLimitReset(ctx, "claude-code", reset, attempt); werr != nil {
 						return nil, werr
@@ -135,12 +138,13 @@ func (p *claudeCodeProvider) generateMessages(ctx context.Context, msgs []*schem
 		// On 429/rate-limit: park this credential until its reset and loop. The
 		// next Acquire rotates to another credential, or waits for the reset.
 		if rl, ok := err.(*claudeRateLimitError); ok {
-			lease.MarkRateLimited(rateLimitResetAt(rl.resetAt, attempt))
+			lease.MarkRateLimited(rateLimitResetAt(rl.resetAt, lease.RateLimitStreak()))
 			if attempt < maxRateLimitRetries {
 				attempt++
 				continue
 			}
-			return nil, fmt.Errorf("claude-code: still rate limited after %d retries: %w", maxRateLimitRetries, err)
+			reset, _ := p.pool.NextReset()
+			return nil, &RateLimitedError{Provider: "claude-code", ResetAt: withWakeJitter(reset), Cause: err}
 		}
 
 		return nil, err
