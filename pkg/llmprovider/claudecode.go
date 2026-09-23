@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -82,65 +81,70 @@ func (p *claudeCodeProvider) ChatModel() model.BaseChatModel {
 // BaseChatModel adapter, with the same acquire / 401-refresh / 429-rotate
 // retry structure as the codex provider.
 func (p *claudeCodeProvider) generateMessages(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
-	lease, err := p.pool.Acquire(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := p.callAPI(ctx, lease, msgs)
-	if err == nil {
-		lease.MarkOK()
-		return resp, nil
-	}
-
-	// On usage-limit (quota exhausted): mark this credential rate-limited until
-	// the reported reset and propagate immediately. No rotation, no retry — the
-	// caller aborts the whole run rather than hammering flagged accounts.
-	if errors.Is(err, ErrUsageLimitReached) {
-		var ule *usageLimitError
-		if errors.As(err, &ule) {
-			lease.MarkRateLimited(ule.resetAt)
-		}
-		return nil, err
-	}
-
-	if isClaudeAuthError(err) {
-		lease.MarkAuthFailed(err.Error())
-		retryLease, err2 := p.pool.Acquire(ctx)
-		if err2 != nil {
-			return nil, fmt.Errorf("claude-code: auth failed and no healthy credential for retry: %w", err)
-		}
-		resp, err2 = p.callAPI(ctx, retryLease, msgs)
-		if err2 != nil {
-			retryLease.MarkAuthFailed(err2.Error())
-			return nil, fmt.Errorf("%w: %s", claudeauth.ErrReloginRequired, err2.Error())
-		}
-		retryLease.MarkOK()
-		return resp, nil
-	}
-
-	if isClaudeRateLimit(err) {
-		resetAt := time.Now().Add(time.Hour)
-		if rl, ok := err.(*claudeRateLimitError); ok {
-			resetAt = rl.resetAt
-		}
-		lease.MarkRateLimited(resetAt)
-		retryLease, err2 := p.pool.Acquire(ctx)
-		if err2 != nil {
-			return nil, fmt.Errorf("claude-code: rate limited and no other credential available: %w", err)
-		}
-		resp, err2 = p.callAPI(ctx, retryLease, msgs)
-		if err2 != nil {
-			if isClaudeRateLimit(err2) {
-				retryLease.MarkRateLimited(resetAt)
+	// attempt counts 429s from the API; waits counts pauses for a pool whose
+	// credentials are all rate-limited. Both are bounded separately.
+	attempt, waits := 0, 0
+	for {
+		lease, err := p.pool.Acquire(ctx)
+		if err != nil {
+			// Every credential is rate-limited: wait for the earliest reset and retry.
+			if errors.Is(err, claudeauth.ErrNoCredentials) && waits < maxRateLimitRetries {
+				if reset, ok := p.pool.NextReset(); ok {
+					waits++
+					if werr := waitForRateLimitReset(ctx, "claude-code", reset, attempt); werr != nil {
+						return nil, werr
+					}
+					continue
+				}
 			}
-			return nil, err2
+			return nil, err
 		}
-		retryLease.MarkOK()
-		return resp, nil
-	}
 
-	return nil, err
+		resp, err := p.callAPI(ctx, lease, msgs)
+		if err == nil {
+			lease.MarkOK()
+			return resp, nil
+		}
+
+		// On usage-limit (quota exhausted): mark this credential rate-limited until
+		// the reported reset and propagate immediately. No rotation, no retry — the
+		// caller aborts the whole run rather than hammering flagged accounts.
+		if errors.Is(err, ErrUsageLimitReached) {
+			var ule *usageLimitError
+			if errors.As(err, &ule) {
+				lease.MarkRateLimited(ule.resetAt)
+			}
+			return nil, err
+		}
+
+		if isClaudeAuthError(err) {
+			lease.MarkAuthFailed(err.Error())
+			retryLease, err2 := p.pool.Acquire(ctx)
+			if err2 != nil {
+				return nil, fmt.Errorf("claude-code: auth failed and no healthy credential for retry: %w", err)
+			}
+			resp, err2 = p.callAPI(ctx, retryLease, msgs)
+			if err2 != nil {
+				retryLease.MarkAuthFailed(err2.Error())
+				return nil, fmt.Errorf("%w: %s", claudeauth.ErrReloginRequired, err2.Error())
+			}
+			retryLease.MarkOK()
+			return resp, nil
+		}
+
+		// On 429/rate-limit: park this credential until its reset and loop. The
+		// next Acquire rotates to another credential, or waits for the reset.
+		if rl, ok := err.(*claudeRateLimitError); ok {
+			lease.MarkRateLimited(rateLimitResetAt(rl.resetAt, attempt))
+			if attempt < maxRateLimitRetries {
+				attempt++
+				continue
+			}
+			return nil, fmt.Errorf("claude-code: still rate limited after %d retries: %w", maxRateLimitRetries, err)
+		}
+
+		return nil, err
+	}
 }
 
 // messagesRequest is the body sent to the Anthropic Messages API.
@@ -265,7 +269,7 @@ func (p *claudeCodeProvider) callAPI(ctx context.Context, lease *claudeauth.Leas
 		if ule, ok := parseUsageLimit("claude-code", string(raw)); ok {
 			return nil, ule
 		}
-		ra := parseClaudeRetryAfter(resp.Header.Get("Retry-After"))
+		ra := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
 		return nil, &claudeRateLimitError{resetAt: ra, body: string(raw)}
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -344,6 +348,9 @@ type claudeRateLimitError struct {
 }
 
 func (e *claudeRateLimitError) Error() string {
+	if e.resetAt.IsZero() {
+		return fmt.Sprintf("claude-code: rate limited: %s", e.body)
+	}
 	return fmt.Sprintf("claude-code: rate limited (reset %s): %s", e.resetAt.Format(time.RFC3339), e.body)
 }
 
@@ -352,21 +359,6 @@ func isClaudeAuthError(err error) bool {
 		return e.statusCode == http.StatusUnauthorized || e.statusCode == http.StatusForbidden
 	}
 	return false
-}
-
-func isClaudeRateLimit(err error) bool {
-	_, ok := err.(*claudeRateLimitError)
-	return ok
-}
-
-func parseClaudeRetryAfter(header string) time.Time {
-	if header == "" {
-		return time.Now().Add(time.Hour)
-	}
-	if secs, err := strconv.Atoi(header); err == nil {
-		return time.Now().Add(time.Duration(secs) * time.Second)
-	}
-	return time.Now().Add(time.Hour)
 }
 
 // ---------------------------------------------------------------------------

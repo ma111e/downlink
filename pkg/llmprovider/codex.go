@@ -10,7 +10,6 @@ import (
 	"github.com/ma111e/downlink/pkg/codexauth"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -71,64 +70,71 @@ func (p *codexProvider) ChatModel() model.BaseChatModel {
 // generateMessages is the shared implementation for both Generate and the
 // BaseChatModel adapter.
 func (p *codexProvider) generateMessages(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
-	lease, err := p.pool.Acquire(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := p.callAPI(ctx, lease, msgs)
-	if err == nil {
-		lease.MarkOK()
-		return resp, nil
-	}
-
-	// On usage-limit (quota exhausted): mark this credential rate-limited until
-	// the reported reset and propagate immediately. No rotation, no retry — the
-	// caller aborts the whole run rather than hammering flagged accounts.
-	if errors.Is(err, ErrUsageLimitReached) {
-		var ule *usageLimitError
-		if errors.As(err, &ule) {
-			lease.MarkRateLimited(ule.resetAt)
-		}
-		return nil, err
-	}
-
-	// On 401/403: force-refresh once and retry.
-	if isAuthError(err) {
-		lease.MarkAuthFailed(err.Error())
-		retryLease, err2 := p.pool.Acquire(ctx)
-		if err2 != nil {
-			return nil, fmt.Errorf("codex: auth failed and no healthy credential for retry: %w", err)
-		}
-		resp, err2 = p.callAPI(ctx, retryLease, msgs)
-		if err2 != nil {
-			retryLease.MarkAuthFailed(err2.Error())
-			return nil, fmt.Errorf("%w: %s", codexauth.ErrReloginRequired, err2.Error())
-		}
-		retryLease.MarkOK()
-		return resp, nil
-	}
-
-	// On 429/rate-limit: rotate and retry once.
-	if isRateLimit(err) {
-		resetAt := time.Now().Add(time.Hour) // conservative default
-		lease.MarkRateLimited(resetAt)
-		retryLease, err2 := p.pool.Acquire(ctx)
-		if err2 != nil {
-			return nil, fmt.Errorf("codex: rate limited and no other credential available: %w", err)
-		}
-		resp, err2 = p.callAPI(ctx, retryLease, msgs)
-		if err2 != nil {
-			if isRateLimit(err2) {
-				retryLease.MarkRateLimited(resetAt)
+	// attempt counts 429s from the API; waits counts pauses for a pool whose
+	// credentials are all rate-limited. Both are bounded separately.
+	attempt, waits := 0, 0
+	for {
+		lease, err := p.pool.Acquire(ctx)
+		if err != nil {
+			// Every credential is rate-limited: wait for the earliest reset and retry.
+			if errors.Is(err, codexauth.ErrNoCredentials) && waits < maxRateLimitRetries {
+				if reset, ok := p.pool.NextReset(); ok {
+					waits++
+					if werr := waitForRateLimitReset(ctx, "codex", reset, attempt); werr != nil {
+						return nil, werr
+					}
+					continue
+				}
 			}
-			return nil, err2
+			return nil, err
 		}
-		retryLease.MarkOK()
-		return resp, nil
-	}
 
-	return nil, err
+		resp, err := p.callAPI(ctx, lease, msgs)
+		if err == nil {
+			lease.MarkOK()
+			return resp, nil
+		}
+
+		// On usage-limit (quota exhausted): mark this credential rate-limited until
+		// the reported reset and propagate immediately. No rotation, no retry — the
+		// caller aborts the whole run rather than hammering flagged accounts.
+		if errors.Is(err, ErrUsageLimitReached) {
+			var ule *usageLimitError
+			if errors.As(err, &ule) {
+				lease.MarkRateLimited(ule.resetAt)
+			}
+			return nil, err
+		}
+
+		// On 401/403: force-refresh once and retry.
+		if isAuthError(err) {
+			lease.MarkAuthFailed(err.Error())
+			retryLease, err2 := p.pool.Acquire(ctx)
+			if err2 != nil {
+				return nil, fmt.Errorf("codex: auth failed and no healthy credential for retry: %w", err)
+			}
+			resp, err2 = p.callAPI(ctx, retryLease, msgs)
+			if err2 != nil {
+				retryLease.MarkAuthFailed(err2.Error())
+				return nil, fmt.Errorf("%w: %s", codexauth.ErrReloginRequired, err2.Error())
+			}
+			retryLease.MarkOK()
+			return resp, nil
+		}
+
+		// On 429/rate-limit: park this credential until its reset and loop. The
+		// next Acquire rotates to another credential, or waits for the reset.
+		if rl, ok := err.(*codexRateLimitError); ok {
+			lease.MarkRateLimited(rateLimitResetAt(rl.resetAt, attempt))
+			if attempt < maxRateLimitRetries {
+				attempt++
+				continue
+			}
+			return nil, fmt.Errorf("codex: still rate limited after %d retries: %w", maxRateLimitRetries, err)
+		}
+
+		return nil, err
+	}
 }
 
 // responsesRequest is the body sent to the Codex Responses API.
@@ -218,7 +224,7 @@ func (p *codexProvider) callAPI(ctx context.Context, lease *codexauth.Lease, msg
 		if ule, ok := parseUsageLimit("codex", string(raw)); ok {
 			return nil, ule
 		}
-		ra := parseRetryAfter(resp.Header.Get("Retry-After"))
+		ra := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
 		return nil, &codexRateLimitError{resetAt: ra, body: string(raw)}
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -292,6 +298,9 @@ type codexRateLimitError struct {
 }
 
 func (e *codexRateLimitError) Error() string {
+	if e.resetAt.IsZero() {
+		return fmt.Sprintf("codex: rate limited: %s", e.body)
+	}
 	return fmt.Sprintf("codex: rate limited (reset %s): %s", e.resetAt.Format(time.RFC3339), e.body)
 }
 
@@ -300,21 +309,6 @@ func isAuthError(err error) bool {
 		return e.statusCode == http.StatusUnauthorized || e.statusCode == http.StatusForbidden
 	}
 	return false
-}
-
-func isRateLimit(err error) bool {
-	_, ok := err.(*codexRateLimitError)
-	return ok
-}
-
-func parseRetryAfter(header string) time.Time {
-	if header == "" {
-		return time.Now().Add(time.Hour)
-	}
-	if secs, err := strconv.Atoi(header); err == nil {
-		return time.Now().Add(time.Duration(secs) * time.Second)
-	}
-	return time.Now().Add(time.Hour)
 }
 
 // ---------------------------------------------------------------------------
