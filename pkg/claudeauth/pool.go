@@ -191,22 +191,6 @@ func (p *Pool) Acquire(ctx context.Context) (*Lease, error) {
 	return nil, fmt.Errorf("%w: all %d credentials are unhealthy", ErrNoCredentials, len(p.creds))
 }
 
-// NextReset returns the earliest reset time among rate-limited credentials.
-// ok is false when no credential is rate-limited (all healthy or auth-failed).
-func (p *Pool) NextReset() (t time.Time, ok bool) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _, c := range p.creds {
-		if c.LastStatus != StatusRateLimited || c.LastErrorResetAt == nil {
-			continue
-		}
-		if !ok || c.LastErrorResetAt.Before(t) {
-			t, ok = *c.LastErrorResetAt, true
-		}
-	}
-	return t, ok
-}
-
 func (p *Pool) indexByID(id string) int {
 	for i := range p.creds {
 		if p.creds[i].Id == id {
