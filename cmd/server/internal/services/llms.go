@@ -730,31 +730,6 @@ var retryBackoff = func(attempt int) time.Duration {
 	return delay + jitter
 }
 
-// maxRateLimitWaits bounds how often one analysis task waits out a provider
-// rate limit without consuming one of its retry attempts.
-const maxRateLimitWaits = 10
-
-// waitOutRateLimit sleeps until the provider's reported reset when err is a
-// transient rate limit, and reports whether the caller should retry. The wait
-// runs on the pipeline context, outside the per-call timeout and without
-// holding a gateway slot.
-func waitOutRateLimit(ctx context.Context, err error, waits *int, fields log.Fields) (bool, error) {
-	var rle *llmprovider.RateLimitedError
-	if !errors.As(err, &rle) || *waits >= maxRateLimitWaits {
-		return false, nil
-	}
-	*waits++
-	log.WithFields(fields).WithFields(log.Fields{
-		"until": rle.ResetAt.Format(time.TimeOnly),
-		"wait":  *waits,
-		"max":   maxRateLimitWaits,
-	}).Warn("Provider rate limited; waiting before retrying task")
-	if err := sleepBeforeRetry(ctx, time.Until(rle.ResetAt)); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
 func sleepBeforeRetry(ctx context.Context, delay time.Duration) error {
 	if delay <= 0 {
 		return ctx.Err()
@@ -876,7 +851,6 @@ func (s *LLMsServer) runAnalysisTaskWithRetry(
 	}
 
 	var lastErr error
-	rateLimitWaits := 0
 	for attempt := 1; attempt <= attempts; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return analysisTaskAttemptResult{}, err
@@ -922,17 +896,6 @@ func (s *LLMsServer) runAnalysisTaskWithRetry(
 		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return analysisTaskAttemptResult{}, ctxErr
-		}
-		retry, werr := waitOutRateLimit(ctx, err, &rateLimitWaits, log.Fields{
-			"article_id": actx.articleId,
-			"task":       task.name,
-		})
-		if werr != nil {
-			return analysisTaskAttemptResult{}, werr
-		}
-		if retry {
-			attempt-- // a rate-limit wait doesn't use up a retry attempt
-			continue
 		}
 		if attempt == attempts {
 			break
@@ -1230,7 +1193,6 @@ func (s *LLMsServer) AnalyzeArticleOneShot(ctx context.Context, req *protos.Anal
 	}
 
 	var lastErr error
-	rateLimitWaits := 0
 	for attempt := 1; attempt <= attempts; attempt++ {
 		if err := ctx.Err(); err != nil {
 			if onTask != nil {
@@ -1281,20 +1243,6 @@ func (s *LLMsServer) AnalyzeArticleOneShot(ctx context.Context, req *protos.Anal
 				onTask("one_shot_analysis", "error", 1, 1, ctxErr)
 			}
 			return nil, ctxErr
-		}
-		retry, werr := waitOutRateLimit(ctx, lastErr, &rateLimitWaits, log.Fields{
-			"article_id": req.ArticleId,
-			"task":       "one_shot_analysis",
-		})
-		if werr != nil {
-			if onTask != nil {
-				onTask("one_shot_analysis", "error", 1, 1, werr)
-			}
-			return nil, werr
-		}
-		if retry {
-			attempt-- // a rate-limit wait doesn't use up a retry attempt
-			continue
 		}
 		if attempt == attempts {
 			break

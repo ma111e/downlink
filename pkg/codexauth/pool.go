@@ -26,7 +26,6 @@ type Lease struct {
 func (l *Lease) MarkOK() {
 	l.pool.mu.Lock()
 	defer l.pool.mu.Unlock()
-	delete(l.pool.rlStreak, l.CredID)
 	for i := range l.pool.creds {
 		if l.pool.creds[i].Id == l.CredID {
 			c := &l.pool.creds[i]
@@ -57,22 +56,12 @@ func (l *Lease) MarkAuthFailed(reason string) {
 	_ = l.pool.persist(l.pool.creds)
 }
 
-// MarkRateLimited parks the credential until resetAt. An existing later reset
-// is kept, so a short backoff from one call never cuts short a longer one set
-// by another.
 func (l *Lease) MarkRateLimited(resetAt time.Time) {
 	l.pool.mu.Lock()
 	defer l.pool.mu.Unlock()
-	if l.pool.rlStreak == nil {
-		l.pool.rlStreak = make(map[string]int)
-	}
-	l.pool.rlStreak[l.CredID]++
 	for i := range l.pool.creds {
 		if l.pool.creds[i].Id == l.CredID {
 			c := &l.pool.creds[i]
-			if c.LastStatus == StatusRateLimited && c.LastErrorResetAt != nil && c.LastErrorResetAt.After(resetAt) {
-				resetAt = *c.LastErrorResetAt
-			}
 			c.LastStatus = StatusRateLimited
 			now := time.Now()
 			c.LastStatusAt = &now
@@ -83,22 +72,11 @@ func (l *Lease) MarkRateLimited(resetAt time.Time) {
 	_ = l.pool.persist(l.pool.creds)
 }
 
-// RateLimitStreak returns how many consecutive 429s the credential has hit.
-func (l *Lease) RateLimitStreak() int {
-	l.pool.mu.Lock()
-	defer l.pool.mu.Unlock()
-	return l.pool.rlStreak[l.CredID]
-}
-
 // Pool manages a set of CodexCredentials for one provider config entry.
 type Pool struct {
 	mu      sync.Mutex
 	creds   []models.CodexCredential
 	persist PersistFn
-
-	// rlStreak counts consecutive 429s per credential ID so backoff grows
-	// across concurrent calls. In-memory only; cleared on MarkOK.
-	rlStreak map[string]int
 }
 
 // NewPool creates a pool backed by the given credentials and persist function.

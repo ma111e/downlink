@@ -28,9 +28,9 @@ func newTestCodex(t *testing.T, handler http.HandlerFunc) (*codexProvider, *code
 
 func shrinkBackoff(t *testing.T) {
 	t.Helper()
-	base, maxd, floor := rateLimitBackoffBase, rateLimitBackoffMax, rateLimitJitterFloor
-	rateLimitBackoffBase, rateLimitBackoffMax, rateLimitJitterFloor = 10*time.Millisecond, 50*time.Millisecond, 10*time.Millisecond
-	t.Cleanup(func() { rateLimitBackoffBase, rateLimitBackoffMax, rateLimitJitterFloor = base, maxd, floor })
+	base, maxd := rateLimitBackoffBase, rateLimitBackoffMax
+	rateLimitBackoffBase, rateLimitBackoffMax = 10*time.Millisecond, 50*time.Millisecond
+	t.Cleanup(func() { rateLimitBackoffBase, rateLimitBackoffMax = base, maxd })
 }
 
 func TestCodexRetriesAfterRetryAfter(t *testing.T) {
@@ -90,74 +90,26 @@ func TestCodexGivesUpAfterMaxRetries(t *testing.T) {
 	})
 
 	_, err := p.Generate(context.Background(), "x")
-	var rle *RateLimitedError
-	if !errors.As(err, &rle) || !errors.Is(err, ErrRateLimited) {
-		t.Fatalf("err = %v, want *RateLimitedError", err)
+	var rl *codexRateLimitError
+	if !errors.As(err, &rl) {
+		t.Fatalf("err = %v, want rate limit error", err)
 	}
 	if got := int(calls.Load()); got != maxRateLimitRetries+1 {
 		t.Fatalf("calls = %d, want %d", got, maxRateLimitRetries+1)
 	}
 }
 
-func TestCodexResetPastDeadlineReturnsRateLimited(t *testing.T) {
+func TestCodexWaitHonoursContext(t *testing.T) {
 	p, _ := newTestCodex(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Retry-After", "60")
 		w.WriteHeader(http.StatusTooManyRequests)
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	start := time.Now()
 	_, err := p.Generate(ctx, "x")
-	var rle *RateLimitedError
-	if !errors.As(err, &rle) {
-		t.Fatalf("err = %v, want *RateLimitedError", err)
-	}
-	if time.Until(rle.ResetAt) < 55*time.Second {
-		t.Fatalf("ResetAt = %v, want ~60s out", rle.ResetAt)
-	}
-	if el := time.Since(start); el > time.Second {
-		t.Fatalf("took %s, should not sleep into the deadline", el)
-	}
-}
-
-func TestCodexWaitHonoursCancel(t *testing.T) {
-	p, _ := newTestCodex(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Retry-After", "60")
-		w.WriteHeader(http.StatusTooManyRequests)
-	})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	time.AfterFunc(100*time.Millisecond, cancel)
-	_, err := p.Generate(ctx, "x")
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("err = %v, want context.Canceled", err)
-	}
-}
-
-func TestMarkRateLimitedKeepsLaterReset(t *testing.T) {
-	pool := codexauth.NewPool(
-		[]models.CodexCredential{{Id: "a", AccessToken: "tok"}},
-		func([]models.CodexCredential) error { return nil },
-	)
-	lease, err := pool.Acquire(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	late := time.Now().Add(time.Hour)
-	lease.MarkRateLimited(late)
-	lease.MarkRateLimited(time.Now().Add(5 * time.Second))
-
-	got, ok := pool.NextReset()
-	if !ok || !got.Equal(late) {
-		t.Fatalf("NextReset = %v, want the later reset %v", got, late)
-	}
-	if lease.RateLimitStreak() != 2 {
-		t.Fatalf("streak = %d, want 2", lease.RateLimitStreak())
-	}
-	lease.MarkOK()
-	if lease.RateLimitStreak() != 0 {
-		t.Fatal("MarkOK should clear the streak")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want deadline exceeded", err)
 	}
 }
 
